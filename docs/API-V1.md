@@ -90,7 +90,17 @@ define( 'WPLC_INSTALLATION_ENCRYPTION_KEY_ID', '2026-06' );
 
 Keep the previous key in the ring while ciphertexts still refer to its key ID. New writes use the configured current ID; reads select the matching key. Remove an old key only after all rows have been re-encrypted and a restore test confirms the migration. Never commit real key values. Legacy unversioned ciphertext is still read using configured keys and, as a fallback, the historical WordPress `secure_auth` salt.
 
-The displayable license key is still derived from its UUID and `WPLC_LICENSE_KEY_SECRET` (or the WordPress authentication salt fallback). That derivation does not yet carry a persisted key ID; rotating that secret still requires the separate license-key migration/recovery task.
+License keys now carry a `license_key_secret_id` in the license row. Configure a key ring in `wp-config.php` and retain every key ID still referenced by a license:
+
+```php
+define( 'WPLC_LICENSE_KEY_SECRETS', array(
+	'legacy' => getenv( 'WPLC_LICENSE_KEY_LEGACY' ),
+	'2026-06' => getenv( 'WPLC_LICENSE_KEY_2026_06' ),
+) );
+define( 'WPLC_LICENSE_KEY_ID', '2026-06' );
+```
+
+The schema migration assigns existing rows the key ID `legacy`. Set that entry to the exact secret previously used for those keys (the historical `WPLC_LICENSE_KEY_SECRET` or auth salt); missing secrets prevent the customer portal from re-deriving the display value, although stored key hashes remain verifiable. Do not remove old IDs until a managed license-key rotation and recovery migration has been tested.
 
 ## Current API scope
 
