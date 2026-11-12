@@ -5,7 +5,7 @@
  * @package WPLC
  */
 
-namespace WPLC\\Api\\V1;
+namespace WPLC\Api\V1;
 
 /**
  * Strict, stable normalization for live, staging, and development site URLs.
@@ -34,7 +34,7 @@ final class SiteUrl {
 			return '';
 		}
 
-		$host = strtolower( rtrim( (string) $parts['host'], '.' ) );
+		$host = strtolower( trim( (string) $parts['host'], '[] .' ) );
 		if ( '' === $host ) {
 			return '';
 		}
@@ -64,8 +64,8 @@ final class SiteUrl {
 			$authority .= ':' . $port;
 		}
 
-		$path = isset( $parts['path'] ) ? untrailingslashit( (string) $parts['path'] ) : '';
-		if ( false !== strpos( $path, "\\0" ) ) {
+		$path = isset( $parts['path'] ) ? rtrim( (string) $parts['path'], '/' ) : '';
+		if ( false !== strpos( $path, chr( 0 ) ) ) {
 			return '';
 		}
 
