@@ -38,7 +38,11 @@ final class ActivationService {
 		$environment = sanitize_key( (string) ( $request->get_param( 'environment' ) ?: 'production' ) );
 		$parent_uuid = strtolower( sanitize_text_field( (string) $request->get_param( 'staging_parent_installation_id' ) ) );
 
-		if ( ! self::allow_activation_attempt() ) {
+		$activation_attempts = self::activation_attempt_count();
+		if ( false === $activation_attempts ) {
+			return new \WP_Error( 'rate_limit_store_unavailable', __( 'Activation rate limiting is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
+		}
+		if ( $activation_attempts > 30 ) {
 			return new \WP_Error( 'rate_limited', __( 'Too many activation attempts. Try again later.', 'wp-license' ), array( 'status' => 429 ) );
 		}
 		if ( '' === $license_key || '' === $product_key || ! wp_is_uuid( $installation_uuid ) || strlen( $secret ) < 32 || strlen( $secret ) > 128 || '' === $site_url || ! in_array( $environment, array( 'production', 'staging', 'development' ), true ) ) {
@@ -367,19 +371,16 @@ final class ActivationService {
 	}
 
 	/**
-	 * Rate-limit anonymous activation attempts by remote address.
+	 * Atomically count anonymous activation attempts by validated remote address.
 	 *
-	 * @return bool
+	 * @return int|false Current attempt count, or false when storage/address is invalid.
 	 */
-	private static function allow_activation_attempt(): bool {
-		$ip = sanitize_text_field( (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) );
-		$key = 'wplc_activation_ip_' . hash( 'sha256', $ip );
-		$count = (int) get_transient( $key );
-		if ( $count >= 30 ) {
+	private static function activation_attempt_count() {
+		$ip = trim( (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) );
+		if ( false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
 			return false;
 		}
-		set_transient( $key, $count + 1, MINUTE_IN_SECONDS );
 
-		return true;
+		return Authenticator::increment_rate_limit( hash( 'sha256', 'activation-ip:' . $ip ) );
 	}
 }
