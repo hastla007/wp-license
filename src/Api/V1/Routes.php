@@ -89,5 +89,6 @@ final class Routes {
 				'permission_callback' => '__return_true',
 			)
 		);
+		StripeWebhook::register_routes();
 	}
 }
