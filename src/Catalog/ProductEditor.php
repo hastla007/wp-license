@@ -232,17 +232,24 @@ final class ProductEditor {
 	 */
 	private static function read_posted_fields( array $source, string $suffix ): array {
 		$get = static function ( string $key ) use ( $source, $suffix ) {
-			$key .= $suffix;
-			if ( ! isset( $source[ $key ] ) || is_array( $source[ $key ] ) ) {
+			$value = $source[ $key ] ?? null;
+			if ( '' !== $suffix ) {
+				$index = absint( trim( $suffix, '[]' ) );
+				$value = is_array( $value ) ? ( $value[ $index ] ?? null ) : null;
+			}
+			if ( ! is_string( $value ) && ! is_numeric( $value ) ) {
 				return '';
 			}
 
-			return sanitize_text_field( wp_unslash( $source[ $key ] ) );
+			return sanitize_text_field( wp_unslash( (string) $value ) );
 		};
 
-		$raw_entitlements = isset( $source['_wplc_entitlements_json' . $suffix ] )
-			? wp_unslash( $source['_wplc_entitlements_json' . $suffix ] )
-			: '';
+		$raw_entitlements = $source['_wplc_entitlements_json'] ?? '';
+		if ( '' !== $suffix ) {
+			$index = absint( trim( $suffix, '[]' ) );
+			$raw_entitlements = is_array( $raw_entitlements ) ? ( $raw_entitlements[ $index ] ?? '' ) : '';
+		}
+		$raw_entitlements = is_string( $raw_entitlements ) ? wp_unslash( $raw_entitlements ) : '';
 		$entitlements = json_decode( is_string( $raw_entitlements ) ? $raw_entitlements : '', true );
 		if ( ! is_array( $entitlements ) ) {
 			$entitlements = array();
