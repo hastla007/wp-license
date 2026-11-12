@@ -53,7 +53,7 @@ final class RenewalScheduler {
 		}
 
 		$now = gmdate( 'Y-m-d H:i:s' );
-		$wpdb->insert(
+		$inserted = $wpdb->insert(
 			$tables['renewals'],
 			array(
 				'license_id' => $license_id,
@@ -69,7 +69,7 @@ final class RenewalScheduler {
 			),
 			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' )
 		);
-		if ( false === $wpdb->insert_id ) {
+		if ( false === $inserted || ! $wpdb->insert_id ) {
 			return 0;
 		}
 
