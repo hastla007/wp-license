@@ -108,6 +108,7 @@ final class CustomerPortal {
 			echo '<section class="woocommerce-MyAccount-content wplc-license">';
 			echo '<h3>' . esc_html( (string) $license['product_key'] . ' — ' . (string) $license['plan_key'] ) . '</h3>';
 			echo '<p><strong>' . esc_html__( 'Status:', 'wp-license' ) . '</strong> ' . esc_html( (string) $license['status'] ) . '</p>';
+			self::render_renewal_recovery( $license );
 			echo '<p><strong>' . esc_html__( 'License key:', 'wp-license' ) . '</strong> <code>' . esc_html( LicenseKey::for_uuid( (string) $license['license_uuid'] ) ) . '</code></p>';
 			echo '<p><strong>' . esc_html__( 'Valid through:', 'wp-license' ) . '</strong> ' . esc_html( $license['paid_until'] ? (string) $license['paid_until'] : __( 'No expiry', 'wp-license' ) ) . '</p>';
 			echo '<p><strong>' . esc_html__( 'Live sites:', 'wp-license' ) . '</strong> ' . esc_html( (string) $site_count ) . '</p>';
@@ -139,6 +140,39 @@ final class CustomerPortal {
 			echo '</section>';
 		}
 	}
+
+
+	/**
+	 * Show the secure WooCommerce order-pay route for an SCA renewal.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return void
+	 */
+	private static function render_renewal_recovery( array $license ): void {
+		if ( 'past_due' !== $license['status'] || ! function_exists( 'wc_get_order' ) ) {
+			return;
+		}
+		global $wpdb;
+		$tables = Schema::table_names();
+		$renewal = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT renewal_order_id FROM {$tables['renewals']} WHERE license_id = %d AND status = %s AND renewal_order_id IS NOT NULL ORDER BY id DESC LIMIT 1",
+				(int) $license['id'],
+				'manual_action_required'
+			),
+			ARRAY_A
+		);
+		if ( ! is_array( $renewal ) || empty( $renewal['renewal_order_id'] ) ) {
+			return;
+		}
+		$order = wc_get_order( (int) $renewal['renewal_order_id'] );
+		if ( ! $order || (int) $order->get_customer_id() !== get_current_user_id() || ! $order->needs_payment() ) {
+			return;
+		}
+		echo '<p>' . esc_html__( 'Your renewal needs payment authentication. Continue to the secure payment page to complete it.', 'wp-license' ) . '</p>';
+		echo '<p><a class="button" href="' . esc_url( $order->get_checkout_payment_url() ) . '">' . esc_html__( 'Authenticate and pay renewal', 'wp-license' ) . '</a></p>';
+	}
+
 
 	/**
 	 * Handle a customer site deactivation.
