@@ -58,16 +58,26 @@ final class LicenseAdmin {
 		global $wpdb;
 		$tables = Schema::table_names();
 		$search = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+		$status = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
+		$allowed_statuses = array( 'pending', 'active', 'past_due', 'suspended', 'revoked', 'expired' );
+		if ( ! in_array( $status, $allowed_statuses, true ) ) {
+			$status = '';
+		}
 		$page = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
 		$per_page = 50;
 		$offset = ( $page - 1 ) * $per_page;
-		$where = '';
+		$conditions = array();
 		$params = array();
+		if ( '' !== $status ) {
+			$conditions[] = 'status = %s';
+			$params[] = $status;
+		}
 		if ( '' !== $search ) {
 			$like = '%' . $wpdb->esc_like( $search ) . '%';
-			$where = ' WHERE key_prefix LIKE %s OR product_key LIKE %s OR plan_key LIKE %s ';
-			$params = array( $like, $like, $like );
+			$conditions[] = '(key_prefix LIKE %s OR product_key LIKE %s OR plan_key LIKE %s OR CAST(customer_id AS CHAR) LIKE %s)';
+			$params = array_merge( $params, array( $like, $like, $like, $like ) );
 		}
+		$where = $conditions ? ' WHERE ' . implode( ' AND ', $conditions ) : '';
 
 		$count_sql = "SELECT COUNT(*) FROM {$tables['licenses']}{$where}";
 		$total = $params
@@ -82,7 +92,12 @@ final class LicenseAdmin {
 		echo '<form method="get"><input type="hidden" name="page" value="wplc-licenses">';
 		echo '<p class="search-box"><label class="screen-reader-text" for="wplc-search">' . esc_html__( 'Search licenses', 'wp-license' ) . '</label>';
 		echo '<input id="wplc-search" type="search" name="s" value="' . esc_attr( $search ) . '">';
-		echo '<input type="submit" class="button" value="' . esc_attr__( 'Search', 'wp-license' ) . '"></p></form>';
+		echo '<label for="wplc-status">' . esc_html__( 'Status', 'wp-license' ) . '</label> ';
+		echo '<select id="wplc-status" name="status"><option value="">' . esc_html__( 'All statuses', 'wp-license' ) . '</option>';
+		foreach ( $allowed_statuses as $allowed_status ) {
+			echo '<option value="' . esc_attr( $allowed_status ) . '" ' . selected( $status, $allowed_status, false ) . '>' . esc_html( ucfirst( str_replace( '_', ' ', $allowed_status ) ) ) . '</option>';
+		}
+		echo '</select> <input type="submit" class="button" value="' . esc_attr__( 'Filter', 'wp-license' ) . '"></p></form>';
 
 		echo '<table class="widefat striped"><thead><tr>';
 		echo '<th>' . esc_html__( 'License', 'wp-license' ) . '</th><th>' . esc_html__( 'Customer', 'wp-license' ) . '</th><th>' . esc_html__( 'Product / Plan', 'wp-license' ) . '</th><th>' . esc_html__( 'Status', 'wp-license' ) . '</th><th>' . esc_html__( 'Paid until', 'wp-license' ) . '</th><th>' . esc_html__( 'Sites', 'wp-license' ) . '</th><th>' . esc_html__( 'Actions', 'wp-license' ) . '</th>';
@@ -128,6 +143,7 @@ final class LicenseAdmin {
 						'page' => 'wplc-licenses',
 						'paged' => $i,
 						's' => $search,
+						'status' => $status,
 					),
 					admin_url( 'admin.php' )
 				);
