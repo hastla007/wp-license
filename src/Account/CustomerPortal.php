@@ -168,22 +168,27 @@ final class CustomerPortal {
 
 		if ( 'active' === $row['status'] ) {
 			$now = gmdate( 'Y-m-d H:i:s' );
-			$wpdb->update(
+			$updated = $wpdb->update(
 				$tables['activations'],
 				array( 'status' => 'deactivated', 'deactivated_at' => $now, 'last_seen_at' => $now ),
-				array( 'id' => $activation_id ),
+				array( 'id' => $activation_id, 'status' => 'active' ),
 				array( '%s', '%s', '%s' ),
-				array( '%d' )
+				array( '%d', '%s' )
 			);
-			AuditLog::record(
-				'site_deactivated',
-				'activation',
-				$activation_id,
-				'Deactivated by license owner',
-				array( 'status' => 'active', 'site_url' => $row['site_url'] ),
-				array( 'status' => 'deactivated' ),
-				get_current_user_id()
-			);
+			if ( false === $updated ) {
+				wp_die( esc_html__( 'The site could not be deactivated. Please retry.', 'wp-license' ), '', array( 'response' => 500 ) );
+			}
+			if ( 1 === $updated ) {
+				AuditLog::record(
+					'site_deactivated',
+					'activation',
+					$activation_id,
+					'Deactivated by license owner',
+					array( 'status' => 'active', 'site_url' => $row['site_url'] ),
+					array( 'status' => 'deactivated' ),
+					get_current_user_id()
+				);
+			}
 		}
 
 		self::redirect_to_account();
@@ -210,7 +215,9 @@ final class CustomerPortal {
 			wp_die( esc_html__( 'The license was not found for this account.', 'wp-license' ), '', array( 'response' => 404 ) );
 		}
 
-		LicenseLifecycle::schedule_cancellation( $license_id, 'Customer requested cancellation', get_current_user_id() );
+		if ( ! LicenseLifecycle::schedule_cancellation( $license_id, 'Customer requested cancellation', get_current_user_id() ) ) {
+			wp_die( esc_html__( 'The license could not be scheduled for cancellation. Check its status and retry.', 'wp-license' ), '', array( 'response' => 409 ) );
+		}
 		self::redirect_to_account();
 	}
 
