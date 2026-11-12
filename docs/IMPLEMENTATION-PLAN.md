@@ -385,10 +385,11 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 - [x] Isolierte Stripe-Signaturtests für gültige HMACs, ungültige Signaturen und abgelaufene Zeitstempel ergänzt.
 - [ ] **36 · API-Sicherheitstests:** REST-/WordPress-Tests für Nonce-Replay, Rate-Limits, Antwortcodes und Einmal-Downloadtoken ergänzen.
 - [ ] **37 · Datenbank-/Renewaltests:** Tests für Schema-Upgrades, doppelte Bestellungen, Refunds, Renewal-Locks und Grace Period ergänzen.
-- [x] Bekannte PHP-Minima der Produktclients und PHP-Syntax-/Unit-CI-Matrix dokumentiert.
-- [ ] **38 · Kompatibilitätsmatrix:** WordPress-/WooCommerce-Minima aus den realen Produkt-Releases erfassen und in Testmatrix verifizieren.
+- [x] Bekannte PHP-/WordPress-Minima und deklarierte WooCommerce-Minima der Produkt-Repositories in `docs/COMPATIBILITY.md` erfasst.
+- [ ] **38 · Kompatibilitätsmatrix:** fehlende WooCommerce-Minima für Voucher/Affiliate und Serverminimum festlegen; reale minimale/aktuelle Versionen in WP/Woo-CI testen.
 - [x] Aggregierte Queue-/Renewal-Metriken, tägliche Alert-Hooks und konfigurierbare Schwellen ergänzt.
 - [ ] **39 · Betriebsüberwachung:** produktive Alert-Empfänger und Infrastruktur-Monitoring für API/Paket-Host konfigurieren und verifizieren.
-- [ ] **40 · Launch-Evidenz:** Restore-, Gateway-, Sicherheits-, Datenschutz-, Kündigungs- und Supportabnahmen mit verantwortlicher Person und Datum dokumentieren.
+- [x] **40 · Launch-Evidenz:** Registervorlage mit Gates, Owner-, Datums-, Ergebnis- und Evidenzfeldern in `docs/LAUNCH-EVIDENCE.md` erstellt.
+- [ ] Launch-Evidenz tatsächlich ausfüllen: Restore-, Gateway-, Sicherheits-, Datenschutz-, Kündigungs- und Supportabnahmen durchführen und freigeben.
 
-**Umsetzungsstand dieses Updates:** Code/Dokumentation für Aufgaben 21, 23, 25–28, 30, 33–35 liegt in offenen PRs; 29 ist für v1 fail-closed entschieden, 31 hat den Provider-Hook, 32 den manuellen Runbookpfad. Für 22 fehlen echte Shopdaten; 24 braucht die freizugebende Gate-Liste; 31 konkrete Storage-Einrichtung; 36–39 benötigen weitere Tests/Monitoring; 40 ist Launch-Nachweis. Alle PRs müssen noch reviewt/gemergt werden; Tests und Sandboxen sind nicht ausgeführt.
+**Umsetzungsstand dieses Updates:** Code/Dokumentation für Aufgaben 21, 23, 25–28, 30, 33–35 liegt in offenen PRs; 29 ist für v1 fail-closed entschieden, 31 hat den Provider-Hook, 32 den manuellen Runbookpfad. Für 22 fehlen echte Shopdaten; 24 braucht die freizugebende Gate-Liste; 31 konkrete Storage-Einrichtung; 36–39 benötigen weitere Tests/Monitoring; für 40 ist die Registervorlage angelegt, Nachweise fehlen. Alle PRs müssen noch reviewt/gemergt werden; Tests und Sandboxen sind nicht ausgeführt.
