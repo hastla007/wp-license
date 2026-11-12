@@ -271,27 +271,40 @@ final class ActivationService {
 		}
 
 		$tables = Schema::table_names();
-		$now = gmdate( 'Y-m-d H:i:s' );
-		$wpdb->update(
-			$tables['activations'],
-			array( 'status' => 'deactivated', 'deactivated_at' => $now, 'last_seen_at' => $now ),
-			array( 'id' => (int) $activation['id'] ),
-			array( '%s', '%s', '%s' ),
-			array( '%d' )
-		);
-		AuditLog::record(
-			'site_deactivated',
-			'activation',
-			(int) $activation['id'],
-			'Deactivated by the installation owner',
-			array( 'status' => 'active', 'site_url' => $activation['site_url'] ),
-			array( 'status' => 'deactivated' )
-		);
+		$lock_name = 'wplc_' . substr( hash( 'sha256', 'license:' . (int) $activation['license_id'] ), 0, 48 );
+		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
+		if ( '1' !== (string) $locked ) {
+			return new \\WP_Error( 'retry_later', __( 'The license is being updated. Retry shortly.', 'wp-license' ), array( 'status' => 503 ) );
+		}
 
-		return Response::signed(
-			array( 'activation_id' => (int) $activation['id'], 'status' => 'deactivated' ),
-			(string) $activation['installation_secret']
-		);
+		try {
+			$now = gmdate( 'Y-m-d H:i:s' );
+			$updated = $wpdb->update(
+				$tables['activations'],
+				array( 'status' => 'deactivated', 'deactivated_at' => $now, 'last_seen_at' => $now ),
+				array( 'id' => (int) $activation['id'], 'status' => 'active' ),
+				array( '%s', '%s', '%s' ),
+				array( '%d', '%s' )
+			);
+			if ( 1 !== $updated ) {
+				return new \\WP_Error( 'deactivation_failed', __( 'The installation could not be deactivated.', 'wp-license' ), array( 'status' => 409 ) );
+			}
+			AuditLog::record(
+				'site_deactivated',
+				'activation',
+				(int) $activation['id'],
+				'Deactivated by the installation owner',
+				array( 'status' => 'active', 'site_url' => $activation['site_url'] ),
+				array( 'status' => 'deactivated' )
+			);
+
+			return Response::signed(
+				array( 'activation_id' => (int) $activation['id'], 'status' => 'deactivated' ),
+				(string) $activation['installation_secret']
+			);
+		} finally {
+			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+		}
 	}
 
 	/**
