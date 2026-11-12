@@ -19,7 +19,7 @@ final class Schema {
 	/**
 	 * Current schema version.
 	 */
-	public const VERSION = '2';
+	public const VERSION = '3';
 
 	/**
 	 * Run missing schema migrations.
@@ -111,6 +111,8 @@ final class Schema {
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				license_id bigint(20) unsigned NOT NULL,
 				installation_uuid char(36) NOT NULL,
+				installation_secret_hash char(64) NOT NULL DEFAULT '',
+				installation_secret_encrypted longtext NOT NULL,
 				site_url varchar(255) NOT NULL,
 				environment varchar(20) NOT NULL DEFAULT 'production',
 				staging_parent_id bigint(20) unsigned DEFAULT NULL,
