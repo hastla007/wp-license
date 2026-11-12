@@ -14,6 +14,9 @@ use WPLC\License\LicenseLifecycle;
 use WPLC\Api\V1\Routes;
 use WPLC\Account\CustomerPortal;
 use WPLC\Admin\LicenseAdmin;
+use WPLC\Billing\RecurringConsent;
+use WPLC\Billing\RenewalProcessor;
+use WPLC\Gateway\StripeRecurringAdapter;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
