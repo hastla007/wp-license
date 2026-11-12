@@ -177,7 +177,7 @@ final class RenewalProcessor {
 		if ( function_exists( 'as_schedule_single_action' ) ) {
 			as_schedule_single_action( max( time() + 30, $expire_at ), 'wplc/renewal_grace_ended', array( (int) $license['id'] ), 'wplc', true );
 		} else {
-			wp_schedule_single_event( max( time() + 30, $expire_at ), 'wplc/renewal_grace_ended', array( 'license_id' => (int) $license['id'] ) );
+			wp_schedule_single_event( max( time() + 30, $expire_at ), 'wplc/renewal_grace_ended', array( (int) $license['id'] ) );
 		}
 	}
 
