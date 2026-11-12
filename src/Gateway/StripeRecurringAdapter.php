@@ -143,10 +143,10 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 		}
 		$status = (string) ( $response->status ?? '' );
 		if ( in_array( $status, array( 'requires_action', 'requires_confirmation' ), true ) ) {
-			return new \\WP_Error( 'renewal_manual_action_required', __( 'The customer must authenticate this payment method before renewal can continue.', 'wp-license' ) );
+			return new \WP_Error( 'renewal_manual_action_required', __( 'The customer must authenticate this payment method before renewal can continue.', 'wp-license' ) );
 		}
 		if ( 'succeeded' !== $status ) {
-			return new \\WP_Error( 'stripe_payment_unconfirmed', __( 'Stripe did not confirm the renewal payment as succeeded.', 'wp-license' ) );
+			return new \WP_Error( 'stripe_payment_unconfirmed', __( 'Stripe did not confirm the renewal payment as succeeded.', 'wp-license' ) );
 		}
 		$transaction_id = (string) ( $response->latest_charge ?? $response->id ?? '' );
 		if ( '' === $transaction_id ) {
