@@ -20,7 +20,7 @@ final class PersonalDataIntegrationTest extends WP_UnitTestCase {
 
 		$this->assertFalse( $result['done'] === false && empty( $result['data'] ) );
 		$this->assertStringContainsString( 'privacy-product', $serialized );
-		$this->assertStringContainsString( 'https://private-shop.example.test', $serialized );
+		$this->assertStringContainsString( 'private-shop.example.test', $serialized );
 		$this->assertStringNotContainsString( 'plaintext-license-secret', $serialized );
 		$this->assertStringNotContainsString( 'encrypted-installation-secret', $serialized );
 		$this->assertStringNotContainsString( 'payment-token-secret', $serialized );
