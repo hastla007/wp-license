@@ -29,7 +29,7 @@ jobs:
           php-version: "8.2"
           extensions: mysqli, openssl
           coverage: none
-      - run: sudo apt-get update && sudo apt-get install -y mysql-client subversion
+      - run: sudo apt-get update && sudo apt-get install -y default-mysql-client subversion
       - run: composer install --no-interaction --prefer-dist
       - name: Install WordPress test library
         run: |
@@ -38,4 +38,4 @@ jobs:
       - name: Run WordPress integration tests
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
-        run: vendor/bin/phpunit -c phpunit.integration.xml
+        run: composer test:integration
