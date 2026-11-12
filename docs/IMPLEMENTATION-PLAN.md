@@ -382,7 +382,8 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 - [x] **33 · Lizenzverwaltung:** vorhandene Suche/Paginierung um Statusfilter ergänzt und Kundennummer in die Suche aufgenommen. Bestell-/Renewal-spezifische Filter und Skalierungsprüfung bleiben offen.
 - [x] **34 · Supportaktionen (Aktivierungsfreigabe):** capability-/nonce-geschützte Freigabe mit Pflichtbegründung und Auditlog ergänzt; Domainänderung, Lizenzschlüssel-Wiederherstellung und Laufzeitabnahme bleiben offen.
 - [x] **35 · Testbasis:** PHPUnit-Konfiguration, PHP-Matrix-Workflow und isolierte LicenseKey-Unit-Tests ergänzt. Tests/CI-Ausführung sowie Signatur- und Entitlement-Testfälle noch offen.
-- [x] Isolierte Stripe-Signaturtests für gültige HMACs, ungültige Signaturen und abgelaufene Zeitstempel ergänzt.\n- [ ] **36 · API-Sicherheitstests:** REST-/WordPress-Tests für Nonce-Replay, Rate-Limits, Antwortcodes und Einmal-Downloadtoken ergänzen.
+- [x] Isolierte Stripe-Signaturtests für gültige HMACs, ungültige Signaturen und abgelaufene Zeitstempel ergänzt.
+- [ ] **36 · API-Sicherheitstests:** REST-/WordPress-Tests für Nonce-Replay, Rate-Limits, Antwortcodes und Einmal-Downloadtoken ergänzen.
 - [ ] **37 · Datenbank-/Renewaltests:** Tests für Schema-Upgrades, doppelte Bestellungen, Refunds, Renewal-Locks und Grace Period ergänzen.
 - [x] Bekannte PHP-Minima der Produktclients und PHP-Syntax-/Unit-CI-Matrix dokumentiert.
 - [ ] **38 · Kompatibilitätsmatrix:** WordPress-/WooCommerce-Minima aus den realen Produkt-Releases erfassen und in Testmatrix verifizieren.
