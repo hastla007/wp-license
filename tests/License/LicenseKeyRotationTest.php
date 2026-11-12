@@ -11,4 +11,13 @@ final class LicenseKeyRotationTest extends TestCase {
 		$this->assertSame( LicenseKey::for_uuid( $uuid, 'test-2025' ), LicenseKey::for_uuid( $uuid, 'test-2025' ) );
 		$this->assertSame( '', LicenseKey::for_uuid( $uuid, 'missing-key' ) );
 	}
+
+	public function test_key_id_recovery_verifies_against_the_stored_license_hash(): void {
+		$uuid = '12345678-1234-4234-8234-123456789abc';
+		$previous_key = LicenseKey::for_uuid( $uuid, 'test-2025' );
+
+		$this->assertTrue( LicenseKey::matches_hash( $uuid, 'test-2025', LicenseKey::hash( $previous_key ) ) );
+		$this->assertFalse( LicenseKey::matches_hash( $uuid, 'test-2026', LicenseKey::hash( $previous_key ) ) );
+		$this->assertFalse( LicenseKey::matches_hash( $uuid, 'missing-key', LicenseKey::hash( $previous_key ) ) );
+	}
 }
