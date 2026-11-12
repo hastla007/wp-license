@@ -1,0 +1,69 @@
+<?php
+/**
+ * Registers the public versioned license API.
+ *
+ * @package WPLC
+ */
+
+namespace WPLC\Api\V1;
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * WordPress REST route registration.
+ */
+final class Routes {
+
+	/**
+	 * Register hooks.
+	 *
+	 * @return void
+	 */
+	public static function register_hooks(): void {
+		add_action( 'rest_api_init', array( self::class, 'register_routes' ) );
+	}
+
+	/**
+	 * Register v1 endpoints.
+	 *
+	 * @return void
+	 */
+	public static function register_routes(): void {
+		register_rest_route(
+			'wplc/v1',
+			'/activations',
+			array(
+				'methods' => 'POST',
+				'callback' => array( ActivationService::class, 'activate' ),
+				'permission_callback' => '__return_true',
+				'args' => array(
+					'license_key' => array( 'required' => true, 'type' => 'string' ),
+					'product_key' => array( 'required' => true, 'type' => 'string' ),
+					'installation_id' => array( 'required' => true, 'type' => 'string' ),
+					'installation_secret' => array( 'required' => true, 'type' => 'string' ),
+					'site_url' => array( 'required' => true, 'type' => 'string' ),
+				),
+			)
+		);
+		register_rest_route(
+			'wplc/v1',
+			'/activations/(?P<activation_id>\d+)',
+			array(
+				'methods' => 'DELETE',
+				'callback' => array( ActivationService::class, 'deactivate' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+		register_rest_route(
+			'wplc/v1',
+			'/entitlements/check',
+			array(
+				'methods' => 'POST',
+				'callback' => array( EntitlementService::class, 'check' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+	}
+}
