@@ -7,6 +7,8 @@
 
 namespace WPLC;
 
+use WPLC\Infrastructure\Database\Schema;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -30,11 +32,11 @@ final class Plugin {
 			wp_die( esc_html__( 'Please activate WooCommerce before activating WP License Captain.', 'wp-license' ) );
 		}
 
-		\\WPLC\\Infrastructure\\Database\\Schema::migrate();
+		Schema::migrate();
 	}
 
 	/**
-	 * Deactivation intentionally preserves license and order data.
+	 * Deactivation preserves all persistent license and order data.
 	 *
 	 * @return void
 	 */
@@ -68,13 +70,7 @@ final class Plugin {
 			return;
 		}
 
-		/**
-		 * Fires after WP License Captain has confirmed its WooCommerce dependency.
-		 *
-		 * @since 0.1.0
-		 */
-		\\WPLC\\Infrastructure\\Database\\Schema::maybe_upgrade();
-
+		Schema::maybe_upgrade();
 		do_action( 'wplc/loaded' );
 	}
 
