@@ -76,9 +76,28 @@ The server rejects timestamps outside five minutes, repeated nonces, malformed s
 | POST | `/updates/check` | Return signed release metadata and a short-lived package grant |
 | GET | `/updates/download/{token}` | Consume a one-use grant and redirect to the allow-listed package host |
 
+## Error responses
+
+Errors use WordPress REST's JSON error envelope: a stable `code`, a human-readable `message`, and an HTTP status. Clients should branch on `code`, not message text. Current codes include:
+
+| Code | HTTP | Meaning |
+| --- | ---: | --- |
+| `invalid_activation` | 400 | Required activation fields are missing or invalid |
+| `invalid_key` | 401 | License key is unknown |
+| `invalid_request_signature` | 401 | Authenticated request headers or HMAC are invalid |
+| `request_expired` | 401 | Timestamp is outside the five-minute window |
+| `activation_not_found` | 401 | Installation is inactive or not registered |
+| `product_mismatch` | 403 | License is for a different product |
+| `expired` / `license_inactive` | 403 | License cannot be used for this operation |
+| `request_replayed` / `activation_conflict` / `site_limit` | 409 | Request conflicts with current activation or license state |
+| `rate_limited` | 429 | Request limit was reached |
+| `retry_later` | 503 | A temporary lock or service condition prevents processing |
+
+Error codes are versioned API behavior. Billing webhooks are outside v1; payment state is reconciled through the configured WooCommerce gateway adapter, not an unauthenticated client event route.
+
 ## Credential rotation and recovery
 
-The current implementation derives a displayable license key from its UUID and the WordPress authentication salt. The installation-secret encryption key is derived from the WordPress secure-auth salt. Rotating either salt can prevent a stored key or installation secret from being re-derived/decrypted. Production deployment must preserve these salts; a managed key-rotation and customer recovery flow remains required before general availability.
+New installations can use `WPLC_LICENSE_KEY_SECRET` to derive displayable license keys and `WPLC_INSTALLATION_ENCRYPTION_KEY` to encrypt installation secrets. For development compatibility, missing constants fall back to the WordPress auth and secure-auth salts. Existing records created with salt-derived keys/secrets are not migrated automatically: adding constants to an existing store can invalidate customer keys or make saved installation secrets undecryptable. Preserve the original derivation values until a tested migration and recovery procedure is completed. See `docs/SECURITY-OPERATIONS.md`.
 
 ## Current API scope
 
