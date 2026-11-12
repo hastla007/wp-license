@@ -123,7 +123,7 @@ final class CustomerPortal {
 					ARRAY_A
 				);
 				$renewal_order = is_array( $renewal ) && function_exists( 'wc_get_order' ) ? wc_get_order( absint( $renewal['renewal_order_id'] ) ) : false;
-				if ( $renewal_order instanceof \\WC_Order && (int) $renewal_order->get_customer_id() === get_current_user_id() && 'stripe' === $renewal_order->get_payment_method() && $renewal_order->needs_payment() ) {
+				if ( $renewal_order instanceof \WC_Order && (int) $renewal_order->get_customer_id() === get_current_user_id() && 'stripe' === $renewal_order->get_payment_method() && $renewal_order->needs_payment() ) {
 					echo '<p><a class="button" href="' . esc_url( $renewal_order->get_checkout_payment_url() ) . '">' . esc_html__( 'Complete renewal payment', 'wp-license' ) . '</a></p>';
 					echo '<p>' . esc_html__( 'Your payment provider may ask you to authenticate the payment before the renewal can be completed.', 'wp-license' ) . '</p>';
 				}
