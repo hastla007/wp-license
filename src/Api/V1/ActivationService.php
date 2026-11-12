@@ -130,11 +130,11 @@ final class ActivationService {
 				|| ! hash_equals( (string) $existing['installation_secret_hash'], hash( 'sha256', $secret ) )
 			) {
 				$wpdb->query( 'ROLLBACK' );
-				return new \\WP_Error( 'installation_conflict', __( 'This installation ID is already assigned to another credential.', 'wp-license' ), array( 'status' => 409 ) );
+				return new \WP_Error( 'installation_conflict', __( 'This installation ID is already assigned to another credential.', 'wp-license' ), array( 'status' => 409 ) );
 			}
 			if ( 'active' !== $existing['status'] ) {
 				$wpdb->query( 'ROLLBACK' );
-				return new \\WP_Error( 'activation_deactivated', __( 'This installation was deactivated. Generate a new installation ID to activate again.', 'wp-license' ), array( 'status' => 409 ) );
+				return new \WP_Error( 'activation_deactivated', __( 'This installation was deactivated. Generate a new installation ID to activate again.', 'wp-license' ), array( 'status' => 409 ) );
 			}
 
 			$updated = $wpdb->update(
@@ -146,7 +146,7 @@ final class ActivationService {
 			);
 			if ( false === $updated || false === $wpdb->query( 'COMMIT' ) ) {
 				$wpdb->query( 'ROLLBACK' );
-				return new \\WP_Error( 'activation_failed', __( 'The activation could not be committed. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
+				return new \WP_Error( 'activation_failed', __( 'The activation could not be committed. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
 			}
 
 			return self::signed_entitlement_response( (int) $license['id'], (int) $existing['id'], $installation_uuid, $secret );
@@ -163,7 +163,7 @@ final class ActivationService {
 		);
 		if ( null === $count_result || '' !== $wpdb->last_error ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \\WP_Error( 'activation_failed', __( 'The current site activation count could not be verified.', 'wp-license' ), array( 'status' => 500 ) );
+			return new \WP_Error( 'activation_failed', __( 'The current site activation count could not be verified.', 'wp-license' ), array( 'status' => 500 ) );
 		}
 		$count = (int) $count_result;
 		if ( $count >= $limit ) {
