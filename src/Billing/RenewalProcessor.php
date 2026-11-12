@@ -65,7 +65,7 @@ final class RenewalProcessor {
 			$wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ),
 			ARRAY_A
 		);
-		if ( ! is_array( $renewal ) || in_array( $renewal['status'], array( 'paid', 'cancelled', 'expired' ), true ) ) {
+		if ( ! is_array( $renewal ) || in_array( $renewal['status'], array( 'paid', 'cancelled', 'expired', 'manual_action_required' ), true ) ) {
 			return;
 		}
 
@@ -152,6 +152,24 @@ final class RenewalProcessor {
 	 */
 	private static function fail_attempt( array $renewal, array $license, \WP_Error $error ): void {
 		$attempt = (int) $renewal['attempt_count'] + 1;
+		if ( 'renewal_manual_action_required' === $error->get_error_code() ) {
+			self::set_renewal_status( (int) $renewal['id'], 'manual_action_required', null, absint( $renewal['renewal_order_id'] ), $attempt );
+			LicenseLifecycle::mark_past_due( (int) $license['id'], $error->get_error_code() );
+			$order = function_exists( 'wc_get_order' ) ? wc_get_order( absint( $renewal['renewal_order_id'] ) ) : false;
+			if ( $order ) {
+				$order->add_order_note( __( 'This renewal requires customer authentication. Automatic retries have been stopped.', 'wp-license' ) );
+			}
+			AuditLog::record( 'renewal_manual_action_required', 'renewal', (int) $renewal['id'], $error->get_error_code(), array( 'attempt_count' => (int) $renewal['attempt_count'] ), array( 'attempt_count' => $attempt, 'status' => 'manual_action_required' ) );
+			$grace_end = strtotime( (string) $renewal['grace_ends_at'] . ' UTC' );
+			if ( $grace_end ) {
+				if ( function_exists( 'as_schedule_single_action' ) ) {
+					as_schedule_single_action( max( time() + 30, $grace_end ), 'wplc/renewal_grace_ended', array( (int) $license['id'] ), 'wplc', true );
+				} else {
+					wp_schedule_single_event( max( time() + 30, $grace_end ), 'wplc/renewal_grace_ended', array( (int) $license['id'] ) );
+				}
+			}
+			return;
+		}
 		$delays = array( 1, 3, 7 );
 		$grace_end = strtotime( (string) $renewal['grace_ends_at'] . ' UTC' );
 		$period_start = strtotime( (string) $renewal['period_start'] . ' UTC' );
