@@ -175,9 +175,10 @@ final class PersonalData {
 		$failed = false;
 		$last_id = $cursor;
 		foreach ( (array) $licenses as $license ) {
-			$last_id = (int) $license['id'];
+			$current_id = (int) $license['id'];
 			if ( ! in_array( (string) $license['status'], self::TERMINAL_STATES, true ) ) {
 				++$retained;
+				$last_id = $current_id;
 				continue;
 			}
 
@@ -190,7 +191,7 @@ final class PersonalData {
 			);
 			if ( false === $deleted ) {
 				$failed = true;
-				continue;
+				break;
 			}
 
 			$detached = $wpdb->update(
@@ -205,6 +206,7 @@ final class PersonalData {
 				continue;
 			}
 			++$removed;
+			$last_id = $current_id;
 		}
 
 		$done = count( (array) $licenses ) < $limit && ! $failed;
