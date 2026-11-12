@@ -69,6 +69,9 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 ## 4. Nächste Phasen und PRs
 
 ### PR13 — Kernsystem härten und API-Vertrag finalisieren
+- [x] Per-renewal advisory lock gegen parallele Scheduler-Ausführung ergänzt.
+- [x] Update-Downloadgrants als gehashte DB-Tokens mit atomarer Einmalverwendung und erneuter Lizenzprüfung umgesetzt.
+- [x] Dokumentierte stabile Schlüsselkonstanten und sichere Einsatzhinweise ergänzt; Migration bestehender Server bleibt offen.
 - [ ] Code-Review von Datenbankzugriffen, Autorisierung, Statusübergängen, Nonce-/Rate-Limits, Redirects und Fehlerantworten durchführen.
 - [ ] Schlüssel- und Wiederherstellungsstrategie definieren, damit Auth-Salt-Rotation nicht unbemerkt Lizenzschlüssel oder Installationsgeheimnisse unbrauchbar macht.
 - [ ] Erneuerungsablauf auf Doppelverarbeitung, mehrdeutige Gateway-Timeouts, fehlgeschlagene WooCommerce-Bestellungen und abgelaufene Kulanz prüfen und korrigieren.
