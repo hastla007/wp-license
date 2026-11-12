@@ -61,11 +61,13 @@ final class UpdateService {
 		}
 
 		$token = bin2hex( random_bytes( 32 ) );
-		set_transient(
+		if ( ! set_transient(
 			'wplc_update_dl_' . hash( 'sha256', $token ),
 			array( 'url' => $url, 'license_id' => (int) $license['id'], 'expires_at' => time() + self::TOKEN_TTL ),
 			self::TOKEN_TTL
-		);
+		) ) {
+			return new \WP_Error( 'download_grant_unavailable', __( 'A secure update download could not be prepared. Retry shortly.', 'wp-license' ), array( 'status' => 503 ) );
+		}
 		$payload = array(
 			'update_available' => true,
 			'product_key' => $product_key,
@@ -114,9 +116,20 @@ final class UpdateService {
 	private static function trusted_package_url( string $url ): bool {
 		$parts = wp_parse_url( $url );
 		$host = strtolower( (string) ( $parts['host'] ?? '' ) );
-		$allowed = apply_filters( 'wplc_update_package_hosts', array( wp_parse_url( home_url(), PHP_URL_HOST ) ) );
-		$allowed = is_array( $allowed ) ? array_map( 'strtolower', array_map( 'sanitize_text_field', $allowed ) ) : array();
+		$allowed_hosts = apply_filters( 'wplc_update_package_hosts', array( wp_parse_url( home_url(), PHP_URL_HOST ) ) );
+		$allowed = array();
+		if ( is_array( $allowed_hosts ) ) {
+			foreach ( $allowed_hosts as $allowed_host ) {
+				if ( is_string( $allowed_host ) && '' !== trim( $allowed_host ) ) {
+					$allowed[] = strtolower( trim( $allowed_host ) );
+				}
+			}
+		}
+		$port_is_https_default = ! isset( $parts['port'] ) || 443 === (int) $parts['port'];
 
-		return 'https' === strtolower( (string) ( $parts['scheme'] ?? '' ) ) && '' !== $host && in_array( $host, $allowed, true );
+		return 'https' === strtolower( (string) ( $parts['scheme'] ?? '' ) )
+			&& $port_is_https_default
+			&& '' !== $host
+			&& in_array( $host, $allowed, true );
 	}
 }
