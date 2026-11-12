@@ -80,11 +80,12 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - **Abnahme:** API-Vertrag stimmt mit den Routen und gespeicherten Statuswerten überein; bekannte Sicherheits- und Datenintegritätsfehler sind behoben.
 
 ### PR14 — Stripe-Adapter
-- [ ] Konkretes unterstütztes WooCommerce-Gateway und dessen Token-/Mandats-API festlegen.
-- [ ] Gespeicherten Token nur mit nachweisbarer Zustimmung an Renewal-Jobs anbinden.
-- [ ] Provider-Idempotenz, Zahlungsbestätigung, Zeitüberschreitungen und Wiederabgleich abbilden.
+- [x] Offizielles WooCommerce-Stripe-Gateway als begrenzte Integration festgelegt; nur gespeicherte Kartentoken und eingeloggte Kunden.
+- [x] Erneuerung nur mit expliziter WP License Captain Zustimmung und kunden-eigenem gespeicherten Token ermöglichen.
+- [x] Stable provider idempotency key, PaymentIntent-Bestätigung und Authentifizierungsbedarf behandeln.
 - [ ] Webhook-Signatur, Event-Inbox, Duplikaterkennung und Zustandsabgleich ergänzen.
 - [ ] Erfolgs-, Ablehnungs-, Widerrufs- und Timeoutfälle in einer Gateway-Sandbox durchspielen.
+- [ ] Kundenflow zur manuellen Authentifizierung und Zahlungswiederherstellung ergänzen.
 - **Abnahme:** Keine Abbuchung ohne gültigen Token und Zustimmung; wiederholte Events erzeugen keine doppelte Zahlung oder Verlängerung.
 
 ### PR15 — PayPal-Adapter
