@@ -46,7 +46,7 @@ final class ActivationService {
 		}
 
 		if ( 'development' === $environment && ! self::is_local_development_url( $site_url ) ) {
-			return new \\WP_Error( 'development_site_invalid', __( 'Development activations must use a recognized local site URL.', 'wp-license' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'development_site_invalid', __( 'Development activations must use a recognized local site URL.', 'wp-license' ), array( 'status' => 400 ) );
 		}
 
 		$tables = Schema::table_names();
@@ -383,9 +383,9 @@ final class ActivationService {
 		$host = strtolower( (string) wp_parse_url( $site_url, PHP_URL_HOST ) );
 		$host = rtrim( $host, '.' );
 		$allowed = in_array( $host, array( 'localhost', '127.0.0.1', '::1' ), true )
-			|| str_ends_with( $host, '.localhost' )
-			|| str_ends_with( $host, '.test' )
-			|| str_ends_with( $host, '.local' );
+			|| '.localhost' === substr( $host, -10 )
+			|| '.test' === substr( $host, -5 )
+			|| '.local' === substr( $host, -6 );
 
 		/**
 		 * Allow a shop owner to explicitly approve a custom development hostname.
