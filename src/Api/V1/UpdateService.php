@@ -144,6 +144,26 @@ final class UpdateService {
 	}
 
 	/**
+	 * Purge expired grants after a configurable retention period.
+	 *
+	 * @return void
+	 */
+	public static function purge_expired_grants(): void {
+		global $wpdb;
+
+		$days = absint( apply_filters( 'wplc_download_grant_retention_days', 30 ) );
+		$days = max( 1, min( 3650, $days ) );
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
+		$tables = Schema::table_names();
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$tables['download_tokens']} WHERE COALESCE(consumed_at, expires_at) < %s",
+				$cutoff
+			)
+		);
+	}
+
+	/**
 	 * Check package URL against an explicit host allow-list.
 	 *
 	 * @param string $url Package URL.
