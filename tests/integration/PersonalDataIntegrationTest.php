@@ -3,6 +3,11 @@ use WPLC\Infrastructure\Database\Schema;
 use WPLC\Privacy\PersonalData;
 
 final class PersonalDataIntegrationTest extends WP_UnitTestCase {
+	public function set_up(): void {
+		parent::set_up();
+		Schema::migrate();
+	}
+
 	public function test_export_includes_license_details_but_excludes_secrets(): void {
 		global $wpdb;
 
