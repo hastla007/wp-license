@@ -87,7 +87,7 @@ final class RenewalScheduler {
 	 * @return void
 	 */
 	public static function enqueue( int $renewal_id, int $timestamp ): void {
-		$args = array( 'renewal_id' => $renewal_id );
+		$args = array( $renewal_id );
 		if ( function_exists( 'as_schedule_single_action' ) ) {
 			as_schedule_single_action( max( time() + 30, $timestamp ), 'wplc_process_renewal', $args, 'wplc', true );
 		} elseif ( ! wp_next_scheduled( 'wplc_process_renewal', $args ) ) {
