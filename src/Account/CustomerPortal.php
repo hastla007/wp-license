@@ -112,6 +112,23 @@ final class CustomerPortal {
 			echo '<p><strong>' . esc_html__( 'Valid through:', 'wp-license' ) . '</strong> ' . esc_html( $license['paid_until'] ? (string) $license['paid_until'] : __( 'No expiry', 'wp-license' ) ) . '</p>';
 			echo '<p><strong>' . esc_html__( 'Live sites:', 'wp-license' ) . '</strong> ' . esc_html( (string) $site_count ) . '</p>';
 
+			if ( 'past_due' === $license['status'] ) {
+				$renewal = $wpdb->get_row(
+					$wpdb->prepare(
+						"SELECT renewal_order_id FROM {$tables['renewals']} WHERE license_id = %d AND status IN (%s,%s) AND renewal_order_id IS NOT NULL ORDER BY created_at DESC LIMIT 1",
+						$license_id,
+						'failed',
+						'manual_action_required'
+					),
+					ARRAY_A
+				);
+				$renewal_order = is_array( $renewal ) && function_exists( 'wc_get_order' ) ? wc_get_order( absint( $renewal['renewal_order_id'] ) ) : false;
+				if ( $renewal_order instanceof \\WC_Order && (int) $renewal_order->get_customer_id() === get_current_user_id() && 'stripe' === $renewal_order->get_payment_method() && $renewal_order->needs_payment() ) {
+					echo '<p><a class="button" href="' . esc_url( $renewal_order->get_checkout_payment_url() ) . '">' . esc_html__( 'Complete renewal payment', 'wp-license' ) . '</a></p>';
+					echo '<p>' . esc_html__( 'Your payment provider may ask you to authenticate the payment before the renewal can be completed.', 'wp-license' ) . '</p>';
+				}
+			}
+
 			if ( ! empty( $license['cancel_at_period_end'] ) ) {
 				echo '<p>' . esc_html__( 'Cancellation is scheduled for the end of the paid period.', 'wp-license' ) . '</p>';
 			} elseif ( in_array( $license['status'], array( 'active', 'past_due' ), true ) ) {
