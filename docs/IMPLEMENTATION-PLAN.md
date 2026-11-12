@@ -408,7 +408,8 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [ ] **41c · REST-Laufzeitkonformität:** REST-Integrationstests gegen echte WordPress-Routen ergänzen und Antworten/Fehlercodes mit der Spezifikation sowie gemeinsamen Client-Fixtures vergleichen. **Abnahme:** inkompatible API-Änderungen schlagen in CI fehl.
 - [x] **42a · Installation-secret key ring:** `SecretCrypto` schreibt `v1:<key-id>`-AES-256-GCM-Umschläge, liest versioniert den passenden Schlüssel und unterstützt unversionierte Altwerte über configured keys/Legacy-Salt. Dokumentation und Tests für aktuellen sowie vorherigen Key-ID sind ergänzt.
 - [x] **42e · Lazy-Re-Encryption bei authentifizierter Nutzung:** Nach erfolgreicher HMAC-Prüfung und Rate-Limit-Zulassung werden Alt-/Vorversion-Umschläge mit Compare-and-set auf den aktuellen Key umgeschrieben; Fehler blockieren die gültige Anfrage nicht. Unit-Tests prüfen aktuelle, vorherige und unversionierte Umschläge. Batchmigration, Audit/Backup/Restore und WP/MySQL-Abnahme bleiben offen.
-- [ ] **42b · Rotation im Bestand abnehmen:** Re-Encryption-CLI/Batchmigration, Prüflauf, Audit, Backup/Restore und Rückfallpfad für bestehende Aktivierungsgeheimnisse implementieren und in WP/MySQL testen.
+- [x] **42b · Rotationswerkzeug implementiert:** `wp wplc rotate-installation-secrets` prüft Bestandszeilen in begrenzten Batches; Dry-Run ist Standard, `--apply` schreibt per Compare-and-set und protokolliert erfolgreiche Änderungen ohne Geheimnisse.
+- [ ] **42f · Rotation im Bestand abnehmen:** WP/MySQL-Prüflauf, verifiziertes Backup/Restore, Rückfallpfad und Test in einer Kopie realer Bestandsdaten durchführen. Alte Schlüssel erst danach entfernen.
 - [x] **42c · Lizenzschlüssel-Key-ID:** Schema v8 speichert `license_key_secret_id`; neue Schlüssel werden mit aktueller Key-ID abgeleitet und das Kundenportal nutzt die gespeicherte Version. Tests decken aktuelle/vorherige IDs und unbekannte IDs ab.
 - [ ] **42d · Bestandsmigration und Recovery:** vorhandene Zeilen sicher auf bestätigte Legacy-Key-ID abgleichen; Recovery-/Rotationsworkflow mit Audit und Rückfallpfad umsetzen. **Abnahme:** Rotations- und Wiederherstellungstest ohne ungültig werdende Bestandslizenzen.
 - [x] **43a · Atomare Sicherheitszähler:** Schema v7 ergänzt persistente Nonce- und Rate-Limit-Tabellen; HMAC-validierte Nonces werden per eindeutigem Schlüssel atomar konsumiert, Minutenlimits per Upsert gezählt, abgelaufene Datensätze stündlich bereinigt. Aktivierungs-IP wird vor der Verwendung validiert.
@@ -477,7 +478,8 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [x] **44a** URL-Normalisierungs-Unit-Tests ergänzt; Live-Integrationsfälle bleiben offen.
 
 - [x] **42a** Versioniertes, konfigurierbares Installation-Secret-Keyring-Verfahren, Legacy-Leseweg, Tests und Betriebsdokumentation ergänzt.
-- [ ] **42b/42d** Re-Encryption der Aktivierungsgeheimnisse sowie Bestands-/Recovery-Migration für License Keys bleiben offen.
+- [x] **42b/42e** Batch-Rotationswerkzeug und Lazy-Re-Encryption für Aktivierungsgeheimnisse ergänzt.
+- [ ] **42d/42f** License-Key-Recovery sowie WP/MySQL-Backup-/Restore- und Rotationsabnahme bleiben offen.
 
 - [x] **45a/45b** Explizite Statusübergänge in den Lifecycle eingebunden und mit Unit-Tests abgedeckt.
 
@@ -495,3 +497,5 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 
 - [x] **61a/61b/61e** Eingehende Signaturprüfung, fixer HMAC-Testvektor, request-binding Tests und PHP-Fehlerreferenzen im Authenticator ergänzt; echte REST-/MySQL-Integration bleibt offen.
 - [x] **42e** Lazy-Re-Encryption für erfolgreich authentifizierte Nutzungen ergänzt; vollständige Batch-Rotation, Restoretest und Datenbankabnahme bleiben offen.
+- [x] **42b** WP-CLI-Batchrotation mit Dry-Run-Standard, Apply-Flag, Batch-/Resume-Optionen, Compare-and-set und Audit-Ereignissen ergänzt und in API-Betriebsdokumentation beschrieben.
+- [ ] **42f** Die Batchrotation ist nicht gegen eine echte WP/MySQL-Datenbank, Backup-/Restore-Kopie oder Produktionsschlüssel geprüft.
