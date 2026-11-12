@@ -260,6 +260,9 @@ final class RenewalProcessor {
 				),
 			)
 		);
+		if ( ! is_array( $candidates ) ) {
+			return new \WP_Error( 'renewal_order_lookup_failed', __( 'Existing renewal orders could not be checked safely.', 'wp-license' ) );
+		}
 		if ( is_array( $candidates ) && count( $candidates ) > 1 ) {
 			return new \WP_Error( 'renewal_order_ambiguous', __( 'Multiple WooCommerce orders reference this license renewal; manual review is required.', 'wp-license' ) );
 		}
