@@ -129,7 +129,7 @@ final class RecoverLicenseKeyIdsCommand {
 					'license',
 					$last_id,
 					'License key ID corrected after matching the stored verifier',
-				array( 'key_id' => $current_key_id ),
+					array( 'key_id' => $current_key_id ),
 					array( 'key_id' => $target_key_id )
 				);
 			}
