@@ -34,7 +34,17 @@ final class LicenseClient {
 	 * @param string $option_key Product-specific option key.
 	 */
 	public function __construct( string $server_url, string $product_key, string $product_version, string $option_key ) {
-		$this->server_url = untrailingslashit( esc_url_raw( $server_url, array( 'https' ) ) );
+		$server_url = untrailingslashit( esc_url_raw( $server_url, array( 'https' ) ) );
+		$server_parts = wp_parse_url( $server_url );
+		$this->server_url = (
+			is_array( $server_parts )
+			&& 'https' === strtolower( (string) ( $server_parts['scheme'] ?? '' ) )
+			&& ! empty( $server_parts['host'] )
+			&& ! isset( $server_parts['user'] )
+			&& ! isset( $server_parts['pass'] )
+			&& ! isset( $server_parts['query'] )
+			&& ! isset( $server_parts['fragment'] )
+		) ? $server_url : '';
 		$this->product_key = sanitize_key( $product_key );
 		$this->product_version = sanitize_text_field( $product_version );
 		$this->option_key = sanitize_key( $option_key );
