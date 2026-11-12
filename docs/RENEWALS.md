@@ -18,3 +18,12 @@ A renewal row is idempotently keyed by license and period. The processor creates
 - Configure and test a gateway adapter in a staging store before selling automatic renewal.
 - Confirm consent language, renewal price disclosure, cancellation flow, and applicable legal requirements for the sales region.
 - Payment state confirmation must be idempotent. Reconcile ambiguous provider timeouts against the provider before retrying a charge.
+
+
+## Stripe webhook endpoint
+
+The limited Stripe adapter accepts events at \`/wp-json/wplc/v1/stripe/webhook\`. Configure the Stripe endpoint signing secret as the server constant \`WPLC_STRIPE_WEBHOOK_SECRET\`; do not place it in an option, source control, or log. The handler verifies the timestamped \`v1\` HMAC against the raw request body and rejects stale signatures. Set a narrow Stripe event selection that includes \`payment_intent.succeeded\`.
+
+Every verified event is stored in the existing event inbox under its unique Stripe event ID and raw-payload SHA-256. Duplicate deliveries return success without repeating the renewal. Successful WP License Captain PaymentIntents are matched by renewal, order, and license metadata under the renewal lock; the WooCommerce order, renewal row, license lifecycle, next renewal, and audit log are reconciled together. Unrelated Stripe payment intents are recorded and ignored. Failed events remain on the scheduled retry path.
+
+Before enabling this endpoint in a live shop, run the signature, replay, out-of-order, duplicate, order mismatch, and payment-timeout recovery cases against a Stripe test-mode endpoint. Secret rotation must update the endpoint secret and server configuration in the same maintenance window.
