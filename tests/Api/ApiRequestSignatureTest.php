@@ -1,6 +1,6 @@
 <?php
-use PHPUnit\\Framework\\TestCase;
-use WPLC\\Api\\V1\\Authenticator;
+use PHPUnit\Framework\TestCase;
+use WPLC\Api\V1\Authenticator;
 
 final class ApiRequestSignatureTest extends TestCase {
 	public function test_signature_matches_the_documented_canonical_request_vector(): void {
