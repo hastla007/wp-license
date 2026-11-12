@@ -19,7 +19,7 @@ final class Schema {
 	/**
 	 * Current schema version.
 	 */
-	public const VERSION = '6';
+	public const VERSION = '7';
 
 	/**
 	 * Run missing schema migrations.
@@ -192,6 +192,26 @@ final class Schema {
 				UNIQUE KEY source_event (source,source_event_id),
 				KEY inbox_pending (processed_at,received_at)
 			) {$charset_collate};",
+			"CREATE TABLE {$tables['request_nonces']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				activation_id bigint(20) unsigned NOT NULL,
+				nonce_hash char(64) NOT NULL,
+				expires_at datetime NOT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY activation_nonce (activation_id,nonce_hash),
+				KEY nonce_expiry (expires_at)
+			) {$charset_collate};",
+			"CREATE TABLE {$tables['request_limits']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				limiter_hash char(64) NOT NULL,
+				bucket_start datetime NOT NULL,
+				hits int(10) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY limiter_bucket (limiter_hash,bucket_start),
+				KEY limit_bucket (bucket_start)
+			) {$charset_collate};",
 			"CREATE TABLE {$tables['audit_log']} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				actor_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -234,6 +254,8 @@ final class Schema {
 			'renewals'     => $prefix . 'renewals',
 			'download_tokens' => $prefix . 'download_tokens',
 			'event_inbox'  => $prefix . 'event_inbox',
+			'request_nonces' => $prefix . 'request_nonces',
+			'request_limits' => $prefix . 'request_limits',
 			'audit_log'    => $prefix . 'audit_log',
 		);
 	}
