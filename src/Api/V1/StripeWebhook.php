@@ -65,8 +65,11 @@ final class StripeWebhook {
 			'license_id' => absint( $metadata['wplc_license_id'] ?? 0 ),
 			'order_id' => absint( $metadata['order_id'] ?? 0 ),
 		);
-		if ( '' === $payload['payment_intent_id'] || 0 === $payload['renewal_id'] || 0 === $payload['license_id'] || 0 === $payload['order_id'] ) {
+		if ( 0 !== strpos( $payload['payment_intent_id'], 'pi_' ) || 0 === $payload['renewal_id'] || 0 === $payload['license_id'] || 0 === $payload['order_id'] ) {
 			return new \WP_Error( 'wplc_stripe_event_metadata_invalid', __( 'The Stripe event is missing required renewal metadata.', 'wp-license' ), array( 'status' => 400 ) );
+		}
+		if ( 'payment_intent.succeeded' === $type && 'succeeded' !== $payload['payment_status'] ) {
+			return new \WP_Error( 'wplc_stripe_event_status_invalid', __( 'The successful Stripe event has an unexpected payment status.', 'wp-license' ), array( 'status' => 400 ) );
 		}
 		$json = wp_json_encode( $payload, JSON_UNESCAPED_SLASHES );
 		if ( false === $json ) {
@@ -91,6 +94,16 @@ final class StripeWebhook {
 			return new \WP_Error( 'wplc_stripe_event_store_failed', __( 'The Stripe event could not be recorded.', 'wp-license' ), array( 'status' => 500 ) );
 		}
 		if ( 0 === (int) $inserted ) {
+			$stored_hash = (string) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT payload_hash FROM {$tables['event_inbox']} WHERE source = %s AND source_event_id = %s LIMIT 1",
+					'stripe',
+					sanitize_text_field( (string) $event['id'] )
+				)
+			);
+			if ( ! hash_equals( $stored_hash, hash( 'sha256', $body ) ) ) {
+				return new \WP_Error( 'wplc_stripe_event_conflict', __( 'The Stripe event identifier was already used for a different payload.', 'wp-license' ), array( 'status' => 409 ) );
+			}
 			return new \WP_REST_Response( array( 'received' => true, 'duplicate' => true ), 200 );
 		}
 
