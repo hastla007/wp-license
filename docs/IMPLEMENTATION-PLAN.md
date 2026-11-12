@@ -528,6 +528,7 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 
 ## PR-Stapel-Review, strikt sequenziell
 
-- [x] ~~**PR01 Review:** Plugin-Einstieg, WooCommerce-Abhängigkeit, Composer-Autoload, Ignore-Regeln, README und CI geprüft. Zwei PHP-Lintläufe für PHP 7.4/8.2 sind grün; keine offenen Review-Kommentare; GitHub meldet den Branch als mergebar.~~
-- [ ] **PR01 Merge:** wartet auf ausdrückliche Freigabe. Der Merge-Aufruf für PR #1 wurde von der automatischen Aktionsprüfung abgelehnt, weil er den Hauptzweig dauerhaft ändert.
-- [ ] **PR02 bis PR12:** noch nicht begonnen; werden nach PR01 in Reihenfolge geprüft und bearbeitet.
+- [x] ~~**PR01 Review:** Plugin-Einstieg, WooCommerce-Abhängigkeit, Composer-Autoload, Ignore-Regeln, README und CI geprüft. PHP-Lint für PHP 7.4/8.2 grün; keine offenen Review-Kommentare; PR #1 mergebar.~~
+- [ ] **PR01 Merge:** bis zum Abschluss aller Punkte zurückgestellt; anschließend werden die geprüften PRs in Abhängigkeitsreihenfolge gemergt.
+- [x] ~~**PR02 Review:** versioniertes Datenbankschema, Installation/Upgrade und Tabellenabdeckung geprüft; keine offenen Review-Kommentare; PR #2 mergebar. WordPress-6.8/MySQL-8.0 Integration, PHP 7.4/8.1/8.2/8.3 Unit-Tests, Syntax und Lint auf Commit `0c9df07` erfolgreich. Der Test-Harness-Filter und die pro-Test-REST-Routenregistrierung sind berücksichtigt.~~
+- [ ] **PR03 Review:** nächster sequenzieller Schritt; anschließend PR04–PR12 einzeln prüfen. Merges bleiben bis zum Ende zurückgestellt.
