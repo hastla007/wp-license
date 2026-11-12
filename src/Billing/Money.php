@@ -59,6 +59,37 @@ final class Money {
 	}
 
 	/**
+	 * Calculate a half-up prorated minor-unit amount using integer arithmetic.
+	 *
+	 * @param int $full_period_amount Full-period amount in minor units.
+	 * @param int $remaining_seconds Remaining seconds in the paid period.
+	 * @param int $total_seconds Full period length in seconds.
+	 * @return int|false False for invalid inputs or multiplication overflow.
+	 */
+	public static function prorate( int $full_period_amount, int $remaining_seconds, int $total_seconds ) {
+		if ( $full_period_amount < 0 || $remaining_seconds < 0 || $total_seconds <= 0 ) {
+			return false;
+		}
+		$remaining_seconds = min( $remaining_seconds, $total_seconds );
+		if ( 0 === $full_period_amount || 0 === $remaining_seconds ) {
+			return 0;
+		}
+		if ( $remaining_seconds === $total_seconds ) {
+			return $full_period_amount;
+		}
+		if ( $remaining_seconds > intdiv( PHP_INT_MAX, $full_period_amount ) ) {
+			return false;
+		}
+
+		$product = $full_period_amount * $remaining_seconds;
+		$amount = intdiv( $product, $total_seconds );
+		$remainder = $product % $total_seconds;
+		$half_up_threshold = intdiv( $total_seconds, 2 ) + ( $total_seconds % 2 );
+
+		return $amount + ( $remainder >= $half_up_threshold ? 1 : 0 );
+	}
+
+	/**
 	 * Format an integer amount as a decimal string without binary float arithmetic.
 	 *
 	 * @param int $minor Amount in minor units.
