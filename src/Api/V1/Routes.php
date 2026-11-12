@@ -23,6 +23,10 @@ final class Routes {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'rest_api_init', array( self::class, 'register_routes' ) );
+		add_action( 'wplc_cleanup_security_rows', array( Authenticator::class, 'cleanup_security_rows' ) );
+		if ( ! wp_next_scheduled( 'wplc_cleanup_security_rows' ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'wplc_cleanup_security_rows' );
+		}
 	}
 
 	/**
