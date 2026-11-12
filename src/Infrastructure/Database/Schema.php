@@ -257,7 +257,8 @@ final class Schema {
 					return false;
 				}
 				$create_result = $wpdb->query( $create_statement );
-				error_log( 'WPLC schema CREATE result for ' . $table_name . ': ' . var_export( $create_result, true ) . '; error=' . $wpdb->last_error . '; SQL=' . $create_statement );
+				$created_table = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) );
+				error_log( 'WPLC schema CREATE result for ' . $table_name . ': ' . var_export( $create_result, true ) . '; visible=' . (string) $created_table . '; database=' . (string) $wpdb->get_var( 'SELECT DATABASE()' ) . '; error=' . $wpdb->last_error );
 				if ( false === $create_result ) {
 					return false;
 				}
