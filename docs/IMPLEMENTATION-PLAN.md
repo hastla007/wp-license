@@ -411,7 +411,8 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [x] ~~**42b · Rotationswerkzeug implementiert:** `wp wplc rotate-installation-secrets` prüft Bestandszeilen in begrenzten Batches; Dry-Run ist Standard, `--apply` schreibt per Compare-and-set und protokolliert erfolgreiche Änderungen ohne Geheimnisse.~~
 - [ ] **42f · Rotation im Bestand abnehmen:** WP/MySQL-Prüflauf, verifiziertes Backup/Restore, Rückfallpfad und Test in einer Kopie realer Bestandsdaten durchführen. Alte Schlüssel erst danach entfernen.
 - [x] ~~**42c · Lizenzschlüssel-Key-ID:** Schema v8 speichert `license_key_secret_id`; neue Schlüssel werden mit aktueller Key-ID abgeleitet und das Kundenportal nutzt die gespeicherte Version. Tests decken aktuelle/vorherige IDs und unbekannte IDs ab.~~
-- [ ] **42d · Bestandsmigration und Recovery:** vorhandene Zeilen sicher auf bestätigte Legacy-Key-ID abgleichen; Recovery-/Rotationsworkflow mit Audit und Rückfallpfad umsetzen. **Abnahme:** Rotations- und Wiederherstellungstest ohne ungültig werdende Bestandslizenzen.
+- [x] **42d · Lizenzschlüssel-Key-ID-Recovery implementiert:** `wp wplc recover-license-key-ids --to=<key-id>` prüft Kandidaten gegen den vorhandenen SHA-256-Lizenzschlüsselverifier und ändert ausschließlich die Key-ID per Compare-and-set, wenn der abgeleitete Schlüssel exakt passt; Dry-Run ist Standard, Änderungen werden auditiert.
+- [ ] **42g · Recovery im Bestand abnehmen:** konfigurierten Schlüsselbestand, echte WP/MySQL-Kopie, Backup/Restore und Wiederherstellung nach bestätigtem Legacy-Key-Verlust testen; keine Key-ID ohne Verifier-Treffer ändern.
 - [x] ~~**43a · Atomare Sicherheitszähler:** Schema v7 ergänzt persistente Nonce- und Rate-Limit-Tabellen; HMAC-validierte Nonces werden per eindeutigem Schlüssel atomar konsumiert, Minutenlimits per Upsert gezählt, abgelaufene Datensätze stündlich bereinigt. Aktivierungs-IP wird vor der Verwendung validiert.~~
 - [x] ~~**43b · Atomarer Zähler-Unit-Test:** PHPUnit prüft den `INSERT ... ON DUPLICATE KEY UPDATE`-Minutenbucket und den zurückgelesenen Zählerstand (`tests/Api/AuthenticatorRateLimitTest.php`).~~
 - [ ] **43c · Sicherheitsintegrationstests:** parallele Replay-/Flood-Tests, DB-Fehler/Fallback, Proxy-Header und Bereinigungsgrenzen in WordPress/MySQL prüfen. **Abnahme:** Limits sind unter Konkurrenz nicht umgehbar und Datensätze wachsen nicht unbegrenzt.
@@ -436,7 +437,8 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [ ] **53 · Retry-/Kulanzjobs gegen Race Conditions prüfen:** Action-Scheduler-Duplikate, verspätete Jobs, Kündigung während eines Laufs, Refund während Retry und Wiederaktivierung während Kulanz abdecken. **Abnahme:** jeder fällige Versuch wird höchstens einmal ausgeführt und Rechte folgen exakt den festgelegten Fristen.
 - [x] ~~**54a · Präzision pro Währung speichern:** Schema v9 speichert Preisdezimalstellen im Tarif und bei der Lizenz; Renewals verwenden den beim Kauf gespeicherten Präzisionswert.~~
 - [x] ~~**54b · Exakte Betragskonvertierung:** `Money` konvertiert WooCommerce-Dezimalpreise mit half-up-Rundung stringbasiert in Minor Units und zurück ohne binäre Float-Arithmetik; Unit-Tests decken 0/2/3/6 Dezimalstellen und Rundungsgrenzen ab.~~
-- [ ] **54c · Add-on-Proration und Steuern:** anteilige Add-on-Berechnung, gemeinsame Verlängerung, Entfernen/Erstatten, WooCommerce-Steuer-/Währungssonderfälle und Monatsende-/Jahreswechseltests vollständig implementieren. **Abnahme:** Rechnungssumme, Renewal-Termin und Entitlements stimmen für dokumentierte Grenzfälle.
+- [x] **54c · Prorationskern implementiert:** `Money::prorate()` berechnet positive Minor-Unit-Beträge proportional nach verbleibender Periodendauer mit half-up-Rundung, ohne Gleitkommaarithmetik; Grenzfälle und Überlauf sind mit PHPUnit-Testfällen beschrieben.
+- [ ] **54d · WooCommerce-Proration und Steuern:** Add-on-Verknüpfung, gemeinsame Verlängerung, Entfernen/Erstatten, Steuer-/Währungssonderfälle und Monatsende-/Jahreswechsel integrieren. **Abnahme:** Summen, Renewal-Termin und Entitlements stimmen im Shoptest.
 
 ### Produktclients, Updates und Datenhaltung
 
@@ -500,3 +502,9 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [x] ~~**42e** Lazy-Re-Encryption für erfolgreich authentifizierte Nutzungen ergänzt; vollständige Batch-Rotation, Restoretest und Datenbankabnahme bleiben offen.~~
 - [x] ~~**42b** WP-CLI-Batchrotation mit Dry-Run-Standard, Apply-Flag, Batch-/Resume-Optionen, Compare-and-set und Audit-Ereignissen ergänzt und in API-Betriebsdokumentation beschrieben.~~
 - [ ] **42f** Die Batchrotation ist nicht gegen eine echte WP/MySQL-Datenbank, Backup-/Restore-Kopie oder Produktionsschlüssel geprüft.
+
+- [x] **42d** Key-ID-Recovery-WP-CLI-Befehl implementiert: er schreibt nur dann eine abweichende ID, wenn der unveränderte Lizenzhash für den Kandidatenschlüssel erneut erzeugt wird.
+- [ ] **42g** Recovery auf Datenbankkopie und per Backup/Restore verifizieren.
+- [x] **54c** Ganzzahlige Prorationsprimitive und PHPUnit-Grenzfälle ergänzt.
+- [ ] **54d** WooCommerce-Addon-Verkettung, Steuern und reale Auftragsberechnung bleiben offen.
+- [x] **CI Syntaxcheck** GitHub-Actions-Matrix führt zusätzlich `php -l` über src/tests/tools aus; Laufstatus dieses Commits muss geprüft werden.
