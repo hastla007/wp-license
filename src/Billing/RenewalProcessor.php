@@ -42,6 +42,7 @@ final class RenewalProcessor {
 		$lock_name = 'wplc_renewal_' . substr( hash( 'sha256', 'renewal:' . $renewal_id ), 0, 48 );
 		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
 		if ( '1' !== (string) $locked ) {
+			RenewalScheduler::enqueue( $renewal_id, time() + 30 );
 			return;
 		}
 		try {
@@ -75,6 +76,11 @@ final class RenewalProcessor {
 		);
 		if ( ! is_array( $license ) ) {
 			self::set_renewal_status( $renewal_id, 'failed', null );
+			return;
+		}
+
+		if ( ! in_array( $license['status'], array( 'active', 'past_due' ), true ) ) {
+			self::set_renewal_status( $renewal_id, 'cancelled', null );
 			return;
 		}
 
