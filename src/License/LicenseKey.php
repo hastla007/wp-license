@@ -28,7 +28,8 @@ final class LicenseKey {
 	 */
 	public static function for_uuid( string $uuid ): string {
 		$uuid = strtolower( $uuid );
-		$digest = hash_hmac( 'sha256', $uuid, wp_salt( 'auth' ) );
+		$secret = defined( 'WPLC_LICENSE_KEY_SECRET' ) ? (string) WPLC_LICENSE_KEY_SECRET : wp_salt( 'auth' );
+		$digest = hash_hmac( 'sha256', $uuid, $secret );
 
 		return 'WPLC-' . strtoupper( $uuid ) . '-' . strtoupper( $digest );
 	}
