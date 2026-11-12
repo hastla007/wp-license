@@ -192,7 +192,7 @@ final class StripeWebhookHandler {
 			return 'ignored';
 		}
 		if ( ! $renewal_id || ! $order_id || ! $license_id || '' === $intent_id ) {
-			return new \\WP_Error( 'stripe_renewal_metadata_invalid', __( 'The Stripe payment renewal metadata is incomplete.', 'wp-license' ) );
+			return new \WP_Error( 'stripe_renewal_metadata_invalid', __( 'The Stripe payment renewal metadata is incomplete.', 'wp-license' ) );
 		}
 
 		global $wpdb;
