@@ -385,7 +385,8 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 - [x] **35 · Testbasis:** PHPUnit-Konfiguration, PHP-Matrix-Workflow und isolierte LicenseKey-Unit-Tests ergänzt. Tests/CI-Ausführung sowie Signatur- und Entitlement-Testfälle noch offen.
 - [x] Isolierte Stripe-Signaturtests für gültige HMACs, ungültige Signaturen und abgelaufene Zeitstempel ergänzt.
 - [ ] **36 · API-Sicherheitstests:** REST-/WordPress-Tests für Nonce-Replay, Rate-Limits, Antwortcodes und Einmal-Downloadtoken ergänzen.
-- [x] Isolierte PHPUnit-Tests für Monats-/Jahresperioden und Monatsende/Schaltjahr ergänzt.\n- [ ] **37 · Datenbank-/Renewaltests:** WordPress-/MySQL-Integrationstests für Schema-Upgrades, doppelte Bestellungen, Refunds, Renewal-Locks und Grace Period ergänzen.
+- [x] Isolierte PHPUnit-Tests für Monats-/Jahresperioden und Monatsende/Schaltjahr ergänzt.
+- [ ] **37 · Datenbank-/Renewaltests:** WordPress-/MySQL-Integrationstests für Schema-Upgrades, doppelte Bestellungen, Refunds, Renewal-Locks und Grace Period ergänzen.
 - [x] Bekannte PHP-/WordPress-Minima und deklarierte WooCommerce-Minima der Produkt-Repositories in `docs/COMPATIBILITY.md` erfasst.
 - [ ] **38 · Kompatibilitätsmatrix:** fehlende WooCommerce-Minima für Voucher/Affiliate und Serverminimum festlegen; reale minimale/aktuelle Versionen in WP/Woo-CI testen.
 - [x] Aggregierte Queue-/Renewal-Metriken, tägliche Alert-Hooks und konfigurierbare Schwellen ergänzt.
