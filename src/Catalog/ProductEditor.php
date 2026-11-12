@@ -249,8 +249,13 @@ final class ProductEditor {
 			$index = absint( trim( $suffix, '[]' ) );
 			$raw_entitlements = is_array( $raw_entitlements ) ? ( $raw_entitlements[ $index ] ?? '' ) : '';
 		}
-		$raw_entitlements = is_string( $raw_entitlements ) ? wp_unslash( $raw_entitlements ) : '';
-		$entitlements = json_decode( is_string( $raw_entitlements ) ? $raw_entitlements : '', true );
+		$raw_entitlements = is_string( $raw_entitlements ) ? trim( wp_unslash( $raw_entitlements ) ) : '';
+		$decoded_entitlements = '' === $raw_entitlements ? (object) array() : json_decode( $raw_entitlements );
+		$entitlements_valid = '' === $raw_entitlements
+			|| ( JSON_ERROR_NONE === json_last_error() && is_object( $decoded_entitlements ) );
+		$entitlements = $entitlements_valid && '' !== $raw_entitlements
+			? json_decode( $raw_entitlements, true )
+			: array();
 		if ( ! is_array( $entitlements ) ) {
 			$entitlements = array();
 		}
@@ -270,6 +275,7 @@ final class ProductEditor {
 			'live_site_limit' => absint( $get( '_wplc_live_site_limit' ) ),
 			'support_level' => sanitize_key( $get( '_wplc_support_level' ) ),
 			'entitlements' => $clean_entitlements,
+			'entitlements_valid' => $entitlements_valid,
 		);
 	}
 
@@ -283,6 +289,11 @@ final class ProductEditor {
 	 * @return void
 	 */
 	private static function persist_mapping( $product, int $product_id, int $variation_id, array $data ): void {
+		if ( empty( $data['entitlements_valid'] ) ) {
+			self::add_admin_error( __( 'Additional entitlements must be a valid JSON object. No product changes were saved.', 'wp-license' ) );
+			return;
+		}
+
 		if (
 			$data['enabled']
 			&& (
@@ -315,23 +326,41 @@ final class ProductEditor {
 			'_wplc_entitlements_json' => wp_json_encode( $data['entitlements'] ),
 		);
 
+		if ( $data['enabled'] ) {
+			$mapping_saved = Catalog::save_mapping(
+				$product_id,
+				$variation_id,
+				array_merge(
+					$data,
+					array( 'display_name' => $product->get_name() )
+				)
+			);
+			if ( ! $mapping_saved ) {
+				self::add_admin_error( __( 'The license plan could not be saved to the catalog. No product changes were saved.', 'wp-license' ) );
+				return;
+			}
+		} else {
+			Catalog::delete_mapping( $product_id, $variation_id );
+		}
+
 		foreach ( $meta as $key => $value ) {
 			$product->update_meta_data( $key, $value );
 		}
 		$product->save();
+	}
 
-		if ( ! $data['enabled'] ) {
-			Catalog::delete_mapping( $product_id, $variation_id );
-			return;
-		}
-
-		Catalog::save_mapping(
-			$product_id,
-			$variation_id,
-			array_merge(
-				$data,
-				array( 'display_name' => $product->get_name() )
-			)
+	/**
+	 * Display a product editor validation or persistence error.
+	 *
+	 * @param string $message Escaped at render time.
+	 * @return void
+	 */
+	private static function add_admin_error( string $message ): void {
+		add_action(
+			'admin_notices',
+			static function () use ( $message ): void {
+				echo '<div class="notice notice-error"><p>' . esc_html( $message ) . '</p></div>';
+			}
 		);
 	}
 }
