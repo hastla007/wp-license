@@ -29,6 +29,7 @@ final class StripeWebhookHandler {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'rest_api_init', array( self::class, 'register_route' ) );
+		add_action( 'woocommerce_payment_complete', array( self::class, 'reconcile_order_payment' ), 20 );
 	}
 
 	/**
@@ -129,6 +130,76 @@ final class StripeWebhookHandler {
 		}
 	}
 
+
+	/**
+	 * Reconcile customer-authenticated renewal payments completed through
+	 * WooCommerce's normal order-pay flow.
+	 *
+	 * @param int $order_id Paid order ID.
+	 * @return void
+	 */
+	public static function reconcile_order_payment( int $order_id ): void {
+		if ( ! function_exists( 'wc_get_order' ) ) {
+			return;
+		}
+		$order = wc_get_order( $order_id );
+		if ( ! $order || 'stripe' !== $order->get_payment_method() || '' === $order->get_transaction_id() ) {
+			return;
+		}
+		$renewal_id = absint( $order->get_meta( '_wplc_renewal_id', true ) );
+		$license_id = absint( $order->get_meta( '_wplc_renewal_for_license', true ) );
+		if ( ! $renewal_id || ! $license_id ) {
+			return;
+		}
+
+		global $wpdb;
+		$lock_name = 'wplc_renewal_' . substr( hash( 'sha256', 'renewal:' . $renewal_id ), 0, 48 );
+		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
+		if ( '1' !== (string) $locked ) {
+			return;
+		}
+		try {
+			$tables = Schema::table_names();
+			$renewal = $wpdb->get_row(
+				$wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d AND renewal_order_id = %d LIMIT 1", $renewal_id, $order_id ),
+				ARRAY_A
+			);
+			$license = $wpdb->get_row(
+				$wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ),
+				ARRAY_A
+			);
+			if ( ! is_array( $renewal ) || ! is_array( $license ) || (int) $renewal['license_id'] !== $license_id || 'paid' === $renewal['status'] ) {
+				return;
+			}
+			if ( ! in_array( $renewal['status'], array( 'processing', 'failed', 'manual_action_required' ), true ) ) {
+				return;
+			}
+			$updated = $wpdb->update(
+				$tables['renewals'],
+				array( 'status' => 'paid', 'retry_at' => null, 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ),
+				array( 'id' => $renewal_id, 'status' => $renewal['status'] ),
+				array( '%s', '%s', '%s' ),
+				array( '%d', '%s' )
+			);
+			if ( false === $updated || 0 === $updated ) {
+				return;
+			}
+			LicenseLifecycle::mark_renewed( $license_id, (string) $renewal['period_end'], $order_id );
+			RenewalScheduler::schedule_next( $license_id );
+			AuditLog::record(
+				'renewal_paid',
+				'renewal',
+				$renewal_id,
+				'Customer completed Stripe renewal authentication',
+				array( 'status' => $renewal['status'] ),
+				array( 'status' => 'paid', 'order_id' => $order_id )
+			);
+		} finally {
+			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+		}
+	}
+
+
 	/**
 	 * Verify Stripe's timestamped v1 HMAC and decode the event.
 	 *
@@ -228,6 +299,10 @@ final class StripeWebhookHandler {
 				return new \WP_Error( 'stripe_order_mismatch', __( 'The renewal order does not match the Stripe payment.', 'wp-license' ) );
 			}
 			$order->payment_complete( $intent_id );
+			$latest_status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ) );
+			if ( 'paid' === $latest_status ) {
+				return 'renewal_paid';
+			}
 			$updated = $wpdb->update(
 				$tables['renewals'],
 				array( 'status' => 'paid', 'retry_at' => null, 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ),
