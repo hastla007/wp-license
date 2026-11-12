@@ -19,6 +19,10 @@ jobs:
           tools: composer:v2
       - name: Validate Composer metadata
         run: composer validate --no-check-publish
+      - name: Install test dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Run PHPUnit
+        run: composer test
       - name: Check PHP syntax
         run: |
           find . -type f -name '*.php' -not -path './vendor/*' -print0 \
