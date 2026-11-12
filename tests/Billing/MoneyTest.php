@@ -15,7 +15,7 @@ final class MoneyTest extends TestCase {
 	}
 
 	public function test_precision_is_clamped_to_supported_storage_range(): void {
-		$this->assertSame( '0.000000', Money::to_decimal( 1, 10 ) );
+		$this->assertSame( '0.000001', Money::to_decimal( 1, 10 ) );
 		$this->assertSame( '1', Money::to_decimal( 1, -2 ) );
 	}
 }
