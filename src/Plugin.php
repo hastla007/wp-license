@@ -88,7 +88,7 @@ final class Plugin {
 		LicenseLifecycle::register_hooks();
 		Routes::register_hooks();
 		CustomerPortal::register_hooks();
-		LicenseAdmin::register_hooks();
+		LicenseAdmin::register_hooks();\n\t\tDiagnostics::register_hooks();
 		RecurringConsent::register_hooks();
 		RenewalProcessor::register_hooks();
 		StripeRecurringAdapter::register_hooks();
