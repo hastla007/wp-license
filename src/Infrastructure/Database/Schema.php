@@ -19,7 +19,7 @@ final class Schema {
 	/**
 	 * Current schema version.
 	 */
-	public const VERSION = '4';
+	public const VERSION = '5';
 
 	/**
 	 * Run missing schema migrations.
@@ -165,6 +165,19 @@ final class Schema {
 				KEY due_renewals (status,retry_at),
 				KEY license_period (license_id,period_start)
 			) {$charset_collate};",
+			"CREATE TABLE {$tables['download_tokens']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				license_id bigint(20) unsigned NOT NULL,
+				token_hash char(64) NOT NULL,
+				package_url text NOT NULL,
+				expires_at datetime NOT NULL,
+				consumed_at datetime DEFAULT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY token_hash (token_hash),
+				KEY expiry_consumed (expires_at,consumed_at),
+				KEY license_created (license_id,created_at)
+			) {$charset_collate};",
 			"CREATE TABLE {$tables['event_inbox']} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				source varchar(40) NOT NULL,
@@ -218,6 +231,7 @@ final class Schema {
 			'activations'  => $prefix . 'activations',
 			'entitlements' => $prefix . 'entitlements',
 			'renewals'     => $prefix . 'renewals',
+			'download_tokens' => $prefix . 'download_tokens',
 			'event_inbox'  => $prefix . 'event_inbox',
 			'audit_log'    => $prefix . 'audit_log',
 		);
