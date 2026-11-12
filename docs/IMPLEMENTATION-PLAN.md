@@ -376,7 +376,7 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 - [x] **30 · Release-Manifest:** CLI `tools/create-release-manifest.php` erzeugt Metadaten mit HTTPS-Paket-URL, Version, Mindestversionen, Changelog und SHA-256. Release-Build-/Storage-Integration bleibt offen.
 - [ ] **31 · Paketablage:** austauschbaren privaten Storage-Provider mit signierten/kurzlebigen Redirects und dokumentierter Retention anschließen.
 - [ ] **32 · Release-Rollback:** unveränderliche Vorversionen und dokumentierten Rollbackpfad in Build- und Updateprozess integrieren.
-- [ ] **33 · Lizenzverwaltung:** Such-/Listenansicht auf Status, Kunde, Bestellung, Produkt und Renewal-Fälle ergänzen, falls aktuelle UI dies nicht abdeckt.
+- [x] **33 · Lizenzverwaltung:** vorhandene Suche/Paginierung um Statusfilter ergänzt und Kundennummer in die Suche aufgenommen. Bestell-/Renewal-spezifische Filter und Skalierungsprüfung bleiben offen.
 - [ ] **34 · Supportaktionen:** sichere, capability-/nonce-geschützte Domainfreigabe und Korrekturworkflows mit Begründung und Audit umsetzen.
 - [x] **35 · Testbasis:** PHPUnit-Konfiguration, PHP-Matrix-Workflow und isolierte LicenseKey-Unit-Tests ergänzt. Tests/CI-Ausführung sowie Signatur- und Entitlement-Testfälle noch offen.
 - [ ] **36 · API-Sicherheitstests:** REST-Tests für Signaturen, Replay, Rate-Limits, Fehlermeldungen und Einmal-Downloadtoken ergänzen.
@@ -385,4 +385,4 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 - [ ] **39 · Betriebsüberwachung:** konkrete Health-/Queue-/Fehler-Metriken und Alarmgrenzen für Renewals, Webhooks, API und Pakete implementieren.
 - [ ] **40 · Launch-Evidenz:** Restore-, Gateway-, Sicherheits-, Datenschutz-, Kündigungs- und Supportabnahmen mit verantwortlicher Person und Datum dokumentieren.
 
-**Umsetzungsstand dieses Updates:** Aufgaben 21, 23 und 30 umgesetzt/vorbereitet. Aufgabe 22 benötigt den tatsächlichen WooCommerce-SKU-/Variationskatalog; Aufgaben 24, 26–29, 31–34, 36–39 bleiben offen; Aufgabe 35 ist als Testbasis angelegt (nicht ausgeführt), Aufgabe 40 bleibt Produktionsabnahme; Aufgabe 25 ist als Client-PR vorbereitet und noch nicht getestet und werden als einzelne reviewbare PRs bearbeitet. Aufgabenausführung setzt bei externen Abhängigkeiten (Gatewaykonto, echte SKUs, Hosting/Secrets, Testshop, Rechtstexte) deren Bereitstellung voraus.
+**Umsetzungsstand dieses Updates:** Aufgaben 21, 23 und 30 umgesetzt/vorbereitet. Aufgabe 22 benötigt den tatsächlichen WooCommerce-SKU-/Variationskatalog; Aufgaben 24, 26–29, 31–32, 34, 36–39 bleiben offen; Aufgabe 35 ist als Testbasis angelegt (nicht ausgeführt), Aufgabe 40 bleibt Produktionsabnahme; Aufgabe 25 ist als Client-PR vorbereitet und noch nicht getestet und werden als einzelne reviewbare PRs bearbeitet. Aufgabenausführung setzt bei externen Abhängigkeiten (Gatewaykonto, echte SKUs, Hosting/Secrets, Testshop, Rechtstexte) deren Bereitstellung voraus.
