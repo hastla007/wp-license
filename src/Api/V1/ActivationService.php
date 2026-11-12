@@ -114,8 +114,46 @@ final class ActivationService {
 		}
 		$license = $locked_license;
 
+		// A concurrent retry may have inserted this installation while this
+		// request waited for the license row lock. Re-read under the lock so
+		// successful activations remain idempotent.
+		$existing = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$tables['activations']} WHERE installation_uuid = %s LIMIT 1",
+				$installation_uuid
+			),
+			ARRAY_A
+		);
+		if ( is_array( $existing ) ) {
+			if (
+				(int) $existing['license_id'] !== (int) $license['id']
+				|| ! hash_equals( (string) $existing['installation_secret_hash'], hash( 'sha256', $secret ) )
+			) {
+				$wpdb->query( 'ROLLBACK' );
+				return new \\WP_Error( 'installation_conflict', __( 'This installation ID is already assigned to another credential.', 'wp-license' ), array( 'status' => 409 ) );
+			}
+			if ( 'active' !== $existing['status'] ) {
+				$wpdb->query( 'ROLLBACK' );
+				return new \\WP_Error( 'activation_deactivated', __( 'This installation was deactivated. Generate a new installation ID to activate again.', 'wp-license' ), array( 'status' => 409 ) );
+			}
+
+			$updated = $wpdb->update(
+				$tables['activations'],
+				array( 'site_url' => $site_url, 'last_seen_at' => gmdate( 'Y-m-d H:i:s' ) ),
+				array( 'id' => (int) $existing['id'], 'status' => 'active' ),
+				array( '%s', '%s' ),
+				array( '%d', '%s' )
+			);
+			if ( false === $updated || false === $wpdb->query( 'COMMIT' ) ) {
+				$wpdb->query( 'ROLLBACK' );
+				return new \\WP_Error( 'activation_failed', __( 'The activation could not be committed. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
+			}
+
+			return self::signed_entitlement_response( (int) $license['id'], (int) $existing['id'], $installation_uuid, $secret );
+		}
+
 		$limit = self::site_limit( (int) $license['id'], $license );
-		$count = (int) $wpdb->get_var(
+		$count_result = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$tables['activations']} WHERE license_id = %d AND status = %s AND environment = %s",
 				(int) $license['id'],
@@ -123,6 +161,11 @@ final class ActivationService {
 				'production'
 			)
 		);
+		if ( null === $count_result || '' !== $wpdb->last_error ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \\WP_Error( 'activation_failed', __( 'The current site activation count could not be verified.', 'wp-license' ), array( 'status' => 500 ) );
+		}
+		$count = (int) $count_result;
 		if ( $count >= $limit ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'site_limit', __( 'The license has no remaining live site activations.', 'wp-license' ), array( 'status' => 409, 'site_limit' => $limit, 'site_count' => $count ) );
