@@ -19,7 +19,7 @@ final class Schema {
 	/**
 	 * Current schema version.
 	 */
-	public const VERSION = '8';
+	public const VERSION = '9';
 
 	/**
 	 * Run missing schema migrations.
@@ -65,6 +65,7 @@ final class Schema {
 				woocommerce_variation_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				billing_interval varchar(10) NOT NULL DEFAULT 'year',
 				price_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				price_decimals tinyint(3) unsigned NOT NULL DEFAULT 2,
 				currency char(3) NOT NULL DEFAULT 'EUR',
 				live_site_limit smallint(5) unsigned NOT NULL DEFAULT 1,
 				support_level varchar(20) NOT NULL DEFAULT 'standard',
@@ -93,6 +94,7 @@ final class Schema {
 				payment_gateway_id varchar(100) NOT NULL DEFAULT '',
 				payment_token_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				renewal_amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				renewal_currency_decimals tinyint(3) unsigned NOT NULL DEFAULT 2,
 				renewal_currency char(3) NOT NULL DEFAULT 'EUR',
 				cancel_at_period_end tinyint(1) NOT NULL DEFAULT 0,
 				revoked_at datetime DEFAULT NULL,
