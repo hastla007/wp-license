@@ -356,18 +356,7 @@ final class ActivationService {
 	 * @return string
 	 */
 	private static function normalize_site_url( string $url ): string {
-		$url = esc_url_raw( trim( $url ), array( 'http', 'https' ) );
-		$parts = wp_parse_url( $url );
-		if ( empty( $parts['host'] ) ) {
-			return '';
-		}
-
-		$scheme = strtolower( (string) ( $parts['scheme'] ?? 'https' ) );
-		$host = strtolower( (string) $parts['host'] );
-		$port = isset( $parts['port'] ) ? ':' . absint( $parts['port'] ) : '';
-		$path = isset( $parts['path'] ) ? untrailingslashit( $parts['path'] ) : '';
-
-		return $scheme . '://' . $host . $port . $path;
+		return SiteUrl::normalize( $url );
 	}
 
 	/**
