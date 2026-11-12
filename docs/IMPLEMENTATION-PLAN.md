@@ -302,6 +302,8 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 ## 6. Pull-Request-Status und Merge-Reihenfolge
 
 - [x] PR01–PR12 als aufeinander aufbauende Änderungen angelegt.
+- [x] Roadmap-Dokumentation als PR #13 aktualisiert.
+- [ ] Phase-13-Codeänderungen reviewen und mergen (GitHub PR #14).
 - [ ] PR01 → PR12 reviewen und mergen; Folge-PRs basieren jeweils auf dem vorherigen Branch.
 - [ ] PR13–PR20 gemäß den oben beschriebenen nächsten Phasen umsetzen.
 - [ ] PR16 umfasst zusätzliche, getrennte Pull Requests in den drei Produkt-Repositories.
