@@ -91,6 +91,29 @@ final class ActivationService {
 			return self::signed_entitlement_response( (int) $license['id'], (int) $existing['id'], $installation_uuid, $secret );
 		}
 
+		$encrypted_secret = SecretCrypto::encrypt( $secret );
+		if ( false === $encrypted_secret ) {
+			return new \WP_Error( 'server_configuration', __( 'The license server could not securely store the installation credential.', 'wp-license' ), array( 'status' => 500 ) );
+		}
+
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+			return new \WP_Error( 'server_configuration', __( 'The license server could not start an activation transaction.', 'wp-license' ), array( 'status' => 500 ) );
+		}
+
+		$locked_license = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d FOR UPDATE", (int) $license['id'] ),
+			ARRAY_A
+		);
+		if ( ! is_array( $locked_license ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'invalid_key', __( 'The license key was not recognized.', 'wp-license' ), array( 'status' => 401 ) );
+		}
+		if ( 'active' !== $locked_license['status'] || ! self::is_paid( $locked_license ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'expired', __( 'This license is not currently active.', 'wp-license' ), array( 'status' => 403 ) );
+		}
+		$license = $locked_license;
+
 		$limit = self::site_limit( (int) $license['id'], $license );
 		$count = (int) $wpdb->get_var(
 			$wpdb->prepare(
@@ -101,12 +124,8 @@ final class ActivationService {
 			)
 		);
 		if ( $count >= $limit ) {
+			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'site_limit', __( 'The license has no remaining live site activations.', 'wp-license' ), array( 'status' => 409, 'site_limit' => $limit, 'site_count' => $count ) );
-		}
-
-		$encrypted_secret = SecretCrypto::encrypt( $secret );
-		if ( false === $encrypted_secret ) {
-			return new \WP_Error( 'server_configuration', __( 'The license server could not securely store the installation credential.', 'wp-license' ), array( 'status' => 500 ) );
 		}
 
 		$now = gmdate( 'Y-m-d H:i:s' );
@@ -132,11 +151,16 @@ final class ActivationService {
 		);
 
 		if ( false === $inserted ) {
+			$wpdb->query( 'ROLLBACK' );
 			// A concurrent duplicate request may have won the unique installation ID.
 			return new \WP_Error( 'activation_conflict', __( 'The installation could not be activated. Retry the request.', 'wp-license' ), array( 'status' => 409 ) );
 		}
 
 		$activation_id = (int) $wpdb->insert_id;
+		if ( false === $wpdb->query( 'COMMIT' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'activation_failed', __( 'The activation could not be committed. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
+		}
 		AuditLog::record(
 			'site_activated',
 			'activation',
@@ -168,13 +192,16 @@ final class ActivationService {
 
 		$tables = Schema::table_names();
 		$now = gmdate( 'Y-m-d H:i:s' );
-		$wpdb->update(
+		$updated = $wpdb->update(
 			$tables['activations'],
 			array( 'status' => 'deactivated', 'deactivated_at' => $now, 'last_seen_at' => $now ),
-			array( 'id' => (int) $activation['id'] ),
+			array( 'id' => (int) $activation['id'], 'status' => 'active' ),
 			array( '%s', '%s', '%s' ),
-			array( '%d' )
+			array( '%d', '%s' )
 		);
+		if ( 1 !== $updated ) {
+			return new \WP_Error( 'deactivation_failed', __( 'The installation could not be deactivated.', 'wp-license' ), array( 'status' => 409 ) );
+		}
 		AuditLog::record(
 			'site_deactivated',
 			'activation',
