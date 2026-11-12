@@ -1,6 +1,6 @@
 <?php
-use PHPUnit\\Framework\\TestCase;
-use WPLC\\Billing\\RenewalScheduler;
+use PHPUnit\Framework\TestCase;
+use WPLC\Billing\RenewalScheduler;
 
 final class RenewalPeriodTest extends TestCase {
 	/** Exercise the calendar calculation without WordPress or database state. */
