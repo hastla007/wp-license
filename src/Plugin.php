@@ -7,6 +7,7 @@
 
 namespace WPLC;
 
+use WPLC\CLI\RotateInstallationSecretsCommand;
 use WPLC\Catalog\ProductEditor;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\LicenseIssuer;
@@ -84,6 +85,7 @@ final class Plugin {
 			return;
 		}
 
+		RotateInstallationSecretsCommand::register();
 		Schema::maybe_upgrade();
 		ProductEditor::register_hooks();
 		LicenseIssuer::register_hooks();
