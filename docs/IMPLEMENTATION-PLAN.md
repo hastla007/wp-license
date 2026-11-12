@@ -407,6 +407,7 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [x] **41b · Laufzeit-Konformitätstest (statisch):** PHPUnit vergleicht die deklarierten OpenAPI-Routen und Methoden mit dem erwarteten v1-Inventar und prüft Pflichtfelder/Signaturtypen.
 - [ ] **41c · REST-Laufzeitkonformität:** REST-Integrationstests gegen echte WordPress-Routen ergänzen und Antworten/Fehlercodes mit der Spezifikation sowie gemeinsamen Client-Fixtures vergleichen. **Abnahme:** inkompatible API-Änderungen schlagen in CI fehl.
 - [x] **42a · Installation-secret key ring:** `SecretCrypto` schreibt `v1:<key-id>`-AES-256-GCM-Umschläge, liest versioniert den passenden Schlüssel und unterstützt unversionierte Altwerte über configured keys/Legacy-Salt. Dokumentation und Tests für aktuellen sowie vorherigen Key-ID sind ergänzt.
+- [x] **42e · Lazy-Re-Encryption bei authentifizierter Nutzung:** Nach erfolgreicher HMAC-Prüfung und Rate-Limit-Zulassung werden Alt-/Vorversion-Umschläge mit Compare-and-set auf den aktuellen Key umgeschrieben; Fehler blockieren die gültige Anfrage nicht. Unit-Tests prüfen aktuelle, vorherige und unversionierte Umschläge. Batchmigration, Audit/Backup/Restore und WP/MySQL-Abnahme bleiben offen.
 - [ ] **42b · Rotation im Bestand abnehmen:** Re-Encryption-CLI/Batchmigration, Prüflauf, Audit, Backup/Restore und Rückfallpfad für bestehende Aktivierungsgeheimnisse implementieren und in WP/MySQL testen.
 - [x] **42c · Lizenzschlüssel-Key-ID:** Schema v8 speichert `license_key_secret_id`; neue Schlüssel werden mit aktueller Key-ID abgeleitet und das Kundenportal nutzt die gespeicherte Version. Tests decken aktuelle/vorherige IDs und unbekannte IDs ab.
 - [ ] **42d · Bestandsmigration und Recovery:** vorhandene Zeilen sicher auf bestätigte Legacy-Key-ID abgleichen; Recovery-/Rotationsworkflow mit Audit und Rückfallpfad umsetzen. **Abnahme:** Rotations- und Wiederherstellungstest ohne ungültig werdende Bestandslizenzen.
@@ -444,6 +445,14 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [ ] **58 · Einmal-Downloadgrants unter Parallelität prüfen:** gleichzeitige Requests, Replay, Lizenzwiderruf zwischen Metadatenabfrage und Download, URL-Ablauf, Hostwechsel und Storage-Ausfall testen. **Abnahme:** ein Grant ist genau einmal verwendbar und ein widerrufener Anspruch erhält kein Paket.
 - [ ] **59 · Migrationen und Datenintegrität automatisiert prüfen:** leere Installation, Upgrade von jeder unterstützten Schema-Version, wiederholte Migration, Teilfehler, große Tabellen, Indizes und Wiederherstellung aus Backup abdecken. **Abnahme:** Migrationen sind idempotent; bei Fehlern bleiben Lizenz- und Renewal-Daten konsistent.
 - [ ] **60 · Last-, Fehler- und Datenschutztests für V1:** repräsentative Mengen an Lizenzen/Aktivierungen/Events messen; Pagination, Abfragepläne, API-Timeouts, Protokollredaktion, Datenaufbewahrung und WordPress Export-/Erase-Hooks prüfen. **Abnahme:** definierte Antwortzeit-/Datenmengen-Ziele werden erreicht; Geheimnisse und nicht erforderliche personenbezogene Daten verlassen weder Logs noch Exportgrenzen.
+
+### Zusätzlicher Sicherheitsfund: signierte Requests (Aufgabe 61)
+
+- [x] **61a · Eingehende HMAC-Prüfung:** Authenticator prüft jetzt X-WPLC-Signature in konstanter Zeit gegen den dokumentierten kanonischen String aus HTTP-Methode, REST-Route, Timestamp, Nonce und SHA-256 des Raw Bodys; ungültige Formate und Signaturen werden vor Replay-/Rate-Limit-Verbrauch abgewiesen.
+- [x] **61b · Testvektoren:** PHPUnit prüft einen festen HMAC-Testvektor sowie Bindung an Methode, Route und unveränderten Body (tests/Api/ApiRequestSignatureTest.php).
+- [ ] **61c · REST-Endpunkt-Integration:** Positive/negative Signaturen über echte WP_REST_Request-Routen und alle geschützten Endpunkte integrieren; Client-SDK-Fixtures dagegen ausführen.
+- [ ] **61d · Sicherheitsreview:** Authentifizierungsfluss, Failure-Modes, Replay-Eintrag und Rotation in WP/MySQL mit parallelen Requests prüfen.
+- [x] **61e · Fehlerreferenzen:** Doppelt escapte globale WP_Error-Referenzen im Authenticator normalisiert, damit Rückgabepfade gültige PHP-Namespaces verwenden.
 
 ### Technische V1-Abnahme
 
@@ -483,3 +492,6 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 
 - [x] **45c** Compare-and-set-Schutz für Lizenzzustandswechsel, Renewal-Erfolg und Kündigung eingebaut.
 - [ ] **45d** Konkurrenz-/Auditintegrationstests bleiben offen.
+
+- [x] **61a/61b/61e** Eingehende Signaturprüfung, fixer HMAC-Testvektor, request-binding Tests und PHP-Fehlerreferenzen im Authenticator ergänzt; echte REST-/MySQL-Integration bleibt offen.
+- [x] **42e** Lazy-Re-Encryption für erfolgreich authentifizierte Nutzungen ergänzt; vollständige Batch-Rotation, Restoretest und Datenbankabnahme bleiben offen.
