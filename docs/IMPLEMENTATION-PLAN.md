@@ -361,7 +361,7 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 
 - [x] **21 · Entitlement-Katalog:** stabile Feature-IDs und vorläufige Tarifzuordnung in `docs/ENTITLEMENTS.md` dokumentieren; reale SKU-/Plan-Zuordnung vor Aktivierung validieren.
 - [ ] **22 · SKU-/Plan-Mapping:** reale WooCommerce-Produkte, Variationen, Preise und Add-ons auf serverseitige Plan-IDs abbilden und Import/Export definieren.
-- [ ] **23 · Gemeinsamer Feature-Gate-Client:** API zum Abfragen von boolean/quota-Entitlements mit deny-by-default und kompatiblen PHP-Mindestversionen ergänzen.
+- [x] **23 · Gemeinsamer Feature-Gate-Client:** `allows_entitlement()` mit Produktpräfixprüfung, boolean/quota-Werten und deny-by-default in drei Client-PRs vorbereitet: Voucher [#12](https://github.com/hastla007/wp-couponmaster/pull/12), Pass [#22](https://github.com/hastla007/wp-passmaster/pull/22), Affiliate [#11](https://github.com/hastla007/wpaffiliatemaster/pull/11).
 - [ ] **24 · Produkt-Gates:** neue Premiumfunktionen in allen drei Clients auf die freigegebenen Entitlement-IDs abbilden; kostenlose/Bestandsfunktionen unangetastet lassen.
 - [ ] **25 · Offline-Rechtecache:** signierte Antworten lokal verifizieren, höchstens 14 Tage cachen, Ablauf/Manipulation testen und bestehende Shopdaten schützen.
 - [ ] **26 · Stripe-Webhooks:** Signaturprüfung, Event-Inbox und Provider-Event-IDs für unterstützte Zahlungsereignisse implementieren.
@@ -380,4 +380,4 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 - [ ] **39 · Betriebsüberwachung:** konkrete Health-/Queue-/Fehler-Metriken und Alarmgrenzen für Renewals, Webhooks, API und Pakete implementieren.
 - [ ] **40 · Launch-Evidenz:** Restore-, Gateway-, Sicherheits-, Datenschutz-, Kündigungs- und Supportabnahmen mit verantwortlicher Person und Datum dokumentieren.
 
-**Umsetzungsstand dieses Updates:** Aufgabe 21 erledigt. Aufgaben 22–40 bleiben offen und werden als einzelne reviewbare PRs bearbeitet. Aufgabenausführung setzt bei externen Abhängigkeiten (Gatewaykonto, echte SKUs, Hosting/Secrets, Testshop, Rechtstexte) deren Bereitstellung voraus.
+**Umsetzungsstand dieses Updates:** Aufgaben 21 und 23 umgesetzt/vorbereitet. Aufgabe 22 benötigt den tatsächlichen WooCommerce-SKU-/Variationskatalog; Aufgaben 24–40 bleiben offen und werden als einzelne reviewbare PRs bearbeitet. Aufgabenausführung setzt bei externen Abhängigkeiten (Gatewaykonto, echte SKUs, Hosting/Secrets, Testshop, Rechtstexte) deren Bereitstellung voraus.
