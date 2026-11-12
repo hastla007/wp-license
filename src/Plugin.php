@@ -86,6 +86,8 @@ final class Plugin {
 		Routes::register_hooks();
 		CustomerPortal::register_hooks();
 		LicenseAdmin::register_hooks();
+		RecurringConsent::register_hooks();
+		RenewalProcessor::register_hooks();
 
 		/**
 		 * Fires after WP License Captain has confirmed its WooCommerce dependency.
