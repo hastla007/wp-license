@@ -51,6 +51,7 @@ final class Catalog {
 
 		$price    = (float) $product->get_price( 'edit' );
 		$decimals = function_exists( 'wc_get_price_decimals' ) ? (int) wc_get_price_decimals() : 2;
+		$decimals = max( 0, min( 6, $decimals ) );
 		$price_minor = (int) round( $price * ( 10 ** $decimals ) );
 		$currency = function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'EUR';
 
@@ -68,7 +69,7 @@ final class Catalog {
 		$now = current_time( 'mysql', true );
 		$tables = Schema::table_names();
 
-		$wpdb->replace(
+		$product_saved = $wpdb->replace(
 			$tables['products'],
 			array(
 				'product_key' => $product_key,
@@ -80,6 +81,10 @@ final class Catalog {
 			array( '%s', '%s', '%d', '%s', '%s' )
 		);
 
+		if ( false === $product_saved ) {
+			return false;
+		}
+
 		$result = $wpdb->replace(
 			$tables['plans'],
 			array(
@@ -89,6 +94,7 @@ final class Catalog {
 				'woocommerce_variation_id' => $variation_id,
 				'billing_interval' => $interval,
 				'price_minor' => max( 0, $price_minor ),
+				'price_decimals' => max( 0, min( 6, $decimals ) ),
 				'currency' => strtoupper( sanitize_text_field( $currency ) ),
 				'live_site_limit' => $limit,
 				'support_level' => $support,
@@ -97,7 +103,7 @@ final class Catalog {
 				'created_at' => $now,
 				'updated_at' => $now,
 			),
-			array( '%s', '%s', '%d', '%d', '%s', '%d', '%s', '%d', '%s', '%s', '%d', '%s', '%s' )
+			array( '%s', '%s', '%d', '%d', '%s', '%d', '%d', '%s', '%d', '%s', '%s', '%d', '%s', '%s' )
 		);
 
 		return false !== $result;
