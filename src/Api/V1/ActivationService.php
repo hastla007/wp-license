@@ -274,7 +274,7 @@ final class ActivationService {
 		$lock_name = 'wplc_' . substr( hash( 'sha256', 'license:' . (int) $activation['license_id'] ), 0, 48 );
 		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
 		if ( '1' !== (string) $locked ) {
-			return new \\WP_Error( 'retry_later', __( 'The license is being updated. Retry shortly.', 'wp-license' ), array( 'status' => 503 ) );
+			return new \WP_Error( 'retry_later', __( 'The license is being updated. Retry shortly.', 'wp-license' ), array( 'status' => 503 ) );
 		}
 
 		try {
@@ -287,7 +287,7 @@ final class ActivationService {
 				array( '%d', '%s' )
 			);
 			if ( 1 !== $updated ) {
-				return new \\WP_Error( 'deactivation_failed', __( 'The installation could not be deactivated.', 'wp-license' ), array( 'status' => 409 ) );
+				return new \WP_Error( 'deactivation_failed', __( 'The installation could not be deactivated.', 'wp-license' ), array( 'status' => 409 ) );
 			}
 			AuditLog::record(
 				'site_deactivated',
