@@ -104,7 +104,10 @@ final class CatalogCsv {
 		if ( ! is_array( $file ) || UPLOAD_ERR_OK !== (int) ( $file['error'] ?? UPLOAD_ERR_NO_FILE ) || empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
 			self::redirect_with_result( 0, 1 );
 		}
-		if ( filesize( $file['tmp_name'] ) > 2097152 ) {\n\t\t\tself::redirect_with_result( 0, 1 );\n\t\t}\n\t\t$handle = fopen( $file['tmp_name'], 'r' );
+		if ( filesize( $file['tmp_name'] ) > 2097152 ) {
+			self::redirect_with_result( 0, 1 );
+		}
+		$handle = fopen( $file['tmp_name'], 'r' );
 		if ( ! $handle ) {
 			self::redirect_with_result( 0, 1 );
 		}
@@ -119,7 +122,11 @@ final class CatalogCsv {
 		$rows = 0;
 		while ( false !== ( $values = fgetcsv( $handle ) ) ) {
 			++$rows;
-			if ( $rows > self::MAX_ROWS || count( $values ) !== count( self::headers() ) ) {
+			if ( $rows > self::MAX_ROWS ) {
+				++$failed;
+				break;
+			}
+			if ( count( $values ) !== count( self::headers() ) ) {
 				++$failed;
 				continue;
 			}
