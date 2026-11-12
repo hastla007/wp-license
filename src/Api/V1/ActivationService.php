@@ -138,7 +138,7 @@ final class ActivationService {
 					ARRAY_A
 				);
 				if ( ! is_array( $parent ) ) {
-					return new \\WP_Error( 'staging_parent_invalid', __( 'The staging site must link to an active live site on this license.', 'wp-license' ), array( 'status' => 409 ) );
+					return new \WP_Error( 'staging_parent_invalid', __( 'The staging site must link to an active live site on this license.', 'wp-license' ), array( 'status' => 409 ) );
 				}
 			}
 
@@ -153,10 +153,10 @@ final class ActivationService {
 					|| (int) $existing['staging_parent_id'] !== (int) $staging_parent_id
 					|| ! hash_equals( (string) $existing['installation_secret_hash'], hash( 'sha256', $secret ) )
 				) {
-					return new \\WP_Error( 'installation_conflict', __( 'This installation ID is already assigned to another credential.', 'wp-license' ), array( 'status' => 409 ) );
+					return new \WP_Error( 'installation_conflict', __( 'This installation ID is already assigned to another credential.', 'wp-license' ), array( 'status' => 409 ) );
 				}
 				if ( 'active' !== $existing['status'] ) {
-					return new \\WP_Error( 'activation_deactivated', __( 'This installation was deactivated. Generate a new installation ID to activate again.', 'wp-license' ), array( 'status' => 409 ) );
+					return new \WP_Error( 'activation_deactivated', __( 'This installation was deactivated. Generate a new installation ID to activate again.', 'wp-license' ), array( 'status' => 409 ) );
 				}
 				$updated = $wpdb->update(
 					$tables['activations'],
@@ -166,7 +166,7 @@ final class ActivationService {
 					array( '%d', '%s' )
 				);
 				if ( false === $updated ) {
-					return new \\WP_Error( 'activation_failed', __( 'The activation could not be updated. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
+					return new \WP_Error( 'activation_failed', __( 'The activation could not be updated. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
 				}
 				return self::signed_entitlement_response( (int) $license['id'], (int) $existing['id'], $installation_uuid, $secret );
 			}
@@ -181,7 +181,7 @@ final class ActivationService {
 					)
 				);
 				if ( null === $count_result || '' !== $wpdb->last_error ) {
-					return new \\WP_Error( 'activation_failed', __( 'The current live-site count could not be verified.', 'wp-license' ), array( 'status' => 500 ) );
+					return new \WP_Error( 'activation_failed', __( 'The current live-site count could not be verified.', 'wp-license' ), array( 'status' => 500 ) );
 				}
 				$count = (int) $count_result;
 				if ( $count >= $limit ) {
@@ -198,7 +198,7 @@ final class ActivationService {
 					)
 				);
 				if ( null === $count_result || '' !== $wpdb->last_error ) {
-					return new \\WP_Error( 'activation_failed', __( 'The current staging-site count could not be verified.', 'wp-license' ), array( 'status' => 500 ) );
+					return new \WP_Error( 'activation_failed', __( 'The current staging-site count could not be verified.', 'wp-license' ), array( 'status' => 500 ) );
 				}
 				$count = (int) $count_result;
 				if ( $count >= 1 ) {
