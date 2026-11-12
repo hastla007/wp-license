@@ -1,14 +1,14 @@
 # WP License Captain — Programmierplan
 
 **Repository:** `hastla007/wp-license`  
-**Arbeitsbranch:** `codex/implementation-plan`  
+**Arbeitsbranch:** gestapelte Branches codex/pr-01-foundation bis codex/pr-12-release  
 **Stand:** 12.11.2026
 
 ## 1. Ziel und Ausgangslage
 
 Dieses Repository wird zum WooCommerce-Plugin, das als Lizenzserver für WP Affiliate Captain, Voucher Captain und WP Pass Captain dient. Die API erhält von Beginn an eine Versionierung, damit sie später aus dem Shop-Plugin herausgelöst werden kann.
 
-Der Branch `main` enthält derzeit nur einen initialen Commit mit einer minimalen README. Es gibt noch keine Plugin-Dateien, Build-Konfiguration, Tests oder bestehende Architektur. Dieser Plan setzt daher einen klaren WordPress/WooCommerce-Unterbau voraus.
+Der Basisbranch main ist weiterhin der Ausgangspunkt. Die PR-Branches 01–12 enthalten inzwischen den Plugin-Unterbau, Lizenzserverfunktionen, Client-SDK und Betriebsdokumentation. Die Pull Requests sind gestapelt und noch nicht gemergt. Die Abschnitte unten beschreiben den Stand auf den PR-Branches, nicht den Stand von main.
 
 ### Festgelegte Produktregeln
 
@@ -38,7 +38,100 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 
 **Definition of Done für Version 1:** Eine Testbestellung stellt zuverlässig eine Lizenz aus; Kunde und Administrator können sie verwalten; Lizenzclients können Websites aktivieren und Rechte abrufen; Site-Limits und Staging-Regeln sind korrekt; Verlängerungen, Kündigungen, Zahlungsausfälle und Erstattungen führen zu konsistenten Statuswerten; Updates funktionieren; alle drei Clients bleiben auf ihren PHP-Mindestversionen lauffähig.
 
-## 3. Programmierplan in einzelnen Schritten
+## 3. Entwickler-Checkliste: aktueller Stand
+
+**Abhakregel:** Ein Haken bedeutet, dass Code oder Dokumentation in einem PR erstellt wurde. Er bedeutet nicht, dass der PR gemergt, geprüft oder produktiv abgenommen ist.
+
+### In PR01–PR12 umgesetzt
+
+- [x] **PR01:** Plugin-Grundgerüst, Bootstrap und WooCommerce-Abhängigkeit.
+- [x] **PR02:** Datenbankschema und Schema-Versionierung für Produkte, Pläne, Lizenzen, Aktivierungen, Rechte, Verlängerungen, Webhook-Inbox und Audit-Log.
+- [x] **PR03:** Produkt-/Plan-Katalog und WooCommerce-Zuordnung.
+- [x] **PR04:** Bezahlte Bestellungen idempotent in Lizenzdatensätze umsetzen.
+- [x] **PR05:** Lizenzlebenszyklus, Erstattungsbehandlung, Statusaktionen und Audit-Ereignisse.
+- [x] **PR06:** REST API v1 für Aktivierung, Deaktivierung und Rechteprüfung mit HMAC-Authentifizierung.
+- [x] **PR07:** Live-Site-Limits, Staging-Verknüpfung und Schutz gegen parallele Überaktivierung.
+- [x] **PR08:** Kundenportal und administrative Lizenzaktionen.
+- [x] **PR09:** Verlängerungsgrundgerüst mit expliziter Zustimmung, Adaptervertrag, Wiederholungen und Kulanzablauf.
+- [x] **PR10:** Update-Metadaten, Allowlist für HTTPS-Pakethosts und kurzlebige Downloadfreigaben.
+- [x] **PR11:** Gemeinsamer PHP-Client für Aktivierung, signierte Rechteabfragen und Update-Metadaten.
+- [x] **PR12:** README, Changelog, API-/Betriebsdokumentation und Release-Checkliste.
+
+### Für die Freigabe noch offen
+
+- [ ] PR01–PR12 reviewen, Konflikte beheben und in Reihenfolge mergen.
+- [ ] Produkt-Repositories tatsächlich anbinden: Affiliate Captain, Voucher Captain und Pass Captain.
+- [ ] Konkrete, getestete Zahlungsadapter für die beworbenen Gateways bereitstellen; aktuell existiert nur der Adaptervertrag.
+- [ ] Downloadpakete hosten und den Produktclients die Signatur- und ZIP-Prüfung vor Installation beibringen.
+- [ ] Tests, Kompatibilitätsmatrix, Checkout-/Gateway-Sandboxläufe und vollständige Sicherheitsprüfung durchführen.
+- [ ] Betrieb, Datenschutz, Schlüsselrotation, Wiederherstellung und Supportprozesse vor kommerziellem Einsatz festlegen.
+
+## 4. Nächste Phasen und PRs
+
+### PR13 — Kernsystem härten und API-Vertrag finalisieren
+- [ ] Code-Review von Datenbankzugriffen, Autorisierung, Statusübergängen, Nonce-/Rate-Limits, Redirects und Fehlerantworten durchführen.
+- [ ] Schlüssel- und Wiederherstellungsstrategie definieren, damit Auth-Salt-Rotation nicht unbemerkt Lizenzschlüssel oder Installationsgeheimnisse unbrauchbar macht.
+- [ ] Erneuerungsablauf auf Doppelverarbeitung, mehrdeutige Gateway-Timeouts, fehlgeschlagene WooCommerce-Bestellungen und abgelaufene Kulanz prüfen und korrigieren.
+- [ ] API-Fehlercodes und Vertragsversionen vervollständigen; signierte Ereignis-/Webhook-Verarbeitung entweder spezifizieren oder explizit aus v1 streichen.
+- [ ] Adminoberfläche für Produkt-/Plan-Konfiguration auf Berechtigungen, Validierung und vollständige Bedienbarkeit prüfen.
+- **Abnahme:** API-Vertrag stimmt mit den Routen und gespeicherten Statuswerten überein; bekannte Sicherheits- und Datenintegritätsfehler sind behoben.
+
+### PR14 — Stripe-Adapter
+- [ ] Konkretes unterstütztes WooCommerce-Gateway und dessen Token-/Mandats-API festlegen.
+- [ ] Gespeicherten Token nur mit nachweisbarer Zustimmung an Renewal-Jobs anbinden.
+- [ ] Provider-Idempotenz, Zahlungsbestätigung, Zeitüberschreitungen und Wiederabgleich abbilden.
+- [ ] Webhook-Signatur, Event-Inbox, Duplikaterkennung und Zustandsabgleich ergänzen.
+- [ ] Erfolgs-, Ablehnungs-, Widerrufs- und Timeoutfälle in einer Gateway-Sandbox durchspielen.
+- **Abnahme:** Keine Abbuchung ohne gültigen Token und Zustimmung; wiederholte Events erzeugen keine doppelte Zahlung oder Verlängerung.
+
+### PR15 — PayPal-Adapter
+- [ ] Unterstützte PayPal-WooCommerce-Integration und erlaubte Folgeabbuchungsart bestimmen.
+- [ ] Zustimmung, Tokenbesitz, Idempotenz, Webhook-Signatur und Erstattungs-/Stornoereignisse integrieren.
+- [ ] Unklare oder nicht unterstützte Zahlungsmethoden beim Checkout blockieren.
+- [ ] Sandboxläufe für Erfolg, Ablehnung, verspätete Webhooks und Erstattung durchführen.
+- **Abnahme:** PayPal-Verlängerungen bleiben synchron mit WooCommerce-Bestellungen und Lizenzlaufzeiten.
+
+### PR16 — Produktclients in den drei Plugin-Repositories
+- [ ] Aktuelle PHP-/WordPress-/WooCommerce-Mindestversionen und Architektur jedes Repositories erneut erfassen.
+- [ ] Gemeinsamen Client kompatibel bundlen oder als versioniertes Paket ausliefern; keine Mindestversion unbeabsichtigt anheben.
+- [ ] CouponMaster: Aktivierungseinstellungen, Add-on-Rechte, Offlinecache und Updates anbinden.
+- [ ] PassMaster: Aktivierungseinstellungen, Tarifrechte, Offlinecache und Updates anbinden.
+- [ ] AffiliateMaster: Aktivierungseinstellungen, Tarif-/Feature-Rechte, Offlinecache und Updates anbinden.
+- [ ] Bestehende kostenlose Funktionen unverändert lassen; nur neue Premium-Funktionen sperren.
+- **Abnahme:** Je Produkt eigener PR im jeweiligen Repository, mit dokumentierter Rechtezuordnung und Kompatibilität.
+
+### PR17 — Paketveröffentlichung und WordPress-Updater
+- [ ] Sichere Ablage und Versionierung für Core- und Premium-ZIPs einrichten.
+- [ ] Release-Prozess erzeugt Metadaten inklusive Version, Mindestversionen, Changelog und SHA-256.
+- [ ] Produktclient prüft HMAC-Antwort und ZIP-Prüfsumme vor Installation.
+- [ ] Update-Transient/Plugin-Upgrader anbinden und Fehler ohne Ausfall des Shops behandeln.
+- [ ] Downloadgrant-Ablauf, Wiederverwendung, falsche Hosts, abgelaufene Lizenz und nicht erreichbaren Speicher behandeln.
+- **Abnahme:** Autorisierte und nicht autorisierte Updatepfade verhalten sich im Testshop wie spezifiziert; Rollbackpakete sind verfügbar.
+
+### PR18 — Automatisierte Qualitätssicherung und Kompatibilität
+- [ ] CI für unterstützte PHP-Versionen, WordPress-/WooCommerce-Versionen, Coding-Standards und statische Analyse einrichten.
+- [ ] Unit-/Integrationstests für Lizenzvergabe, doppelte Bestellereignisse, Refunds, Statuswechsel und Migrationen ergänzen.
+- [ ] REST-Sicherheitstests für Signaturen, Replay, Rate-Limits, Site-Limits und Staging ergänzen.
+- [ ] Renewal- und Updateabläufe mit WooCommerce-Testdaten und Gateway-Sandboxes abdecken.
+- [ ] Kompatibilität mindestens gegen die dokumentierten Mindestversionen der drei Produktclients prüfen.
+- **Abnahme:** CI ist reproduzierbar; kritische End-to-End-Fälle sind bestanden und Fehlerberichte referenzieren die betroffenen Versionen.
+
+### PR19 — Adminbetrieb und Supportwerkzeuge
+- [ ] Ablauf für Lizenzsuche, Verlängerungsstatus, Gatewayfehler und manuelle Korrektur vervollständigen.
+- [ ] Sichere Wiederherstellung bei Domainwechsel, verlorenem Schlüssel und Installationslimit definieren.
+- [ ] Paginierung, Bulk-Aktionen, Berechtigungen und Audit-Nachweise für große Lizenzbestände prüfen.
+- [ ] Diagnoseinformationen bereitstellen, ohne Schlüssel, Tokens oder Zahlungsgeheimnisse offenzulegen.
+- **Abnahme:** Support kann typische Fälle ohne direkte Datenbankänderung lösen; jede Änderung ist nachvollziehbar.
+
+### PR20 — Produktionsbetrieb und Launch
+- [ ] Lizenzserver mit HTTPS, stabiler Schlüsselverwaltung, Backups und Restoreverfahren bereitstellen.
+- [ ] Überwachung für Renewalwarteschlangen, Webhooks, REST-Fehler, Updatepaketfehler und Speicherverfügbarkeit einrichten.
+- [ ] Datenaufbewahrung/-löschung, Datenschutzhinweise, Checkouttexte und Kündigungsprozess festlegen.
+- [ ] Sicherheitsprüfung und rechtliche Prüfung des Vertriebs-/Lizenzmodells abschließen.
+- [ ] Release-, Support-, Incident- und Rollback-Verantwortliche festlegen.
+- **Abnahme:** Alle Punkte in der Release-Readiness-Checkliste sind geprüft; erst dann kommerzieller Start.
+
+## 5. Ursprünglicher technischer Detailplan
 
 ### Schritt 0 — Repositories und technische Entscheidungen festziehen
 
@@ -203,29 +296,21 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - Testfälle für Kauf, doppelte Events, Verlängerung, Kündigung, Refund, Chargeback, Site-Limit, Staging, Offlinebetrieb und Update sind bestanden.
 - Release ist reproduzierbar und kann bei Fehlern zurückgerollt werden.
 
-## 4. Empfohlene Reihenfolge der Pull Requests
+## 6. Pull-Request-Status und Merge-Reihenfolge
 
-1. `PR-01` Plugin-Skelett, Autoloading, Coding-Standards und CI.
-2. `PR-02` Schema-Versionierung und Migrationen.
-3. `PR-03` Produkt-/Plan-/Entitlementkatalog und Admin-Zuordnung.
-4. `PR-04` idempotente WooCommerce-Bestellverarbeitung und Lizenzschlüssel.
-5. `PR-05` Statusmodell, Refund/Kündigung und Audit-Log.
-6. `PR-06` REST API v1, Authentifizierung, Signierung und Fehlercodes.
-7. `PR-07` Aktivierungen, Limits, Domainwechsel und Staging.
-8. `PR-08` Mein-Konto- und Adminoberfläche.
-9. `PR-09` Renewal Engine und Gateway-Adapter (Stripe zuerst, PayPal danach).
-10. `PR-10` Lizenzierter Premium-Updatefeed und Downloadpakete.
-11. `PR-11` Produktclients und jeweilige Plugin-Integrationen.
-12. `PR-12` End-to-End-Abnahme, Betriebsdokumentation und Release.
+- [x] PR01–PR12 als aufeinander aufbauende Änderungen angelegt.
+- [ ] PR01 → PR12 reviewen und mergen; Folge-PRs basieren jeweils auf dem vorherigen Branch.
+- [ ] PR13–PR20 gemäß den oben beschriebenen nächsten Phasen umsetzen.
+- [ ] PR16 umfasst zusätzliche, getrennte Pull Requests in den drei Produkt-Repositories.
 
-## 5. Noch zu verifizierende Punkte vor den betroffenen PRs
+## 7. Offene Entscheidungen und externe Voraussetzungen
 
-- Reale Source-Dateien der drei Produkt-Repositories und deren aktuelle Mindestversionen auditieren.
-- Konkrete Stripe-/PayPal-Gatewayversionen und tokenisierte Folgeabbuchung in einer Sandbox erproben.
-- Klären, ob monatliche Verlängerungsbestellungen über bestehende WooCommerce-Gateway-Token oder eigene Gatewayadapter laufen; keine nicht unterstützte Automatik versprechen.
-- Hosting für Premium-ZIPs, Backup-/Retentiondauer und Alarmierung festlegen.
-- Rechtliche Prüfung von GPL-Kompatibilität, Add-on-Vertrieb, Verbraucherinformation, Kündigung und Datenschutz abschließen.
+- [ ] Reale Source-Dateien der drei Produkt-Repositories und deren aktuelle Mindestversionen auditieren.
+- [ ] Konkrete Stripe-/PayPal-Gatewayversionen sowie tokenisierte Folgeabbuchungen in Sandboxen verifizieren.
+- [ ] Hosting für Premium-ZIPs, Backup-/Retentiondauer und Alarmierung festlegen.
+- [ ] Rechtliche Prüfung von GPL-Kompatibilität, Add-on-Vertrieb, Verbraucherinformation, Kündigung und Datenschutz abschließen.
+- [ ] Entscheiden, ob Zahlungsereignisse über Gateway-Webhooks oder ausschließlich über Gateway-API-Abfragen verarbeitet werden; beide Wege nicht parallel ohne klare Zuständigkeit implementieren.
 
-## 6. Startpunkt
+## 8. Nächster konkreter Startpunkt
 
-Der erste Programmier-PR sollte Schritt 1 umsetzen und ausschließlich das lauffähige Plugin-Grundgerüst samt CI enthalten. Danach folgt Schritt 2, bevor Bestell- oder Lizenzlogik geschrieben wird. So hängen spätere Features früh an stabilen Namensräumen, Schema-Versionierung und reproduzierbarer Qualitätssicherung.
+Als nächstes PR13 auf Basis von PR12 erstellen: zuerst Architektur- und Sicherheitsreview, bekannte Fehler im Implementierungsstand beheben und den API-/Renewal-Vertrag präzisieren. Danach Stripe- und PayPal-Adapter getrennt umsetzen. Die PRs 01–12 sind offen und noch nicht gemergt; neue Branches daher weiterhin auf den jeweils letzten Stack-Branch aufsetzen.
