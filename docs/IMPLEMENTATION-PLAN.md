@@ -415,7 +415,9 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [x] **44a · Aktivierungs-URL kanonisieren:** eigenständige Routine `SiteUrl::normalize()` in Aktivierung verdrahtet; Scheme/Host normalisiert, Default-Port und abschließende Pfad-Slashes entfernt, IPv6 geklammert, Credentials/Query/Fragment/fremde Schemes abgewiesen. IDN wird bei verfügbarer Intl-Erweiterung nach ASCII normalisiert; andernfalls sicher abgewiesen.
 - [x] **44b · SiteUrl-Unit-Tests:** Host-/Scheme-/Portnormalisierung, IPv6 und Zurückweisung von Credentials, Query, Fragment und Fremdscheme in `tests/Api/SiteUrlTest.php` abgedeckt.
 - [ ] **44c · Identitätsintegration:** gleiche Normalisierung bei Domainwechsel, Kundenkonto/Admin und Staging-Zuordnung durch WordPress-Integrationstests abnehmen; IDN- und lokale Entwicklungsregeln ausdrücklich festlegen.
-- [ ] **45 · Rechte- und Lizenzzustandsautomat vervollständigen:** erlaubte Übergänge für aktiv, past_due, gekündigt, abgelaufen, erstattet, chargeback und manuell gesperrt zentral definieren; ungültige Übergänge serverseitig ablehnen und auditieren. **Abnahme:** Tabellen-/Property-Tests decken jeden Übergang und jede unzulässige Kombination ab.
+- [x] **45a · Transition-Matrix implementiert:** `LicenseStateMachine` definiert erlaubte Aktionen/Übergänge; Lifecycle und Renewal blockieren ungültige Änderungen und automatische Wiederaktivierung gesperrter, widerrufener oder abgelaufener Lizenzen.
+- [x] **45b · Unit-Tests:** erlaubte/abgewiesene Übergänge und Renewal-Freigabe sind in `tests/License/LicenseStateMachineTest.php` abgedeckt.
+- [ ] **45c · Persistenz-/Konkurrenzabnahme:** Statuswechsel per bedingtem Update/Transaktion gegen parallele Refund-, Renewal- und Chargeback-Events testen und bei DB-Fehlern korrekte Auditkonsistenz sicherstellen.
 - [ ] **46 · Kunden- und Admin-Autorisierung testen:** Besitzprüfung bei Mein-Konto-Lizenz, Aktivierung, Kündigung, Zahlungslink und Download gegen fremde Kunden-IDs prüfen; Adminaktionen auf Capability, Nonce, Eingabevalidierung und Audit-Eintrag absichern. **Abnahme:** negative IDOR-/CSRF-Tests schlagen für alle schreibenden Endpunkte fehl.
 
 ### WooCommerce-Aufträge und Abrechnung
@@ -462,3 +464,5 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 
 - [x] **42a** Versioniertes, konfigurierbares Installation-Secret-Keyring-Verfahren, Legacy-Leseweg, Tests und Betriebsdokumentation ergänzt.
 - [ ] **42b/42c** Re-Encryption der Bestandsdaten und Lizenzschlüssel-Key-IDs/Wiederherstellung bleiben offen.
+
+- [x] **45a/45b** Explizite Statusübergänge in den Lifecycle eingebunden und mit Unit-Tests abgedeckt.
