@@ -7,6 +7,8 @@
 
 namespace WPLC\Admin;
 
+use WPLC\Infrastructure\Database\Schema;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -16,6 +18,49 @@ final class Diagnostics {
 	/** Register the support page. */
 	public static function register_hooks(): void {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ) );
+		add_action( 'wplc_daily_lifecycle', array( self::class, 'emit_alerts' ) );
+	}
+
+	/**
+	 * Return aggregate queue metrics without exposing customer or payment data.
+	 *
+	 * @return array<string,int>
+	 */
+	public static function metrics(): array {
+		global $wpdb;
+		$tables = Schema::table_names();
+		$now = gmdate( 'Y-m-d H:i:s' );
+		return array(
+			'pending_webhooks' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['event_inbox']} WHERE source = %s AND outcome = %s", 'stripe', 'pending_reconciliation' ) ),
+			'manual_review_webhooks' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['event_inbox']} WHERE source = %s AND outcome = %s", 'stripe', 'manual_review' ) ),
+			'overdue_renewals' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status IN (%s,%s) AND (retry_at IS NULL OR retry_at <= %s)", 'scheduled', 'failed', $now ) ),
+			'expired_download_grants' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['download_tokens']} WHERE consumed_at IS NULL AND expires_at <= %s", $now ) ),
+		);
+	}
+
+	/**
+	 * Emit threshold events for external monitoring integrations.
+	 *
+	 * @return void
+	 */
+	public static function emit_alerts(): void {
+		$metrics = self::metrics();
+		$thresholds = apply_filters(
+			'wplc_health_alert_thresholds',
+			array(
+				'pending_webhooks' => 1,
+				'manual_review_webhooks' => 1,
+				'overdue_renewals' => 1,
+			)
+		);
+		if ( ! is_array( $thresholds ) ) {
+			return;
+		}
+		foreach ( $thresholds as $metric => $threshold ) {
+			if ( isset( $metrics[ $metric ] ) && is_numeric( $threshold ) && $metrics[ $metric ] >= (int) $threshold ) {
+				do_action( 'wplc/health_alert', sanitize_key( (string) $metric ), $metrics[ $metric ], (int) $threshold );
+			}
+		}
 	}
 
 	/** Add a WooCommerce submenu for authorized shop managers. */
@@ -37,6 +82,7 @@ final class Diagnostics {
 		}
 
 		global $wpdb;
+		$metrics = self::metrics();
 		$rows = array(
 			__( 'PHP', 'wp-license' ) => PHP_VERSION,
 			__( 'WordPress', 'wp-license' ) => get_bloginfo( 'version' ),
@@ -48,6 +94,10 @@ final class Diagnostics {
 			__( 'Action Scheduler', 'wp-license' ) => function_exists( 'as_enqueue_async_action' ) ? __( 'Available', 'wp-license' ) : __( 'Unavailable', 'wp-license' ),
 			__( 'Stripe gateway class', 'wp-license' ) => class_exists( '\\WC_Stripe' ) ? __( 'Loaded', 'wp-license' ) : __( 'Not loaded', 'wp-license' ),
 			__( 'Update package provider', 'wp-license' ) => has_filter( 'wplc_update_packages' ) ? __( 'Registered', 'wp-license' ) : __( 'Not registered', 'wp-license' ),
+			__( 'Pending Stripe events', 'wp-license' ) => $metrics['pending_webhooks'],
+			__( 'Stripe events needing review', 'wp-license' ) => $metrics['manual_review_webhooks'],
+			__( 'Overdue renewal attempts', 'wp-license' ) => $metrics['overdue_renewals'],
+			__( 'Unused expired download grants', 'wp-license' ) => $metrics['expired_download_grants'],
 		);
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'WP License Captain diagnostics', 'wp-license' ) . '</h1>';
