@@ -484,7 +484,8 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [x] **45a/45b** Explizite Statusübergänge in den Lifecycle eingebunden und mit Unit-Tests abgedeckt.
 
 - [x] **42c** Key-IDs für neu ausgestellte und im Kundenportal angezeigte Lizenzen gespeichert; Versionsauswahl durch PHPUnit abgedeckt.
-- [ ] **42b/42d** Re-Encryption der Aktivierungsgeheimnisse sowie Bestands-/Recovery-Migration für License Keys bleiben offen.
+- [x] **42b/42e** Batch-Rotationswerkzeug und Lazy-Re-Encryption für Aktivierungsgeheimnisse ergänzt.
+- [ ] **42d/42f** License-Key-Recovery sowie WP/MySQL-Backup-/Restore- und Rotationsabnahme bleiben offen.
 
 - [x] **52a** HPOS-kompatible Wiedererkennung und Validierung verwaister Renewal-Aufträge implementiert.
 - [ ] **52b** Recovery-Tests und Stripe-Sandbox-Abnahme bleiben offen.
