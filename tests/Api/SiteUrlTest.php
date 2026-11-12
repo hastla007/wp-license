@@ -16,5 +16,7 @@ final class SiteUrlTest extends TestCase {
 		$this->assertSame( '', SiteUrl::normalize( 'https://example.com/?key=value' ) );
 		$this->assertSame( '', SiteUrl::normalize( 'https://example.com/#fragment' ) );
 		$this->assertSame( '', SiteUrl::normalize( 'ftp://example.com' ) );
+		$this->assertSame( '', SiteUrl::normalize( 'https://example.com:0' ) );
+		$this->assertSame( '', SiteUrl::normalize( 'https://example.com\\\\admin' ) );
 	}
 }
