@@ -32,4 +32,4 @@ if ( ! class_exists( '\\WPLC\\Plugin' ) ) {
 register_activation_hook( WPLC_FILE, array( '\\WPLC\\Plugin', 'activate' ) );
 register_deactivation_hook( WPLC_FILE, array( '\\WPLC\\Plugin', 'deactivate' ) );
 
-\\WPLC\\Plugin::boot();
+\WPLC\Plugin::boot();
