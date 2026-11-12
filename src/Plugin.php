@@ -88,6 +88,7 @@ final class Plugin {
 		LicenseAdmin::register_hooks();
 		RecurringConsent::register_hooks();
 		RenewalProcessor::register_hooks();
+		StripeRecurringAdapter::register_hooks();
 
 		/**
 		 * Fires after WP License Captain has confirmed its WooCommerce dependency.
