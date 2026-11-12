@@ -41,7 +41,7 @@ final class CatalogPrecisionWpdb {
 	}
 }
 
-final class CatalogPricePrecisionTest extends PHPUnit\\Framework\\TestCase {
+final class CatalogPricePrecisionTest extends PHPUnit\Framework\TestCase {
 	private $previous_wpdb;
 	private $previous_product;
 
