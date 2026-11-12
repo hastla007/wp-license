@@ -7,6 +7,11 @@
 
 namespace WPLC;
 
+use WPLC\Catalog\ProductEditor;
+use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\LicenseIssuer;
+use WPLC\License\LicenseLifecycle;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -30,18 +35,17 @@ final class Plugin {
 			wp_die( esc_html__( 'Please activate WooCommerce before activating WP License Captain.', 'wp-license' ) );
 		}
 
-		\\WPLC\\Infrastructure\\Database\\Schema::migrate();
-		\\WPLC\\License\\LicenseLifecycle::schedule_daily_event();
+		Schema::migrate();
+		LicenseLifecycle::schedule_daily_event();
 	}
 
 	/**
-	 * Deactivation intentionally preserves license and order data.
+	 * Deactivation clears scheduled work but preserves license and order data.
 	 *
 	 * @return void
 	 */
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( 'wplc_daily_lifecycle' );
-		// Persistent data is never removed on deactivation.
 	}
 
 	/**
@@ -70,18 +74,16 @@ final class Plugin {
 			return;
 		}
 
+		Schema::maybe_upgrade();
+		ProductEditor::register_hooks();
+		LicenseIssuer::register_hooks();
+		LicenseLifecycle::register_hooks();
+
 		/**
 		 * Fires after WP License Captain has confirmed its WooCommerce dependency.
 		 *
 		 * @since 0.1.0
 		 */
-		\\WPLC\\Infrastructure\\Database\\Schema::maybe_upgrade();
-
-		\\WPLC\\Infrastructure\\Database\\Schema::maybe_upgrade();
-		\\WPLC\\Catalog\\ProductEditor::register_hooks();
-		\\WPLC\\License\\LicenseIssuer::register_hooks();
-		\\WPLC\\License\\LicenseLifecycle::register_hooks();
-
 		do_action( 'wplc/loaded' );
 	}
 
