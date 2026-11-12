@@ -221,15 +221,8 @@ final class RenewalProcessor {
 	 * @return \WC_Order|\WP_Error
 	 */
 	private static function expire_license( int $license_id ): void {
-		global $wpdb;
-		$tables = Schema::table_names();
-		$now = gmdate( 'Y-m-d H:i:s' );
-		$updated = $wpdb->update( $tables['licenses'], array( 'status' => 'expired', 'status_reason' => 'Automatic renewal grace period ended', 'updated_at' => $now ), array( 'id' => $license_id, 'status' => 'past_due' ), array( '%s', '%s', '%s' ), array( '%d', '%s' ) );
-		if ( false === $updated || 0 === $updated ) { return; }
-		$wpdb->update( $tables['entitlements'], array( 'status' => 'expired' ), array( 'license_id' => $license_id, 'status' => 'active' ), array( '%s' ), array( '%d', '%s' ) );
-		AuditLog::record( 'license_expired', 'license', $license_id, 'Automatic renewal grace period ended', array( 'status' => 'past_due' ), array( 'status' => 'expired' ) );
+		LicenseLifecycle::expire_after_grace( $license_id );
 	}
-
 	private static function get_or_create_order( array $renewal, array $license ) {
 		if ( ! function_exists( 'wc_get_order' ) || ! function_exists( 'wc_create_order' ) ) {
 			return new \WP_Error( 'woocommerce_unavailable', __( 'WooCommerce order services are unavailable.', 'wp-license' ) );
