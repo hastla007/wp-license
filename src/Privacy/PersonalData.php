@@ -201,9 +201,9 @@ final class PersonalData {
 				array( '%d', '%s' ),
 				array( '%d', '%d' )
 			);
-			if ( false === $detached || 0 === $detached ) {
+			if ( false === $detached ) {
 				$failed = true;
-				continue;
+				break;
 			}
 			++$removed;
 			$last_id = $current_id;
