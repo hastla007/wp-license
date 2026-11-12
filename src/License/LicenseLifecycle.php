@@ -141,7 +141,7 @@ final class LicenseLifecycle {
 		}
 
 		$license = self::get_license( $license_id );
-		if ( ! $license || ( 'revoked' === $license['status'] && 'active' === $status ) ) {
+		if ( ! $license || ! LicenseStateMachine::allows( (string) $license['status'], $status, 'admin_status_change' ) ) {
 			return false;
 		}
 		if ( 'active' === $status && ! empty( $license['paid_until'] ) && (string) $license['paid_until'] <= gmdate( 'Y-m-d H:i:s' ) ) {
@@ -189,7 +189,7 @@ final class LicenseLifecycle {
 		$license = self::get_license( $license_id );
 		if (
 			! $license
-			|| in_array( $license['status'], array( 'revoked', 'suspended' ), true )
+			|| ! LicenseStateMachine::can_apply_renewal_payment( (string) $license['status'] )
 			|| ! self::valid_utc_datetime( $paid_until )
 		) {
 			return;
@@ -274,13 +274,8 @@ final class LicenseLifecycle {
 	private static function transition( int $license_id, string $new_status, string $reason, string $action, int $actor_user_id = 0 ): bool {
 		global $wpdb;
 
-		$allowed = array( 'active', 'past_due', 'suspended', 'revoked', 'expired' );
-		if ( ! in_array( $new_status, $allowed, true ) ) {
-			return false;
-		}
-
 		$license = self::get_license( $license_id );
-		if ( ! $license || $license['status'] === $new_status || 'revoked' === $license['status'] ) {
+		if ( ! $license || ! LicenseStateMachine::allows( (string) $license['status'], $new_status, $action ) ) {
 			return false;
 		}
 
