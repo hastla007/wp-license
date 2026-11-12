@@ -5,9 +5,9 @@
  * @package WPLC
  */
 
-namespace WPLC\\Api\\V1;
+namespace WPLC\Api\V1;
 
-use WPLC\\Infrastructure\\Database\\Schema;
+use WPLC\Infrastructure\Database\Schema;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -23,10 +23,10 @@ final class UpdateService {
 	/**
 	 * Return the current update for one active product installation.
 	 *
-	 * @param \\WP_REST_Request $request REST request.
-	 * @return \\WP_REST_Response|\\WP_Error
+	 * @param \WP_REST_Request $request REST request.
+	 * @return \WP_REST_Response|\WP_Error
 	 */
-	public static function check( \\WP_REST_Request $request ) {
+	public static function check( \WP_REST_Request $request ) {
 		global $wpdb;
 		$activation = Authenticator::authenticate( $request );
 		if ( is_wp_error( $activation ) ) {
@@ -41,7 +41,7 @@ final class UpdateService {
 		$product_key = sanitize_key( (string) $request->get_param( 'product_key' ) );
 		$current = sanitize_text_field( (string) $request->get_param( 'current_version' ) );
 		if ( ! is_array( $license ) || $license['product_key'] !== $product_key || 'active' !== $license['status'] || ( ! empty( $license['paid_until'] ) && $license['paid_until'] <= gmdate( 'Y-m-d H:i:s' ) ) ) {
-			return new \\WP_Error( 'license_inactive', __( 'An active license for this product is required to access updates.', 'wp-license' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'license_inactive', __( 'An active license for this product is required to access updates.', 'wp-license' ), array( 'status' => 403 ) );
 		}
 
 		$packages = apply_filters( 'wplc_update_packages', array(), $product_key );
@@ -54,7 +54,7 @@ final class UpdateService {
 		$url = esc_url_raw( (string) $package['package_url'], array( 'https' ) );
 		$checksum = strtolower( sanitize_text_field( (string) $package['sha256'] ) );
 		if ( ! preg_match( '/^[a-f0-9]{64}$/', $checksum ) || ! self::trusted_package_url( $url ) ) {
-			return new \\WP_Error( 'package_configuration_invalid', __( 'The update package is not configured with a trusted HTTPS URL and SHA-256 checksum.', 'wp-license' ), array( 'status' => 503 ) );
+			return new \WP_Error( 'package_configuration_invalid', __( 'The update package is not configured with a trusted HTTPS URL and SHA-256 checksum.', 'wp-license' ), array( 'status' => 503 ) );
 		}
 		if ( ! version_compare( $version, $current, '>' ) ) {
 			return Response::signed( array( 'update_available' => false, 'current_version' => $current ), (string) $activation['installation_secret'] );
@@ -85,10 +85,10 @@ final class UpdateService {
 	/**
 	 * Consume a one-time grant and redirect to the trusted package host.
 	 *
-	 * @param \\WP_REST_Request $request REST request.
+	 * @param \WP_REST_Request $request REST request.
 	 * @return void
 	 */
-	public static function download( \\WP_REST_Request $request ): void {
+	public static function download( \WP_REST_Request $request ): void {
 		$token = strtolower( sanitize_text_field( (string) $request->get_param( 'token' ) ) );
 		if ( ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) {
 			status_header( 404 );
