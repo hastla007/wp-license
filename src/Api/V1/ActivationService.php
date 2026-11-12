@@ -35,11 +35,13 @@ final class ActivationService {
 		$installation_uuid = strtolower( sanitize_text_field( (string) $request->get_param( 'installation_id' ) ) );
 		$secret = sanitize_text_field( (string) $request->get_param( 'installation_secret' ) );
 		$site_url = self::normalize_site_url( (string) $request->get_param( 'site_url' ) );
+		$environment = sanitize_key( (string) ( $request->get_param( 'environment' ) ?: 'production' ) );
+		$parent_uuid = strtolower( sanitize_text_field( (string) $request->get_param( 'staging_parent_installation_id' ) ) );
 
 		if ( ! self::allow_activation_attempt() ) {
 			return new \WP_Error( 'rate_limited', __( 'Too many activation attempts. Try again later.', 'wp-license' ), array( 'status' => 429 ) );
 		}
-		if ( '' === $license_key || '' === $product_key || ! wp_is_uuid( $installation_uuid ) || strlen( $secret ) < 32 || strlen( $secret ) > 128 || '' === $site_url ) {
+		if ( '' === $license_key || '' === $product_key || ! wp_is_uuid( $installation_uuid ) || strlen( $secret ) < 32 || strlen( $secret ) > 128 || '' === $site_url || ! in_array( $environment, array( 'production', 'staging', 'development' ), true ) ) {
 			return new \WP_Error( 'invalid_activation', __( 'Required activation fields are missing or invalid.', 'wp-license' ), array( 'status' => 400 ) );
 		}
 
@@ -62,6 +64,27 @@ final class ActivationService {
 			return new \WP_Error( 'expired', __( 'This license is not currently active.', 'wp-license' ), array( 'status' => 403 ) );
 		}
 
+		$staging_parent_id = null;
+		if ( 'staging' === $environment ) {
+			if ( ! wp_is_uuid( $parent_uuid ) ) {
+				return new \WP_Error( 'staging_parent_required', __( 'A staging activation must be linked to a live activation.', 'wp-license' ), array( 'status' => 400 ) );
+			}
+			$parent = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT id FROM {$tables['activations']} WHERE installation_uuid = %s AND license_id = %d AND environment = %s AND status = %s LIMIT 1",
+					$parent_uuid,
+					(int) $license['id'],
+					'production',
+					'active'
+				),
+				ARRAY_A
+			);
+			if ( ! is_array( $parent ) ) {
+				return new \WP_Error( 'staging_parent_invalid', __( 'The staging site must link to an active live site on this license.', 'wp-license' ), array( 'status' => 409 ) );
+			}
+			$staging_parent_id = (int) $parent['id'];
+		}
+
 		$existing = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT * FROM {$tables['activations']} WHERE installation_uuid = %s LIMIT 1",
@@ -72,6 +95,8 @@ final class ActivationService {
 		if ( is_array( $existing ) ) {
 			if (
 				(int) $existing['license_id'] !== (int) $license['id']
+				|| $existing['environment'] !== $environment
+				|| (int) $existing['staging_parent_id'] !== (int) $staging_parent_id
 				|| ! hash_equals( (string) $existing['installation_secret_hash'], hash( 'sha256', $secret ) )
 			) {
 				return new \WP_Error( 'installation_conflict', __( 'This installation ID is already assigned to another credential.', 'wp-license' ), array( 'status' => 409 ) );
@@ -92,61 +117,85 @@ final class ActivationService {
 		}
 
 		$limit = self::site_limit( (int) $license['id'], $license );
-		$count = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$tables['activations']} WHERE license_id = %d AND status = %s AND environment = %s",
-				(int) $license['id'],
-				'active',
-				'production'
-			)
-		);
-		if ( $count >= $limit ) {
-			return new \WP_Error( 'site_limit', __( 'The license has no remaining live site activations.', 'wp-license' ), array( 'status' => 409, 'site_limit' => $limit, 'site_count' => $count ) );
+		$lock_name = 'wplc_' . substr( hash( 'sha256', 'license:' . (int) $license['id'] ), 0, 48 );
+		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
+		if ( '1' !== (string) $locked ) {
+			return new \WP_Error( 'retry_later', __( 'The license is being updated. Retry shortly.', 'wp-license' ), array( 'status' => 503 ) );
 		}
 
-		$encrypted_secret = SecretCrypto::encrypt( $secret );
-		if ( false === $encrypted_secret ) {
-			return new \WP_Error( 'server_configuration', __( 'The license server could not securely store the installation credential.', 'wp-license' ), array( 'status' => 500 ) );
+		try {
+			if ( 'production' === $environment ) {
+				$count = (int) $wpdb->get_var(
+					$wpdb->prepare(
+						"SELECT COUNT(*) FROM {$tables['activations']} WHERE license_id = %d AND status = %s AND environment = %s",
+						(int) $license['id'],
+						'active',
+						'production'
+					)
+				);
+				if ( $count >= $limit ) {
+					return new \WP_Error( 'site_limit', __( 'The license has no remaining live site activations.', 'wp-license' ), array( 'status' => 409, 'site_limit' => $limit, 'site_count' => $count ) );
+				}
+			} elseif ( 'staging' === $environment ) {
+				$count = (int) $wpdb->get_var(
+					$wpdb->prepare(
+						"SELECT COUNT(*) FROM {$tables['activations']} WHERE license_id = %d AND staging_parent_id = %d AND status = %s AND environment = %s",
+						(int) $license['id'],
+						(int) $staging_parent_id,
+						'active',
+						'staging'
+					)
+				);
+				if ( $count >= 1 ) {
+					return new \WP_Error( 'staging_limit', __( 'This live site already has its included staging activation.', 'wp-license' ), array( 'status' => 409 ) );
+				}
+			}
+
+			$encrypted_secret = SecretCrypto::encrypt( $secret );
+			if ( false === $encrypted_secret ) {
+				return new \WP_Error( 'server_configuration', __( 'The license server could not securely store the installation credential.', 'wp-license' ), array( 'status' => 500 ) );
+			}
+
+			$now = gmdate( 'Y-m-d H:i:s' );
+			$inserted = $wpdb->insert(
+				$tables['activations'],
+				array(
+					'license_id' => (int) $license['id'],
+					'installation_uuid' => $installation_uuid,
+					'installation_secret_hash' => hash( 'sha256', $secret ),
+					'installation_secret_encrypted' => $encrypted_secret,
+					'site_url' => $site_url,
+					'environment' => $environment,
+					'staging_parent_id' => $staging_parent_id,
+					'product_version' => sanitize_text_field( (string) $request->get_param( 'product_version' ) ),
+					'wp_version' => sanitize_text_field( (string) $request->get_param( 'wp_version' ) ),
+					'php_version' => sanitize_text_field( (string) $request->get_param( 'php_version' ) ),
+					'status' => 'active',
+					'activated_at' => $now,
+					'last_seen_at' => $now,
+					'deactivated_at' => null,
+				),
+				array( '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+			);
+
+			if ( false === $inserted ) {
+				return new \WP_Error( 'activation_conflict', __( 'The installation could not be activated. Retry the request.', 'wp-license' ), array( 'status' => 409 ) );
+			}
+
+			$activation_id = (int) $wpdb->insert_id;
+			AuditLog::record(
+				'site_activated',
+				'activation',
+				$activation_id,
+				'Product installation activated',
+				null,
+				array( 'license_id' => (int) $license['id'], 'site_url' => $site_url, 'environment' => $environment )
+			);
+
+			return self::signed_entitlement_response( (int) $license['id'], $activation_id, $installation_uuid, $secret );
+		} finally {
+			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
 		}
-
-		$now = gmdate( 'Y-m-d H:i:s' );
-		$inserted = $wpdb->insert(
-			$tables['activations'],
-			array(
-				'license_id' => (int) $license['id'],
-				'installation_uuid' => $installation_uuid,
-				'installation_secret_hash' => hash( 'sha256', $secret ),
-				'installation_secret_encrypted' => $encrypted_secret,
-				'site_url' => $site_url,
-				'environment' => 'production',
-				'staging_parent_id' => null,
-				'product_version' => sanitize_text_field( (string) $request->get_param( 'product_version' ) ),
-				'wp_version' => sanitize_text_field( (string) $request->get_param( 'wp_version' ) ),
-				'php_version' => sanitize_text_field( (string) $request->get_param( 'php_version' ) ),
-				'status' => 'active',
-				'activated_at' => $now,
-				'last_seen_at' => $now,
-				'deactivated_at' => null,
-			),
-			array( '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
-		);
-
-		if ( false === $inserted ) {
-			// A concurrent duplicate request may have won the unique installation ID.
-			return new \WP_Error( 'activation_conflict', __( 'The installation could not be activated. Retry the request.', 'wp-license' ), array( 'status' => 409 ) );
-		}
-
-		$activation_id = (int) $wpdb->insert_id;
-		AuditLog::record(
-			'site_activated',
-			'activation',
-			$activation_id,
-			'Product installation activated',
-			null,
-			array( 'license_id' => (int) $license['id'], 'site_url' => $site_url )
-		);
-
-		return self::signed_entitlement_response( (int) $license['id'], $activation_id, $installation_uuid, $secret );
 	}
 
 	/**
