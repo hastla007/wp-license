@@ -188,8 +188,11 @@ final class StripeWebhookHandler {
 		$order_id = is_object( $metadata ) ? absint( $metadata->order_id ?? 0 ) : 0;
 		$license_id = is_object( $metadata ) ? absint( $metadata->wplc_license_id ?? 0 ) : 0;
 		$intent_id = is_object( $intent ) ? sanitize_text_field( (string) ( $intent->id ?? '' ) ) : '';
+		if ( ! $renewal_id && ! $order_id && ! $license_id ) {
+			return 'ignored';
+		}
 		if ( ! $renewal_id || ! $order_id || ! $license_id || '' === $intent_id ) {
-			return new \WP_Error( 'stripe_renewal_metadata_missing', __( 'The Stripe payment is missing renewal metadata.', 'wp-license' ) );
+			return new \\WP_Error( 'stripe_renewal_metadata_invalid', __( 'The Stripe payment renewal metadata is incomplete.', 'wp-license' ) );
 		}
 
 		global $wpdb;
