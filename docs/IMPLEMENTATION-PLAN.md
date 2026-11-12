@@ -89,11 +89,11 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - **Abnahme:** Keine Abbuchung ohne gültigen Token und Zustimmung; wiederholte Events erzeugen keine doppelte Zahlung oder Verlängerung.
 
 ### PR15 — PayPal-Adapter (gesperrt bis passendes Abo-Modell)
-- [x] ~~Prüfen, ob ein gespeicherter PayPal-Vault-Token für eigene Off-Session-Renewal-Orders ausreicht: nein.~~
+- [x] ~~Offizielle WooCommerce-PayPal-Dokumentation geprüft: automatische Vaulting-/PayPal-Subscription-Renewals benötigen WooCommerce Subscriptions; WP License Captain unterstützt diese Abhängigkeit nicht.~~
 - [x] ~~Unkonfigurierte PayPal-Verlängerungen fail-closed halten; kein PayPal-Adapter wird registriert.~~
-- [x] ~~Kompatibilitätsgrenze und erforderliches PayPal-Abo-/Webhookmodell dokumentieren.~~
-- [ ] Genehmigungs-, Abo- und Webhookmodell mit einem konkreten PayPal-Konto und WooCommerce-Gatewayversion umsetzen.
-- [ ] Sandboxfälle für Aktivierung, Erfolg, Ablehnung, Kündigung, verspätete/doppelte Events und Refund durchspielen.
+- [x] ~~Kompatibilitätsgrenze und fehlenden Vertrag für eigenständige Renewal-Orders dokumentiert; kein PayPal-Adapter wird angeboten.~~
+- [ ] **Blockiert:** Nur umsetzen, falls ein unterstützter Gatewayvertrag ohne WooCommerce-Subscriptions-Zwang plus genehmigtes Händlerkonto und Sandboxzugang verfügbar werden.
+- [ ] **Blockiert:** Sandboxfälle erst nach Freigabe des oben genannten Gatewaymodells durchführen.
 - **Abnahme:** erst erfüllt, wenn eine unterstützte PayPal-Abo-/Vault-Integration ohne WooCommerce-Subscriptions-Zwang nachweislich funktioniert; bis dahin werden PayPal-Renewals nicht angeboten.
 
 ### PR16 — Produktclients in den drei Plugin-Repositories
