@@ -49,7 +49,7 @@ final class AuditLog {
 				'action' => sanitize_key( $action ),
 				'object_type' => sanitize_key( $object_type ),
 				'object_id' => max( 0, $object_id ),
-				'reason' => sanitize_textarea_field( $reason ),
+				'reason' => self::redact_text( sanitize_textarea_field( $reason ) ),
 				'before_json' => self::encode_summary( $before ),
 				'after_json' => self::encode_summary( $after ),
 				'created_at' => gmdate( 'Y-m-d H:i:s' ),
@@ -69,7 +69,49 @@ final class AuditLog {
 			return null;
 		}
 
-		$json = wp_json_encode( $value );
+		$json = wp_json_encode( self::redact_value( $value ) );
 		return false === $json ? null : $json;
+	}
+
+	/**
+	 * Redact known sensitive fields from structured summaries.
+	 *
+	 * @param mixed $value Summary value.
+	 * @return mixed
+	 */
+	private static function redact_value( $value ) {
+		$sensitive = '/(?:license.?key|secret|token|password|authorization|email|phone|address|site.?url)/i';
+
+		if ( is_object( $value ) ) {
+			$value = get_object_vars( $value );
+		}
+		if ( ! is_array( $value ) ) {
+			return is_string( $value ) ? self::redact_text( $value ) : $value;
+		}
+
+		$redacted = array();
+		foreach ( $value as $key => $item ) {
+			if ( is_string( $key ) && preg_match( $sensitive, $key ) ) {
+				$redacted[ $key ] = '[REDACTED]';
+			} else {
+				$redacted[ $key ] = self::redact_value( $item );
+			}
+		}
+
+		return $redacted;
+	}
+
+	/**
+	 * Redact inline credentials, license keys, and email addresses.
+	 *
+	 * @param string $value Text to sanitize.
+	 * @return string
+	 */
+	private static function redact_text( string $value ): string {
+		$value = preg_replace( '/(license.?key|api.?key|secret|token|password|authorization)\\s*[:=]\\s*[^\\s,;]+/i', '$1=[REDACTED]', $value );
+		$value = preg_replace( '/\\bWPLC-[A-Za-z0-9-]{6,}\\b/i', '[REDACTED-LICENSE-KEY]', $value );
+		$value = preg_replace( '/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i', '[REDACTED-EMAIL]', $value );
+
+		return is_string( $value ) ? $value : '';
 	}
 }
