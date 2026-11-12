@@ -169,14 +169,14 @@ final class LicenseLifecycle {
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
 			array( 'id' => $license_id ),
-			array( '%s', '%s', '%s', '%s', '%s' ),
+			array( '%s', '%s', '%s', '%s', '%d', '%s' ),
 			array( '%d' )
 		);
 
 		$wpdb->update(
 			$tables['entitlements'],
 			array( 'status' => 'active', 'ends_at' => $paid_until ),
-			array( 'license_id' => $license_id, 'status' => 'past_due' ),
+			array( 'license_id' => $license_id ),
 			array( '%s', '%s' ),
 			array( '%d', '%s' )
 		);
