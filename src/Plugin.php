@@ -12,6 +12,8 @@ use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\LicenseIssuer;
 use WPLC\License\LicenseLifecycle;
 use WPLC\Api\V1\Routes;
+use WPLC\Account\CustomerPortal;
+use WPLC\Admin\LicenseAdmin;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -38,6 +40,8 @@ final class Plugin {
 
 		Schema::migrate();
 		LicenseLifecycle::schedule_daily_event();
+		CustomerPortal::register_endpoint();
+		flush_rewrite_rules();
 	}
 
 	/**
@@ -80,6 +84,8 @@ final class Plugin {
 		LicenseIssuer::register_hooks();
 		LicenseLifecycle::register_hooks();
 		Routes::register_hooks();
+		CustomerPortal::register_hooks();
+		LicenseAdmin::register_hooks();
 
 		/**
 		 * Fires after WP License Captain has confirmed its WooCommerce dependency.
