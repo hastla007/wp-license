@@ -24,7 +24,7 @@ final class LicenseKey {
 	 */
 	public static function for_uuid( string $uuid, ?string $key_id = null ): string {
 		$keys = self::configured_keys();
-		$key_id = null === $key_id ? self::current_key_id( $keys ) : $key_id;
+		$key_id = null === $key_id ? self::resolve_current_key_id( $keys ) : $key_id;
 		if ( ! isset( $keys[ $key_id ] ) || '' === $keys[ $key_id ] ) {
 			return '';
 		}
@@ -40,7 +40,7 @@ final class LicenseKey {
 	 * @return string
 	 */
 	public static function current_key_id(): string {
-		return self::current_key_id( self::configured_keys() );
+		return self::resolve_current_key_id( self::configured_keys() );
 	}
 
 	/**
@@ -93,7 +93,7 @@ final class LicenseKey {
 	 * @param array<string,string> $keys Available secrets.
 	 * @return string
 	 */
-	private static function current_key_id( array $keys ): string {
+	private static function resolve_current_key_id( array $keys ): string {
 		if ( defined( 'WPLC_LICENSE_KEY_ID' ) ) {
 			return (string) WPLC_LICENSE_KEY_ID;
 		}
