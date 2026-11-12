@@ -17,6 +17,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Plugin {
 
 	/**
+	 * Validate activation requirements before enabling the plugin.
+	 *
+	 * @return void
+	 */
+	public static function activate(): void {
+		if ( version_compare( PHP_VERSION, '7.4', '<' ) ) {
+			wp_die( esc_html__( 'WP License Captain requires PHP 7.4 or later.', 'wp-license' ) );
+		}
+
+		if ( ! class_exists( '\\WooCommerce' ) ) {
+			wp_die( esc_html__( 'Please activate WooCommerce before activating WP License Captain.', 'wp-license' ) );
+		}
+	}
+
+	/**
+	 * Deactivation intentionally preserves license and order data.
+	 *
+	 * @return void
+	 */
+	public static function deactivate(): void {
+		// Persistent data is never removed on deactivation.
+	}
+
+	/**
 	 * Boot the plugin once per request.
 	 *
 	 * @return void
