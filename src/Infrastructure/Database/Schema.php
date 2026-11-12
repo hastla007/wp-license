@@ -235,6 +235,29 @@ final class Schema {
 			\dbDelta( $statement );
 		}
 
+		// dbDelta can silently skip a table on hosts with unusual SQL modes or
+		// database wrappers. Create only still-missing tables directly, while
+		// keeping dbDelta responsible for updating existing table definitions.
+		foreach ( $sql as $statement ) {
+			if ( ! preg_match( '/^CREATE TABLE ([^\s]+)/', $statement, $matches ) ) {
+				return false;
+			}
+
+			$table_name = $matches[1];
+			$table_exists = $wpdb->get_var(
+				$wpdb->prepare(
+					' SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
+					$table_name
+				)
+			);
+			if ( 1 !== (int) $table_exists ) {
+				$create_statement = preg_replace( '/^CREATE TABLE /', 'CREATE TABLE IF NOT EXISTS ', $statement, 1 );
+				if ( false === $create_statement || false === $wpdb->query( $create_statement ) ) {
+					return false;
+				}
+			}
+		}
+
 		foreach ( $tables as $table_name ) {
 			$table_exists = $wpdb->get_var(
 				$wpdb->prepare(
