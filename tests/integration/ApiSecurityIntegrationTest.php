@@ -48,6 +48,16 @@ final class ApiSecurityIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( 1, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables['request_nonces']}" ) );
 	}
 
+	public function test_valid_signature_with_expired_timestamp_is_rejected_before_nonce_storage(): void {
+		global $wpdb;
+		$tables = Schema::table_names();
+		$old_timestamp = (string) ( time() - 301 );
+		$response = rest_get_server()->dispatch( $this->signed_request( 'integration-nonce-expired0001', $old_timestamp ) );
+
+		$this->assertSame( 401, $response->get_status() );
+		$this->assertSame( 0, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables['request_nonces']}" ) );
+	}
+
 	public function test_real_rest_requests_are_limited_after_120_authenticated_calls_per_minute(): void {
 		for ( $index = 1; $index <= 121; ++$index ) {
 			$nonce = 'integration-nonce-' . str_pad( (string) $index, 8, '0', STR_PAD_LEFT );
@@ -56,8 +66,8 @@ final class ApiSecurityIntegrationTest extends WP_UnitTestCase {
 		}
 	}
 
-	private function signed_request( string $nonce ): WP_REST_Request {
-		$timestamp = (string) time();
+	private function signed_request( string $nonce, ?string $timestamp = null ): WP_REST_Request {
+		$timestamp = null === $timestamp ? (string) time() : $timestamp;
 		$body = '{"product_version":"1.0.0"}';
 		$request = new WP_REST_Request( 'POST', '/wplc/v1/entitlements/check' );
 		$request->set_header( 'Content-Type', 'application/json' );
