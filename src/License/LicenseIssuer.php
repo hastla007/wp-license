@@ -114,7 +114,11 @@ final class LicenseIssuer {
 
 		$tables = Schema::table_names();
 		$uuid   = wp_generate_uuid4();
-		$key    = LicenseKey::for_uuid( $uuid );
+		$key_id = LicenseKey::current_key_id();
+		$key    = LicenseKey::for_uuid( $uuid, $key_id );
+		if ( '' === $key_id || '' === $key ) {
+			return 0;
+		}
 		$paid_at = $order->get_date_paid();
 		$starts_at_timestamp = $paid_at ? $paid_at->getTimestamp() : time();
 		$starts_at = gmdate( 'Y-m-d H:i:s', $starts_at_timestamp );
@@ -136,6 +140,7 @@ final class LicenseIssuer {
 			array(
 				'license_uuid' => $uuid,
 				'license_key_hash' => LicenseKey::hash( $key ),
+				'license_key_secret_id' => $key_id,
 				'key_prefix' => LicenseKey::prefix( $uuid ),
 				'customer_id' => (int) $order->get_customer_id(),
 				'product_key' => (string) $plan['product_key'],
@@ -160,7 +165,7 @@ final class LicenseIssuer {
 				'created_at' => gmdate( 'Y-m-d H:i:s' ),
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
-			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
+			array( '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
 		);
 
 		if ( false === $result ) {
