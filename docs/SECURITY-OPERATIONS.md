@@ -17,6 +17,8 @@ Schema version 5 stores only a SHA-256 hash for each short-lived update token. C
 
 Renewal attempts are serialized with a per-renewal MySQL advisory lock. A gateway adapter must still send the supplied idempotency key to its payment provider because a process can terminate after the provider accepts a charge but before WooCommerce records it.
 
+REST replay protection stores unique activation/nonce hashes in the database; installation and source-IP rate limits use atomic per-minute upserts. A daily lifecycle hook removes expired nonce rows and request-limit buckets older than 24 hours in batches of at most 1,000 rows. Storage errors fail closed with HTTP 503; forwarded proxy headers are not trusted for source-IP identity.
+
 ## Deployment checklist
 
 - Use HTTPS for all license API and package host traffic.
