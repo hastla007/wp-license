@@ -431,7 +431,9 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [x] **52a · WooCommerce-Auftrag wiederfinden:** Renewal-Prozessor sucht vor Erstellung per `wc_get_orders()` HPOS-kompatibel nach bereits angelegten Aufträgen mit `_wplc_renewal_id`, prüft Renewal/Lizenz/Kunde/Gateway und verknüpft genau einen passenden Auftrag wieder. Bei Mehrdeutigkeit oder Lookup-/Linkfehler wird fail-closed abgebrochen.
 - [ ] **52b · Crash-Recovery integrieren und testen:** Timeout nach erfolgreicher Zahlung, Abbruch zwischen Gateway-Aufruf, `payment_complete`, Renewal-Status, Lizenzlaufzeit und Scheduler-Requeue mit WooCommerce-/Gateway-Tests abdecken. **Abnahme:** Recovery erzeugt weder Doppelabbuchung noch verlorene Verlängerung.
 - [ ] **53 · Retry-/Kulanzjobs gegen Race Conditions prüfen:** Action-Scheduler-Duplikate, verspätete Jobs, Kündigung während eines Laufs, Refund während Retry und Wiederaktivierung während Kulanz abdecken. **Abnahme:** jeder fällige Versuch wird höchstens einmal ausgeführt und Rechte folgen exakt den festgelegten Fristen.
-- [ ] **54 · Add-on-Proration rechnerisch festziehen:** Rundung in Minor Units, Währungsdezimalstellen, Monatsende, Jahreswechsel, Steuerbehandlung über WooCommerce und Entfernen/Erstatten von Add-ons implementieren und testen. **Abnahme:** Rechnungssumme, Renewal-Termin und Entitlements stimmen für dokumentierte Grenzfälle.
+- [x] **54a · Präzision pro Währung speichern:** Schema v9 speichert Preisdezimalstellen im Tarif und bei der Lizenz; Renewals verwenden den beim Kauf gespeicherten Präzisionswert.
+- [x] **54b · Exakte Betragskonvertierung:** `Money` konvertiert WooCommerce-Dezimalpreise mit half-up-Rundung stringbasiert in Minor Units und zurück ohne binäre Float-Arithmetik; Unit-Tests decken 0/2/3/6 Dezimalstellen und Rundungsgrenzen ab.
+- [ ] **54c · Add-on-Proration und Steuern:** anteilige Add-on-Berechnung, gemeinsame Verlängerung, Entfernen/Erstatten, WooCommerce-Steuer-/Währungssonderfälle und Monatsende-/Jahreswechseltests vollständig implementieren. **Abnahme:** Rechnungssumme, Renewal-Termin und Entitlements stimmen für dokumentierte Grenzfälle.
 
 ### Produktclients, Updates und Datenhaltung
 
@@ -474,3 +476,6 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 
 - [x] **52a** HPOS-kompatible Wiedererkennung und Validierung verwaister Renewal-Aufträge implementiert.
 - [ ] **52b** Recovery-Tests und Stripe-Sandbox-Abnahme bleiben offen.
+
+- [x] **54a/54b** Kurs-/Betragspräzision im Katalog und Renewal festgehalten; exakte Konvertierung und Rundung getestet.
+- [ ] **54c** Add-on-Proration sowie Steuer-/Gatewayintegration bleiben offen.
