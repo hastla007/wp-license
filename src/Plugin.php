@@ -29,6 +29,8 @@ final class Plugin {
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			wp_die( esc_html__( 'Please activate WooCommerce before activating WP License Captain.', 'wp-license' ) );
 		}
+
+		\\WPLC\\Infrastructure\\Database\\Schema::migrate();
 	}
 
 	/**
@@ -71,6 +73,8 @@ final class Plugin {
 		 *
 		 * @since 0.1.0
 		 */
+		\\WPLC\\Infrastructure\\Database\\Schema::maybe_upgrade();
+
 		do_action( 'wplc/loaded' );
 	}
 
