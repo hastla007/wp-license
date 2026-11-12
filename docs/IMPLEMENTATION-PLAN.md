@@ -399,20 +399,22 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 
 ## Ergänzende technische Restliste bis zur technischen V1-Reife (Aufgaben 41–60)
 
-Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleich von API, Abrechnung, Clients, Updates und Testabdeckung sichtbar bleiben. Alle Aufgaben sind zunächst offen. Ein Haken wird erst gesetzt, wenn Code, Tests und dokumentierter Abnahmepunkt vorhanden sind. Externe Betriebs- und Rechtsfreigaben bleiben davon getrennt.
+Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleich von API, Abrechnung, Clients, Updates und Testabdeckung sichtbar bleiben. Der Status wird pro Teilaufgabe geführt. Ein Haken bedeutet, dass der jeweilige Code-/Dokumentationsumfang erstellt wurde; Integration, CI und produktive Abnahme stehen separat.
 
 ### API, Sicherheit und Identität
 
 - [x] **41a · OpenAPI-Vertrag:** OpenAPI 3.0.3-Spezifikation für die sechs v1-Routen unter `docs/openapi-v1.json` erstellt; PHPUnit prüft JSON, Routen/Methoden, Signaturumschläge und Aktivierungs-Pflichtfelder (`tests/Contract/ApiContractTest.php`).
 - [x] **41b · Laufzeit-Konformitätstest (statisch):** PHPUnit vergleicht die deklarierten OpenAPI-Routen und Methoden mit dem erwarteten v1-Inventar und prüft Pflichtfelder/Signaturtypen.
 - [ ] **41c · REST-Laufzeitkonformität:** REST-Integrationstests gegen echte WordPress-Routen ergänzen und Antworten/Fehlercodes mit der Spezifikation sowie gemeinsamen Client-Fixtures vergleichen. **Abnahme:** inkompatible API-Änderungen schlagen in CI fehl.
-- [ ] **42 · Versionierte Schlüsselrotation:** getrennte Schlüsselzwecke und Key-IDs für Lizenzschlüsselableitung, Installationstoken, HMAC/API-Antwortsignaturen und Offlinecache einführen. Rotation mit paralleler Gültigkeit alter Schlüssel, Migration/Wiederherstellung sowie Audit und Rückfallpfad implementieren. **Abnahme:** Rotation im Testbestand ohne verlorene Lizenzen oder unautorisierte Aktivierungen bestanden.
+- [x] **42a · Installation-secret key ring:** `SecretCrypto` schreibt `v1:<key-id>`-AES-256-GCM-Umschläge, liest versioniert den passenden Schlüssel und unterstützt unversionierte Altwerte über configured keys/Legacy-Salt. Dokumentation und Tests für aktuellen sowie vorherigen Key-ID sind ergänzt.
+- [ ] **42b · Rotation im Bestand abnehmen:** Re-Encryption-CLI/Batchmigration, Prüflauf, Audit, Backup/Restore und Rückfallpfad für bestehende Aktivierungsgeheimnisse implementieren und in WP/MySQL testen.
+- [ ] **42c · Lizenzschlüssel-Versionierung:** Key-ID je Lizenz speichern; alte/neue LicenseKey-Secrets parallel prüfen, kontrollierte Rotation und Kunden-Wiederherstellung ohne Klartextspeicherung umsetzen. **Abnahme:** Rotations- und Wiederherstellungstest ohne ungültig werdende Bestandslizenzen.
 - [x] **43a · Atomare Sicherheitszähler:** Schema v7 ergänzt persistente Nonce- und Rate-Limit-Tabellen; HMAC-validierte Nonces werden per eindeutigem Schlüssel atomar konsumiert, Minutenlimits per Upsert gezählt, abgelaufene Datensätze stündlich bereinigt. Aktivierungs-IP wird vor der Verwendung validiert.
 - [x] **43b · Atomarer Zähler-Unit-Test:** PHPUnit prüft den `INSERT ... ON DUPLICATE KEY UPDATE`-Minutenbucket und den zurückgelesenen Zählerstand (`tests/Api/AuthenticatorRateLimitTest.php`).
 - [ ] **43c · Sicherheitsintegrationstests:** parallele Replay-/Flood-Tests, DB-Fehler/Fallback, Proxy-Header und Bereinigungsgrenzen in WordPress/MySQL prüfen. **Abnahme:** Limits sind unter Konkurrenz nicht umgehbar und Datensätze wachsen nicht unbegrenzt.
-- [x] **44a · Aktivierungs-URL kanonisieren:** eigenständige Routine `SiteUrl::normalize()` in Aktivierung verdrahtet; Scheme/Host normalisiert, Default-Port und abschließende Pfad-Slashes entfernt, IPv6 geklammert, Credentials/Query/Fragment/fremde Schemes abgewiesen. Unit-Tests decken Kernfälle ab. IDN wird bei verfügbarer Intl-Erweiterung nach ASCII normalisiert; andernfalls sicher abgewiesen.
-- [x] **44a · SiteUrl-Unit-Tests:** Host-/Scheme-/Portnormalisierung, IPv6 und Zurückweisung von Credentials, Query, Fragment und Fremdscheme in `tests/Api/SiteUrlTest.php` abgedeckt.
-- [ ] **44b · Identitätsintegration:** gleiche Normalisierung bei Domainwechsel, Kundenkonto/Admin und Staging-Zuordnung durch WordPress-Integrationstests abnehmen; IDN- und lokale Entwicklungsregeln ausdrücklich festlegen.
+- [x] **44a · Aktivierungs-URL kanonisieren:** eigenständige Routine `SiteUrl::normalize()` in Aktivierung verdrahtet; Scheme/Host normalisiert, Default-Port und abschließende Pfad-Slashes entfernt, IPv6 geklammert, Credentials/Query/Fragment/fremde Schemes abgewiesen. IDN wird bei verfügbarer Intl-Erweiterung nach ASCII normalisiert; andernfalls sicher abgewiesen.
+- [x] **44b · SiteUrl-Unit-Tests:** Host-/Scheme-/Portnormalisierung, IPv6 und Zurückweisung von Credentials, Query, Fragment und Fremdscheme in `tests/Api/SiteUrlTest.php` abgedeckt.
+- [ ] **44c · Identitätsintegration:** gleiche Normalisierung bei Domainwechsel, Kundenkonto/Admin und Staging-Zuordnung durch WordPress-Integrationstests abnehmen; IDN- und lokale Entwicklungsregeln ausdrücklich festlegen.
 - [ ] **45 · Rechte- und Lizenzzustandsautomat vervollständigen:** erlaubte Übergänge für aktiv, past_due, gekündigt, abgelaufen, erstattet, chargeback und manuell gesperrt zentral definieren; ungültige Übergänge serverseitig ablehnen und auditieren. **Abnahme:** Tabellen-/Property-Tests decken jeden Übergang und jede unzulässige Kombination ab.
 - [ ] **46 · Kunden- und Admin-Autorisierung testen:** Besitzprüfung bei Mein-Konto-Lizenz, Aktivierung, Kündigung, Zahlungslink und Download gegen fremde Kunden-IDs prüfen; Adminaktionen auf Capability, Nonce, Eingabevalidierung und Audit-Eintrag absichern. **Abnahme:** negative IDOR-/CSRF-Tests schlagen für alle schreibenden Endpunkte fehl.
 
@@ -457,3 +459,6 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 
 - [x] **43b** PHPUnit prüft, dass die Rate-Limit-Zählung als atomarer Datenbank-Upsert formuliert ist.
 - [x] **44a** URL-Normalisierungs-Unit-Tests ergänzt; Live-Integrationsfälle bleiben offen.
+
+- [x] **42a** Versioniertes, konfigurierbares Installation-Secret-Keyring-Verfahren, Legacy-Leseweg, Tests und Betriebsdokumentation ergänzt.
+- [ ] **42b/42c** Re-Encryption der Bestandsdaten und Lizenzschlüssel-Key-IDs/Wiederherstellung bleiben offen.
