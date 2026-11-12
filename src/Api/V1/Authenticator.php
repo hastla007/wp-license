@@ -33,7 +33,7 @@ final class Authenticator {
 		$nonce = sanitize_text_field( (string) $request->get_header( 'x-wplc-nonce' ) );
 		$provided_signature = strtolower( sanitize_text_field( (string) $request->get_header( 'x-wplc-signature' ) ) );
 
-		if ( ! preg_match( '/^[a-f0-9-]{36}$/i', $installation_uuid ) || ! ctype_digit( $timestamp ) || ! preg_match( '/^[a-zA-Z0-9_-]{16,80}$/', $nonce ) ) {
+		if ( ! preg_match( '/^[a-f0-9-]{36}$/i', $installation_uuid ) || ! ctype_digit( $timestamp ) || ! preg_match( '/^[a-zA-Z0-9_-]{16,80}$/', $nonce ) || ! preg_match( '/^[a-f0-9]{64}$/', $provided_signature ) ) {
 			return new \WP_Error( 'invalid_request_signature', __( 'Request authentication headers are invalid.', 'wp-license' ), array( 'status' => 401 ) );
 		}
 
@@ -58,6 +58,18 @@ final class Authenticator {
 		$secret = SecretCrypto::decrypt( (string) $activation['installation_secret_encrypted'] );
 		if ( false === $secret || ! hash_equals( (string) $activation['installation_secret_hash'], hash( 'sha256', $secret ) ) ) {
 			return new \WP_Error( 'installation_secret_invalid', __( 'The installation credential is invalid.', 'wp-license' ), array( 'status' => 401 ) );
+		}
+
+		$expected_signature = self::signature_for(
+			$secret,
+			$request->get_method(),
+			$request->get_route(),
+			$timestamp,
+			$nonce,
+			$request->get_body()
+		);
+		if ( ! hash_equals( $expected_signature, $provided_signature ) ) {
+			return new \\WP_Error( 'invalid_request_signature', __( 'Request signature is invalid.', 'wp-license' ), array( 'status' => 401 ) );
 		}
 
 		$nonce_hash = hash( 'sha256', $nonce );
@@ -95,9 +107,40 @@ final class Authenticator {
 			return new \\WP_Error( 'rate_limited', __( 'Too many requests for this installation.', 'wp-license' ), array( 'status' => 429 ) );
 		}
 
+		if ( SecretCrypto::needs_rotation( (string) $activation['installation_secret_encrypted'] ) ) {
+			$rotated = SecretCrypto::encrypt( $secret );
+			if ( false !== $rotated ) {
+				$wpdb->query(
+					$wpdb->prepare(
+						"UPDATE {$tables['activations']} SET installation_secret_encrypted = %s WHERE id = %d AND installation_secret_encrypted = %s",
+						$rotated,
+						(int) $activation['id'],
+						(string) $activation['installation_secret_encrypted']
+					)
+				);
+			}
+		}
+
 		$activation['installation_secret'] = $secret;
 
 		return $activation;
+	}
+
+	/**
+	 * Build the documented request signature for a raw REST request.
+	 *
+	 * @param string $secret Installation secret.
+	 * @param string $method HTTP method.
+	 * @param string $route WordPress REST route.
+	 * @param string $timestamp Unix timestamp.
+	 * @param string $nonce Request nonce.
+	 * @param string $body Raw request body.
+	 * @return string Lowercase hexadecimal HMAC-SHA-256.
+	 */
+	public static function signature_for( string $secret, string $method, string $route, string $timestamp, string $nonce, string $body ): string {
+		$canonical = strtoupper( $method ) . "\n" . $route . "\n" . $timestamp . "\n" . $nonce . "\n" . hash( 'sha256', $body );
+
+		return hash_hmac( 'sha256', $canonical, $secret );
 	}
 
 	/**
