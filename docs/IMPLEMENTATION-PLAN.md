@@ -524,3 +524,10 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [x] ~~Die drei Produktclient-PR-Reihen enthalten Client-SDK, Entitlement-Helfer, Offlinecache und Updater-Vorbereitung.~~
 - [ ] Produktbezogene Feature-Zuordnung freigeben, Gates in den jeweiligen Plugins verdrahten und gemeinsame Client-Fixtures auf den Mindest-PHP-Versionen in CI ausführen.
 - [ ] HPOS/klassische Orders, Refunds, Renewal-Crash-Recovery, Package-Storage, Downloadgrants und ZIP-Updater im WooCommerce-Testlauf durchprüfen.
+
+
+## PR-Stapel-Review, strikt sequenziell
+
+- [x] ~~**PR01 Review:** Plugin-Einstieg, WooCommerce-Abhängigkeit, Composer-Autoload, Ignore-Regeln, README und CI geprüft. Zwei PHP-Lintläufe für PHP 7.4/8.2 sind grün; keine offenen Review-Kommentare; GitHub meldet den Branch als mergebar.~~
+- [ ] **PR01 Merge:** wartet auf ausdrückliche Freigabe. Der Merge-Aufruf für PR #1 wurde von der automatischen Aktionsprüfung abgelehnt, weil er den Hauptzweig dauerhaft ändert.
+- [ ] **PR02 bis PR12:** noch nicht begonnen; werden nach PR01 in Reihenfolge geprüft und bearbeitet.
