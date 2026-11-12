@@ -73,6 +73,8 @@ The server rejects timestamps outside five minutes, repeated nonces, malformed s
 | POST | `/activations` | Create or idempotently retrieve an activation |
 | DELETE | `/activations/{activation_id}` | Deactivate the authenticated installation |
 | POST | `/entitlements/check` | Return current status and feature rights |
+| POST | `/updates/check` | Return signed release metadata and a short-lived package grant |
+| GET | `/updates/download/{token}` | Consume a one-use grant and redirect to the allow-listed package host |
 
 ## Credential rotation and recovery
 
@@ -80,4 +82,4 @@ The current implementation derives a displayable license key from its UUID and t
 
 ## Current API scope
 
-The v1 endpoints currently cover activation, signed entitlement checks and deactivation. Staging activation, premium update metadata, signed download tokens and billing webhooks are later implementation steps.
+The v1 endpoints cover activation, signed entitlement checks, deactivation, and premium update metadata/download grants. Update metadata is provided by the trusted `wplc_update_packages` filter; package URLs must use HTTPS and a host included in `wplc_update_package_hosts`. The download grant expires after ten minutes and is consumed on use. The product client must verify the signed metadata and ZIP SHA-256 before installation. Billing webhooks and concrete gateway adapters are not implemented in this milestone.
