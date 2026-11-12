@@ -127,6 +127,44 @@ final class LicenseLifecycle {
 	}
 
 	/**
+	 * Perform an audited administrator status change.
+	 *
+	 * @param int $license_id License ID.
+	 * @param string $status Target status.
+	 * @param string $reason Required administrator reason.
+	 * @param int $actor_user_id Administrator user ID.
+	 * @return bool
+	 */
+	public static function admin_set_status( int $license_id, string $status, string $reason, int $actor_user_id ): bool {
+		if ( '' === trim( $reason ) || ! in_array( $status, array( 'active', 'suspended', 'revoked' ), true ) ) {
+			return false;
+		}
+
+		$license = self::get_license( $license_id );
+		if ( ! $license || ( 'revoked' === $license['status'] && 'active' === $status ) ) {
+			return false;
+		}
+		if ( 'active' === $status && ! empty( $license['paid_until'] ) && (string) $license['paid_until'] <= gmdate( 'Y-m-d H:i:s' ) ) {
+			return false;
+		}
+
+		$changed = self::transition( $license_id, $status, $reason, 'admin_status_change', $actor_user_id );
+		if ( $changed && 'active' === $status ) {
+			global $wpdb;
+			$tables = Schema::table_names();
+			$wpdb->update(
+				$tables['entitlements'],
+				array( 'status' => 'active', 'ends_at' => $license['paid_until'] ),
+				array( 'license_id' => $license_id, 'status' => 'suspended' ),
+				array( '%s', '%s' ),
+				array( '%d', '%s' )
+			);
+		}
+
+		return $changed;
+	}
+
+	/**
 	 * Mark a license past due after a renewal attempt fails.
 	 *
 	 * @param int    $license_id License ID.
@@ -233,7 +271,7 @@ final class LicenseLifecycle {
 	 * @param string $action Audit action.
 	 * @return bool
 	 */
-	private static function transition( int $license_id, string $new_status, string $reason, string $action ): bool {
+	private static function transition( int $license_id, string $new_status, string $reason, string $action, int $actor_user_id = 0 ): bool {
 		global $wpdb;
 
 		$allowed = array( 'active', 'past_due', 'suspended', 'revoked', 'expired' );
@@ -281,7 +319,8 @@ final class LicenseLifecycle {
 			$license_id,
 			$reason,
 			array( 'status' => $license['status'], 'paid_until' => $license['paid_until'] ),
-			array( 'status' => $new_status, 'paid_until' => $license['paid_until'] )
+			array( 'status' => $new_status, 'paid_until' => $license['paid_until'] ),
+			$actor_user_id
 		);
 
 		return true;
