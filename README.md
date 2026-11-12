@@ -16,7 +16,7 @@ WP License Captain is the WooCommerce-based license server for premium WordPress
 
 ## Not ready for commercial launch
 
-- No concrete Stripe, PayPal, or other recurring-payment adapter ships with this repository.
+- A limited Stripe card-token adapter is present, but it has not been sandbox-validated and still lacks the customer authentication recovery flow. PayPal renewals are not supported.
 - The shared client still needs product-specific license screens, feature gates, cache policy, and WordPress upgrader integration in CouponMaster, PassMaster, AffiliateMaster, and future products.
 - Release archives must be hosted and registered through the documented update filters. Product-side checksum enforcement must be implemented before premium updates are enabled.
 - Gateway behavior, Checkout Blocks, migrations from real data, recovery flows, and privacy obligations need a deployment-specific review.
