@@ -130,6 +130,9 @@ final class LicenseIssuer {
 				'plan_key' => (string) $plan['plan_key'],
 				'parent_license_id' => null,
 				'status' => 'active',
+				'status_reason' => '',
+				'cancel_at_period_end' => 0,
+				'revoked_at' => null,
 				'billing_interval' => (string) $plan['billing_interval'],
 				'starts_at' => $starts_at,
 				'paid_until' => $paid_until,
@@ -140,7 +143,7 @@ final class LicenseIssuer {
 				'created_at' => gmdate( 'Y-m-d H:i:s' ),
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
-			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
 		);
 
 		if ( false === $result ) {
