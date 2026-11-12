@@ -97,16 +97,16 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - **Abnahme:** erst erfüllt, wenn eine unterstützte PayPal-Abo-/Vault-Integration ohne WooCommerce-Subscriptions-Zwang nachweislich funktioniert; bis dahin werden PayPal-Renewals nicht angeboten.
 
 ### PR16 — Produktclients in den drei Plugin-Repositories
-- [x] ~~PHP-Mindestversionen der drei Repositories erfasst (Affiliate 7.4, Voucher 8.1, Pass 8.2); aktuelle WordPress-/WooCommerce-Mindestversionen und vollständige Architekturprüfung bleiben offen.~~
-- [x] ~~Gemeinsamen Client PHP-kompatibel in den drei Produkt-Repositories gebundled, ohne in diesem Schritt die jeweilige Plugin-PHP-Mindestversion anzuheben (Client-PRs offen).~~
-- [x] ~~CouponMaster: Aktivierungseinstellungen und lizenzierte Update-Hooks vorbereitet.~~
-- [ ] CouponMaster: Feature-/Add-on-Gates und Offlinecache anbinden.
-- [x] ~~PassMaster: Aktivierungseinstellungen und lizenzierte Update-Hooks vorbereitet.~~
-- [ ] PassMaster: Tarif-/Feature-Gates und Offlinecache anbinden.
-- [x] ~~AffiliateMaster: Aktivierungseinstellungen und lizenzierte Update-Hooks vorbereitet.~~
-- [ ] AffiliateMaster: Feature-Gates und Offlinecache anbinden.
-- [ ] Bestehende kostenlose Funktionen unverändert lassen; nur neue Premium-Funktionen sperren.
-- **Abnahme:** Je Produkt eigener PR im jeweiligen Repository, mit dokumentierter Rechtezuordnung und Kompatibilität.
+- [x] ~~PHP-/WordPress-/WooCommerce-Mindestversionen und optionale Abhängigkeiten erneut erfasst und in [PRODUCT-COMPATIBILITY.md](PRODUCT-COMPATIBILITY.md) dokumentiert.~~
+- [x] ~~Gemeinsamen Client PHP-7.4-kompatibel in allen drei Repositories gebundled; Produkt-PHP-Mindestversionen bleiben unverändert.~~
+- [x] ~~CouponMaster: Aktivierungseinstellungen, Update-Hooks, fail-closed Entitlement-Helper und 14-Tage-Signaturcache als gestapelte PRs vorbereitet.~~
+- [x] ~~PassMaster: Aktivierungseinstellungen, Update-Hooks, fail-closed Entitlement-Helper und 14-Tage-Signaturcache als gestapelte PRs vorbereitet.~~
+- [x] ~~AffiliateMaster: Aktivierungseinstellungen, Update-Hooks, fail-closed Entitlement-Helper und 14-Tage-Signaturcache als gestapelte PRs vorbereitet; Übersetzungen ergänzt.~~
+- [ ] Konkrete neue Premium-Funktionen je Produkt und stabile Entitlement-Keys mit den Tarifen/Add-ons abgleichen; erst danach Aufrufstellen verdrahten.
+- [x] ~~Review bestätigt: keine bestehende öffentliche Funktion wurde durch diese Client-PRs gesperrt.~~
+- [ ] Feature-Gates und Offlinecache in den betroffenen Feature-Aufrufstellen mit aktivem, abgelaufenem, deaktiviertem und offline verfügbarem Recht integrieren und testen.
+- [ ] Gestapelte PRs nach Änderungen an ihren Basisbranches neu abgleichen; CI auf aktuellen Merge-Commits muss grün sein.
+- **Abnahme:** Je Produkt eigener PR mit konkreter Rechtezuordnung, kompatibler Client-Version und bestandenem Feature-/Cache-Test.
 
 ### PR17 — Paketveröffentlichung und WordPress-Updater
 - [ ] Sichere Ablage und Versionierung für Core- und Premium-ZIPs einrichten.
