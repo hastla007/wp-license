@@ -97,11 +97,14 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - **Abnahme:** erst erfüllt, wenn eine unterstützte PayPal-Abo-/Vault-Integration ohne WooCommerce-Subscriptions-Zwang nachweislich funktioniert; bis dahin werden PayPal-Renewals nicht angeboten.
 
 ### PR16 — Produktclients in den drei Plugin-Repositories
-- [ ] Aktuelle PHP-/WordPress-/WooCommerce-Mindestversionen und Architektur jedes Repositories erneut erfassen.
-- [ ] Gemeinsamen Client kompatibel bundlen oder als versioniertes Paket ausliefern; keine Mindestversion unbeabsichtigt anheben.
-- [ ] CouponMaster: Aktivierungseinstellungen, Add-on-Rechte, Offlinecache und Updates anbinden.
-- [ ] PassMaster: Aktivierungseinstellungen, Tarifrechte, Offlinecache und Updates anbinden.
-- [ ] AffiliateMaster: Aktivierungseinstellungen, Tarif-/Feature-Rechte, Offlinecache und Updates anbinden.
+- [x] PHP-Mindestversionen der drei Repositories erfasst (Affiliate 7.4, Voucher 8.1, Pass 8.2); aktuelle WordPress-/WooCommerce-Mindestversionen und vollständige Architekturprüfung bleiben offen.
+- [x] Gemeinsamen Client PHP-kompatibel in den drei Produkt-Repositories gebundled, ohne in diesem Schritt die jeweilige Plugin-PHP-Mindestversion anzuheben (Client-PRs offen).
+- [x] CouponMaster: Aktivierungseinstellungen und lizenzierte Update-Hooks vorbereitet.
+- [ ] CouponMaster: Feature-/Add-on-Gates und Offlinecache anbinden.
+- [x] PassMaster: Aktivierungseinstellungen und lizenzierte Update-Hooks vorbereitet.
+- [ ] PassMaster: Tarif-/Feature-Gates und Offlinecache anbinden.
+- [x] AffiliateMaster: Aktivierungseinstellungen und lizenzierte Update-Hooks vorbereitet.
+- [ ] AffiliateMaster: Feature-Gates und Offlinecache anbinden.
 - [ ] Bestehende kostenlose Funktionen unverändert lassen; nur neue Premium-Funktionen sperren.
 - **Abnahme:** Je Produkt eigener PR im jeweiligen Repository, mit dokumentierter Rechtezuordnung und Kompatibilität.
 
@@ -123,9 +126,10 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - **Abnahme:** CI ist reproduzierbar; kritische End-to-End-Fälle sind bestanden und Fehlerberichte referenzieren die betroffenen Versionen.
 
 ### PR19 — Adminbetrieb und Supportwerkzeuge
-- [ ] Ablauf für Lizenzsuche, Verlängerungsstatus, Gatewayfehler und manuelle Korrektur vervollständigen.
+- [ ] Verlängerungsstatus, Gatewayfehler und manuelle Korrektur im Supportablauf ergänzen.
 - [ ] Sichere Wiederherstellung bei Domainwechsel, verlorenem Schlüssel und Installationslimit definieren.
 - [ ] Paginierung, Bulk-Aktionen, Berechtigungen und Audit-Nachweise für große Lizenzbestände prüfen.
+- [x] Lizenzliste mit Suche/Paginierung und auditierten Statusaktionen ist im Admin-Grundumfang vorhanden; Ausbau für Supportfälle offen.
 - [x] Read-only Diagnoseinformationen ohne Schlüssel, Tokens oder Zahlungsgeheimnisse bereitgestellt (PR20; Review/Abnahme offen).
 - **Abnahme:** Support kann typische Fälle ohne direkte Datenbankänderung lösen; jede Änderung ist nachvollziehbar.
 
@@ -134,6 +138,7 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - [ ] Überwachung für Renewalwarteschlangen, Webhooks, REST-Fehler, Updatepaketfehler und Speicherverfügbarkeit einrichten.
 - [ ] Datenaufbewahrung/-löschung, Datenschutzhinweise, Checkouttexte und Kündigungsprozess festlegen.
 - [ ] Sicherheitsprüfung und rechtliche Prüfung des Vertriebs-/Lizenzmodells abschließen.
+- [x] Release-, Incident- und Rollback-Ablauf als Runbook dokumentiert (Verantwortliche noch nicht benannt).
 - [ ] Release-, Support-, Incident- und Rollback-Verantwortliche festlegen.
 - **Abnahme:** Alle Punkte in der Release-Readiness-Checkliste sind geprüft; erst dann kommerzieller Start.
 
