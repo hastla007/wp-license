@@ -37,19 +37,17 @@ final class Money {
 
 		if ( strlen( $fraction ) > $decimals && (int) $fraction[ $decimals ] >= 5 ) {
 			$digits = str_split( $scaled );
+			$carry = true;
 			for ( $index = count( $digits ) - 1; $index >= 0; --$index ) {
-				if ( '9' !== $digits[ $index ] ) {
-					$digits[ $index ] = (string) ( (int) $digits[ $index ] + 1 );
-					$scaled = implode( '', $digits );
-					break;
+				if ( '9' === $digits[ $index ] ) {
+					$digits[ $index ] = '0';
+					continue;
 				}
-				$digits[ $index ] = '0';
+				$digits[ $index ] = (string) ( (int) $digits[ $index ] + 1 );
+				$carry = false;
+				break;
 			}
-			if ( isset( $digits[0] ) && '0' === $digits[0] && count( $digits ) === strlen( $scaled ) && '0' === implode( '', $digits ) ) {
-				$scaled = '1' . $scaled;
-			} elseif ( ! $digits || '0' === implode( '', $digits ) ) {
-				$scaled = '1';
-			}
+			$scaled = ( $carry ? '1' : '' ) . implode( '', $digits );
 		}
 
 		$max = (string) PHP_INT_MAX;
