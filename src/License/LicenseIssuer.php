@@ -152,6 +152,7 @@ final class LicenseIssuer {
 				'payment_gateway_id' => $gateway_id,
 				'payment_token_id' => $token_id,
 				'renewal_amount_minor' => max( 0, (int) $plan['price_minor'] ),
+				'renewal_currency_decimals' => max( 0, min( 6, (int) ( $plan['price_decimals'] ?? 2 ) ) ),
 				'renewal_currency' => strtoupper( sanitize_text_field( (string) $plan['currency'] ) ),
 				'cancel_at_period_end' => 0,
 				'revoked_at' => null,
@@ -165,7 +166,7 @@ final class LicenseIssuer {
 				'created_at' => gmdate( 'Y-m-d H:i:s' ),
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
-			array( '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
+			array( '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
 		);
 
 		if ( false === $result ) {
