@@ -45,6 +45,7 @@ if ( ! class_exists( '\\WPLC\\Plugin' ) ) {
 	require_once WPLC_PATH . 'src/Admin/LicenseAdmin.php';
 	require_once WPLC_PATH . 'src/Gateway/RecurringGatewayAdapter.php';
 	require_once WPLC_PATH . 'src/Gateway/Registry.php';
+	require_once WPLC_PATH . 'src/Gateway/StripeRecurringAdapter.php';
 	require_once WPLC_PATH . 'src/Billing/RecurringConsent.php';
 	require_once WPLC_PATH . 'src/Billing/RenewalScheduler.php';
 	require_once WPLC_PATH . 'src/Billing/RenewalProcessor.php';
