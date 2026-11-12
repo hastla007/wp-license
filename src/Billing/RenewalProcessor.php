@@ -39,6 +39,26 @@ final class RenewalProcessor {
 	 */
 	public static function process( int $renewal_id ): void {
 		global $wpdb;
+		$lock_name = 'wplc_renewal_' . substr( hash( 'sha256', 'renewal:' . $renewal_id ), 0, 48 );
+		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
+		if ( '1' !== (string) $locked ) {
+			return;
+		}
+		try {
+			self::process_locked( $renewal_id );
+		} finally {
+			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+		}
+	}
+
+	/**
+	 * Execute the renewal while holding the per-renewal lock.
+	 *
+	 * @param int $renewal_id Renewal row ID.
+	 * @return void
+	 */
+	private static function process_locked( int $renewal_id ): void {
+		global $wpdb;
 
 		$tables = Schema::table_names();
 		$renewal = $wpdb->get_row(
@@ -102,6 +122,7 @@ final class RenewalProcessor {
 			$error = is_wp_error( $result )
 				? $result
 				: new \WP_Error( 'renewal_payment_failed', __( 'The payment gateway did not confirm the renewal.', 'wp-license' ) );
+			$order->update_status( 'failed', $error->get_error_code() );
 			self::fail_attempt( $renewal, $license, $error );
 			return;
 		}
@@ -154,7 +175,7 @@ final class RenewalProcessor {
 
 		$expire_at = $grace_end ?: time();
 		if ( function_exists( 'as_schedule_single_action' ) ) {
-			as_schedule_single_action( max( time() + 30, $expire_at ), 'wplc/renewal_grace_ended', array( 'license_id' => (int) $license['id'] ), 'wplc', true );
+			as_schedule_single_action( max( time() + 30, $expire_at ), 'wplc/renewal_grace_ended', array( (int) $license['id'] ), 'wplc', true );
 		} else {
 			wp_schedule_single_event( max( time() + 30, $expire_at ), 'wplc/renewal_grace_ended', array( 'license_id' => (int) $license['id'] ) );
 		}
