@@ -321,3 +321,10 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 ## 8. Nächster konkreter Startpunkt
 
 Als nächstes PR13 auf Basis von PR12 erstellen: zuerst Architektur- und Sicherheitsreview, bekannte Fehler im Implementierungsstand beheben und den API-/Renewal-Vertrag präzisieren. Danach Stripe- und PayPal-Adapter getrennt umsetzen. Die PRs 01–12 sind offen und noch nicht gemergt; neue Branches daher weiterhin auf den jeweils letzten Stack-Branch aufsetzen.
+
+
+### Phase 17 — Produkt-Updater
+- [x] Premium-Update-Hooks, Lizenzabfrage, einmalige Downloadfreigabe, HTTPS-Host-Allowlist und SHA-256-Prüfung in den drei Produktclients vorbereitet.
+- [x] Abgelaufene Downloadfreigaben werden einmal neu angefordert.
+- [x] Release-/Hostkonfiguration und offene Produktionsvoraussetzungen dokumentiert.
+- [ ] Produkt-PRs mergen und im WordPress-Testshop gegen echte Paketspeicherung abnehmen.
