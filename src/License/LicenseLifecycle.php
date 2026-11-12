@@ -57,7 +57,7 @@ final class LicenseLifecycle {
 		}
 
 		$refund = wc_get_order( $refund_id );
-		if ( ! $refund ) {
+		if ( ! $refund || (int) $refund->get_parent_id() !== $order_id ) {
 			return;
 		}
 
@@ -101,7 +101,7 @@ final class LicenseLifecycle {
 			$tables['licenses'],
 			array(
 				'cancel_at_period_end' => 1,
-				'status_reason' => sanitize_textarea_field( $reason ),
+				'status_reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
 			array( 'id' => $license_id ),
@@ -149,7 +149,11 @@ final class LicenseLifecycle {
 		global $wpdb;
 
 		$license = self::get_license( $license_id );
-		if ( ! $license || ! self::valid_utc_datetime( $paid_until ) ) {
+		if (
+			! $license
+			|| in_array( $license['status'], array( 'revoked', 'suspended' ), true )
+			|| ! self::valid_utc_datetime( $paid_until )
+		) {
 			return;
 		}
 
@@ -161,11 +165,20 @@ final class LicenseLifecycle {
 				'status_reason' => '',
 				'paid_until' => $paid_until,
 				'next_payment_at' => $paid_until,
+				'cancel_at_period_end' => 0,
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
 			array( 'id' => $license_id ),
 			array( '%s', '%s', '%s', '%s', '%s' ),
 			array( '%d' )
+		);
+
+		$wpdb->update(
+			$tables['entitlements'],
+			array( 'status' => 'active', 'ends_at' => $paid_until ),
+			array( 'license_id' => $license_id, 'status' => 'past_due' ),
+			array( '%s', '%s' ),
+			array( '%d', '%s' )
 		);
 
 		AuditLog::record(
@@ -229,7 +242,7 @@ final class LicenseLifecycle {
 		}
 
 		$license = self::get_license( $license_id );
-		if ( ! $license || $license['status'] === $new_status ) {
+		if ( ! $license || $license['status'] === $new_status || 'revoked' === $license['status'] ) {
 			return false;
 		}
 
