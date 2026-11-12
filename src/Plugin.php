@@ -75,6 +75,9 @@ final class Plugin {
 		 */
 		\\WPLC\\Infrastructure\\Database\\Schema::maybe_upgrade();
 
+		\\WPLC\\Infrastructure\\Database\\Schema::maybe_upgrade();
+		\\WPLC\\Catalog\\ProductEditor::register_hooks();
+
 		do_action( 'wplc/loaded' );
 	}
 
