@@ -368,7 +368,7 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 - [ ] **27 · Renewal-Abgleich:** doppelte/verspätete Events, mehrdeutige Timeouts, Orders und Lizenzlaufzeiten idempotent abgleichen.
 - [ ] **28 · Auth-Recovery:** Kundenflow für erforderliche Stripe-Kundenaktion, erneute Zahlung und Rückkehr zum Abo ergänzen.
 - [ ] **29 · PayPal-Go/No-Go:** konkrete Gateway-/Abo-Version und Merchant-Freigabe nachweisen; bis dahin Checkout und Renewal-Werbung dafür deaktiviert halten.
-- [ ] **30 · Release-Manifest:** reproduzierbares Manifestformat und CLI/Build-Schritt mit Version, Mindestversionen, Changelog und SHA-256 erzeugen.
+- [x] **30 · Release-Manifest:** CLI `tools/create-release-manifest.php` erzeugt Metadaten mit HTTPS-Paket-URL, Version, Mindestversionen, Changelog und SHA-256. Release-Build-/Storage-Integration bleibt offen.
 - [ ] **31 · Paketablage:** austauschbaren privaten Storage-Provider mit signierten/kurzlebigen Redirects und dokumentierter Retention anschließen.
 - [ ] **32 · Release-Rollback:** unveränderliche Vorversionen und dokumentierten Rollbackpfad in Build- und Updateprozess integrieren.
 - [ ] **33 · Lizenzverwaltung:** Such-/Listenansicht auf Status, Kunde, Bestellung, Produkt und Renewal-Fälle ergänzen, falls aktuelle UI dies nicht abdeckt.
@@ -380,4 +380,4 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 - [ ] **39 · Betriebsüberwachung:** konkrete Health-/Queue-/Fehler-Metriken und Alarmgrenzen für Renewals, Webhooks, API und Pakete implementieren.
 - [ ] **40 · Launch-Evidenz:** Restore-, Gateway-, Sicherheits-, Datenschutz-, Kündigungs- und Supportabnahmen mit verantwortlicher Person und Datum dokumentieren.
 
-**Umsetzungsstand dieses Updates:** Aufgaben 21 und 23 umgesetzt/vorbereitet. Aufgabe 22 benötigt den tatsächlichen WooCommerce-SKU-/Variationskatalog; Aufgaben 24–40 bleiben offen und werden als einzelne reviewbare PRs bearbeitet. Aufgabenausführung setzt bei externen Abhängigkeiten (Gatewaykonto, echte SKUs, Hosting/Secrets, Testshop, Rechtstexte) deren Bereitstellung voraus.
+**Umsetzungsstand dieses Updates:** Aufgaben 21, 23 und 30 umgesetzt/vorbereitet. Aufgabe 22 benötigt den tatsächlichen WooCommerce-SKU-/Variationskatalog; Aufgaben 24–29, 31–40 bleiben offen und werden als einzelne reviewbare PRs bearbeitet. Aufgabenausführung setzt bei externen Abhängigkeiten (Gatewaykonto, echte SKUs, Hosting/Secrets, Testshop, Rechtstexte) deren Bereitstellung voraus.
