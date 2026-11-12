@@ -14,6 +14,7 @@ use WPLC\License\LicenseLifecycle;
 use WPLC\Api\V1\Routes;
 use WPLC\Account\CustomerPortal;
 use WPLC\Admin\LicenseAdmin;
+use WPLC\Admin\Diagnostics;
 use WPLC\Billing\RecurringConsent;
 use WPLC\Billing\RenewalProcessor;
 use WPLC\Gateway\StripeRecurringAdapter;
@@ -88,7 +89,8 @@ final class Plugin {
 		LicenseLifecycle::register_hooks();
 		Routes::register_hooks();
 		CustomerPortal::register_hooks();
-		LicenseAdmin::register_hooks();\n\t\tDiagnostics::register_hooks();
+		LicenseAdmin::register_hooks();
+		Diagnostics::register_hooks();
 		RecurringConsent::register_hooks();
 		RenewalProcessor::register_hooks();
 		StripeRecurringAdapter::register_hooks();
