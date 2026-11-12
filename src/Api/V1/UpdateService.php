@@ -61,11 +61,24 @@ final class UpdateService {
 		}
 
 		$token = bin2hex( random_bytes( 32 ) );
-		set_transient(
-			'wplc_update_dl_' . hash( 'sha256', $token ),
-			array( 'url' => $url, 'license_id' => (int) $license['id'], 'expires_at' => time() + self::TOKEN_TTL ),
-			self::TOKEN_TTL
+		$token_hash = hash( 'sha256', $token );
+		$expires_at = gmdate( 'Y-m-d H:i:s', time() + self::TOKEN_TTL );
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$wpdb->insert(
+			$tables['download_tokens'],
+			array(
+				'license_id' => (int) $license['id'],
+				'token_hash' => $token_hash,
+				'package_url' => $url,
+				'expires_at' => $expires_at,
+				'consumed_at' => null,
+				'created_at' => $now,
+			),
+			array( '%d', '%s', '%s', '%s', '%s', '%s' )
 		);
+		if ( false === $wpdb->insert_id ) {
+			return new \\WP_Error( 'download_token_error', __( 'A secure package download could not be prepared.', 'wp-license' ), array( 'status' => 503 ) );
+		}
 		$payload = array(
 			'update_available' => true,
 			'product_key' => $product_key,
@@ -76,7 +89,7 @@ final class UpdateService {
 			'requires_wp' => sanitize_text_field( (string) ( $package['requires_wp'] ?? '' ) ),
 			'tested_wp' => sanitize_text_field( (string) ( $package['tested_wp'] ?? '' ) ),
 			'release_notes' => wp_kses_post( (string) ( $package['release_notes'] ?? '' ) ),
-			'download_expires_at' => gmdate( 'Y-m-d H:i:s', time() + self::TOKEN_TTL ),
+			'download_expires_at' => $expires_at,
 		);
 
 		return Response::signed( $payload, (string) $activation['installation_secret'] );
