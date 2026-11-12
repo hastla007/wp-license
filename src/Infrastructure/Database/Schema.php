@@ -271,6 +271,7 @@ final class Schema {
 				)
 			);
 			if ( 1 !== (int) $table_exists ) {
+				error_log( 'WPLC schema migration verification failed for ' . $table_name . ': count=' . (string) $table_exists . '; error=' . $wpdb->last_error . '; query=' . $wpdb->last_query );
 				return false;
 			}
 		}
