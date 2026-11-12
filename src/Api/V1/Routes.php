@@ -24,6 +24,7 @@ final class Routes {
 	public static function register_hooks(): void {
 		add_action( 'rest_api_init', array( self::class, 'register_routes' ) );
 		add_action( 'wplc_daily_lifecycle', array( UpdateService::class, 'purge_expired_grants' ) );
+		add_action( 'wplc_daily_lifecycle', array( Authenticator::class, 'cleanup_security_rows' ) );
 	}
 
 	/**
