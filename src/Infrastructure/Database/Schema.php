@@ -252,7 +252,12 @@ final class Schema {
 			);
 			if ( 1 !== (int) $table_exists ) {
 				$create_statement = preg_replace( '/^CREATE TABLE /', 'CREATE TABLE IF NOT EXISTS ', $statement, 1 );
-				if ( false === $create_statement || false === $wpdb->query( $create_statement ) ) {
+				if ( false === $create_statement ) {
+					error_log( 'WPLC schema migration could not build CREATE TABLE statement for ' . $table_name );
+					return false;
+				}
+				if ( false === $wpdb->query( $create_statement ) ) {
+					error_log( 'WPLC schema migration failed for ' . $table_name . ': ' . $wpdb->last_error . ' SQL: ' . $create_statement );
 					return false;
 				}
 			}
