@@ -108,13 +108,13 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 ### PR17 — Paketveröffentlichung und WordPress-Updater
 - [ ] Sichere Ablage und Versionierung für Core- und Premium-ZIPs einrichten.
 - [ ] Release-Prozess erzeugt Metadaten inklusive Version, Mindestversionen, Changelog und SHA-256.
-- [ ] Produktclient prüft HMAC-Antwort und ZIP-Prüfsumme vor Installation.
-- [ ] Update-Transient/Plugin-Upgrader anbinden und Fehler ohne Ausfall des Shops behandeln.
-- [ ] Downloadgrant-Ablauf, Wiederverwendung, falsche Hosts, abgelaufene Lizenz und nicht erreichbaren Speicher behandeln.
+- [x] Produktclient prüft signierte Update-Metadaten und ZIP-SHA-256 vor Installation (Client-PRs vorbereitet; Runtime-Abnahme offen).
+- [x] Update-Transient/Plugin-Upgrader anbinden; Fehler werden als kontrollierte WP_Error-Antwort zurückgegeben (Testshop-Abnahme offen).
+- [x] Downloadgrant-Ablauf, einmalige Nutzung, Host-Allowlist und erneute Anforderung nach Ablauf clientseitig behandelt; Storage-/Lizenzfehler brechen kontrolliert ab (Testshop-Abnahme offen).
 - **Abnahme:** Autorisierte und nicht autorisierte Updatepfade verhalten sich im Testshop wie spezifiziert; Rollbackpakete sind verfügbar.
 
 ### PR18 — Automatisierte Qualitätssicherung und Kompatibilität
-- [ ] CI für unterstützte PHP-Versionen, WordPress-/WooCommerce-Versionen, Coding-Standards und statische Analyse einrichten.
+- [ ] Vollständige CI für PHP, WordPress-/WooCommerce-Versionen, Coding-Standards und statische Analyse einrichten.\n- [x] PHP-Syntax-Baseline für PHP 7.4/8.1/8.2/8.3 ergänzt (PR19; noch nicht ausgeführt).
 - [ ] Unit-/Integrationstests für Lizenzvergabe, doppelte Bestellereignisse, Refunds, Statuswechsel und Migrationen ergänzen.
 - [ ] REST-Sicherheitstests für Signaturen, Replay, Rate-Limits, Site-Limits und Staging ergänzen.
 - [ ] Renewal- und Updateabläufe mit WooCommerce-Testdaten und Gateway-Sandboxes abdecken.
@@ -125,7 +125,7 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - [ ] Ablauf für Lizenzsuche, Verlängerungsstatus, Gatewayfehler und manuelle Korrektur vervollständigen.
 - [ ] Sichere Wiederherstellung bei Domainwechsel, verlorenem Schlüssel und Installationslimit definieren.
 - [ ] Paginierung, Bulk-Aktionen, Berechtigungen und Audit-Nachweise für große Lizenzbestände prüfen.
-- [ ] Diagnoseinformationen bereitstellen, ohne Schlüssel, Tokens oder Zahlungsgeheimnisse offenzulegen.
+- [x] Read-only Diagnoseinformationen ohne Schlüssel, Tokens oder Zahlungsgeheimnisse bereitgestellt (PR20; Review/Abnahme offen).
 - **Abnahme:** Support kann typische Fälle ohne direkte Datenbankänderung lösen; jede Änderung ist nachvollziehbar.
 
 ### PR20 — Produktionsbetrieb und Launch
@@ -352,3 +352,31 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 - [ ] Release-Speicher/Manifest konfigurieren, Updates im echten WordPress-Testshop samt Fehler-/Rollbackfällen abnehmen.
 - [ ] Vollständige PHPUnit-/REST-/Datenbankintegrationstests sowie Kompatibilitäts- und Sicherheitsprüfung ausführen.
 - [ ] Produktionsschlüssel, Hosting, Monitoring, Backup/Restore-Test, Datenschutz-/Checkouttexte, Kündigung, Steuer-/Rechnungsprozess und Supportverantwortung festlegen.
+
+
+## Entwickler-Checkliste: weitere 20 Aufgaben (Phasen 21–40)
+
+**Statusregel:** Haken bestätigen vorhandene Code-/Dokumentationsänderungen. Sandbox-, Merge-, Laufzeit- und Produktionsabnahmen bleiben separat offen.
+
+- [x] **21 · Entitlement-Katalog:** stabile Feature-IDs und vorläufige Tarifzuordnung in `docs/ENTITLEMENTS.md` dokumentieren; reale SKU-/Plan-Zuordnung vor Aktivierung validieren.
+- [ ] **22 · SKU-/Plan-Mapping:** reale WooCommerce-Produkte, Variationen, Preise und Add-ons auf serverseitige Plan-IDs abbilden und Import/Export definieren.
+- [ ] **23 · Gemeinsamer Feature-Gate-Client:** API zum Abfragen von boolean/quota-Entitlements mit deny-by-default und kompatiblen PHP-Mindestversionen ergänzen.
+- [ ] **24 · Produkt-Gates:** neue Premiumfunktionen in allen drei Clients auf die freigegebenen Entitlement-IDs abbilden; kostenlose/Bestandsfunktionen unangetastet lassen.
+- [ ] **25 · Offline-Rechtecache:** signierte Antworten lokal verifizieren, höchstens 14 Tage cachen, Ablauf/Manipulation testen und bestehende Shopdaten schützen.
+- [ ] **26 · Stripe-Webhooks:** Signaturprüfung, Event-Inbox und Provider-Event-IDs für unterstützte Zahlungsereignisse implementieren.
+- [ ] **27 · Renewal-Abgleich:** doppelte/verspätete Events, mehrdeutige Timeouts, Orders und Lizenzlaufzeiten idempotent abgleichen.
+- [ ] **28 · Auth-Recovery:** Kundenflow für erforderliche Stripe-Kundenaktion, erneute Zahlung und Rückkehr zum Abo ergänzen.
+- [ ] **29 · PayPal-Go/No-Go:** konkrete Gateway-/Abo-Version und Merchant-Freigabe nachweisen; bis dahin Checkout und Renewal-Werbung dafür deaktiviert halten.
+- [ ] **30 · Release-Manifest:** reproduzierbares Manifestformat und CLI/Build-Schritt mit Version, Mindestversionen, Changelog und SHA-256 erzeugen.
+- [ ] **31 · Paketablage:** austauschbaren privaten Storage-Provider mit signierten/kurzlebigen Redirects und dokumentierter Retention anschließen.
+- [ ] **32 · Release-Rollback:** unveränderliche Vorversionen und dokumentierten Rollbackpfad in Build- und Updateprozess integrieren.
+- [ ] **33 · Lizenzverwaltung:** Such-/Listenansicht auf Status, Kunde, Bestellung, Produkt und Renewal-Fälle ergänzen, falls aktuelle UI dies nicht abdeckt.
+- [ ] **34 · Supportaktionen:** sichere, capability-/nonce-geschützte Domainfreigabe und Korrekturworkflows mit Begründung und Audit umsetzen.
+- [ ] **35 · Testbasis:** automatisiertes Testframework und minimale isolierte Tests für Signatur, Entitlement-Vertrag und Schlüssel-Utilities einrichten.
+- [ ] **36 · API-Sicherheitstests:** REST-Tests für Signaturen, Replay, Rate-Limits, Fehlermeldungen und Einmal-Downloadtoken ergänzen.
+- [ ] **37 · Datenbank-/Renewaltests:** Tests für Schema-Upgrades, doppelte Bestellungen, Refunds, Renewal-Locks und Grace Period ergänzen.
+- [ ] **38 · Kompatibilitätsmatrix:** minimale/aktuelle WordPress-, WooCommerce- und PHP-Versionen festschreiben und CI-Matrix entsprechend erweitern.
+- [ ] **39 · Betriebsüberwachung:** konkrete Health-/Queue-/Fehler-Metriken und Alarmgrenzen für Renewals, Webhooks, API und Pakete implementieren.
+- [ ] **40 · Launch-Evidenz:** Restore-, Gateway-, Sicherheits-, Datenschutz-, Kündigungs- und Supportabnahmen mit verantwortlicher Person und Datum dokumentieren.
+
+**Umsetzungsstand dieses Updates:** Aufgabe 21 erledigt. Aufgaben 22–40 bleiben offen und werden als einzelne reviewbare PRs bearbeitet. Aufgabenausführung setzt bei externen Abhängigkeiten (Gatewaykonto, echte SKUs, Hosting/Secrets, Testshop, Rechtstexte) deren Bereitstellung voraus.
