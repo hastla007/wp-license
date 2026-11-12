@@ -92,6 +92,7 @@ Errors use WordPress REST's JSON error envelope: a stable `code`, a human-readab
 | `request_replayed` / `activation_conflict` / `site_limit` | 409 | Request conflicts with current activation or license state |
 | `rate_limited` | 429 | Request limit was reached |
 | `retry_later` | 503 | A temporary lock or service condition prevents processing |
+| `replay_store_unavailable` / `rate_limit_store_unavailable` | 503 | Persistent replay/rate-limit storage failed; request is rejected closed |
 
 Error codes are versioned API behavior. Billing webhooks are outside v1; payment state is reconciled through the configured WooCommerce gateway adapter, not an unauthenticated client event route.
 
