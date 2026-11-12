@@ -1,0 +1,17 @@
+{
+  "name": "wplc/wp-license-captain",
+  "description": "WooCommerce license and update manager for WP product plugins.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "php": ">=7.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "WPLC\\\\": "src/"
+    }
+  },
+  "config": {
+    "sort-packages": true
+  }
+}
