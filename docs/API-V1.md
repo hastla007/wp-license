@@ -23,7 +23,7 @@ JSON body:
 }
 ```
 
-The client generates and retains the installation ID and secret locally. The server stores a SHA-256 verifier and an AES-256-GCM encrypted copy of the secret. The complete license key is not stored in plaintext.
+The client generates and retains the installation ID and secret locally. The optional `environment` is `production`, `staging` or `development`; staging also requires `staging_parent_installation_id` for an active live activation on the same license. A license allows at most one active staging site per live activation. Development activations do not consume a live-site slot. The server stores a SHA-256 verifier and an AES-256-GCM encrypted copy of the secret. The complete license key is not stored in plaintext.
 
 Successful responses use the envelope:
 
