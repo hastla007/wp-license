@@ -237,9 +237,41 @@ final class RenewalProcessor {
 
 		if ( ! empty( $renewal['renewal_order_id'] ) ) {
 			$existing = wc_get_order( (int) $renewal['renewal_order_id'] );
-			if ( $existing ) {
+			if ( $existing && self::order_matches_renewal( $existing, $renewal, $license ) ) {
 				return $existing;
 			}
+			if ( $existing ) {
+				return new \\WP_Error( 'renewal_order_conflict', __( 'The saved renewal order does not match this license renewal.', 'wp-license' ) );
+			}
+		}
+
+		$candidates = wc_get_orders(
+			array(
+				'limit' => 2,
+				'return' => 'ids',
+				'type' => 'shop_order',
+				'status' => array_keys( wc_get_order_statuses() ),
+				'meta_query' => array(
+					array(
+						'key' => '_wplc_renewal_id',
+						'value' => (string) $renewal['id'],
+						'compare' => '=',
+					),
+				),
+			)
+		);
+		if ( is_array( $candidates ) && count( $candidates ) > 1 ) {
+			return new \\WP_Error( 'renewal_order_ambiguous', __( 'Multiple WooCommerce orders reference this license renewal; manual review is required.', 'wp-license' ) );
+		}
+		if ( is_array( $candidates ) && 1 === count( $candidates ) ) {
+			$orphan = wc_get_order( absint( $candidates[0] ) );
+			if ( ! $orphan || ! self::order_matches_renewal( $orphan, $renewal, $license ) ) {
+				return new \\WP_Error( 'renewal_order_conflict', __( 'An existing WooCommerce order conflicts with this license renewal.', 'wp-license' ) );
+			}
+			if ( ! self::link_order_to_renewal( (int) $renewal['id'], (int) $orphan->get_id() ) ) {
+				return new \\WP_Error( 'renewal_order_link_failed', __( 'The existing renewal order could not be linked.', 'wp-license' ) );
+			}
+			return $orphan;
 		}
 
 		$source_order = wc_get_order( (int) $license['source_order_id'] );
@@ -270,17 +302,49 @@ final class RenewalProcessor {
 		$order->calculate_totals();
 		$order->save();
 
-		$tables = Schema::table_names();
+		if ( ! self::link_order_to_renewal( (int) $renewal['id'], (int) $order->get_id() ) ) {
+			return new \\WP_Error( 'renewal_order_link_failed', __( 'The renewal order was created but could not be linked. A retry will attempt recovery.', 'wp-license' ) );
+		}
+
+		return $order;
+	}
+
+	/**
+	 * Confirm an order belongs to exactly this renewal, license, and customer.
+	 *
+	 * @param \\WC_Order $order Candidate order.
+	 * @param array<string,mixed> $renewal Renewal row.
+	 * @param array<string,mixed> $license License row.
+	 * @return bool
+	 */
+	private static function order_matches_renewal( $order, array $renewal, array $license ): bool {
+		return $order instanceof \\WC_Order
+			&& (int) $order->get_meta( '_wplc_renewal_id', true ) === (int) $renewal['id']
+			&& (int) $order->get_meta( '_wplc_renewal_for_license', true ) === (int) $license['id']
+			&& (int) $order->get_customer_id() === (int) $license['customer_id']
+			&& (string) $order->get_payment_method() === (string) $license['payment_gateway_id'];
+	}
+
+	/**
+	 * Persist the order association so a retry can resume the same attempt.
+	 *
+	 * @param int $renewal_id Renewal ID.
+	 * @param int $order_id WooCommerce order ID.
+	 * @return bool
+	 */
+	private static function link_order_to_renewal( int $renewal_id, int $order_id ): bool {
 		global $wpdb;
-		$wpdb->update(
+
+		$tables = Schema::table_names();
+		$updated = $wpdb->update(
 			$tables['renewals'],
-			array( 'renewal_order_id' => (int) $order->get_id(), 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ),
-			array( 'id' => (int) $renewal['id'] ),
+			array( 'renewal_order_id' => $order_id, 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ),
+			array( 'id' => $renewal_id ),
 			array( '%d', '%s' ),
 			array( '%d' )
 		);
 
-		return $order;
+		return false !== $updated;
 	}
 
 	/**
