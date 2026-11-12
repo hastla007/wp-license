@@ -1,6 +1,6 @@
 <?php
 
-use WPLC\\Catalog\\Catalog;
+use WPLC\Catalog\Catalog;
 
 if ( ! function_exists( 'sanitize_key' ) ) {
 	function sanitize_key( $key ) { return strtolower( preg_replace( '/[^a-z0-9_\\-]/', '', (string) $key ) ); }
