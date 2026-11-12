@@ -19,7 +19,7 @@ final class Schema {
 	/**
 	 * Current schema version.
 	 */
-	public const VERSION = '7';
+	public const VERSION = '8';
 
 	/**
 	 * Run missing schema migrations.
@@ -81,6 +81,7 @@ final class Schema {
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				license_uuid char(36) NOT NULL,
 				license_key_hash char(64) NOT NULL,
+				license_key_secret_id varchar(32) NOT NULL DEFAULT 'legacy',
 				key_prefix varchar(32) NOT NULL,
 				customer_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				product_key varchar(100) NOT NULL,
