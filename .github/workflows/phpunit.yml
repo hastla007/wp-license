@@ -59,4 +59,5 @@ jobs:
       - name: Run WordPress integration tests
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
+          WP_TESTS_PHPUNIT_POLYFILLS_PATH: ${{ github.workspace }}/vendor/yoast/phpunit-polyfills
         run: composer test:integration
