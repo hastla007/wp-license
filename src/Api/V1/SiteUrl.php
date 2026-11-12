@@ -52,7 +52,7 @@ final class SiteUrl {
 		}
 
 		$port = isset( $parts['port'] ) ? (int) $parts['port'] : 0;
-		if ( $port < 0 || $port > 65535 ) {
+		if ( isset( $parts['port'] ) && ( $port < 1 || $port > 65535 ) ) {
 			return '';
 		}
 		if ( ( 'https' === $scheme && 443 === $port ) || ( 'http' === $scheme && 80 === $port ) ) {
@@ -65,7 +65,7 @@ final class SiteUrl {
 		}
 
 		$path = isset( $parts['path'] ) ? rtrim( (string) $parts['path'], '/' ) : '';
-		if ( false !== strpos( $path, chr( 0 ) ) ) {
+		if ( false !== strpos( $path, chr( 0 ) ) || false !== strpos( $path, '\\\\' ) ) {
 			return '';
 		}
 
