@@ -413,12 +413,13 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [x] **43a · Atomare Sicherheitszähler:** Schema v7 ergänzt persistente Nonce- und Rate-Limit-Tabellen; HMAC-validierte Nonces werden per eindeutigem Schlüssel atomar konsumiert, Minutenlimits per Upsert gezählt, abgelaufene Datensätze stündlich bereinigt. Aktivierungs-IP wird vor der Verwendung validiert.
 - [x] **43b · Atomarer Zähler-Unit-Test:** PHPUnit prüft den `INSERT ... ON DUPLICATE KEY UPDATE`-Minutenbucket und den zurückgelesenen Zählerstand (`tests/Api/AuthenticatorRateLimitTest.php`).
 - [ ] **43c · Sicherheitsintegrationstests:** parallele Replay-/Flood-Tests, DB-Fehler/Fallback, Proxy-Header und Bereinigungsgrenzen in WordPress/MySQL prüfen. **Abnahme:** Limits sind unter Konkurrenz nicht umgehbar und Datensätze wachsen nicht unbegrenzt.
-- [x] **44a · Aktivierungs-URL kanonisieren:** eigenständige Routine `SiteUrl::normalize()` in Aktivierung verdrahtet; Scheme/Host normalisiert, Default-Port und abschließende Pfad-Slashes entfernt, IPv6 geklammert, Credentials/Query/Fragment/fremde Schemes abgewiesen. IDN wird bei verfügbarer Intl-Erweiterung nach ASCII normalisiert; andernfalls sicher abgewiesen.
+- [x] **44a · Aktivierungs-URL kanonisieren:** eigenständige Routine `SiteUrl::normalize()` in Aktivierung verdrahtet; Scheme/Host normalisiert, Default-Port und abschließende Pfad-Slashes entfernt, IPv6 geklammert, Credentials/Query/Fragment/fremde Schemes, ungültige Ports und Backslashes im Pfad abgewiesen. IDN wird bei verfügbarer Intl-Erweiterung nach ASCII normalisiert; andernfalls sicher abgewiesen.
 - [x] **44b · SiteUrl-Unit-Tests:** Host-/Scheme-/Portnormalisierung, IPv6 und Zurückweisung von Credentials, Query, Fragment und Fremdscheme in `tests/Api/SiteUrlTest.php` abgedeckt.
 - [ ] **44c · Identitätsintegration:** gleiche Normalisierung bei Domainwechsel, Kundenkonto/Admin und Staging-Zuordnung durch WordPress-Integrationstests abnehmen; IDN- und lokale Entwicklungsregeln ausdrücklich festlegen.
 - [x] **45a · Transition-Matrix implementiert:** `LicenseStateMachine` definiert erlaubte Aktionen/Übergänge; Lifecycle und Renewal blockieren ungültige Änderungen und automatische Wiederaktivierung gesperrter, widerrufener oder abgelaufener Lizenzen.
 - [x] **45b · Unit-Tests:** erlaubte/abgewiesene Übergänge und Renewal-Freigabe sind in `tests/License/LicenseStateMachineTest.php` abgedeckt.
-- [ ] **45c · Persistenz-/Konkurrenzabnahme:** Statuswechsel per bedingtem Update/Transaktion gegen parallele Refund-, Renewal- und Chargeback-Events testen und bei DB-Fehlern korrekte Auditkonsistenz sicherstellen.
+- [x] **45c · Compare-and-set umgesetzt:** Statuswechsel, Renewal-Erfolg und Kündigung schreiben nur, wenn der vorher gelesene Status unverändert ist; ein paralleler Refund/Chargeback kann so nicht durch ein veraltetes Update überschrieben werden.
+- [ ] **45d · Persistenz-/Konkurrenztests:** parallele Refund-, Renewal- und Chargeback-Events sowie DB-Fehler auf Status-/Auditkonsistenz prüfen.
 - [ ] **46 · Kunden- und Admin-Autorisierung testen:** Besitzprüfung bei Mein-Konto-Lizenz, Aktivierung, Kündigung, Zahlungslink und Download gegen fremde Kunden-IDs prüfen; Adminaktionen auf Capability, Nonce, Eingabevalidierung und Audit-Eintrag absichern. **Abnahme:** negative IDOR-/CSRF-Tests schlagen für alle schreibenden Endpunkte fehl.
 
 ### WooCommerce-Aufträge und Abrechnung
@@ -467,7 +468,7 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [x] **44a** URL-Normalisierungs-Unit-Tests ergänzt; Live-Integrationsfälle bleiben offen.
 
 - [x] **42a** Versioniertes, konfigurierbares Installation-Secret-Keyring-Verfahren, Legacy-Leseweg, Tests und Betriebsdokumentation ergänzt.
-- [ ] **42b/42c** Re-Encryption der Bestandsdaten und Lizenzschlüssel-Key-IDs/Wiederherstellung bleiben offen.
+- [ ] **42b/42d** Re-Encryption der Aktivierungsgeheimnisse sowie Bestands-/Recovery-Migration für License Keys bleiben offen.
 
 - [x] **45a/45b** Explizite Statusübergänge in den Lifecycle eingebunden und mit Unit-Tests abgedeckt.
 
@@ -479,3 +480,6 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 
 - [x] **54a/54b** Kurs-/Betragspräzision im Katalog und Renewal festgehalten; exakte Konvertierung und Rundung getestet.
 - [ ] **54c** Add-on-Proration sowie Steuer-/Gatewayintegration bleiben offen.
+
+- [x] **45c** Compare-and-set-Schutz für Lizenzzustandswechsel, Renewal-Erfolg und Kündigung eingebaut.
+- [ ] **45d** Konkurrenz-/Auditintegrationstests bleiben offen.
