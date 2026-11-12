@@ -88,7 +88,7 @@ define( 'WPLC_INSTALLATION_ENCRYPTION_KEYS', array(
 define( 'WPLC_INSTALLATION_ENCRYPTION_KEY_ID', '2026-06' );
 ```
 
-Keep the previous key in the ring while ciphertexts still refer to its key ID. New writes use the configured current ID; reads select the matching key. Remove an old key only after all rows have been re-encrypted and a restore test confirms the migration. Never commit real key values. Legacy unversioned ciphertext is still read using configured keys and, as a fallback, the historical WordPress `secure_auth` salt.
+Keep the previous key in the ring while ciphertexts still refer to its key ID. New writes use the configured current ID; reads select the matching key. Remove an old key only after all rows have been re-encrypted and a restore test confirms the migration. Never commit real key values. Legacy unversioned ciphertext is still read using configured keys and, as a fallback, the historical WordPress `secure_auth` salt. Rotate existing activation rows with `wp wplc rotate-installation-secrets` (dry-run by default); after verifying the proposed counts and taking a tested database backup, use `--apply` in bounded batches. Keep old keys available until a subsequent dry-run reports no rows needing rotation and a restore test passes.
 
 License keys now carry a `license_key_secret_id` in the license row. Configure a key ring in `wp-config.php` and retain every key ID still referenced by a license:
 
