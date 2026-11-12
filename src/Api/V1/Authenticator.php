@@ -60,39 +60,93 @@ final class Authenticator {
 			return new \WP_Error( 'installation_secret_invalid', __( 'The installation credential is invalid.', 'wp-license' ), array( 'status' => 401 ) );
 		}
 
-		$nonce_key = 'wplc_nonce_' . hash( 'sha256', $installation_uuid . ':' . $nonce );
-		if ( get_transient( $nonce_key ) ) {
-			return new \WP_Error( 'request_replayed', __( 'This request nonce has already been used.', 'wp-license' ), array( 'status' => 409 ) );
-		}
-
-		$body_hash = hash( 'sha256', (string) $request->get_body() );
-		$canonical = implode(
-			"\n",
-			array(
-				strtoupper( $request->get_method() ),
-				$request->get_route(),
-				$timestamp,
-				$nonce,
-				$body_hash,
+		$nonce_hash = hash( 'sha256', $nonce );
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$tables['request_nonces']} WHERE activation_id = %d AND nonce_hash = %s AND expires_at <= %s",
+				(int) $activation['id'],
+				$nonce_hash,
+				$now
 			)
 		);
-		$expected_signature = hash_hmac( 'sha256', $canonical, $secret );
+		$nonce_inserted = $wpdb->query(
+			$wpdb->prepare(
+				"INSERT IGNORE INTO {$tables['request_nonces']} (activation_id,nonce_hash,expires_at,created_at) VALUES (%d,%s,%s,%s)",
+				(int) $activation['id'],
+				$nonce_hash,
+				gmdate( 'Y-m-d H:i:s', time() + 10 * MINUTE_IN_SECONDS ),
+				$now
+			)
+		);
 
-		if ( ! hash_equals( $expected_signature, $provided_signature ) ) {
-			return new \WP_Error( 'invalid_request_signature', __( 'Request signature could not be verified.', 'wp-license' ), array( 'status' => 401 ) );
+		if ( false === $nonce_inserted ) {
+			return new \\WP_Error( 'replay_store_unavailable', __( 'Request replay protection is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
+		}
+		if ( 0 === (int) $nonce_inserted ) {
+			return new \\WP_Error( 'request_replayed', __( 'This request nonce has already been used.', 'wp-license' ), array( 'status' => 409 ) );
 		}
 
-		set_transient( $nonce_key, 1, 10 * MINUTE_IN_SECONDS );
-
-		$rate_key = 'wplc_rate_' . hash( 'sha256', $installation_uuid );
-		$counter = (int) get_transient( $rate_key );
-		if ( $counter >= 120 ) {
-			return new \WP_Error( 'rate_limited', __( 'Too many requests for this installation.', 'wp-license' ), array( 'status' => 429 ) );
+		$rate_hits = self::increment_rate_limit( hash( 'sha256', 'installation:' . $installation_uuid ) );
+		if ( false === $rate_hits ) {
+			return new \\WP_Error( 'rate_limit_store_unavailable', __( 'Request rate limiting is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
 		}
-		set_transient( $rate_key, $counter + 1, MINUTE_IN_SECONDS );
+		if ( $rate_hits > 120 ) {
+			return new \\WP_Error( 'rate_limited', __( 'Too many requests for this installation.', 'wp-license' ), array( 'status' => 429 ) );
+		}
 
 		$activation['installation_secret'] = $secret;
 
 		return $activation;
+	}
+
+	/**
+	 * Atomically increment a per-minute request bucket.
+	 *
+	 * @param string $limiter_hash SHA-256 key for the installation or IP.
+	 * @return int|false Current hit count, or false on database failure.
+	 */
+	public static function increment_rate_limit( string $limiter_hash ) {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$bucket = gmdate( 'Y-m-d H:i:00' );
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$result = $wpdb->query(
+			$wpdb->prepare(
+				"INSERT INTO {$tables['request_limits']} (limiter_hash,bucket_start,hits,created_at) VALUES (%s,%s,1,%s) ON DUPLICATE KEY UPDATE hits = hits + 1",
+				$limiter_hash,
+				$bucket,
+				$now
+			)
+		);
+		if ( false === $result ) {
+			return false;
+		}
+
+		$hits = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT hits FROM {$tables['request_limits']} WHERE limiter_hash = %s AND bucket_start = %s LIMIT 1",
+				$limiter_hash,
+				$bucket
+			)
+		);
+
+		return is_numeric( $hits ) ? (int) $hits : false;
+	}
+
+	/**
+	 * Remove expired replay and rate-limit records in bounded batches.
+	 *
+	 * @return void
+	 */
+	public static function cleanup_security_rows(): void {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$rate_cutoff = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['request_nonces']} WHERE expires_at <= %s LIMIT 1000", $now ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['request_limits']} WHERE bucket_start < %s LIMIT 1000", $rate_cutoff ) );
 	}
 }
