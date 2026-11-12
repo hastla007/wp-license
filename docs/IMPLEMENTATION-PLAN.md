@@ -83,9 +83,9 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - [x] Offizielles WooCommerce-Stripe-Gateway als begrenzte Integration festgelegt; nur gespeicherte Kartentoken und eingeloggte Kunden.
 - [x] Erneuerung nur mit expliziter WP License Captain Zustimmung und kunden-eigenem gespeicherten Token ermöglichen.
 - [x] Stable provider idempotency key, PaymentIntent-Bestätigung und Authentifizierungsbedarf behandeln.
-- [ ] Webhook-Signatur, Event-Inbox, Duplikaterkennung und Zustandsabgleich ergänzen.
+- [x] Webhook-Signatur (timestamped v1 HMAC), Event-Inbox, Duplikaterkennung und Zustandsabgleich für erfolgreiche PaymentIntents ergänzen.
 - [ ] Erfolgs-, Ablehnungs-, Widerrufs- und Timeoutfälle in einer Gateway-Sandbox durchspielen.
-- [ ] Kundenflow zur manuellen Authentifizierung und Zahlungswiederherstellung ergänzen.
+- [x] Kundenflow zur manuellen Authentifizierung und Zahlungswiederherstellung ergänzen (My Account verlinkt den WooCommerce-Order-Pay-/Stripe-SCA-Ablauf).
 - **Abnahme:** Keine Abbuchung ohne gültigen Token und Zustimmung; wiederholte Events erzeugen keine doppelte Zahlung oder Verlängerung.
 
 ### PR15 — PayPal-Adapter
