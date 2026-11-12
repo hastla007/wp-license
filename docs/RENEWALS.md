@@ -6,7 +6,7 @@ WP License Captain only charges a saved payment method through a registered `Rec
 
 A gateway extension registers instances through `wplc_recurring_gateway_adapters`. Each adapter identifies its WooCommerce gateway and must explicitly report whether it supports checkout consent and the saved token. `charge()` must send the supplied idempotency key to the provider and return success only after the provider confirms payment. Do not store card numbers or security codes in WP License Captain.
 
-The `wplc_payment_token_id_for_order` filter supplies a WooCommerce token ID for an order. The issuer verifies the token's customer ownership and adapter support before enabling automatic renewal. No Stripe or PayPal adapter ships in this milestone; license checkout therefore requires a separately installed and reviewed adapter. Classic checkout hooks are implemented; Checkout Blocks need a compatible adapter integration before they can be marketed as supported.
+Renewal processing takes a per-renewal database advisory lock before creating an order or calling a gateway; the same renewal cannot be processed concurrently by duplicate scheduler jobs. The `wplc_payment_token_id_for_order` filter supplies a WooCommerce token ID for an order. The issuer verifies the token's customer ownership and adapter support before enabling automatic renewal. No Stripe or PayPal adapter ships in this milestone; license checkout therefore requires a separately installed and reviewed adapter. Classic checkout hooks are implemented; Checkout Blocks need a compatible adapter integration before they can be marketed as supported.
 
 ## Renewal behavior
 
