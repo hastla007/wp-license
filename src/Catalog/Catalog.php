@@ -89,6 +89,7 @@ final class Catalog {
 				'woocommerce_variation_id' => $variation_id,
 				'billing_interval' => $interval,
 				'price_minor' => max( 0, $price_minor ),
+				'price_decimals' => max( 0, min( 6, $decimals ) ),
 				'currency' => strtoupper( sanitize_text_field( $currency ) ),
 				'live_site_limit' => $limit,
 				'support_level' => $support,
