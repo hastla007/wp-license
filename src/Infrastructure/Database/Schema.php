@@ -26,13 +26,13 @@ final class Schema {
 	 *
 	 * @return void
 	 */
-	public static function maybe_upgrade(): void {
+	public static function maybe_upgrade(): bool {
 		$installed = (string) get_option( 'wplc_schema_version', '0' );
 		if ( version_compare( $installed, self::VERSION, '>=' ) ) {
-			return;
+			return true;
 		}
 
-		self::migrate();
+		return self::migrate();
 	}
 
 	/**
@@ -40,7 +40,7 @@ final class Schema {
 	 *
 	 * @return void
 	 */
-	public static function migrate(): void {
+	public static function migrate(): bool {
 		global $wpdb;
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -235,7 +235,20 @@ final class Schema {
 			dbDelta( $statement );
 		}
 
+		foreach ( $tables as $table_name ) {
+			$existing = $wpdb->get_var(
+				$wpdb->prepare(
+					'SHOW TABLES LIKE %s',
+					$wpdb->esc_like( $table_name )
+				)
+			);
+			if ( $table_name !== $existing ) {
+				return false;
+			}
+		}
+
 		update_option( 'wplc_schema_version', self::VERSION, false );
+		return true;
 	}
 
 	/**
