@@ -88,12 +88,13 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - [ ] Kundenflow zur manuellen Authentifizierung und Zahlungswiederherstellung ergänzen.
 - **Abnahme:** Keine Abbuchung ohne gültigen Token und Zustimmung; wiederholte Events erzeugen keine doppelte Zahlung oder Verlängerung.
 
-### PR15 — PayPal-Adapter
-- [ ] Unterstützte PayPal-WooCommerce-Integration und erlaubte Folgeabbuchungsart bestimmen.
-- [ ] Zustimmung, Tokenbesitz, Idempotenz, Webhook-Signatur und Erstattungs-/Stornoereignisse integrieren.
-- [ ] Unklare oder nicht unterstützte Zahlungsmethoden beim Checkout blockieren.
-- [ ] Sandboxläufe für Erfolg, Ablehnung, verspätete Webhooks und Erstattung durchführen.
-- **Abnahme:** PayPal-Verlängerungen bleiben synchron mit WooCommerce-Bestellungen und Lizenzlaufzeiten.
+### PR15 — PayPal-Adapter (gesperrt bis passendes Abo-Modell)
+- [x] Prüfen, ob ein gespeicherter PayPal-Vault-Token für eigene Off-Session-Renewal-Orders ausreicht: nein.
+- [x] Unkonfigurierte PayPal-Verlängerungen fail-closed halten; kein PayPal-Adapter wird registriert.
+- [x] Kompatibilitätsgrenze und erforderliches PayPal-Abo-/Webhookmodell dokumentieren.
+- [ ] Genehmigungs-, Abo- und Webhookmodell mit einem konkreten PayPal-Konto und WooCommerce-Gatewayversion umsetzen.
+- [ ] Sandboxfälle für Aktivierung, Erfolg, Ablehnung, Kündigung, verspätete/doppelte Events und Refund durchspielen.
+- **Abnahme:** erst erfüllt, wenn eine unterstützte PayPal-Abo-/Vault-Integration ohne WooCommerce-Subscriptions-Zwang nachweislich funktioniert; bis dahin werden PayPal-Renewals nicht angeboten.
 
 ### PR16 — Produktclients in den drei Plugin-Repositories
 - [ ] Aktuelle PHP-/WordPress-/WooCommerce-Mindestversionen und Architektur jedes Repositories erneut erfassen.
