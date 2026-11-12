@@ -1,11 +1,12 @@
 <?php
-use PHPUnit\Framework\TestCase;
-use WPLC\Api\V1\StripeWebhook;
+use PHPUnit\\Framework\\TestCase;
+use WPLC\\Api\\V1\\StripeWebhook;
 
 final class StripeWebhookSignatureTest extends TestCase {
 	/** Invoke the private verifier without registering WordPress routes or making network requests. */
 	private function verify( string $body, string $header ): bool {
 		$method = new ReflectionMethod( StripeWebhook::class, 'verify_signature' );
+		$method->setAccessible( true );
 		return (bool) $method->invoke( null, $body, $header );
 	}
 
