@@ -31,6 +31,8 @@ require_once WPLC_PATH . 'src/Catalog/Catalog.php';
 require_once WPLC_PATH . 'src/Catalog/ProductEditor.php';
 require_once WPLC_PATH . 'src/License/LicenseKey.php';
 require_once WPLC_PATH . 'src/License/LicenseIssuer.php';
+require_once WPLC_PATH . 'src/License/AuditLog.php';
+require_once WPLC_PATH . 'src/License/LicenseLifecycle.php';
 require_once WPLC_PATH . 'src/Plugin.php';
 }
 
