@@ -235,14 +235,9 @@ final class Schema {
 			dbDelta( $statement );
 		}
 
+		$existing_tables = $wpdb->get_col( 'SHOW TABLES' );
 		foreach ( $tables as $table_name ) {
-			$existing = $wpdb->get_var(
-				$wpdb->prepare(
-					'SHOW TABLES LIKE %s',
-					$wpdb->esc_like( $table_name )
-				)
-			);
-			if ( $table_name !== $existing ) {
+			if ( ! in_array( $table_name, (array) $existing_tables, true ) ) {
 				return false;
 			}
 		}
