@@ -33,6 +33,12 @@ if ( ! class_exists( '\\WPLC\\Plugin' ) ) {
 	require_once WPLC_PATH . 'src/License/LicenseIssuer.php';
 	require_once WPLC_PATH . 'src/License/AuditLog.php';
 	require_once WPLC_PATH . 'src/License/LicenseLifecycle.php';
+	require_once WPLC_PATH . 'src/Security/SecretCrypto.php';
+	require_once WPLC_PATH . 'src/Api/V1/Response.php';
+	require_once WPLC_PATH . 'src/Api/V1/Authenticator.php';
+	require_once WPLC_PATH . 'src/Api/V1/ActivationService.php';
+	require_once WPLC_PATH . 'src/Api/V1/EntitlementService.php';
+	require_once WPLC_PATH . 'src/Api/V1/Routes.php';
 	require_once WPLC_PATH . 'src/Plugin.php';
 }
 
