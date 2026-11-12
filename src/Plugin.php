@@ -11,6 +11,7 @@ use WPLC\Catalog\ProductEditor;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\LicenseIssuer;
 use WPLC\License\LicenseLifecycle;
+use WPLC\Api\V1\Routes;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -78,6 +79,7 @@ final class Plugin {
 		ProductEditor::register_hooks();
 		LicenseIssuer::register_hooks();
 		LicenseLifecycle::register_hooks();
+		Routes::register_hooks();
 
 		/**
 		 * Fires after WP License Captain has confirmed its WooCommerce dependency.
