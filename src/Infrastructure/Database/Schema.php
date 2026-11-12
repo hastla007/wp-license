@@ -232,7 +232,7 @@ final class Schema {
 		);
 
 		foreach ( $sql as $statement ) {
-			dbDelta( $statement );
+			\\dbDelta( $statement );
 		}
 
 		foreach ( $tables as $table_name ) {
