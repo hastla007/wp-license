@@ -50,8 +50,8 @@ final class Catalog {
 		}
 
 		$price    = (float) $product->get_price( 'edit' );
-		$decimals = function_exists( 'wc_get_price_decimals' ) ? (int) wc_get_price_decimals() : 2;
-		$price_minor = (int) round( $price * ( 10 ** $decimals ) );
+		$decimals = function_exists( 'wc_get_price_decimals' ) ? max( 0, min( 6, (int) wc_get_price_decimals() ) ) : 2;
+		$price_minor = (int) round( $price * ( 10 ** $decimals ), 0, PHP_ROUND_HALF_UP );
 		$currency = function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'EUR';
 
 		$entitlements = $data['entitlements'] ?? array();
@@ -89,6 +89,7 @@ final class Catalog {
 				'woocommerce_variation_id' => $variation_id,
 				'billing_interval' => $interval,
 				'price_minor' => max( 0, $price_minor ),
+				'price_decimals' => $decimals,
 				'currency' => strtoupper( sanitize_text_field( $currency ) ),
 				'live_site_limit' => $limit,
 				'support_level' => $support,
@@ -97,7 +98,7 @@ final class Catalog {
 				'created_at' => $now,
 				'updated_at' => $now,
 			),
-			array( '%s', '%s', '%d', '%d', '%s', '%d', '%s', '%d', '%s', '%s', '%d', '%s', '%s' )
+			array( '%s', '%s', '%d', '%d', '%s', '%d', '%d', '%s', '%d', '%s', '%s', '%d', '%s', '%s' )
 		);
 
 		return false !== $result;
