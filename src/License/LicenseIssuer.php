@@ -9,6 +9,8 @@ namespace WPLC\License;
 
 use WPLC\Catalog\Catalog;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\Gateway\Registry;
+use WPLC\Billing\RenewalScheduler;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -42,7 +44,7 @@ final class LicenseIssuer {
 		}
 
 		$order = wc_get_order( $order_id );
-		if ( ! $order || ! $order->is_paid() ) {
+		if ( ! $order || ! $order->is_paid() || $order->get_meta( '_wplc_renewal_for_license', true ) ) {
 			return;
 		}
 
@@ -118,6 +120,16 @@ final class LicenseIssuer {
 		$starts_at = gmdate( 'Y-m-d H:i:s', $starts_at_timestamp );
 		$paid_until_timestamp = self::period_end( $starts_at_timestamp, (string) $plan['billing_interval'] );
 		$paid_until = gmdate( 'Y-m-d H:i:s', $paid_until_timestamp );
+		$gateway_id = sanitize_key( (string) $order->get_payment_method() );
+		$token_id = absint( apply_filters( 'wplc_payment_token_id_for_order', 0, $order ) );
+		$token = class_exists( 'WC_Payment_Tokens' ) ? \\WC_Payment_Tokens::get( $token_id ) : false;
+		$adapter = Registry::get( $gateway_id );
+		$consent = (string) $order->get_meta( '_wplc_recurring_consent_at', true );
+		$renewal_enabled = $consent && $token && $adapter && (int) $token->get_user_id() === (int) $order->get_customer_id() && $adapter->supports_saved_token( $token_id, (int) $order->get_customer_id() );
+		if ( ! $renewal_enabled ) {
+			$token_id = 0;
+			$gateway_id = '';
+		}
 
 		$result = $wpdb->insert(
 			$tables['licenses'],
@@ -131,6 +143,11 @@ final class LicenseIssuer {
 				'parent_license_id' => null,
 				'status' => 'active',
 				'status_reason' => '',
+				'renewal_enabled' => $renewal_enabled ? 1 : 0,
+				'payment_gateway_id' => $gateway_id,
+				'payment_token_id' => $token_id,
+				'renewal_amount_minor' => max( 0, (int) $plan['price_minor'] ),
+				'renewal_currency' => strtoupper( sanitize_text_field( (string) $plan['currency'] ) ),
 				'cancel_at_period_end' => 0,
 				'revoked_at' => null,
 				'billing_interval' => (string) $plan['billing_interval'],
@@ -143,7 +160,7 @@ final class LicenseIssuer {
 				'created_at' => gmdate( 'Y-m-d H:i:s' ),
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
-			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%d', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
 		);
 
 		if ( false === $result ) {
@@ -151,6 +168,9 @@ final class LicenseIssuer {
 		}
 
 		$license_id = (int) $wpdb->insert_id;
+		if ( $renewal_enabled ) {
+			RenewalScheduler::schedule_next( $license_id );
+		}
 		$entitlements = json_decode( (string) $plan['entitlements_json'], true );
 		if ( is_array( $entitlements ) ) {
 			foreach ( $entitlements as $entitlement_key => $value ) {
