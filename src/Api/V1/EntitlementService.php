@@ -43,6 +43,10 @@ final class EntitlementService {
 
 		$active = 'active' === $license['status']
 			&& ( empty( $license['paid_until'] ) || (string) $license['paid_until'] > gmdate( 'Y-m-d H:i:s' ) );
+		$reported_status = $active ? (string) $license['status'] : (string) $license['status'];
+		if ( 'active' === $reported_status && ! $active ) {
+			$reported_status = 'expired';
+		}
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT entitlement_key,value_json FROM {$tables['entitlements']} WHERE license_id = %d AND status = %s AND (ends_at IS NULL OR ends_at > %s)",
@@ -84,7 +88,7 @@ final class EntitlementService {
 		$data = array(
 			'activation_id' => (int) $activation['id'],
 			'installation_id' => (string) $activation['installation_uuid'],
-			'license_status' => $active ? (string) $license['status'] : 'expired',
+			'license_status' => $reported_status,
 			'paid_until' => $license['paid_until'],
 			'site_limit' => ActivationService::site_limit( (int) $license['id'], $license ),
 			'site_count' => $site_count,
