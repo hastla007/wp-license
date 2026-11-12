@@ -68,7 +68,7 @@ final class RenewalProcessor {
 		$grace_end = strtotime( (string) $renewal['grace_ends_at'] . ' UTC' );
 		if ( $grace_end && $now >= $grace_end ) {
 			self::set_renewal_status( $renewal_id, 'expired', null );
-			LicenseLifecycle::expire_after_grace( (int) $license['id'], 'Automatic renewal grace period ended' );
+			self::expire_license( (int) $license['id'] );
 			return;
 		}
 		if ( $start && $now < $start ) {
@@ -133,7 +133,8 @@ final class RenewalProcessor {
 		$attempt = (int) $renewal['attempt_count'] + 1;
 		$delays = array( 1, 3, 7 );
 		$grace_end = strtotime( (string) $renewal['grace_ends_at'] . ' UTC' );
-		$next = isset( $delays[ $attempt - 1 ] ) ? time() + $delays[ $attempt - 1 ] * DAY_IN_SECONDS : 0;
+		$period_start = strtotime( (string) $renewal['period_start'] . ' UTC' );
+		$next = isset( $delays[ $attempt - 1 ] ) && $period_start ? max( time() + 30, $period_start + $delays[ $attempt - 1 ] * DAY_IN_SECONDS ) : 0;
 		self::set_renewal_status( (int) $renewal['id'], 'failed', $next ? gmdate( 'Y-m-d H:i:s', $next ) : null, null, $attempt );
 
 		LicenseLifecycle::mark_past_due( (int) $license['id'], $error->get_error_code() );
@@ -166,7 +167,7 @@ final class RenewalProcessor {
 	 * @return void
 	 */
 	public static function expire_after_grace( int $license_id ): void {
-		LicenseLifecycle::expire_after_grace( $license_id, 'Automatic renewal grace period ended' );
+		self::expire_license( $license_id );
 	}
 
 	/**
@@ -176,6 +177,16 @@ final class RenewalProcessor {
 	 * @param array<string,mixed> $license License row.
 	 * @return \WC_Order|\WP_Error
 	 */
+	private static function expire_license( int $license_id ): void {
+		global $wpdb;
+		$tables = Schema::table_names();
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$updated = $wpdb->update( $tables['licenses'], array( 'status' => 'expired', 'status_reason' => 'Automatic renewal grace period ended', 'updated_at' => $now ), array( 'id' => $license_id, 'status' => 'past_due' ), array( '%s', '%s', '%s' ), array( '%d', '%s' ) );
+		if ( false === $updated || 0 === $updated ) { return; }
+		$wpdb->update( $tables['entitlements'], array( 'status' => 'expired' ), array( 'license_id' => $license_id, 'status' => 'active' ), array( '%s' ), array( '%d', '%s' ) );
+		AuditLog::record( 'license_expired', 'license', $license_id, 'Automatic renewal grace period ended', array( 'status' => 'past_due' ), array( 'status' => 'expired' ) );
+	}
+
 	private static function get_or_create_order( array $renewal, array $license ) {
 		if ( ! function_exists( 'wc_get_order' ) || ! function_exists( 'wc_create_order' ) ) {
 			return new \WP_Error( 'woocommerce_unavailable', __( 'WooCommerce order services are unavailable.', 'wp-license' ) );
