@@ -126,9 +126,13 @@ final class UpdateService {
 			}
 		}
 		$port_is_https_default = ! isset( $parts['port'] ) || 443 === (int) $parts['port'];
+		$has_no_embedded_credentials = ! isset( $parts['user'] ) && ! isset( $parts['pass'] );
+		$has_no_fragment = ! isset( $parts['fragment'] );
 
 		return 'https' === strtolower( (string) ( $parts['scheme'] ?? '' ) )
 			&& $port_is_https_default
+			&& $has_no_embedded_credentials
+			&& $has_no_fragment
 			&& '' !== $host
 			&& in_array( $host, $allowed, true );
 	}
