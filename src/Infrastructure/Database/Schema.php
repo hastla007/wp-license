@@ -19,7 +19,7 @@ final class Schema {
 	/**
 	 * Current schema version.
 	 */
-	public const VERSION = '3';
+	public const VERSION = '4';
 
 	/**
 	 * Run missing schema migrations.
@@ -88,6 +88,11 @@ final class Schema {
 				parent_license_id bigint(20) unsigned DEFAULT NULL,
 				status varchar(20) NOT NULL DEFAULT 'pending',
 				status_reason varchar(255) NOT NULL DEFAULT '',
+				renewal_enabled tinyint(1) NOT NULL DEFAULT 0,
+				payment_gateway_id varchar(100) NOT NULL DEFAULT '',
+				payment_token_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				renewal_amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				renewal_currency char(3) NOT NULL DEFAULT 'EUR',
 				cancel_at_period_end tinyint(1) NOT NULL DEFAULT 0,
 				revoked_at datetime DEFAULT NULL,
 				billing_interval varchar(10) NOT NULL DEFAULT 'year',
@@ -151,6 +156,7 @@ final class Schema {
 				idempotency_key char(64) NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'scheduled',
 				retry_at datetime DEFAULT NULL,
+				grace_ends_at datetime DEFAULT NULL,
 				attempt_count smallint(5) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
