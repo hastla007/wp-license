@@ -1,6 +1,6 @@
 <?php
-use PHPUnit\\Framework\\TestCase;
-use WPLC\\Api\\V1\\StripeWebhook;
+use PHPUnit\Framework\TestCase;
+use WPLC\Api\V1\StripeWebhook;
 
 final class StripeWebhookSignatureTest extends TestCase {
 	/** Invoke the private verifier without registering WordPress routes or making network requests. */
