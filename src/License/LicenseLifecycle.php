@@ -230,6 +230,21 @@ final class LicenseLifecycle {
 	}
 
 	/**
+	 * Expire a past-due license after its grace period has ended.
+	 *
+	 * @param int $license_id License ID.
+	 * @return void
+	 */
+	public static function expire_after_grace( int $license_id ): void {
+		self::transition(
+			$license_id,
+			'expired',
+			'Automatic renewal grace period ended',
+			'license_expired'
+		);
+	}
+
+	/**
 	 * Suspend a license for manual chargeback review.
 	 *
 	 * @param int    $license_id License ID.
