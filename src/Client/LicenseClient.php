@@ -74,7 +74,7 @@ final class LicenseClient {
 		if ( is_wp_error( $verified ) ) {
 			return $verified;
 		}
-		update_option( $this->option_key, array( 'installation_id' => $installation_id, 'installation_secret' => $secret ), false );
+		update_option( $this->option_key, array( 'installation_id' => $installation_id, 'installation_secret' => $secret, 'activation_id' => absint( $verified['activation_id'] ?? 0 ) ), false );
 
 		return $verified;
 	}
@@ -112,7 +112,7 @@ final class LicenseClient {
 		}
 		$response = $this->request(
 			'DELETE',
-			'/wplc/v1/activations/' . absint( get_option( $this->option_key . '_activation_id', 0 ) ),
+			'/wplc/v1/activations/' . absint( $credentials['activation_id'] ?? 0 ),
 			array(),
 			$credentials['installation_secret'],
 			true,
@@ -124,7 +124,6 @@ final class LicenseClient {
 		$verified = self::verify_envelope( $response, $credentials['installation_secret'] );
 		if ( ! is_wp_error( $verified ) ) {
 			delete_option( $this->option_key );
-			delete_option( $this->option_key . '_activation_id' );
 		}
 		return $verified;
 	}
@@ -227,7 +226,7 @@ final class LicenseClient {
 	 */
 	private function credentials() {
 		$credentials = get_option( $this->option_key, array() );
-		if ( ! is_array( $credentials ) || empty( $credentials['installation_id'] ) || empty( $credentials['installation_secret'] ) ) {
+		if ( ! is_array( $credentials ) || empty( $credentials['installation_id'] ) || empty( $credentials['installation_secret'] ) || empty( $credentials['activation_id'] ) ) {
 			return new \\WP_Error( 'wplc_not_activated', __( 'This product installation has not been activated.', 'wp-license' ) );
 		}
 		return $credentials;
