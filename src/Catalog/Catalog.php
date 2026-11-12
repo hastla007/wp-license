@@ -69,7 +69,7 @@ final class Catalog {
 		$now = current_time( 'mysql', true );
 		$tables = Schema::table_names();
 
-		$wpdb->replace(
+		$product_saved = $wpdb->replace(
 			$tables['products'],
 			array(
 				'product_key' => $product_key,
@@ -80,6 +80,10 @@ final class Catalog {
 			),
 			array( '%s', '%s', '%d', '%s', '%s' )
 		);
+
+		if ( false === $product_saved ) {
+			return false;
+		}
 
 		$result = $wpdb->replace(
 			$tables['plans'],
