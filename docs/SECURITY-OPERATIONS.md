@@ -1,26 +1,39 @@
-# Security and key configuration
+# Security and key operations
 
 ## Stable secrets
 
-For a new production license server, configure two distinct random secrets in wp-config.php before issuing the first license or activating the first product installation:
+Configure two distinct random secrets in `wp-config.php` before issuing production licenses or activating product installations:
 
-- WPLC_LICENSE_KEY_SECRET: at least 32 random bytes, used to derive displayable license keys.
-- WPLC_INSTALLATION_ENCRYPTION_KEY: at least 32 random bytes, used as the AES-256-GCM key source for installation secrets.
+- `WPLC_LICENSE_KEY_SECRET` (or the key ring `WPLC_LICENSE_KEY_SECRETS` plus `WPLC_LICENSE_KEY_ID`) derives displayable license keys.
+- `WPLC_INSTALLATION_ENCRYPTION_KEY` (or the key ring `WPLC_INSTALLATION_ENCRYPTION_KEYS` plus `WPLC_INSTALLATION_ENCRYPTION_KEY_ID`) encrypts installation credentials with AES-256-GCM.
 
-Do not reuse the WordPress salts for these values. Keep backups in a secrets manager and deploy the same values to every application node. The current implementation falls back to WordPress auth/secure_auth salts when the constants are absent for development compatibility.
+Use at least 32 random bytes per secret. Do not reuse WordPress salts, commit secrets, or expose them in logs, diagnostics, exports, support tickets, or CI. Keep encrypted backups in an access-controlled secrets manager and deploy the same active key ring on every application node.
 
-Do not add either constant to an existing installation without a planned migration. Existing displayable keys were derived from the auth salt, and encrypted installation secrets were derived from secure_auth. Changing the derivation source without migrating existing records can invalidate customer keys or make authenticated license API calls fail. Key rotation and re-encryption tooling remain a production release blocker.
+The implementation can read current and previous key IDs and re-encrypt installation credentials lazily after authenticated use. It also provides bounded WP-CLI tools:
 
-## Database protections
+- `wp wplc rotate-installation-secrets` defaults to a dry run; use `--apply` only after backup and validation.
+- `wp wplc recover-license-key-ids --to=<key-id>` defaults to a dry run and changes a row only when the existing license verifier matches a key derived by that key ID.
 
-Schema version 5 stores only a SHA-256 hash for each short-lived update token. Consumption is an atomic conditional update; the redirect is issued only if the associated license remains active and paid at the time of download. Download rows contain package URLs and are operational data; apply a retention policy before production.
+These tools have unit coverage, but operators must still rehearse them against a restored copy of real data. Do not remove an old key until recovery, restore, and client authentication have been verified.
 
-Renewal attempts are serialized with a per-renewal MySQL advisory lock. A gateway adapter must still send the supplied idempotency key to its payment provider because a process can terminate after the provider accepts a charge but before WooCommerce records it.
+## Request security and database controls
 
-## Deployment checklist
+Version 1 product requests are signed over method, REST route, timestamp, nonce, and the SHA-256 digest of the raw request body. Timestamps are limited to five minutes. A valid nonce is atomically stored; replay returns a conflict. Per-installation request limits use an atomic database upsert and expire through a bounded scheduled cleanup. Authentication failures and storage outages fail closed.
 
-- Use HTTPS for all license API and package host traffic.
-- Restrict database and wp-config.php access; do not expose secrets through logs, support exports, or error pages.
-- Configure Action Scheduler monitoring and database backups.
-- Test restore procedures before changing salts or deployment keys.
-- Do not enable automatic charges until a concrete adapter verifies off-session consent, token ownership, provider confirmation, and idempotency.
+Update download grants are stored as hashes, consumed atomically, and checked again against current license state before redirect. Restrict package hosts to HTTPS allowlisted hosts. Keep package URLs and grant records only for the documented operational retention period.
+
+Renewal execution uses a per-renewal MySQL advisory lock and the provider adapter must pass an idempotency key through to the gateway. This cannot by itself resolve an ambiguous provider timeout: reconcile provider state before retrying a charge.
+
+## Deployment and recovery checklist
+
+- Use HTTPS for the license API and package delivery.
+- Restrict database, `wp-config.php`, CI, and secret-manager access.
+- Back up database and package metadata before schema, key, or release changes.
+- Restore a recent backup to an isolated staging copy and verify schema, license verifiers, activation authentication, renewal links, and package records.
+- Run key rotation and key-ID recovery in dry-run mode first; preserve command output with secrets redacted.
+- Never repair production rows by direct SQL except through an approved incident process with before/after backups and an audit record.
+- Do not enable automatic charges until a concrete gateway integration passes its sandbox scenarios for consent, token ownership, idempotency, webhooks, timeouts, refunds, and manual authentication.
+
+## Current release evidence
+
+The source contains unit tests and a WordPress/MySQL REST integration suite. Their CI execution and the full database/gateway/update acceptance are release gates. A runbook is not evidence that production infrastructure, backup restore, key rotation, alerts, privacy handling, or a payment account has been configured.
