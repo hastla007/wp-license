@@ -13,7 +13,7 @@ Do not add either constant to an existing installation without a planned migrati
 
 ## Database protections
 
-Schema version 5 stores only a SHA-256 hash for each short-lived update token. Consumption is an atomic conditional update; the redirect is issued only if the associated license remains active and paid at the time of download. Download rows contain package URLs and are operational data; apply a retention policy before production.
+Schema version 5 stores only a SHA-256 hash for each short-lived update token. Consumption is an atomic conditional update; the redirect is issued only if the associated license remains active and paid at the time of download. Consumed package URLs are cleared as part of the atomic claim. Expired/consumed grant rows are purged by the daily lifecycle job; `wplc_download_grant_retention_days` controls retention (default 7 days, clamped to 1–3650 days).
 
 Renewal attempts are serialized with a per-renewal MySQL advisory lock. A gateway adapter must still send the supplied idempotency key to its payment provider because a process can terminate after the provider accepts a charge but before WooCommerce records it.
 
