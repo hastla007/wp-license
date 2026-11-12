@@ -129,7 +129,7 @@ final class LicenseIssuer {
 				'product_key' => (string) $plan['product_key'],
 				'plan_key' => (string) $plan['plan_key'],
 				'parent_license_id' => null,
-				'status' => 'active',
+				'status' => 'pending',
 				'billing_interval' => (string) $plan['billing_interval'],
 				'starts_at' => $starts_at,
 				'paid_until' => $paid_until,
@@ -156,7 +156,7 @@ final class LicenseIssuer {
 				}
 
 				$value_json = wp_json_encode( $value );
-				$wpdb->insert(
+				$entitlement_saved = $wpdb->insert(
 					$tables['entitlements'],
 					array(
 						'license_id' => $license_id,
@@ -169,7 +169,23 @@ final class LicenseIssuer {
 					),
 					array( '%d', '%s', '%s', '%d', '%s', '%s', '%s' )
 				);
+				if ( false === $entitlement_saved ) {
+					self::discard_pending_license( $license_id );
+					return 0;
+				}
 			}
+		}
+
+		$activated = $wpdb->update(
+			$tables['licenses'],
+			array( 'status' => 'active' ),
+			array( 'id' => $license_id, 'status' => 'pending' ),
+			array( '%s' ),
+			array( '%d', '%s' )
+		);
+		if ( 1 !== $activated ) {
+			self::discard_pending_license( $license_id );
+			return 0;
 		}
 
 		$order->add_order_note(
@@ -201,6 +217,27 @@ final class LicenseIssuer {
 	 * @param string $interval month or year.
 	 * @return int
 	 */
+	/**
+	 * Remove a pending license when its entitlement snapshot cannot be completed.
+	 *
+	 * @param int $license_id License ID.
+	 * @return void
+	 */
+	private static function discard_pending_license( int $license_id ): void {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$wpdb->delete( $tables['entitlements'], array( 'license_id' => $license_id ), array( '%d' ) );
+		$wpdb->delete(
+			$tables['licenses'],
+			array(
+				'id' => $license_id,
+				'status' => 'pending',
+			),
+			array( '%d', '%s' )
+		);
+	}
+
 	private static function period_end( int $timestamp, string $interval ): int {
 		$date = new \DateTimeImmutable( '@' . $timestamp );
 		$date = $date->setTimezone( new \DateTimeZone( 'UTC' ) );
