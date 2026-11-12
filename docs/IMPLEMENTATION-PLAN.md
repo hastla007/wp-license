@@ -374,7 +374,7 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 - [ ] **28 · Auth-Recovery:** Kundenflow für erforderliche Stripe-Kundenaktion, erneute Zahlung und Rückkehr zum Abo ergänzen.
 - [ ] **29 · PayPal-Go/No-Go:** konkrete Gateway-/Abo-Version und Merchant-Freigabe nachweisen; bis dahin Checkout und Renewal-Werbung dafür deaktiviert halten.
 - [x] **30 · Release-Manifest:** CLI `tools/create-release-manifest.php` erzeugt Metadaten mit HTTPS-Paket-URL, Version, Mindestversionen, Changelog und SHA-256. Release-Build-/Storage-Integration bleibt offen.
-- [ ] **31 · Paketablage:** austauschbaren privaten Storage-Provider mit signierten/kurzlebigen Redirects und dokumentierter Retention anschließen.
+- [x] **31 · Paketablage (Provider-Hook):** kurzlebige HTTPS-URL-Auflösung nach Verbrauch des Einmalgrants sowie Host-Allowlist dokumentiert/implementiert.\n- [ ] Konkreten privaten S3/GCS/anderen Storage-Provider, Bucket-Policy, Credentials und Retention konfigurieren und abnehmen.
 - [ ] **32 · Release-Rollback:** unveränderliche Vorversionen und dokumentierten Rollbackpfad in Build- und Updateprozess integrieren.
 - [x] **33 · Lizenzverwaltung:** vorhandene Suche/Paginierung um Statusfilter ergänzt und Kundennummer in die Suche aufgenommen. Bestell-/Renewal-spezifische Filter und Skalierungsprüfung bleiben offen.
 - [ ] **34 · Supportaktionen:** sichere, capability-/nonce-geschützte Domainfreigabe und Korrekturworkflows mit Begründung und Audit umsetzen.
