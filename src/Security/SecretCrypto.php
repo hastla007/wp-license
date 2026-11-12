@@ -53,6 +53,20 @@ final class SecretCrypto {
 	}
 
 	/**
+	 * Whether an authenticated legacy/retained-key envelope should be rewritten.
+	 *
+	 * @param string $encoded Stored ciphertext.
+	 * @return bool
+	 */
+	public static function needs_rotation( string $encoded ): bool {
+		if ( ! preg_match( '/^v1:([a-zA-Z0-9._-]{1,32}):(.+)$/', $encoded, $matches ) ) {
+			return true;
+		}
+
+		return $matches[1] !== self::current_key_id( self::configured_keys() );
+	}
+
+	/**
 	 * Decrypt a versioned envelope or a legacy unversioned value.
 	 *
 	 * Legacy values are tried against the configured keys and the historical
