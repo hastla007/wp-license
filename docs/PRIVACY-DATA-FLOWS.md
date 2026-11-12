@@ -31,7 +31,7 @@ The eraser must return WordPress's `items_removed`, `items_retained`, `messages`
 
 ## Operational requirements
 
-- Provide a configurable retention period for inactive activation details, consumed download grants, and audit records; document the default before release.
+- Implement a configurable retention schedule for inactive activation details, consumed download grants, and audit records; the automatic retention worker and its default values remain open.
 - Preserve an audit event for admin initiated privacy processing without copying the personal data into the event.
 - Use transactions or compare-and-set updates where supported; batch large deletes to avoid long-running requests.
 - Add tests for export pagination, HPOS order lookup, active-license retention, inactive activation erasure, retries after database error, and secret exclusion.
