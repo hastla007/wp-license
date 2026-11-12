@@ -5,6 +5,11 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 	public function test_schema_migration_creates_every_table_and_is_repeatable(): void {
 		global $wpdb;
 
+		// The WordPress test case wraps each test in a transaction and rewrites
+		// CREATE TABLE statements to CREATE TEMPORARY TABLE. Schema migrations
+		// must be exercised with permanent tables so information_schema can verify them.
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+
 		$migrated = Schema::migrate();
 		$missing = array();
 		foreach ( Schema::table_names() as $table_name ) {
