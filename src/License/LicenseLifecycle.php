@@ -104,12 +104,12 @@ final class LicenseLifecycle {
 				'status_reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
-			array( 'id' => $license_id ),
+			array( 'id' => $license_id, 'status' => (string) $license['status'] ),
 			array( '%d', '%s', '%s' ),
-			array( '%d' )
+			array( '%d', '%s' )
 		);
 
-		if ( false === $updated ) {
+		if ( false === $updated || 0 === $updated ) {
 			return false;
 		}
 
@@ -198,7 +198,7 @@ final class LicenseLifecycle {
 		$tables = Schema::table_names();
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET status = %s, status_reason = %s, paid_until = %s, next_payment_at = %s, cancel_at_period_end = %d, updated_at = %s WHERE id = %d AND status IN (%s,%s)",
+				"UPDATE {$tables['licenses']} SET status = %s, status_reason = %s, paid_until = %s, next_payment_at = %s, cancel_at_period_end = %d, updated_at = %s WHERE id = %d AND status = %s",
 				'active',
 				'',
 				$paid_until,
@@ -206,8 +206,7 @@ final class LicenseLifecycle {
 				0,
 				gmdate( 'Y-m-d H:i:s' ),
 				$license_id,
-				'active',
-				'past_due'
+				(string) $license['status']
 			)
 		);
 		if ( false === $updated || 0 === $updated ) {
