@@ -18,7 +18,13 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 				$missing[] = $table_name . ' (' . (string) $count . ')';
 			}
 		}
-		$diagnostic = 'prefix=' . $wpdb->prefix . '; database=' . (string) $wpdb->get_var( 'SELECT DATABASE()' ) . '; tables=' . implode( ',', (array) $wpdb->get_col( 'SHOW TABLES' ) );
+		$diagnostic = 'prefix=' . $wpdb->prefix
+			. '; database=' . (string) $wpdb->get_var( 'SELECT DATABASE()' )
+			. '; last_error=' . $wpdb->last_error
+			. '; last_query=' . $wpdb->last_query
+			. '; dbDelta=' . ( function_exists( 'dbDelta' ) ? 'yes' : 'no' )
+			. '; upgrade_file=' . ( file_exists( ABSPATH . 'wp-admin/includes/upgrade.php' ) ? 'yes' : 'no' )
+			. '; tables=' . implode( ',', (array) $wpdb->get_col( 'SHOW TABLES' ) );
 		$this->assertTrue( $migrated, 'Schema migration failed; missing: ' . implode( ', ', $missing ) . '; ' . $diagnostic );
 		$this->assertTrue( Schema::migrate() );
 		$this->assertTrue( Schema::maybe_upgrade() );
