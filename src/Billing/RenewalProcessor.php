@@ -241,7 +241,7 @@ final class RenewalProcessor {
 				return $existing;
 			}
 			if ( $existing ) {
-				return new \\WP_Error( 'renewal_order_conflict', __( 'The saved renewal order does not match this license renewal.', 'wp-license' ) );
+				return new \WP_Error( 'renewal_order_conflict', __( 'The saved renewal order does not match this license renewal.', 'wp-license' ) );
 			}
 		}
 
@@ -261,15 +261,15 @@ final class RenewalProcessor {
 			)
 		);
 		if ( is_array( $candidates ) && count( $candidates ) > 1 ) {
-			return new \\WP_Error( 'renewal_order_ambiguous', __( 'Multiple WooCommerce orders reference this license renewal; manual review is required.', 'wp-license' ) );
+			return new \WP_Error( 'renewal_order_ambiguous', __( 'Multiple WooCommerce orders reference this license renewal; manual review is required.', 'wp-license' ) );
 		}
 		if ( is_array( $candidates ) && 1 === count( $candidates ) ) {
 			$orphan = wc_get_order( absint( $candidates[0] ) );
 			if ( ! $orphan || ! self::order_matches_renewal( $orphan, $renewal, $license ) ) {
-				return new \\WP_Error( 'renewal_order_conflict', __( 'An existing WooCommerce order conflicts with this license renewal.', 'wp-license' ) );
+				return new \WP_Error( 'renewal_order_conflict', __( 'An existing WooCommerce order conflicts with this license renewal.', 'wp-license' ) );
 			}
 			if ( ! self::link_order_to_renewal( (int) $renewal['id'], (int) $orphan->get_id() ) ) {
-				return new \\WP_Error( 'renewal_order_link_failed', __( 'The existing renewal order could not be linked.', 'wp-license' ) );
+				return new \WP_Error( 'renewal_order_link_failed', __( 'The existing renewal order could not be linked.', 'wp-license' ) );
 			}
 			return $orphan;
 		}
@@ -303,7 +303,7 @@ final class RenewalProcessor {
 		$order->save();
 
 		if ( ! self::link_order_to_renewal( (int) $renewal['id'], (int) $order->get_id() ) ) {
-			return new \\WP_Error( 'renewal_order_link_failed', __( 'The renewal order was created but could not be linked. A retry will attempt recovery.', 'wp-license' ) );
+			return new \WP_Error( 'renewal_order_link_failed', __( 'The renewal order was created but could not be linked. A retry will attempt recovery.', 'wp-license' ) );
 		}
 
 		return $order;
@@ -312,13 +312,13 @@ final class RenewalProcessor {
 	/**
 	 * Confirm an order belongs to exactly this renewal, license, and customer.
 	 *
-	 * @param \\WC_Order $order Candidate order.
+	 * @param \WC_Order $order Candidate order.
 	 * @param array<string,mixed> $renewal Renewal row.
 	 * @param array<string,mixed> $license License row.
 	 * @return bool
 	 */
 	private static function order_matches_renewal( $order, array $renewal, array $license ): bool {
-		return $order instanceof \\WC_Order
+		return $order instanceof \WC_Order
 			&& (int) $order->get_meta( '_wplc_renewal_id', true ) === (int) $renewal['id']
 			&& (int) $order->get_meta( '_wplc_renewal_for_license', true ) === (int) $license['id']
 			&& (int) $order->get_customer_id() === (int) $license['customer_id']
