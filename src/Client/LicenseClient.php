@@ -5,7 +5,7 @@
  * @package WPLC
  */
 
-namespace WPLC\\Client;
+namespace WPLC\Client;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -46,11 +46,11 @@ final class LicenseClient {
 	 * @param string $license_key Customer-provided key.
 	 * @param string $environment production, staging, or development.
 	 * @param string $staging_parent_installation_id Optional production installation UUID.
-	 * @return array<string,mixed>|\\WP_Error
+	 * @return array<string,mixed>|\WP_Error
 	 */
 	public function activate( string $license_key, string $environment = 'production', string $staging_parent_installation_id = '' ) {
 		if ( '' === $this->server_url || '' === $this->product_key || '' === trim( $license_key ) ) {
-			return new \\WP_Error( 'wplc_configuration_invalid', __( 'License server settings or license key are missing.', 'wp-license' ) );
+			return new \WP_Error( 'wplc_configuration_invalid', __( 'License server settings or license key are missing.', 'wp-license' ) );
 		}
 		$installation_id = wp_generate_uuid4();
 		$secret = bin2hex( random_bytes( 32 ) );
@@ -82,7 +82,7 @@ final class LicenseClient {
 	/**
 	 * Fetch current signed feature rights.
 	 *
-	 * @return array<string,mixed>|\\WP_Error
+	 * @return array<string,mixed>|\WP_Error
 	 */
 	public function check_entitlements() {
 		return $this->authenticated_post( '/wplc/v1/entitlements/check', array( 'product_version' => $this->product_version ) );
@@ -91,7 +91,7 @@ final class LicenseClient {
 	/**
 	 * Check for a product update and receive a short-lived package URL.
 	 *
-	 * @return array<string,mixed>|\\WP_Error
+	 * @return array<string,mixed>|\WP_Error
 	 */
 	public function check_update() {
 		return $this->authenticated_post(
@@ -103,7 +103,7 @@ final class LicenseClient {
 	/**
 	 * Deactivate this site and remove the local credential after confirmation.
 	 *
-	 * @return array<string,mixed>|\\WP_Error
+	 * @return array<string,mixed>|\WP_Error
 	 */
 	public function deactivate() {
 		$credentials = $this->credentials();
@@ -133,7 +133,7 @@ final class LicenseClient {
 	 *
 	 * @param string $path REST route.
 	 * @param array<string,mixed> $payload Request payload.
-	 * @return array<string,mixed>|\\WP_Error
+	 * @return array<string,mixed>|\WP_Error
 	 */
 	private function authenticated_post( string $path, array $payload ) {
 		$credentials = $this->credentials();
@@ -153,12 +153,12 @@ final class LicenseClient {
 	 * @param string $secret Signing secret.
 	 * @param bool $authenticated Whether to include authentication headers.
 	 * @param string $installation_id Installation UUID.
-	 * @return array<string,mixed>|\\WP_Error
+	 * @return array<string,mixed>|\WP_Error
 	 */
 	private function request( string $method, string $route, array $payload, string $secret, bool $authenticated, string $installation_id = '' ) {
 		$body = 'GET' === $method || ( 'DELETE' === $method && empty( $payload ) ) ? '' : wp_json_encode( $payload, JSON_UNESCAPED_SLASHES );
 		if ( false === $body ) {
-			return new \\WP_Error( 'wplc_json_error', __( 'Could not encode the license request.', 'wp-license' ) );
+			return new \WP_Error( 'wplc_json_error', __( 'Could not encode the license request.', 'wp-license' ) );
 		}
 		$headers = array( 'Accept' => 'application/json' );
 		if ( '' !== $body ) {
@@ -192,15 +192,15 @@ final class LicenseClient {
 		if ( $code < 200 || $code >= 300 ) {
 			$error = is_array( $data ) ? ( $data['code'] ?? 'wplc_http_error' ) : 'wplc_http_error';
 			$message = is_array( $data ) ? ( $data['message'] ?? __( 'The license server returned an error.', 'wp-license' ) ) : __( 'The license server returned an invalid response.', 'wp-license' );
-			return new \\WP_Error( sanitize_key( (string) $error ), sanitize_text_field( (string) $message ), array( 'status' => $code ) );
+			return new \WP_Error( sanitize_key( (string) $error ), sanitize_text_field( (string) $message ), array( 'status' => $code ) );
 		}
 		if ( ! is_array( $data ) ) {
-			return new \\WP_Error( 'wplc_response_invalid', __( 'The license server returned invalid JSON.', 'wp-license' ) );
+			return new \WP_Error( 'wplc_response_invalid', __( 'The license server returned invalid JSON.', 'wp-license' ) );
 		}
 		if ( isset( $data['data'] ) && isset( $data['signature'] ) ) {
 			return $data;
 		}
-		return new \\WP_Error( 'wplc_response_invalid', __( 'The license server response is missing its signature envelope.', 'wp-license' ) );
+		return new \WP_Error( 'wplc_response_invalid', __( 'The license server response is missing its signature envelope.', 'wp-license' ) );
 	}
 
 	/**
@@ -208,13 +208,13 @@ final class LicenseClient {
 	 *
 	 * @param array<string,mixed> $envelope Response wrapper.
 	 * @param string $secret Installation secret.
-	 * @return array<string,mixed>|\\WP_Error
+	 * @return array<string,mixed>|\WP_Error
 	 */
 	private static function verify_envelope( array $envelope, string $secret ) {
 		$json = wp_json_encode( $envelope['data'], JSON_UNESCAPED_SLASHES );
 		$expected = hash_hmac( 'sha256', false === $json ? '' : $json, $secret );
 		if ( ! is_string( $envelope['signature'] ?? null ) || ! hash_equals( $expected, $envelope['signature'] ) ) {
-			return new \\WP_Error( 'wplc_signature_invalid', __( 'The license server response signature could not be verified.', 'wp-license' ) );
+			return new \WP_Error( 'wplc_signature_invalid', __( 'The license server response signature could not be verified.', 'wp-license' ) );
 		}
 		return is_array( $envelope['data'] ) ? $envelope['data'] : array();
 	}
@@ -222,12 +222,12 @@ final class LicenseClient {
 	/**
 	 * Read credentials saved after activation.
 	 *
-	 * @return array<string,string>|\\WP_Error
+	 * @return array<string,string>|\WP_Error
 	 */
 	private function credentials() {
 		$credentials = get_option( $this->option_key, array() );
 		if ( ! is_array( $credentials ) || empty( $credentials['installation_id'] ) || empty( $credentials['installation_secret'] ) || empty( $credentials['activation_id'] ) ) {
-			return new \\WP_Error( 'wplc_not_activated', __( 'This product installation has not been activated.', 'wp-license' ) );
+			return new \WP_Error( 'wplc_not_activated', __( 'This product installation has not been activated.', 'wp-license' ) );
 		}
 		return $credentials;
 	}
