@@ -72,13 +72,13 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - [x] Per-renewal advisory lock gegen parallele Scheduler-Ausführung ergänzt; bei Sperrenkonflikt wird nach 30 Sekunden erneut eingeplant.
 - [x] Update-Downloadgrants als gehashte DB-Tokens mit atomarer Einmalverwendung und erneuter Lizenzprüfung umgesetzt; beim Konsum wird die Paket-URL gelöscht. Tägliche Bereinigung ist konfigurierbar (`wplc_download_grant_retention_days`, Default 7 Tage).
 - [x] Dokumentierte stabile Schlüsselkonstanten und sichere Einsatzhinweise ergänzt; bestehende Bestände werden nicht automatisch migriert.
-- [ ] Code-Review der gesamten Datenzugriffs-, Autorisierungs- und Fehlerpfade abschließen. Bereits geprüft: Aktivierungsrennen/Site-Limits, Deaktivierungsresultate, Customer/Admin-Aktionen, Update-URL-Allowlist, Gatewaytoken-Besitz und Renewal-Sperre. Offen: persistente atomare Nonce-/Rate-Limits und echte Konkurrenz-/DB-Fehler-Integrationstests.
+- [ ] Code-Review der gesamten Datenzugriffs-, Autorisierungs- und Fehlerpfade abschließen. Bereits geprüft: Aktivierungsrennen/Site-Limits, Deaktivierungsresultate, Customer/Admin-Aktionen, Update-URL-Allowlist, Gatewaytoken-Besitz, Renewal-Sperre und persistente atomare Nonce-/Rate-Limit-Implementierung. Offen: echte Parallelitäts-/DB-Fehler-Integrationstests und Stackabgleich.
 - [x] Schlüsselableitung für neue Installationen von WordPress-Salts entkoppelt: `WPLC_LICENSE_KEY_SECRET` und `WPLC_INSTALLATION_ENCRYPTION_KEY`; API-/Betriebsdokumentation warnt ausdrücklich vor Änderung bestehender Installationen.
 - [ ] Schlüsselrotation, Legacy-Migration und Wiederherstellung auf einer Datenbankkopie inklusive geprüftem Backup/Restore ausführen (Aufgaben 42f/42g).
 - [x] Renewal-Jobs sind pro Renewal serialisiert; Abbuchung ist auf `active`/`past_due` begrenzt; Sperrenkonflikt wird erneut eingeplant.
 - [ ] Mehrdeutige Provider-Timeouts, WooCommerce-Crash-Recovery, Renewal-/Lizenz-/Order-Schreibfehler und Ablauf der Kulanz mit Integrations-/Gatewaytests abnehmen.
 - [x] V1-Fehlercodes und HTTP-Status in `docs/API-V1.md` dokumentiert; Billing-Webhooks sind explizit aus v1 ausgeschlossen.
-- [ ] Adminoberfläche für Produkt-/Plan-Konfiguration auf Berechtigungen, Validierung und vollständige Bedienbarkeit prüfen.
+- [ ] Adminoberfläche für Produkt-/Plan-Konfiguration abschließend abnehmen. Code geprüft: WooCommerce-Edit-Capability/Nonce, Entitlements-JSON wird fail-closed validiert, Catalog-Schreibfehler verhindern Produktmetadatenänderung, Preispräzision wird gespeichert. Offen: echte WooCommerce-Produkt-/Variationsmaske, Berechtigungsrollen und DB-Fehler im Testshop.
 - **Abnahme:** API-Vertrag stimmt mit den Routen und gespeicherten Statuswerten überein; bekannte Sicherheits- und Datenintegritätsfehler sind behoben.
 
 ### PR14 — Stripe-Adapter
