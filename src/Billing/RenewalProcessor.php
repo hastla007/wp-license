@@ -284,12 +284,14 @@ final class RenewalProcessor {
 
 		$order->set_currency( (string) $license['renewal_currency'] );
 		$order->set_payment_method( (string) $license['payment_gateway_id'] );
+		$currency_decimals = max( 0, min( 6, (int) ( $license['renewal_currency_decimals'] ?? wc_get_price_decimals() ) ) );
+		$renewal_amount = Money::to_decimal( (int) $license['renewal_amount_minor'], $currency_decimals );
 		$order->add_product(
 			$product,
 			1,
 			array(
-				'subtotal' => (int) $license['renewal_amount_minor'] / ( 10 ** wc_get_price_decimals() ),
-				'total' => (int) $license['renewal_amount_minor'] / ( 10 ** wc_get_price_decimals() ),
+				'subtotal' => $renewal_amount,
+				'total' => $renewal_amount,
 			)
 		);
 		$order->update_meta_data( '_wplc_renewal_for_license', (int) $license['id'] );
