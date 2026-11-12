@@ -73,11 +73,22 @@ final class EntitlementService {
 			array( '%d' )
 		);
 
+		$site_count = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$tables['activations']} WHERE license_id = %d AND status = %s AND environment = %s",
+				(int) $license['id'],
+				'active',
+				'production'
+			)
+		);
 		$data = array(
 			'activation_id' => (int) $activation['id'],
 			'installation_id' => (string) $activation['installation_uuid'],
 			'license_status' => $active ? (string) $license['status'] : 'expired',
 			'paid_until' => $license['paid_until'],
+			'site_limit' => ActivationService::site_limit( (int) $license['id'], $license ),
+			'site_count' => $site_count,
+			'environment' => (string) $activation['environment'],
 			'entitlements' => $entitlements,
 			'server_time' => gmdate( 'Y-m-d H:i:s' ),
 			'cache_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * DAY_IN_SECONDS ),
