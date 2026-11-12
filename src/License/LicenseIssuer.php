@@ -122,7 +122,7 @@ final class LicenseIssuer {
 		$paid_until = gmdate( 'Y-m-d H:i:s', $paid_until_timestamp );
 		$gateway_id = sanitize_key( (string) $order->get_payment_method() );
 		$token_id = absint( apply_filters( 'wplc_payment_token_id_for_order', 0, $order ) );
-		$token = class_exists( 'WC_Payment_Tokens' ) ? \\WC_Payment_Tokens::get( $token_id ) : false;
+		$token = class_exists( 'WC_Payment_Tokens' ) ? \WC_Payment_Tokens::get( $token_id ) : false;
 		$adapter = Registry::get( $gateway_id );
 		$consent = (string) $order->get_meta( '_wplc_recurring_consent_at', true );
 		$renewal_enabled = $consent && $token && $adapter && $adapter->supports_checkout() && (int) $token->get_user_id() === (int) $order->get_customer_id() && $adapter->supports_saved_token( $token_id, (int) $order->get_customer_id() );
