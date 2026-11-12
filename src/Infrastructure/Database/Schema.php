@@ -235,37 +235,6 @@ final class Schema {
 			\dbDelta( $statement );
 		}
 
-		// dbDelta can silently skip a table on hosts with unusual SQL modes or
-		// database wrappers. Create only still-missing tables directly, while
-		// keeping dbDelta responsible for updating existing table definitions.
-		foreach ( $sql as $statement ) {
-			if ( ! preg_match( '/^CREATE TABLE ([^\s]+)/', $statement, $matches ) ) {
-				return false;
-			}
-
-			$table_name = $matches[1];
-			$table_exists = $wpdb->get_var(
-				$wpdb->prepare(
-					' SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
-					$table_name
-				)
-			);
-			if ( 1 !== (int) $table_exists ) {
-				$create_statement = preg_replace( '/^CREATE TABLE /', 'CREATE TABLE IF NOT EXISTS ', $statement, 1 );
-				if ( false === $create_statement ) {
-					error_log( 'WPLC schema migration could not build CREATE TABLE statement for ' . $table_name );
-					return false;
-				}
-				$create_result = $wpdb->query( $create_statement );
-				$executed_query = $wpdb->last_query;
-				$created_table = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) );
-				error_log( 'WPLC schema CREATE result for ' . $table_name . ': ' . var_export( $create_result, true ) . '; executed=' . substr( $executed_query, 0, 90 ) . '; visible=' . (string) $created_table . '; database=' . (string) $wpdb->get_var( 'SELECT DATABASE()' ) . '; error=' . $wpdb->last_error );
-				if ( false === $create_result ) {
-					return false;
-				}
-			}
-		}
-
 		foreach ( $tables as $table_name ) {
 			$table_exists = $wpdb->get_var(
 				$wpdb->prepare(
@@ -274,7 +243,6 @@ final class Schema {
 				)
 			);
 			if ( 1 !== (int) $table_exists ) {
-				error_log( 'WPLC schema migration verification failed for ' . $table_name . ': count=' . (string) $table_exists . '; error=' . $wpdb->last_error . '; query=' . $wpdb->last_query );
 				return false;
 			}
 		}
