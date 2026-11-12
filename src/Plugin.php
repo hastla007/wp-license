@@ -21,6 +21,7 @@ use WPLC\Admin\CatalogCsv;
 use WPLC\Billing\RecurringConsent;
 use WPLC\Billing\RenewalProcessor;
 use WPLC\Gateway\StripeRecurringAdapter;
+use WPLC\Privacy\PersonalData;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
