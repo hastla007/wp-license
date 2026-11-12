@@ -19,7 +19,7 @@ final class Schema {
 	/**
 	 * Current schema version.
 	 */
-	public const VERSION = '1';
+	public const VERSION = '2';
 
 	/**
 	 * Run missing schema migrations.
@@ -87,6 +87,9 @@ final class Schema {
 				plan_key varchar(100) NOT NULL,
 				parent_license_id bigint(20) unsigned DEFAULT NULL,
 				status varchar(20) NOT NULL DEFAULT 'pending',
+				status_reason text NOT NULL,
+				cancel_at_period_end tinyint(1) NOT NULL DEFAULT 0,
+				revoked_at datetime DEFAULT NULL,
 				billing_interval varchar(10) NOT NULL DEFAULT 'year',
 				starts_at datetime NOT NULL,
 				paid_until datetime DEFAULT NULL,
