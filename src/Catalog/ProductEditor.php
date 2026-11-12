@@ -283,6 +283,28 @@ final class ProductEditor {
 	 * @return void
 	 */
 	private static function persist_mapping( $product, int $product_id, int $variation_id, array $data ): void {
+		if (
+			$data['enabled']
+			&& (
+				'' === $data['product_key']
+				|| '' === $data['plan_key']
+				|| ! in_array( $data['billing_interval'], array( 'month', 'year' ), true )
+			)
+		) {
+			$product->update_meta_data( '_wplc_is_license_product', 'no' );
+			$product->save();
+			Catalog::delete_mapping( $product_id, $variation_id );
+			add_action(
+				'admin_notices',
+				static function (): void {
+					echo '<div class="notice notice-error"><p>';
+					echo esc_html__( 'A license product needs a product key, plan key, and valid billing interval.', 'wp-license' );
+					echo '</p></div>';
+				}
+			);
+			return;
+		}
+
 		$meta = array(
 			'_wplc_is_license_product' => $data['enabled'] ? 'yes' : 'no',
 			'_wplc_product_key' => $data['product_key'],
