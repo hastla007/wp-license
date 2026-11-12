@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * Run missing schema migrations.
 	 *
-	 * @return void
+	 * @return bool True when the required tables exist.
 	 */
 	public static function maybe_upgrade(): bool {
 		$installed = (string) get_option( 'wplc_schema_version', '0' );
@@ -38,7 +38,7 @@ final class Schema {
 	/**
 	 * Create or update the plugin tables.
 	 *
-	 * @return void
+	 * @return bool True when every required table exists.
 	 */
 	public static function migrate(): bool {
 		global $wpdb;
