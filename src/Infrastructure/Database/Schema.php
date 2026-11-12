@@ -87,7 +87,7 @@ final class Schema {
 				plan_key varchar(100) NOT NULL,
 				parent_license_id bigint(20) unsigned DEFAULT NULL,
 				status varchar(20) NOT NULL DEFAULT 'pending',
-				status_reason text NOT NULL,
+				status_reason varchar(255) NOT NULL DEFAULT '',
 				cancel_at_period_end tinyint(1) NOT NULL DEFAULT 0,
 				revoked_at datetime DEFAULT NULL,
 				billing_interval varchar(10) NOT NULL DEFAULT 'year',
