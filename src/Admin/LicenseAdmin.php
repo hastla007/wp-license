@@ -26,7 +26,7 @@ final class LicenseAdmin {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ) );
-		add_action( 'admin_post_wplc_admin_license_status', array( self::class, 'handle_status_change' ) );
+		add_action( 'admin_post_wplc_admin_license_status', array( self::class, 'handle_status_change' ) );\n\t\tadd_action( 'admin_post_wplc_admin_release_activation', array( self::class, 'handle_release_activation' ) );
 	}
 
 	/**
@@ -116,6 +116,14 @@ final class LicenseAdmin {
 					'active'
 				)
 			);
+			$active_sites = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id,site_url,environment FROM {$tables['activations']} WHERE license_id = %d AND status = %s ORDER BY activated_at DESC",
+					(int) $license['id'],
+					'active'
+				),
+				ARRAY_A
+			);
 			echo '<tr>';
 			echo '<td><code>' . esc_html( (string) $license['key_prefix'] ) . '</code> <small>#' . esc_html( (string) $license['id'] ) . '</small></td>';
 			echo '<td>' . esc_html( $customer ? $customer->user_email : (string) $license['customer_id'] ) . '</td>';
@@ -129,6 +137,14 @@ final class LicenseAdmin {
 				self::render_action_form( (int) $license['id'], 'revoked', __( 'Revoke', 'wp-license' ) );
 			} elseif ( 'suspended' === $license['status'] ) {
 				self::render_action_form( (int) $license['id'], 'active', __( 'Reactivate', 'wp-license' ) );
+			}
+			if ( $active_sites ) {
+				echo '<details><summary>' . esc_html__( 'Release site slot', 'wp-license' ) . '</summary>';
+				foreach ( $active_sites as $site ) {
+					echo '<p>' . esc_html( (string) $site['site_url'] . ' (' . (string) $site['environment'] . ')' ) . '</p>';
+					self::render_activation_release_form( (int) $site['id'] );
+				}
+				echo '</details>';
 			}
 			echo '</td></tr>';
 		}
@@ -172,6 +188,65 @@ final class LicenseAdmin {
 		LicenseLifecycle::admin_set_status( $license_id, $status, $reason, get_current_user_id() );
 		wp_safe_redirect( admin_url( 'admin.php?page=wplc-licenses' ) );
 		exit;
+	}
+
+	/**
+	 * Release one active site activation after an administrator supplies a reason.
+	 *
+	 * @return void
+	 */
+	public static function handle_release_activation(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to release site activations.', 'wp-license' ), '', array( 'response' => 403 ) );
+		}
+		$activation_id = isset( $_POST['activation_id'] ) ? absint( $_POST['activation_id'] ) : 0;
+		$reason = isset( $_POST['reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['reason'] ) ) : '';
+		check_admin_referer( 'wplc_admin_release_activation_' . $activation_id );
+		if ( ! $activation_id || '' === $reason ) {
+			wp_die( esc_html__( 'A site activation and reason are required.', 'wp-license' ), '', array( 'response' => 400 ) );
+		}
+
+		global $wpdb;
+		$tables = Schema::table_names();
+		$activation = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$tables['activations']} WHERE id = %d LIMIT 1", $activation_id ),
+			ARRAY_A
+		);
+		if ( ! is_array( $activation ) || 'active' !== $activation['status'] ) {
+			wp_die( esc_html__( 'The active site activation was not found.', 'wp-license' ), '', array( 'response' => 404 ) );
+		}
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$updated = $wpdb->update(
+			$tables['activations'],
+			array( 'status' => 'deactivated', 'deactivated_at' => $now, 'last_seen_at' => $now ),
+			array( 'id' => $activation_id, 'status' => 'active' ),
+			array( '%s', '%s', '%s' ),
+			array( '%d', '%s' )
+		);
+		if ( 1 !== (int) $updated ) {
+			wp_die( esc_html__( 'The activation could not be released. Refresh and try again.', 'wp-license' ), '', array( 'response' => 409 ) );
+		}
+		AuditLog::record(
+			'admin_site_released',
+			'activation',
+			$activation_id,
+			$reason,
+			array( 'status' => 'active', 'site_url' => $activation['site_url'] ),
+			array( 'status' => 'deactivated' ),
+			get_current_user_id()
+		);
+		wp_safe_redirect( admin_url( 'admin.php?page=wplc-licenses' ) );
+		exit;
+	}
+
+	/** Render a protected activation release form. */
+	private static function render_activation_release_form( int $activation_id ): void {
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-flex;gap:4px;margin:0 4px 8px 0">';
+		echo '<input type="hidden" name="action" value="wplc_admin_release_activation">';
+		echo '<input type="hidden" name="activation_id" value="' . esc_attr( (string) $activation_id ) . '">';
+		echo '<input type="text" name="reason" required maxlength="255" placeholder="' . esc_attr__( 'Support reason', 'wp-license' ) . '">';
+		wp_nonce_field( 'wplc_admin_release_activation_' . $activation_id );
+		echo '<button class="button" type="submit">' . esc_html__( 'Release slot', 'wp-license' ) . '</button></form>';
 	}
 
 	/**
