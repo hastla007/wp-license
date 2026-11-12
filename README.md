@@ -36,6 +36,7 @@ WP License Captain is the WooCommerce-based license server for premium WordPress
 - [Update package integration](docs/UPDATES.md)
 - [Product client integration](docs/CLIENT-INTEGRATION.md)
 - [Release readiness checklist](docs/RELEASE-READINESS.md)
+- [Security and key operations](docs/SECURITY-OPERATIONS.md)
 
 ## Privacy and security
 
