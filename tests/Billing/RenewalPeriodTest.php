@@ -1,11 +1,12 @@
 <?php
-use PHPUnit\Framework\TestCase;
-use WPLC\Billing\RenewalScheduler;
+use PHPUnit\\Framework\\TestCase;
+use WPLC\\Billing\\RenewalScheduler;
 
 final class RenewalPeriodTest extends TestCase {
 	/** Exercise the calendar calculation without WordPress or database state. */
 	private function period_end( string $start, string $interval ): string {
 		$method = new ReflectionMethod( RenewalScheduler::class, 'period_end' );
+		$method->setAccessible( true );
 		$timestamp = strtotime( $start . ' UTC' );
 		return gmdate( 'Y-m-d H:i:s', $method->invoke( null, $timestamp, $interval ) );
 	}
