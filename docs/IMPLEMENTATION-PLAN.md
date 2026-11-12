@@ -508,3 +508,18 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [x] ~~**54c** Ganzzahlige Prorationsprimitive und PHPUnit-Grenzfälle ergänzt.~~
 - [ ] **54d** WooCommerce-Addon-Verkettung, Steuern und reale Auftragsberechnung bleiben offen.
 - [x] ~~**CI-Validierung** Auf Commit `9df2a80` liefen PHP-Syntax, PHPUnit und Quality erfolgreich durch (Workflow-Runs 43285445928, 43285445725, 43285445818). REST-/WordPress-/WooCommerce-Integration und echte Gatewayläufe bleiben offen.~~
+
+
+## Arbeitsfortschritt — Sicherheits-/Datenschutzrunde
+
+- [x] ~~REST-Integrationstest-Harness mit echtem WordPress-`WP_REST_Request`, MySQL-Schema, Signaturablehnung, erfolgreicher Rechteprüfung, Replay, veraltetem Timestamp und 120-Requests-Limit ergänzt; getrennte PHPUnit-Konfiguration und CI-Job angelegt.~~
+- [ ] WordPress-/MySQL-Testjob erfolgreich nachweisen. Erster Lauf scheiterte an der fehlenden PHPUnit-Polyfills-Konfiguration; Dependency, Suite-Trennung und Workflow-Pfad wurden korrigiert. Der korrigierte Lauf ist noch nicht abgeschlossen. Erst nach grünem Lauf gelten 41c/43c als abgenommen.
+- [x] ~~Audit-Protokoll redigiert jetzt sensible Schlüssel wie License Key, Secret, Token, Passwort, Authorization, E-Mail, Telefon, Adresse und Site-URL rekursiv; freie Textfelder filtern Credential-Zuweisungen, WPLC-Key-Muster und E-Mail-Adressen. Integrationstest für die Redaktion ergänzt.~~
+- [x] ~~Sicherheits-Operationsdokumentation mit Key-Ring, Dry-Run-CLI, Rotation, Recovery und aktuellen Abnahmegrenzen aktualisiert.~~
+- [x] ~~Datenschutz-Datenfluss und technische Export-/Löschregeln in `docs/PRIVACY-DATA-FLOWS.md` spezifiziert; aktive Lizenzen und WooCommerce-Bestellungen bleiben bei Erasure-Anfragen geschützt.~~
+- [ ] WordPress-Privacy-Exporter und -Eraser tatsächlich implementieren und die spezifizierten Pagination-, HPOS-, Retention-, Retry- und Secret-Ausschlussfälle testen.
+- [x] ~~Ganzzahlige `Money::prorate()`-Berechnung ist im Quellstand und durch PHPUnit-Grenzfälle abgedeckt.~~
+- [ ] Add-on-Zuordnung, WooCommerce-Order-/Tax-Berechnung, gemeinsamer Verlängerungstermin, Entfernung/Erstattung und Crash-/Retry-Recovery in WooCommerce-Integrationstests abdecken.
+- [x] ~~Die drei Produktclient-PR-Reihen enthalten Client-SDK, Entitlement-Helfer, Offlinecache und Updater-Vorbereitung.~~
+- [ ] Produktbezogene Feature-Zuordnung freigeben, Gates in den jeweiligen Plugins verdrahten und gemeinsame Client-Fixtures auf den Mindest-PHP-Versionen in CI ausführen.
+- [ ] HPOS/klassische Orders, Refunds, Renewal-Crash-Recovery, Package-Storage, Downloadgrants und ZIP-Updater im WooCommerce-Testlauf durchprüfen.
