@@ -108,7 +108,7 @@ final class CustomerPortal {
 			echo '<section class="woocommerce-MyAccount-content wplc-license">';
 			echo '<h3>' . esc_html( (string) $license['product_key'] . ' — ' . (string) $license['plan_key'] ) . '</h3>';
 			echo '<p><strong>' . esc_html__( 'Status:', 'wp-license' ) . '</strong> ' . esc_html( (string) $license['status'] ) . '</p>';
-			echo '<p><strong>' . esc_html__( 'License key:', 'wp-license' ) . '</strong> <code>' . esc_html( LicenseKey::for_uuid( (string) $license['license_uuid'] ) ) . '</code></p>';
+			echo '<p><strong>' . esc_html__( 'License key:', 'wp-license' ) . '</strong> <code>' . esc_html( LicenseKey::for_uuid( (string) $license['license_uuid'], (string) ( $license['license_key_secret_id'] ?? 'legacy' ) ) ) . '</code></p>';
 			echo '<p><strong>' . esc_html__( 'Valid through:', 'wp-license' ) . '</strong> ' . esc_html( $license['paid_until'] ? (string) $license['paid_until'] : __( 'No expiry', 'wp-license' ) ) . '</p>';
 			echo '<p><strong>' . esc_html__( 'Live sites:', 'wp-license' ) . '</strong> ' . esc_html( (string) $site_count ) . '</p>';
 
