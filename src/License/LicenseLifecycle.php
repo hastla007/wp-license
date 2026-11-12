@@ -104,12 +104,15 @@ final class LicenseLifecycle {
 				'status_reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
-			array( 'id' => $license_id ),
+			array(
+				'id' => $license_id,
+				'status' => $license['status'],
+			),
 			array( '%d', '%s', '%s' ),
 			array( '%d' )
 		);
 
-		if ( false === $updated ) {
+		if ( 1 !== $updated ) {
 			return false;
 		}
 
@@ -158,7 +161,7 @@ final class LicenseLifecycle {
 		}
 
 		$tables = Schema::table_names();
-		$wpdb->update(
+		$updated = $wpdb->update(
 			$tables['licenses'],
 			array(
 				'status' => 'active',
@@ -168,10 +171,16 @@ final class LicenseLifecycle {
 				'cancel_at_period_end' => 0,
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
-			array( 'id' => $license_id ),
+			array(
+				'id' => $license_id,
+				'status' => $license['status'],
+			),
 			array( '%s', '%s', '%s', '%s', '%d', '%s' ),
-			array( '%d' )
+			array( '%d', '%s' )
 		);
+		if ( 1 !== $updated ) {
+			return;
+		}
 
 		$wpdb->update(
 			$tables['entitlements'],
@@ -256,7 +265,10 @@ final class LicenseLifecycle {
 				'revoked_at' => 'revoked' === $new_status ? $now : null,
 				'updated_at' => $now,
 			),
-			array( 'id' => $license_id ),
+			array(
+				'id' => $license_id,
+				'status' => $license['status'],
+			),
 			array( '%s', '%s', '%s', '%s' ),
 			array( '%d' )
 		);
