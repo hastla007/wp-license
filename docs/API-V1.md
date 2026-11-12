@@ -78,7 +78,19 @@ The server rejects timestamps outside five minutes, repeated nonces, malformed s
 
 ## Credential rotation and recovery
 
-The current implementation derives a displayable license key from its UUID and the WordPress authentication salt. The installation-secret encryption key is derived from the WordPress secure-auth salt. Rotating either salt can prevent a stored key or installation secret from being re-derived/decrypted. Production deployment must preserve these salts; a managed key-rotation and customer recovery flow remains required before general availability.
+Installation secrets are encrypted in a versioned envelope (`v1:<key-id>:<base64>`). Configure a key ring in `wp-config.php` before activating this release:
+
+```php
+define( 'WPLC_INSTALLATION_ENCRYPTION_KEYS', array(
+	'2026-01' => getenv( 'WPLC_INSTALLATION_KEY_2026_01' ),
+	'2026-06' => getenv( 'WPLC_INSTALLATION_KEY_2026_06' ),
+) );
+define( 'WPLC_INSTALLATION_ENCRYPTION_KEY_ID', '2026-06' );
+```
+
+Keep the previous key in the ring while ciphertexts still refer to its key ID. New writes use the configured current ID; reads select the matching key. Remove an old key only after all rows have been re-encrypted and a restore test confirms the migration. Never commit real key values. Legacy unversioned ciphertext is still read using configured keys and, as a fallback, the historical WordPress `secure_auth` salt.
+
+The displayable license key is still derived from its UUID and `WPLC_LICENSE_KEY_SECRET` (or the WordPress authentication salt fallback). That derivation does not yet carry a persisted key ID; rotating that secret still requires the separate license-key migration/recovery task.
 
 ## Current API scope
 
