@@ -184,7 +184,7 @@ final class LicenseAdmin {
 
 		$license_id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
 		$status = isset( $_POST['status'] ) ? sanitize_key( wp_unslash( $_POST['status'] ) ) : '';
-		$reason = isset( $_POST['reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['reason'] ) ) : '';
+		$reason = isset( $_POST['reason'] ) ? substr( sanitize_textarea_field( wp_unslash( $_POST['reason'] ) ), 0, 255 ) : '';
 		check_admin_referer( 'wplc_admin_license_status_' . $license_id );
 
 		LicenseLifecycle::admin_set_status( $license_id, $status, $reason, get_current_user_id() );
