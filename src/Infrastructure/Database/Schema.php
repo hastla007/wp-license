@@ -235,9 +235,14 @@ final class Schema {
 			dbDelta( $statement );
 		}
 
-		$existing_tables = $wpdb->get_col( 'SHOW TABLES' );
 		foreach ( $tables as $table_name ) {
-			if ( ! in_array( $table_name, (array) $existing_tables, true ) ) {
+			$table_exists = $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
+					$table_name
+				)
+			);
+			if ( 1 !== (int) $table_exists ) {
 				return false;
 			}
 		}
