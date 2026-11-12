@@ -52,11 +52,11 @@ final class SiteUrl {
 		}
 
 		$port = isset( $parts['port'] ) ? (int) $parts['port'] : 0;
-		if ( $port < 0 || $port > 65535 || ( 0 !== $port && ( ( 'https' === $scheme && 443 === $port ) || ( 'http' === $scheme && 80 === $port ) ) ) ) {
-			$port = ( ( 'https' === $scheme && 443 === $port ) || ( 'http' === $scheme && 80 === $port ) ) ? 0 : $port;
-		}
 		if ( $port < 0 || $port > 65535 ) {
 			return '';
+		}
+		if ( ( 'https' === $scheme && 443 === $port ) || ( 'http' === $scheme && 80 === $port ) ) {
+			$port = 0;
 		}
 
 		$authority = $is_ipv6 ? '[' . $host . ']' : $host;
