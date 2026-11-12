@@ -1,27 +1,42 @@
 # WP License Captain
 
-WP License Captain is planned as a WooCommerce plugin that issues and validates licenses for WP Affiliate Captain, Voucher Captain, and WP Pass Captain.
+WP License Captain is the WooCommerce-based license server for premium WordPress products. It is intended to manage product plans, issue licenses from paid orders, track site activations, return feature entitlements, and provide a controlled path for recurring renewals and premium updates.
 
-> **Development status:** early scaffold; not ready for production or license sales.
+> **Status: engineering preview, not production-ready.** PRs 01–12 form a stacked implementation branch. Review and merge them in order. The system still needs concrete payment gateway adapters, product-specific settings and updater integrations, a package release workflow, and a complete security/privacy review before it can be used to sell licenses.
+
+## Current implementation scope
+
+- WooCommerce product/plan mapping and idempotent license issuance.
+- License state transitions, refund handling, admin actions, audit history, and customer self-service.
+- Signed REST API v1 for activation, deactivation, and entitlement checks.
+- Installation limits, staging-to-production pairing, and feature entitlement snapshots.
+- An adapter contract for explicit-consent automatic renewals, retry scheduling, and grace expiry.
+- Update metadata with signed responses, short-lived download grants, trusted HTTPS package hosts, and checksums.
+- A shared PHP client for product plugin activation, request signing, response verification, and update checks.
+
+## Not ready for commercial launch
+
+- No concrete Stripe, PayPal, or other recurring-payment adapter ships with this repository.
+- The shared client still needs product-specific license screens, feature gates, cache policy, and WordPress upgrader integration in CouponMaster, PassMaster, AffiliateMaster, and future products.
+- Release archives must be hosted and registered through the documented update filters. Product-side checksum enforcement must be implemented before premium updates are enabled.
+- Gateway behavior, Checkout Blocks, migrations from real data, recovery flows, and privacy obligations need a deployment-specific review.
+- Do not treat a successful code review or pull request merge as a substitute for operational validation.
 
 ## Requirements
 
-- WordPress 6.5 or later
+- WordPress 6.5+
 - WooCommerce active
-- PHP 7.4 or later
+- PHP 7.4+
 
-The product client plugins have their own minimum PHP versions. Those must be audited before client code is shared or released.
+## Developer documentation
 
-## Current scope
+- [Implementation plan](docs/IMPLEMENTATION-PLAN.md)
+- [REST API v1](docs/API-V1.md)
+- [Automatic renewals](docs/RENEWALS.md)
+- [Update package integration](docs/UPDATES.md)
+- [Product client integration](docs/CLIENT-INTEGRATION.md)
+- [Release readiness checklist](docs/RELEASE-READINESS.md)
 
-The current branch contains the plugin bootstrap and an implementation plan. It does not yet issue licenses, process renewals, validate activations, or provide premium updates.
+## Privacy and security
 
-See the [implementation plan](docs/IMPLEMENTATION-PLAN.md) for the ordered engineering steps and acceptance criteria.
-
-## Development
-
-The plugin uses the `WPLC\\` PHP namespace and loads its bootstrap from `wp-license.php`. Composer's PSR-4 mapping is provided for future classes; no runtime Composer packages are required by the current scaffold.
-
-## Licensing and privacy
-
-WP License Captain is intended for license and update entitlement management. It must not store card numbers or CVV values and must not transmit customer order, voucher, ticket, or affiliate-user data from the product client sites.
+WP License Captain stores license, customer account ID, activation URL/version metadata, and audit events. It must never store payment card numbers or CVV values. Product clients should not send shop orders, vouchers, tickets, affiliate-user records, or unrelated personal data to the license server. Keep WordPress authentication salts stable until a supported key-rotation and recovery procedure exists.
