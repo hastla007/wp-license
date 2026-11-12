@@ -408,7 +408,8 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [ ] **41c · REST-Laufzeitkonformität:** REST-Integrationstests gegen echte WordPress-Routen ergänzen und Antworten/Fehlercodes mit der Spezifikation sowie gemeinsamen Client-Fixtures vergleichen. **Abnahme:** inkompatible API-Änderungen schlagen in CI fehl.
 - [x] **42a · Installation-secret key ring:** `SecretCrypto` schreibt `v1:<key-id>`-AES-256-GCM-Umschläge, liest versioniert den passenden Schlüssel und unterstützt unversionierte Altwerte über configured keys/Legacy-Salt. Dokumentation und Tests für aktuellen sowie vorherigen Key-ID sind ergänzt.
 - [ ] **42b · Rotation im Bestand abnehmen:** Re-Encryption-CLI/Batchmigration, Prüflauf, Audit, Backup/Restore und Rückfallpfad für bestehende Aktivierungsgeheimnisse implementieren und in WP/MySQL testen.
-- [ ] **42c · Lizenzschlüssel-Versionierung:** Key-ID je Lizenz speichern; alte/neue LicenseKey-Secrets parallel prüfen, kontrollierte Rotation und Kunden-Wiederherstellung ohne Klartextspeicherung umsetzen. **Abnahme:** Rotations- und Wiederherstellungstest ohne ungültig werdende Bestandslizenzen.
+- [x] **42c · Lizenzschlüssel-Key-ID:** Schema v8 speichert `license_key_secret_id`; neue Schlüssel werden mit aktueller Key-ID abgeleitet und das Kundenportal nutzt die gespeicherte Version. Tests decken aktuelle/vorherige IDs und unbekannte IDs ab.
+- [ ] **42d · Bestandsmigration und Recovery:** vorhandene Zeilen sicher auf bestätigte Legacy-Key-ID abgleichen; Recovery-/Rotationsworkflow mit Audit und Rückfallpfad umsetzen. **Abnahme:** Rotations- und Wiederherstellungstest ohne ungültig werdende Bestandslizenzen.
 - [x] **43a · Atomare Sicherheitszähler:** Schema v7 ergänzt persistente Nonce- und Rate-Limit-Tabellen; HMAC-validierte Nonces werden per eindeutigem Schlüssel atomar konsumiert, Minutenlimits per Upsert gezählt, abgelaufene Datensätze stündlich bereinigt. Aktivierungs-IP wird vor der Verwendung validiert.
 - [x] **43b · Atomarer Zähler-Unit-Test:** PHPUnit prüft den `INSERT ... ON DUPLICATE KEY UPDATE`-Minutenbucket und den zurückgelesenen Zählerstand (`tests/Api/AuthenticatorRateLimitTest.php`).
 - [ ] **43c · Sicherheitsintegrationstests:** parallele Replay-/Flood-Tests, DB-Fehler/Fallback, Proxy-Header und Bereinigungsgrenzen in WordPress/MySQL prüfen. **Abnahme:** Limits sind unter Konkurrenz nicht umgehbar und Datensätze wachsen nicht unbegrenzt.
@@ -466,3 +467,6 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [ ] **42b/42c** Re-Encryption der Bestandsdaten und Lizenzschlüssel-Key-IDs/Wiederherstellung bleiben offen.
 
 - [x] **45a/45b** Explizite Statusübergänge in den Lifecycle eingebunden und mit Unit-Tests abgedeckt.
+
+- [x] **42c** Key-IDs für neu ausgestellte und im Kundenportal angezeigte Lizenzen gespeichert; Versionsauswahl durch PHPUnit abgedeckt.
+- [ ] **42b/42d** Re-Encryption der Aktivierungsgeheimnisse sowie Bestands-/Recovery-Migration für License Keys bleiben offen.
