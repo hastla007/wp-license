@@ -114,7 +114,8 @@ Jeder Umsetzungsschritt wird als kleiner, reviewbarer Pull Request mit eigener �
 - **Abnahme:** Autorisierte und nicht autorisierte Updatepfade verhalten sich im Testshop wie spezifiziert; Rollbackpakete sind verfügbar.
 
 ### PR18 — Automatisierte Qualitätssicherung und Kompatibilität
-- [ ] Vollständige CI für PHP, WordPress-/WooCommerce-Versionen, Coding-Standards und statische Analyse einrichten.\n- [x] PHP-Syntax-Baseline für PHP 7.4/8.1/8.2/8.3 ergänzt (PR19; noch nicht ausgeführt).
+- [ ] Vollständige CI für PHP, WordPress-/WooCommerce-Versionen, Coding-Standards und statische Analyse einrichten.
+- [x] PHP-Syntax-Baseline für PHP 7.4/8.1/8.2/8.3 ergänzt (PR19; noch nicht ausgeführt).
 - [ ] Unit-/Integrationstests für Lizenzvergabe, doppelte Bestellereignisse, Refunds, Statuswechsel und Migrationen ergänzen.
 - [ ] REST-Sicherheitstests für Signaturen, Replay, Rate-Limits, Site-Limits und Staging ergänzen.
 - [ ] Renewal- und Updateabläufe mit WooCommerce-Testdaten und Gateway-Sandboxes abdecken.
