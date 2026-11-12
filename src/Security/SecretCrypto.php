@@ -34,7 +34,8 @@ final class SecretCrypto {
 		}
 
 		$tag = '';
-		$key = hash( 'sha256', wp_salt( 'secure_auth' ), true );
+		$configured_key = defined( 'WPLC_INSTALLATION_ENCRYPTION_KEY' ) ? (string) WPLC_INSTALLATION_ENCRYPTION_KEY : wp_salt( 'secure_auth' );
+		$key = hash( 'sha256', $configured_key, true );
 		$ciphertext = openssl_encrypt( $plaintext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $nonce, $tag, '', 16 );
 		if ( false === $ciphertext ) {
 			return false;
