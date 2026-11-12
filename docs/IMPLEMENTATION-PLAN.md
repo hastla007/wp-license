@@ -513,11 +513,12 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 ## Arbeitsfortschritt — Sicherheits-/Datenschutzrunde
 
 - [x] ~~REST-Integrationstest-Harness mit echtem WordPress-`WP_REST_Request`, MySQL-Schema, Signaturablehnung, erfolgreicher Rechteprüfung, Replay, veraltetem Timestamp und 120-Requests-Limit ergänzt; getrennte PHPUnit-Konfiguration und CI-Job angelegt.~~
-- [ ] WordPress-/MySQL-Testjob erfolgreich nachweisen. Erster Lauf scheiterte an der fehlenden PHPUnit-Polyfills-Konfiguration; Dependency, Suite-Trennung und Workflow-Pfad wurden korrigiert. Der korrigierte Lauf ist noch nicht abgeschlossen. Erst nach grünem Lauf gelten 41c/43c als abgenommen.
+- [x] ~~WordPress-/MySQL-Testjob erfolgreich: Workflow 43291357684 auf Commit d17fe21 ist grün; REST-/Replay-/Rate-Limit-, Audit-Redaktions- und Datenschutztests liefen gegen WordPress 6.8/MySQL 8.0 (6 Tests, 152 Assertions). Der erste Lauf fand einen fehlenden Polyfills-Pfad, der zweite eine nur JSON-escaped URL-Assertion; beides wurde korrigiert.~~
 - [x] ~~Audit-Protokoll redigiert jetzt sensible Schlüssel wie License Key, Secret, Token, Passwort, Authorization, E-Mail, Telefon, Adresse und Site-URL rekursiv; freie Textfelder filtern Credential-Zuweisungen, WPLC-Key-Muster und E-Mail-Adressen. Integrationstest für die Redaktion ergänzt.~~
 - [x] ~~Sicherheits-Operationsdokumentation mit Key-Ring, Dry-Run-CLI, Rotation, Recovery und aktuellen Abnahmegrenzen aktualisiert.~~
 - [x] ~~Datenschutz-Datenfluss und technische Export-/Löschregeln in `docs/PRIVACY-DATA-FLOWS.md` spezifiziert; aktive Lizenzen und WooCommerce-Bestellungen bleiben bei Erasure-Anfragen geschützt.~~
-- [ ] WordPress-Privacy-Exporter und -Eraser tatsächlich implementieren und die spezifizierten Pagination-, HPOS-, Retention-, Retry- und Secret-Ausschlussfälle testen.
+- [x] ~~WordPress-Privacy-Exporter/-Eraser implementiert und in der WP/MySQL-Suite geprüft: paginierter Export ohne Geheimnisse; Erasure anonymisiert terminale Lizenzen, entfernt zugehörige deaktivierte Aktivierungen, hält aktive/offene Lizenzen zurück und erhält WooCommerce-Bestellungen.~~
+- [ ] Automatische Datenaufbewahrung und -bereinigung nach konfigurierbarer Retention sowie Exportpagination ab 100 Datensätzen, HPOS-Auftragsausgabe und gezielte Datenbankfehler-/Retrytests ergänzen.
 - [x] ~~Ganzzahlige `Money::prorate()`-Berechnung ist im Quellstand und durch PHPUnit-Grenzfälle abgedeckt.~~
 - [ ] Add-on-Zuordnung, WooCommerce-Order-/Tax-Berechnung, gemeinsamer Verlängerungstermin, Entfernung/Erstattung und Crash-/Retry-Recovery in WooCommerce-Integrationstests abdecken.
 - [x] ~~Die drei Produktclient-PR-Reihen enthalten Client-SDK, Entitlement-Helfer, Offlinecache und Updater-Vorbereitung.~~
