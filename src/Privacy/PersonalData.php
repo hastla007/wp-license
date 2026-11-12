@@ -157,44 +157,62 @@ final class PersonalData {
 		}
 
 		$tables = Schema::table_names();
-		$limit  = 100;
-		$offset = max( 0, $page - 1 ) * $limit;
-		$licenses = $wpdb->get_results(
+		$limit      = 100;
+		$cursor_key = 'wplc_privacy_eraser_cursor_' . (int) $user->ID;
+		$cursor     = (int) get_option( $cursor_key, 0 );
+		$licenses   = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id,status FROM {$tables['licenses']} WHERE customer_id = %d ORDER BY id ASC LIMIT %d OFFSET %d",
+				"SELECT id,status FROM {$tables['licenses']} WHERE customer_id = %d AND id > %d ORDER BY id ASC LIMIT %d",
 				(int) $user->ID,
-				$limit,
-				$offset
+				$cursor,
+				$limit
 			),
 			ARRAY_A
 		);
 
 		$removed = 0;
 		$retained = 0;
+		$failed = false;
+		$last_id = $cursor;
 		foreach ( (array) $licenses as $license ) {
+			$last_id = (int) $license['id'];
 			if ( ! in_array( (string) $license['status'], self::TERMINAL_STATES, true ) ) {
 				++$retained;
 				continue;
 			}
 
-			$wpdb->query(
+			$deleted = $wpdb->query(
 				$wpdb->prepare(
 					"DELETE FROM {$tables['activations']} WHERE license_id = %d AND status <> %s",
 					(int) $license['id'],
 					'active'
 				)
 			);
-			$wpdb->update(
+			if ( false === $deleted ) {
+				$failed = true;
+				continue;
+			}
+
+			$detached = $wpdb->update(
 				$tables['licenses'],
 				array( 'customer_id' => 0, 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ),
 				array( 'id' => (int) $license['id'], 'customer_id' => (int) $user->ID ),
 				array( '%d', '%s' ),
 				array( '%d', '%d' )
 			);
+			if ( false === $detached || 0 === $detached ) {
+				$failed = true;
+				continue;
+			}
 			++$removed;
 		}
 
-		$done = count( (array) $licenses ) < $limit;
+		$done = count( (array) $licenses ) < $limit && ! $failed;
+		if ( $done ) {
+			delete_option( $cursor_key );
+		} else {
+			update_option( $cursor_key, $last_id, false );
+		}
 		$messages = array();
 		if ( $retained > 0 ) {
 			$messages[] = sprintf(
@@ -206,6 +224,9 @@ final class PersonalData {
 				),
 				$retained
 			);
+		}
+		if ( $failed ) {
+			$messages[] = __( 'Some records could not be erased. The request can be retried; no completion is reported.', 'wp-license' );
 		}
 		if ( $removed > 0 ) {
 			$messages[] = sprintf(
