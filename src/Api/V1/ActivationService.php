@@ -308,7 +308,7 @@ final class ActivationService {
 	 * @param array<string,mixed> $license License row.
 	 * @return int
 	 */
-	private static function site_limit( int $license_id, array $license ): int {
+	public static function site_limit( int $license_id, array $license ): int {
 		global $wpdb;
 
 		$tables = Schema::table_names();
