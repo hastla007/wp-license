@@ -27,3 +27,10 @@ The limited Stripe adapter accepts events at \`/wp-json/wplc/v1/stripe/webhook\`
 Every verified event is stored in the existing event inbox under its unique Stripe event ID and raw-payload SHA-256. Duplicate deliveries return success without repeating the renewal. Successful WP License Captain PaymentIntents are matched by renewal, order, and license metadata under the renewal lock; the WooCommerce order, renewal row, license lifecycle, next renewal, and audit log are reconciled together. Unrelated Stripe payment intents are recorded and ignored. Failed events remain on the scheduled retry path.
 
 Before enabling this endpoint in a live shop, run the signature, replay, out-of-order, duplicate, order mismatch, and payment-timeout recovery cases against a Stripe test-mode endpoint. Secret rotation must update the endpoint secret and server configuration in the same maintenance window.
+
+
+## PayPal support boundary
+
+The current official WooCommerce PayPal Payments integration documents automatic renewals through PayPal Vaulting or PayPal Subscriptions as requiring WooCommerce Subscriptions. WP License Captain does not currently use WooCommerce Subscriptions and its custom renewal orders do not satisfy that integration contract. Therefore no PayPal recurring adapter is registered, and checkout consent must not advertise automatic PayPal renewal. Revisit this only with a supported gateway API contract and merchant sandbox credentials; do not treat a saved PayPal token by itself as authorization or proof that off-session charging works.
+
+References: [WooCommerce PayPal Payments: Save Payment Methods](https://woocommerce.com/document/woocommerce-paypal-payments/save-payment-methods/) and [Subscriptions](https://woocommerce.com/document/woocommerce-paypal-payments/subscriptions/).
