@@ -9,6 +9,7 @@ namespace WPLC\Admin;
 
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\LicenseLifecycle;
+use WPLC\License\AuditLog;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -26,7 +27,8 @@ final class LicenseAdmin {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ) );
-		add_action( 'admin_post_wplc_admin_license_status', array( self::class, 'handle_status_change' ) );\n\t\tadd_action( 'admin_post_wplc_admin_release_activation', array( self::class, 'handle_release_activation' ) );
+		add_action( 'admin_post_wplc_admin_license_status', array( self::class, 'handle_status_change' ) );
+		add_action( 'admin_post_wplc_admin_release_activation', array( self::class, 'handle_release_activation' ) );
 	}
 
 	/**
