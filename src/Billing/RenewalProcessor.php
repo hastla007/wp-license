@@ -29,7 +29,7 @@ final class RenewalProcessor {
 	public static function register_hooks(): void {
 		add_action( 'wplc_process_renewal', array( self::class, 'process' ) );
 		add_action( 'wplc/renewal_grace_ended', array( self::class, 'expire_after_grace' ) );
-		add_action( 'wplc/stripe_webhook_received', array( self::class, 'queue_stripe_event' ), 10, 3 );
+		add_action( 'wplc/stripe_webhook_received', array( self::class, 'queue_stripe_event' ), 10, 1 );
 		add_action( 'wplc_process_stripe_webhook', array( self::class, 'process_stripe_event' ) );
 		add_action( 'woocommerce_payment_complete', array( self::class, 'queue_paid_order_reconciliation' ) );
 		add_action( 'wplc_reconcile_paid_renewal_order', array( self::class, 'reconcile_paid_renewal_order' ) );
@@ -338,7 +338,9 @@ final class RenewalProcessor {
 		$lock_name = self::renewal_lock_name( $renewal_id );
 		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
 		if ( '1' !== (string) $locked ) {
-			self::queue_stripe_event( $inbox_id );
+			if ( ! wp_next_scheduled( 'wplc_process_stripe_webhook', array( $inbox_id ) ) ) {
+				wp_schedule_single_event( time() + 30, 'wplc_process_stripe_webhook', array( $inbox_id ) );
+			}
 			return;
 		}
 		try {
@@ -377,10 +379,6 @@ final class RenewalProcessor {
 			return;
 		}
 
-		if ( 'paid' === $renewal['status'] ) {
-			self::finish_stripe_event( $inbox_id, 'already_reconciled' );
-			return;
-		}
 		if ( in_array( $renewal['status'], array( 'cancelled', 'expired' ), true ) || in_array( $license['status'], array( 'revoked', 'suspended' ), true ) ) {
 			self::finish_stripe_event( $inbox_id, 'manual_review' );
 			AuditLog::record( 'stripe_webhook_manual_review', 'renewal', (int) $renewal['id'], 'Payment event arrived for a cancelled, expired, revoked or suspended record' );
@@ -401,6 +399,11 @@ final class RenewalProcessor {
 		) {
 			self::finish_stripe_event( $inbox_id, 'manual_review' );
 			AuditLog::record( 'stripe_webhook_amount_mismatch', 'renewal', (int) $renewal['id'], 'Stripe amount or currency did not match the WooCommerce renewal order' );
+			return;
+		}
+
+		if ( 'paid' === $renewal['status'] ) {
+			self::finish_stripe_event( $inbox_id, 'already_reconciled' );
 			return;
 		}
 
