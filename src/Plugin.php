@@ -31,6 +31,7 @@ final class Plugin {
 		}
 
 		\\WPLC\\Infrastructure\\Database\\Schema::migrate();
+		\\WPLC\\License\\LicenseLifecycle::schedule_daily_event();
 	}
 
 	/**
@@ -39,6 +40,7 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function deactivate(): void {
+		wp_clear_scheduled_hook( 'wplc_daily_lifecycle' );
 		// Persistent data is never removed on deactivation.
 	}
 
@@ -78,6 +80,7 @@ final class Plugin {
 		\\WPLC\\Infrastructure\\Database\\Schema::maybe_upgrade();
 		\\WPLC\\Catalog\\ProductEditor::register_hooks();
 		\\WPLC\\License\\LicenseIssuer::register_hooks();
+		\\WPLC\\License\\LicenseLifecycle::register_hooks();
 
 		do_action( 'wplc/loaded' );
 	}
