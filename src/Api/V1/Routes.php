@@ -33,6 +33,28 @@ final class Routes {
 	public static function register_routes(): void {
 		register_rest_route(
 			'wplc/v1',
+			'/updates/check',
+			array(
+				'methods' => 'POST',
+				'callback' => array( UpdateService::class, 'check' ),
+				'permission_callback' => '__return_true',
+				'args' => array(
+					'product_key' => array( 'required' => true, 'type' => 'string' ),
+					'current_version' => array( 'required' => true, 'type' => 'string' ),
+				),
+			)
+		);
+		register_rest_route(
+			'wplc/v1',
+			'/updates/download/(?P<token>[a-f0-9]{64})',
+			array(
+				'methods' => 'GET',
+				'callback' => array( UpdateService::class, 'download' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+		register_rest_route(
+			'wplc/v1',
 			'/activations',
 			array(
 				'methods' => 'POST',
