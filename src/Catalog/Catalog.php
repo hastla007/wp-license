@@ -51,6 +51,7 @@ final class Catalog {
 
 		$price    = (float) $product->get_price( 'edit' );
 		$decimals = function_exists( 'wc_get_price_decimals' ) ? (int) wc_get_price_decimals() : 2;
+		$decimals = max( 0, min( 6, $decimals ) );
 		$price_minor = (int) round( $price * ( 10 ** $decimals ) );
 		$currency = function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'EUR';
 
@@ -98,7 +99,7 @@ final class Catalog {
 				'created_at' => $now,
 				'updated_at' => $now,
 			),
-			array( '%s', '%s', '%d', '%d', '%s', '%d', '%s', '%d', '%s', '%s', '%d', '%s', '%s' )
+			array( '%s', '%s', '%d', '%d', '%s', '%d', '%d', '%s', '%d', '%s', '%s', '%d', '%s', '%s' )
 		);
 
 		return false !== $result;
