@@ -29,6 +29,8 @@ if ( ! class_exists( '\\WPLC\\Plugin' ) ) {
 	require_once WPLC_PATH . 'src/Infrastructure/Database/Schema.php';
 require_once WPLC_PATH . 'src/Catalog/Catalog.php';
 require_once WPLC_PATH . 'src/Catalog/ProductEditor.php';
+require_once WPLC_PATH . 'src/License/LicenseKey.php';
+require_once WPLC_PATH . 'src/License/LicenseIssuer.php';
 require_once WPLC_PATH . 'src/Plugin.php';
 }
 
