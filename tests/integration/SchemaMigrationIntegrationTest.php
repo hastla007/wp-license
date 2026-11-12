@@ -10,9 +10,14 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( Schema::maybe_upgrade() );
 		$this->assertSame( Schema::VERSION, (string) get_option( 'wplc_schema_version' ) );
 
-		$existing_tables = $wpdb->get_col( 'SHOW TABLES' );
 		foreach ( Schema::table_names() as $table_name ) {
-			$this->assertContains( $table_name, $existing_tables, 'Missing WPLC schema table: ' . $table_name );
+			$table_exists = $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
+					$table_name
+				)
+			);
+			$this->assertSame( '1', (string) $table_exists, 'Missing WPLC schema table: ' . $table_name );
 		}
 	}
 }
