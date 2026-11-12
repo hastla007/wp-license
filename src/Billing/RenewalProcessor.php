@@ -29,6 +29,10 @@ final class RenewalProcessor {
 	public static function register_hooks(): void {
 		add_action( 'wplc_process_renewal', array( self::class, 'process' ) );
 		add_action( 'wplc/renewal_grace_ended', array( self::class, 'expire_after_grace' ) );
+		add_action( 'wplc/stripe_webhook_received', array( self::class, 'queue_stripe_event' ), 10, 3 );
+		add_action( 'wplc_process_stripe_webhook', array( self::class, 'process_stripe_event' ) );
+		add_action( 'woocommerce_payment_complete', array( self::class, 'queue_paid_order_reconciliation' ) );
+		add_action( 'wplc_reconcile_paid_renewal_order', array( self::class, 'reconcile_paid_renewal_order' ) );
 	}
 
 	/**
@@ -289,6 +293,209 @@ final class RenewalProcessor {
 	 * @param int|null $attempt_count Attempts.
 	 * @return void
 	 */
+	/** Queue verified webhook reconciliation after the inbox has committed. */
+	public static function queue_stripe_event( int $inbox_id ): void {
+		if ( function_exists( 'as_enqueue_async_action' ) ) {
+			as_enqueue_async_action( 'wplc_process_stripe_webhook', array( $inbox_id ), 'wplc', true );
+			return;
+		}
+		if ( ! wp_next_scheduled( 'wplc_process_stripe_webhook', array( $inbox_id ) ) ) {
+			wp_schedule_single_event( time() + 15, 'wplc_process_stripe_webhook', array( $inbox_id ) );
+		}
+	}
+
+	/** Queue WooCommerce customer-pay recovery reconciliation. */
+	public static function queue_paid_order_reconciliation( int $order_id ): void {
+		if ( ! $order_id ) {
+			return;
+		}
+		if ( function_exists( 'as_enqueue_async_action' ) ) {
+			as_enqueue_async_action( 'wplc_reconcile_paid_renewal_order', array( $order_id ), 'wplc', true );
+			return;
+		}
+		if ( ! wp_next_scheduled( 'wplc_reconcile_paid_renewal_order', array( $order_id ) ) ) {
+			wp_schedule_single_event( time() + 15, 'wplc_reconcile_paid_renewal_order', array( $order_id ) );
+		}
+	}
+
+	/** Reconcile a durable Stripe event using renewal, license, order, amount, and currency linkage. */
+	public static function process_stripe_event( int $inbox_id ): void {
+		global $wpdb;
+		$tables = Schema::table_names();
+		$event = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$tables['event_inbox']} WHERE id = %d AND source = %s LIMIT 1", $inbox_id, 'stripe' ),
+			ARRAY_A
+		);
+		if ( ! is_array( $event ) || 'pending_reconciliation' !== $event['outcome'] ) {
+			return;
+		}
+		$payload = json_decode( (string) $event['payload_json'], true );
+		if ( ! is_array( $payload ) || empty( $payload['renewal_id'] ) ) {
+			self::finish_stripe_event( $inbox_id, 'invalid_payload' );
+			return;
+		}
+		$renewal_id = absint( $payload['renewal_id'] );
+		$lock_name = self::renewal_lock_name( $renewal_id );
+		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
+		if ( '1' !== (string) $locked ) {
+			self::queue_stripe_event( $inbox_id );
+			return;
+		}
+		try {
+			self::reconcile_stripe_event_locked( $inbox_id, $event, $payload );
+		} finally {
+			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+		}
+	}
+
+	/** Reconcile one event while holding the per-renewal lock. */
+	private static function reconcile_stripe_event_locked( int $inbox_id, array $event, array $payload ): void {
+		global $wpdb;
+		$tables = Schema::table_names();
+		$renewal = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", absint( $payload['renewal_id'] ) ),
+			ARRAY_A
+		);
+		$license = is_array( $renewal ) ? $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", (int) $renewal['license_id'] ),
+			ARRAY_A
+		) : null;
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( absint( $payload['order_id'] ?? 0 ) ) : false;
+		if (
+			! is_array( $renewal )
+			|| ! is_array( $license )
+			|| (int) $renewal['license_id'] !== absint( $payload['license_id'] ?? 0 )
+			|| (int) $renewal['renewal_order_id'] !== absint( $payload['order_id'] ?? 0 )
+			|| 'stripe' !== $license['payment_gateway_id']
+			|| ! $order instanceof \WC_Order
+			|| 'stripe' !== $order->get_payment_method()
+			|| (int) $order->get_meta( '_wplc_renewal_id', true ) !== (int) $renewal['id']
+			|| (int) $order->get_meta( '_wplc_renewal_for_license', true ) !== (int) $license['id']
+		) {
+			self::finish_stripe_event( $inbox_id, 'manual_review' );
+			AuditLog::record( 'stripe_webhook_mismatch', 'webhook', $inbox_id, 'Stripe event metadata did not match its renewal order' );
+			return;
+		}
+
+		if ( 'paid' === $renewal['status'] ) {
+			self::finish_stripe_event( $inbox_id, 'already_reconciled' );
+			return;
+		}
+		if ( in_array( $renewal['status'], array( 'cancelled', 'expired' ), true ) || in_array( $license['status'], array( 'revoked', 'suspended' ), true ) ) {
+			self::finish_stripe_event( $inbox_id, 'manual_review' );
+			AuditLog::record( 'stripe_webhook_manual_review', 'renewal', (int) $renewal['id'], 'Payment event arrived for a cancelled, expired, revoked or suspended record' );
+			return;
+		}
+
+		if ( ! class_exists( '\\WC_Stripe_Helper' ) ) {
+			self::finish_stripe_event( $inbox_id, 'manual_review' );
+			return;
+		}
+		$expected_amount = \WC_Stripe_Helper::get_stripe_amount( $order->get_total(), $order->get_currency() );
+		if (
+			! is_int( $expected_amount )
+			|| $expected_amount <= 0
+			|| $expected_amount !== absint( $payload['amount_received'] ?? 0 )
+			|| strtolower( (string) $order->get_currency() ) !== strtolower( (string) ( $payload['currency'] ?? '' ) )
+			|| strtolower( (string) $license['renewal_currency'] ) !== strtolower( (string) $order->get_currency() )
+		) {
+			self::finish_stripe_event( $inbox_id, 'manual_review' );
+			AuditLog::record( 'stripe_webhook_amount_mismatch', 'renewal', (int) $renewal['id'], 'Stripe amount or currency did not match the WooCommerce renewal order' );
+			return;
+		}
+
+		if ( 'payment_intent.succeeded' === $event['event_type'] ) {
+			if ( 'succeeded' !== (string) ( $payload['payment_status'] ?? '' ) ) {
+				self::finish_stripe_event( $inbox_id, 'manual_review' );
+				return;
+			}
+			$reference = sanitize_text_field( (string) $payload['payment_intent_id'] );
+			self::set_renewal_status( (int) $renewal['id'], 'paid', null, (int) $order->get_id() );
+			LicenseLifecycle::mark_renewed( (int) $license['id'], (string) $renewal['period_end'], (int) $order->get_id() );
+			RenewalScheduler::schedule_next( (int) $license['id'] );
+			if ( ! $order->is_paid() ) {
+				$order->payment_complete( $reference );
+			}
+			AuditLog::record(
+				'renewal_reconciled',
+				'renewal',
+				(int) $renewal['id'],
+				'Verified Stripe PaymentIntent success reconciled',
+				array( 'status' => $renewal['status'] ),
+				array( 'status' => 'paid', 'order_id' => (int) $order->get_id() )
+			);
+			self::finish_stripe_event( $inbox_id, 'processed' );
+			return;
+		}
+
+		// Synchronous adapter results already own retry scheduling. The webhook is an idempotent audit/reconciliation signal.
+		self::finish_stripe_event( $inbox_id, 'failure_observed' );
+	}
+
+	/** Reconcile a WooCommerce order paid by the customer after an authentication-required renewal. */
+	public static function reconcile_paid_renewal_order( int $order_id ): void {
+		global $wpdb;
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+		if ( ! $order instanceof \WC_Order || ! $order->is_paid() || 'stripe' !== $order->get_payment_method() ) {
+			return;
+		}
+		$renewal_id = absint( $order->get_meta( '_wplc_renewal_id', true ) );
+		$license_id = absint( $order->get_meta( '_wplc_renewal_for_license', true ) );
+		if ( ! $renewal_id || ! $license_id ) {
+			return;
+		}
+		$lock_name = self::renewal_lock_name( $renewal_id );
+		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
+		if ( '1' !== (string) $locked ) {
+			self::queue_paid_order_reconciliation( $order_id );
+			return;
+		}
+		try {
+			$tables = Schema::table_names();
+			$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ), ARRAY_A );
+			$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ), ARRAY_A );
+			if ( ! is_array( $renewal ) || ! is_array( $license ) || (int) $renewal['license_id'] !== $license_id || (int) $renewal['renewal_order_id'] !== $order_id || 'stripe' !== $license['payment_gateway_id'] ) {
+				AuditLog::record( 'renewal_recovery_mismatch', 'order', $order_id, 'Paid renewal order metadata did not match its license' );
+				return;
+			}
+			if ( 'paid' === $renewal['status'] ) {
+				return;
+			}
+			if ( ! in_array( $renewal['status'], array( 'failed', 'manual_action_required', 'in_progress' ), true ) ) {
+				AuditLog::record( 'renewal_recovery_not_allowed', 'renewal', $renewal_id, 'Renewal status did not allow customer payment recovery' );
+				return;
+			}
+			$expected_minor = (int) $license['renewal_amount_minor'];
+			$actual_minor = (int) round( (float) $order->get_total() * ( 10 ** wc_get_price_decimals() ) );
+			if ( $expected_minor !== $actual_minor || strtoupper( (string) $license['renewal_currency'] ) !== strtoupper( (string) $order->get_currency() ) ) {
+				AuditLog::record( 'renewal_recovery_amount_mismatch', 'renewal', $renewal_id, 'Paid customer recovery order did not match the stored renewal amount' );
+				return;
+			}
+			self::set_renewal_status( $renewal_id, 'paid', null, $order_id );
+			LicenseLifecycle::mark_renewed( $license_id, (string) $renewal['period_end'], $order_id );
+			RenewalScheduler::schedule_next( $license_id );
+			AuditLog::record( 'renewal_customer_recovered', 'renewal', $renewal_id, 'Customer completed Stripe payment authentication', array( 'status' => $renewal['status'] ), array( 'status' => 'paid', 'order_id' => $order_id ) );
+		} finally {
+			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+		}
+	}
+
+	private static function finish_stripe_event( int $inbox_id, string $outcome ): void {
+		global $wpdb;
+		$tables = Schema::table_names();
+		$wpdb->update(
+			$tables['event_inbox'],
+			array( 'outcome' => sanitize_key( $outcome ), 'processed_at' => gmdate( 'Y-m-d H:i:s' ) ),
+			array( 'id' => $inbox_id, 'source' => 'stripe', 'outcome' => 'pending_reconciliation' ),
+			array( '%s', '%s' ),
+			array( '%d', '%s', '%s' )
+		);
+	}
+
+	private static function renewal_lock_name( int $renewal_id ): string {
+		return 'wplc_renewal_' . substr( hash( 'sha256', 'renewal:' . $renewal_id ), 0, 48 );
+	}
+
 	private static function set_renewal_status( int $renewal_id, string $status, ?string $retry_at, ?int $order_id = null, ?int $attempt_count = null ): void {
 		global $wpdb;
 
