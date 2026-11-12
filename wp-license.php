@@ -20,6 +20,16 @@ define( 'WPLC_VERSION', '0.1.0' );
 define( 'WPLC_FILE', __FILE__ );
 define( 'WPLC_PATH', plugin_dir_path( __FILE__ ) );
 
-require_once WPLC_PATH . 'src/Plugin.php';
+$wplc_autoloader = WPLC_PATH . 'vendor/autoload.php';
+if ( is_readable( $wplc_autoloader ) ) {
+	require_once $wplc_autoloader;
+}
 
-\WPLC\Plugin::boot();
+if ( ! class_exists( '\\WPLC\\Plugin' ) ) {
+	require_once WPLC_PATH . 'src/Plugin.php';
+}
+
+register_activation_hook( WPLC_FILE, array( '\\WPLC\\Plugin', 'activate' ) );
+register_deactivation_hook( WPLC_FILE, array( '\\WPLC\\Plugin', 'deactivate' ) );
+
+\\WPLC\\Plugin::boot();
