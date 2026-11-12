@@ -365,24 +365,24 @@ Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Mer
 **Statusregel:** Haken bestätigen vorhandene Code-/Dokumentationsänderungen. Sandbox-, Merge-, Laufzeit- und Produktionsabnahmen bleiben separat offen.
 
 - [x] **21 · Entitlement-Katalog:** stabile Feature-IDs und vorläufige Tarifzuordnung in `docs/ENTITLEMENTS.md` dokumentieren; reale SKU-/Plan-Zuordnung vor Aktivierung validieren.
-- [ ] **22 · SKU-/Plan-Mapping:** reale WooCommerce-Produkte, Variationen, Preise und Add-ons auf serverseitige Plan-IDs abbilden und Import/Export definieren.
+- [x] WooCommerce-Produkteditor unterstützt Zuordnung für einfache Produkte/Variationen mit Plan, Intervall, Site-Limit, Support und Entitlement-JSON.\n- [ ] **22 · SKU-/Plan-Mapping:** echte Shop-Produkte/Variationen/Preise/Add-ons konfigurieren und Import/Export des realen Katalogs umsetzen; konkrete IDs erfordern Shopzugriff.
 - [x] **23 · Gemeinsamer Feature-Gate-Client:** `allows_entitlement()` mit Produktpräfixprüfung, boolean/quota-Werten und deny-by-default in drei Client-PRs vorbereitet: Voucher [#12](https://github.com/hastla007/wp-couponmaster/pull/12), Pass [#22](https://github.com/hastla007/wp-passmaster/pull/22), Affiliate [#11](https://github.com/hastla007/wpaffiliatemaster/pull/11).
 - [ ] **24 · Produkt-Gates:** neue Premiumfunktionen in allen drei Clients auf die freigegebenen Entitlement-IDs abbilden; kostenlose/Bestandsfunktionen unangetastet lassen.
 - [x] **25 · Offline-Rechtecache:** lokale HMAC-Cachelogik mit 14-Tage-Höchstfrist und Fallback nur bei Netzwerk-/Serverfehlern vorbereitet: Voucher [#13](https://github.com/hastla007/wp-couponmaster/pull/13), Pass [#23](https://github.com/hastla007/wp-passmaster/pull/23), Affiliate [#12](https://github.com/hastla007/wpaffiliatemaster/pull/12). Manipulation/Ablauf und Produktverhalten müssen noch getestet werden.
 - [x] **26 · Stripe-Webhooks:** Stripe-Signatur (300 s), minimale Event-Inbox, eindeutige Event-IDs und Konflikterkennung vorbereitet; Stripe-Sandbox-Abnahme offen.
 - [x] **27 · Renewal-Abgleich (Code):** signierte Erfolgsereignisse werden idempotent gegen Renewal, Order, Lizenz, Betrag und Währung geprüft; manuelle Sandbox-/Timeout-Abnahme offen.
 - [x] **28 · Auth-Recovery (Code):** Mein-Konto-Link zum offenen Renewal-Auftrag plus asynchrone Zahlungsabstimmung vorbereitet; SCA-/Gateway-Sandbox-Abnahme offen.
-- [ ] **29 · PayPal-Go/No-Go:** konkrete Gateway-/Abo-Version und Merchant-Freigabe nachweisen; bis dahin Checkout und Renewal-Werbung dafür deaktiviert halten.
+- [x] **29 · PayPal-Go/No-Go (v1-Entscheidung):** keine PayPal-Renewals ohne registrierten Adapter; Checkout lehnt nicht unterstützte Renewal-Gateways ab. Merchant-/Sandbox-Prüfung ist erst vor einer späteren PayPal-Freigabe nötig.
 - [x] **30 · Release-Manifest:** CLI `tools/create-release-manifest.php` erzeugt Metadaten mit HTTPS-Paket-URL, Version, Mindestversionen, Changelog und SHA-256. Release-Build-/Storage-Integration bleibt offen.
 - [x] **31 · Paketablage (Provider-Hook):** kurzlebige HTTPS-URL-Auflösung nach Verbrauch des Einmalgrants sowie Host-Allowlist dokumentiert/implementiert.
 - [ ] Konkreten privaten S3/GCS/anderen Storage-Provider, Bucket-Policy, Credentials und Retention konfigurieren und abnehmen.
-- [ ] **32 · Release-Rollback:** unveränderliche Vorversionen und dokumentierten Rollbackpfad in Build- und Updateprozess integrieren.
+- [x] **32 · Release-Rollback (Runbook):** unveränderliche Versionspakete, Vorab-Backup und manueller Rollbackpfad dokumentiert.\n- [ ] Rollback in den Release-Build-/Storageprozess integrieren und mit einem realen Paket testen.
 - [x] **33 · Lizenzverwaltung:** vorhandene Suche/Paginierung um Statusfilter ergänzt und Kundennummer in die Suche aufgenommen. Bestell-/Renewal-spezifische Filter und Skalierungsprüfung bleiben offen.
-- [ ] **34 · Supportaktionen:** sichere, capability-/nonce-geschützte Domainfreigabe und Korrekturworkflows mit Begründung und Audit umsetzen.
+- [x] **34 · Supportaktionen (Aktivierungsfreigabe):** capability-/nonce-geschützte Freigabe mit Pflichtbegründung und Auditlog ergänzt; Domainänderung, Lizenzschlüssel-Wiederherstellung und Laufzeitabnahme bleiben offen.
 - [x] **35 · Testbasis:** PHPUnit-Konfiguration, PHP-Matrix-Workflow und isolierte LicenseKey-Unit-Tests ergänzt. Tests/CI-Ausführung sowie Signatur- und Entitlement-Testfälle noch offen.
 - [ ] **36 · API-Sicherheitstests:** REST-Tests für Signaturen, Replay, Rate-Limits, Fehlermeldungen und Einmal-Downloadtoken ergänzen.
 - [ ] **37 · Datenbank-/Renewaltests:** Tests für Schema-Upgrades, doppelte Bestellungen, Refunds, Renewal-Locks und Grace Period ergänzen.
-- [ ] **38 · Kompatibilitätsmatrix:** minimale/aktuelle WordPress-, WooCommerce- und PHP-Versionen festschreiben und CI-Matrix entsprechend erweitern.
+- [x] Bekannte PHP-Minima der Produktclients und PHP-Syntax-/Unit-CI-Matrix dokumentiert.\n- [ ] **38 · Kompatibilitätsmatrix:** WordPress-/WooCommerce-Minima aus den realen Produkt-Releases erfassen und in Testmatrix verifizieren.
 - [ ] **39 · Betriebsüberwachung:** konkrete Health-/Queue-/Fehler-Metriken und Alarmgrenzen für Renewals, Webhooks, API und Pakete implementieren.
 - [ ] **40 · Launch-Evidenz:** Restore-, Gateway-, Sicherheits-, Datenschutz-, Kündigungs- und Supportabnahmen mit verantwortlicher Person und Datum dokumentieren.
 
