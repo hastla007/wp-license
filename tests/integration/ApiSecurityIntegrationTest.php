@@ -8,16 +8,12 @@ final class ApiSecurityIntegrationTest extends WP_UnitTestCase {
 	private const INSTALLATION_UUID = '20000000-0000-4000-8000-000000000002';
 	private const INSTALLATION_SECRET = 'integration-installation-secret-32-bytes';
 
-	public static function set_up_before_class(): void {
-		parent::set_up_before_class();
-		add_action( 'rest_api_init', array( Routes::class, 'register_routes' ) );
-	}
-
 	public function set_up(): void {
 		parent::set_up();
 		global $wpdb, $wp_rest_server;
 
 		$wp_rest_server = null;
+		add_action( 'rest_api_init', array( Routes::class, 'register_routes' ) );
 		rest_get_server();
 		Schema::migrate();
 		$tables = Schema::table_names();
