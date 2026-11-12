@@ -151,9 +151,14 @@ final class LicenseAdmin {
 		$license_id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
 		$status = isset( $_POST['status'] ) ? sanitize_key( wp_unslash( $_POST['status'] ) ) : '';
 		$reason = isset( $_POST['reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['reason'] ) ) : '';
+		if ( ! $license_id || '' === trim( $reason ) ) {
+			wp_die( esc_html__( 'A license and a reason are required for this action.', 'wp-license' ), '', array( 'response' => 400 ) );
+		}
 		check_admin_referer( 'wplc_admin_license_status_' . $license_id );
 
-		LicenseLifecycle::admin_set_status( $license_id, $status, $reason, get_current_user_id() );
+		if ( ! LicenseLifecycle::admin_set_status( $license_id, $status, $reason, get_current_user_id() ) ) {
+			wp_die( esc_html__( 'The status change was not applied. Check the license status, payment period, and requested transition.', 'wp-license' ), '', array( 'response' => 409 ) );
+		}
 		wp_safe_redirect( admin_url( 'admin.php?page=wplc-licenses' ) );
 		exit;
 	}
