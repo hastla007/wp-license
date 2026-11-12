@@ -69,7 +69,7 @@ final class Authenticator {
 			$request->get_body()
 		);
 		if ( ! hash_equals( $expected_signature, $provided_signature ) ) {
-			return new \\WP_Error( 'invalid_request_signature', __( 'Request signature is invalid.', 'wp-license' ), array( 'status' => 401 ) );
+			return new \WP_Error( 'invalid_request_signature', __( 'Request signature is invalid.', 'wp-license' ), array( 'status' => 401 ) );
 		}
 
 		$nonce_hash = hash( 'sha256', $nonce );
@@ -93,18 +93,18 @@ final class Authenticator {
 		);
 
 		if ( false === $nonce_inserted ) {
-			return new \\WP_Error( 'replay_store_unavailable', __( 'Request replay protection is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
+			return new \WP_Error( 'replay_store_unavailable', __( 'Request replay protection is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
 		}
 		if ( 0 === (int) $nonce_inserted ) {
-			return new \\WP_Error( 'request_replayed', __( 'This request nonce has already been used.', 'wp-license' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'request_replayed', __( 'This request nonce has already been used.', 'wp-license' ), array( 'status' => 409 ) );
 		}
 
 		$rate_hits = self::increment_rate_limit( hash( 'sha256', 'installation:' . $installation_uuid ) );
 		if ( false === $rate_hits ) {
-			return new \\WP_Error( 'rate_limit_store_unavailable', __( 'Request rate limiting is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
+			return new \WP_Error( 'rate_limit_store_unavailable', __( 'Request rate limiting is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
 		}
 		if ( $rate_hits > 120 ) {
-			return new \\WP_Error( 'rate_limited', __( 'Too many requests for this installation.', 'wp-license' ), array( 'status' => 429 ) );
+			return new \WP_Error( 'rate_limited', __( 'Too many requests for this installation.', 'wp-license' ), array( 'status' => 429 ) );
 		}
 
 		if ( SecretCrypto::needs_rotation( (string) $activation['installation_secret_encrypted'] ) ) {
