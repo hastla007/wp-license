@@ -44,6 +44,23 @@ final class LicenseKey {
 	}
 
 	/**
+	 * Verify that a UUID and key ID reproduce a stored license-key verifier.
+	 *
+	 * @param string $uuid License UUID.
+	 * @param string $key_id Persisted secret key ID.
+	 * @param string $stored_hash Stored SHA-256 verifier.
+	 * @return bool
+	 */
+	public static function matches_hash( string $uuid, string $key_id, string $stored_hash ): bool {
+		$key = self::for_uuid( $uuid, $key_id );
+		if ( '' === $key || ! preg_match( '/^[a-f0-9]{64}$/i', $stored_hash ) ) {
+			return false;
+		}
+
+		return hash_equals( strtolower( $stored_hash ), self::hash( $key ) );
+	}
+
+	/**
 	 * Hash a normalized license key for database verification.
 	 *
 	 * @param string $key License key.
