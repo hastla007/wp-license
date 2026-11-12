@@ -65,7 +65,7 @@ final class SiteUrl {
 		}
 
 		$path = isset( $parts['path'] ) ? rtrim( (string) $parts['path'], '/' ) : '';
-		if ( false !== strpos( $path, chr( 0 ) ) || false !== strpos( $path, '\\\\' ) ) {
+		if ( false !== strpos( $path, chr( 0 ) ) || false !== strpos( $path, '\\' ) ) {
 			return '';
 		}
 
