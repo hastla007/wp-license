@@ -125,7 +125,7 @@ final class LicenseIssuer {
 		$token = class_exists( 'WC_Payment_Tokens' ) ? \\WC_Payment_Tokens::get( $token_id ) : false;
 		$adapter = Registry::get( $gateway_id );
 		$consent = (string) $order->get_meta( '_wplc_recurring_consent_at', true );
-		$renewal_enabled = $consent && $token && $adapter && (int) $token->get_user_id() === (int) $order->get_customer_id() && $adapter->supports_saved_token( $token_id, (int) $order->get_customer_id() );
+		$renewal_enabled = $consent && $token && $adapter && $adapter->supports_checkout() && (int) $token->get_user_id() === (int) $order->get_customer_id() && $adapter->supports_saved_token( $token_id, (int) $order->get_customer_id() );
 		if ( ! $renewal_enabled ) {
 			$token_id = 0;
 			$gateway_id = '';
@@ -160,7 +160,7 @@ final class LicenseIssuer {
 				'created_at' => gmdate( 'Y-m-d H:i:s' ),
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
-			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%d', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
 		);
 
 		if ( false === $result ) {
