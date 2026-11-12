@@ -100,7 +100,7 @@ define( 'WPLC_LICENSE_KEY_SECRETS', array(
 define( 'WPLC_LICENSE_KEY_ID', '2026-06' );
 ```
 
-The schema migration assigns existing rows the key ID `legacy`. Set that entry to the exact secret previously used for those keys (the historical `WPLC_LICENSE_KEY_SECRET` or auth salt); missing secrets prevent the customer portal from re-deriving the display value, although stored key hashes remain verifiable. Do not remove old IDs until a managed license-key rotation and recovery migration has been tested.
+The schema migration assigns existing rows the key ID `legacy`. Set that entry to the exact secret previously used for those keys (the historical `WPLC_LICENSE_KEY_SECRET` or auth salt); missing secrets prevent the customer portal from re-deriving the display value, although stored key hashes remain verifiable. Do not remove old IDs until a managed license-key rotation and recovery migration has been tested. To check a candidate recovery ID without changing data, run `wp wplc recover-license-key-ids --to=<key-id>`; after reviewing counts and taking a tested backup, pass `--apply`. A row changes only if deriving its key with that configured ID reproduces its stored SHA-256 verifier.
 
 ## Current API scope
 
