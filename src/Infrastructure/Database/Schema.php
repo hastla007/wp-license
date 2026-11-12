@@ -19,7 +19,7 @@ final class Schema {
 	/**
 	 * Current schema version.
 	 */
-	public const VERSION = '5';
+	public const VERSION = '6';
 
 	/**
 	 * Run missing schema migrations.
@@ -184,6 +184,7 @@ final class Schema {
 				source_event_id varchar(190) NOT NULL,
 				event_type varchar(100) NOT NULL,
 				payload_hash char(64) NOT NULL,
+				payload_json longtext NOT NULL,
 				received_at datetime NOT NULL,
 				processed_at datetime DEFAULT NULL,
 				outcome varchar(40) NOT NULL DEFAULT 'received',
