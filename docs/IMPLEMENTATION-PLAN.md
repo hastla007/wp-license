@@ -403,9 +403,11 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 
 ### API, Sicherheit und Identität
 
-- [ ] **41 · API-Vertrag als maschinenprüfbare Spezifikation:** Requests, Antworten, Fehlercodes, Signaturen, Versionsregeln und Beispiele für alle v1-Routen in einer OpenAPI- oder JSON-Schema-Spezifikation festhalten. Serverseitige Antworten und PHP-Client-Fixtures automatisiert gegen dieselben Beispiele prüfen. **Abnahme:** keine undokumentierte Antwortform; inkompatible Änderungen schlagen in CI fehl.
+- [x] **41a · OpenAPI-Vertrag:** OpenAPI 3.0.3-Spezifikation für die sechs v1-Routen unter `docs/openapi-v1.json` erstellt; PHPUnit prüft JSON, Routen/Methoden, Signaturumschläge und Aktivierungs-Pflichtfelder (`tests/Contract/ApiContractTest.php`).
+- [ ] **41b · Laufzeit-Konformität:** REST-Integrationstests gegen echte WordPress-Routen ergänzen und Antworten/Fehlercodes mit der Spezifikation sowie gemeinsamen Client-Fixtures vergleichen. **Abnahme:** inkompatible API-Änderungen schlagen in CI fehl.
 - [ ] **42 · Versionierte Schlüsselrotation:** getrennte Schlüsselzwecke und Key-IDs für Lizenzschlüsselableitung, Installationstoken, HMAC/API-Antwortsignaturen und Offlinecache einführen. Rotation mit paralleler Gültigkeit alter Schlüssel, Migration/Wiederherstellung sowie Audit und Rückfallpfad implementieren. **Abnahme:** Rotation im Testbestand ohne verlorene Lizenzen oder unautorisierte Aktivierungen bestanden.
-- [ ] **43 · Replay- und Rate-Limit-Speicher härten:** Nonce-Einmaligkeit und Grenzwertprüfung bei parallelen Requests atomar machen; Bereinigungsjob, Ablauf, Sperrverhalten bei Datenbankfehlern und Schutz gegen gefälschte Proxy-IP-Header festlegen. **Abnahme:** parallele Replay-/Flood-Tests können das Limit nicht umgehen und die Nonce-Tabelle wächst nicht unbegrenzt.
+- [x] **43a · Atomare Sicherheitszähler:** Schema v7 ergänzt persistente Nonce- und Rate-Limit-Tabellen; HMAC-validierte Nonces werden per eindeutigem Schlüssel atomar konsumiert, Minutenlimits per Upsert gezählt, abgelaufene Datensätze stündlich bereinigt. Aktivierungs-IP wird vor der Verwendung validiert.
+- [ ] **43b · Sicherheitsintegrationstests:** parallele Replay-/Flood-Tests, DB-Fehler/Fallback, Proxy-Header und Bereinigungsgrenzen in WordPress/MySQL prüfen. **Abnahme:** Limits sind unter Konkurrenz nicht umgehbar und Datensätze wachsen nicht unbegrenzt.
 - [ ] **44 · Domain- und Installationsidentität kanonisieren:** eine einzige Routine für HTTPS-URLs, Ports, Groß-/Kleinschreibung, IDN/Punycode, Pfad, abschließenden Punkt und lokale Entwicklungsdomains in API, Kundenkonto und Admin verwenden. **Abnahme:** Äquivalenz-, Domainwechsel- und Spoofing-Testfälle liefern dieselbe sichere Zuordnung.
 - [ ] **45 · Rechte- und Lizenzzustandsautomat vervollständigen:** erlaubte Übergänge für aktiv, past_due, gekündigt, abgelaufen, erstattet, chargeback und manuell gesperrt zentral definieren; ungültige Übergänge serverseitig ablehnen und auditieren. **Abnahme:** Tabellen-/Property-Tests decken jeden Übergang und jede unzulässige Kombination ab.
 - [ ] **46 · Kunden- und Admin-Autorisierung testen:** Besitzprüfung bei Mein-Konto-Lizenz, Aktivierung, Kündigung, Zahlungslink und Download gegen fremde Kunden-IDs prüfen; Adminaktionen auf Capability, Nonce, Eingabevalidierung und Audit-Eintrag absichern. **Abnahme:** negative IDOR-/CSRF-Tests schlagen für alle schreibenden Endpunkte fehl.
@@ -439,3 +441,10 @@ Diese Punkte ergänzen die bisherige Liste um konkrete Lücken, die beim Abgleic
 - [ ] Sicherheitsreview mit Findings, Schweregrad, Fix-Commit und erneutem Test ist abgelegt.
 
 **Zielwert:** Wenn Aufgaben 21–60 und die technischen Abnahmen umgesetzt und bestanden sind, ist eine technische V1-Reife von ungefähr 90–95 % plausibel. Die restlichen Prozent entfallen auf reale Shop-/Gateway-/Storage-Konfiguration, Betriebsabnahme und externe Datenschutz-/Rechtsfreigaben; sie lassen sich nicht allein durch Programmiercode erledigen.
+
+
+## Arbeitsfortschritt zur Restliste
+
+- [x] **41a** OpenAPI-v1-Datei und strukturelle PHPUnit-Vertragsprüfung hinzugefügt.
+- [x] **43a** Replay-/Rate-Limits auf persistente atomare Datenbankzähler umgestellt; Schema auf Version 7 erweitert und Bereinigung geplant.
+- [ ] **41b / 43b** REST- und Datenbankintegrationstestläufe sind noch offen; die neue Änderung ist nicht als CI-Ergebnis bestätigt.
