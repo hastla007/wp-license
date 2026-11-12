@@ -39,6 +39,7 @@ if ( ! class_exists( '\\WPLC\\Plugin' ) ) {
 	require_once WPLC_PATH . 'src/Api/V1/ActivationService.php';
 	require_once WPLC_PATH . 'src/Api/V1/EntitlementService.php';
 	require_once WPLC_PATH . 'src/Api/V1/Routes.php';
+	require_once WPLC_PATH . 'src/Api/V1/UpdateService.php';
 	require_once WPLC_PATH . 'src/Account/CustomerPortal.php';
 	require_once WPLC_PATH . 'src/Admin/LicenseAdmin.php';
 	require_once WPLC_PATH . 'src/Gateway/RecurringGatewayAdapter.php';
