@@ -18,7 +18,8 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 				$missing[] = $table_name . ' (' . (string) $count . ')';
 			}
 		}
-		$this->assertTrue( $migrated, 'Schema migration failed; missing: ' . implode( ', ', $missing ) );
+		$diagnostic = 'prefix=' . $wpdb->prefix . '; database=' . (string) $wpdb->get_var( 'SELECT DATABASE()' ) . '; tables=' . implode( ',', (array) $wpdb->get_col( 'SHOW TABLES' ) );
+		$this->assertTrue( $migrated, 'Schema migration failed; missing: ' . implode( ', ', $missing ) . '; ' . $diagnostic );
 		$this->assertTrue( Schema::migrate() );
 		$this->assertTrue( Schema::maybe_upgrade() );
 		$this->assertSame( Schema::VERSION, (string) get_option( 'wplc_schema_version' ) );
