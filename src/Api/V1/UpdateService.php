@@ -113,7 +113,7 @@ final class UpdateService {
 		$now = gmdate( 'Y-m-d H:i:s' );
 		$grant = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT dt.package_url FROM {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id WHERE dt.token_hash = %s AND dt.consumed_at IS NULL AND dt.expires_at > %s AND l.status = %s AND (l.paid_until IS NULL OR l.paid_until > %s) LIMIT 1",
+				"SELECT dt.package_url, dt.license_id FROM {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id WHERE dt.token_hash = %s AND dt.consumed_at IS NULL AND dt.expires_at > %s AND l.status = %s AND (l.paid_until IS NULL OR l.paid_until > %s) LIMIT 1",
 				$token_hash,
 				$now,
 				'active',
@@ -139,7 +139,16 @@ final class UpdateService {
 			status_header( 404 );
 			exit;
 		}
-		wp_redirect( (string) $grant['package_url'], 302, 'WP License Captain' );
+		$download_url = apply_filters(
+			'wplc_resolve_update_package_url',
+			(string) $grant['package_url'],
+			(int) $grant['license_id']
+		);
+		if ( ! is_string( $download_url ) || ! self::trusted_package_url( $download_url ) ) {
+			status_header( 404 );
+			exit;
+		}
+		wp_redirect( $download_url, 302, 'WP License Captain' );
 		exit;
 	}
 
