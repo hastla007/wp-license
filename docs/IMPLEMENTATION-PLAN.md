@@ -328,3 +328,27 @@ Als nächstes PR13 auf Basis von PR12 erstellen: zuerst Architektur- und Sicherh
 - [x] Abgelaufene Downloadfreigaben werden einmal neu angefordert.
 - [x] Release-/Hostkonfiguration und offene Produktionsvoraussetzungen dokumentiert.
 - [ ] Produkt-PRs mergen und im WordPress-Testshop gegen echte Paketspeicherung abnehmen.
+
+
+## Fortschritt Phase 13–20 (12.11.2026)
+
+Die folgenden Haken bestätigen vorbereitete Code-/Dokumentations-PRs, nicht Merge oder Abnahme:
+
+- [x] **Phase 13 / PR14:** Token-/Renewal-Härtung und Sicherheitsnotizen vorbereitet; Review, Schlüsselmigration und vollständige Fehlerfallprüfung offen.
+- [x] **Phase 14 / PR15:** begrenzter Stripe-Recurring-Adapter vorbereitet; Webhookabgleich, 3DS-Wiederherstellung und Sandboxabnahme offen.
+- [x] **Phase 15 / PR16:** PayPal fail-closed Grenze dokumentiert; Adapter bleibt bewusst nicht verfügbar.
+- [x] **Phase 16 / PR17 + Client-PRs:** Lizenzclient und Aktivierungseinstellungen in allen drei Produkten vorbereitet; Feature-Gates und Offlinecache offen.
+- [x] **Phase 17 / PR18 + Client-PRs:** Updater, Downloadgrant-Erneuerung und SHA-256-Prüfung vorbereitet; echte Paketablage und WordPress-Testshop offen.
+- [x] **Phase 18 / PR19:** PHP-Syntax-CI-Matrix und QA-Lücken dokumentiert; Integrationstests und Kompatibilitätsläufe offen.
+- [x] **Phase 19 / PR20:** geschützte, schlüsselfreie Diagnoseansicht vorbereitet; Support- und Wiederherstellungsworkflows teilweise offen.
+- [x] **Phase 20 / PR21:** Produktionsbetrieb, Backup/Restore, Überwachung, Rollback und Go/No-Go dokumentiert; Infrastruktur und rechtliche Prüfung offen.
+
+### Offene Launch-Blocker
+
+- [ ] Alle gestapelten PRs reviewen, Konflikte lösen, mergen und in der vorgesehenen Reihenfolge ausrollen.
+- [ ] Stripe-Webhooks und manuelle Authentifizierung/Wiederherstellung implementieren und Gateway-Sandbox testen.
+- [ ] PayPal-Verlängerungen deaktiviert lassen, bis ein konkret unterstütztes Abo-/Vaultmodell umgesetzt und getestet ist.
+- [ ] Feature-Gates und höchstens 14 Tage signierten Offline-Entitlement-Cache in den Produktclients ergänzen.
+- [ ] Release-Speicher/Manifest konfigurieren, Updates im echten WordPress-Testshop samt Fehler-/Rollbackfällen abnehmen.
+- [ ] Vollständige PHPUnit-/REST-/Datenbankintegrationstests sowie Kompatibilitäts- und Sicherheitsprüfung ausführen.
+- [ ] Produktionsschlüssel, Hosting, Monitoring, Backup/Restore-Test, Datenschutz-/Checkouttexte, Kündigung, Steuer-/Rechnungsprozess und Supportverantwortung festlegen.
