@@ -64,7 +64,7 @@ final class UpdateService {
 		$token_hash = hash( 'sha256', $token );
 		$expires_at = gmdate( 'Y-m-d H:i:s', time() + self::TOKEN_TTL );
 		$now = gmdate( 'Y-m-d H:i:s' );
-		$wpdb->insert(
+		$inserted = $wpdb->insert(
 			$tables['download_tokens'],
 			array(
 				'license_id' => (int) $license['id'],
@@ -76,8 +76,8 @@ final class UpdateService {
 			),
 			array( '%d', '%s', '%s', '%s', '%s', '%s' )
 		);
-		if ( false === $wpdb->insert_id ) {
-			return new \\WP_Error( 'download_token_error', __( 'A secure package download could not be prepared.', 'wp-license' ), array( 'status' => 503 ) );
+		if ( false === $inserted ) {
+			return new \WP_Error( 'download_token_error', __( 'A secure package download could not be prepared.', 'wp-license' ), array( 'status' => 503 ) );
 		}
 		$payload = array(
 			'update_available' => true,
@@ -102,19 +102,44 @@ final class UpdateService {
 	 * @return void
 	 */
 	public static function download( \WP_REST_Request $request ): void {
+		global $wpdb;
 		$token = strtolower( sanitize_text_field( (string) $request->get_param( 'token' ) ) );
 		if ( ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) {
 			status_header( 404 );
 			exit;
 		}
-		$key = 'wplc_update_dl_' . hash( 'sha256', $token );
-		$grant = get_transient( $key );
-		delete_transient( $key );
-		if ( ! is_array( $grant ) || empty( $grant['url'] ) || empty( $grant['expires_at'] ) || (int) $grant['expires_at'] < time() || ! self::trusted_package_url( (string) $grant['url'] ) ) {
+		$tables = Schema::table_names();
+		$token_hash = hash( 'sha256', $token );
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$grant = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT dt.package_url FROM {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id WHERE dt.token_hash = %s AND dt.consumed_at IS NULL AND dt.expires_at > %s AND l.status = %s AND (l.paid_until IS NULL OR l.paid_until > %s) LIMIT 1",
+				$token_hash,
+				$now,
+				'active',
+				$now
+			),
+			ARRAY_A
+		);
+		if ( ! is_array( $grant ) || ! self::trusted_package_url( (string) $grant['package_url'] ) ) {
 			status_header( 404 );
 			exit;
 		}
-		wp_redirect( (string) $grant['url'], 302, 'WP License Captain' );
+		$consumed = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id SET dt.consumed_at = %s WHERE dt.token_hash = %s AND dt.consumed_at IS NULL AND dt.expires_at > %s AND l.status = %s AND (l.paid_until IS NULL OR l.paid_until > %s)",
+				$now,
+				$token_hash,
+				$now,
+				'active',
+				$now
+			)
+		);
+		if ( 1 !== (int) $consumed ) {
+			status_header( 404 );
+			exit;
+		}
+		wp_redirect( (string) $grant['package_url'], 302, 'WP License Captain' );
 		exit;
 	}
 
