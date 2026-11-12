@@ -5,11 +5,11 @@
  * @package WPLC
  */
 
-namespace WPLC\\CLI;
+namespace WPLC\CLI;
 
-use WPLC\\Infrastructure\\Database\\Schema;
-use WPLC\\License\\AuditLog;
-use WPLC\\Security\\SecretCrypto;
+use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\AuditLog;
+use WPLC\Security\SecretCrypto;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -26,7 +26,7 @@ final class RotateInstallationSecretsCommand {
 	 */
 	public static function register(): void {
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
-			\\WP_CLI::add_command( 'wplc rotate-installation-secrets', self::class );
+			\WP_CLI::add_command( 'wplc rotate-installation-secrets', self::class );
 		}
 	}
 
@@ -105,14 +105,14 @@ final class RotateInstallationSecretsCommand {
 				$secret = SecretCrypto::decrypt( $old_envelope );
 				if ( false === $secret || ! hash_equals( (string) $row['installation_secret_hash'], hash( 'sha256', $secret ) ) ) {
 					++$failed;
-					\\WP_CLI::warning( sprintf( 'Could not verify activation ID %d; row was not changed.', $last_id ) );
+					\WP_CLI::warning( sprintf( 'Could not verify activation ID %d; row was not changed.', $last_id ) );
 					continue;
 				}
 
 				$new_envelope = SecretCrypto::encrypt( $secret );
 				if ( false === $new_envelope ) {
 					++$failed;
-					\\WP_CLI::warning( sprintf( 'Could not encrypt activation ID %d; row was not changed.', $last_id ) );
+					\WP_CLI::warning( sprintf( 'Could not encrypt activation ID %d; row was not changed.', $last_id ) );
 					continue;
 				}
 
@@ -125,8 +125,8 @@ final class RotateInstallationSecretsCommand {
 					$wpdb->prepare(
 						"UPDATE {$tables['activations']} SET installation_secret_encrypted = %s WHERE id = %d AND installation_secret_encrypted = %s",
 						$new_envelope,
-					$last_id,
-					$old_envelope
+						$last_id,
+						$old_envelope
 					)
 				);
 				if ( 1 !== (int) $updated ) {
@@ -140,16 +140,16 @@ final class RotateInstallationSecretsCommand {
 					'activation',
 					$last_id,
 					'Installation secret encrypted with the configured current key',
-				array( 'envelope_version' => 'legacy_or_previous' ),
+					array( 'envelope_version' => 'legacy_or_previous' ),
 					array( 'envelope_version' => 'v1_current' )
 				);
 			}
 		}
 
-		\\WP_CLI::log( sprintf( 'Mode: %s', $apply ? 'apply' : 'dry-run' ) );
-		\\WP_CLI::log( sprintf( 'Inspected: %d; needing rotation: %d; already current: %d; changed concurrently: %d; failed: %d; last ID: %d', $inspected, $rotated, $already_current, $stale_rows, $failed, $last_id ) );
+		\WP_CLI::log( sprintf( 'Mode: %s', $apply ? 'apply' : 'dry-run' ) );
+		\WP_CLI::log( sprintf( 'Inspected: %d; needing rotation: %d; already current: %d; changed concurrently: %d; failed: %d; last ID: %d', $inspected, $rotated, $already_current, $stale_rows, $failed, $last_id ) );
 		if ( $failed > 0 ) {
-			\\WP_CLI::warning( 'Some rows need manual investigation. No failed row was modified.' );
+			\WP_CLI::warning( 'Some rows need manual investigation. No failed row was modified.' );
 		}
 	}
 }
