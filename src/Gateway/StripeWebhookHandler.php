@@ -69,8 +69,8 @@ final class StripeWebhookHandler {
 		}
 
 		$event_id = sanitize_text_field( (string) ( $event->id ?? '' ) );
-		$event_type = sanitize_key( (string) ( $event->type ?? '' ) );
-		if ( '' === $event_id || '' === $event_type || strlen( $event_id ) > 190 ) {
+		$event_type = strtolower( (string) ( $event->type ?? '' ) );
+		if ( '' === $event_id || ! preg_match( '/^[a-z0-9_]+\\.[a-z0-9_]+$/', $event_type ) || strlen( $event_id ) > 190 ) {
 			return new \WP_REST_Response( array( 'code' => 'stripe_event_invalid' ), 400 );
 		}
 
