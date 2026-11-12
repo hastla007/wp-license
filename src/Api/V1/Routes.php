@@ -44,6 +44,8 @@ final class Routes {
 					'installation_id' => array( 'required' => true, 'type' => 'string' ),
 					'installation_secret' => array( 'required' => true, 'type' => 'string' ),
 					'site_url' => array( 'required' => true, 'type' => 'string' ),
+					'environment' => array( 'required' => false, 'type' => 'string', 'default' => 'production' ),
+					'staging_parent_installation_id' => array( 'required' => false, 'type' => 'string' ),
 				),
 			)
 		);
