@@ -1,56 +1,58 @@
 # Release readiness checklist
 
-This checklist is a go/no-go gate for a public or commercial release. The repository's stacked PRs are an implementation preview, not a claim that each item below has passed.
+Go/no-go gate for the first public release. A box is ticked only when the item was verified and the evidence is recorded in [LAUNCH-EVIDENCE.md](LAUNCH-EVIDENCE.md). Nothing is verified yet: the code has passed unit tests and lint only, and no purchase has run through a real shop.
 
-## Build and compatibility
+The work items themselves live in [TODO.md](TODO.md), the single task list. This page does not repeat them; each gate names the tasks that must be closed first.
 
-- [ ] Merge the PR stack in order and review the final diff against the target branch.
-- [ ] Run the project's supported PHP syntax, coding-standard, static-analysis, and integration checks on the minimum and current supported PHP/WordPress/WooCommerce versions.
-- [ ] Exercise schema installation and upgrades against representative existing WordPress databases; confirm the database-delta results and rollback/recovery guidance.
-- [ ] Verify plugin activation/deactivation, Action Scheduler/WP-Cron behavior, HPOS, multisite policy, and WooCommerce Checkout Blocks support.
-- [ ] Build and install the distributable ZIP on a clean WordPress site; check plugin headers, dependencies, autoloading, translations, and upgrade behavior.
+## Gates
 
-## License and payment behavior
+### 1. Build and installation
 
-- [ ] Implement and review a concrete gateway adapter for each advertised renewal payment method.
-- [ ] Verify consent disclosure, token ownership, off-session authorization, idempotency, ambiguous timeouts, retries, refunds, cancellation, and grace-period expiry with gateway sandbox accounts.
-- [ ] Confirm manual renewal works if automatic renewals are unavailable.
-- [ ] Confirm site-limit concurrency, staging pairing, refunds by quantity, admin suspension/revocation, and customer deactivation against realistic orders.
+- [ ] All tasks of TODO section 1 closed (T-01 to T-03).
+- [ ] CI green on the release commit: lint, unit tests, integration tests, coding standards, static analysis (T-80).
+- [ ] Release ZIP built by CI, installed on a clean WordPress with WooCommerce, activated without errors or notices (T-95).
+- [ ] Update from the previous schema version runs without data loss (T-60).
+- [ ] German and English admin and customer texts checked on screen; `languages/` is in the ZIP (T-76).
 
-## Premium updates
+### 2. Purchase and renewal
 
-- [ ] Configure the package registry and HTTPS host allow-list.
-- [ ] Confirm release metadata matches the exact ZIP version and SHA-256 checksum.
-- [ ] Implement client-side signature verification and ZIP checksum verification before WordPress installs the package.
-- [ ] Verify expired/replayed download grants, invalid hosts, inactive/expired licenses, and provider outages.
-- [ ] Publish rollback steps and keep previous release artifacts available.
+- [ ] All [KRITISCH] tasks under "Kauf und Verlängerung" closed (T-10 to T-16).
+- [ ] Purchase → license → email → account verified in the test shop with real WooCommerce screens.
+- [ ] Automatic renewal verified in the Stripe test mode: success, decline, 3-D Secure, timeout, removed card (T-12).
+- [ ] Manual renewal verified with at least two payment methods, including a net-price and a gross-price shop.
+- [ ] Refund of a purchase and of a renewal order, cancellation, dispute and grace-period expiry verified (T-50, T-51, T-82).
+- [ ] Stripe webhook endpoint configured and verified with real events as described in [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md) (T-85).
 
-## Security and privacy
+### 3. Updates and product plugins
 
-- [ ] Complete an independent review of REST authentication, authorization, nonce replay, activation abuse/rate limiting, secrets, redirects, and audit logging.
-- [ ] Decide and document a secure key-rotation and license recovery approach. Current identifiers/installation secrets depend on WordPress salts.
-- [ ] Define retention and deletion rules for licenses, activations, renewal orders, and audit records; publish the applicable privacy notice and data-processing terms.
-- [ ] Confirm no payment credentials or unnecessary customer/product-site data are stored or transmitted.
-- [ ] Review checkout consent and recurring billing disclosures for every sales jurisdiction.
+- [ ] All [KRITISCH] tasks under "Updates" and "Produkt-Plugins" closed (T-30 to T-32, T-40 to T-42).
+- [ ] A release published in the admin is installed through the WordPress updater of each product plugin; wrong checksum, expired link and inactive license are refused.
+- [ ] Customer download of the first ZIP from the account verified.
+- [ ] Rollback verified: withdraw a release, installations get the previous version offered.
 
-## Operations
+### 4. Security and privacy
 
-- [ ] Configure backups, database monitoring, Action Scheduler monitoring, error alerts, and incident response ownership.
-- [ ] Set up a production license server with HTTPS, durable backups, stable salts, and a tested restore process.
-- [ ] Document support procedures for lost keys, domain changes, site-limit requests, refunds, payment failures, and salt rotation.
-- [ ] Assign a release owner, version, changelog, support window, and rollback decision maker.
+- [ ] All [KRITISCH] tasks under "Sicherheit und Schlüssel" closed (T-20 to T-23).
+- [ ] `WPLC_LICENSE_KEY_SECRETS` and `WPLC_INSTALLATION_ENCRYPTION_KEYS` defined on the production server; the admin notice about salt fallback is gone.
+- [ ] Key rotation and recovery rehearsed on a restored database copy (T-86).
+- [ ] Personal data export and erasure verified through the WordPress privacy tools; retention periods decided (T-89, T-92).
+- [ ] Independent review of the REST API authentication completed (T-22).
 
+### 5. Operations and legal
 
-## Specific open findings from implementation review
+- [ ] Production server, backups and a tested restore in place (T-90).
+- [ ] A subscriber for `wplc/health_alert` and monitoring of scheduled actions in place as described in [MONITORING.md](MONITORING.md) (T-91).
+- [ ] System cron runs `wp-cron.php`; Action Scheduler queue is processed.
+- [ ] Page cache and CDN exclusions set as described in [CACHING.md](CACHING.md) (T-107).
+- [ ] Legal review done: cancellation button, renewal information duties, withdrawal for digital content, privacy notice, invoices and VAT for renewals (T-93).
+- [ ] Support procedures written and owners named for release, support, incident and rollback (T-94).
 
-The items below are known gaps in the current engineering preview and must remain release blockers until each has an implementation and passing acceptance evidence:
+### 6. Sign-off
 
-- [ ] Store download grants in persistent storage with an atomic one-use claim, then recheck license status immediately before redirecting to the package.
-- [ ] Add WordPress/MySQL REST tests for signatures, replay and rate limits, concurrent live/staging activation, customer ownership, nonces, and database-write failures.
-- [ ] Prove renewal recovery after an ambiguous provider timeout, order creation failure, partial database write, duplicate scheduled action, cancellation, refund, or chargeback. The adapter interface alone does not provide this proof.
-- [ ] Exercise consent, update, cancellation, export, and erasure flows through real WooCommerce screens and supported checkout modes.
-- [ ] Verify license-key recovery and installation-secret rotation on a restored database copy before rotating WordPress salts.
-- [ ] Test the complete product-client contract, feature gates, 14-day offline-cache boundary, update signature, ZIP checksum, and rollback on each product's minimum PHP version.
-- [ ] Define retention periods and run scheduled purge tests for activation metadata, expired download grants, renewal events, and audit data.
+- [ ] Every remaining [KRITISCH] and [WICHTIG] task in TODO.md is closed or explicitly accepted as a known limitation in the release notes.
+- [ ] LAUNCH-EVIDENCE.md filled in (T-96).
+- [ ] Version, changelog and `readme.txt` updated; release owner has signed off.
 
-Do not advertise a capability until its corresponding product client, payment adapter, package host, and operational runbook are deployed and verified.
+## Rule
+
+Do not advertise a capability (automatic renewal, premium updates, a payment method) before its gate is ticked.
