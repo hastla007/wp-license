@@ -23,7 +23,8 @@ final class ProductEditor {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'woocommerce_product_options_general_product_data', array( self::class, 'render_product_fields' ) );
-		add_action( 'woocommerce_process_product_meta', array( self::class, 'save_product_fields' ) );
+		// After WooCommerce's own save (priority 10), so the plan stores the price entered in the same request.
+		add_action( 'woocommerce_process_product_meta', array( self::class, 'save_product_fields' ), 20 );
 		add_action( 'woocommerce_variation_options_pricing', array( self::class, 'render_variation_fields' ), 10, 3 );
 		add_action( 'woocommerce_save_product_variation', array( self::class, 'save_variation_fields' ), 10, 2 );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
