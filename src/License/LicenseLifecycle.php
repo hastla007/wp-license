@@ -213,13 +213,16 @@ final class LicenseLifecycle {
 			return;
 		}
 
-		$wpdb->update(
+		$entitlements_updated = $wpdb->update(
 			$tables['entitlements'],
 			array( 'status' => 'active', 'ends_at' => $paid_until ),
 			array( 'license_id' => $license_id ),
 			array( '%s', '%s' ),
-			array( '%d', '%s' )
+			array( '%d' )
 		);
+		if ( false === $entitlements_updated ) {
+			return;
+		}
 
 		AuditLog::record(
 			'renewal_succeeded',
