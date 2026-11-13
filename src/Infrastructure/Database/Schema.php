@@ -21,8 +21,11 @@ final class Schema {
 	 *
 	 * 11: renewals.status widened to 30 characters ("manual_action_required" has 22;
 	 *     WordPress refuses to write a value longer than the column).
+	 * 18: {prefix}wplc_reminder_log is part of the schema (it used to install itself);
+	 *     indexes for retention and diagnostics (activations.status_deactivated,
+	 *     event_inbox.outcome_processed).
 	 */
-	public const VERSION = '11';
+	public const VERSION = '18';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -35,6 +38,26 @@ final class Schema {
 	private const LOCK_TIMEOUT = 3;
 
 	/**
+	 * Option with the details of the last failed migration (not autoloaded).
+	 */
+	public const ERROR_OPTION = 'wplc_schema_last_error';
+
+	/**
+	 * Autoloaded option "<version>|<unix time>" of the last successful structure check.
+	 */
+	public const VERIFIED_OPTION = 'wplc_schema_verified';
+
+	/**
+	 * Seconds between two structure checks of an up-to-date schema (self-healing).
+	 */
+	private const VERIFY_INTERVAL = 86400;
+
+	/**
+	 * Seconds to wait after a failed migration before the next automatic attempt.
+	 */
+	private const RETRY_DELAY = 300;
+
+	/**
 	 * Data-migration steps, keyed by the schema version they bring the data to.
 	 *
 	 * Every step runs after dbDelta, must be idempotent (it can run again after a
@@ -45,6 +68,7 @@ final class Schema {
 	 */
 	private static $steps = array(
 		'10' => array( self::class, 'step_10_autoload_schema_version' ),
+		'18' => array( self::class, 'step_18_adopt_reminder_log' ),
 	);
 
 	/**
@@ -54,20 +78,285 @@ final class Schema {
 	 */
 	public static function register_hooks(): void {
 		add_filter( 'wpmu_drop_tables', array( self::class, 'filter_wpmu_drop_tables' ), 10, 2 );
+		add_action( 'admin_notices', array( self::class, 'render_admin_notice' ) );
 	}
 
 	/**
-	 * Run missing schema migrations.
+	 * Run missing schema migrations and repair a damaged schema.
 	 *
-	 * @return bool True when the required tables exist.
+	 * Called on every request, so the common case (version current, structure
+	 * checked recently) costs no query. Rules:
+	 * - Installed version newer than this code (downgrade): nothing is changed,
+	 *   see is_downgraded().
+	 * - Version current: once per VERIFY_INTERVAL the columns are compared with
+	 *   information_schema; missing tables or columns are recreated.
+	 * - Cached version older than the code but the database row is current
+	 *   (stale object cache, restore without flush): only the cache is corrected.
+	 * - Version older: migrate, but only in admin, cron and CLI requests and
+	 *   without waiting for the lock. Front-end and REST requests never migrate.
+	 *
+	 * @return bool True when the schema is usable for this code version.
 	 */
 	public static function maybe_upgrade(): bool {
 		$installed = (string) get_option( self::VERSION_OPTION, '0' );
-		if ( version_compare( $installed, self::VERSION, '>=' ) ) {
+		if ( version_compare( $installed, self::VERSION, '>' ) ) {
 			return true;
 		}
 
-		return self::migrate();
+		if ( version_compare( $installed, self::VERSION, '==' ) ) {
+			if ( ! self::verification_due( (string) get_option( self::VERIFIED_OPTION, '' ), self::VERSION, time(), self::VERIFY_INTERVAL ) || ! self::can_migrate_in_this_request() ) {
+				return true;
+			}
+			if ( ! self::verify() ) {
+				self::mark_verified();
+				return true;
+			}
+
+			// Tables or columns are missing although the version says current: rebuild.
+			return self::retry_allowed() ? self::migrate( 0 ) : false;
+		}
+
+		if ( version_compare( self::stored_version(), self::VERSION, '>=' ) ) {
+			// The database is current, only the cached option value is stale.
+			self::refresh_cached_version();
+			return true;
+		}
+
+		if ( ! self::can_migrate_in_this_request() || ! self::retry_allowed() ) {
+			return false;
+		}
+
+		return self::migrate( 0 );
+	}
+
+	/**
+	 * Whether the database was written by a newer plugin version than this code.
+	 *
+	 * After a rollback to an older plugin release the old code would run against
+	 * a newer schema. Nothing is migrated in that state, administrators see a
+	 * notice and SiteGuard::billing_paused() stops charges until the plugin is
+	 * updated again.
+	 *
+	 * @return bool
+	 */
+	public static function is_downgraded(): bool {
+		return version_compare( (string) get_option( self::VERSION_OPTION, '0' ), self::VERSION, '>' );
+	}
+
+	/**
+	 * Target/actual comparison for the diagnostics page.
+	 *
+	 * @return array{installed:string,expected:string,downgraded:bool,problems:string[],last_error:array<string,mixed>|null}
+	 */
+	public static function status(): array {
+		$error = get_option( self::ERROR_OPTION, null );
+
+		return array(
+			'installed'  => (string) get_option( self::VERSION_OPTION, '0' ),
+			'expected'   => self::VERSION,
+			'downgraded' => self::is_downgraded(),
+			'problems'   => self::is_downgraded() ? array() : self::verify(),
+			'last_error' => is_array( $error ) ? $error : null,
+		);
+	}
+
+	/**
+	 * Compare every table with the columns this code expects.
+	 *
+	 * @return string[] Problems such as "wp_wplc_renewals.status: varchar(20), expected varchar(30)"; empty when the schema is complete.
+	 */
+	public static function verify(): array {
+		global $wpdb;
+
+		$expected = array();
+		foreach ( self::table_statements() as $statement ) {
+			$parsed = self::expected_columns( $statement );
+			if ( '' !== $parsed['table'] ) {
+				$expected[ $parsed['table'] ] = $parsed['columns'];
+			}
+		}
+		if ( ! $expected ) {
+			return array( 'No table definitions found.' );
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $expected ), '%s' ) );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- one %s per table name.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT TABLE_NAME AS tbl, COLUMN_NAME AS col, DATA_TYPE AS data_type, CHARACTER_MAXIMUM_LENGTH AS max_length FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name IN ({$placeholders})",
+				array_keys( $expected )
+			),
+			ARRAY_A
+		);
+		// phpcs:enable
+		if ( ! is_array( $rows ) || '' !== (string) $wpdb->last_error ) {
+			return array( 'The table structure could not be read: ' . (string) $wpdb->last_error );
+		}
+
+		$actual = array();
+		foreach ( $rows as $row ) {
+			$actual[ (string) $row['tbl'] ][ strtolower( (string) $row['col'] ) ] = array(
+				'type'   => strtolower( (string) $row['data_type'] ),
+				'length' => null === $row['max_length'] ? 0 : (int) $row['max_length'],
+			);
+		}
+
+		$problems = array();
+		foreach ( $expected as $table => $columns ) {
+			// Table names are compared case-insensitively (lower_case_table_names).
+			$found = array();
+			foreach ( $actual as $actual_table => $actual_columns ) {
+				if ( 0 === strcasecmp( $actual_table, $table ) ) {
+					$found = $actual_columns;
+					break;
+				}
+			}
+			$problems = array_merge( $problems, self::column_problems( $table, $columns, $found ) );
+		}
+
+		return $problems;
+	}
+
+	/**
+	 * Extract the table name and the column types from one CREATE TABLE statement.
+	 *
+	 * Pure helper. The CREATE TABLE statements are the single source for the
+	 * expected structure, so a new column is verified without a second list.
+	 *
+	 * @param string $statement CREATE TABLE statement in dbDelta layout (one column per line).
+	 * @return array{table:string,columns:array<string,array{type:string,length:int}>}
+	 */
+	public static function expected_columns( string $statement ): array {
+		$result = array(
+			'table'   => '',
+			'columns' => array(),
+		);
+		if ( ! preg_match( '/CREATE TABLE\s+`?([^\s`(]+)`?\s*\(/i', $statement, $match ) ) {
+			return $result;
+		}
+		$result['table'] = $match[1];
+
+		$lines = preg_split( '/\R/', $statement );
+		foreach ( is_array( $lines ) ? $lines : array() as $line ) {
+			$line = trim( $line );
+			if ( '' === $line || preg_match( '/^(?:(?:CREATE\s+TABLE|PRIMARY\s+KEY|UNIQUE\s+KEY|UNIQUE\s+INDEX|KEY|INDEX|FULLTEXT|SPATIAL|CONSTRAINT|FOREIGN\s+KEY)\b|\))/i', $line ) ) {
+				continue;
+			}
+			if ( preg_match( '/^`?([A-Za-z0-9_]+)`?\s+([A-Za-z]+)(?:\s*\(\s*(\d+)[^)]*\))?/', $line, $column ) ) {
+				$result['columns'][ strtolower( $column[1] ) ] = array(
+					'type'   => self::normalize_type( $column[2] ),
+					'length' => isset( $column[3] ) ? (int) $column[3] : 0,
+				);
+			}
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Compare the expected columns of one table with what the database reports.
+	 *
+	 * Pure helper. A character column that is wider than expected is accepted
+	 * (widened by hand), a narrower one is a problem: WordPress refuses to
+	 * write a value that is longer than the column.
+	 *
+	 * @param string                                      $table    Table name for the messages.
+	 * @param array<string,array{type:string,length:int}> $expected Expected columns.
+	 * @param array<string,array{type:string,length:int}> $actual   Existing columns; empty when the table is missing.
+	 * @return string[]
+	 */
+	public static function column_problems( string $table, array $expected, array $actual ): array {
+		if ( ! $actual ) {
+			return array( $table . ': table is missing' );
+		}
+
+		$problems = array();
+		foreach ( $expected as $name => $definition ) {
+			if ( ! isset( $actual[ $name ] ) ) {
+				$problems[] = $table . '.' . $name . ': column is missing';
+				continue;
+			}
+			$actual_type = self::normalize_type( (string) $actual[ $name ]['type'] );
+			$is_text     = in_array( $definition['type'], array( 'char', 'varchar' ), true );
+			if ( $actual_type !== $definition['type'] || ( $is_text && (int) $actual[ $name ]['length'] < (int) $definition['length'] ) ) {
+				$problems[] = sprintf(
+					'%s.%s: %s, expected %s',
+					$table,
+					$name,
+					$actual_type . ( $is_text || in_array( $actual_type, array( 'char', 'varchar' ), true ) ? '(' . (int) $actual[ $name ]['length'] . ')' : '' ),
+					$definition['type'] . ( $is_text ? '(' . (int) $definition['length'] . ')' : '' )
+				);
+			}
+		}
+
+		return $problems;
+	}
+
+	/**
+	 * Whether the structure of an up-to-date schema has to be checked again.
+	 *
+	 * Pure helper.
+	 *
+	 * @param string $marker   Stored "<version>|<unix time>" marker.
+	 * @param string $version  Current schema version.
+	 * @param int    $now      Unix timestamp.
+	 * @param int    $interval Seconds between two checks.
+	 * @return bool
+	 */
+	public static function verification_due( string $marker, string $version, int $now, int $interval ): bool {
+		$parts = explode( '|', $marker );
+		if ( 2 !== count( $parts ) || $parts[0] !== $version || ! ctype_digit( $parts[1] ) ) {
+			return true;
+		}
+		$checked = (int) $parts[1];
+
+		return $checked > $now || $now - $checked >= $interval;
+	}
+
+	/**
+	 * Show a failed migration or a plugin downgrade to administrators.
+	 *
+	 * @return void
+	 */
+	public static function render_admin_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		if ( self::is_downgraded() ) {
+			echo '<div class="notice notice-error"><p>';
+			echo esc_html(
+				sprintf(
+					/* translators: 1: installed database schema version, 2: schema version this plugin version supports. */
+					__( 'WP License Captain: the database was upgraded by a newer plugin version (schema %1$s, this version supports %2$s). Renewal charges and customer emails are paused. Install the newer plugin version again.', 'wp-license' ),
+					(string) get_option( self::VERSION_OPTION, '0' ),
+					self::VERSION
+				)
+			);
+			echo '</p></div>';
+			return;
+		}
+
+		if ( version_compare( (string) get_option( self::VERSION_OPTION, '0' ), self::VERSION, '>=' ) ) {
+			// Autoloaded check first: the error option is only read while something is wrong.
+			$marker = (string) get_option( self::VERIFIED_OPTION, '' );
+			if ( 0 === strpos( $marker, self::VERSION . '|' ) ) {
+				return;
+			}
+		}
+		$error = get_option( self::ERROR_OPTION, null );
+		if ( ! is_array( $error ) || empty( $error['message'] ) ) {
+			return;
+		}
+		echo '<div class="notice notice-error"><p>';
+		echo esc_html(
+			sprintf(
+				/* translators: %s: technical error details. */
+				__( 'WP License Captain could not update its database tables. The plugin keeps working with the previous structure and retries automatically. Details: %s', 'wp-license' ),
+				(string) $error['message']
+			)
+		);
+		echo '</p></div>';
 	}
 
 	/**
@@ -77,13 +366,14 @@ final class Schema {
 	 * cannot get the lock in time returns false and leaves the work to the
 	 * request that holds it.
 	 *
-	 * @return bool True when every required table exists and all steps succeeded.
+	 * @param int $lock_timeout Seconds to wait for a concurrent migration. maybe_upgrade() passes 0.
+	 * @return bool True when every table has the expected columns and all steps succeeded.
 	 */
-	public static function migrate(): bool {
+	public static function migrate( int $lock_timeout = self::LOCK_TIMEOUT ): bool {
 		global $wpdb;
 
 		$lock_name = self::lock_name();
-		$lock      = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, self::LOCK_TIMEOUT ) );
+		$lock      = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, max( 0, $lock_timeout ) ) );
 		if ( null !== $lock && 1 !== (int) $lock ) {
 			// Another request is migrating right now.
 			return false;
@@ -190,14 +480,70 @@ final class Schema {
 	}
 
 	/**
-	 * dbDelta, table check and pending data steps. Caller holds the lock.
+	 * Run dbDelta, the structure check and the pending data steps. Caller holds the lock.
+	 *
+	 * The version is only stored when dbDelta reported no database error, every
+	 * expected column exists with the expected type and all data steps succeeded.
 	 *
 	 * @return bool
 	 */
 	private static function run_migration(): bool {
-		global $wpdb;
+		global $wpdb, $EZSQL_ERROR;
+
+		if ( version_compare( self::stored_version(), self::VERSION, '>' ) ) {
+			// Downgrade: dbDelta with older definitions could narrow columns of the newer schema.
+			return true;
+		}
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+		// wpdb appends every failed query to $EZSQL_ERROR, also while error output is suppressed.
+		$error_offset = is_array( $EZSQL_ERROR ) ? count( $EZSQL_ERROR ) : 0;
+		$suppressed   = $wpdb->suppress_errors( true );
+		foreach ( self::table_statements() as $statement ) {
+			\dbDelta( $statement );
+		}
+		$wpdb->suppress_errors( $suppressed );
+
+		$problems = array_merge( self::verify(), self::database_errors_since( $error_offset ) );
+		if ( $problems ) {
+			self::record_failure( $problems );
+			return false;
+		}
+
+		// Re-read from the database: another request may have migrated while this one waited for the lock.
+		$installed = self::stored_version();
+		$pending   = self::pending_step_versions( $installed, self::VERSION, array_keys( self::$steps ) );
+		$callables = array();
+		foreach ( $pending as $version ) {
+			$callables[ $version ] = static function () use ( $version ) {
+				return self::run_registered_step( $version );
+			};
+		}
+		if ( ! self::run_steps( $pending, $callables, array( self::class, 'store_version' ) ) ) {
+			// The last successful step is recorded; the failed one is retried later.
+			self::record_failure( array_merge( array( 'A data migration step failed (installed version ' . self::stored_version() . ').' ), self::database_errors_since( $error_offset ) ) );
+			return false;
+		}
+
+		if ( version_compare( $installed, self::VERSION, '<' ) || ! self::version_is_autoloaded() ) {
+			self::store_version( self::VERSION );
+		}
+		self::mark_verified();
+		if ( null !== get_option( self::ERROR_OPTION, null ) ) {
+			delete_option( self::ERROR_OPTION );
+		}
+
+		return true;
+	}
+
+	/**
+	 * CREATE TABLE statements of every plugin table (dbDelta layout).
+	 *
+	 * @return string[]
+	 */
+	private static function table_statements(): array {
+		global $wpdb;
 
 		$charset_collate = $wpdb->get_charset_collate();
 		$tables          = self::table_names();
@@ -288,7 +634,8 @@ final class Schema {
 				PRIMARY KEY  (id),
 				UNIQUE KEY installation_uuid (installation_uuid),
 				KEY license_status (license_id,status),
-				KEY staging_parent (staging_parent_id)
+				KEY staging_parent (staging_parent_id),
+				KEY status_deactivated (status,deactivated_at)
 			) {$charset_collate};",
 			"CREATE TABLE {$tables['entitlements']} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -347,7 +694,8 @@ final class Schema {
 				outcome varchar(40) NOT NULL DEFAULT 'received',
 				PRIMARY KEY  (id),
 				UNIQUE KEY source_event (source,source_event_id),
-				KEY inbox_pending (processed_at,received_at)
+				KEY inbox_pending (processed_at,received_at),
+				KEY outcome_processed (outcome,processed_at)
 			) {$charset_collate};",
 			"CREATE TABLE {$tables['request_nonces']} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -417,43 +765,19 @@ final class Schema {
 				KEY license_source_created (license_id,source,created_at),
 				KEY stream_expiry (expires_at)
 			) {$charset_collate};",
+			"CREATE TABLE {$tables['reminder_log']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				license_id bigint(20) unsigned NOT NULL,
+				reminder_type varchar(40) NOT NULL,
+				period_end datetime NOT NULL,
+				sent_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY license_reminder (license_id,reminder_type,period_end),
+				KEY sent_at (sent_at)
+			) {$charset_collate};",
 		);
 
-		foreach ( $sql as $statement ) {
-			\dbDelta( $statement );
-		}
-
-		foreach ( $tables as $table_name ) {
-			$table_exists = $wpdb->get_var(
-				$wpdb->prepare(
-					'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
-					$table_name
-				)
-			);
-			if ( 1 !== (int) $table_exists ) {
-				return false;
-			}
-		}
-
-		// Re-read from the database: another request may have migrated while this one waited for the lock.
-		$installed = self::stored_version();
-		$pending   = self::pending_step_versions( $installed, self::VERSION, array_keys( self::$steps ) );
-		$callables = array();
-		foreach ( $pending as $version ) {
-			$callables[ $version ] = static function () use ( $version ) {
-				return self::run_registered_step( $version );
-			};
-		}
-		if ( ! self::run_steps( $pending, $callables, array( self::class, 'store_version' ) ) ) {
-			// The last successful step is recorded; the failed one is retried on the next request.
-			return false;
-		}
-
-		if ( version_compare( $installed, self::VERSION, '<' ) || ! self::version_is_autoloaded() ) {
-			self::store_version( self::VERSION );
-		}
-
-		return true;
+		return $sql;
 	}
 
 	/**
@@ -490,6 +814,7 @@ final class Schema {
 			'audit_log'    => $prefix . 'audit_log',
 			'releases'     => $prefix . 'releases',
 			'package_streams' => $prefix . 'package_streams',
+			'reminder_log' => $prefix . 'reminder_log',
 		);
 	}
 
@@ -526,6 +851,148 @@ final class Schema {
 
 		// Not fatal when the flag could not be changed: the value is rewritten with autoload right after.
 		return true;
+	}
+
+	/**
+	 * Schema 18: the reminder log belongs to the schema.
+	 *
+	 * The table used to be created by the notification package, guarded by its
+	 * own version option. When the tables were dropped by hand and the option
+	 * survived, the table was never created again and no reminder was sent.
+	 * dbDelta has created the table by now; the old option is aligned so the
+	 * former installer stays quiet.
+	 *
+	 * @return bool
+	 */
+	private static function step_18_adopt_reminder_log(): bool {
+		if ( '1' !== (string) get_option( 'wplc_reminder_log_version', '' ) ) {
+			update_option( 'wplc_reminder_log_version', '1', false );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Migrations run in admin, cron and CLI requests only.
+	 *
+	 * A front-end or REST request must never wait for a schema lock or run DDL.
+	 *
+	 * @return bool
+	 */
+	private static function can_migrate_in_this_request(): bool {
+		$allowed = 'cli' === PHP_SAPI
+			|| ( defined( 'WP_CLI' ) && WP_CLI )
+			|| ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() )
+			|| ( is_admin() && ! ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) );
+
+		/**
+		 * Filter whether this request may run a schema migration.
+		 *
+		 * @param bool $allowed True in admin (not AJAX), cron and CLI requests.
+		 */
+		return (bool) apply_filters( 'wplc_schema_can_migrate', $allowed );
+	}
+
+	/**
+	 * Whether enough time has passed since the last failed migration.
+	 *
+	 * @return bool
+	 */
+	private static function retry_allowed(): bool {
+		$error = get_option( self::ERROR_OPTION, null );
+		if ( ! is_array( $error ) || empty( $error['time'] ) ) {
+			return true;
+		}
+		$failed_at = (int) $error['time'];
+
+		return $failed_at > time() || time() - $failed_at >= self::RETRY_DELAY;
+	}
+
+	/**
+	 * Remember why a migration failed (diagnostics, admin notice, retry delay).
+	 *
+	 * @param string[] $problems Structure problems and database errors.
+	 * @return void
+	 */
+	private static function record_failure( array $problems ): void {
+		$message = implode( '; ', array_slice( array_values( array_unique( array_map( 'strval', $problems ) ) ), 0, 20 ) );
+		update_option(
+			self::ERROR_OPTION,
+			array(
+				'time'    => time(),
+				'version' => self::VERSION,
+				'message' => function_exists( 'mb_substr' ) ? mb_substr( $message, 0, 2000 ) : substr( $message, 0, 2000 ),
+			),
+			false
+		);
+		if ( '' !== (string) get_option( self::VERIFIED_OPTION, '' ) ) {
+			delete_option( self::VERIFIED_OPTION );
+		}
+	}
+
+	/**
+	 * Database errors wpdb collected since the given offset.
+	 *
+	 * @param int $offset Number of entries in $EZSQL_ERROR before the migration started.
+	 * @return string[]
+	 */
+	private static function database_errors_since( int $offset ): array {
+		global $EZSQL_ERROR;
+
+		$errors = array();
+		foreach ( array_slice( is_array( $EZSQL_ERROR ) ? $EZSQL_ERROR : array(), $offset ) as $entry ) {
+			if ( is_array( $entry ) && isset( $entry['query'] ) && preg_match( '/^\s*DESCRIBE\s/i', (string) $entry['query'] ) ) {
+				// dbDelta probes every table with DESCRIBE; a missing table is its normal "create it" case.
+				continue;
+			}
+			if ( is_array( $entry ) && ! empty( $entry['error_str'] ) ) {
+				$errors[] = 'Database error: ' . (string) $entry['error_str'];
+			}
+		}
+
+		return $errors;
+	}
+
+	/**
+	 * Store the time of a successful structure check.
+	 *
+	 * @return void
+	 */
+	private static function mark_verified(): void {
+		update_option( self::VERIFIED_OPTION, self::VERSION . '|' . time(), true );
+	}
+
+	/**
+	 * Drop a stale cached copy of the version option.
+	 *
+	 * With a persistent object cache the cached value can be older than the
+	 * database row (restore without flush, cache written by another release).
+	 * Without this the whole migration would run on every request.
+	 *
+	 * @return void
+	 */
+	private static function refresh_cached_version(): void {
+		wp_cache_delete( self::VERSION_OPTION, 'options' );
+		wp_cache_delete( 'alloptions', 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
+	}
+
+	/**
+	 * Lower-case type name with MySQL synonyms resolved.
+	 *
+	 * @param string $type Type from a CREATE TABLE statement or information_schema.
+	 * @return string
+	 */
+	private static function normalize_type( string $type ): string {
+		$type     = strtolower( $type );
+		$synonyms = array(
+			'integer' => 'int',
+			'bool'    => 'tinyint',
+			'boolean' => 'tinyint',
+			'numeric' => 'decimal',
+		);
+
+		return isset( $synonyms[ $type ] ) ? $synonyms[ $type ] : $type;
 	}
 
 	/**
