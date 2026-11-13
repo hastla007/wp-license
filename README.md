@@ -59,21 +59,18 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 
 ```bash
 composer install
+composer lint                # PHP syntax check of every file
 composer test                # unit tests, no WordPress needed
 ```
 
-Integration tests need a WordPress test library and a MySQL database:
+Integration tests run against WordPress, WooCommerce and a MySQL database. `bin/install-test-env.sh` installs the test environment; its header explains the arguments:
 
 ```bash
-export WP_TESTS_DIR=/path/to/wordpress-tests-lib
-composer test:integration
+bin/install-test-env.sh <db-name> <db-user> <db-pass>
+WP_TESTS_DIR=/tmp/wordpress-tests-lib WP_CORE_DIR=/tmp/wordpress composer test:integration
 ```
 
-Syntax check for all PHP files:
-
-```bash
-find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
-```
+Coding standard and static analysis: `composer phpcs:blocking`, `composer phpstan`. See [docs/QUALITY-GATES.md](docs/QUALITY-GATES.md).
 
 ## Documentation
 
