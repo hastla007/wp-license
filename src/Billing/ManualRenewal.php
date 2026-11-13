@@ -86,18 +86,25 @@ final class ManualRenewal {
 	/**
 	 * New paid-through date of a manual renewal.
 	 *
-	 * The new period starts at max(paid_until, payment time): renewing early
-	 * costs no days, renewing late does not bill the gap retroactively.
+	 * B-185: one rule for every way of paying. While the payment arrives before
+	 * the end of the grace period (paid_until + LicenseLifecycle::GRACE_DAYS) the
+	 * new period continues from the old due date, exactly like an automatic
+	 * renewal: the customer had access during those days, so paying late gifts
+	 * none. Only a payment after the grace period (expired license inside the
+	 * manual renewal window) starts the period at the payment time, because the
+	 * gap without access is not billed.
 	 *
 	 * @param string $paid_until Current paid_until ('Y-m-d H:i:s' UTC), may be empty.
 	 * @param string $interval Billing interval.
 	 * @param int    $paid_at Unix timestamp of the payment.
+	 * @param int    $anchor_day Billing day of month (RenewalScheduler::anchor_day()), zero for none.
 	 * @return string 'Y-m-d H:i:s' UTC.
 	 */
-	public static function next_paid_until( string $paid_until, string $interval, int $paid_at ): string {
+	public static function next_paid_until( string $paid_until, string $interval, int $paid_at, int $anchor_day = 0 ): string {
 		$current = '' === $paid_until ? 0 : (int) strtotime( $paid_until . ' UTC' );
+		$from = $current && $paid_at <= $current + LicenseLifecycle::GRACE_DAYS * 86400 ? $current : max( $current, $paid_at );
 
-		return gmdate( 'Y-m-d H:i:s', RenewalScheduler::period_end( max( $current, $paid_at ), $interval ) );
+		return gmdate( 'Y-m-d H:i:s', RenewalScheduler::period_end( $from, $interval, $anchor_day ) );
 	}
 
 	/**
@@ -119,6 +126,11 @@ final class ManualRenewal {
 			// admin-post.php has no WooCommerce session, so wc_add_notice() would be lost:
 			// the customer portal carries an allow-listed notice code instead.
 			$code = (string) $order->get_error_code();
+			if ( 'manual_renewal_address_missing' === $code && function_exists( 'wc_get_endpoint_url' ) ) {
+				// B-66: without a billing country the tax of the renewal cannot be determined.
+				wp_safe_redirect( wc_get_endpoint_url( 'edit-address', 'billing', $account_url ) );
+				exit;
+			}
 			if ( ! in_array( $code, array( 'manual_renewal_unavailable', 'manual_renewal_busy', 'manual_renewal_paid', 'manual_renewal_pending' ), true ) ) {
 				$code = 'manual_renewal_unavailable';
 			}
@@ -189,12 +201,16 @@ final class ManualRenewal {
 			if ( ! $order->needs_payment() ) {
 				return new \WP_Error( 'manual_renewal_pending', __( 'A renewal order for this license is already waiting for your payment to arrive.', 'wp-license' ) );
 			}
+			if ( ! RenewalOrder::has_tax_location( $order ) && function_exists( 'wc_tax_enabled' ) && wc_tax_enabled() ) {
+				// B-66: e.g. a license created by hand for a customer who never checked out.
+				return new \WP_Error( 'manual_renewal_address_missing', __( 'Please add your billing address before renewing, so that tax can be calculated correctly.', 'wp-license' ) );
+			}
 
 			AuditLog::record(
 				'manual_renewal_started',
 				'renewal',
 				$renewal_id,
-				'Customer started a manual renewal',
+				__( 'Customer started a manual renewal', 'wp-license' ),
 				null,
 				array( 'order_id' => (int) $order->get_id(), 'license_id' => $license_id ),
 				$customer_id
@@ -226,51 +242,59 @@ final class ManualRenewal {
 		$paid_at = $date_paid ? (int) $date_paid->getTimestamp() : time();
 		$paid_until = empty( $license['paid_until'] ) ? 0 : (int) strtotime( (string) $license['paid_until'] . ' UTC' );
 
-		$problem = '';
-		if ( (string) $renewal['period_start'] !== (string) $license['paid_until'] ) {
-			$problem = 'The license period changed after the renewal order was created';
-		} elseif ( ! LicenseStateMachine::can_apply_manual_renewal( (string) $license['status'], $paid_until, $paid_at ) ) {
-			$problem = 'The license status or renewal window did not allow a manual renewal';
-		} elseif ( ! RenewalOrder::net_matches( $order ) ) {
-			$problem = 'The paid order line did not match the renewal price';
-		}
-		if ( '' !== $problem ) {
-			self::reject( $order, $renewal_id, $problem );
-			return false;
-		}
-
-		$new_paid_until = self::next_paid_until( (string) $license['paid_until'], (string) $license['billing_interval'], $paid_at );
+		$anchor_day = RenewalScheduler::anchor_day( $license );
+		$new_paid_until = self::next_paid_until( (string) $renewal['period_start'], (string) $license['billing_interval'], $paid_at, $anchor_day );
 		$tables = Schema::table_names();
 		$now = gmdate( 'Y-m-d H:i:s' );
-		// Claim the renewal first: a duplicate hook finds it paid and stops.
-		$claimed = $wpdb->query(
+
+		// B-32: an earlier run extended the license and stopped before the renewal was marked paid.
+		$already_applied = (string) $renewal['period_start'] !== (string) $license['paid_until']
+			&& (string) $license['paid_until'] === $new_paid_until
+			&& 'active' === $license['status'];
+
+		$old_status = (string) $license['status'];
+		if ( ! $already_applied ) {
+			$problem = '';
+			if ( (string) $renewal['period_start'] !== (string) $license['paid_until'] ) {
+				$problem = __( 'The license period changed after the renewal order was created', 'wp-license' );
+			} elseif ( ! LicenseStateMachine::can_apply_manual_renewal( (string) $license['status'], $paid_until, $paid_at ) ) {
+				$problem = __( 'The license status or renewal window did not allow a manual renewal', 'wp-license' );
+			} elseif ( ! RenewalOrder::net_matches( $order ) ) {
+				$problem = __( 'The paid order line did not match the renewal price', 'wp-license' );
+			}
+			if ( '' !== $problem ) {
+				self::reject( $order, $renewal_id, $problem );
+				return false;
+			}
+
+			// The license first, compare-and-set on its paid_until: a duplicate hook finds the period moved and stops.
+			if ( ! LicenseLifecycle::mark_renewed_manually( $license_id, $new_paid_until, $order_id, $paid_at, (string) $renewal['period_start'], false ) ) {
+				self::reject( $order, $renewal_id, __( 'The license could not be extended', 'wp-license' ) );
+				return false;
+			}
+		} else {
+			LicenseLifecycle::sync_entitlements( $license_id );
+		}
+
+		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['renewals']} SET status = %s, period_end = %s, renewal_order_id = %d, retry_at = NULL, updated_at = %s WHERE id = %d AND status <> %s",
+				"UPDATE {$tables['renewals']} SET status = %s, period_end = %s, renewal_order_id = %d, retry_at = NULL, last_error = %s, updated_at = %s WHERE id = %d AND status <> %s",
 				'paid',
 				$new_paid_until,
 				$order_id,
+				'',
 				$now,
 				$renewal_id,
 				'paid'
 			)
 		);
-		if ( 1 !== (int) $claimed ) {
-			return false;
-		}
 
-		if ( ! LicenseLifecycle::mark_renewed_manually( $license_id, $new_paid_until, $order_id, $paid_at ) ) {
-			$wpdb->update(
-				$tables['renewals'],
-				array( 'status' => (string) $renewal['status'], 'period_end' => (string) $renewal['period_end'], 'updated_at' => $now ),
-				array( 'id' => $renewal_id ),
-				array( '%s', '%s', '%s' ),
-				array( '%d' )
-			);
-			self::reject( $order, $renewal_id, 'The license could not be extended' );
-			return false;
+		try {
+			RenewalScheduler::schedule_next( $license_id );
+		} catch ( \Throwable $error ) {
+			// The daily repair run creates the missing period (B-31).
+			LicenseLifecycle::log_error( 'schedule_next after manual renewal ' . $renewal_id . ': ' . $error->getMessage() );
 		}
-
-		RenewalScheduler::schedule_next( $license_id );
 		$order->add_order_note(
 			sprintf(
 				/* translators: 1: license ID, 2: new paid-through date (UTC). */
@@ -283,10 +307,13 @@ final class ManualRenewal {
 			'manual_renewal_paid',
 			'renewal',
 			$renewal_id,
-			'Customer paid a manual renewal order',
+			__( 'Customer paid a manual renewal order', 'wp-license' ),
 			array( 'status' => $renewal['status'], 'period_end' => $renewal['period_end'] ),
 			array( 'status' => 'paid', 'period_end' => $new_paid_until, 'order_id' => $order_id )
 		);
+		if ( ! $already_applied ) {
+			LicenseLifecycle::announce_renewal( $license_id, $old_status );
+		}
 
 		return true;
 	}
@@ -300,12 +327,6 @@ final class ManualRenewal {
 	 * @return void
 	 */
 	private static function reject( $order, int $renewal_id, string $problem ): void {
-		// One note per order is enough when hooks fire repeatedly.
-		if ( 'yes' !== $order->get_meta( '_wplc_renewal_review', true ) ) {
-			$order->update_meta_data( '_wplc_renewal_review', 'yes' );
-			$order->save();
-			$order->add_order_note( __( 'WP License Captain: this renewal payment could not be applied to the license. Please review the license manually.', 'wp-license' ) );
-			AuditLog::record( 'manual_renewal_rejected', 'renewal', $renewal_id, $problem, null, array( 'order_id' => (int) $order->get_id() ) );
-		}
+		RenewalOrder::flag_for_review( $order, $renewal_id, $problem, 'manual_renewal_rejected' );
 	}
 }

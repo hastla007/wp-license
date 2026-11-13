@@ -40,6 +40,15 @@ final class LicenseStateMachine {
 			'active' => array( 'suspended' ),
 			'past_due' => array( 'suspended' ),
 		),
+		// A paid order was cancelled or failed afterwards (bounced debit): reversible, unlike a refund.
+		'order_cancelled' => array(
+			'active' => array( 'suspended' ),
+			'past_due' => array( 'suspended' ),
+		),
+		// Undo of a revocation (e.g. an order set to "refunded" by mistake). Needs its own permission in the UI.
+		'admin_restore' => array(
+			'revoked' => array( 'active' ),
+		),
 		'license_expired' => array(
 			'active' => array( 'expired' ),
 			'past_due' => array( 'expired' ),
@@ -47,7 +56,8 @@ final class LicenseStateMachine {
 		'admin_status_change' => array(
 			'active' => array( 'suspended', 'revoked' ),
 			'past_due' => array( 'active', 'suspended', 'revoked' ),
-			'suspended' => array( 'active', 'revoked' ),
+			// `expired` is where a suspended license goes when its term ended while it was suspended.
+			'suspended' => array( 'active', 'revoked', 'expired' ),
 			'expired' => array( 'active', 'suspended', 'revoked' ),
 		),
 		'admin_extend' => array(
