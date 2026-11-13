@@ -14,6 +14,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Catalog of feature entitlements (see docs/ENTITLEMENTS.md) and helpers for the product editor.
  */
+/*
+ * Only premium features are listed. Core features of the free plugins are never
+ * license-gated and therefore are not entitlements.
+ */
 final class EntitlementCatalog {
 
 	/**
@@ -45,9 +49,6 @@ final class EntitlementCatalog {
 				array( 'key' => 'affiliate.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),
 			'voucher'   => array(
-				array( 'key' => 'voucher.basic_issue', 'label' => __( 'Basic voucher issuing', 'wp-license' ) ),
-				array( 'key' => 'voucher.basic_email', 'label' => __( 'Basic email delivery', 'wp-license' ) ),
-				array( 'key' => 'voucher.single_online_redemption', 'label' => __( 'Single online redemption', 'wp-license' ) ),
 				array( 'key' => 'voucher.custom_branding', 'label' => __( 'Custom branding', 'wp-license' ) ),
 				array( 'key' => 'voucher.pdf_templates', 'label' => __( 'PDF templates', 'wp-license' ) ),
 				array( 'key' => 'voucher.automatic_delivery', 'label' => __( 'Automatic delivery', 'wp-license' ) ),
@@ -62,13 +63,6 @@ final class EntitlementCatalog {
 				array( 'key' => 'voucher.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),
 			'pass'      => array(
-				array( 'key' => 'pass.events', 'label' => __( 'Events', 'wp-license' ) ),
-				array( 'key' => 'pass.free_tickets', 'label' => __( 'Free tickets', 'wp-license' ) ),
-				array( 'key' => 'pass.reservations_basic', 'label' => __( 'Basic reservations', 'wp-license' ) ),
-				array( 'key' => 'pass.ticket_links', 'label' => __( 'Ticket links', 'wp-license' ) ),
-				array( 'key' => 'pass.scanner_basic', 'label' => __( 'Basic scanner', 'wp-license' ) ),
-				array( 'key' => 'pass.reports_basic', 'label' => __( 'Basic reports', 'wp-license' ) ),
-				array( 'key' => 'pass.privacy_tools', 'label' => __( 'Privacy tools', 'wp-license' ) ),
 				array( 'key' => 'pass.woocommerce_sales', 'label' => __( 'WooCommerce sales', 'wp-license' ) ),
 				array( 'key' => 'pass.membership_passes', 'label' => __( 'Membership passes', 'wp-license' ) ),
 				array( 'key' => 'pass.campaign_codes', 'label' => __( 'Campaign codes', 'wp-license' ) ),

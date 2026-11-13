@@ -12,6 +12,15 @@ Die früheren 37 gestapelten `codex/*`-Branches sind in einem Integrationsstand 
 
 ### Festgelegte Produktregeln
 
+**Kern-Plugin und Premium-Add-on (Entscheidung vom 13.11.2026)**
+
+- Das Kern-Plugin jedes Produkts bleibt vollständig kostenlos, ohne Lizenzprüfung und ohne gesperrte Funktionen. So ist es für WordPress.org geeignet.
+- Das Kern-Plugin enthält deshalb keinen Lizenzclient, keine Feature-Gates, keinen eigenen Updater und keinen Aufruf des Lizenzservers. Seine Updates kommen von WordPress.org.
+- Premiumfunktionen liegen in einem getrennten Add-on-Plugin, das im eigenen Shop verkauft und ausgeliefert wird. Nur das Add-on enthält Lizenzclient, Aktivierung, Rechteprüfung und den lizenzgebundenen Updater.
+- Läuft eine Lizenz ab, schalten sich nur Add-on-Funktionen ab. Das Kern-Plugin und bereits erzeugte Daten (Gutscheine, Tickets, Provisionen) bleiben unverändert nutzbar.
+- Das Kern-Plugin darf auf das Add-on hinweisen, aber keine Funktion vortäuschen, die erst nach Kauf freigeschaltet wird.
+
+
 - Affiliate Captain: Starter 1, Pro 3, Agency 10 Live-Websites.
 - Voucher Captain: Solo 1, Business 5, Agency 25 Live-Websites; Free ohne Lizenzschlüssel.
 - WP Pass Captain: Pro 1, Business 5, Agency 25 Live-Websites; Core ohne Lizenzschlüssel.
@@ -22,7 +31,7 @@ Die früheren 37 gestapelten `codex/*`-Branches sind in einem Integrationsstand 
 - Wiederholungsversuche bei fehlgeschlagener Zahlung: Tag 1, 3 und 7; Kulanzzeit: 14 Tage.
 - Kündigung beendet die Lizenz am Ende der bezahlten Laufzeit. Bis dahin bleiben die Rechte aktiv.
 - Add-ons werden anteilig bis zum nächsten Hauptverlängerungstermin berechnet und danach gemeinsam verlängert.
-- Core-Downloads und Core-Updates sind schlüsselfrei; Premium-Downloads und Premium-Updates benötigen eine passende aktive Lizenz.
+- Core-Downloads und Core-Updates laufen über WordPress.org; Downloads und Updates des Premium-Add-ons benötigen eine passende aktive Lizenz.
 - Ein lokaler, signierter Rechte-Cache darf bei Serverausfall höchstens 14 Tage verwendet werden. Bereits laufende Shop-Prozesse und verkaufte Gutscheine/Tickets dürfen durch Lizenzablauf nicht unbrauchbar werden.
 - WooCommerce-Bestellungen müssen über WooCommerce CRUD APIs und HPOS-kompatibel verarbeitet werden.
 - Produktclients müssen die jeweiligen PHP-Mindestversionen ihrer Repositories erhalten; aktueller Prüfstand: Affiliate Captain 7.4, Voucher Captain 8.1, Pass Captain 8.2. Vor Umsetzung erneut verifizieren.
@@ -153,7 +162,7 @@ Die früheren 37 gestapelten `codex/*`-Branches sind in einem Integrationsstand 
 ### Schritt 8 — Update- und Downloadserver
 
 **Aufgaben**
-- Öffentlichen Core-Updatefeed für Free-Core-Pakete bauen.
+- Kein eigener Core-Updatefeed: Kern-Plugins werden über WordPress.org aktualisiert.
 - Premiumfeed nur mit aktiver Produkt-/Add-on-Lizenz ausliefern.
 - Downloadberechtigung serverseitig prüfen und kurzlebige, signierte URL generieren.
 - ZIP-Metadaten mit Version, Changelog, erforderlicher PHP-/WordPress-/WooCommerce-Version und Prüfsumme veröffentlichen.
@@ -171,7 +180,7 @@ Die früheren 37 gestapelten `codex/*`-Branches sind in einem Integrationsstand 
 - Einstellungsseite für Schlüssel, Status, Laufzeit, Site-Zähler und Add-on-Rechte erstellen.
 - Signierte Entitlement-Antwort lokal cachen; maximal 14 Tage offline verwenden.
 - Positive und negative Feature-Gates nur für neue Premiumfunktionen implementieren.
-- Core-Updates schlüsselfrei und Premium-Updates lizenzgebunden anbinden.
+- Lizenzgebundene Updates nur im Premium-Add-on anbinden; das Kern-Plugin bleibt beim WordPress.org-Updater.
 - Keine Bestell-, Gutschein-, Ticket- oder Affiliate-Kundendaten an den Lizenzserver senden.
 
 **Ergebnis / Abnahme**

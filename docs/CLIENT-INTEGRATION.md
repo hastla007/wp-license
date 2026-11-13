@@ -1,5 +1,7 @@
 # Product plugin client integration
 
+> **Where the client belongs.** The core plugin of each product is free, ungated and published on WordPress.org. It must not contain this client, any entitlement check, a custom updater or any call to the license server. Bundle `LicenseClient` only in the separate premium add-on plugin that is sold and delivered from the shop.
+
 How a product plugin talks to the license server with `WPLC\Client\LicenseClient` (`src/Client/LicenseClient.php`). The class is implemented and unit-tested for request signing and response verification; the full flow against a running server is not yet verified in a shop. The endpoints are specified in [API-V1.md](API-V1.md).
 
 ## What the class does and does not do
