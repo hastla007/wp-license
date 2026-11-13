@@ -24,7 +24,8 @@ final class Response {
 	 * `signature` is HMAC-SHA-256 of the canonical JSON of the data keyed by the per-installation secret (integrity
 	 * in transit and of the local cache). `signature_ed25519` is the server's Ed25519 signature of
 	 * "wplc-response-v1\n{installation UUID}\n{JSON}" (ResponseSigner); clients that pin the server's public key
-	 * accept only data this server signed for exactly this installation. `key_id` names the signing key.
+	 * accept only data this server signed for exactly this installation. `key_id` names the signing key. While a next
+	 * key is configured (key rotation), `signatures` lists the signature of the current and of the next key.
 	 *
 	 * @param array<string,mixed> $data Payload.
 	 * @param string $secret Installation secret.

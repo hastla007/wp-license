@@ -19,6 +19,7 @@ final class ApiContractTest extends TestCase {
 				'/entitlements/check' => array( 'post' ),
 				'/updates/check' => array( 'post' ),
 				'/updates/download/{token}' => array( 'get' ),
+				'/signing-keys' => array( 'get' ),
 				'/webhooks/stripe' => array( 'post' ),
 			),
 			array_map( 'array_keys', $contract['paths'] )
@@ -38,6 +39,8 @@ final class ApiContractTest extends TestCase {
 			array( 'license_key', 'product_key', 'installation_id', 'installation_secret', 'site_url' ),
 			$contract['components']['schemas']['ActivationRequest']['required']
 		);
+		$this->assertArrayHasKey( 'signatures', $contract['components']['schemas']['SignedEnvelope']['properties'] );
+		$this->assertSame( array( 'context', 'current', 'next' ), $contract['components']['schemas']['SigningKeys']['required'] );
 		$this->assertArrayHasKey( 'InstallationHmac', $contract['components']['securitySchemes'] );
 		$this->assertArrayHasKey( 'StripeSignature', $contract['components']['securitySchemes'] );
 	}

@@ -56,9 +56,54 @@ wplc-response-v1\n{installation UUID, lowercase}\n{JSON of data, JSON_UNESCAPED_
 The HMAC proves integrity in transit and of the client's cache, but the client knows the installation secret itself. The
 Ed25519 signature proves that this license server produced the data for exactly this installation: product builds pin
 the server's public key (`wp wplc signing-key --field=public_key`) and reject responses and cached snapshots without a
-valid signature. The key comes from the constant `WPLC_RESPONSE_SIGNING_KEY` (base64 seed or secret key; recommended)
-or is generated once and stored encrypted in the option `wplc_response_signing_key`. Rotating it requires a product
-release with the new public key. The field is omitted only when PHP has neither sodium nor WordPress' sodium_compat.
+valid signature. The key comes from the constant `WPLC_RESPONSE_SIGNING_KEY` (base64 seed or secret key; recommended
+for production) or is generated once and stored encrypted in the option `wplc_response_signing_key`. The field is
+omitted only when PHP has neither sodium nor WordPress' sodium_compat.
+
+`key_id` names the key of `signature_ed25519`. Clients may pin several public keys and pick the one whose key id
+matches (falling back to trying every pinned key).
+
+### Key rotation (current + next key)
+
+While a **next** key is configured – constant `WPLC_RESPONSE_SIGNING_KEY_NEXT` (base64 seed or secret key), else the
+option `wplc_response_signing_key_next` created by `wp wplc signing-key --next` – every envelope additionally carries
+
+```json
+"signatures": [
+  { "key_id": "<current key id>", "signature_ed25519": "<signature with the current key>" },
+  { "key_id": "<next key id>", "signature_ed25519": "<signature with the next key>" }
+]
+```
+
+over the same message (current key first). `signature_ed25519` and `key_id` stay those of the current key, so clients
+that pin only one key keep working. Procedure:
+
+1. `wp wplc signing-key --next --field=public_key` creates the next key (or shows it). With constants: put a new
+   seed (`php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'`) into `WPLC_RESPONSE_SIGNING_KEY_NEXT` and read
+   its public key with the same command. Keep an offline backup of the secret.
+2. Release product builds that pin both public keys; wait until the customers run them.
+3. `wp wplc signing-key --promote`: the next key becomes the current key and the old key is deleted. With constants:
+   set `WPLC_RESPONSE_SIGNING_KEY` to the value of `WPLC_RESPONSE_SIGNING_KEY_NEXT` and remove the latter.
+
+`wp wplc signing-key --rotate` replaces the stored current key at once and locks out every client that does not pin
+the new key – an emergency tool only, for a compromised key when no pinned next key is available.
+
+`GET /signing-keys` (public, read-only, never creates a key) lists the public keys, so release pipelines can check the
+keys they pin before publishing a build:
+
+```json
+{
+  "context": "wplc-response-v1",
+  "current": { "public_key": "base64", "key_id": "16 hex" },
+  "next": null
+}
+```
+
+`current` is `null` while the server has no key yet; `next` is `null` outside a rotation.
+
+Rotation test vector: current seed 32 × `0x01` (key id `34750f98bd59fcfc`, signature above), next seed 32 × `0x02` →
+public key `gTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5Q=`, key id `6a3803d5f059902a`, signature of the same message
+`9Um7aM0cVvZ6q7AIumlECZV5Q/nnSsP2KkpoLZSrLrWv/IITibWK0VOffli+3tHBZKxqOEICsz62PTTpTSx4AQ==`.
 
 Test vector: seed 32 × `0x01` → public key `iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w=`; installation
 `a1b2c3d4-0000-4000-8000-000000000001`, data `{"license_status":"active"}` → signature
@@ -94,6 +139,7 @@ The server rejects timestamps outside five minutes, repeated nonces, malformed s
 | POST | `/entitlements/check` | Return current status and feature rights |
 | POST | `/updates/check` | Return signed release metadata and a short-lived package grant |
 | GET | `/updates/download/{token}` | Consume a one-use grant and redirect to the allow-listed package host |
+| GET | `/signing-keys` | Public Ed25519 response signing keys (current, next) – unauthenticated, read-only |
 
 ## Credential rotation and recovery
 

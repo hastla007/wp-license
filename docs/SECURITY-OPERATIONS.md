@@ -16,6 +16,10 @@ The implementation can read current and previous key IDs and re-encrypt installa
 
 These tools have unit coverage, but operators must still rehearse them against a restored copy of real data. Do not remove an old key until recovery, restore, and client authentication have been verified.
 
+## Response signing key (Ed25519)
+
+Product builds pin the public key(s) of the response signing key; a server key that no installed build pins locks every customer out, including the update path. In production set `WPLC_RESPONSE_SIGNING_KEY` (base64 32-byte seed) in `wp-config.php` and keep an offline backup. Rotate only with overlap (docs/API-V1.md → Key rotation): configure a next key (`WPLC_RESPONSE_SIGNING_KEY_NEXT` or `wp wplc signing-key --next`), release product builds that pin both keys, wait until customers run them, then promote (`wp wplc signing-key --promote`, or move the value in `wp-config.php`). Keeping a pinned next key in every release also gives an emergency path when the current key is lost or compromised: promote the next key at once. `GET /wp-json/wplc/v1/signing-keys` lists the public keys for release checks.
+
 ## Request security and database controls
 
 Version 1 product requests are signed over method, REST route, timestamp, nonce, and the SHA-256 digest of the raw request body. Timestamps are limited to five minutes. A valid nonce is atomically stored; replay returns a conflict. Per-installation request limits use an atomic database upsert and expire through a bounded scheduled cleanup. Authentication failures and storage outages fail closed.

@@ -3,7 +3,7 @@
   "info": {
     "title": "WP License Captain REST API",
     "version": "1.0.0",
-    "description": "Versioned v1 contract for license activation, entitlement checks, Stripe webhook receipt, and premium updates."
+    "description": "Versioned v1 contract for license activation, entitlement checks, Stripe webhook receipt, premium updates and the public response signing keys."
   },
   "servers": [
     {
@@ -22,6 +22,9 @@
     },
     {
       "name": "Webhooks"
+    },
+    {
+      "name": "Signing keys"
     }
   ],
   "paths": {
@@ -248,6 +251,28 @@
         }
       }
     },
+    "/signing-keys": {
+      "get": {
+        "tags": [
+          "Signing keys"
+        ],
+        "summary": "Public Ed25519 response signing keys (current and, during a rotation, next)",
+        "operationId": "listSigningKeys",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Public keys and key ids; never creates a key. Release pipelines compare the keys pinned in product builds against this list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SigningKeys"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/webhooks/stripe": {
       "post": {
         "tags": [
@@ -434,7 +459,14 @@
           },
           "key_id": {
             "type": "string",
-            "description": "First 16 hex characters of SHA-256 of the Ed25519 public key."
+            "description": "First 16 hex characters of SHA-256 of the Ed25519 public key of signature_ed25519 (the current key)."
+          },
+          "signatures": {
+            "type": "array",
+            "description": "Only while a next signing key is configured (key rotation): the Ed25519 signature of every server key over the same message, current key first. signature_ed25519/key_id stay those of the current key.",
+            "items": {
+              "$ref": "#/components/schemas/KeySignature"
+            }
           }
         }
       },
@@ -459,6 +491,79 @@
                 "type": "integer"
               }
             }
+          }
+        }
+      },
+      "KeySignature": {
+        "type": "object",
+        "required": [
+          "key_id",
+          "signature_ed25519"
+        ],
+        "properties": {
+          "key_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{16}$"
+          },
+          "signature_ed25519": {
+            "type": "string",
+            "description": "Base64 Ed25519 signature."
+          }
+        }
+      },
+      "SigningKeys": {
+        "type": "object",
+        "required": [
+          "context",
+          "current",
+          "next"
+        ],
+        "properties": {
+          "context": {
+            "type": "string",
+            "enum": [
+              "wplc-response-v1"
+            ]
+          },
+          "current": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "public_key",
+              "key_id"
+            ],
+            "properties": {
+              "public_key": {
+                "type": "string",
+                "description": "Base64 Ed25519 public key (32 bytes)."
+              },
+              "key_id": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{16}$",
+                "description": "First 16 hex characters of SHA-256 of the public key."
+              }
+            },
+            "description": "Key of signature_ed25519; null when the server has no key yet."
+          },
+          "next": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "public_key",
+              "key_id"
+            ],
+            "properties": {
+              "public_key": {
+                "type": "string",
+                "description": "Base64 Ed25519 public key (32 bytes)."
+              },
+              "key_id": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{16}$",
+                "description": "First 16 hex characters of SHA-256 of the public key."
+              }
+            },
+            "description": "Next key during a rotation, otherwise null."
           }
         }
       }

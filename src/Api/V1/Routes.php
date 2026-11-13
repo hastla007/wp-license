@@ -93,6 +93,15 @@ final class Routes {
 				'permission_callback' => '__return_true',
 			)
 		);
+		register_rest_route(
+			'wplc/v1',
+			'/signing-keys',
+			array(
+				'methods' => 'GET',
+				'callback' => array( SigningKeys::class, 'get' ),
+				'permission_callback' => '__return_true',
+			)
+		);
 		StripeWebhook::register_routes();
 	}
 }
