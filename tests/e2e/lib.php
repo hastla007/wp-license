@@ -299,3 +299,54 @@ function e2e_order_licenses( int $order_id ): array {
 function e2e_key( array $license ): string {
 	return \WPLC\License\LicenseKey::for_uuid( (string) $license['license_uuid'], (string) $license['license_key_secret_id'] );
 }
+
+/**
+ * Hidden/text fields of the first HTML form that contains all given needles.
+ * Lets a flow submit a form exactly as the page rendered it (action, nonce, IDs).
+ *
+ * @param string   $html Page HTML.
+ * @param string[] $needles Strings the form markup must contain.
+ * @return array<string,string>|null Field name => value, plus '__action' with the form action URL.
+ */
+function e2e_form( string $html, array $needles ): ?array {
+	if ( ! preg_match_all( '/<form\b[^>]*>.*?<\/form>/s', $html, $forms ) ) {
+		return null;
+	}
+	foreach ( $forms[0] as $form ) {
+		foreach ( $needles as $needle ) {
+			if ( false === strpos( $form, $needle ) ) {
+				continue 2;
+			}
+		}
+		$fields = array();
+		if ( preg_match( '/<form\b[^>]*\baction="([^"]*)"/', $form, $action ) ) {
+			$fields['__action'] = html_entity_decode( $action[1] );
+		}
+		if ( preg_match_all( '/<input\b[^>]*>/', $form, $inputs ) ) {
+			foreach ( $inputs[0] as $input ) {
+				if ( preg_match( '/\bname="([^"]+)"/', $input, $name ) && ! preg_match( '/\btype="(submit|file|checkbox|radio)"/', $input ) ) {
+					$fields[ $name[1] ] = preg_match( '/\bvalue="([^"]*)"/', $input, $value ) ? html_entity_decode( $value[1] ) : '';
+				}
+			}
+		}
+
+		return $fields;
+	}
+
+	return null;
+}
+
+/**
+ * POST a form returned by e2e_form().
+ *
+ * @param array<string,string> $fields Fields incl. '__action'.
+ * @param array<int,mixed>     $cookies Cookies.
+ * @param array<string,string> $extra Extra/overriding fields.
+ * @return array{code:int,headers:array<string,mixed>,body:string,location:string}
+ */
+function e2e_submit( array $fields, array $cookies, array $extra = array() ): array {
+	$action = $fields['__action'] ?? admin_url( 'admin-post.php' );
+	unset( $fields['__action'] );
+
+	return e2e_http( 'POST', $action, array( 'cookies' => $cookies, 'body' => array_merge( $fields, $extra ) ) );
+}
