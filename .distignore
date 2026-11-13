@@ -2,7 +2,7 @@
 #
 # The release build (.github/workflows/release.yml) works with an allow-list:
 # it copies wp-license.php, uninstall.php, readme.txt, src/, vendor/ (installed
-# with --no-dev) and, when present, languages/ and assets/ into a top-level
+# with --no-dev) and, when present, languages/, assets/ and templates/ into a top-level
 # wp-license/ folder. This file documents the resulting exclusions in the
 # format `wp dist-archive` understands, so both ways of building agree.
 

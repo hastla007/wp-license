@@ -213,8 +213,10 @@ final class Notifications {
 	public static function lead_days(): array {
 		$days     = ReminderSchedule::DEFAULT_LEAD_DAYS;
 		$settings = get_option( 'wplc_settings', array() );
-		if ( is_array( $settings ) && isset( $settings['reminder_lead_days'] ) ) {
-			$configured = $settings['reminder_lead_days'];
+		// The settings page stores the list as "reminder_days".
+		$setting_key = is_array( $settings ) && isset( $settings['reminder_days'] ) ? 'reminder_days' : 'reminder_lead_days';
+		if ( is_array( $settings ) && isset( $settings[ $setting_key ] ) ) {
+			$configured = $settings[ $setting_key ];
 			if ( is_array( $configured ) || ( is_scalar( $configured ) && '' !== trim( (string) $configured ) ) ) {
 				// "0" (or only invalid numbers) disables expiry reminders.
 				$days = ReminderSchedule::parse_lead_days( is_array( $configured ) ? $configured : (string) $configured );

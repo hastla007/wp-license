@@ -47,7 +47,7 @@ jobs:
           mkdir -p "${STAGE}" dist
           cp wp-license.php uninstall.php readme.txt "${STAGE}/"
           cp -R src vendor "${STAGE}/"
-          for OPTIONAL in languages assets; do
+          for OPTIONAL in languages assets templates; do
             if [ -d "${OPTIONAL}" ]; then
               cp -R "${OPTIONAL}" "${STAGE}/"
             fi
