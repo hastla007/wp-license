@@ -1,0 +1,139 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Parameter \#2 \$value of method WC_Data\:\:update_meta_data\(\) expects array\|string, int\<1, 1000\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Admin/CatalogCsv.php
+
+		-
+			message: '#^Comparison operation "\>" between int\<1, 65535\> and 65535 is always false\.$#'
+			identifier: greater.alwaysFalse
+			count: 1
+			path: src/Api/V1/SiteUrl.php
+
+		-
+			message: '#^Instanceof between WC_Order and WC_Order will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: src/Billing/RecurringConsent.php
+
+		-
+			message: '#^Negated boolean expression is always false\.$#'
+			identifier: booleanNot.alwaysFalse
+			count: 3
+			path: src/Billing/RecurringConsent.php
+
+		-
+			message: '#^Call to an undefined method WC_Order_Item\:\:get_product\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Billing/RenewalProcessor.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<WC_Order\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 2
+			path: src/Billing/RenewalProcessor.php
+
+		-
+			message: '#^Instanceof between WC_Order and WC_Order will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: src/Billing/RenewalProcessor.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$license$#'
+			identifier: parameter.notFound
+			count: 1
+			path: src/Billing/RenewalProcessor.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$renewal$#'
+			identifier: parameter.notFound
+			count: 1
+			path: src/Billing/RenewalProcessor.php
+
+		-
+			message: '#^PHPDoc tag @return with type WC_Order\|WP_Error is incompatible with native type void\.$#'
+			identifier: return.phpDocType
+			count: 1
+			path: src/Billing/RenewalProcessor.php
+
+		-
+			message: '#^Parameter \#2 \$value of method WC_Data\:\:update_meta_data\(\) expects array\|string, int given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Billing/RenewalProcessor.php
+
+		-
+			message: '#^Access to property \$ID on an unknown class WPLC\\Catalog\\WP_Post\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/Catalog/ProductEditor.php
+
+		-
+			message: '#^Parameter \$variation of method WPLC\\Catalog\\ProductEditor\:\:render_variation_fields\(\) has invalid type WPLC\\Catalog\\WP_Post\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/Catalog/ProductEditor.php
+
+		-
+			message: '#^Call to static method get_stripe_amount\(\) on an unknown class WC_Stripe_Helper\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/Gateway/StripeRecurringAdapter.php
+
+		-
+			message: '#^Call to static method request\(\) on an unknown class WC_Stripe_API\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/Gateway/StripeRecurringAdapter.php
+
+		-
+			message: '#^Instanceof between WC_Order and WC_Order will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 2
+			path: src/Gateway/StripeRecurringAdapter.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: src/Gateway/StripeRecurringAdapter.php
+
+		-
+			message: '#^Call to an undefined method WC_Order_Item\:\:get_product_id\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/License/LicenseIssuer.php
+
+		-
+			message: '#^Call to an undefined method WC_Order_Item\:\:get_variation_id\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/License/LicenseIssuer.php
+
+		-
+			message: '#^Parameter \#2 \$item of static method WPLC\\License\\LicenseIssuer\:\:create_license\(\) expects WC_Order_Item_Product, WC_Order_Item given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/License/LicenseIssuer.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/License/LicenseKey.php
+
+		-
+			message: '#^If condition is always false\.$#'
+			identifier: if.alwaysFalse
+			count: 1
+			path: src/Plugin.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Security/SecretCrypto.php
