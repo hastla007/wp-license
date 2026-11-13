@@ -40,4 +40,17 @@ This checklist is a go/no-go gate for a public or commercial release. The reposi
 - [ ] Document support procedures for lost keys, domain changes, site-limit requests, refunds, payment failures, and salt rotation.
 - [ ] Assign a release owner, version, changelog, support window, and rollback decision maker.
 
+
+## Specific open findings from implementation review
+
+The items below are known gaps in the current engineering preview and must remain release blockers until each has an implementation and passing acceptance evidence:
+
+- [ ] Store download grants in persistent storage with an atomic one-use claim, then recheck license status immediately before redirecting to the package.
+- [ ] Add WordPress/MySQL REST tests for signatures, replay and rate limits, concurrent live/staging activation, customer ownership, nonces, and database-write failures.
+- [ ] Prove renewal recovery after an ambiguous provider timeout, order creation failure, partial database write, duplicate scheduled action, cancellation, refund, or chargeback. The adapter interface alone does not provide this proof.
+- [ ] Exercise consent, update, cancellation, export, and erasure flows through real WooCommerce screens and supported checkout modes.
+- [ ] Verify license-key recovery and installation-secret rotation on a restored database copy before rotating WordPress salts.
+- [ ] Test the complete product-client contract, feature gates, 14-day offline-cache boundary, update signature, ZIP checksum, and rollback on each product's minimum PHP version.
+- [ ] Define retention periods and run scheduled purge tests for activation metadata, expired download grants, renewal events, and audit data.
+
 Do not advertise a capability until its corresponding product client, payment adapter, package host, and operational runbook are deployed and verified.
