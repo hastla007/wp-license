@@ -9,6 +9,10 @@
  *   --tested-wp=6.8 --changelog=CHANGELOG.md [--output=dist/manifest.json]
  */
 
+if ( 'cli' !== PHP_SAPI ) {
+	exit( 1 );
+}
+
 $options = getopt( '', array( 'zip:', 'product-key:', 'version:', 'package-url:', 'requires-php:', 'requires-wp:', 'tested-wp:', 'changelog:', 'output:', 'help' ) );
 $required = array( 'zip', 'product-key', 'version', 'package-url', 'requires-php', 'requires-wp', 'tested-wp', 'changelog' );
 

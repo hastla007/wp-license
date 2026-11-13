@@ -2,7 +2,7 @@
 
 WP License Captain is the WooCommerce-based license server for premium WordPress products. It is intended to manage product plans, issue licenses from paid orders, track site activations, return feature entitlements, and provide a controlled path for recurring renewals and premium updates.
 
-> **Status: engineering preview, not production-ready.** PRs 01–12 form a stacked implementation branch. Review and merge them in order. The system still needs concrete payment gateway adapters, product-specific settings and updater integrations, a package release workflow, and a complete security/privacy review before it can be used to sell licenses.
+> **Status: engineering preview, not production-ready.** All former stacked branches (`codex/pr-01` … `codex/phase-39`) are consolidated into one integration branch. The system still needs concrete payment gateway adapters, product-specific settings and updater integrations, a package release workflow, and a complete security/privacy review before it can be used to sell licenses.
 
 ## Current implementation scope
 
@@ -30,7 +30,9 @@ WP License Captain is the WooCommerce-based license server for premium WordPress
 
 ## Developer documentation
 
-- [Implementation plan](docs/IMPLEMENTATION-PLAN.md)
+- [To-do list (single source of truth)](docs/TODO.md)
+- [Product rules and architecture](docs/IMPLEMENTATION-PLAN.md)
+- [Checkout and renewal concept](docs/CONCEPT-CHECKOUT-RENEWAL.md)
 - [REST API v1](docs/API-V1.md)
 - [Automatic renewals](docs/RENEWALS.md)
 - [Update package integration](docs/UPDATES.md)
