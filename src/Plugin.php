@@ -22,6 +22,8 @@ use WPLC\Billing\RecurringConsent;
 use WPLC\Billing\RenewalProcessor;
 use WPLC\Gateway\StripeRecurringAdapter;
 use WPLC\Privacy\PersonalData;
+use WPLC\Notifications\Notifications;
+use WPLC\Maintenance\Retention;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -103,6 +105,8 @@ final class Plugin {
 		RenewalProcessor::register_hooks();
 		StripeRecurringAdapter::register_hooks();
 		PersonalData::register_hooks();
+		Notifications::register_hooks();
+		Retention::register_hooks();
 
 		/**
 		 * Fires after WP License Captain has confirmed its WooCommerce dependency.

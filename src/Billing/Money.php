@@ -7,6 +7,10 @@
 
 namespace WPLC\Billing;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * Converts stored integer minor units using their persisted decimal precision.
  */
