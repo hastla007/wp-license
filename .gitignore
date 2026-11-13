@@ -1,0 +1,11 @@
+/vendor/
+/node_modules/
+/.phpunit.cache/
+/coverage/
+/build/
+/dist/
+.DS_Store
+*.log
+/composer.lock
+/.phpunit.result.cache
+/.claude/worktrees/

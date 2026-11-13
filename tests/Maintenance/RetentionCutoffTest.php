@@ -1,0 +1,80 @@
+<?php
+/**
+ * Retention cutoff computation.
+ *
+ * @package WPLC
+ */
+
+use PHPUnit\Framework\TestCase;
+use WPLC\Maintenance\Retention;
+
+final class RetentionCutoffTest extends TestCase {
+
+	/**
+	 * 2027-03-10 08:00:00 UTC.
+	 */
+	private const NOW = 1804665600;
+
+	public function test_defaults(): void {
+		$this->assertSame(
+			array(
+				'audit_log' => 730,
+				'event_inbox' => 180,
+				'activations' => 365,
+				'reminder_log' => 730,
+			),
+			Retention::DEFAULT_DAYS
+		);
+		$this->assertSame(
+			array(
+				'audit_log' => '2025-03-10 08:00:00',
+				'event_inbox' => '2026-09-11 08:00:00',
+				'activations' => '2026-03-10 08:00:00',
+				'reminder_log' => '2025-03-10 08:00:00',
+			),
+			Retention::cutoffs( Retention::DEFAULT_DAYS, self::NOW )
+		);
+	}
+
+	public function test_zero_disables_a_rule_and_missing_keys_use_defaults(): void {
+		$cutoffs = Retention::cutoffs( array( 'audit_log' => 0, 'event_inbox' => 30 ), self::NOW );
+
+		$this->assertArrayNotHasKey( 'audit_log', $cutoffs );
+		$this->assertSame( '2027-02-08 08:00:00', $cutoffs['event_inbox'] );
+		$this->assertSame( '2026-03-10 08:00:00', $cutoffs['activations'] );
+		$this->assertSame( '2025-03-10 08:00:00', $cutoffs['reminder_log'] );
+	}
+
+	public function test_invalid_values_disable_instead_of_deleting_everything(): void {
+		$cutoffs = Retention::cutoffs(
+			array(
+				'audit_log' => -5,
+				'event_inbox' => 'soon',
+				'activations' => null,
+				'reminder_log' => 1.5,
+				'licenses' => 1,
+			),
+			self::NOW
+		);
+
+		$this->assertSame( array(), $cutoffs );
+	}
+
+	public function test_numeric_strings_are_accepted_and_huge_values_capped(): void {
+		$cutoffs = Retention::cutoffs( array( 'audit_log' => '90', 'event_inbox' => 999999 ), self::NOW );
+
+		$this->assertSame( '2026-12-10 08:00:00', $cutoffs['audit_log'] );
+		$this->assertSame( gmdate( 'Y-m-d H:i:s', self::NOW - 36500 * 86400 ), $cutoffs['event_inbox'] );
+	}
+
+	public function test_non_array_filter_result_falls_back_to_defaults(): void {
+		$this->assertSame( Retention::cutoffs( Retention::DEFAULT_DAYS, self::NOW ), Retention::cutoffs( false, self::NOW ) );
+	}
+
+	public function test_unknown_rules_are_ignored(): void {
+		$this->assertSame(
+			array( 'audit_log', 'event_inbox', 'activations', 'reminder_log' ),
+			array_keys( Retention::cutoffs( array( 'orders' => 1 ), self::NOW ) )
+		);
+	}
+}

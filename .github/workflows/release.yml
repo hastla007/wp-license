@@ -1,0 +1,100 @@
+name: Release build
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "7.4"
+          coverage: none
+          tools: composer:v2
+
+      - name: Verify that the tag matches the plugin version
+        id: version
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          HEADER_VERSION="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*\([^[:space:]]*\).*$/\1/p' wp-license.php | head -n 1)"
+          CONSTANT_VERSION="$(sed -n "s/^define([[:space:]]*'WPLC_VERSION',[[:space:]]*'\([^']*\)'.*$/\1/p" wp-license.php | head -n 1)"
+          echo "Tag: ${TAG_VERSION} / plugin header: ${HEADER_VERSION} / WPLC_VERSION: ${CONSTANT_VERSION}"
+          if [ -z "${TAG_VERSION}" ] || [ "${TAG_VERSION}" != "${HEADER_VERSION}" ] || [ "${TAG_VERSION}" != "${CONSTANT_VERSION}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match the Version header (${HEADER_VERSION}) and WPLC_VERSION (${CONSTANT_VERSION}) in wp-license.php."
+            exit 1
+          fi
+          echo "version=${TAG_VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Install runtime dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Build the plugin ZIP
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          STAGE="build/wp-license"
+          rm -rf build dist
+          mkdir -p "${STAGE}" dist
+          cp wp-license.php uninstall.php readme.txt "${STAGE}/"
+          cp -R src vendor "${STAGE}/"
+          for OPTIONAL in languages assets templates; do
+            if [ -d "${OPTIONAL}" ]; then
+              cp -R "${OPTIONAL}" "${STAGE}/"
+            fi
+          done
+          # Runtime files only: no VCS metadata, dotfiles, tests or docs from dependencies.
+          find "${STAGE}" -name '.*' -not -name '.' -not -name '..' -prune -exec rm -rf {} +
+          find "${STAGE}/vendor" -type d \( -name tests -o -name test -o -name docs \) -prune -exec rm -rf {} +
+          find "${STAGE}" -type f -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+          ZIP="wp-license-captain-${VERSION}.zip"
+          (cd build && zip -r -q -X "../dist/${ZIP}" wp-license)
+          (cd dist && sha256sum "${ZIP}" > "${ZIP}.sha256")
+          unzip -l "dist/${ZIP}" | tail -n 1
+          cat "dist/${ZIP}.sha256"
+
+      - name: Verify the package contents
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          ZIP="dist/wp-license-captain-${VERSION}.zip"
+          unzip -Z1 "${ZIP}" > build/contents.txt
+          grep -qx 'wp-license/wp-license.php' build/contents.txt
+          grep -qx 'wp-license/vendor/autoload.php' build/contents.txt
+          if grep -Ev '^wp-license/' build/contents.txt; then
+            echo "::error::The ZIP contains entries outside the wp-license/ folder."
+            exit 1
+          fi
+          if grep -E '^wp-license/(tests|docs|tools)/|/\.[^/]+(/|$)' build/contents.txt; then
+            echo "::error::The ZIP contains development files."
+            exit 1
+          fi
+          (cd dist && sha256sum -c "wp-license-captain-${VERSION}.zip.sha256")
+
+      - name: Upload the build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-license-captain-${{ steps.version.outputs.version }}
+          path: |
+            dist/wp-license-captain-${{ steps.version.outputs.version }}.zip
+            dist/wp-license-captain-${{ steps.version.outputs.version }}.zip.sha256
+          if-no-files-found: error
+
+      - name: Attach the package to the GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/wp-license-captain-${{ steps.version.outputs.version }}.zip
+            dist/wp-license-captain-${{ steps.version.outputs.version }}.zip.sha256
+          fail_on_unmatched_files: true
+          generate_release_notes: true

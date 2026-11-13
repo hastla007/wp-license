@@ -1,0 +1,112 @@
+name: PHPUnit
+
+# Tests: syntax + unit tests on every supported PHP version, and the
+# WordPress/WooCommerce integration matrix. Static analysis lives in quality.yml.
+# See docs/QUALITY-GATES.md.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.1", "8.2", "8.3"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: intl, mbstring, openssl, sodium
+          tools: composer:v2
+          coverage: none
+      - name: Validate Composer metadata
+        run: composer validate --no-check-publish
+      # No composer.lock is committed (dev-only dependencies, PHP matrix), so the key is composer.json + PHP version.
+      - uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-vendor-php${{ matrix.php }}-${{ hashFiles('composer.json') }}
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Check PHP syntax
+        run: composer lint
+      - name: Unit tests
+        run: composer test
+      - name: Site URL rules without the intl extension
+        run: php -d disable_functions=idn_to_ascii vendor/bin/phpunit --filter SiteUrl
+
+  integration:
+    name: integration (WP ${{ matrix.wp }}, WC ${{ matrix.wc }}, PHP ${{ matrix.php }}, ${{ matrix.hpos == '1' && 'HPOS' || 'legacy orders' }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Declared minimum: WordPress 6.5, the last WooCommerce line that supports it, PHP 7.4.
+          - { wp: "6.5", wc: "9.4.3", php: "7.4", hpos: "1" }
+          - { wp: "6.5", wc: "9.4.3", php: "7.4", hpos: "0" }
+          # Current: latest WordPress, pinned recent WooCommerce (keep in sync with bin/install-test-env.sh).
+          - { wp: "latest", wc: "11.2.2", php: "8.3", hpos: "1" }
+          - { wp: "latest", wc: "11.2.2", php: "8.3", hpos: "0" }
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_ROOT_HOST: "%"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      WP_TESTS_DIR: /tmp/wordpress-tests-lib
+      WP_CORE_DIR: /tmp/wordpress
+      WPLC_TEST_HPOS: ${{ matrix.hpos }}
+      WPLC_EXPECT_WP_VERSION: ${{ matrix.wp }}
+      WPLC_EXPECT_WC_VERSION: ${{ matrix.wc }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mysqli, intl, mbstring, openssl, sodium
+          tools: composer:v2
+          coverage: none
+      - run: sudo apt-get update && sudo apt-get install -y default-mysql-client subversion unzip
+      - uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-vendor-php${{ matrix.php }}-${{ hashFiles('composer.json') }}
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Install WordPress, the test library and WooCommerce
+        run: bash bin/install-test-env.sh wordpress_test root root 127.0.0.1 "${{ matrix.wp }}" "${{ matrix.wc }}"
+      - name: Run integration tests
+        run: composer test:integration
+
+  # One stable check name for branch protection, independent of the matrix cells.
+  wordpress-integration:
+    if: always()
+    needs: integration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every integration matrix cell passed
+        run: |
+          if [ "${{ needs.integration.result }}" != "success" ]; then
+            echo "Integration matrix result: ${{ needs.integration.result }}"
+            exit 1
+          fi

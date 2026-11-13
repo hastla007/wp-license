@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<phpunit bootstrap="tests/bootstrap.php" colors="true" failOnWarning="true">
+	<testsuites>
+		<testsuite name="WP License Captain unit tests">
+			<directory suffix="Test.php">tests</directory>
+			<exclude>tests/integration</exclude>
+		</testsuite>
+	</testsuites>
+</phpunit>
