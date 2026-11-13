@@ -495,4 +495,63 @@ final class LicenseLifecycle {
 		$date = \DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $value, new \DateTimeZone( 'UTC' ) );
 		return $date instanceof \DateTimeImmutable && $date->format( 'Y-m-d H:i:s' ) === $value;
 	}
+
+	/**
+	 * Withdraw a scheduled cancellation while the license still runs.
+	 *
+	 * Ownership must be checked by the caller. Only active and past-due
+	 * licenses qualify; an active license must not have passed its paid period.
+	 *
+	 * @param int $license_id License ID.
+	 * @param int $actor_user_id User who withdraws the cancellation.
+	 * @return bool
+	 */
+	public static function resume_renewal( int $license_id, int $actor_user_id ): bool {
+		global $wpdb;
+
+		$license = self::get_license( $license_id );
+		if (
+			! $license
+			|| empty( $license['cancel_at_period_end'] )
+			|| ! in_array( (string) $license['status'], array( 'active', 'past_due' ), true )
+		) {
+			return false;
+		}
+		if ( 'active' === $license['status'] && ! empty( $license['paid_until'] ) && (string) $license['paid_until'] <= gmdate( 'Y-m-d H:i:s' ) ) {
+			return false;
+		}
+
+		$tables  = Schema::table_names();
+		$updated = $wpdb->update(
+			$tables['licenses'],
+			array(
+				'cancel_at_period_end' => 0,
+				'status_reason' => '',
+				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
+			),
+			array( 'id' => $license_id, 'status' => (string) $license['status'], 'cancel_at_period_end' => 1 ),
+			array( '%d', '%s', '%s' ),
+			array( '%d', '%s', '%d' )
+		);
+		if ( 1 !== $updated ) {
+			return false;
+		}
+
+		AuditLog::record(
+			'cancellation_withdrawn',
+			'license',
+			$license_id,
+			'Cancellation withdrawn',
+			array( 'status' => $license['status'], 'cancel_at_period_end' => 1 ),
+			array( 'status' => $license['status'], 'cancel_at_period_end' => 0 ),
+			$actor_user_id
+		);
+
+		if ( 'active' === $license['status'] && ! empty( $license['renewal_enabled'] ) && class_exists( '\\WPLC\\Billing\\RenewalScheduler' ) ) {
+			// Idempotent: makes sure the upcoming automatic renewal is queued again.
+			\WPLC\Billing\RenewalScheduler::schedule_next( $license_id );
+		}
+
+		return true;
+	}
 }
