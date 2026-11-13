@@ -403,13 +403,18 @@ final class Settings {
 			'state' => $scheduler ? 'ok' : 'warning',
 		);
 
-		$block_checkout = self::uses_block_checkout();
-		$rows[]         = array(
+		$block_checkout   = self::uses_block_checkout();
+		$block_supported  = function_exists( 'woocommerce_register_additional_checkout_field' );
+		$checkout_message = __( 'Classic checkout', 'wp-license' );
+		if ( $block_checkout ) {
+			$checkout_message = $block_supported
+				? __( 'Block checkout. The option for automatic renewal is offered as an additional checkout field.', 'wp-license' )
+				: __( 'The checkout page uses the block checkout, but this WooCommerce version has no additional checkout fields. Licenses bought here never renew automatically.', 'wp-license' );
+		}
+		$rows[] = array(
 			'label' => __( 'Checkout type', 'wp-license' ),
-			'value' => $block_checkout
-				? __( 'The checkout page uses the block checkout. The consent to automatic renewal only works with the classic checkout; licenses bought here never renew automatically.', 'wp-license' )
-				: __( 'Classic checkout', 'wp-license' ),
-			'state' => $block_checkout ? 'warning' : 'ok',
+			'value' => $checkout_message,
+			'state' => $block_checkout && ! $block_supported ? 'warning' : 'ok',
 		);
 
 		$rows[] = array(

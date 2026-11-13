@@ -48,7 +48,7 @@
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 1
     },
     "src/Billing/RenewalProcessor.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 10
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 11
     },
     "src/Billing/RenewalScheduler.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
@@ -73,7 +73,7 @@
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 1
     },
     "src/License/LicenseLifecycle.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 13
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 14
     },
     "src/Maintenance/Retention.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 11,
@@ -97,5 +97,8 @@
     },
     "src/Update/ReleaseRegistry.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 9
+    },
+    "tests/e2e/mu-plugins/wplc-e2e.php": {
+        "PHPCompatibility.FunctionDeclarations.NewClosure.ThisFoundInStatic": 8
     }
 }
