@@ -26,6 +26,7 @@ final class ProductEditor {
 		add_action( 'woocommerce_process_product_meta', array( self::class, 'save_product_fields' ) );
 		add_action( 'woocommerce_variation_options_pricing', array( self::class, 'render_variation_fields' ), 10, 3 );
 		add_action( 'woocommerce_save_product_variation', array( self::class, 'save_variation_fields' ), 10, 2 );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 	}
 
 	/**
@@ -155,16 +156,77 @@ final class ProductEditor {
 				),
 			)
 		);
+		$stored = json_decode( (string) $values['entitlements'], true );
+		$split  = EntitlementCatalog::split( is_array( $stored ) ? $stored : array() );
+		self::render_entitlement_checklist( $split['checked'], (string) $values['product_key'], $suffix );
+
+		$advanced_json = $split['advanced'] ? wp_json_encode( $split['advanced'] ) : '';
 		woocommerce_wp_textarea_input(
 			array(
 				'id' => $name( '_wplc_entitlements_json' ),
-				'label' => __( 'Additional entitlements (JSON)', 'wp-license' ),
-				'value' => $values['entitlements'],
-				'placeholder' => '{"voucher.multi_location":true}',
+				'label' => __( 'Advanced: additional entitlements (JSON)', 'wp-license' ),
+				'value' => false === $advanced_json ? '' : $advanced_json,
+				'placeholder' => '{"affiliate.program_limit":3}',
 				'desc_tip' => true,
-				'description' => __( 'Optional JSON object. The live-site limit and support level are added automatically.', 'wp-license' ),
+				'description' => __( 'Optional JSON object for numeric limits and entitlement keys that are not in the list above. The live-site limit and support level are added automatically.', 'wp-license' ),
 			)
 		);
+	}
+
+	/**
+	 * Render the checklist of known entitlements, grouped by product.
+	 *
+	 * @param string[] $checked Keys that are currently granted.
+	 * @param string   $product_key License product key of this product.
+	 * @param string   $suffix Variation array suffix.
+	 * @return void
+	 */
+	private static function render_entitlement_checklist( array $checked, string $product_key, string $suffix ): void {
+		$catalog = EntitlementCatalog::all();
+		if ( ! $catalog ) {
+			return;
+		}
+
+		$matching  = EntitlementCatalog::groups_for_product_key( $product_key );
+		$id_suffix = '' === $suffix ? 'p' : 'v' . absint( trim( $suffix, '[]' ) );
+		// Separate names: "x[]" on the parent and "x[0][]" on a variation would collide in one request.
+		$field_name = '' === $suffix ? '_wplc_entitlement_keys[]' : '_wplc_variation_entitlement_keys' . $suffix . '[]';
+
+		echo '<fieldset class="form-field wplc-entitlements">';
+		echo '<legend>' . esc_html__( 'Entitlements', 'wp-license' ) . '</legend>';
+		foreach ( $catalog as $group => $entitlements ) {
+			if ( ! $entitlements ) {
+				continue;
+			}
+			$group_checked = array_intersect( array_column( $entitlements, 'key' ), $checked );
+			// Never hide a group that carries saved values; the script applies the same rule while typing.
+			$hidden = $matching && ! in_array( $group, $matching, true ) && ! $group_checked;
+			echo '<div class="wplc-entitlement-group" data-wplc-entitlement-group="' . esc_attr( $group ) . '"' . ( $hidden ? ' hidden' : '' ) . '>';
+			echo '<strong>' . esc_html( EntitlementCatalog::group_label( $group ) ) . '</strong><ul>';
+			foreach ( $entitlements as $entitlement ) {
+				$id = 'wplc_ent_' . $id_suffix . '_' . preg_replace( '/[^a-z0-9]+/i', '_', $entitlement['key'] );
+				echo '<li><label for="' . esc_attr( $id ) . '">';
+				echo '<input type="checkbox" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '" value="' . esc_attr( $entitlement['key'] ) . '"' . checked( in_array( $entitlement['key'], $checked, true ), true, false ) . '> ';
+				echo esc_html( $entitlement['label'] ) . ' <code>' . esc_html( $entitlement['key'] ) . '</code>';
+				echo '</label></li>';
+			}
+			echo '</ul></div>';
+		}
+		echo '</fieldset>';
+	}
+
+	/**
+	 * Load the checklist styles and script on the product editor.
+	 *
+	 * @return void
+	 */
+	public static function enqueue_assets(): void {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || 'product' !== $screen->id ) {
+			return;
+		}
+		wp_enqueue_style( 'wplc-admin', plugins_url( 'assets/css/wplc-admin.css', WPLC_FILE ), array(), WPLC_VERSION );
+		wp_enqueue_script( 'wplc-product-editor', plugins_url( 'assets/js/wplc-product-editor.js', WPLC_FILE ), array( 'jquery' ), WPLC_VERSION, true );
 	}
 
 	/**
@@ -260,12 +322,17 @@ final class ProductEditor {
 			$entitlements = array();
 		}
 
-		$clean_entitlements = array();
-		foreach ( $entitlements as $key => $value ) {
-			if ( is_string( $key ) && preg_match( '/^[a-zA-Z0-9_.-]{1,120}$/', $key ) ) {
-				$clean_entitlements[ $key ] = $value;
-			}
+		if ( '' === $suffix ) {
+			$checked = $source['_wplc_entitlement_keys'] ?? array();
+		} else {
+			$index = absint( trim( $suffix, '[]' ) );
+			$checked = $source['_wplc_variation_entitlement_keys'] ?? array();
+			$checked = is_array( $checked ) ? ( $checked[ $index ] ?? array() ) : array();
 		}
+		$checked = is_array( $checked ) ? array_map( 'sanitize_text_field', array_filter( wp_unslash( $checked ), 'is_string' ) ) : array();
+
+		// Ticked catalog entries and the advanced JSON object are stored as one entitlement map.
+		$clean_entitlements = EntitlementCatalog::merge( $checked, $entitlements );
 
 		return array(
 			'enabled' => 'yes' === $get( '_wplc_is_license_product' ),
@@ -290,7 +357,7 @@ final class ProductEditor {
 	 */
 	private static function persist_mapping( $product, int $product_id, int $variation_id, array $data ): void {
 		if ( empty( $data['entitlements_valid'] ) ) {
-			self::add_admin_error( __( 'Additional entitlements must be a valid JSON object. No product changes were saved.', 'wp-license' ) );
+			self::add_admin_error( __( 'The advanced entitlements field must contain a valid JSON object. No product changes were saved.', 'wp-license' ) );
 			return;
 		}
 
