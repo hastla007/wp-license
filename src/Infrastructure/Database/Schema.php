@@ -557,8 +557,23 @@ final class Schema {
 	 * @return string
 	 */
 	private static function lock_name(): string {
+		return 'wplc_schema_' . md5( self::lock_scope() );
+	}
+
+	/**
+	 * Identifies this site among all sites on the same database server.
+	 *
+	 * MySQL advisory locks are global to the server. Every lock name must
+	 * include this scope, otherwise two shops (or a shop and its staging copy)
+	 * on one server would block each other's licenses and renewals.
+	 *
+	 * @return string
+	 */
+	public static function lock_scope(): string {
 		global $wpdb;
 
-		return 'wplc_schema_' . md5( ( defined( 'DB_NAME' ) ? (string) DB_NAME : '' ) . '|' . (string) $wpdb->prefix );
+		$prefix = is_object( $wpdb ) && isset( $wpdb->prefix ) ? (string) $wpdb->prefix : '';
+
+		return ( defined( 'DB_NAME' ) ? (string) DB_NAME : '' ) . '|' . $prefix;
 	}
 }

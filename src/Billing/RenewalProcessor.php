@@ -686,7 +686,7 @@ final class RenewalProcessor {
 	 * @return string
 	 */
 	public static function renewal_lock_name( int $renewal_id ): string {
-		return 'wplc_renewal_' . substr( hash( 'sha256', 'renewal:' . $renewal_id ), 0, 48 );
+		return 'wplc_renewal_' . substr( hash( 'sha256', \WPLC\Infrastructure\Database\Schema::lock_scope() . '|renewal:' . $renewal_id ), 0, 48 );
 	}
 
 	/**
