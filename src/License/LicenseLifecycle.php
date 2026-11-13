@@ -30,7 +30,13 @@ final class LicenseLifecycle {
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'expire_due_licenses' ) );
 		// Public extension point; fired by chargeback_for_order() for Stripe disputes.
 		add_action( 'wplc/chargeback', array( self::class, 'suspend_for_chargeback' ), 10, 2 );
-		self::schedule_daily_event();
+		// Not before `init`: wp_schedule_event() runs the `cron_schedules` filter, and
+		// callbacks of other plugins translate their schedule names there.
+		if ( did_action( 'init' ) ) {
+			self::schedule_daily_event();
+		} else {
+			add_action( 'init', array( self::class, 'schedule_daily_event' ) );
+		}
 	}
 
 	/**

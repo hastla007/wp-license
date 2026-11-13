@@ -25,6 +25,21 @@ final class Routes {
 		add_action( 'rest_api_init', array( self::class, 'register_routes' ) );
 		add_action( 'wplc_cleanup_security_rows', array( Authenticator::class, 'cleanup_security_rows' ) );
 		add_action( 'wplc_daily_lifecycle', array( UpdateService::class, 'purge_expired_grants' ) );
+		// Not before `init`: wp_schedule_event() runs the `cron_schedules` filter, and
+		// callbacks of other plugins translate their schedule names there.
+		if ( did_action( 'init' ) ) {
+			self::schedule_cleanup_event();
+		} else {
+			add_action( 'init', array( self::class, 'schedule_cleanup_event' ) );
+		}
+	}
+
+	/**
+	 * Schedule the hourly cleanup of replay-protection and rate-limit rows.
+	 *
+	 * @return void
+	 */
+	public static function schedule_cleanup_event(): void {
 		if ( ! wp_next_scheduled( 'wplc_cleanup_security_rows' ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'wplc_cleanup_security_rows' );
 		}
