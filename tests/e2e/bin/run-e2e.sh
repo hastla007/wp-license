@@ -6,7 +6,7 @@
 # WITHOUT vendor/ into it, starts a local PHP server and runs every flow script.
 # Prints PASS/FAIL per assertion and exits non-zero when any assertion fails.
 #
-# Usage: tests/e2e/bin/run-e2e.sh [flow-number ...]      (no arguments: all flows)
+# Usage: tests/e2e/bin/run-e2e.sh [flow-prefix ...]   e.g. "04" or "07-renewals-auto" (no arguments: all flows)
 #
 # Environment (all optional):
 #   WPLC_E2E_SITE        site directory            (default: ${TMPDIR:-/tmp}/wplc-e2e-site)
@@ -154,6 +154,8 @@ PHP
 	wp wc tool run install_pages --user=admin >/dev/null 2>&1 || true
 	wp option update woocommerce_currency EUR >/dev/null
 	wp option update woocommerce_default_country DE >/dev/null
+	# A new store starts in "coming soon" mode, which hides the checkout and pay pages.
+	wp option update woocommerce_coming_soon no >/dev/null
 fi
 
 # The plugin is copied without vendor/, .git and tests so the fallback autoloader is what runs.
@@ -189,11 +191,13 @@ export WPLC_E2E_RESULTS="$RESULTS"
 FLOWS=()
 if [ $# -gt 0 ]; then
 	for n in "$@"; do
-		for f in "$E2E_DIR/flows/$n"-*.php; do [ -f "$f" ] && FLOWS+=("$f"); done
+		for f in "$E2E_DIR/flows/$n"*.php; do [ -f "$f" ] && FLOWS+=("$f"); done
 	done
 else
 	for f in "$E2E_DIR"/flows/[0-9][0-9]-*.php; do FLOWS+=("$f"); done
 fi
+
+[ "${#FLOWS[@]}" -gt 0 ] || die "no flow script matches: $*"
 
 FAILED=0
 for flow in "${FLOWS[@]}"; do

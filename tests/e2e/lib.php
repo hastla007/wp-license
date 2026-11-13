@@ -475,3 +475,145 @@ function e2e_checkout( int $customer_id, array $items, string $gateway = 'wplc_e
 function e2e_audit_actions( string $object_type, int $object_id ): array {
 	return array_column( e2e_rows( 'audit_log', "object_type = '" . esc_sql( $object_type ) . "' AND object_id = " . $object_id . ' ORDER BY id DESC' ), 'action' );
 }
+
+/**
+ * TIME SIMULATION: move the end of a license's paid period by editing the e2e database.
+ *
+ * Sets paid_until/next_payment_at and the entitlement end dates, drops the license's
+ * unpaid renewal rows and, for a renewal-enabled license, lets the plugin schedule the
+ * renewal for the new period (so period, grace end and idempotency key are consistent).
+ *
+ * @param int    $license_id License ID.
+ * @param string $paid_until New paid_until, UTC 'Y-m-d H:i:s'.
+ * @return int Renewal row ID (0 when the license does not renew automatically).
+ */
+function e2e_move_paid_until( int $license_id, string $paid_until ): int {
+	global $wpdb;
+	$t = e2e_tables();
+	$wpdb->query( $wpdb->prepare( "UPDATE {$t['licenses']} SET paid_until = %s, next_payment_at = IF( renewal_enabled = 1, %s, NULL ) WHERE id = %d", $paid_until, $paid_until, $license_id ) );
+	$wpdb->query( $wpdb->prepare( "UPDATE {$t['entitlements']} SET ends_at = %s WHERE license_id = %d", $paid_until, $license_id ) );
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$t['renewals']} WHERE license_id = %d AND status <> 'paid'", $license_id ) );
+
+	return \WPLC\Billing\RenewalScheduler::schedule_next( $license_id );
+}
+
+/**
+ * TIME SIMULATION: move an open renewal and its license into the past by a number of days
+ * (period start, period end, grace end, retry time, idempotency key, license paid_until).
+ *
+ * @param int $renewal_id Renewal ID.
+ * @param int $days Days to move back.
+ * @return void
+ */
+function e2e_age_renewal( int $renewal_id, int $days ): void {
+	global $wpdb;
+	$t       = e2e_tables();
+	$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['renewals']} WHERE id = %d", $renewal_id ), ARRAY_A );
+	$shift   = static function ( $value ) use ( $days ) {
+		return null === $value ? null : gmdate( 'Y-m-d H:i:s', strtotime( $value . ' UTC' ) - $days * DAY_IN_SECONDS );
+	};
+	$start = $shift( $renewal['period_start'] );
+	$wpdb->update(
+		$t['renewals'],
+		array(
+			'period_start'    => $start,
+			'period_end'      => $shift( $renewal['period_end'] ),
+			'grace_ends_at'   => $shift( $renewal['grace_ends_at'] ),
+			'retry_at'        => $shift( $renewal['retry_at'] ),
+			'idempotency_key' => \WPLC\Billing\RenewalScheduler::idempotency_key( (int) $renewal['license_id'], $start ),
+		),
+		array( 'id' => $renewal_id )
+	);
+	$wpdb->query( $wpdb->prepare( "UPDATE {$t['licenses']} SET paid_until = %s, next_payment_at = IF( renewal_enabled = 1, %s, NULL ) WHERE id = %d", $start, $start, (int) $renewal['license_id'] ) );
+	$wpdb->query( $wpdb->prepare( "UPDATE {$t['entitlements']} SET ends_at = %s WHERE license_id = %d", $start, (int) $renewal['license_id'] ) );
+}
+
+/**
+ * Run the pending Action Scheduler action of a hook with exactly these args, through the
+ * Action Scheduler runner (as the queue would), regardless of its scheduled date.
+ *
+ * @param string $hook Hook.
+ * @param array  $args Args.
+ * @return bool True when a pending action was found and executed.
+ */
+function e2e_run_action( string $hook, array $args ): bool {
+	$ids = as_get_scheduled_actions(
+		array(
+			'hook'     => $hook,
+			'args'     => $args,
+			'status'   => ActionScheduler_Store::STATUS_PENDING,
+			'per_page' => 1,
+		),
+		'ids'
+	);
+	if ( ! $ids ) {
+		return false;
+	}
+	ActionScheduler::runner()->process_action( (int) reset( $ids ), 'e2e' );
+
+	return true;
+}
+
+/**
+ * One renewal row.
+ *
+ * @param int $renewal_id Renewal ID.
+ * @return array<string,mixed>
+ */
+function e2e_renewal( int $renewal_id ): array {
+	$rows = e2e_rows( 'renewals', 'id = ' . $renewal_id );
+
+	return $rows ? $rows[0] : array();
+}
+
+/**
+ * Charges recorded by the fake gateway adapter.
+ *
+ * @return array<int,array<string,mixed>>
+ */
+function e2e_charges(): array {
+	wp_cache_delete( 'wplc_e2e_fake_charges', 'options' );
+
+	return (array) get_option( 'wplc_e2e_fake_charges', array() );
+}
+
+/**
+ * Captured mails whose subject contains a text.
+ *
+ * @param string $needle Subject part.
+ * @return array<int,array<string,mixed>>
+ */
+function e2e_mails_with_subject( string $needle ): array {
+	return array_values(
+		array_filter(
+			wplc_e2e_mails(),
+			static function ( $mail ) use ( $needle ) {
+				return false !== strpos( (string) $mail['subject'], $needle );
+			}
+		)
+	);
+}
+
+/**
+ * Filter home_url() so that this process acts as a customer site for the LicenseClient.
+ * Call with '' to act as the shop again.
+ *
+ * @param string $home Site URL.
+ * @return void
+ */
+function e2e_as_site( string $home ): void {
+	static $hooked = false;
+	$GLOBALS['wplc_e2e_home'] = $home;
+	if ( $hooked ) {
+		return;
+	}
+	$hooked = true;
+	add_filter(
+		'home_url',
+		static function ( $url, $path ) {
+			return '' !== $GLOBALS['wplc_e2e_home'] && ( '' === $path || '/' === $path ) ? $GLOBALS['wplc_e2e_home'] : $url;
+		},
+		10,
+		2
+	);
+}
