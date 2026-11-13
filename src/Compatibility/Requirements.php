@@ -192,10 +192,11 @@ final class Requirements {
 		if ( ! function_exists( 'as_schedule_single_action' ) ) {
 			return 0;
 		}
-		if ( 'native' === self::unique_mode( self::action_scheduler_version() ) ) {
-			return (int) as_schedule_single_action( $timestamp, $hook, $args, $group, true );
-		}
-		if ( self::has_scheduled_action( $hook, $args, $group ) ) {
+		// Action Scheduler's own unique flag also counts the RUNNING action, so a job
+		// could never reschedule itself (retries, lock contention). Only a PENDING
+		// duplicate is skipped here; duplicates are harmless because every job takes
+		// a lock and is idempotent.
+		if ( self::has_pending_action( $hook, $args, $group ) ) {
 			return 0;
 		}
 		return (int) as_schedule_single_action( $timestamp, $hook, $args, $group );
@@ -213,28 +214,39 @@ final class Requirements {
 		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
 			return 0;
 		}
-		if ( 'native' === self::unique_mode( self::action_scheduler_version() ) ) {
-			return (int) as_enqueue_async_action( $hook, $args, $group, true );
-		}
-		if ( self::has_scheduled_action( $hook, $args, $group ) ) {
+		// Action Scheduler's own unique flag also counts the RUNNING action, so a job
+		// could never reschedule itself (retries, lock contention). Only a PENDING
+		// duplicate is skipped here; duplicates are harmless because every job takes
+		// a lock and is idempotent.
+		if ( self::has_pending_action( $hook, $args, $group ) ) {
 			return 0;
 		}
 		return (int) as_enqueue_async_action( $hook, $args, $group );
 	}
 
 	/**
-	 * Whether a pending or running action with the same hook, args and group exists.
+	 * Whether a pending action with the same hook, args and group exists.
 	 *
 	 * @param string            $hook  Action hook.
 	 * @param array<int,mixed>  $args  Hook arguments.
 	 * @param string            $group Action Scheduler group.
 	 * @return bool
 	 */
-	private static function has_scheduled_action( string $hook, array $args, string $group ): bool {
-		if ( function_exists( 'as_has_scheduled_action' ) ) {
-			return (bool) as_has_scheduled_action( $hook, $args, $group );
+	private static function has_pending_action( string $hook, array $args, string $group ): bool {
+		if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
+			return false;
 		}
-		return function_exists( 'as_next_scheduled_action' ) && false !== as_next_scheduled_action( $hook, $args, $group );
+		$pending = as_get_scheduled_actions(
+			array(
+				'hook'     => $hook,
+				'args'     => $args,
+				'group'    => $group,
+				'status'   => 'pending',
+				'per_page' => 1,
+			),
+			'ids'
+		);
+		return ! empty( $pending );
 	}
 
 	/**

@@ -292,7 +292,7 @@ final class RenewalProcessor {
 	 */
 	private static function schedule_grace_end( int $license_id, int $timestamp ): void {
 		if ( function_exists( 'as_schedule_single_action' ) ) {
-			as_schedule_single_action( max( time() + 30, $timestamp ), 'wplc/renewal_grace_ended', array( $license_id ), 'wplc', true );
+			\WPLC\Compatibility\Requirements::schedule_single_action( max( time() + 30, $timestamp ), 'wplc/renewal_grace_ended', array( $license_id ), 'wplc' );
 		} else {
 			wp_schedule_single_event( max( time() + 30, $timestamp ), 'wplc/renewal_grace_ended', array( $license_id ) );
 		}
@@ -330,7 +330,7 @@ final class RenewalProcessor {
 	/** Queue verified webhook reconciliation after the inbox has committed. */
 	public static function queue_stripe_event( int $inbox_id ): void {
 		if ( function_exists( 'as_enqueue_async_action' ) ) {
-			as_enqueue_async_action( 'wplc_process_stripe_webhook', array( $inbox_id ), 'wplc', true );
+			\WPLC\Compatibility\Requirements::enqueue_async_action( 'wplc_process_stripe_webhook', array( $inbox_id ), 'wplc' );
 			return;
 		}
 		if ( ! wp_next_scheduled( 'wplc_process_stripe_webhook', array( $inbox_id ) ) ) {
@@ -372,7 +372,7 @@ final class RenewalProcessor {
 			return;
 		}
 		if ( function_exists( 'as_enqueue_async_action' ) ) {
-			as_enqueue_async_action( 'wplc_reconcile_paid_renewal_order', array( $order_id ), 'wplc', true );
+			\WPLC\Compatibility\Requirements::enqueue_async_action( 'wplc_reconcile_paid_renewal_order', array( $order_id ), 'wplc' );
 			return;
 		}
 		if ( ! wp_next_scheduled( 'wplc_reconcile_paid_renewal_order', array( $order_id ) ) ) {
@@ -661,7 +661,7 @@ final class RenewalProcessor {
 	private static function schedule_stuck_check( int $renewal_id ): void {
 		$at = time() + self::STUCK_AFTER_SECONDS + 5 * MINUTE_IN_SECONDS;
 		if ( function_exists( 'as_schedule_single_action' ) ) {
-			as_schedule_single_action( $at, 'wplc_reconcile_stuck_renewal', array( $renewal_id ), 'wplc', true );
+			\WPLC\Compatibility\Requirements::schedule_single_action( $at, 'wplc_reconcile_stuck_renewal', array( $renewal_id ), 'wplc' );
 		} elseif ( ! wp_next_scheduled( 'wplc_reconcile_stuck_renewal', array( $renewal_id ) ) ) {
 			wp_schedule_single_event( $at, 'wplc_reconcile_stuck_renewal', array( $renewal_id ) );
 		}
