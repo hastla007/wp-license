@@ -46,6 +46,7 @@ final class RenewalProcessor {
 		$lock_name = 'wplc_renewal_' . substr( hash( 'sha256', 'renewal:' . $renewal_id ), 0, 48 );
 		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
 		if ( '1' !== (string) $locked ) {
+			RenewalScheduler::enqueue( $renewal_id, time() + 30 );
 			return;
 		}
 		try {

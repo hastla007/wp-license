@@ -127,7 +127,7 @@ final class UpdateService {
 		}
 		$consumed = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id SET dt.consumed_at = %s WHERE dt.token_hash = %s AND dt.consumed_at IS NULL AND dt.expires_at > %s AND l.status = %s AND (l.paid_until IS NULL OR l.paid_until > %s)",
+				"UPDATE {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id SET dt.consumed_at = %s, dt.package_url = '' WHERE dt.token_hash = %s AND dt.consumed_at IS NULL AND dt.expires_at > %s AND l.status = %s AND (l.paid_until IS NULL OR l.paid_until > %s)",
 				$now,
 				$token_hash,
 				$now,
@@ -150,6 +150,26 @@ final class UpdateService {
 		}
 		wp_redirect( $download_url, 302, 'WP License Captain' );
 		exit;
+	}
+
+	/**
+	 * Purge expired grants after a configurable retention period.
+	 *
+	 * @return void
+	 */
+	public static function purge_expired_grants(): void {
+		global $wpdb;
+
+		$days = absint( apply_filters( 'wplc_download_grant_retention_days', 7 ) );
+		$days = max( 1, min( 3650, $days ) );
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
+		$tables = Schema::table_names();
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$tables['download_tokens']} WHERE COALESCE(consumed_at, expires_at) < %s",
+				$cutoff
+			)
+		);
 	}
 
 	/**
