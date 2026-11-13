@@ -197,6 +197,16 @@ WC()->mailer()->init();
 $mixed = e2e_create_order( $bob_id, array( $plain_id => 3, $simple_id => 1 ) );
 e2e_eq( 1, count( e2e_order_licenses( $mixed->get_id() ) ), 'mixed order: only the license line issues (1 license, T-shirt x3 none)' );
 
+// --- A variation of a variable product that is mapped at parent level. ---
+$pass_variation_ids = (array) e2e_get( 'pass_variation_ids' );
+$pass_order         = e2e_create_order( $bob_id, array( (int) $pass_variation_ids[0] => 1 ) );
+$pass_licenses      = e2e_order_licenses( $pass_order->get_id() );
+e2e_ok( 1 === count( $pass_licenses ) && 'pass-captain' === $pass_licenses[0]['product_key'], 'buying a variation of a parent-mapped variable product issues a license with the parent plan' );
+if ( $pass_licenses ) {
+	// Reported, not asserted (pricing rule of parent-level mappings is a product decision):
+	e2e_note( 'parent-mapped variation bought for ' . $pass_order->get_total() . ' → stored renewal price ' . \WPLC\Billing\Money::to_decimal( (int) $pass_licenses[0]['renewal_amount_minor'], 2 ) . ' (the parent plan holds the lowest variation price)' );
+}
+
 // --- The plugin emails are registered with WooCommerce and their settings form renders. ---
 // (The WooCommerce settings screens themselves cannot be loaded in a WooCommerce build without compiled JS.)
 $registered = array();

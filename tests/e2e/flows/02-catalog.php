@@ -214,7 +214,7 @@ $loaded = e2e_http(
 		),
 	)
 );
-e2e_ok( 200 === $loaded['code'] && false !== strpos( $loaded['body'], 'name="_wplc_product_key[0]"' ) && false !== strpos( $loaded['body'], 'name="_wplc_product_key[1]"' ) && false !== strpos( $loaded['body'], '_wplc_variation_entitlement_keys[1][]' ), 'variation panel renders indexed license fields for both variations', array( $loaded['code'], substr( $loaded['body'], 0, 200 ) ) );
+e2e_ok( 200 === $loaded['code'] && false !== strpos( $loaded['body'], 'name="_wplc_variation_product_key[0]"' ) && false !== strpos( $loaded['body'], 'name="_wplc_variation_product_key[1]"' ) && false === strpos( $loaded['body'], 'name="_wplc_product_key[' ) && false !== strpos( $loaded['body'], '_wplc_variation_entitlement_keys[1][]' ), 'variation panel renders indexed license fields for both variations', array( $loaded['code'], substr( $loaded['body'], 0, 200 ) ) );
 
 $variation_fields = array(
 	'variable_post_id'                  => array( (string) $variation_ids[0], (string) $variation_ids[1] ),
@@ -224,13 +224,13 @@ $variation_fields = array(
 	'variable_is_virtual'               => array( 'on', 'on' ),
 	'variation_menu_order'              => array( '0', '1' ),
 	'attribute_plan'                    => array( 'Business', 'Agency' ),
-	'_wplc_is_license_product'          => array( 'yes', 'yes' ),
-	'_wplc_product_key'                 => array( 'affiliate-captain', 'affiliate-captain' ),
-	'_wplc_plan_key'                    => array( 'business', 'agency-monthly' ),
-	'_wplc_billing_interval'            => array( 'year', 'month' ),
-	'_wplc_live_site_limit'             => array( '2', '10' ),
-	'_wplc_support_level'               => array( 'standard', 'priority' ),
-	'_wplc_entitlements_json'           => array( '', '{"affiliate.program_limit":3}' ),
+	'_wplc_variation_is_license_product'=> array( 'yes', 'yes' ),
+	'_wplc_variation_product_key'       => array( 'affiliate-captain', 'affiliate-captain' ),
+	'_wplc_variation_plan_key'          => array( 'business', 'agency-monthly' ),
+	'_wplc_variation_billing_interval'  => array( 'year', 'month' ),
+	'_wplc_variation_live_site_limit'   => array( '2', '10' ),
+	'_wplc_variation_support_level'     => array( 'standard', 'priority' ),
+	'_wplc_variation_entitlements_json' => array( '', '{"affiliate.program_limit":3}' ),
 	'_wplc_variation_entitlement_keys'  => array( array( 'affiliate.partner_portal' ), array( 'affiliate.partner_portal', 'affiliate.webhooks' ) ),
 );
 $saved = e2e_http(
@@ -316,12 +316,92 @@ e2e_ok( is_array( $business ) && 'business' === $business['plan_key'] && is_arra
 e2e_ok( null === $plan_of( $variable_id, 0 ), 'the unlicensed parent of the variable product has no plan of its own' );
 e2e_eq( '99.00', (string) wc_get_product( $variation_ids[0] )->get_regular_price(), 'variation price unchanged by the full save' );
 
+// --- A variable product mapped once at parent level (covers all variations). ---
+$parent_mapped = new WC_Product_Variable();
+$parent_mapped->set_name( 'Pass Captain' );
+$parent_mapped->set_sku( 'PC' );
+$pass_attribute = new WC_Product_Attribute();
+$pass_attribute->set_name( 'Term' );
+$pass_attribute->set_options( array( 'Standard', 'Launch offer' ) );
+$pass_attribute->set_visible( true );
+$pass_attribute->set_variation( true );
+$parent_mapped->set_attributes( array( $pass_attribute ) );
+$parent_mapped->set_status( 'publish' );
+$parent_mapped_id  = $parent_mapped->save();
+$pass_variation_ids = array();
+foreach ( array( 'Standard' => array( 'PC-STD', '79.00' ), 'Launch offer' => array( 'PC-LAUNCH', '59.00' ) ) as $option => $spec ) {
+	$variation = new WC_Product_Variation();
+	$variation->set_parent_id( $parent_mapped_id );
+	$variation->set_attributes( array( 'term' => $option ) );
+	$variation->set_sku( $spec[0] );
+	$variation->set_regular_price( $spec[1] );
+	$variation->set_virtual( true );
+	$variation->set_status( 'publish' );
+	$pass_variation_ids[] = $variation->save();
+}
+WC_Product_Variable::sync( $parent_mapped_id );
+$parent_fields = array(
+	array( '_wplc_is_license_product', 'yes' ),
+	array( '_wplc_product_key', 'pass-captain' ),
+	array( '_wplc_plan_key', 'single' ),
+	array( '_wplc_billing_interval', 'year' ),
+	array( '_wplc_live_site_limit', '1' ),
+	array( '_wplc_support_level', 'standard' ),
+	array( '_wplc_entitlements_json', '' ),
+	array( '_wplc_entitlement_keys[]', 'pass.events' ),
+);
+$base_pairs = static function ( int $product_id, string $title, string $sku ) {
+	return array(
+		array( '_wpnonce', wp_create_nonce( 'update-post_' . $product_id ) ),
+		array( 'action', 'editpost' ),
+		array( 'originalaction', 'editpost' ),
+		array( 'post_ID', (string) $product_id ),
+		array( 'post_type', 'product' ),
+		array( 'user_ID', (string) get_current_user_id() ),
+		array( 'post_title', $title ),
+		array( 'post_status', 'publish' ),
+		array( 'original_post_status', 'publish' ),
+		array( 'product-type', 'variable' ),
+		array( '_sku', $sku ),
+		array( 'woocommerce_meta_nonce', wp_create_nonce( 'woocommerce_save_data' ) ),
+	);
+};
+// 1. Saved from the "General" tab only (the Variations tab was never opened, so its fields are not in the form).
+$response = e2e_http( 'POST', admin_url( 'post.php' ), array( 'cookies' => $cookies, 'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ), 'body' => $encode( array_merge( $base_pairs( $parent_mapped_id, 'Pass Captain', 'PC' ), $parent_fields ) ) ) );
+$parent_plan = $plan_of( $parent_mapped_id, 0 );
+e2e_ok( 302 === $response['code'] && is_array( $parent_plan ) && 'pass-captain' === $parent_plan['product_key'], 'variable product mapped at parent level: plan saved for the parent', array( $response['code'], $parent_plan ) );
+e2e_note( 'parent-level plan price_minor = ' . ( is_array( $parent_plan ) ? $parent_plan['price_minor'] : 'n/a' ) . ' (a variable parent has no price of its own)' );
+// 2. Saved again with the Variations tab open: the browser then also sends the (unlicensed) variations' fields.
+$with_variations = array_merge( $base_pairs( $parent_mapped_id, 'Pass Captain', 'PC' ), $parent_fields );
+foreach ( array( 0, 1 ) as $index ) {
+	$with_variations[] = array( 'variable_post_id[' . $index . ']', (string) $pass_variation_ids[ $index ] );
+	$with_variations[] = array( 'variable_sku[' . $index . ']', 0 === $index ? 'PC-STD' : 'PC-LAUNCH' );
+	$with_variations[] = array( 'variable_regular_price[' . $index . ']', 0 === $index ? '79.00' : '59.00' );
+	$with_variations[] = array( 'variable_enabled[' . $index . ']', 'on' );
+	$with_variations[] = array( 'variable_is_virtual[' . $index . ']', 'on' );
+	$with_variations[] = array( 'variation_menu_order[' . $index . ']', (string) $index );
+	$with_variations[] = array( 'attribute_term[' . $index . ']', 0 === $index ? 'Standard' : 'Launch offer' );
+	// License fields of an unlicensed variation: checkbox not sent, the rest empty/default.
+	$with_variations[] = array( '_wplc_variation_product_key[' . $index . ']', '' );
+	$with_variations[] = array( '_wplc_variation_plan_key[' . $index . ']', '' );
+	$with_variations[] = array( '_wplc_variation_billing_interval[' . $index . ']', 'year' );
+	$with_variations[] = array( '_wplc_variation_live_site_limit[' . $index . ']', '1' );
+	$with_variations[] = array( '_wplc_variation_support_level[' . $index . ']', 'standard' );
+	$with_variations[] = array( '_wplc_variation_entitlements_json[' . $index . ']', '' );
+}
+$response    = e2e_http( 'POST', admin_url( 'post.php' ), array( 'cookies' => $cookies, 'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ), 'body' => $encode( $with_variations ) ) );
+$parent_plan = $plan_of( $parent_mapped_id, 0 );
+e2e_ok( 302 === $response['code'] && is_array( $parent_plan ) && 'pass-captain' === $parent_plan['product_key'] && 'yes' === (string) wc_get_product( $parent_mapped_id )->get_meta( '_wplc_is_license_product', true ), 'the parent-level mapping survives "Update" with the Variations tab open', array( $response['code'], $parent_plan, wc_get_product( $parent_mapped_id )->get_meta( '_wplc_is_license_product', true ) ) );
+e2e_ok( null === $plan_of( $parent_mapped_id, $pass_variation_ids[0] ) && null === $plan_of( $parent_mapped_id, $pass_variation_ids[1] ), 'the unlicensed variations got no plan of their own' );
+e2e_set( 'parent_mapped_id', $parent_mapped_id );
+e2e_set( 'pass_variation_ids', $pass_variation_ids );
+
 // --- CSV export / import round trip over HTTP. ---
 $export = e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $cookies, 'body' => array( 'action' => 'wplc_export_catalog_csv', '_wpnonce' => wp_create_nonce( 'wplc_catalog_csv' ) ) ) );
 $content_type = isset( $export['headers']['content-type'] ) ? (string) $export['headers']['content-type'] : '';
 e2e_ok( 200 === $export['code'] && 0 === strpos( $content_type, 'text/csv' ), 'CSV export answers 200 text/csv', array( $export['code'], $content_type ) );
 $lines = array_values( array_filter( explode( "\n", trim( $export['body'] ) ) ) );
-e2e_eq( 4, count( $lines ), 'CSV export has the header and 3 mapped rows' );
+e2e_eq( 5, count( $lines ), 'CSV export has the header and 4 mapped rows' );
 e2e_ok( false === strpos( $export['body'], 'WPLC-' ), 'CSV export contains no license key' );
 $parsed = array();
 $stream = fopen( 'php://memory', 'w+' );
@@ -339,7 +419,7 @@ $before = $wpdb->get_results( "SELECT product_key, plan_key, woocommerce_product
 $wpdb->query( "DELETE FROM {$t['plans']}" );
 $upload = e2e_multipart( array( 'action' => 'wplc_import_catalog_csv', '_wpnonce' => wp_create_nonce( 'wplc_catalog_csv' ) ), 'catalog_csv', 'wp-license-catalog.csv', $export['body'], 'text/csv' );
 $import = e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $cookies, 'headers' => $upload['headers'], 'body' => $upload['body'] ) );
-e2e_ok( 302 === $import['code'] && false !== strpos( $import['location'], 'imported=3' ) && false !== strpos( $import['location'], 'failed=0' ), 'CSV import of the exported file reports imported=3, failed=0', array( $import['code'], $import['location'] ) );
+e2e_ok( 302 === $import['code'] && false !== strpos( $import['location'], 'imported=4' ) && false !== strpos( $import['location'], 'failed=0' ), 'CSV import of the exported file reports imported=4, failed=0', array( $import['code'], $import['location'] ) );
 $after = $wpdb->get_results( "SELECT product_key, plan_key, woocommerce_product_id, woocommerce_variation_id, billing_interval, price_minor, live_site_limit, support_level, entitlements_json FROM {$t['plans']} ORDER BY woocommerce_product_id, woocommerce_variation_id", ARRAY_A );
 $normalize = static function ( array $rows ) {
 	foreach ( $rows as &$row ) {
@@ -365,12 +445,12 @@ $csv = stream_get_contents( $stream );
 fclose( $stream );
 $upload = e2e_multipart( array( 'action' => 'wplc_import_catalog_csv', '_wpnonce' => wp_create_nonce( 'wplc_catalog_csv' ) ), 'catalog_csv', 'changed.csv', $csv, 'text/csv' );
 $import = e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $cookies, 'headers' => $upload['headers'], 'body' => $upload['body'] ) );
-e2e_ok( false !== strpos( $import['location'], 'imported=3' ) && false !== strpos( $import['location'], 'failed=2' ), 'CSV import applies valid rows and counts the 2 invalid ones', $import['location'] );
+e2e_ok( false !== strpos( $import['location'], 'imported=4' ) && false !== strpos( $import['location'], 'failed=2' ), 'CSV import applies valid rows and counts the 2 invalid ones', $import['location'] );
 $plan = $plan_of( $simple_id );
 e2e_eq( '5', is_array( $plan ) ? (string) $plan['live_site_limit'] : null, 'imported site limit 5 is in the plan row' );
 e2e_ok( null === $plan_of( $plain_id ), 'row with a foreign SKU did not create a mapping' );
 $result_page = e2e_http( 'GET', $import['location'], array( 'cookies' => $cookies ) );
-e2e_ok( 200 === $result_page['code'] && false !== strpos( $result_page['body'], 'Imported: 3. Skipped or invalid: 2.' ), 'CSV screen shows the import result', $result_page['code'] );
+e2e_ok( 200 === $result_page['code'] && false !== strpos( $result_page['body'], 'Imported: 4. Skipped or invalid: 2.' ), 'CSV screen shows the import result', $result_page['code'] );
 
 // Import without a nonce is refused.
 $upload = e2e_multipart( array( 'action' => 'wplc_import_catalog_csv', '_wpnonce' => 'invalid' ), 'catalog_csv', 'x.csv', $export['body'], 'text/csv' );
