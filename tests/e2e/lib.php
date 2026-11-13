@@ -1,0 +1,301 @@
+<?php
+/**
+ * Shared helpers for the e2e flow scripts (run through `wp eval-file`).
+ *
+ * @package WPLC
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+if ( function_exists( 'e2e_ok' ) ) {
+	return;
+}
+
+/**
+ * Record one assertion.
+ *
+ * @param mixed  $condition Truthy = pass.
+ * @param string $label What was asserted.
+ * @param mixed  $detail Extra context printed on failure.
+ * @return bool
+ */
+function e2e_ok( $condition, string $label, $detail = null ): bool {
+	$flow   = getenv( 'WPLC_E2E_FLOW' ) ? (string) getenv( 'WPLC_E2E_FLOW' ) : 'adhoc';
+	$passed = (bool) $condition;
+	$line   = ( $passed ? 'PASS' : 'FAIL' ) . '  [' . $flow . '] ' . $label;
+	if ( ! $passed && null !== $detail ) {
+		$line .= "\n        got: " . ( is_scalar( $detail ) ? (string) $detail : wp_json_encode( $detail ) );
+	}
+	echo $line . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	$results = getenv( 'WPLC_E2E_RESULTS' );
+	if ( $results ) {
+		file_put_contents( $results, $flow . "\t" . ( $passed ? 'PASS' : 'FAIL' ) . "\t" . str_replace( array( "\t", "\n" ), ' ', $label ) . "\n", FILE_APPEND ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+	}
+
+	return $passed;
+}
+
+/**
+ * Assert strict equality.
+ *
+ * @param mixed  $expected Expected.
+ * @param mixed  $actual Actual.
+ * @param string $label Label.
+ * @return bool
+ */
+function e2e_eq( $expected, $actual, string $label ): bool {
+	return e2e_ok( $expected === $actual, $label, array( 'expected' => $expected, 'actual' => $actual ) );
+}
+
+/**
+ * Print a note that is not an assertion.
+ *
+ * @param string $text Text.
+ * @return void
+ */
+function e2e_note( string $text ): void {
+	echo '      ' . $text . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+}
+
+/**
+ * Read state shared between flows.
+ *
+ * @param string $key Key.
+ * @param mixed  $default Default.
+ * @return mixed
+ */
+function e2e_get( string $key, $default = null ) {
+	$state = get_option( 'wplc_e2e_state', array() );
+
+	return is_array( $state ) && array_key_exists( $key, $state ) ? $state[ $key ] : $default;
+}
+
+/**
+ * Store state shared between flows.
+ *
+ * @param string $key Key.
+ * @param mixed  $value Value.
+ * @return void
+ */
+function e2e_set( string $key, $value ): void {
+	$state         = get_option( 'wplc_e2e_state', array() );
+	$state         = is_array( $state ) ? $state : array();
+	$state[ $key ] = $value;
+	update_option( 'wplc_e2e_state', $state, false );
+}
+
+/**
+ * WPLC table names.
+ *
+ * @return array<string,string>
+ */
+function e2e_tables(): array {
+	return \WPLC\Infrastructure\Database\Schema::table_names();
+}
+
+/**
+ * Fetch one license row.
+ *
+ * @param int $license_id License ID.
+ * @return array<string,mixed>|null
+ */
+function e2e_license( int $license_id ): ?array {
+	global $wpdb;
+	$t   = e2e_tables();
+	$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['licenses']} WHERE id = %d", $license_id ), ARRAY_A );
+
+	return is_array( $row ) ? $row : null;
+}
+
+/**
+ * Fetch rows of a WPLC table.
+ *
+ * @param string $table Logical table name.
+ * @param string $where SQL after WHERE (trusted test input).
+ * @return array<int,array<string,mixed>>
+ */
+function e2e_rows( string $table, string $where = '1=1' ): array {
+	global $wpdb;
+	$t = e2e_tables();
+
+	return (array) $wpdb->get_results( "SELECT * FROM {$t[ $table ]} WHERE {$where}", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL
+}
+
+/**
+ * Become a user in this process and return cookies that authenticate the same
+ * session against the HTTP server (nonces created here are valid there).
+ *
+ * @param int $user_id User ID (0 = log out).
+ * @return array<int,\WP_Http_Cookie>
+ */
+function e2e_login( int $user_id ): array {
+	unset( $_COOKIE[ LOGGED_IN_COOKIE ], $_COOKIE[ SECURE_AUTH_COOKIE ], $_COOKIE[ AUTH_COOKIE ] );
+	wp_set_current_user( $user_id );
+	if ( ! $user_id ) {
+		return array();
+	}
+	$expiration = time() + DAY_IN_SECONDS;
+	$token      = WP_Session_Tokens::get_instance( $user_id )->create( $expiration );
+	$logged_in  = wp_generate_auth_cookie( $user_id, $expiration, 'logged_in', $token );
+	$secure     = wp_generate_auth_cookie( $user_id, $expiration, 'secure_auth', $token );
+
+	$_COOKIE[ LOGGED_IN_COOKIE ]   = $logged_in;
+	$_COOKIE[ SECURE_AUTH_COOKIE ] = $secure;
+
+	return array(
+		new WP_Http_Cookie( array( 'name' => LOGGED_IN_COOKIE, 'value' => $logged_in ) ),
+		new WP_Http_Cookie( array( 'name' => SECURE_AUTH_COOKIE, 'value' => $secure ) ),
+	);
+}
+
+/**
+ * Real HTTP request against the local server (never follows redirects).
+ *
+ * @param string              $method Method.
+ * @param string              $url Absolute https://shop.test URL.
+ * @param array<string,mixed> $args wp_remote_request args (body, headers, cookies).
+ * @return array{code:int,headers:array<string,mixed>,body:string,location:string}
+ */
+function e2e_http( string $method, string $url, array $args = array() ): array {
+	$args['method']      = $method;
+	$args['timeout']     = 60;
+	$args['redirection'] = 0;
+	$response            = wp_remote_request( $url, $args );
+	// The server process changed the database: drop this process's object cache.
+	wp_cache_flush();
+	if ( is_wp_error( $response ) ) {
+		return array( 'code' => 0, 'headers' => array(), 'body' => $response->get_error_message(), 'location' => '' );
+	}
+	$headers = wp_remote_retrieve_headers( $response );
+	$headers = is_object( $headers ) ? $headers->getAll() : (array) $headers;
+
+	return array(
+		'code'     => (int) wp_remote_retrieve_response_code( $response ),
+		'headers'  => $headers,
+		'body'     => (string) wp_remote_retrieve_body( $response ),
+		'location' => isset( $headers['location'] ) ? (string) ( is_array( $headers['location'] ) ? end( $headers['location'] ) : $headers['location'] ) : '',
+	);
+}
+
+/**
+ * Multipart body with one file field (wp_remote_request has no file upload helper).
+ *
+ * @param array<string,string> $fields Plain fields.
+ * @param string               $file_field File field name.
+ * @param string               $filename File name.
+ * @param string               $content File content.
+ * @param string               $mime MIME type.
+ * @return array{headers:array<string,string>,body:string}
+ */
+function e2e_multipart( array $fields, string $file_field, string $filename, string $content, string $mime ): array {
+	$boundary = '----wplce2e' . wp_generate_password( 16, false );
+	$body     = '';
+	foreach ( $fields as $name => $value ) {
+		$body .= "--{$boundary}\r\nContent-Disposition: form-data; name=\"{$name}\"\r\n\r\n{$value}\r\n";
+	}
+	$body .= "--{$boundary}\r\nContent-Disposition: form-data; name=\"{$file_field}\"; filename=\"{$filename}\"\r\nContent-Type: {$mime}\r\n\r\n{$content}\r\n--{$boundary}--\r\n";
+
+	return array(
+		'headers' => array( 'Content-Type' => 'multipart/form-data; boundary=' . $boundary ),
+		'body'    => $body,
+	);
+}
+
+/**
+ * Run pending Action Scheduler actions of a hook now, regardless of their date.
+ *
+ * @param string $hook Hook name.
+ * @return int Number of actions executed.
+ */
+function e2e_run_actions( string $hook ): int {
+	if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
+		return 0;
+	}
+	$ids = as_get_scheduled_actions(
+		array(
+			'hook'     => $hook,
+			'status'   => ActionScheduler_Store::STATUS_PENDING,
+			'per_page' => 50,
+		),
+		'ids'
+	);
+	$runner = ActionScheduler::runner();
+	foreach ( $ids as $id ) {
+		$runner->process_action( $id, 'e2e' );
+	}
+
+	return count( $ids );
+}
+
+/**
+ * Pending Action Scheduler actions of a hook.
+ *
+ * @param string     $hook Hook.
+ * @param array|null $args Exact args or null for any.
+ * @return array<int,object>
+ */
+function e2e_pending_actions( string $hook, ?array $args = null ): array {
+	if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
+		return array();
+	}
+	$query = array(
+		'hook'     => $hook,
+		'status'   => ActionScheduler_Store::STATUS_PENDING,
+		'per_page' => 50,
+	);
+	if ( null !== $args ) {
+		$query['args'] = $args;
+	}
+
+	return as_get_scheduled_actions( $query );
+}
+
+/**
+ * Create a paid order for a customer through WooCommerce CRUD.
+ *
+ * @param int                 $customer_id Customer.
+ * @param array<int,int>      $items Product/variation ID => quantity.
+ * @param array<string,mixed> $options payment_method, meta (array), pay (bool).
+ * @return \WC_Order
+ */
+function e2e_create_order( int $customer_id, array $items, array $options = array() ) {
+	$order = wc_create_order( array( 'customer_id' => $customer_id ) );
+	foreach ( $items as $product_id => $quantity ) {
+		$order->add_product( wc_get_product( $product_id ), $quantity );
+	}
+	$customer = new WC_Customer( $customer_id );
+	$order->set_address( $customer->get_billing(), 'billing' );
+	$order->set_payment_method( $options['payment_method'] ?? 'bacs' );
+	foreach ( (array) ( $options['meta'] ?? array() ) as $key => $value ) {
+		$order->update_meta_data( $key, $value );
+	}
+	$order->calculate_totals();
+	$order->save();
+	if ( ! isset( $options['pay'] ) || $options['pay'] ) {
+		$order->payment_complete( 'e2e-' . $order->get_id() );
+	}
+
+	return wc_get_order( $order->get_id() );
+}
+
+/**
+ * Licenses issued for an order.
+ *
+ * @param int $order_id Order ID.
+ * @return array<int,array<string,mixed>>
+ */
+function e2e_order_licenses( int $order_id ): array {
+	return e2e_rows( 'licenses', 'source_order_id = ' . (int) $order_id . ' ORDER BY id ASC' );
+}
+
+/**
+ * The full license key of a license (derived, never stored).
+ *
+ * @param array<string,mixed> $license License row.
+ * @return string
+ */
+function e2e_key( array $license ): string {
+	return \WPLC\License\LicenseKey::for_uuid( (string) $license['license_uuid'], (string) $license['license_key_secret_id'] );
+}
