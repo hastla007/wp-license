@@ -44,7 +44,7 @@ final class SiteUrl {
 		}
 
 		if ( ! filter_var( $host, FILTER_VALIDATE_IP ) && function_exists( 'idn_to_ascii' ) ) {
-			$ascii_host = idn_to_ascii( $host, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46 );
+			$ascii_host = idn_to_ascii( $host, IDNA_NONTRANSITIONAL_TO_ASCII, INTL_IDNA_VARIANT_UTS46 );
 			if ( false === $ascii_host ) {
 				return '';
 			}
@@ -73,6 +73,9 @@ final class SiteUrl {
 			return '';
 		}
 
-		return $scheme . '://' . $authority . $path;
+		$normalized = $scheme . '://' . $authority . $path;
+
+		// The activation column is varchar(255); reject instead of failing on insert.
+		return strlen( $normalized ) > 255 ? '' : $normalized;
 	}
 }

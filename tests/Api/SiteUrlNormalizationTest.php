@@ -62,7 +62,7 @@ final class SiteUrlNormalizationTest extends TestCase {
 			'SURPRISING space in path accepted'  => array( 'https://example.com/a b', 'https://example.com/a b' ),
 			'SURPRISING raw UTF-8 path accepted' => array( 'https://example.com/ünï', 'https://example.com/ünï' ),
 			'SURPRISING NUL becomes underscore'  => array( "https://example.com/a\0b", 'https://example.com/a_b' ),
-			'SURPRISING no length limit'         => array( 'https://example.com/' . str_repeat( 'p', 300 ), 'https://example.com/' . str_repeat( 'p', 300 ) ),
+			'longer than the 255 char column'    => array( 'https://example.com/' . str_repeat( 'p', 300 ), '' ),
 
 			// Punycode input is ASCII and works everywhere.
 			'punycode'                           => array( 'https://xn--mnchen-3ya.de', 'https://xn--mnchen-3ya.de' ),
@@ -196,7 +196,7 @@ final class SiteUrlNormalizationTest extends TestCase {
 			'idn with port'                      => array( 'https://münchen.de:8443', 'https://xn--mnchen-3ya.de:8443' ),
 			// UTS #46 transitional processing maps "ß" to "ss". Browsers (IDNA2008,
 			// non-transitional) resolve straße.de to xn--strae-oqa.de, a different domain.
-			'SURPRISING sharp s becomes ss'      => array( 'https://straße.de', 'https://strasse.de' ),
+			'sharp s keeps its own domain'       => array( 'https://straße.de', 'https://xn--strae-oqa.de' ),
 		);
 	}
 

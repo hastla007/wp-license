@@ -77,8 +77,8 @@ final class AuthorizationIntegrationTest extends WPLC_Integration_TestCase {
 			)
 		);
 
-		$this->assertSame( 'die', $result['outcome'] );
-		$this->assertSame( 404, $result['status'] );
+		// Expected failures are reported as a notice after a redirect; nothing may change.
+		$this->assertSame( 'redirect', $result['outcome'] );
 		$this->assertSame( 'active', $this->activation( $this->activation_b )['status'] );
 		$this->assertSame( 0, $this->audit_count( 'activation', $this->activation_b ) );
 	}
@@ -190,8 +190,8 @@ final class AuthorizationIntegrationTest extends WPLC_Integration_TestCase {
 			)
 		);
 
-		$this->assertSame( 'die', $result['outcome'] );
-		$this->assertSame( 404, $result['status'] );
+		// Expected failures are reported as a notice after a redirect; nothing may change.
+		$this->assertSame( 'redirect', $result['outcome'] );
 		$this->assertSame( 0, (int) $this->license( $this->license_b )['cancel_at_period_end'] );
 		$this->assertSame( 0, $this->audit_count( 'license', $this->license_b ) );
 	}
@@ -208,8 +208,8 @@ final class AuthorizationIntegrationTest extends WPLC_Integration_TestCase {
 			)
 		);
 
-		$this->assertSame( 'die', $result['outcome'] );
-		$this->assertSame( 404, $result['status'] );
+		// Expected failures are reported as a notice after a redirect; nothing may change.
+		$this->assertSame( 'redirect', $result['outcome'] );
 		$this->assertSame( 0, (int) $this->license( $guest_license )['cancel_at_period_end'] );
 	}
 
@@ -400,7 +400,8 @@ final class AuthorizationIntegrationTest extends WPLC_Integration_TestCase {
 			)
 		);
 
-		$this->assertSame( array( 'die', 400 ), array( $result['outcome'], $result['status'] ) );
+		// Rejected with an admin notice after a redirect; the license is untouched.
+		$this->assertSame( 'redirect', $result['outcome'] );
 		$this->assertSame( 'active', $this->license( $this->license_b )['status'] );
 	}
 

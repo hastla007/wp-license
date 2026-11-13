@@ -156,7 +156,8 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 		$site    = $this->activate_via_api( $license['key'] );
 		$token   = $this->request_grant( $site );
 
-		add_filter( 'wplc_update_package_hosts', '__return_empty_array' );
+		// The shop's own host is re-added late (local package storage), so remove it after that.
+		add_filter( 'wplc_update_package_hosts', '__return_empty_array', 2000 );
 
 		$halt = $this->download( $token );
 		$this->assertSame( array( 'status', 404 ), array( $halt->kind, $halt->status ) );

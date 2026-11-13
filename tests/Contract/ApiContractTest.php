@@ -26,6 +26,7 @@ final class ApiContractTest extends TestCase {
 				'/updates/check' => array( 'post' ),
 				'/updates/download/{token}' => array( 'get' ),
 				'/webhooks/stripe' => array( 'post' ),
+				'/packages/{token}' => array( 'get' ),
 			),
 			array_map( 'array_keys', $contract['paths'] )
 		);

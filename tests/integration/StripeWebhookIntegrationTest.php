@@ -353,6 +353,9 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 		$renewal_id = (int) $wpdb->insert_id;
 		$order->update_meta_data( '_wplc_renewal_id', $renewal_id );
 		$order->update_meta_data( '_wplc_renewal_for_license', $license_id );
+		// Renewal orders record the expected pre-tax amount they were created with.
+		$order->update_meta_data( '_wplc_renewal_net_minor', '4900' );
+		$order->update_meta_data( '_wplc_renewal_price_decimals', '2' );
 		$order->save();
 
 		return array(

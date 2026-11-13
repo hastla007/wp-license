@@ -466,11 +466,13 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	public function test_activation_attempts_are_rate_limited_per_ip(): void {
-		$unknown = \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() );
+		// Different keys each time, so only the per-address limit (30/min) applies.
 		for ( $attempt = 1; $attempt <= 30; $attempt++ ) {
+			$unknown = \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() );
 			$this->assertSame( 401, $this->activate_via_api( $unknown )['response']->get_status(), 'Attempt ' . $attempt );
 		}
 
+		$unknown = \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() );
 		$this->assertContractError( 'POST', '/activations', 429, 'rate_limited', $this->activate_via_api( $unknown )['response'] );
 
 		// A valid key is locked out as well: the limiter runs before the key lookup.
@@ -479,14 +481,24 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$this->flag_spec_gaps();
 	}
 
-	public function test_activation_without_a_valid_remote_address_fails_closed(): void {
+	public function test_activation_attempts_are_rate_limited_per_key(): void {
+		// One key hammered repeatedly is stopped after 20 attempts per minute,
+		// before the per-address limit of 30 is reached.
+		$unknown = \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() );
+		for ( $attempt = 1; $attempt <= 20; $attempt++ ) {
+			$this->assertSame( 401, $this->activate_via_api( $unknown )['response']->get_status(), 'Attempt ' . $attempt );
+		}
+
+		$this->assertSame( 429, $this->activate_via_api( $unknown )['response']->get_status() );
+	}
+
+	public function test_activation_without_a_valid_remote_address_uses_a_shared_bucket(): void {
+		// An unresolvable client address must not lock everyone out; it is
+		// counted in one shared bucket instead.
 		$license                = $this->seed_license();
 		$_SERVER['REMOTE_ADDR'] = 'not-an-ip';
 
-		$response = $this->activate_via_api( $license['key'] )['response'];
-
-		$this->assertContractError( 'POST', '/activations', 503, 'rate_limit_store_unavailable', $response );
-		$this->flag_spec_gaps();
+		$this->assertSame( 200, $this->activate_via_api( $license['key'] )['response']->get_status() );
 	}
 
 	// ------------------------------------------------------------------
