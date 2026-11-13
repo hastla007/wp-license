@@ -15,6 +15,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /*
+ * 0. Attribute PHP notices, warnings and deprecations to the plugin.
+ *    WordPress reports many problems from core files (kses.php, functions.php) although plugin
+ *    code caused them. When a frame of the backtrace is inside wp-content/plugins/wp-license,
+ *    an extra line "wplc-e2e: plugin-caused ..." is logged; the driver treats it as a failure.
+ */
+set_error_handler(
+	static function ( $errno, $errstr, $errfile = '', $errline = 0 ) {
+		if ( ! ( error_reporting() & $errno ) ) { // phpcs:ignore WordPress.PHP.DevelopmentFunctions, WordPress.PHP.DiscouragedPHPFunctions
+			return false;
+		}
+		foreach ( debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 40 ) as $frame ) { // phpcs:ignore WordPress.PHP.DevelopmentFunctions
+			if ( isset( $frame['file'] ) && false !== strpos( $frame['file'], '/plugins/wp-license/' ) ) {
+				error_log( 'wplc-e2e: plugin-caused PHP message "' . wp_strip_all_tags( (string) $errstr ) . '" reported in ' . $errfile . ':' . $errline . ', reached from ' . $frame['file'] . ':' . ( $frame['line'] ?? 0 ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions
+				break;
+			}
+		}
+
+		return false; // Continue with the normal PHP/WordPress handling.
+	}
+);
+
+/*
  * 1. Real HTTP without TLS: the site is https://shop.test for WordPress, the transport is
  *    http://127.0.0.1:<port>. The router of the PHP server sets HTTPS=on for the server side.
  */
