@@ -12,14 +12,42 @@
     }
   },
   "config": {
-    "sort-packages": true
+    "sort-packages": true,
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "phpstan/extension-installer": true
+    }
   },
   "require-dev": {
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "php-stubs/woocommerce-stubs": "^9.4 || ^10.0",
+    "php-stubs/wp-cli-stubs": "^2.10",
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "phpstan/extension-installer": "^1.4",
+    "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^9.6",
+    "szepeviktor/phpstan-wordpress": "^2.0",
+    "wp-coding-standards/wpcs": "^3.1",
     "yoast/phpunit-polyfills": "^2.0"
   },
   "scripts": {
+    "lint": "bash bin/lint.sh",
     "test": "phpunit",
-    "test:integration": "phpunit -c phpunit.integration.xml"
+    "test:integration": "phpunit -c phpunit.integration.xml",
+    "phpcs": "phpcs",
+    "phpcs:blocking": "@php bin/phpcs-blocking.php",
+    "phpcs:baseline": "@php bin/phpcs-blocking.php --update",
+    "phpstan": "phpstan analyse --no-progress --memory-limit=1G",
+    "phpstan:baseline": "phpstan analyse --no-progress --memory-limit=1G --generate-baseline phpstan-baseline.neon"
+  },
+  "scripts-descriptions": {
+    "lint": "Check the syntax of every PHP file with the running PHP version.",
+    "test": "Unit tests (no WordPress).",
+    "test:integration": "WordPress + WooCommerce integration tests; needs bin/install-test-env.sh first.",
+    "phpcs": "Full coding standard report (advisory).",
+    "phpcs:blocking": "Security and PHP-compatibility sniffs against phpcs-baseline.json (blocking).",
+    "phpcs:baseline": "Rewrite phpcs-baseline.json after reviewing the findings.",
+    "phpstan": "Static analysis, level 5, against phpstan-baseline.neon (blocking).",
+    "phpstan:baseline": "Regenerate phpstan-baseline.neon."
   }
 }
