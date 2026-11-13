@@ -161,9 +161,24 @@ final class UpdateService {
 	private static function trusted_package_url( string $url ): bool {
 		$parts = wp_parse_url( $url );
 		$host = strtolower( (string) ( $parts['host'] ?? '' ) );
-		$allowed = apply_filters( 'wplc_update_package_hosts', array( wp_parse_url( home_url(), PHP_URL_HOST ) ) );
-		$allowed = is_array( $allowed ) ? array_map( 'strtolower', array_map( 'sanitize_text_field', $allowed ) ) : array();
+		$allowed_hosts = apply_filters( 'wplc_update_package_hosts', array( wp_parse_url( home_url(), PHP_URL_HOST ) ) );
+		$allowed = array();
+		if ( is_array( $allowed_hosts ) ) {
+			foreach ( $allowed_hosts as $allowed_host ) {
+				if ( is_string( $allowed_host ) && '' !== trim( $allowed_host ) ) {
+					$allowed[] = strtolower( trim( $allowed_host ) );
+				}
+			}
+		}
+		$port_is_https_default = ! isset( $parts['port'] ) || 443 === (int) $parts['port'];
+		$has_no_embedded_credentials = ! isset( $parts['user'] ) && ! isset( $parts['pass'] );
+		$has_no_fragment = ! isset( $parts['fragment'] );
 
-		return 'https' === strtolower( (string) ( $parts['scheme'] ?? '' ) ) && '' !== $host && in_array( $host, $allowed, true );
+		return 'https' === strtolower( (string) ( $parts['scheme'] ?? '' ) )
+			&& $port_is_https_default
+			&& $has_no_embedded_credentials
+			&& $has_no_fragment
+			&& '' !== $host
+			&& in_array( $host, $allowed, true );
 	}
 }
