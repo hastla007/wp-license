@@ -116,26 +116,39 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 			return ! empty( $body['metadata']['wplc_renewal_id'] ) ? $idempotency_key : $current;
 		};
 		add_filter( 'wc_stripe_idempotency_key', $idempotency_filter, 10, 2 );
+		// No answer, or an answer that says nothing about the charge: the caller
+		// repeats this attempt with the same idempotency key instead of counting a failure.
+		$unknown = new \WP_Error( 'renewal_result_unknown', __( 'Stripe did not return a definite result for the renewal payment.', 'wp-license' ) );
 		try {
 			$response = \WC_Stripe_API::request( $request, 'payment_intents', 'POST' );
 		} catch ( \Throwable $exception ) {
-			return new \WP_Error( 'stripe_request_failed', __( 'Stripe could not confirm the renewal payment.', 'wp-license' ) );
+			return $unknown;
 		} finally {
 			remove_filter( 'wc_stripe_idempotency_key', $idempotency_filter, 10 );
 		}
 
 		if ( is_wp_error( $response ) || ! is_object( $response ) ) {
-			return new \WP_Error( 'stripe_request_failed', __( 'Stripe returned an invalid payment response.', 'wp-license' ) );
+			return $unknown;
 		}
 		if ( ! empty( $response->error ) ) {
+			$this->remember_payment_intent( $order, (string) ( $response->error->payment_intent->id ?? '' ) );
 			$code = sanitize_key( (string) ( $response->error->code ?? 'stripe_payment_failed' ) );
+			$type = sanitize_key( (string) ( $response->error->type ?? '' ) );
 			if ( 'authentication_required' === $code || 'payment_intent_authentication_failure' === $code ) {
 				return new \WP_Error( 'renewal_manual_action_required', __( 'The customer must authenticate this payment method before renewal can continue.', 'wp-license' ) );
 			}
+			// Only card and request errors are a definite "not charged". API, connection,
+			// rate-limit and idempotency errors leave the outcome open.
+			if ( ! in_array( $type, array( 'card_error', 'invalid_request_error' ), true ) || 'idempotency_key_in_use' === $code ) {
+				return $unknown;
+			}
 			return new \WP_Error( 'stripe_payment_failed', __( 'Stripe declined the renewal payment.', 'wp-license' ) );
 		}
+		$this->remember_payment_intent( $order, (string) ( $response->id ?? '' ) );
 		$status = (string) ( $response->status ?? '' );
-		if ( in_array( $status, array( 'requires_action', 'requires_confirmation' ), true ) ) {
+		// `processing` is not final either way. Retrying would replay the same answer, so automatic
+		// attempts stop here; the payment_intent.succeeded webhook books the renewal when it settles.
+		if ( in_array( $status, array( 'requires_action', 'requires_confirmation', 'processing' ), true ) ) {
 			return new \WP_Error( 'renewal_manual_action_required', __( 'The customer must authenticate this payment method before renewal can continue.', 'wp-license' ) );
 		}
 		if ( 'succeeded' !== $status ) {
@@ -146,6 +159,24 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 			return new \WP_Error( 'stripe_transaction_missing', __( 'Stripe did not return a transaction reference.', 'wp-license' ) );
 		}
 		return array( 'success' => true, 'transaction_id' => sanitize_text_field( $transaction_id ) );
+	}
+
+	/**
+	 * Store the PaymentIntent of the current attempt on the renewal order.
+	 *
+	 * Used to resolve disputes to the order and to look the payment up in Stripe.
+	 *
+	 * @param \WC_Order $order Renewal order.
+	 * @param string    $intent_id Stripe PaymentIntent ID.
+	 * @return void
+	 */
+	private function remember_payment_intent( $order, string $intent_id ): void {
+		$intent_id = sanitize_text_field( $intent_id );
+		if ( 0 !== strpos( $intent_id, 'pi_' ) || $intent_id === (string) $order->get_meta( '_wplc_payment_intent_id', true ) ) {
+			return;
+		}
+		$order->update_meta_data( '_wplc_payment_intent_id', $intent_id );
+		$order->save();
 	}
 
 	/**
