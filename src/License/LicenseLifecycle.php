@@ -62,6 +62,13 @@ final class LicenseLifecycle {
 			return;
 		}
 
+		// The hook can fire more than once for one refund; each refund revokes its units only once.
+		if ( $refund->get_meta( '_wplc_refund_processed', true ) ) {
+			return;
+		}
+		$refund->update_meta_data( '_wplc_refund_processed', gmdate( 'Y-m-d H:i:s' ) );
+		$refund->save();
+
 		foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
 			$source_item_id = absint( $refund_item->get_meta( '_refunded_item_id', true ) );
 			$quantity       = absint( $refund_item->get_quantity() );

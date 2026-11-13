@@ -399,7 +399,7 @@ final class Settings {
 		$scheduler = function_exists( 'as_schedule_single_action' );
 		$rows[]    = array(
 			'label' => __( 'Action Scheduler', 'wp-license' ),
-			'value' => $scheduler ? __( 'Available', 'wp-license' ) : __( 'Unavailable. Renewals cannot be scheduled.', 'wp-license' ),
+			'value' => $scheduler ? __( 'Available', 'wp-license' ) : __( 'Unavailable. Scheduled work falls back to WP-Cron, which is less reliable.', 'wp-license' ),
 			'state' => $scheduler ? 'ok' : 'warning',
 		);
 

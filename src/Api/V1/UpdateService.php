@@ -107,8 +107,10 @@ final class UpdateService {
 		// The one-time token is part of the URL: keep the response out of
 		// caches and the URL out of any Referer header.
 		nocache_headers();
-		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0, private' );
-		header( 'Referrer-Policy: no-referrer' );
+		if ( ! headers_sent() ) {
+			header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0, private' );
+			header( 'Referrer-Policy: no-referrer' );
+		}
 		$token = strtolower( sanitize_text_field( (string) $request->get_param( 'token' ) ) );
 		if ( ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) {
 			status_header( 404 );

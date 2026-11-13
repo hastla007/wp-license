@@ -129,7 +129,7 @@ final class RenewalScheduler {
 				'idempotency_key' => $idempotency_key,
 				'status' => $automatic ? 'scheduled' : 'manual',
 				'retry_at' => $automatic ? $period_start : null,
-				'grace_ends_at' => gmdate( 'Y-m-d H:i:s', $start_timestamp + 14 * DAY_IN_SECONDS ),
+				'grace_ends_at' => gmdate( 'Y-m-d H:i:s', $start_timestamp + \WPLC\License\LicenseLifecycle::GRACE_DAYS * DAY_IN_SECONDS ),
 				'attempt_count' => 0,
 				'created_at' => $now,
 				'updated_at' => $now,
@@ -156,7 +156,7 @@ final class RenewalScheduler {
 	public static function enqueue( int $renewal_id, int $timestamp ): void {
 		$args = array( $renewal_id );
 		if ( function_exists( 'as_schedule_single_action' ) ) {
-			as_schedule_single_action( max( time() + 30, $timestamp ), 'wplc_process_renewal', $args, 'wplc', true );
+			\WPLC\Compatibility\Requirements::schedule_single_action( max( time() + 30, $timestamp ), 'wplc_process_renewal', $args, 'wplc' );
 		} elseif ( ! wp_next_scheduled( 'wplc_process_renewal', $args ) ) {
 			wp_schedule_single_event( max( time() + 30, $timestamp ), 'wplc_process_renewal', $args );
 		}

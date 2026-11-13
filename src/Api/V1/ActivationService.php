@@ -413,7 +413,8 @@ final class ActivationService {
 	 */
 	private static function is_local_development_url( string $site_url ): bool {
 		$host = strtolower( (string) wp_parse_url( $site_url, PHP_URL_HOST ) );
-		$host = rtrim( $host, '.' );
+		// wp_parse_url() keeps the brackets of an IPv6 literal.
+		$host = trim( rtrim( $host, '.' ), '[]' );
 		$allowed = in_array( $host, array( 'localhost', '127.0.0.1', '::1' ), true )
 			|| '.localhost' === substr( $host, -10 )
 			|| '.test' === substr( $host, -5 )

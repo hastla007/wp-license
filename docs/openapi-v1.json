@@ -319,6 +319,35 @@
           }
         }
       }
+    },
+    "/packages/{token}": {
+      "get": {
+        "tags": [
+          "Updates"
+        ],
+        "summary": "Stream a locally stored release package for a short-lived, one-use token",
+        "operationId": "streamPackage",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The package ZIP (application/zip). Sent with Cache-Control: no-store."
+          },
+          "404": {
+            "description": "Unknown, expired or already used token."
+          }
+        }
+      }
     }
   },
   "components": {
@@ -433,7 +462,7 @@
         "properties": {
           "data": {
             "type": "object",
-            "description": "Response-specific payload. Entitlement responses include activation_id, installation_id, license_status, paid_until, site_limit, site_count, environment, entitlements, server_time and cache_expires_at. Kept for clients that predate payload; current clients must read the data member of the verified payload instead."
+            "description": "Kept for clients that predate payload; current clients must read the data member of the verified payload instead. Response-specific payload. Entitlement responses include activation_id, installation_id, license_status, paid_until, site_limit, site_count, environment, entitlements, server_time and cache_expires_at."
           },
           "signature": {
             "type": "string",

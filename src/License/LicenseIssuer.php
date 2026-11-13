@@ -52,6 +52,10 @@ final class LicenseIssuer {
 			$product_id   = (int) $item->get_product_id();
 			$variation_id = (int) $item->get_variation_id();
 			$mapping      = Catalog::find_mapping( $product_id, $variation_id );
+			if ( ! $mapping && $variation_id ) {
+				// A variable product mapped once at parent level covers all its variations.
+				$mapping = Catalog::find_mapping( $product_id, 0 );
+			}
 
 			if ( ! $mapping ) {
 				continue;

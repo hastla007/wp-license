@@ -47,4 +47,26 @@ final class Registry {
 		$adapter = self::get( $gateway_id );
 		return $adapter && $adapter->supports_checkout();
 	}
+
+	/**
+	 * Whether any registered adapter is ready, whatever the customer picks later.
+	 *
+	 * Used where the cart and the chosen payment method are not known yet.
+	 *
+	 * @return bool
+	 */
+	public static function any_supports_checkout(): bool {
+		$adapters = apply_filters( 'wplc_recurring_gateway_adapters', array() );
+		if ( ! is_array( $adapters ) ) {
+			return false;
+		}
+
+		foreach ( $adapters as $adapter ) {
+			if ( $adapter instanceof RecurringGatewayAdapter && $adapter->supports_checkout() ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
 }

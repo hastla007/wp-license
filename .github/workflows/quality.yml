@@ -1,29 +1,59 @@
 name: Quality
 
+# Static analysis. Tests (syntax, unit, integration) live in phpunit.yml.
+# See docs/QUALITY-GATES.md.
+
 on:
-  push:
   pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  php-lint:
+  phpcs:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        php: ['7.4', '8.2']
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php }}
+          php-version: "8.2"
           tools: composer:v2
-      - name: Validate Composer metadata
-        run: composer validate --no-check-publish
-      - name: Install test dependencies
-        run: composer install --no-interaction --prefer-dist
-      - name: Run PHPUnit
-        run: composer test
-      - name: Check PHP syntax
-        run: |
-          find . -type f -name '*.php' -not -path './vendor/*' -print0 \
-            | xargs -0 -r -n1 php -l
+          coverage: none
+      - uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-vendor-php8.2-${{ hashFiles('composer.json') }}
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      # Blocking: WordPress.Security.*, WordPress.DB.PreparedSQL*, PHPCompatibilityWP (7.4+).
+      # Reviewed existing findings are listed in phpcs-baseline.json; any new finding fails.
+      - name: Security and compatibility sniffs (blocking)
+        run: composer phpcs:blocking
+      # Advisory: the full WordPress-Extra + WordPress-Docs report. Never fails the job.
+      - name: Coding standard report (advisory)
+        continue-on-error: true
+        run: vendor/bin/phpcs -q --report=summary --report-source
+
+  phpstan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          tools: composer:v2
+          coverage: none
+      - uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-vendor-php8.2-${{ hashFiles('composer.json') }}
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      # Level 5 on src/ and wp-license.php; phpstan-baseline.neon holds the reviewed existing errors.
+      - name: PHPStan (blocking)
+        run: composer phpstan
