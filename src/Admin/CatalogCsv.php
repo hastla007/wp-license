@@ -104,6 +104,9 @@ final class CatalogCsv {
 		if ( ! is_array( $file ) || UPLOAD_ERR_OK !== (int) ( $file['error'] ?? UPLOAD_ERR_NO_FILE ) || empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
 			self::redirect_with_result( 0, 1 );
 		}
+		if ( filesize( $file['tmp_name'] ) > 2097152 ) {
+			self::redirect_with_result( 0, 1 );
+		}
 		$handle = fopen( $file['tmp_name'], 'r' );
 		if ( ! $handle ) {
 			self::redirect_with_result( 0, 1 );
@@ -119,7 +122,11 @@ final class CatalogCsv {
 		$rows = 0;
 		while ( false !== ( $values = fgetcsv( $handle ) ) ) {
 			++$rows;
-			if ( $rows > self::MAX_ROWS || count( $values ) !== count( self::headers() ) ) {
+			if ( $rows > self::MAX_ROWS ) {
+				++$failed;
+				break;
+			}
+			if ( count( $values ) !== count( self::headers() ) ) {
 				++$failed;
 				continue;
 			}
@@ -139,7 +146,7 @@ final class CatalogCsv {
 		$variation_id = absint( $row['variation_id'] ?? 0 );
 		$target_id = $variation_id ?: $product_id;
 		$product = $target_id ? wc_get_product( $target_id ) : false;
-		if ( ! $product || (string) $product->get_sku( 'edit' ) !== (string) ( $row['sku'] ?? '' ) ) {
+		if ( ! $product || ! current_user_can( 'edit_post', $target_id ) || (string) $product->get_sku( 'edit' ) !== (string) ( $row['sku'] ?? '' ) ) {
 			return false;
 		}
 		if ( $variation_id && ( ! $product->is_type( 'variation' ) || (int) $product->get_parent_id() !== $product_id ) ) {
