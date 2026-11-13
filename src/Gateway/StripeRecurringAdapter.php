@@ -56,16 +56,9 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 			return false;
 		}
 		$gateways = function_exists( 'WC' ) && WC()->payment_gateways() ? WC()->payment_gateways()->payment_gateways() : array();
-		if ( empty( $gateways['stripe'] ) || 'yes' !== $gateways['stripe']->enabled || ! get_current_user_id() ) {
-			return false;
-		}
-		$tokens = \WC_Payment_Tokens::get_customer_tokens( get_current_user_id(), 'stripe' );
-		foreach ( $tokens as $token ) {
-			if ( $token && $this->supports_saved_token( (int) $token->get_id(), get_current_user_id() ) ) {
-				return true;
-			}
-		}
-		return false;
+		// A first-time buyer has no saved card yet; the card is saved with the order
+		// when consent is given, so checkout support only depends on the gateway.
+		return ! empty( $gateways['stripe'] ) && 'yes' === $gateways['stripe']->enabled;
 	}
 
 	/**

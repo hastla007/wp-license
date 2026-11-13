@@ -25,6 +25,8 @@ final class LicenseLifecycle {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'woocommerce_order_refunded', array( self::class, 'handle_refund' ), 20, 2 );
+		add_action( 'woocommerce_order_fully_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
+		add_action( 'woocommerce_order_status_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'expire_due_licenses' ) );
 		add_action( 'wplc/renewal_payment_failed', array( self::class, 'mark_past_due' ), 10, 2 );
 		add_action( 'wplc/renewal_payment_succeeded', array( self::class, 'mark_renewed' ), 10, 3 );
@@ -77,6 +79,88 @@ final class LicenseLifecycle {
 					'order_refund'
 				);
 			}
+		}
+	}
+
+	/**
+	 * Grace period after the paid period during which a renewing license keeps its rights.
+	 */
+	public const GRACE_DAYS = 14;
+
+	/**
+	 * Whether a license currently grants premium rights.
+	 *
+	 * Active licenses are entitled until paid_until. A license whose automatic
+	 * renewal is pending or failing (past_due) stays entitled for GRACE_DAYS.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param int|null            $now     Unix timestamp, defaults to now.
+	 * @return bool
+	 */
+	public static function has_access( array $license, ?int $now = null ): bool {
+		$now    = null === $now ? time() : $now;
+		$status = (string) ( $license['status'] ?? '' );
+		if ( ! in_array( $status, array( 'active', 'past_due' ), true ) ) {
+			return false;
+		}
+		if ( empty( $license['paid_until'] ) ) {
+			return 'active' === $status;
+		}
+		$paid_until = strtotime( (string) $license['paid_until'] . ' UTC' );
+		if ( false === $paid_until ) {
+			return false;
+		}
+		if ( $now < $paid_until ) {
+			return true;
+		}
+		$renewing = 'past_due' === $status
+			|| ( ! empty( $license['renewal_enabled'] ) && empty( $license['cancel_at_period_end'] ) );
+		return $renewing && $now < $paid_until + self::GRACE_DAYS * 86400;
+	}
+
+	/**
+	 * UTC datetime that entitlement end dates are compared against.
+	 *
+	 * Entitlements end with the paid period; during the renewal grace period
+	 * they must stay valid, so the comparison point moves back before paid_until.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param int|null            $now     Unix timestamp, defaults to now.
+	 * @return string
+	 */
+	public static function entitlement_cutoff( array $license, ?int $now = null ): string {
+		$now        = null === $now ? time() : $now;
+		$paid_until = empty( $license['paid_until'] ) ? false : strtotime( (string) $license['paid_until'] . ' UTC' );
+		if ( false !== $paid_until && $now >= $paid_until && self::has_access( $license, $now ) ) {
+			return gmdate( 'Y-m-d H:i:s', $paid_until - 1 );
+		}
+		return gmdate( 'Y-m-d H:i:s', $now );
+	}
+
+	/**
+	 * Revoke every license issued from an order that was refunded in full.
+	 *
+	 * WooCommerce creates amount-only refunds (no line items) when the order
+	 * status is set to "refunded" or the gateway reports a full refund.
+	 *
+	 * @param int $order_id Order ID.
+	 * @return void
+	 */
+	public static function handle_full_refund( int $order_id ): void {
+		global $wpdb;
+
+		if ( ! $order_id ) {
+			return;
+		}
+		$tables = Schema::table_names();
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT id FROM {$tables['licenses']} WHERE source_order_id = %d AND status IN ('active','past_due','suspended')",
+				$order_id
+			)
+		);
+		foreach ( $ids as $license_id ) {
+			self::transition( (int) $license_id, 'revoked', 'Order refunded in full', 'order_refund' );
 		}
 	}
 
@@ -271,9 +355,10 @@ final class LicenseLifecycle {
 		$tables = Schema::table_names();
 		$ids = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT id FROM {$tables['licenses']} WHERE status = %s AND paid_until IS NOT NULL AND paid_until <= %s ORDER BY id ASC LIMIT 250",
+				"SELECT id FROM {$tables['licenses']} WHERE status = %s AND paid_until IS NOT NULL AND ( ( ( renewal_enabled = 0 OR cancel_at_period_end = 1 ) AND paid_until <= %s ) OR paid_until <= %s ) ORDER BY id ASC LIMIT 250",
 				'active',
-				gmdate( 'Y-m-d H:i:s' )
+				gmdate( 'Y-m-d H:i:s' ),
+				gmdate( 'Y-m-d H:i:s', time() - ( self::GRACE_DAYS + 1 ) * DAY_IN_SECONDS )
 			)
 		);
 
@@ -316,6 +401,25 @@ final class LicenseLifecycle {
 
 		if ( false === $updated || 0 === $updated ) {
 			return false;
+		}
+
+		if ( in_array( $new_status, array( 'revoked', 'expired' ), true ) ) {
+			// A revoked or expired license must never be charged again.
+			$wpdb->update(
+				$tables['licenses'],
+				array( 'renewal_enabled' => 0, 'next_payment_at' => null ),
+				array( 'id' => $license_id ),
+				array( '%d', '%s' ),
+				array( '%d' )
+			);
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, updated_at = %s WHERE license_id = %d AND status IN ('scheduled','failed','manual_action_required')",
+					'cancelled',
+					$now,
+					$license_id
+				)
+			);
 		}
 
 		if ( in_array( $new_status, array( 'revoked', 'suspended' ), true ) ) {

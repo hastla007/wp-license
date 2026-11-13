@@ -26,31 +26,35 @@ if ( is_readable( $wplc_autoloader ) ) {
 }
 
 if ( ! class_exists( '\\WPLC\\Plugin' ) ) {
-	require_once WPLC_PATH . 'src/Infrastructure/Database/Schema.php';
-	require_once WPLC_PATH . 'src/Catalog/Catalog.php';
-	require_once WPLC_PATH . 'src/Catalog/ProductEditor.php';
-	require_once WPLC_PATH . 'src/License/LicenseKey.php';
-	require_once WPLC_PATH . 'src/License/LicenseIssuer.php';
-	require_once WPLC_PATH . 'src/License/AuditLog.php';
-	require_once WPLC_PATH . 'src/License/LicenseLifecycle.php';
-	require_once WPLC_PATH . 'src/Security/SecretCrypto.php';
-	require_once WPLC_PATH . 'src/Api/V1/Response.php';
-	require_once WPLC_PATH . 'src/Api/V1/Authenticator.php';
-	require_once WPLC_PATH . 'src/Api/V1/ActivationService.php';
-	require_once WPLC_PATH . 'src/Api/V1/EntitlementService.php';
-	require_once WPLC_PATH . 'src/Api/V1/Routes.php';
-	require_once WPLC_PATH . 'src/Api/V1/UpdateService.php';
-	require_once WPLC_PATH . 'src/Client/LicenseClient.php';
-	require_once WPLC_PATH . 'src/Account/CustomerPortal.php';
-	require_once WPLC_PATH . 'src/Admin/LicenseAdmin.php';
-	require_once WPLC_PATH . 'src/Gateway/RecurringGatewayAdapter.php';
-	require_once WPLC_PATH . 'src/Gateway/Registry.php';
-	require_once WPLC_PATH . 'src/Gateway/StripeRecurringAdapter.php';
-	require_once WPLC_PATH . 'src/Billing/RecurringConsent.php';
-	require_once WPLC_PATH . 'src/Billing/RenewalScheduler.php';
-	require_once WPLC_PATH . 'src/Billing/RenewalProcessor.php';
-	require_once WPLC_PATH . 'src/Plugin.php';
+	// Fallback PSR-4 autoloader so the plugin also works from a ZIP built without Composer.
+	spl_autoload_register(
+		static function ( $class ) {
+			if ( 0 !== strpos( $class, 'WPLC\\' ) ) {
+				return;
+			}
+			$relative = str_replace( '\\', '/', substr( $class, 5 ) );
+			if ( ! preg_match( '#^[A-Za-z0-9_/]+$#', $relative ) ) {
+				return;
+			}
+			$file = WPLC_PATH . 'src/' . $relative . '.php';
+			if ( is_readable( $file ) ) {
+				require_once $file;
+			}
+		}
+	);
 }
+
+add_action(
+	'before_woocommerce_init',
+	static function () {
+		if ( class_exists( '\\Automattic\\WooCommerce\\Utilities\\FeaturesUtil' ) ) {
+			// Orders are only accessed through WooCommerce CRUD APIs.
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', WPLC_FILE, true );
+			// The renewal consent field is only implemented for the classic checkout.
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', WPLC_FILE, false );
+		}
+	}
+);
 
 register_activation_hook( WPLC_FILE, array( '\\WPLC\\Plugin', 'activate' ) );
 register_deactivation_hook( WPLC_FILE, array( '\\WPLC\\Plugin', 'deactivate' ) );

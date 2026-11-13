@@ -65,6 +65,10 @@ final class StripeWebhook {
 			'license_id' => absint( $metadata['wplc_license_id'] ?? 0 ),
 			'order_id' => absint( $metadata['order_id'] ?? 0 ),
 		);
+		if ( 0 === $payload['renewal_id'] && 0 === $payload['license_id'] ) {
+			// Ordinary shop payments carry no WPLC metadata. Acknowledge them so Stripe does not retry or disable the endpoint.
+			return new \WP_REST_Response( array( 'received' => true, 'ignored' => true ), 200 );
+		}
 		if ( 0 !== strpos( $payload['payment_intent_id'], 'pi_' ) || 0 === $payload['renewal_id'] || 0 === $payload['license_id'] || 0 === $payload['order_id'] ) {
 			return new \WP_Error( 'wplc_stripe_event_metadata_invalid', __( 'The Stripe event is missing required renewal metadata.', 'wp-license' ), array( 'status' => 400 ) );
 		}

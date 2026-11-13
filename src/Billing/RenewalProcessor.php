@@ -65,15 +65,7 @@ final class RenewalProcessor {
 	private static function process_locked( int $renewal_id ): void {
 		global $wpdb;
 
-		$lock_name = 'wplc_renewal_' . substr( hash( 'sha256', 'renewal:' . $renewal_id ), 0, 40 );
-		$lock_result = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
-		if ( '1' !== (string) $lock_result ) {
-			RenewalScheduler::enqueue( $renewal_id, time() + 30 );
-			return;
-		}
-
-		try {
-			$tables = Schema::table_names();
+		$tables = Schema::table_names();
 		$renewal = $wpdb->get_row(
 			$wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ),
 			ARRAY_A
@@ -134,6 +126,8 @@ final class RenewalProcessor {
 			return;
 		}
 
+		// Keep the in-memory row in sync so failure handling never unlinks the order.
+		$renewal['renewal_order_id'] = (int) $order->get_id();
 		self::set_renewal_status( $renewal_id, 'processing', null );
 		$result = $adapter->charge( $order, $token_id, (string) $renewal['idempotency_key'] );
 		if ( is_wp_error( $result ) || empty( $result['success'] ) ) {
@@ -158,9 +152,6 @@ final class RenewalProcessor {
 			array( 'status' => $renewal['status'] ),
 			array( 'status' => 'paid', 'order_id' => (int) $order->get_id() )
 		);
-		} finally {
-			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
-		}
 	}
 
 	/**
@@ -174,7 +165,7 @@ final class RenewalProcessor {
 	private static function fail_attempt( array $renewal, array $license, \WP_Error $error ): void {
 		$attempt = (int) $renewal['attempt_count'] + 1;
 		if ( 'renewal_manual_action_required' === $error->get_error_code() ) {
-			self::set_renewal_status( (int) $renewal['id'], 'manual_action_required', null, absint( $renewal['renewal_order_id'] ), $attempt );
+			self::set_renewal_status( (int) $renewal['id'], 'manual_action_required', null, absint( $renewal['renewal_order_id'] ) ?: null, $attempt );
 			LicenseLifecycle::mark_past_due( (int) $license['id'], $error->get_error_code() );
 			$order = function_exists( 'wc_get_order' ) ? wc_get_order( absint( $renewal['renewal_order_id'] ) ) : false;
 			if ( $order ) {
@@ -543,7 +534,7 @@ final class RenewalProcessor {
 			if ( 'paid' === $renewal['status'] ) {
 				return;
 			}
-			if ( ! in_array( $renewal['status'], array( 'failed', 'manual_action_required', 'in_progress' ), true ) ) {
+			if ( ! in_array( $renewal['status'], array( 'failed', 'manual_action_required', 'processing' ), true ) ) {
 				AuditLog::record( 'renewal_recovery_not_allowed', 'renewal', $renewal_id, 'Renewal status did not allow customer payment recovery' );
 				return;
 			}

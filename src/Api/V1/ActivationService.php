@@ -10,6 +10,7 @@ namespace WPLC\Api\V1;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
 use WPLC\License\LicenseKey;
+use WPLC\License\LicenseLifecycle;
 use WPLC\Security\SecretCrypto;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -68,7 +69,7 @@ final class ActivationService {
 		if ( $license['product_key'] !== $product_key ) {
 			return new \WP_Error( 'product_mismatch', __( 'This license belongs to a different product.', 'wp-license' ), array( 'status' => 403 ) );
 		}
-		if ( 'active' !== $license['status'] || ! self::is_paid( $license ) ) {
+		if ( ! LicenseLifecycle::has_access( $license ) ) {
 			return new \WP_Error( 'expired', __( 'This license is not currently active.', 'wp-license' ), array( 'status' => 403 ) );
 		}
 
@@ -337,7 +338,7 @@ final class ActivationService {
 				"SELECT entitlement_key,value_json FROM {$tables['entitlements']} WHERE license_id = %d AND status = %s AND (ends_at IS NULL OR ends_at > %s)",
 				$license_id,
 				'active',
-				gmdate( 'Y-m-d H:i:s' )
+				is_array( $license ) ? LicenseLifecycle::entitlement_cutoff( $license ) : gmdate( 'Y-m-d H:i:s' )
 			),
 			ARRAY_A
 		);
@@ -432,16 +433,6 @@ final class ActivationService {
 		);
 
 		return max( 1, absint( $limit ) );
-	}
-
-	/**
-	 * Validate payment-through date.
-	 *
-	 * @param array<string,mixed> $license License row.
-	 * @return bool
-	 */
-	private static function is_paid( array $license ): bool {
-		return empty( $license['paid_until'] ) || (string) $license['paid_until'] > gmdate( 'Y-m-d H:i:s' );
 	}
 
 	/**

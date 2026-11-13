@@ -59,6 +59,7 @@ final class Plugin {
 	 */
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( 'wplc_daily_lifecycle' );
+		wp_clear_scheduled_hook( 'wplc_cleanup_security_rows' );
 	}
 
 	/**

@@ -129,7 +129,7 @@ final class LicenseIssuer {
 		$token = class_exists( 'WC_Payment_Tokens' ) ? \WC_Payment_Tokens::get( $token_id ) : false;
 		$adapter = Registry::get( $gateway_id );
 		$consent = (string) $order->get_meta( '_wplc_recurring_consent_at', true );
-		$renewal_enabled = $consent && $token && $adapter && $adapter->supports_checkout() && (int) $token->get_user_id() === (int) $order->get_customer_id() && $adapter->supports_saved_token( $token_id, (int) $order->get_customer_id() );
+		$renewal_enabled = $consent && $token && $adapter && (int) $order->get_customer_id() > 0 && (int) $token->get_user_id() === (int) $order->get_customer_id() && $adapter->supports_saved_token( $token_id, (int) $order->get_customer_id() );
 		if ( ! $renewal_enabled ) {
 			$token_id = 0;
 			$gateway_id = '';
@@ -146,7 +146,7 @@ final class LicenseIssuer {
 				'product_key' => (string) $plan['product_key'],
 				'plan_key' => (string) $plan['plan_key'],
 				'parent_license_id' => null,
-				'status' => 'active',
+				'status' => 'pending',
 				'status_reason' => '',
 				'renewal_enabled' => $renewal_enabled ? 1 : 0,
 				'payment_gateway_id' => $gateway_id,
@@ -174,9 +174,6 @@ final class LicenseIssuer {
 		}
 
 		$license_id = (int) $wpdb->insert_id;
-		if ( $renewal_enabled ) {
-			RenewalScheduler::schedule_next( $license_id );
-		}
 		$entitlements = json_decode( (string) $plan['entitlements_json'], true );
 		if ( is_array( $entitlements ) ) {
 			foreach ( $entitlements as $entitlement_key => $value ) {
@@ -217,6 +214,10 @@ final class LicenseIssuer {
 			return 0;
 		}
 
+		if ( $renewal_enabled ) {
+			RenewalScheduler::schedule_next( $license_id );
+		}
+
 		$order->add_order_note(
 			sprintf(
 				/* translators: 1: license prefix, 2: order item ID. */
@@ -240,13 +241,6 @@ final class LicenseIssuer {
 	}
 
 	/**
-	 * Calculate a month/year period without overflowing end-of-month dates.
-	 *
-	 * @param int $timestamp UTC timestamp.
-	 * @param string $interval month or year.
-	 * @return int
-	 */
-	/**
 	 * Remove a pending license when its entitlement snapshot cannot be completed.
 	 *
 	 * @param int $license_id License ID.
@@ -267,6 +261,13 @@ final class LicenseIssuer {
 		);
 	}
 
+	/**
+	 * Calculate a month/year period without overflowing end-of-month dates.
+	 *
+	 * @param int $timestamp UTC timestamp.
+	 * @param string $interval month or year.
+	 * @return int
+	 */
 	private static function period_end( int $timestamp, string $interval ): int {
 		$date = new \DateTimeImmutable( '@' . $timestamp );
 		$date = $date->setTimezone( new \DateTimeZone( 'UTC' ) );

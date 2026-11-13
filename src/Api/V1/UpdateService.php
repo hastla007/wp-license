@@ -8,6 +8,7 @@
 namespace WPLC\Api\V1;
 
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\LicenseLifecycle;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -40,7 +41,7 @@ final class UpdateService {
 		);
 		$product_key = sanitize_key( (string) $request->get_param( 'product_key' ) );
 		$current = sanitize_text_field( (string) $request->get_param( 'current_version' ) );
-		if ( ! is_array( $license ) || $license['product_key'] !== $product_key || 'active' !== $license['status'] || ( ! empty( $license['paid_until'] ) && $license['paid_until'] <= gmdate( 'Y-m-d H:i:s' ) ) ) {
+		if ( ! is_array( $license ) || $license['product_key'] !== $product_key || ! LicenseLifecycle::has_access( $license ) ) {
 			return new \WP_Error( 'license_inactive', __( 'An active license for this product is required to access updates.', 'wp-license' ), array( 'status' => 403 ) );
 		}
 
@@ -113,25 +114,24 @@ final class UpdateService {
 		$now = gmdate( 'Y-m-d H:i:s' );
 		$grant = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT dt.package_url, dt.license_id FROM {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id WHERE dt.token_hash = %s AND dt.consumed_at IS NULL AND dt.expires_at > %s AND l.status = %s AND (l.paid_until IS NULL OR l.paid_until > %s) LIMIT 1",
+				"SELECT dt.package_url, dt.license_id, l.status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end FROM {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id WHERE dt.token_hash = %s AND dt.consumed_at IS NULL AND dt.expires_at > %s LIMIT 1",
 				$token_hash,
-				$now,
-				'active',
 				$now
 			),
 			ARRAY_A
 		);
+		if ( is_array( $grant ) && ! LicenseLifecycle::has_access( $grant ) ) {
+			$grant = null;
+		}
 		if ( ! is_array( $grant ) || ! self::trusted_package_url( (string) $grant['package_url'] ) ) {
 			status_header( 404 );
 			exit;
 		}
 		$consumed = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id SET dt.consumed_at = %s, dt.package_url = '' WHERE dt.token_hash = %s AND dt.consumed_at IS NULL AND dt.expires_at > %s AND l.status = %s AND (l.paid_until IS NULL OR l.paid_until > %s)",
+				"UPDATE {$tables['download_tokens']} SET consumed_at = %s, package_url = '' WHERE token_hash = %s AND consumed_at IS NULL AND expires_at > %s",
 				$now,
 				$token_hash,
-				$now,
-				'active',
 				$now
 			)
 		);

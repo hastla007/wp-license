@@ -8,6 +8,7 @@
 namespace WPLC\Api\V1;
 
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\LicenseLifecycle;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -41,9 +42,8 @@ final class EntitlementService {
 			return new \WP_Error( 'license_not_found', __( 'The license record could not be found.', 'wp-license' ), array( 'status' => 404 ) );
 		}
 
-		$active = 'active' === $license['status']
-			&& ( empty( $license['paid_until'] ) || (string) $license['paid_until'] > gmdate( 'Y-m-d H:i:s' ) );
-		$reported_status = $active ? (string) $license['status'] : (string) $license['status'];
+		$active = LicenseLifecycle::has_access( $license );
+		$reported_status = (string) $license['status'];
 		if ( 'active' === $reported_status && ! $active ) {
 			$reported_status = 'expired';
 		}
@@ -52,7 +52,7 @@ final class EntitlementService {
 				"SELECT entitlement_key,value_json FROM {$tables['entitlements']} WHERE license_id = %d AND status = %s AND (ends_at IS NULL OR ends_at > %s)",
 				(int) $license['id'],
 				'active',
-				gmdate( 'Y-m-d H:i:s' )
+				LicenseLifecycle::entitlement_cutoff( $license )
 			),
 			ARRAY_A
 		);
