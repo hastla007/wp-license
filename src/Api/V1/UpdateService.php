@@ -48,7 +48,7 @@ final class UpdateService {
 		$packages = apply_filters( 'wplc_update_packages', array(), $product_key );
 		$package = is_array( $packages ) ? ( $packages[ $product_key ] ?? null ) : null;
 		if ( ! is_array( $package ) || empty( $package['version'] ) || empty( $package['package_url'] ) || empty( $package['sha256'] ) ) {
-			return Response::signed( array( 'update_available' => false, 'reason' => 'package_unavailable' ), (string) $activation['installation_secret'] );
+			return Response::signed( array( 'update_available' => false, 'reason' => 'package_unavailable' ), (string) $activation['installation_secret'], 200, (string) $activation['request_nonce'] );
 		}
 
 		$version = sanitize_text_field( (string) $package['version'] );
@@ -58,7 +58,7 @@ final class UpdateService {
 			return new \WP_Error( 'package_configuration_invalid', __( 'The update package is not configured with a trusted HTTPS URL and SHA-256 checksum.', 'wp-license' ), array( 'status' => 503 ) );
 		}
 		if ( ! version_compare( $version, $current, '>' ) ) {
-			return Response::signed( array( 'update_available' => false, 'current_version' => $current ), (string) $activation['installation_secret'] );
+			return Response::signed( array( 'update_available' => false, 'current_version' => $current ), (string) $activation['installation_secret'], 200, (string) $activation['request_nonce'] );
 		}
 
 		$token = bin2hex( random_bytes( 32 ) );
@@ -93,7 +93,7 @@ final class UpdateService {
 			'download_expires_at' => $expires_at,
 		);
 
-		return Response::signed( $payload, (string) $activation['installation_secret'] );
+		return Response::signed( $payload, (string) $activation['installation_secret'], 200, (string) $activation['request_nonce'] );
 	}
 
 	/**
@@ -104,6 +104,11 @@ final class UpdateService {
 	 */
 	public static function download( \WP_REST_Request $request ): void {
 		global $wpdb;
+		// The one-time token is part of the URL: keep the response out of
+		// caches and the URL out of any Referer header.
+		nocache_headers();
+		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0, private' );
+		header( 'Referrer-Policy: no-referrer' );
 		$token = strtolower( sanitize_text_field( (string) $request->get_param( 'token' ) ) );
 		if ( ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) {
 			status_header( 404 );

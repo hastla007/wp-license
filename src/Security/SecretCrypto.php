@@ -123,6 +123,22 @@ final class SecretCrypto {
 	}
 
 	/**
+	 * Whether installation credentials are encrypted with the WordPress
+	 * secure_auth salt because no dedicated key is configured in wp-config.php.
+	 *
+	 * Must mirror the precedence in configured_keys().
+	 *
+	 * @return bool
+	 */
+	public static function uses_fallback_key(): bool {
+		if ( defined( 'WPLC_INSTALLATION_ENCRYPTION_KEYS' ) && is_array( WPLC_INSTALLATION_ENCRYPTION_KEYS ) ) {
+			return false;
+		}
+
+		return ! ( defined( 'WPLC_INSTALLATION_ENCRYPTION_KEY' ) && '' !== (string) WPLC_INSTALLATION_ENCRYPTION_KEY );
+	}
+
+	/**
 	 * Return configured decryption keys, preserving old keys during rotation.
 	 *
 	 * @return array<string,string>

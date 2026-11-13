@@ -1,6 +1,12 @@
 <?php
 use PHPUnit\Framework\TestCase;
 
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	function wp_json_encode( $value, $options = 0, $depth = 512 ) {
+		return json_encode( $value, $options, $depth );
+	}
+}
+
 final class ApiContractTest extends TestCase {
 	/** The published API contract must remain valid JSON and declare every public v1 route. */
 	public function test_openapi_contract_declares_all_v1_routes_and_methods(): void {
@@ -33,10 +39,21 @@ final class ApiContractTest extends TestCase {
 			JSON_THROW_ON_ERROR
 		);
 
-		$this->assertSame( array( 'data', 'signature' ), $contract['components']['schemas']['SignedEnvelope']['required'] );
+		$envelope = $contract['components']['schemas']['SignedEnvelope'];
+		// data/signature are the original v1 fields and must stay for bundled older clients.
+		$this->assertSame( array( 'data', 'signature', 'payload', 'payload_signature' ), $envelope['required'] );
+		$this->assertSame( 'object', $envelope['properties']['data']['type'] );
+		$this->assertSame( 'string', $envelope['properties']['payload']['type'] );
+		$this->assertSame( '^[a-f0-9]{64}$', $envelope['properties']['signature']['pattern'] );
+		$this->assertSame( '^[a-f0-9]{64}$', $envelope['properties']['payload_signature']['pattern'] );
 		$this->assertSame(
 			array( 'license_key', 'product_key', 'installation_id', 'installation_secret', 'site_url' ),
 			$contract['components']['schemas']['ActivationRequest']['required']
+		);
+		$this->assertSame(
+			array_keys( $envelope['properties'] ),
+			array_keys( \WPLC\Api\V1\Response::envelope( array( 'status' => 'ok' ), 'contract-test-secret', 'contract-test-nonce' ) ),
+			'The server envelope and the published schema must list the same fields.'
 		);
 		$this->assertArrayHasKey( 'InstallationHmac', $contract['components']['securitySchemes'] );
 		$this->assertArrayHasKey( 'StripeSignature', $contract['components']['securitySchemes'] );

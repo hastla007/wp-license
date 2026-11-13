@@ -18,6 +18,7 @@ use WPLC\Account\CustomerPortal;
 use WPLC\Admin\LicenseAdmin;
 use WPLC\Admin\Diagnostics;
 use WPLC\Admin\CatalogCsv;
+use WPLC\Admin\KeyConfigurationNotice;
 use WPLC\Billing\RecurringConsent;
 use WPLC\Billing\RenewalProcessor;
 use WPLC\Gateway\StripeRecurringAdapter;
@@ -99,6 +100,7 @@ final class Plugin {
 		LicenseAdmin::register_hooks();
 		CatalogCsv::register_hooks();
 		Diagnostics::register_hooks();
+		KeyConfigurationNotice::register_hooks();
 		RecurringConsent::register_hooks();
 		RenewalProcessor::register_hooks();
 		StripeRecurringAdapter::register_hooks();
