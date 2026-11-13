@@ -154,6 +154,10 @@ PHP
 	wp wc tool run install_pages --user=admin >/dev/null 2>&1 || true
 	wp option update woocommerce_currency EUR >/dev/null
 	wp option update woocommerce_default_country DE >/dev/null
+	# Offline gateways are off in a new store.
+	for gateway in bacs cheque cod; do
+		wp option update "woocommerce_${gateway}_settings" '{"enabled":"yes"}' --format=json >/dev/null
+	done
 	# A new store starts in "coming soon" mode, which hides the checkout and pay pages.
 	wp option update woocommerce_coming_soon no >/dev/null
 fi
