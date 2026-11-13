@@ -64,7 +64,15 @@ final class RenewalProcessor {
 	private static function process_locked( int $renewal_id ): void {
 		global $wpdb;
 
-		$tables = Schema::table_names();
+		$lock_name = 'wplc_renewal_' . substr( hash( 'sha256', 'renewal:' . $renewal_id ), 0, 40 );
+		$lock_result = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
+		if ( '1' !== (string) $lock_result ) {
+			RenewalScheduler::enqueue( $renewal_id, time() + 30 );
+			return;
+		}
+
+		try {
+			$tables = Schema::table_names();
 		$renewal = $wpdb->get_row(
 			$wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ),
 			ARRAY_A
@@ -79,6 +87,11 @@ final class RenewalProcessor {
 		);
 		if ( ! is_array( $license ) ) {
 			self::set_renewal_status( $renewal_id, 'failed', null );
+			return;
+		}
+
+		if ( ! in_array( $license['status'], array( 'active', 'past_due' ), true ) ) {
+			self::set_renewal_status( $renewal_id, 'cancelled', null );
 			return;
 		}
 
@@ -144,6 +157,9 @@ final class RenewalProcessor {
 			array( 'status' => $renewal['status'] ),
 			array( 'status' => 'paid', 'order_id' => (int) $order->get_id() )
 		);
+		} finally {
+			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+		}
 	}
 
 	/**
