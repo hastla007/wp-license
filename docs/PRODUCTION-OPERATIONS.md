@@ -29,6 +29,29 @@ Monitor and alert on:
 
 For incidents: assign an incident owner, record start/end and affected versions, preserve sanitized logs, pause risky releases, restore service or roll back, then reconcile affected licenses/orders through supported WooCommerce flows and record the correction in audit history.
 
+## Customer emails and reminders
+
+The plugin registers six customer emails with WooCommerce (WooCommerce → Settings → Emails): license issued, license expiry reminder, upcoming automatic renewal, license renewal payment failed, license expired, license renewed. Subject, heading, additional content and on/off are edited there; templates live in `templates/emails/` and can be overridden in the theme under `wp-license/emails/` (plain-text variants under `wp-license/emails/plain/`).
+
+Operator checklist before launch (none of this is verified by automated tests):
+
+- Send every email once in the staging shop, in HTML and plain text, and in each customer language you sell in. Check links (account page, pay link), dates and the renewal amount.
+- Use an authenticated mail transport (SPF, DKIM, DMARC). A reminder that lands in spam is a lost renewal.
+- Decide whether the license-issued email may contain the full key. Default is off; the email then shows the key prefix and links to the account page.
+- Expiry reminders go out 30 and 7 days before `paid_until` for licenses without automatic renewal or with a scheduled cancellation. Change the days with the `wplc_reminder_lead_days` filter (or `reminder_lead_days` in the `wplc_settings` option, as a comma list). Lead days longer than half a billing period are skipped, so monthly licenses only get the 7-day reminder.
+- Licenses with automatic renewal get one notice 7 days before the charge (`wplc_renewal_notice_lead_days` filter) with amount, date and how to cancel. The amount is the stored renewal amount of the license; confirm that it matches what the gateway will charge, including tax, before relying on it.
+- Reminders are selected by the daily `wplc_daily_lifecycle` cron action in batches of 200 licenses, at most 1000 per run; a larger backlog continues five minutes later on the `wplc_send_reminders` single event. WP-Cron must therefore run reliably: use a real system cron on low-traffic sites. A missed day does not lose a reminder; it is sent on the next run while the license is still inside the lead window.
+- Each reminder and status email is recorded in the `{prefix}wplc_reminder_log` table before sending and is sent once per license and period. The table is created on first use. If it cannot be created, reminders are not sent and an error is written to the WooCommerce log (source `wp-license`).
+- Sending is best-effort. A mail failure never blocks checkout, renewal or cron, and a failed send is not retried automatically; monitor the `wp-license` log source for "was not accepted by the mailer".
+
+## Data retention job
+
+A daily job deletes old audit entries, processed gateway events, deactivated installations of ended licenses and old notification-log rows in batches of 1000 rows per table. Periods, the filter to change them and what is never deleted are documented in [Privacy data flows](PRIVACY-DATA-FLOWS.md#automatic-retention). Before launch, confirm the periods against the privacy notice, and make sure backups are taken before the first run on an existing database, because deletion is permanent.
+
+## Caching and proxies
+
+API routes, the customer account and `admin-post.php` must be excluded from page and CDN caches, download URLs are single-use, and trusted proxies must be declared. See [Caching and reverse proxies](CACHING.md).
+
 ## Release and rollback checklist
 
 1. Release to staging with a reversible database migration and a known-good previous plugin package.
