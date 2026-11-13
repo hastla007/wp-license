@@ -171,11 +171,17 @@ function e2e_http( string $method, string $url, array $args = array() ): array {
 	$headers = wp_remote_retrieve_headers( $response );
 	$headers = is_object( $headers ) ? $headers->getAll() : (array) $headers;
 
+	$location = isset( $headers['location'] ) ? (string) ( is_array( $headers['location'] ) ? end( $headers['location'] ) : $headers['location'] ) : '';
+	if ( '' !== $location && '/' === $location[0] ) {
+		// A relative Location (e.g. built from the form's _wp_http_referer) is resolved like a browser does.
+		$location = 'https://shop.test' . $location;
+	}
+
 	return array(
 		'code'     => (int) wp_remote_retrieve_response_code( $response ),
 		'headers'  => $headers,
 		'body'     => (string) wp_remote_retrieve_body( $response ),
-		'location' => isset( $headers['location'] ) ? (string) ( is_array( $headers['location'] ) ? end( $headers['location'] ) : $headers['location'] ) : '',
+		'location' => $location,
 	);
 }
 
@@ -349,4 +355,123 @@ function e2e_submit( array $fields, array $cookies, array $extra = array() ): ar
 	unset( $fields['__action'] );
 
 	return e2e_http( 'POST', $action, array( 'cookies' => $cookies, 'body' => array_merge( $fields, $extra ) ) );
+}
+
+/**
+ * Create (or find) a customer with a German billing address.
+ *
+ * @param string $login Login.
+ * @return int User ID.
+ */
+function e2e_customer( string $login ): int {
+	$existing = get_user_by( 'login', $login );
+	if ( $existing ) {
+		return (int) $existing->ID;
+	}
+	$customer = new WC_Customer();
+	$customer->set_username( $login );
+	$customer->set_email( $login . '@customer.test' );
+	$customer->set_password( 'customer-e2e-pass' );
+	$customer->set_first_name( ucfirst( $login ) );
+	$customer->set_last_name( 'Tester' );
+	$customer->set_billing_first_name( ucfirst( $login ) );
+	$customer->set_billing_last_name( 'Tester' );
+	$customer->set_billing_email( $login . '@customer.test' );
+	$customer->set_billing_address_1( 'Teststr. 1' );
+	$customer->set_billing_city( 'Berlin' );
+	$customer->set_billing_postcode( '10115' );
+	$customer->set_billing_country( 'DE' );
+
+	return (int) $customer->save();
+}
+
+/**
+ * The customer's saved card of the fake gateway (created on first use).
+ *
+ * @param int $customer_id Customer.
+ * @return int Token ID.
+ */
+function e2e_fake_card( int $customer_id ): int {
+	foreach ( WC_Payment_Tokens::get_customer_tokens( $customer_id, 'wplc_e2e_fake' ) as $token ) {
+		return (int) $token->get_id();
+	}
+	$token = new WC_Payment_Token_CC();
+	$token->set_token( 'e2e_card_' . $customer_id );
+	$token->set_gateway_id( 'wplc_e2e_fake' );
+	$token->set_card_type( 'visa' );
+	$token->set_last4( '4242' );
+	$token->set_expiry_month( '12' );
+	$token->set_expiry_year( (string) ( (int) gmdate( 'Y' ) + 3 ) );
+	$token->set_user_id( $customer_id );
+	$token->set_default( true );
+	$token->save();
+
+	return (int) $token->get_id();
+}
+
+/**
+ * Buy through the WooCommerce checkout object as a logged-in customer.
+ *
+ * Runs the real `woocommerce_checkout_create_order` hooks (renewal consent) and pays
+ * with the given gateway. With $consent the "renew automatically" box is ticked.
+ *
+ * @param int            $customer_id Customer.
+ * @param array<int,int> $items Product/variation ID => quantity.
+ * @param string         $gateway Gateway ID.
+ * @param bool           $consent Tick the automatic renewal consent.
+ * @return \WC_Order
+ */
+function e2e_checkout( int $customer_id, array $items, string $gateway = 'wplc_e2e_fake', bool $consent = true ) {
+	wp_set_current_user( $customer_id );
+	wc_load_cart();
+	$customer      = new WC_Customer( $customer_id, true );
+	WC()->customer = $customer;
+	WC()->cart->empty_cart();
+	foreach ( $items as $product_id => $quantity ) {
+		$product = wc_get_product( $product_id );
+		if ( $product && $product->is_type( 'variation' ) ) {
+			WC()->cart->add_to_cart( $product->get_parent_id(), $quantity, $product_id, $product->get_variation_attributes() );
+		} else {
+			WC()->cart->add_to_cart( $product_id, $quantity );
+		}
+	}
+	WC()->cart->calculate_totals();
+	if ( 'wplc_e2e_fake' === $gateway ) {
+		e2e_fake_card( $customer_id );
+	}
+	unset( $_POST['wplc_recurring_consent'] );
+	if ( $consent ) {
+		$_POST['wplc_recurring_consent'] = '1';
+	}
+	$data = array(
+		'payment_method' => $gateway,
+		'order_comments' => '',
+	);
+	foreach ( $customer->get_billing() as $field => $value ) {
+		$data[ 'billing_' . $field ] = $value;
+	}
+	$order_id = WC()->checkout()->create_order( $data );
+	unset( $_POST['wplc_recurring_consent'] );
+	if ( is_wp_error( $order_id ) ) {
+		throw new RuntimeException( 'checkout failed: ' . $order_id->get_error_message() );
+	}
+	$order = wc_get_order( $order_id );
+	// WC_Checkout::process_checkout() fires this right after create_order().
+	do_action( 'woocommerce_checkout_order_processed', $order_id, $data, $order );
+	$order->payment_complete( 'e2e-' . $order_id );
+	WC()->cart->empty_cart();
+	wp_set_current_user( 0 );
+
+	return wc_get_order( $order_id );
+}
+
+/**
+ * Latest audit actions for an object, newest first.
+ *
+ * @param string $object_type Object type.
+ * @param int    $object_id Object ID.
+ * @return string[]
+ */
+function e2e_audit_actions( string $object_type, int $object_id ): array {
+	return array_column( e2e_rows( 'audit_log', "object_type = '" . esc_sql( $object_type ) . "' AND object_id = " . $object_id . ' ORDER BY id DESC' ), 'action' );
 }
