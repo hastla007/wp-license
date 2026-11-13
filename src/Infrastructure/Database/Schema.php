@@ -19,7 +19,39 @@ final class Schema {
 	/**
 	 * Current schema version.
 	 */
-	public const VERSION = '9';
+	public const VERSION = '10';
+
+	/**
+	 * Option that stores the installed schema version (autoloaded).
+	 */
+	public const VERSION_OPTION = 'wplc_schema_version';
+
+	/**
+	 * Seconds to wait for a concurrent migration before giving up for this request.
+	 */
+	private const LOCK_TIMEOUT = 3;
+
+	/**
+	 * Data-migration steps, keyed by the schema version they bring the data to.
+	 *
+	 * Every step runs after dbDelta, must be idempotent (it can run again after a
+	 * partial failure or on a fresh install with empty tables) and returns true
+	 * on success. Add new steps here together with a VERSION bump.
+	 *
+	 * @var array<string,array{0:string,1:string}>
+	 */
+	private static $steps = array(
+		'10' => array( self::class, 'step_10_autoload_schema_version' ),
+	);
+
+	/**
+	 * Register schema related hooks.
+	 *
+	 * @return void
+	 */
+	public static function register_hooks(): void {
+		add_filter( 'wpmu_drop_tables', array( self::class, 'filter_wpmu_drop_tables' ), 10, 2 );
+	}
 
 	/**
 	 * Run missing schema migrations.
@@ -27,7 +59,7 @@ final class Schema {
 	 * @return bool True when the required tables exist.
 	 */
 	public static function maybe_upgrade(): bool {
-		$installed = (string) get_option( 'wplc_schema_version', '0' );
+		$installed = (string) get_option( self::VERSION_OPTION, '0' );
 		if ( version_compare( $installed, self::VERSION, '>=' ) ) {
 			return true;
 		}
@@ -36,11 +68,130 @@ final class Schema {
 	}
 
 	/**
-	 * Create or update the plugin tables.
+	 * Create or update the plugin tables, then run pending data migrations.
 	 *
-	 * @return bool True when every required table exists.
+	 * Concurrent requests are serialized with a named MySQL lock. A request that
+	 * cannot get the lock in time returns false and leaves the work to the
+	 * request that holds it.
+	 *
+	 * @return bool True when every required table exists and all steps succeeded.
 	 */
 	public static function migrate(): bool {
+		global $wpdb;
+
+		$lock_name = self::lock_name();
+		$lock      = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, self::LOCK_TIMEOUT ) );
+		if ( null !== $lock && 1 !== (int) $lock ) {
+			// Another request is migrating right now.
+			return false;
+		}
+		// A NULL result means named locks are unavailable; migrate unlocked rather than never.
+		$locked = null !== $lock;
+
+		try {
+			return self::run_migration();
+		} finally {
+			if ( $locked ) {
+				$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+			}
+		}
+	}
+
+	/**
+	 * Return the step versions that must run to get from one version to another.
+	 *
+	 * Pure helper: selects every version greater than the installed and not
+	 * greater than the target version, in ascending version order.
+	 *
+	 * @param string   $installed Installed schema version.
+	 * @param string   $target Target schema version.
+	 * @param string[] $step_versions Versions that have a registered step.
+	 * @return string[]
+	 */
+	public static function pending_step_versions( string $installed, string $target, array $step_versions ): array {
+		$pending = array();
+		foreach ( $step_versions as $version ) {
+			$version = (string) $version;
+			if ( version_compare( $version, $installed, '>' ) && version_compare( $version, $target, '<=' ) ) {
+				$pending[ $version ] = $version;
+			}
+		}
+		$pending = array_values( $pending );
+		usort( $pending, 'version_compare' );
+
+		return $pending;
+	}
+
+	/**
+	 * Run the given steps in order and report whether all of them succeeded.
+	 *
+	 * Pure helper: stops at the first step that fails or throws. The recorder is
+	 * called with the version after every successful step so that a later
+	 * failure only repeats the failed step.
+	 *
+	 * @param string[]               $versions Ordered step versions.
+	 * @param array<string,callable> $steps Step callables keyed by version.
+	 * @param callable               $record Called with each completed version.
+	 * @return bool True when every step succeeded.
+	 */
+	public static function run_steps( array $versions, array $steps, callable $record ): bool {
+		foreach ( $versions as $version ) {
+			$version = (string) $version;
+			if ( ! isset( $steps[ $version ] ) || ! is_callable( $steps[ $version ] ) ) {
+				return false;
+			}
+			try {
+				$ok = true === call_user_func( $steps[ $version ] );
+			} catch ( \Throwable $error ) {
+				$ok = false;
+			}
+			if ( ! $ok ) {
+				return false;
+			}
+			call_user_func( $record, $version );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Add a deleted site's tables to the tables WordPress drops with the site.
+	 *
+	 * @param mixed $tables Table names collected by WordPress.
+	 * @param mixed $site_id ID of the site that is being deleted.
+	 * @return mixed
+	 */
+	public static function filter_wpmu_drop_tables( $tables, $site_id = 0 ) {
+		global $wpdb;
+
+		$site_id = (int) $site_id;
+		if ( ! is_array( $tables ) || $site_id <= 0 ) {
+			return $tables;
+		}
+
+		return array_values( array_unique( array_merge( $tables, array_values( self::table_names_for_prefix( $wpdb->get_blog_prefix( $site_id ) ) ) ) ) );
+	}
+
+	/**
+	 * Run one migration step by version. Public only so run_steps() can call it.
+	 *
+	 * @param string $version Step version.
+	 * @return bool
+	 */
+	public static function run_registered_step( string $version ): bool {
+		if ( ! isset( self::$steps[ $version ] ) ) {
+			return false;
+		}
+
+		return true === call_user_func( self::$steps[ $version ] );
+	}
+
+	/**
+	 * dbDelta, table check and pending data steps. Caller holds the lock.
+	 *
+	 * @return bool
+	 */
+	private static function run_migration(): bool {
 		global $wpdb;
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -229,6 +380,40 @@ final class Schema {
 				KEY object_history (object_type,object_id,created_at),
 				KEY actor_history (actor_user_id,created_at)
 			) {$charset_collate};",
+			"CREATE TABLE {$tables['releases']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				product_key varchar(100) NOT NULL,
+				version varchar(40) NOT NULL,
+				channel varchar(20) NOT NULL DEFAULT 'stable',
+				package_url text NOT NULL,
+				storage varchar(10) NOT NULL DEFAULT 'url',
+				sha256 char(64) NOT NULL DEFAULT '',
+				requires_php varchar(20) NOT NULL DEFAULT '',
+				requires_wp varchar(20) NOT NULL DEFAULT '',
+				tested_wp varchar(20) NOT NULL DEFAULT '',
+				release_notes longtext NOT NULL,
+				status varchar(20) NOT NULL DEFAULT 'draft',
+				published_at datetime DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY product_version_channel (product_key,version,channel),
+				KEY product_status (product_key,status)
+			) {$charset_collate};",
+			"CREATE TABLE {$tables['package_streams']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				token_hash char(64) NOT NULL,
+				release_id bigint(20) unsigned NOT NULL,
+				license_id bigint(20) unsigned NOT NULL,
+				source varchar(20) NOT NULL DEFAULT 'update',
+				expires_at datetime NOT NULL,
+				consumed_at datetime DEFAULT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY token_hash (token_hash),
+				KEY license_source_created (license_id,source,created_at),
+				KEY stream_expiry (expires_at)
+			) {$charset_collate};",
 		);
 
 		foreach ( $sql as $statement ) {
@@ -247,19 +432,46 @@ final class Schema {
 			}
 		}
 
-		update_option( 'wplc_schema_version', self::VERSION, false );
+		// Re-read from the database: another request may have migrated while this one waited for the lock.
+		$installed = self::stored_version();
+		$pending   = self::pending_step_versions( $installed, self::VERSION, array_keys( self::$steps ) );
+		$callables = array();
+		foreach ( $pending as $version ) {
+			$callables[ $version ] = static function () use ( $version ) {
+				return self::run_registered_step( $version );
+			};
+		}
+		if ( ! self::run_steps( $pending, $callables, array( self::class, 'store_version' ) ) ) {
+			// The last successful step is recorded; the failed one is retried on the next request.
+			return false;
+		}
+
+		if ( version_compare( $installed, self::VERSION, '<' ) || ! self::version_is_autoloaded() ) {
+			self::store_version( self::VERSION );
+		}
+
 		return true;
 	}
 
 	/**
-	 * Return fully prefixed table names.
+	 * Return fully prefixed table names for the current site.
 	 *
 	 * @return array<string,string>
 	 */
 	public static function table_names(): array {
 		global $wpdb;
 
-		$prefix = $wpdb->prefix . 'wplc_';
+		return self::table_names_for_prefix( (string) $wpdb->prefix );
+	}
+
+	/**
+	 * Return fully prefixed table names for a given site prefix.
+	 *
+	 * @param string $site_prefix Database prefix of the site, e.g. "wp_" or "wp_2_".
+	 * @return array<string,string>
+	 */
+	public static function table_names_for_prefix( string $site_prefix ): array {
+		$prefix = $site_prefix . 'wplc_';
 
 		return array(
 			'products'     => $prefix . 'products',
@@ -273,6 +485,80 @@ final class Schema {
 			'request_nonces' => $prefix . 'request_nonces',
 			'request_limits' => $prefix . 'request_limits',
 			'audit_log'    => $prefix . 'audit_log',
+			'releases'     => $prefix . 'releases',
+			'package_streams' => $prefix . 'package_streams',
 		);
+	}
+
+	/**
+	 * Persist the installed schema version as an autoloaded option.
+	 *
+	 * @param string $version Completed schema version.
+	 * @return void
+	 */
+	public static function store_version( string $version ): void {
+		update_option( self::VERSION_OPTION, $version, true );
+		// update_option() only changes the autoload flag together with the value.
+		if ( ! self::version_is_autoloaded() && function_exists( 'wp_set_option_autoload' ) ) {
+			wp_set_option_autoload( self::VERSION_OPTION, true );
+		}
+	}
+
+	/**
+	 * Schema 10: the version option becomes autoloaded (no extra query per request).
+	 *
+	 * Installs up to schema 9 stored the option with autoload disabled. The row
+	 * is flagged here; store_version() keeps the flag for all later writes.
+	 *
+	 * @return bool
+	 */
+	private static function step_10_autoload_schema_version(): bool {
+		if ( false === get_option( self::VERSION_OPTION, false ) || self::version_is_autoloaded() ) {
+			// Fresh install (store_version() creates the row autoloaded) or already migrated.
+			return true;
+		}
+		if ( function_exists( 'wp_set_option_autoload' ) ) {
+			wp_set_option_autoload( self::VERSION_OPTION, true );
+		}
+
+		// Not fatal when the flag could not be changed: the value is rewritten with autoload right after.
+		return true;
+	}
+
+	/**
+	 * Read the stored schema version directly, bypassing the options cache.
+	 *
+	 * @return string
+	 */
+	private static function stored_version(): string {
+		global $wpdb;
+
+		$value = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1", self::VERSION_OPTION ) );
+
+		return null === $value ? '0' : (string) $value;
+	}
+
+	/**
+	 * Whether the version option row is flagged for autoloading.
+	 *
+	 * @return bool
+	 */
+	private static function version_is_autoloaded(): bool {
+		global $wpdb;
+
+		$autoload = $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s LIMIT 1", self::VERSION_OPTION ) );
+
+		return is_string( $autoload ) && in_array( $autoload, array( 'yes', 'on', 'auto', 'auto-on' ), true );
+	}
+
+	/**
+	 * Server-wide lock name for this site's schema (MySQL limits names to 64 characters).
+	 *
+	 * @return string
+	 */
+	private static function lock_name(): string {
+		global $wpdb;
+
+		return 'wplc_schema_' . md5( ( defined( 'DB_NAME' ) ? (string) DB_NAME : '' ) . '|' . (string) $wpdb->prefix );
 	}
 }
