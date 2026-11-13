@@ -119,6 +119,5 @@ e2e_ok( false !== get_option( 'wplc_schema_version', false ), 'uninstall keeps t
 // Leave the site usable for a re-run: activate again; renewals of running licenses are queued again by the daily job.
 $result = activate_plugin( $plugin );
 e2e_ok( ! is_wp_error( $result ), 'plugin can be activated again after the uninstall script ran' );
-$scheduled_without_job = 0;
 do_action( 'wplc_daily_lifecycle' );
 e2e_note( 'After uninstall + re-activation, renewals that are not yet due have no queued job until they are overdue; the daily job then queues them (see assertion above).' );
