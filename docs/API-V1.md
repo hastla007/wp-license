@@ -146,3 +146,21 @@ The schema migration assigns existing rows the key ID `legacy`. Set that entry t
 ## Current API scope
 
 The v1 endpoints cover activation, signed entitlement checks, deactivation, and premium update metadata/download grants. Update metadata is provided by the trusted `wplc_update_packages` filter; package URLs must use HTTPS and a host included in `wplc_update_package_hosts`. The download grant expires after ten minutes and is consumed on use. The product client must verify the signed metadata and ZIP SHA-256 before installation. Billing webhooks and concrete gateway adapters are not implemented in this milestone.
+
+### Server signature (Ed25519)
+
+Responses for a known installation also carry `signature_ed25519` and `key_id`.
+
+`signature_ed25519` is the server's Ed25519 signature (detached, base64) of
+
+```
+wplc-response-v1\n{installation UUID, lowercase}\n{JSON of data, JSON_UNESCAPED_SLASHES}
+```
+
+The HMAC signatures (`signature`, `payload_signature`) prove integrity in transit and of the client's cache, but the client knows the installation secret itself. The Ed25519 signature proves that this license server produced the data for exactly this installation: product builds pin the server's public key (`wp wplc signing-key --field=public_key`) and reject responses and cached snapshots without a valid signature. `key_id` is the first 16 hex characters of the SHA-256 of the public key.
+
+The key comes from the constant `WPLC_RESPONSE_SIGNING_KEY` (base64 seed or secret key; recommended) or is generated once and stored encrypted in the option `wplc_response_signing_key`. Rotating it requires a product release with the new public key. The fields are omitted only when PHP has neither sodium nor WordPress' sodium_compat.
+
+A client should check all of: `payload_signature` over `payload`, the echoed nonce, and `signature_ed25519` over the JSON of `data` inside the verified payload.
+
+Test vector: seed 32 × `0x01` → public key `iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w=`; installation `a1b2c3d4-0000-4000-8000-000000000001`, data `{"license_status":"active"}` → signature `4qfhfiKz3F2K45FnfKU7bEeAoreDXyf6tuAtlPXlCSvVRxzcoqVFOubr0bb+TtmU65fpRAc2KRVZ4KdooQMBDA==`.

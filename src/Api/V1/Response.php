@@ -7,6 +7,8 @@
 
 namespace WPLC\Api\V1;
 
+use WPLC\Security\ResponseSigner;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -17,18 +19,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Response {
 
 	/**
-	 * Return a signed data response.
+	 * Return a signed data response with no-store headers.
 	 *
-	 * @param array<string,mixed> $data Payload.
-	 * @param string $secret Installation secret.
-	 * @param int $status HTTP status.
-	 * @param string $nonce Value bound into the signed payload: the request's
-	 *                      X-WPLC-Nonce for authenticated calls, the installation
-	 *                      ID for activation.
+	 * @param array<string,mixed> $data              Payload.
+	 * @param string              $secret            Installation secret.
+	 * @param int                 $status            HTTP status.
+	 * @param string              $nonce             Request nonce to bind into the payload.
+	 * @param string              $installation_uuid Installation the data is for (enables the Ed25519 signature).
 	 * @return \WP_REST_Response
 	 */
-	public static function signed( array $data, string $secret, int $status = 200, string $nonce = '' ): \WP_REST_Response {
-		$response = new \WP_REST_Response( self::envelope( $data, $secret, $nonce ), $status );
+	public static function signed( array $data, string $secret, int $status = 200, string $nonce = '', string $installation_uuid = '' ): \WP_REST_Response {
+		$response = new \WP_REST_Response( self::envelope( $data, $secret, $nonce, $installation_uuid ), $status );
 		// Signed license data and download grants must never be stored by a
 		// page cache, CDN, or browser.
 		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private' );
@@ -40,29 +41,38 @@ final class Response {
 	}
 
 	/**
-	 * Build the response envelope.
+	 * Build the signed envelope.
 	 *
-	 * `data` and `signature` are the original v1 fields: the signature covers
-	 * the server's JSON encoding of `data`, which a client can only check by
-	 * re-encoding. `payload` is the exact signed JSON string
-	 * (`{"data":…,"nonce":…}`) and `payload_signature` its HMAC, so current
-	 * clients verify the transmitted bytes and the echoed nonce instead.
+	 * Three signatures with different jobs:
+	 * - `signature`: HMAC of the JSON of the data, keyed by the installation
+	 *   secret. Kept for clients that predate `payload`.
+	 * - `payload` + `payload_signature`: the exact signed string, which also
+	 *   carries the request nonce, and its HMAC. Protects transport and binds
+	 *   the answer to one request.
+	 * - `signature_ed25519` + `key_id`: the server's own signature over
+	 *   "wplc-response-v1\n{installation UUID}\n{JSON of data}". The client
+	 *   holds the installation secret too, so only this one proves that the
+	 *   license server produced the data. Present when a signing key exists.
 	 *
-	 * @param array<string,mixed> $data Payload.
-	 * @param string $secret Installation secret.
-	 * @param string $nonce Request nonce or installation ID.
+	 * @param array<string,mixed> $data              Payload.
+	 * @param string              $secret            Installation secret.
+	 * @param string              $nonce             Request nonce (installation ID for activations).
+	 * @param string              $installation_uuid Installation the data is for.
 	 * @return array<string,mixed>
 	 */
-	public static function envelope( array $data, string $secret, string $nonce = '' ): array {
+	public static function envelope( array $data, string $secret, string $nonce = '', string $installation_uuid = '' ): array {
 		$json = wp_json_encode( $data, JSON_UNESCAPED_SLASHES );
+		$json = false === $json ? '' : $json;
 		$payload = wp_json_encode( array( 'data' => $data, 'nonce' => $nonce ), JSON_UNESCAPED_SLASHES );
 		$payload = false === $payload ? '' : $payload;
 
-		return array(
+		$envelope = array(
 			'data' => $data,
-			'signature' => hash_hmac( 'sha256', false === $json ? '' : $json, $secret ),
+			'signature' => hash_hmac( 'sha256', $json, $secret ),
 			'payload' => $payload,
 			'payload_signature' => hash_hmac( 'sha256', $payload, $secret ),
 		);
+
+		return '' === $installation_uuid ? $envelope : array_merge( $envelope, ResponseSigner::envelope_fields( $installation_uuid, $json ) );
 	}
 }

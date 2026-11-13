@@ -93,6 +93,7 @@ final class Diagnostics {
 			__( 'OpenSSL', 'wp-license' ) => extension_loaded( 'openssl' ) ? __( 'Available', 'wp-license' ) : __( 'Unavailable', 'wp-license' ),
 			__( 'Action Scheduler', 'wp-license' ) => function_exists( 'as_enqueue_async_action' ) ? __( 'Available', 'wp-license' ) : __( 'Unavailable', 'wp-license' ),
 			__( 'Stripe gateway class', 'wp-license' ) => class_exists( '\\WC_Stripe' ) ? __( 'Loaded', 'wp-license' ) : __( 'Not loaded', 'wp-license' ),
+			__( 'Response signing key (Ed25519, public)', 'wp-license' ) => \WPLC\Security\ResponseSigner::public_key() ?: __( 'Unavailable', 'wp-license' ),
 			__( 'Update package provider', 'wp-license' ) => has_filter( 'wplc_update_packages' ) ? __( 'Registered', 'wp-license' ) : __( 'Not registered', 'wp-license' ),
 			__( 'Pending Stripe events', 'wp-license' ) => $metrics['pending_webhooks'],
 			__( 'Stripe events needing review', 'wp-license' ) => $metrics['manual_review_webhooks'],
