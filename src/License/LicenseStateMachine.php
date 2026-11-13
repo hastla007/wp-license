@@ -15,6 +15,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Explicit transition policy shared by lifecycle and renewal handlers.
  */
 final class LicenseStateMachine {
+	/**
+	 * Days before paid_until from which, and after paid_until until which, a
+	 * customer may renew manually. An expired license can only be reactivated
+	 * by a manual renewal payment inside this window.
+	 */
+	public const MANUAL_RENEWAL_WINDOW_DAYS = 30;
+
 	/** @var array<string,array<string,string[]>> */
 	private const TRANSITIONS = array(
 		'order_refund' => array(
@@ -43,6 +50,11 @@ final class LicenseStateMachine {
 			'suspended' => array( 'active', 'revoked' ),
 			'expired' => array( 'active', 'suspended', 'revoked' ),
 		),
+		'admin_extend' => array(
+			'active' => array( 'active' ),
+			'past_due' => array( 'active' ),
+			'expired' => array( 'active' ),
+		),
 	);
 
 	/**
@@ -61,10 +73,34 @@ final class LicenseStateMachine {
 	/**
 	 * Whether an authenticated successful payment may renew this license state.
 	 *
+	 * This is the rule for automatic charges: they never apply to expired,
+	 * suspended or revoked licenses.
+	 *
 	 * @param string $status Current license state.
 	 * @return bool
 	 */
 	public static function can_apply_renewal_payment( string $status ): bool {
 		return self::allows( $status, 'active', 'renewal_succeeded' );
+	}
+
+	/**
+	 * Whether a customer-initiated (manual) renewal payment may renew this license.
+	 *
+	 * Same as an automatic renewal, plus the one exception `expired -> active`
+	 * while the payment falls inside the manual renewal window after paid_until.
+	 *
+	 * @param string $status Current license state.
+	 * @param int    $paid_until Unix timestamp of paid_until, zero when unknown.
+	 * @param int    $paid_at Unix timestamp of the payment.
+	 * @return bool
+	 */
+	public static function can_apply_manual_renewal( string $status, int $paid_until, int $paid_at ): bool {
+		if ( self::can_apply_renewal_payment( $status ) ) {
+			return true;
+		}
+
+		return 'expired' === $status
+			&& $paid_until > 0
+			&& $paid_at <= $paid_until + self::MANUAL_RENEWAL_WINDOW_DAYS * 86400;
 	}
 }

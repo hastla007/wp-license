@@ -50,7 +50,12 @@ final class Catalog {
 			return false;
 		}
 
-		$price    = (string) $product->get_price( 'edit' );
+		// The stored price becomes the renewal amount, so it must be the regular
+		// price: get_price() returns the sale price while a sale is running.
+		$price = is_callable( array( $product, 'get_regular_price' ) ) ? (string) $product->get_regular_price( 'edit' ) : '';
+		if ( '' === $price ) {
+			$price = (string) $product->get_price( 'edit' );
+		}
 		$decimals = function_exists( 'wc_get_price_decimals' ) ? max( 0, min( 6, (int) wc_get_price_decimals() ) ) : 2;
 		$price_minor = Money::to_minor_units( $price, $decimals );
 		if ( false === $price_minor ) {

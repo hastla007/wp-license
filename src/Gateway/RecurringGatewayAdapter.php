@@ -45,9 +45,19 @@ interface RecurringGatewayAdapter {
 	 * Return an array with success=true and transaction_id on success, or WP_Error
 	 * on failure. The adapter must never store card data or omit off-session consent.
 	 *
+	 * Failure codes with a meaning for the retry logic:
+	 * - `renewal_manual_action_required`: the customer must authenticate; retries stop.
+	 * - `renewal_result_unknown`: it is not known whether the charge went through
+	 *   (timeout, network or gateway server error). The attempt is repeated with
+	 *   the SAME key, so the adapter must pass the key to the gateway unchanged.
+	 * Every other error is a definite decline; the next attempt gets a new key.
+	 *
+	 * Adapters should store the gateway payment reference on the order (meta
+	 * `_wplc_payment_intent_id`) as soon as it is known.
+	 *
 	 * @param \WC_Order $order Renewal order.
 	 * @param int $token_id Saved WooCommerce payment token ID.
-	 * @param string $idempotency_key Stable per-period idempotency key.
+	 * @param string $idempotency_key Key of this attempt: `{renewal key}:{attempt_count}`.
 	 * @return array|\WP_Error
 	 */
 	public function charge( $order, int $token_id, string $idempotency_key );
