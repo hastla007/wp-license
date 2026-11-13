@@ -1,0 +1,65 @@
+{
+    "src/Account/CustomerPortal.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 7
+    },
+    "src/Admin/CatalogCsv.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 1,
+        "WordPress.Security.NonceVerification.Missing": 1,
+        "WordPress.Security.NonceVerification.Recommended": 4,
+        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1
+    },
+    "src/Admin/Diagnostics.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+    },
+    "src/Admin/LicenseAdmin.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3,
+        "WordPress.DB.PreparedSQL.NotPrepared": 3,
+        "WordPress.Security.NonceVerification.Recommended": 6
+    },
+    "src/Api/V1/ActivationService.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 13,
+        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1,
+        "WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 1
+    },
+    "src/Api/V1/Authenticator.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 8
+    },
+    "src/Api/V1/EntitlementService.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3
+    },
+    "src/Api/V1/StripeWebhook.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+    },
+    "src/Api/V1/UpdateService.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 5,
+        "WordPress.Security.SafeRedirect.wp_redirect_wp_redirect": 1
+    },
+    "src/Billing/RenewalProcessor.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 7
+    },
+    "src/Billing/RenewalScheduler.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+    },
+    "src/CLI/RecoverLicenseKeyIdsCommand.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+    },
+    "src/CLI/RotateInstallationSecretsCommand.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+    },
+    "src/Catalog/Catalog.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2,
+        "WordPress.DB.PreparedSQL.NotPrepared": 1
+    },
+    "src/Catalog/ProductEditor.php": {
+        "WordPress.Security.NonceVerification.Missing": 2
+    },
+    "src/License/LicenseIssuer.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 1
+    },
+    "src/License/LicenseLifecycle.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6
+    },
+    "src/Privacy/PersonalData.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+    }
+}

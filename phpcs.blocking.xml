@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="WP License Captain (blocking)" xsi:noNamespaceSchemaLocation="vendor/squizlabs/php_codesniffer/phpcs.xsd">
+	<description>Security and PHP-compatibility sniffs only. Every finding fails CI.</description>
+
+	<file>wp-license.php</file>
+	<file>uninstall.php</file>
+	<file>src</file>
+	<file>tools</file>
+	<file>bin</file>
+	<file>tests</file>
+
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="basepath" value="."/>
+	<arg name="parallel" value="8"/>
+	<arg value="sp"/>
+
+	<config name="minimum_wp_version" value="6.5"/>
+	<config name="testVersion" value="7.4-"/>
+
+	<!-- Escaping, nonce verification, input sanitization, safe redirects. -->
+	<rule ref="WordPress.Security">
+		<!-- Tests build requests and print nothing to a browser; tools/ and bin/ are CLI scripts. -->
+		<exclude-pattern>*/tests/*</exclude-pattern>
+		<exclude-pattern>*/tools/*</exclude-pattern>
+		<exclude-pattern>*/bin/*</exclude-pattern>
+	</rule>
+
+	<!-- Every query with variables goes through $wpdb->prepare(). -->
+	<rule ref="WordPress.DB.PreparedSQL">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.DB.PreparedSQLPlaceholders">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+
+	<!-- PHP 7.4 is the declared minimum; applies to tests as well because they run on 7.4. -->
+	<rule ref="PHPCompatibilityWP"/>
+</ruleset>

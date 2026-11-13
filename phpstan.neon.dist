@@ -1,0 +1,35 @@
+# PHPStan configuration. The WordPress extension (szepeviktor/phpstan-wordpress)
+# is registered automatically by phpstan/extension-installer.
+#
+# Existing findings are recorded in phpstan-baseline.neon so that only NEW
+# errors fail. Regenerate after fixing baselined errors with: composer phpstan:baseline
+includes:
+	- phpstan-baseline.neon
+
+parameters:
+	level: 5
+	paths:
+		- src
+		- wp-license.php
+	bootstrapFiles:
+		- tests/phpstan-bootstrap.php
+	scanFiles:
+		- vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+		- vendor/php-stubs/woocommerce-stubs/woocommerce-packages-stubs.php
+		- vendor/php-stubs/wp-cli-stubs/wp-cli-stubs.php
+		- vendor/php-stubs/wp-cli-stubs/wp-cli-commands-stubs.php
+		- vendor/php-stubs/wp-cli-stubs/wp-cli-i18n-stubs.php
+		- vendor/php-stubs/wp-cli-stubs/wp-cli-tools-stubs.php
+	# Optional wp-config.php constants: their presence and value differ per installation.
+	dynamicConstantNames:
+		- WPLC_INSTALLATION_ENCRYPTION_KEY
+		- WPLC_INSTALLATION_ENCRYPTION_KEYS
+		- WPLC_INSTALLATION_ENCRYPTION_KEY_ID
+		- WPLC_LICENSE_KEY_ID
+		- WPLC_LICENSE_KEY_SECRET
+		- WPLC_LICENSE_KEY_SECRETS
+		- WPLC_STRIPE_WEBHOOK_SECRET
+		- WP_CLI
+	# Baseline entries that no longer match are reported by "composer phpstan:baseline" (regenerate),
+	# not by CI: several branches change src/ in parallel and must not break each other by fixing errors.
+	reportUnmatchedIgnoredErrors: false
