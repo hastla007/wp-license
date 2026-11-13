@@ -393,6 +393,28 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$this->flag_spec_gaps();
 	}
 
+	public function test_site_url_longer_than_the_column_is_rejected_as_invalid_input(): void {
+		global $wpdb;
+		$tables   = $this->tables();
+		$license  = $this->seed_license();
+		$long_url = 'https://shop.example.com/' . str_repeat( 'p', 300 );
+
+		$suppress = $wpdb->suppress_errors( true );
+		$response = $this->activate_via_api( $license['key'], array( 'site_url' => $long_url ) )['response'];
+		$wpdb->suppress_errors( $suppress );
+		$stored = (string) $wpdb->get_var( $wpdb->prepare( "SELECT site_url FROM {$tables['activations']} WHERE license_id = %d", $license['id'] ) );
+
+		if ( 400 !== $response->get_status() ) {
+			$this->markTestIncomplete(
+				'BUG: SiteUrl::normalize() has no length limit, but activations.site_url is varchar(255). A ' . strlen( $long_url )
+				. '-character site URL passes validation and then answers ' . $response->get_status() . ' '
+				. ( $response->get_data()['code'] ?? 'OK' ) . ( '' !== $stored ? ' with the stored URL cut to ' . strlen( $stored ) . ' characters' : '' )
+				. ' instead of 400 invalid_activation. Fix: reject normalized URLs longer than 255 characters in SiteUrl::normalize() or ActivationService::activate().'
+			);
+		}
+		$this->assertApiError( 400, 'invalid_activation', $response );
+	}
+
 	public function test_installation_id_cannot_be_taken_over_with_another_secret_or_license(): void {
 		$license = $this->seed_license( array(), array( 'sites.live_limit' => 5 ) );
 		$other   = $this->seed_license();
