@@ -477,6 +477,14 @@
             "type": "string",
             "pattern": "^[a-f0-9]{64}$",
             "description": "Lowercase hex HMAC-SHA-256 over the payload string as transmitted, keyed by the installation secret."
+          },
+          "signature_ed25519": {
+            "type": "string",
+            "description": "Base64 Ed25519 signature of the server over \"wplc-response-v1\\n{installation UUID, lower case}\\n{JSON of data}\". Present when the server has a signing key. Clients that pin the server's public key must reject responses and cached snapshots without a valid signature."
+          },
+          "key_id": {
+            "type": "string",
+            "description": "First 16 hex characters of the SHA-256 of the signing public key."
           }
         }
       },

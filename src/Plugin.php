@@ -8,6 +8,7 @@
 namespace WPLC;
 
 use WPLC\CLI\RotateInstallationSecretsCommand;
+use WPLC\CLI\SigningKeyCommand;
 use WPLC\CLI\RecoverLicenseKeyIdsCommand;
 use WPLC\Catalog\ProductEditor;
 use WPLC\Infrastructure\Database\Schema;
@@ -101,6 +102,7 @@ final class Plugin {
 
 		RotateInstallationSecretsCommand::register();
 		RecoverLicenseKeyIdsCommand::register();
+		SigningKeyCommand::register();
 		Schema::maybe_upgrade();
 		Schema::register_hooks();
 		ReleaseRegistry::register_hooks();

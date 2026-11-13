@@ -334,7 +334,8 @@ final class ActivationService {
 				array( 'activation_id' => (int) $activation['id'], 'status' => 'deactivated' ),
 				(string) $activation['installation_secret'],
 				200,
-				(string) $activation['request_nonce']
+				(string) $activation['request_nonce'],
+				(string) $activation['installation_uuid']
 			);
 		} finally {
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
@@ -402,7 +403,7 @@ final class ActivationService {
 
 		// Activation is not HMAC-authenticated; the installation ID the client
 		// just generated takes the place of the request nonce.
-		return Response::signed( $data, $secret, 200, $installation_uuid );
+		return Response::signed( $data, $secret, 200, $installation_uuid, $installation_uuid );
 	}
 
 	/**

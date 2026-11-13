@@ -203,7 +203,9 @@ final class ActivationManagerTest extends TestCase {
 	}
 
 	public function test_lock_name_matches_the_name_used_by_the_rest_handlers(): void {
-		$this->assertSame( 'wplc_' . substr( hash( 'sha256', 'license:10' ), 0, 48 ), ActivationManager::lock_name( 10 ) );
+		$scope = \WPLC\Infrastructure\Database\Schema::lock_scope();
+		$this->assertSame( 'wplc_' . substr( hash( 'sha256', $scope . '|license:10' ), 0, 48 ), ActivationManager::lock_name( 10 ) );
+		$this->assertNotSame( ActivationManager::lock_name( 10 ), ActivationManager::lock_name( 11 ) );
 		$this->assertLessThanOrEqual( 64, strlen( ActivationManager::lock_name( PHP_INT_MAX ) ) );
 	}
 }

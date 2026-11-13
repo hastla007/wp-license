@@ -23,7 +23,8 @@ final class ProductEditor {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'woocommerce_product_options_general_product_data', array( self::class, 'render_product_fields' ) );
-		add_action( 'woocommerce_process_product_meta', array( self::class, 'save_product_fields' ) );
+		// After WooCommerce's own save (priority 10), so the plan stores the price entered in the same request.
+		add_action( 'woocommerce_process_product_meta', array( self::class, 'save_product_fields' ), 20 );
 		add_action( 'woocommerce_variation_options_pricing', array( self::class, 'render_variation_fields' ), 10, 3 );
 		add_action( 'woocommerce_save_product_variation', array( self::class, 'save_variation_fields' ), 10, 2 );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
@@ -71,6 +72,33 @@ final class ProductEditor {
 	}
 
 	/**
+	 * Request key of a license field, without the variation index.
+	 *
+	 * Variation fields carry their own prefix. The edit form of a variable product
+	 * contains the parent's fields and, once the Variations tab was opened, the
+	 * fields of every variation; with equal names PHP would replace the parent's
+	 * value (`_wplc_product_key`) by the variations' array (`_wplc_product_key[0]`).
+	 *
+	 * @param string $base Field name of a simple product, e.g. `_wplc_product_key`.
+	 * @param string $suffix Empty for a product, `[index]` for a variation.
+	 * @return string
+	 */
+	private static function field_base( string $base, string $suffix ): string {
+		return '' === $suffix ? $base : '_wplc_variation_' . substr( $base, strlen( '_wplc_' ) );
+	}
+
+	/**
+	 * Name (and ID) of a license form field.
+	 *
+	 * @param string $base Field name of a simple product.
+	 * @param string $suffix Empty for a product, `[index]` for a variation.
+	 * @return string
+	 */
+	private static function field_name( string $base, string $suffix ): string {
+		return self::field_base( $base, $suffix ) . $suffix;
+	}
+
+	/**
 	 * Render common license plan mapping controls.
 	 *
 	 * @param \WC_Product $product WooCommerce product.
@@ -89,7 +117,7 @@ final class ProductEditor {
 		);
 
 		$name = static function ( string $base ) use ( $suffix ): string {
-			return $base . $suffix;
+			return self::field_name( $base, $suffix );
 		};
 
 		woocommerce_wp_checkbox(
@@ -294,7 +322,7 @@ final class ProductEditor {
 	 */
 	private static function read_posted_fields( array $source, string $suffix ): array {
 		$get = static function ( string $key ) use ( $source, $suffix ) {
-			$value = $source[ $key ] ?? null;
+			$value = $source[ self::field_base( $key, $suffix ) ] ?? null;
 			if ( '' !== $suffix ) {
 				$index = absint( trim( $suffix, '[]' ) );
 				$value = is_array( $value ) ? ( $value[ $index ] ?? null ) : null;
@@ -306,7 +334,7 @@ final class ProductEditor {
 			return sanitize_text_field( wp_unslash( (string) $value ) );
 		};
 
-		$raw_entitlements = $source['_wplc_entitlements_json'] ?? '';
+		$raw_entitlements = $source[ self::field_base( '_wplc_entitlements_json', $suffix ) ] ?? '';
 		if ( '' !== $suffix ) {
 			$index = absint( trim( $suffix, '[]' ) );
 			$raw_entitlements = is_array( $raw_entitlements ) ? ( $raw_entitlements[ $index ] ?? '' ) : '';

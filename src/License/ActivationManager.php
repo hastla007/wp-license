@@ -149,7 +149,7 @@ final class ActivationManager {
 	 * @return string
 	 */
 	public static function lock_name( int $license_id ): string {
-		return 'wplc_' . substr( hash( 'sha256', 'license:' . $license_id ), 0, 48 );
+		return 'wplc_' . substr( hash( 'sha256', \WPLC\Infrastructure\Database\Schema::lock_scope() . '|license:' . $license_id ), 0, 48 );
 	}
 
 	/**

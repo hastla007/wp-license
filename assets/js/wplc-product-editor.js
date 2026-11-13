@@ -9,7 +9,7 @@
 
 	function refresh( wrapper ) {
 		var scope = wrapper.closest( '.options_group, .form-row, .woocommerce_variation' ) || document;
-		var input = scope.querySelector( 'input[name^="_wplc_product_key"]' );
+		var input = scope.querySelector( 'input[name^="_wplc_product_key"], input[name^="_wplc_variation_product_key"]' );
 		var key = input ? String( input.value ).toLowerCase() : '';
 		var groups = wrapper.querySelectorAll( '[data-wplc-entitlement-group]' );
 		var matched = false;
@@ -35,7 +35,7 @@
 	}
 
 	document.addEventListener( 'input', function ( event ) {
-		if ( event.target && event.target.name && 0 === event.target.name.indexOf( '_wplc_product_key' ) ) {
+		if ( event.target && event.target.name && ( 0 === event.target.name.indexOf( '_wplc_product_key' ) || 0 === event.target.name.indexOf( '_wplc_variation_product_key' ) ) ) {
 			refreshAll();
 		}
 	} );

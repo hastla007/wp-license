@@ -53,6 +53,7 @@ final class RenewalProcessor {
 		add_action( 'woocommerce_order_status_completed', array( self::class, 'handle_paid_order' ) );
 		add_action( 'wplc_reconcile_paid_renewal_order', array( self::class, 'reconcile_paid_renewal_order' ) );
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'reconcile_stuck_renewals' ) );
+		add_action( 'wplc_daily_lifecycle', array( self::class, 'requeue_overdue_renewals' ) );
 		add_action( 'wplc_reconcile_stuck_renewal', array( self::class, 'reconcile_stuck_renewal' ) );
 		add_action( 'wplc/license_status_changed', array( self::class, 'on_license_status_changed' ), 10, 4 );
 	}
@@ -582,6 +583,34 @@ final class RenewalProcessor {
 	}
 
 	/**
+	 * Daily sweep for renewals whose job is no longer in the queue.
+	 *
+	 * A queued job is used up without effect when it runs while the plugin is
+	 * inactive, and all jobs are removed on uninstall while the data stays. Without
+	 * this sweep such a renewal would never be attempted and the license would
+	 * expire although automatic renewal is switched on. Queuing is harmless when a
+	 * job is still pending (skipped) and process() is idempotent.
+	 *
+	 * @return void
+	 */
+	public static function requeue_overdue_renewals(): void {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT id FROM {$tables['renewals']} WHERE status IN (%s, %s) AND retry_at IS NOT NULL AND retry_at <= %s ORDER BY retry_at ASC, id ASC LIMIT 100",
+				'scheduled',
+				'failed',
+				gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS )
+			)
+		);
+		foreach ( (array) $ids as $renewal_id ) {
+			RenewalScheduler::enqueue( (int) $renewal_id, time() );
+		}
+	}
+
+	/**
 	 * Daily sweep for renewals left in `processing` by a crash.
 	 *
 	 * @return void
@@ -686,7 +715,7 @@ final class RenewalProcessor {
 	 * @return string
 	 */
 	public static function renewal_lock_name( int $renewal_id ): string {
-		return 'wplc_renewal_' . substr( hash( 'sha256', 'renewal:' . $renewal_id ), 0, 48 );
+		return 'wplc_renewal_' . substr( hash( 'sha256', \WPLC\Infrastructure\Database\Schema::lock_scope() . '|renewal:' . $renewal_id ), 0, 48 );
 	}
 
 	/**

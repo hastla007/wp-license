@@ -1,18 +1,16 @@
-# German (formal) translation of WP License Captain.
-# This file is distributed under the same license as the WP License Captain plugin.
 msgid ""
 msgstr ""
 "Project-Id-Version: WP License Captain 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
 "Last-Translator: \n"
 "Language-Team: German\n"
-"Language: de_DE\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "POT-Creation-Date: 2026-11-13T21:35:54+00:00\n"
 "PO-Revision-Date: 2026-11-13 21:38+0000\n"
+"Language: de_DE\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
 
@@ -103,19 +101,19 @@ msgstr "Es sind keine Websites aktiviert."
 
 #: src/Account/CustomerPortal.php:362
 #: src/Account/CustomerPortal.php:365
-#: src/Admin/LicenseDetail.php:245
+#: src/Admin/LicenseDetail.php:246
 msgid "Site"
 msgstr "Website"
 
 #: src/Account/CustomerPortal.php:362
 #: src/Account/CustomerPortal.php:366
-#: src/Admin/LicenseDetail.php:245
+#: src/Admin/LicenseDetail.php:246
 msgid "Environment"
 msgstr "Umgebung"
 
 #: src/Account/CustomerPortal.php:362
 #: src/Account/CustomerPortal.php:367
-#: src/Admin/LicenseDetail.php:245
+#: src/Admin/LicenseDetail.php:246
 msgid "Activated"
 msgstr "Aktiviert"
 
@@ -200,47 +198,47 @@ msgstr "Die Kündigung konnte nicht zurückgenommen werden. Möglicherweise ist 
 msgid "The license was not found for this account."
 msgstr "Die Lizenz wurde für dieses Konto nicht gefunden."
 
-#: src/Account/CustomerPortal.php:537
+#: src/Account/CustomerPortal.php:555
 msgid "You are not allowed to deactivate this site."
 msgstr "Sie sind nicht berechtigt, diese Website zu deaktivieren."
 
-#: src/Account/CustomerPortal.php:616
+#: src/Account/CustomerPortal.php:634
 msgid "You are not allowed to cancel this license."
 msgstr "Sie sind nicht berechtigt, diese Lizenz zu kündigen."
 
-#: src/Account/CustomerPortal.php:636
+#: src/Account/CustomerPortal.php:654
 msgid "You are not allowed to change this license."
 msgstr "Sie sind nicht berechtigt, diese Lizenz zu ändern."
 
 #. translators: %s: site URL.
-#: src/Account/CustomerPortal.php:667
+#: src/Account/CustomerPortal.php:685
 #, php-format
 msgid "Deactivate %s? The site loses updates and premium features until it is activated again."
 msgstr "%s deaktivieren? Die Website erhält keine Updates und Premium-Funktionen mehr, bis sie erneut aktiviert wird."
 
-#: src/Account/CustomerPortal.php:672
+#: src/Account/CustomerPortal.php:690
 msgid "Deactivate"
 msgstr "Deaktivieren"
 
 #. translators: %s: site URL.
-#: src/Account/CustomerPortal.php:674
+#: src/Account/CustomerPortal.php:692
 #, php-format
 msgid "site %s"
 msgstr "Website %s"
 
-#: src/Account/CustomerPortal.php:685
+#: src/Account/CustomerPortal.php:703
 msgid "Cancel the automatic renewal? The license stays valid until the end of the paid period and ends then."
 msgstr "Automatische Verlängerung kündigen? Die Lizenz bleibt bis zum Ende des bezahlten Zeitraums gültig und endet dann."
 
-#: src/Account/CustomerPortal.php:689
+#: src/Account/CustomerPortal.php:707
 msgid "Cancel at period end"
 msgstr "Zum Ende des Zeitraums kündigen"
 
-#: src/Account/CustomerPortal.php:704
+#: src/Account/CustomerPortal.php:722
 msgid "Undo cancellation"
 msgstr "Kündigung zurücknehmen"
 
-#: src/Account/CustomerPortal.php:719
+#: src/Account/CustomerPortal.php:737
 #: templates/emails/plain/wplc-expiry-reminder.php:40
 #: templates/emails/wplc-expiry-reminder.php:40
 msgid "Renew now"
@@ -580,7 +578,7 @@ msgstr "Bewahren Sie diese Werte in einem Passwort-Manager und in Ihren Backups 
 
 #. translators: %d: user ID.
 #: src/Admin/LicenseAdmin.php:132
-#: src/Admin/LicenseDetail.php:401
+#: src/Admin/LicenseDetail.php:402
 #, php-format
 msgid "Deleted user #%d"
 msgstr "Gelöschter Benutzer #%d"
@@ -590,7 +588,7 @@ msgid "You do not have permission to view licenses."
 msgstr "Sie sind nicht berechtigt, Lizenzen anzuzeigen."
 
 #: src/Admin/LicenseAdmin.php:183
-#: src/Admin/LicenseDetail.php:517
+#: src/Admin/LicenseDetail.php:518
 msgid "Add license manually"
 msgstr "Lizenz manuell hinzufügen"
 
@@ -617,7 +615,7 @@ msgid "You do not have permission to change licenses."
 msgstr "Sie sind nicht berechtigt, Lizenzen zu ändern."
 
 #: src/Admin/LicenseDetail.php:48
-#: src/Admin/LicenseDetail.php:381
+#: src/Admin/LicenseDetail.php:382
 #: src/Admin/LicenseListTable.php:71
 msgid "License"
 msgstr "Lizenz"
@@ -633,7 +631,7 @@ msgid "License %1$s (#%2$d)"
 msgstr "Lizenz %1$s (#%2$d)"
 
 #: src/Admin/LicenseDetail.php:76
-#: src/Admin/LicenseDetail.php:518
+#: src/Admin/LicenseDetail.php:519
 msgid "All licenses"
 msgstr "Alle Lizenzen"
 
@@ -642,7 +640,7 @@ msgid "None (added manually)"
 msgstr "Keine (manuell hinzugefügt)"
 
 #: src/Admin/LicenseDetail.php:135
-#: src/Admin/LicenseDetail.php:532
+#: src/Admin/LicenseDetail.php:533
 #: src/Admin/LicenseListTable.php:72
 msgid "Customer"
 msgstr "Kunde"
@@ -666,7 +664,7 @@ msgid "Product"
 msgstr "Produkt"
 
 #: src/Admin/LicenseDetail.php:137
-#: src/Admin/LicenseDetail.php:536
+#: src/Admin/LicenseDetail.php:537
 #: src/Privacy/PersonalData.php:128
 #: templates/emails/plain/wplc-expiry-reminder.php:35
 #: templates/emails/plain/wplc-license-expired.php:29
@@ -684,9 +682,9 @@ msgid "Plan"
 msgstr "Tarif"
 
 #: src/Admin/LicenseDetail.php:138
-#: src/Admin/LicenseDetail.php:245
-#: src/Admin/LicenseDetail.php:297
-#: src/Admin/LicenseDetail.php:326
+#: src/Admin/LicenseDetail.php:246
+#: src/Admin/LicenseDetail.php:298
+#: src/Admin/LicenseDetail.php:327
 #: src/Admin/LicenseListTable.php:74
 #: src/Admin/ReleaseAdmin.php:91
 #: src/Admin/Settings.php:313
@@ -699,12 +697,12 @@ msgid "Billing interval"
 msgstr "Abrechnungsintervall"
 
 #: src/Admin/LicenseDetail.php:139
-#: src/Catalog/ProductEditor.php:129
+#: src/Catalog/ProductEditor.php:157
 msgid "Monthly"
 msgstr "Monatlich"
 
 #: src/Admin/LicenseDetail.php:139
-#: src/Catalog/ProductEditor.php:130
+#: src/Catalog/ProductEditor.php:158
 msgid "Yearly"
 msgstr "Jährlich"
 
@@ -714,7 +712,7 @@ msgid "Started"
 msgstr "Beginn"
 
 #: src/Admin/LicenseDetail.php:141
-#: src/Admin/LicenseDetail.php:553
+#: src/Admin/LicenseDetail.php:554
 #: src/Admin/LicenseListTable.php:75
 msgid "Paid until"
 msgstr "Bezahlt bis"
@@ -734,7 +732,7 @@ msgid "No"
 msgstr "Nein"
 
 #: src/Admin/LicenseDetail.php:143
-#: src/Admin/LicenseDetail.php:383
+#: src/Admin/LicenseDetail.php:384
 #: src/Admin/LicenseListTable.php:77
 msgid "Renewal"
 msgstr "Verlängerung"
@@ -817,10 +815,10 @@ msgid "Reason: %s"
 msgstr "Begründung: %s"
 
 #: src/Admin/LicenseDetail.php:204
-#: src/Admin/LicenseDetail.php:222
-#: src/Admin/LicenseDetail.php:273
-#: src/Admin/LicenseDetail.php:389
-#: src/Admin/LicenseDetail.php:560
+#: src/Admin/LicenseDetail.php:223
+#: src/Admin/LicenseDetail.php:274
+#: src/Admin/LicenseDetail.php:390
+#: src/Admin/LicenseDetail.php:561
 #: src/Admin/ReleaseAdmin.php:308
 #: src/Admin/ReleaseAdmin.php:309
 msgid "Reason"
@@ -830,110 +828,110 @@ msgstr "Begründung"
 msgid "A revoked license cannot be changed. Add a new license instead."
 msgstr "Eine widerrufene Lizenz kann nicht geändert werden. Fügen Sie stattdessen eine neue Lizenz hinzu."
 
-#: src/Admin/LicenseDetail.php:215
-#: src/Admin/LicenseDetail.php:224
+#: src/Admin/LicenseDetail.php:216
+#: src/Admin/LicenseDetail.php:225
 msgid "Change term"
 msgstr "Laufzeit ändern"
 
-#: src/Admin/LicenseDetail.php:220
+#: src/Admin/LicenseDetail.php:221
 msgid "New end date"
 msgstr "Neues Enddatum"
 
 #. translators: %s: site timezone, for example Europe/Berlin.
-#: src/Admin/LicenseDetail.php:227
+#: src/Admin/LicenseDetail.php:228
 #, php-format
 msgid "The license runs until the end of that day in the site timezone (%s). No payment is taken. An expired license becomes active again."
 msgstr "Die Lizenz läuft bis zum Ende dieses Tages in der Zeitzone der Website (%s). Es wird keine Zahlung eingezogen. Eine abgelaufene Lizenz wird wieder aktiv."
 
-#: src/Admin/LicenseDetail.php:238
+#: src/Admin/LicenseDetail.php:239
 msgid "Site activations"
 msgstr "Website-Aktivierungen"
 
-#: src/Admin/LicenseDetail.php:240
+#: src/Admin/LicenseDetail.php:241
 msgid "No site has been activated with this license."
 msgstr "Mit dieser Lizenz wurde noch keine Website aktiviert."
 
-#: src/Admin/LicenseDetail.php:245
+#: src/Admin/LicenseDetail.php:246
 msgid "Versions"
 msgstr "Versionen"
 
-#: src/Admin/LicenseDetail.php:245
+#: src/Admin/LicenseDetail.php:246
 msgid "Last seen"
 msgstr "Zuletzt gesehen"
 
-#: src/Admin/LicenseDetail.php:245
-#: src/Admin/LicenseDetail.php:274
+#: src/Admin/LicenseDetail.php:246
+#: src/Admin/LicenseDetail.php:275
 msgid "Release"
 msgstr "Freigeben"
 
 #. translators: 1: environment label, 2: activation ID of the live site.
-#: src/Admin/LicenseDetail.php:254
+#: src/Admin/LicenseDetail.php:255
 #, php-format
 msgid "%1$s (of #%2$d)"
 msgstr "%1$s (von #%2$d)"
 
 #. translators: 1: product version, 2: WordPress version, 3: PHP version.
-#: src/Admin/LicenseDetail.php:257
+#: src/Admin/LicenseDetail.php:258
 #, php-format
 msgid "Plugin %1$s, WP %2$s, PHP %3$s"
 msgstr "Plugin %1$s, WP %2$s, PHP %3$s"
 
 #. translators: %s: site URL.
-#: src/Admin/LicenseDetail.php:272
+#: src/Admin/LicenseDetail.php:273
 #, php-format
 msgid "Reason for releasing %s"
 msgstr "Begründung für die Freigabe von %s"
 
-#: src/Admin/LicenseDetail.php:290
+#: src/Admin/LicenseDetail.php:291
 msgid "Renewals"
 msgstr "Verlängerungen"
 
-#: src/Admin/LicenseDetail.php:292
+#: src/Admin/LicenseDetail.php:293
 msgid "No renewal has been scheduled or paid for this license."
 msgstr "Für diese Lizenz wurde noch keine Verlängerung geplant oder bezahlt."
 
-#: src/Admin/LicenseDetail.php:297
+#: src/Admin/LicenseDetail.php:298
 msgid "Period"
 msgstr "Zeitraum"
 
-#: src/Admin/LicenseDetail.php:297
+#: src/Admin/LicenseDetail.php:298
 msgid "Order"
 msgstr "Bestellung"
 
-#: src/Admin/LicenseDetail.php:297
+#: src/Admin/LicenseDetail.php:298
 msgid "Attempts"
 msgstr "Versuche"
 
-#: src/Admin/LicenseDetail.php:297
+#: src/Admin/LicenseDetail.php:298
 msgid "Next attempt"
 msgstr "Nächster Versuch"
 
-#: src/Admin/LicenseDetail.php:297
+#: src/Admin/LicenseDetail.php:298
 msgid "Grace ends"
 msgstr "Kulanzzeit endet"
 
-#: src/Admin/LicenseDetail.php:319
-#: src/Catalog/ProductEditor.php:196
+#: src/Admin/LicenseDetail.php:320
+#: src/Catalog/ProductEditor.php:224
 msgid "Entitlements"
 msgstr "Berechtigungen"
 
-#: src/Admin/LicenseDetail.php:321
+#: src/Admin/LicenseDetail.php:322
 msgid "This license has no entitlements."
 msgstr "Diese Lizenz hat keine Berechtigungen."
 
-#: src/Admin/LicenseDetail.php:326
+#: src/Admin/LicenseDetail.php:327
 msgid "Key"
 msgstr "Schlüssel"
 
-#: src/Admin/LicenseDetail.php:326
+#: src/Admin/LicenseDetail.php:327
 msgid "Value"
 msgstr "Wert"
 
-#: src/Admin/LicenseDetail.php:326
+#: src/Admin/LicenseDetail.php:327
 msgid "Valid from"
 msgstr "Gültig ab"
 
-#: src/Admin/LicenseDetail.php:326
+#: src/Admin/LicenseDetail.php:327
 #: templates/emails/plain/wplc-expiry-reminder.php:37
 #: templates/emails/plain/wplc-license-expired.php:31
 #: templates/emails/plain/wplc-license-issued.php:36
@@ -945,99 +943,99 @@ msgstr "Gültig ab"
 msgid "Valid until"
 msgstr "Gültig bis"
 
-#: src/Admin/LicenseDetail.php:370
+#: src/Admin/LicenseDetail.php:371
 msgid "Audit log"
 msgstr "Audit-Protokoll"
 
-#: src/Admin/LicenseDetail.php:372
+#: src/Admin/LicenseDetail.php:373
 msgid "No audit entries exist for this license."
 msgstr "Für diese Lizenz sind keine Audit-Einträge vorhanden."
 
-#: src/Admin/LicenseDetail.php:382
+#: src/Admin/LicenseDetail.php:383
 msgid "Activation"
 msgstr "Aktivierung"
 
 #. translators: %d: maximum number of entries.
-#: src/Admin/LicenseDetail.php:387
+#: src/Admin/LicenseDetail.php:388
 #, php-format
 msgid "Latest %d entries, newest first."
 msgstr "Die letzten %d Einträge, neueste zuerst."
 
-#: src/Admin/LicenseDetail.php:389
+#: src/Admin/LicenseDetail.php:390
 msgid "Date"
 msgstr "Datum"
 
-#: src/Admin/LicenseDetail.php:389
+#: src/Admin/LicenseDetail.php:390
 msgid "Action"
 msgstr "Aktion"
 
-#: src/Admin/LicenseDetail.php:389
+#: src/Admin/LicenseDetail.php:390
 msgid "Object"
 msgstr "Objekt"
 
-#: src/Admin/LicenseDetail.php:389
+#: src/Admin/LicenseDetail.php:390
 msgid "By"
 msgstr "Durch"
 
-#: src/Admin/LicenseDetail.php:389
+#: src/Admin/LicenseDetail.php:390
 msgid "Change"
 msgstr "Änderung"
 
-#: src/Admin/LicenseDetail.php:403
+#: src/Admin/LicenseDetail.php:404
 msgid "System"
 msgstr "System"
 
 #. translators: %d: order ID.
-#: src/Admin/LicenseDetail.php:488
+#: src/Admin/LicenseDetail.php:489
 #, php-format
 msgid "Order #%d"
 msgstr "Bestellung #%d"
 
-#: src/Admin/LicenseDetail.php:491
+#: src/Admin/LicenseDetail.php:492
 msgid "(not found)"
 msgstr "(nicht gefunden)"
 
-#: src/Admin/LicenseDetail.php:520
+#: src/Admin/LicenseDetail.php:521
 msgid "Use this for goodwill or migrated customers. No order is created and nothing is charged. The license does not renew automatically; the customer can renew it in their account."
 msgstr "Verwenden Sie diese Funktion für Kulanzfälle oder migrierte Kunden. Es wird keine Bestellung angelegt und nichts berechnet. Die Lizenz verlängert sich nicht automatisch; der Kunde kann sie in seinem Konto verlängern."
 
-#: src/Admin/LicenseDetail.php:523
+#: src/Admin/LicenseDetail.php:524
 msgid "There is no active plan in the catalog yet. Mark a WooCommerce product as a license product first."
 msgstr "Im Katalog gibt es noch keinen aktiven Tarif. Kennzeichnen Sie zuerst ein WooCommerce-Produkt als Lizenzprodukt."
 
-#: src/Admin/LicenseDetail.php:534
+#: src/Admin/LicenseDetail.php:535
 msgid "User ID or email address of an existing user account."
 msgstr "Benutzer-ID oder E-Mail-Adresse eines vorhandenen Benutzerkontos."
 
-#: src/Admin/LicenseDetail.php:537
+#: src/Admin/LicenseDetail.php:538
 msgid "Select a plan"
 msgstr "Tarif auswählen"
 
 #. translators: 1: product name, 2: plan key, 3: billing interval, 4: number of live sites.
-#: src/Admin/LicenseDetail.php:542
+#: src/Admin/LicenseDetail.php:543
 #, php-format
 msgid "%1$s — %2$s (%3$s, %4$d live sites)"
 msgstr "%1$s — %2$s (%3$s, %4$d Live-Websites)"
 
-#: src/Admin/LicenseDetail.php:545
+#: src/Admin/LicenseDetail.php:546
 msgid "monthly"
 msgstr "monatlich"
 
-#: src/Admin/LicenseDetail.php:545
+#: src/Admin/LicenseDetail.php:546
 msgid "yearly"
 msgstr "jährlich"
 
 #. translators: %s: site timezone, for example Europe/Berlin.
-#: src/Admin/LicenseDetail.php:557
+#: src/Admin/LicenseDetail.php:558
 #, php-format
 msgid "The license runs until the end of that day in the site timezone (%s)."
 msgstr "Die Lizenz läuft bis zum Ende dieses Tages in der Zeitzone der Website (%s)."
 
-#: src/Admin/LicenseDetail.php:562
+#: src/Admin/LicenseDetail.php:563
 msgid "Stored in the audit log. Do not enter license keys or passwords."
 msgstr "Wird im Audit-Protokoll gespeichert. Geben Sie keine Lizenzschlüssel oder Passwörter ein."
 
-#: src/Admin/LicenseDetail.php:565
+#: src/Admin/LicenseDetail.php:566
 msgid "Add license"
 msgstr "Lizenz hinzufügen"
 
@@ -1364,28 +1362,20 @@ msgstr "Verschlüsselungsschlüssel für Installationsgeheimnisse"
 msgid "Not configured. The WordPress salts are used; define WPLC_INSTALLATION_ENCRYPTION_KEYS."
 msgstr "Nicht konfiguriert. Es werden die WordPress-Salts verwendet; definieren Sie WPLC_INSTALLATION_ENCRYPTION_KEYS."
 
-#: src/Admin/Settings.php:402
-msgid "Unavailable. Renewals cannot be scheduled."
-msgstr "Nicht verfügbar. Verlängerungen können nicht geplant werden."
-
-#: src/Admin/Settings.php:408
+#: src/Admin/Settings.php:415
 msgid "Checkout type"
 msgstr "Art der Kasse"
 
-#: src/Admin/Settings.php:410
-msgid "The checkout page uses the block checkout. The consent to automatic renewal only works with the classic checkout; licenses bought here never renew automatically."
-msgstr "Die Kassenseite verwendet den Block-Checkout. Die Einwilligung in die automatische Verlängerung funktioniert nur mit dem klassischen Checkout; hier gekaufte Lizenzen verlängern sich nie automatisch."
-
-#: src/Admin/Settings.php:411
+#: src/Admin/Settings.php:408
 msgid "Classic checkout"
 msgstr "Klassischer Checkout"
 
-#: src/Admin/Settings.php:416
+#: src/Admin/Settings.php:421
 msgid "Renewal grace period"
 msgstr "Kulanzzeit bei Verlängerungen"
 
 #. translators: %d: number of days.
-#: src/Admin/Settings.php:418
+#: src/Admin/Settings.php:423
 #, php-format
 msgid "%d day"
 msgid_plural "%d days"
@@ -1393,16 +1383,16 @@ msgstr[0] "%d Tag"
 msgstr[1] "%d Tage"
 
 #. translators: %s: host name of this site.
-#: src/Admin/Settings.php:471
+#: src/Admin/Settings.php:476
 #, php-format
 msgid "One host name per line, for example downloads.example.com. Update packages are only delivered from HTTPS URLs on these hosts. This site (%s) is always trusted."
 msgstr "Ein Hostname pro Zeile, zum Beispiel downloads.example.com. Update-Pakete werden nur von HTTPS-URLs auf diesen Hosts ausgeliefert. Diese Website (%s) ist immer vertrauenswürdig."
 
-#: src/Admin/Settings.php:485
+#: src/Admin/Settings.php:490
 msgid "Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7."
 msgstr "Tage vor dem Ende des bezahlten Zeitraums, an denen eine Erinnerung gesendet wird, durch Kommas getrennt. Standard: 30,7."
 
-#: src/Admin/Settings.php:495
+#: src/Admin/Settings.php:500
 msgid "Optional short text that license emails may show below their content, for example a support contact."
 msgstr "Optionaler kurzer Text, den Lizenz-E-Mails unter ihrem Inhalt anzeigen können, zum Beispiel ein Support-Kontakt."
 
@@ -1592,46 +1582,51 @@ msgstr "Für das Update-Paket sind keine vertrauenswürdige HTTPS-URL und keine 
 msgid "A secure package download could not be prepared."
 msgstr "Ein sicherer Paket-Download konnte nicht vorbereitet werden."
 
-#: src/Billing/ManualRenewal.php:140
+#: src/Account/CustomerPortal.php:467
+#: src/Billing/ManualRenewal.php:143
 msgid "This license cannot be renewed at the moment."
 msgstr "Diese Lizenz kann derzeit nicht verlängert werden."
 
-#: src/Billing/ManualRenewal.php:154
-#: src/Billing/ManualRenewal.php:173
+#: src/Account/CustomerPortal.php:468
+#: src/Billing/ManualRenewal.php:157
+#: src/Billing/ManualRenewal.php:176
 msgid "A renewal for this license is being processed. Please try again in a few minutes."
 msgstr "Eine Verlängerung dieser Lizenz wird gerade verarbeitet. Bitte versuchen Sie es in einigen Minuten erneut."
 
-#: src/Billing/ManualRenewal.php:170
+#: src/Billing/ManualRenewal.php:173
 msgid "This renewal has already been paid."
 msgstr "Diese Verlängerung wurde bereits bezahlt."
 
-#: src/Billing/ManualRenewal.php:184
+#: src/Account/CustomerPortal.php:469
+#: src/Billing/ManualRenewal.php:187
 msgid "Your payment for this renewal has been received and is being processed."
 msgstr "Ihre Zahlung für diese Verlängerung ist eingegangen und wird verarbeitet."
 
-#: src/Billing/ManualRenewal.php:187
+#: src/Account/CustomerPortal.php:470
+#: src/Billing/ManualRenewal.php:190
 msgid "A renewal order for this license is already waiting for your payment to arrive."
 msgstr "Für diese Lizenz gibt es bereits eine Verlängerungsbestellung, die auf den Eingang Ihrer Zahlung wartet."
 
 #. translators: 1: license ID, 2: new paid-through date (UTC).
-#: src/Billing/ManualRenewal.php:274
+#: src/Billing/ManualRenewal.php:277
 #, php-format
 msgid "WP License Captain renewed license #%1$d until %2$s (UTC)."
 msgstr "WP License Captain hat die Lizenz #%1$d bis %2$s (UTC) verlängert."
 
-#: src/Billing/ManualRenewal.php:304
+#: src/Billing/ManualRenewal.php:307
 msgid "WP License Captain: this renewal payment could not be applied to the license. Please review the license manually."
 msgstr "WP License Captain: Diese Verlängerungszahlung konnte der Lizenz nicht zugeordnet werden. Bitte prüfen Sie die Lizenz manuell."
 
-#: src/Billing/RecurringConsent.php:56
+#: src/Billing/BlockCheckoutConsent.php:90
+#: src/Billing/RecurringConsent.php:70
 msgid "Renew this license automatically: I authorize renewal charges at the displayed monthly or yearly price to my saved card until I cancel. Without this option the license ends after the paid period."
 msgstr "Diese Lizenz automatisch verlängern: Ich ermächtige den Anbieter, die Verlängerung zum angezeigten monatlichen oder jährlichen Preis von meiner gespeicherten Karte abzubuchen, bis ich kündige. Ohne diese Option endet die Lizenz nach dem bezahlten Zeitraum."
 
-#: src/Billing/RecurringConsent.php:76
+#: src/Billing/RecurringConsent.php:144
 msgid "Automatic renewal was requested, but the chosen payment method does not support it. The license will not renew automatically."
 msgstr "Die automatische Verlängerung wurde gewünscht, die gewählte Zahlungsart unterstützt sie jedoch nicht. Die Lizenz verlängert sich nicht automatisch."
 
-#: src/Billing/RecurringConsent.php:129
+#: src/Billing/RecurringConsent.php:237
 msgid "Your license key and site activations are available in your account under \"Licenses\":"
 msgstr "Ihren Lizenzschlüssel und Ihre Website-Aktivierungen finden Sie in Ihrem Konto unter „Lizenzen“:"
 
@@ -1675,294 +1670,254 @@ msgstr "Die Verlängerungsbestellung wurde angelegt, konnte aber nicht verknüpf
 msgid "Existing renewal orders could not be checked safely."
 msgstr "Vorhandene Verlängerungsbestellungen konnten nicht zuverlässig geprüft werden."
 
-#: src/Billing/RenewalProcessor.php:138
+#: src/Billing/RenewalProcessor.php:139
 msgid "A verified automatic renewal payment method is unavailable."
 msgstr "Eine bestätigte Zahlungsart für die automatische Verlängerung ist nicht verfügbar."
 
-#: src/Billing/RenewalProcessor.php:157
+#: src/Billing/RenewalProcessor.php:158
 msgid "The renewal order is waiting for a payment started by the customer."
 msgstr "Die Verlängerungsbestellung wartet auf eine vom Kunden gestartete Zahlung."
 
-#: src/Billing/RenewalProcessor.php:169
+#: src/Billing/RenewalProcessor.php:170
 msgid "The payment gateway did not confirm the renewal."
 msgstr "Das Zahlungs-Gateway hat die Verlängerung nicht bestätigt."
 
-#: src/Billing/RenewalProcessor.php:249
+#: src/Billing/RenewalProcessor.php:250
 msgid "This renewal requires customer authentication. Automatic retries have been stopped."
 msgstr "Diese Verlängerung erfordert eine Authentifizierung durch den Kunden. Automatische Wiederholungsversuche wurden gestoppt."
 
-#: src/Billing/RenewalProcessor.php:646
+#: src/Billing/RenewalProcessor.php:676
 msgid "The renewal attempt did not finish and its result is unknown."
 msgstr "Der Verlängerungsversuch wurde nicht abgeschlossen, sein Ergebnis ist unbekannt."
 
-#: src/Catalog/EntitlementCatalog.php:32
+#: src/Catalog/EntitlementCatalog.php:36
 msgid "Partner portal"
 msgstr "Partnerportal"
 
-#: src/Catalog/EntitlementCatalog.php:33
+#: src/Catalog/EntitlementCatalog.php:37
 msgid "Coupon attribution"
 msgstr "Gutschein-Zuordnung"
 
-#: src/Catalog/EntitlementCatalog.php:34
+#: src/Catalog/EntitlementCatalog.php:38
 msgid "Order refund handling"
 msgstr "Behandlung von Erstattungen"
 
-#: src/Catalog/EntitlementCatalog.php:35
+#: src/Catalog/EntitlementCatalog.php:39
 msgid "Basic commissions"
 msgstr "Einfache Provisionen"
 
-#: src/Catalog/EntitlementCatalog.php:36
+#: src/Catalog/EntitlementCatalog.php:40
 msgid "Manual payout CSV"
 msgstr "Manuelle Auszahlungs-CSV"
 
-#: src/Catalog/EntitlementCatalog.php:37
+#: src/Catalog/EntitlementCatalog.php:41
 msgid "Partner groups"
 msgstr "Partnergruppen"
 
-#: src/Catalog/EntitlementCatalog.php:38
+#: src/Catalog/EntitlementCatalog.php:42
 msgid "Product and category rates"
 msgstr "Produkt- und Kategoriesätze"
 
-#: src/Catalog/EntitlementCatalog.php:39
+#: src/Catalog/EntitlementCatalog.php:43
 msgid "Bonuses"
 msgstr "Boni"
 
-#: src/Catalog/EntitlementCatalog.php:40
+#: src/Catalog/EntitlementCatalog.php:44
 msgid "Recurring commissions"
 msgstr "Wiederkehrende Provisionen"
 
-#: src/Catalog/EntitlementCatalog.php:41
+#: src/Catalog/EntitlementCatalog.php:45
 msgid "Extended API"
 msgstr "Erweiterte API"
 
-#: src/Catalog/EntitlementCatalog.php:42
+#: src/Catalog/EntitlementCatalog.php:46
 msgid "White-label portal"
 msgstr "White-Label-Portal"
 
-#: src/Catalog/EntitlementCatalog.php:43
+#: src/Catalog/EntitlementCatalog.php:47
 msgid "Webhooks"
 msgstr "Webhooks"
 
-#: src/Catalog/EntitlementCatalog.php:44
+#: src/Catalog/EntitlementCatalog.php:48
 msgid "Multiple programs"
 msgstr "Mehrere Programme"
 
-#: src/Catalog/EntitlementCatalog.php:45
-#: src/Catalog/EntitlementCatalog.php:62
-#: src/Catalog/EntitlementCatalog.php:86
+#: src/Catalog/EntitlementCatalog.php:49
+#: src/Catalog/EntitlementCatalog.php:63
+#: src/Catalog/EntitlementCatalog.php:80
 msgid "Priority support"
 msgstr "Priorisierter Support"
 
-#: src/Catalog/EntitlementCatalog.php:48
-msgid "Basic voucher issuing"
-msgstr "Einfache Gutscheinausstellung"
-
-#: src/Catalog/EntitlementCatalog.php:49
-msgid "Basic email delivery"
-msgstr "Einfacher E-Mail-Versand"
-
-#: src/Catalog/EntitlementCatalog.php:50
-msgid "Single online redemption"
-msgstr "Einmalige Online-Einlösung"
-
-#: src/Catalog/EntitlementCatalog.php:51
+#: src/Catalog/EntitlementCatalog.php:52
 msgid "Custom branding"
 msgstr "Eigenes Branding"
 
-#: src/Catalog/EntitlementCatalog.php:52
+#: src/Catalog/EntitlementCatalog.php:53
 msgid "PDF templates"
 msgstr "PDF-Vorlagen"
 
-#: src/Catalog/EntitlementCatalog.php:53
+#: src/Catalog/EntitlementCatalog.php:54
 msgid "Automatic delivery"
 msgstr "Automatische Zustellung"
 
-#: src/Catalog/EntitlementCatalog.php:54
+#: src/Catalog/EntitlementCatalog.php:55
 msgid "QR redemption"
 msgstr "QR-Einlösung"
 
-#: src/Catalog/EntitlementCatalog.php:55
+#: src/Catalog/EntitlementCatalog.php:56
 msgid "Partial balance"
 msgstr "Teilguthaben"
 
-#: src/Catalog/EntitlementCatalog.php:56
+#: src/Catalog/EntitlementCatalog.php:57
 msgid "Staff roles"
 msgstr "Mitarbeiterrollen"
 
-#: src/Catalog/EntitlementCatalog.php:57
+#: src/Catalog/EntitlementCatalog.php:58
 msgid "Scheduled delivery"
 msgstr "Geplante Zustellung"
 
-#: src/Catalog/EntitlementCatalog.php:58
+#: src/Catalog/EntitlementCatalog.php:59
 msgid "Bulk import and export"
 msgstr "Massenimport und -export"
 
-#: src/Catalog/EntitlementCatalog.php:59
+#: src/Catalog/EntitlementCatalog.php:60
 msgid "Reports"
 msgstr "Berichte"
 
-#: src/Catalog/EntitlementCatalog.php:60
+#: src/Catalog/EntitlementCatalog.php:61
 msgid "Central license overview"
 msgstr "Zentrale Lizenzübersicht"
 
-#: src/Catalog/EntitlementCatalog.php:61
-#: src/Catalog/EntitlementCatalog.php:85
+#: src/Catalog/EntitlementCatalog.php:62
+#: src/Catalog/EntitlementCatalog.php:79
 msgid "White label"
 msgstr "White Label"
 
-#: src/Catalog/EntitlementCatalog.php:65
-msgid "Events"
-msgstr "Veranstaltungen"
-
 #: src/Catalog/EntitlementCatalog.php:66
-msgid "Free tickets"
-msgstr "Kostenlose Tickets"
-
-#: src/Catalog/EntitlementCatalog.php:67
-msgid "Basic reservations"
-msgstr "Einfache Reservierungen"
-
-#: src/Catalog/EntitlementCatalog.php:68
-msgid "Ticket links"
-msgstr "Ticket-Links"
-
-#: src/Catalog/EntitlementCatalog.php:69
-msgid "Basic scanner"
-msgstr "Einfacher Scanner"
-
-#: src/Catalog/EntitlementCatalog.php:70
-msgid "Basic reports"
-msgstr "Einfache Berichte"
-
-#: src/Catalog/EntitlementCatalog.php:71
-msgid "Privacy tools"
-msgstr "Datenschutz-Werkzeuge"
-
-#: src/Catalog/EntitlementCatalog.php:72
 msgid "WooCommerce sales"
 msgstr "WooCommerce-Verkäufe"
 
-#: src/Catalog/EntitlementCatalog.php:73
+#: src/Catalog/EntitlementCatalog.php:67
 msgid "Membership passes"
 msgstr "Mitgliedspässe"
 
-#: src/Catalog/EntitlementCatalog.php:74
+#: src/Catalog/EntitlementCatalog.php:68
 msgid "Campaign codes"
 msgstr "Kampagnencodes"
 
-#: src/Catalog/EntitlementCatalog.php:75
+#: src/Catalog/EntitlementCatalog.php:69
 msgid "Waitlist"
 msgstr "Warteliste"
 
-#: src/Catalog/EntitlementCatalog.php:76
+#: src/Catalog/EntitlementCatalog.php:70
 msgid "CSV export"
 msgstr "CSV-Export"
 
-#: src/Catalog/EntitlementCatalog.php:77
+#: src/Catalog/EntitlementCatalog.php:71
 msgid "Seating"
 msgstr "Sitzplätze"
 
-#: src/Catalog/EntitlementCatalog.php:78
+#: src/Catalog/EntitlementCatalog.php:72
 msgid "Service slots"
 msgstr "Service-Zeitfenster"
 
-#: src/Catalog/EntitlementCatalog.php:79
+#: src/Catalog/EntitlementCatalog.php:73
 msgid "Point of sale"
 msgstr "Kasse vor Ort (POS)"
 
-#: src/Catalog/EntitlementCatalog.php:80
+#: src/Catalog/EntitlementCatalog.php:74
 msgid "Offline check-in"
 msgstr "Offline-Check-in"
 
-#: src/Catalog/EntitlementCatalog.php:81
+#: src/Catalog/EntitlementCatalog.php:75
 msgid "Team assignment"
 msgstr "Teamzuweisung"
 
-#: src/Catalog/EntitlementCatalog.php:82
+#: src/Catalog/EntitlementCatalog.php:76
 msgid "Advanced reports"
 msgstr "Erweiterte Berichte"
 
-#: src/Catalog/EntitlementCatalog.php:83
+#: src/Catalog/EntitlementCatalog.php:77
 msgid "API and webhooks"
 msgstr "API und Webhooks"
 
-#: src/Catalog/EntitlementCatalog.php:84
+#: src/Catalog/EntitlementCatalog.php:78
 msgid "Client license management"
 msgstr "Lizenzverwaltung für Kunden"
 
-#: src/Catalog/EntitlementCatalog.php:109
+#: src/Catalog/EntitlementCatalog.php:103
 msgid "Affiliate Captain"
 msgstr "Affiliate Captain"
 
-#: src/Catalog/EntitlementCatalog.php:110
+#: src/Catalog/EntitlementCatalog.php:104
 msgid "Voucher Captain"
 msgstr "Voucher Captain"
 
-#: src/Catalog/EntitlementCatalog.php:111
+#: src/Catalog/EntitlementCatalog.php:105
 msgid "WP Pass Captain"
 msgstr "WP Pass Captain"
 
-#: src/Catalog/ProductEditor.php:98
+#: src/Catalog/ProductEditor.php:126
 msgid "License product"
 msgstr "Lizenzprodukt"
 
-#: src/Catalog/ProductEditor.php:102
+#: src/Catalog/ProductEditor.php:130
 msgid "Issue or renew a WP License Captain license when this product is paid."
 msgstr "Eine WP-License-Captain-Lizenz ausstellen oder verlängern, wenn dieses Produkt bezahlt wird."
 
-#: src/Catalog/ProductEditor.php:108
+#: src/Catalog/ProductEditor.php:136
 msgid "License product key"
 msgstr "Produktschlüssel der Lizenz"
 
-#: src/Catalog/ProductEditor.php:112
+#: src/Catalog/ProductEditor.php:140
 msgid "Stable product identifier, for example affiliate-captain."
 msgstr "Stabile Produktkennung, zum Beispiel affiliate-captain."
 
-#: src/Catalog/ProductEditor.php:118
+#: src/Catalog/ProductEditor.php:146
 msgid "License plan key"
 msgstr "Tarifschlüssel der Lizenz"
 
-#: src/Catalog/ProductEditor.php:126
+#: src/Catalog/ProductEditor.php:154
 msgid "License billing interval"
 msgstr "Abrechnungsintervall der Lizenz"
 
-#: src/Catalog/ProductEditor.php:137
+#: src/Catalog/ProductEditor.php:165
 msgid "Live site limit"
 msgstr "Limit für Live-Websites"
 
-#: src/Catalog/ProductEditor.php:150
+#: src/Catalog/ProductEditor.php:178
 msgid "License support level"
 msgstr "Support-Stufe der Lizenz"
 
-#: src/Catalog/ProductEditor.php:153
+#: src/Catalog/ProductEditor.php:181
 msgid "Community"
 msgstr "Community"
 
-#: src/Catalog/ProductEditor.php:154
+#: src/Catalog/ProductEditor.php:182
 msgid "Standard"
 msgstr "Standard"
 
-#: src/Catalog/ProductEditor.php:155
+#: src/Catalog/ProductEditor.php:183
 msgid "Priority"
 msgstr "Priorität"
 
-#: src/Catalog/ProductEditor.php:167
+#: src/Catalog/ProductEditor.php:195
 msgid "Advanced: additional entitlements (JSON)"
 msgstr "Erweitert: zusätzliche Berechtigungen (JSON)"
 
-#: src/Catalog/ProductEditor.php:171
+#: src/Catalog/ProductEditor.php:199
 msgid "Optional JSON object for numeric limits and entitlement keys that are not in the list above. The live-site limit and support level are added automatically."
 msgstr "Optionales JSON-Objekt für numerische Limits und Berechtigungsschlüssel, die in der Liste oben nicht enthalten sind. Das Limit für Live-Websites und die Support-Stufe werden automatisch ergänzt."
 
-#: src/Catalog/ProductEditor.php:360
+#: src/Catalog/ProductEditor.php:388
 msgid "The advanced entitlements field must contain a valid JSON object. No product changes were saved."
 msgstr "Das Feld für erweiterte Berechtigungen muss ein gültiges JSON-Objekt enthalten. Es wurden keine Produktänderungen gespeichert."
 
-#: src/Catalog/ProductEditor.php:379
+#: src/Catalog/ProductEditor.php:407
 msgid "A license product needs a product key, plan key, and valid billing interval."
 msgstr "Ein Lizenzprodukt benötigt einen Produktschlüssel, einen Tarifschlüssel und ein gültiges Abrechnungsintervall."
 
-#: src/Catalog/ProductEditor.php:406
+#: src/Catalog/ProductEditor.php:434
 msgid "The license plan could not be saved to the catalog. No product changes were saved."
 msgstr "Der Lizenztarif konnte nicht im Katalog gespeichert werden. Es wurden keine Produktänderungen gespeichert."
 
@@ -2010,41 +1965,41 @@ msgstr "Die Signatur der Antwort des Lizenzservers konnte nicht geprüft werden.
 msgid "This product installation has not been activated."
 msgstr "Diese Produktinstallation wurde noch nicht aktiviert."
 
-#: src/Gateway/StripeRecurringAdapter.php:88
+#: src/Gateway/StripeRecurringAdapter.php:97
 msgid "The renewal order could not be verified."
 msgstr "Die Verlängerungsbestellung konnte nicht geprüft werden."
 
-#: src/Gateway/StripeRecurringAdapter.php:92
+#: src/Gateway/StripeRecurringAdapter.php:101
 msgid "A saved Stripe card is unavailable for this customer."
 msgstr "Für diesen Kunden ist keine gespeicherte Stripe-Karte verfügbar."
 
-#: src/Gateway/StripeRecurringAdapter.php:98
+#: src/Gateway/StripeRecurringAdapter.php:112
 msgid "The renewal amount is not valid for Stripe."
 msgstr "Der Verlängerungsbetrag ist für Stripe nicht gültig."
 
-#: src/Gateway/StripeRecurringAdapter.php:121
+#: src/Gateway/StripeRecurringAdapter.php:138
 msgid "Stripe did not return a definite result for the renewal payment."
 msgstr "Stripe hat für die Verlängerungszahlung kein eindeutiges Ergebnis zurückgegeben."
 
-#: src/Gateway/StripeRecurringAdapter.php:138
-#: src/Gateway/StripeRecurringAdapter.php:152
+#: src/Gateway/StripeRecurringAdapter.php:155
+#: src/Gateway/StripeRecurringAdapter.php:169
 msgid "The customer must authenticate this payment method before renewal can continue."
 msgstr "Der Kunde muss diese Zahlungsart authentifizieren, bevor die Verlängerung fortgesetzt werden kann."
 
-#: src/Gateway/StripeRecurringAdapter.php:145
+#: src/Gateway/StripeRecurringAdapter.php:162
 msgid "Stripe declined the renewal payment."
 msgstr "Stripe hat die Verlängerungszahlung abgelehnt."
 
-#: src/Gateway/StripeRecurringAdapter.php:155
+#: src/Gateway/StripeRecurringAdapter.php:172
 msgid "Stripe did not confirm the renewal payment as succeeded."
 msgstr "Stripe hat die Verlängerungszahlung nicht als erfolgreich bestätigt."
 
-#: src/Gateway/StripeRecurringAdapter.php:159
+#: src/Gateway/StripeRecurringAdapter.php:176
 msgid "Stripe did not return a transaction reference."
 msgstr "Stripe hat keine Transaktionsreferenz zurückgegeben."
 
 #. translators: 1: license prefix, 2: order item ID.
-#: src/License/LicenseIssuer.php:160
+#: src/License/LicenseIssuer.php:164
 #, php-format
 msgid "WP License Captain issued license %1$s for order item #%2$d."
 msgstr "WP License Captain hat die Lizenz %1$s für die Bestellposition #%2$d ausgestellt."
@@ -2156,15 +2111,15 @@ msgstr "Wird 7 Tage vor der Abbuchung für eine Lizenz mit automatischer Verlän
 msgid "Your {product} license renews on {charge_date}"
 msgstr "Ihre Lizenz für {product} verlängert sich am {charge_date}"
 
-#: src/Plugin.php:50
+#: src/Plugin.php:52
 msgid "WP License Captain requires PHP 7.4 or later."
 msgstr "WP License Captain erfordert PHP 7.4 oder höher."
 
-#: src/Plugin.php:54
+#: src/Plugin.php:56
 msgid "Please activate WooCommerce before activating WP License Captain."
 msgstr "Bitte aktivieren Sie WooCommerce, bevor Sie WP License Captain aktivieren."
 
-#: src/Plugin.php:144
+#: src/Plugin.php:148
 msgid "WP License Captain requires WooCommerce to be installed and active."
 msgstr "WP License Captain setzt voraus, dass WooCommerce installiert und aktiviert ist."
 
@@ -2581,3 +2536,59 @@ msgstr "Währung"
 #: templates/emails/wplc-renewal-notice.php:48
 msgid "Manage or cancel renewal"
 msgstr "Verlängerung verwalten oder kündigen"
+
+#: src/Admin/Settings.php:402
+msgid "Unavailable. Scheduled work falls back to WP-Cron, which is less reliable."
+msgstr "Nicht verfügbar. Geplante Aufgaben laufen ersatzweise über WP-Cron, das weniger zuverlässig ist."
+
+#: src/Admin/Settings.php:411
+msgid "Block checkout. The option for automatic renewal is offered as an additional checkout field."
+msgstr "Block-Checkout. Die Option für die automatische Verlängerung wird als zusätzliches Checkout-Feld angeboten."
+
+#: src/Admin/Settings.php:412
+msgid "The checkout page uses the block checkout, but this WooCommerce version has no additional checkout fields. Licenses bought here never renew automatically."
+msgstr "Die Kassenseite verwendet den Block-Checkout, aber diese WooCommerce-Version kennt keine zusätzlichen Checkout-Felder. Hier gekaufte Lizenzen verlängern sich nie automatisch."
+
+#: src/Billing/BlockCheckoutConsent.php:202
+msgid "A customer account is required to buy a license. Please log in or create an account and try again."
+msgstr "Für den Kauf einer Lizenz ist ein Kundenkonto erforderlich. Bitte melden Sie sich an oder erstellen Sie ein Konto und versuchen Sie es erneut."
+
+#. translators: 1: required WooCommerce version, 2: installed WooCommerce version.
+#: src/Compatibility/Requirements.php:146
+#, php-format
+msgid "WP License Captain requires WooCommerce %1$s or later; version %2$s is installed. Licenses keep working, but the automatic renewal option is not offered in the block checkout until WooCommerce is updated."
+msgstr "WP License Captain benötigt WooCommerce %1$s oder neuer; installiert ist Version %2$s. Lizenzen funktionieren weiterhin, aber die Option für die automatische Verlängerung wird im Block-Checkout erst nach einem WooCommerce-Update angeboten."
+
+#: src/Compatibility/Requirements.php:148
+msgid "unknown"
+msgstr "unbekannt"
+
+#: src/Compatibility/Requirements.php:263
+msgid "The WooCommerce Stripe Gateway is not active."
+msgstr "Das WooCommerce Stripe Gateway ist nicht aktiv."
+
+#. translators: 1: installed Stripe gateway version, 2: required version.
+#: src/Compatibility/Requirements.php:270
+#, php-format
+msgid "WooCommerce Stripe Gateway %1$s is too old for automatic renewals; version %2$s or later is required."
+msgstr "WooCommerce Stripe Gateway %1$s ist für automatische Verlängerungen zu alt; erforderlich ist Version %2$s oder neuer."
+
+#. translators: 1: installed Stripe gateway version, 2: list of missing PHP classes or methods.
+#: src/Compatibility/Requirements.php:277
+#, php-format
+msgid "WooCommerce Stripe Gateway %1$s no longer provides the functions the renewal adapter needs (%2$s). Automatic renewals are switched off."
+msgstr "WooCommerce Stripe Gateway %1$s stellt die Funktionen, die der Verlängerungsadapter benötigt, nicht mehr bereit (%2$s). Automatische Verlängerungen sind abgeschaltet."
+
+#. translators: 1: installed Stripe gateway version, 2: newest verified version.
+#: src/Compatibility/Requirements.php:284
+#, php-format
+msgid "WooCommerce Stripe Gateway %1$s is newer than the last verified version %2$s. Automatic renewals stay enabled; test a renewal after gateway updates."
+msgstr "WooCommerce Stripe Gateway %1$s ist neuer als die zuletzt geprüfte Version %2$s. Automatische Verlängerungen bleiben aktiv; testen Sie nach Gateway-Updates eine Verlängerung."
+
+#: src/Compatibility/Requirements.php:348
+msgid "The Stripe payment method is not enabled in WooCommerce."
+msgstr "Die Zahlungsart Stripe ist in WooCommerce nicht aktiviert."
+
+#: src/Compatibility/Requirements.php:355
+msgid "Saved payment methods are switched off in the Stripe settings, so there is no card to renew with."
+msgstr "Gespeicherte Zahlungsarten sind in den Stripe-Einstellungen abgeschaltet; es gibt daher keine Karte für die Verlängerung."
