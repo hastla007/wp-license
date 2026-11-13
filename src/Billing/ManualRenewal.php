@@ -7,6 +7,7 @@
 
 namespace WPLC\Billing;
 
+use WPLC\Account\CustomerPortal;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
 use WPLC\License\LicenseLifecycle;
@@ -115,11 +116,13 @@ final class ManualRenewal {
 
 		$order = self::start( $license_id, get_current_user_id() );
 		if ( is_wp_error( $order ) ) {
-			if ( function_exists( 'wc_add_notice' ) ) {
-				wc_add_notice( $order->get_error_message(), 'error' );
+			// admin-post.php has no WooCommerce session, so wc_add_notice() would be lost:
+			// the customer portal carries an allow-listed notice code instead.
+			$code = (string) $order->get_error_code();
+			if ( ! in_array( $code, array( 'manual_renewal_unavailable', 'manual_renewal_busy', 'manual_renewal_paid', 'manual_renewal_pending' ), true ) ) {
+				$code = 'manual_renewal_unavailable';
 			}
-			$back = wp_get_referer();
-			wp_safe_redirect( $back ? $back : $account_url );
+			CustomerPortal::redirect_with_notice( $code );
 			exit;
 		}
 
