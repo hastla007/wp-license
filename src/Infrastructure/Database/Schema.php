@@ -18,8 +18,11 @@ final class Schema {
 
 	/**
 	 * Current schema version.
+	 *
+	 * 11: renewals.status widened to 30 characters ("manual_action_required" has 22;
+	 *     WordPress refuses to write a value longer than the column).
 	 */
-	public const VERSION = '10';
+	public const VERSION = '11';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -308,7 +311,7 @@ final class Schema {
 				renewal_order_id bigint(20) unsigned DEFAULT NULL,
 				gateway_attempt_id varchar(190) NOT NULL DEFAULT '',
 				idempotency_key char(64) NOT NULL,
-				status varchar(20) NOT NULL DEFAULT 'scheduled',
+				status varchar(30) NOT NULL DEFAULT 'scheduled',
 				retry_at datetime DEFAULT NULL,
 				grace_ends_at datetime DEFAULT NULL,
 				attempt_count smallint(5) unsigned NOT NULL DEFAULT 0,
