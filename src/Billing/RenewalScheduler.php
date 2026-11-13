@@ -45,14 +45,17 @@ final class RenewalScheduler {
 		if ( ! $renewal_id ) {
 			return 0;
 		}
-		// A row first created by an unpaid manual renewal becomes an automatic one.
+		// A row first created by an unpaid manual renewal becomes an automatic one. So does a row
+		// that was cancelled while the customer's cancellation was pending and is wanted again
+		// after the cancellation was withdrawn (the license is renewal-enabled, checked above).
 		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['renewals']} SET status = %s, retry_at = period_start, updated_at = %s WHERE id = %d AND status = %s",
+				"UPDATE {$tables['renewals']} SET status = %s, retry_at = period_start, updated_at = %s WHERE id = %d AND status IN (%s, %s)",
 				'scheduled',
 				gmdate( 'Y-m-d H:i:s' ),
 				$renewal_id,
-				'manual'
+				'manual',
+				'cancelled'
 			)
 		);
 		self::enqueue( $renewal_id, $start_timestamp );

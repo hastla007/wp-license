@@ -463,7 +463,25 @@ final class CustomerPortal {
 			'cancel_withdrawn'   => array( 'success', __( 'Your cancellation was withdrawn. The license continues as before.', 'wp-license' ) ),
 			'resume_failed'      => array( 'error', __( 'The cancellation could not be withdrawn. The license may already have ended.', 'wp-license' ) ),
 			'license_not_found'  => array( 'error', __( 'The license was not found for this account.', 'wp-license' ) ),
+			// Manual renewal (same texts as the errors of ManualRenewal::start()).
+			'manual_renewal_unavailable' => array( 'error', __( 'This license cannot be renewed at the moment.', 'wp-license' ) ),
+			'manual_renewal_busy'        => array( 'notice', __( 'A renewal for this license is being processed. Please try again in a few minutes.', 'wp-license' ) ),
+			'manual_renewal_paid'        => array( 'notice', __( 'Your payment for this renewal has been received and is being processed.', 'wp-license' ) ),
+			'manual_renewal_pending'     => array( 'notice', __( 'A renewal order for this license is already waiting for your payment to arrive.', 'wp-license' ) ),
 		);
+	}
+
+	/**
+	 * Send the customer back to the licenses page with one of the notices above.
+	 *
+	 * For handlers outside this class that run on admin-post.php, where WooCommerce
+	 * has no session and wc_add_notice() does nothing.
+	 *
+	 * @param string $code Key of notice_messages().
+	 * @return void
+	 */
+	public static function redirect_with_notice( string $code ): void {
+		self::finish( $code );
 	}
 
 	/**
