@@ -19,6 +19,10 @@ use WPLC\Admin\LicenseAdmin;
 use WPLC\Admin\Diagnostics;
 use WPLC\Admin\CatalogCsv;
 use WPLC\Admin\KeyConfigurationNotice;
+use WPLC\Admin\ReleaseAdmin;
+use WPLC\Update\ReleaseRegistry;
+use WPLC\Update\PackageStream;
+use WPLC\Update\CustomerDownload;
 use WPLC\Billing\RecurringConsent;
 use WPLC\Billing\RenewalProcessor;
 use WPLC\Gateway\StripeRecurringAdapter;
@@ -63,6 +67,7 @@ final class Plugin {
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( 'wplc_daily_lifecycle' );
 		wp_clear_scheduled_hook( 'wplc_cleanup_security_rows' );
+		wp_clear_scheduled_hook( 'wplc_send_reminders' );
 	}
 
 	/**
@@ -94,6 +99,11 @@ final class Plugin {
 		RotateInstallationSecretsCommand::register();
 		RecoverLicenseKeyIdsCommand::register();
 		Schema::maybe_upgrade();
+		Schema::register_hooks();
+		ReleaseRegistry::register_hooks();
+		PackageStream::register_hooks();
+		CustomerDownload::register_hooks();
+		ReleaseAdmin::register_hooks();
 		ProductEditor::register_hooks();
 		LicenseIssuer::register_hooks();
 		LicenseLifecycle::register_hooks();

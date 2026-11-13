@@ -15,6 +15,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 wp_clear_scheduled_hook( 'wplc_daily_lifecycle' );
 wp_clear_scheduled_hook( 'wplc_cleanup_security_rows' );
+wp_clear_scheduled_hook( 'wplc_send_reminders' );
 
 if ( function_exists( 'as_unschedule_all_actions' ) ) {
 	as_unschedule_all_actions( '', array(), 'wplc' );
