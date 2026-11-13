@@ -485,7 +485,8 @@ final class RenewalProcessor {
 		if (
 			! is_int( $expected_amount )
 			|| $expected_amount <= 0
-			|| $expected_amount !== absint( $payload['amount_received'] ?? 0 )
+			// A failed payment has received nothing; only a success must match the order total.
+			|| ( 'payment_intent.succeeded' === $event['event_type'] && $expected_amount !== absint( $payload['amount_received'] ?? 0 ) )
 			|| strtolower( (string) $order->get_currency() ) !== strtolower( (string) ( $payload['currency'] ?? '' ) )
 			|| strtolower( (string) $license['renewal_currency'] ) !== strtolower( (string) $order->get_currency() )
 			|| ! RenewalOrder::net_matches( $order )

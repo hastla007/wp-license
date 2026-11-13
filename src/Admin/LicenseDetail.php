@@ -208,7 +208,8 @@ final class LicenseDetail {
 			echo '<p>' . esc_html__( 'A revoked license cannot be changed. Add a new license instead.', 'wp-license' ) . '</p>';
 		}
 
-		if ( 'revoked' === $status || 'pending' === $status ) {
+		// The term of a suspended license cannot be changed; reactivate it first.
+		if ( in_array( $status, array( 'revoked', 'pending', 'suspended' ), true ) ) {
 			return;
 		}
 

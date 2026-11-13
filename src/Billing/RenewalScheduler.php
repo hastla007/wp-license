@@ -129,7 +129,7 @@ final class RenewalScheduler {
 				'idempotency_key' => $idempotency_key,
 				'status' => $automatic ? 'scheduled' : 'manual',
 				'retry_at' => $automatic ? $period_start : null,
-				'grace_ends_at' => gmdate( 'Y-m-d H:i:s', $start_timestamp + 14 * DAY_IN_SECONDS ),
+				'grace_ends_at' => gmdate( 'Y-m-d H:i:s', $start_timestamp + \WPLC\License\LicenseLifecycle::GRACE_DAYS * DAY_IN_SECONDS ),
 				'attempt_count' => 0,
 				'created_at' => $now,
 				'updated_at' => $now,

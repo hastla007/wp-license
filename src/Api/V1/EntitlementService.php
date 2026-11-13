@@ -64,16 +64,19 @@ final class EntitlementService {
 			}
 		}
 
+		// Only overwrite the versions the client actually reported.
+		$seen = array( 'last_seen_at' => gmdate( 'Y-m-d H:i:s' ) );
+		foreach ( array( 'product_version', 'wp_version', 'php_version' ) as $version_field ) {
+			$reported = sanitize_text_field( (string) $request->get_param( $version_field ) );
+			if ( '' !== $reported ) {
+				$seen[ $version_field ] = substr( $reported, 0, 30 );
+			}
+		}
 		$wpdb->update(
 			$tables['activations'],
-			array(
-				'last_seen_at' => gmdate( 'Y-m-d H:i:s' ),
-				'product_version' => sanitize_text_field( (string) $request->get_param( 'product_version' ) ),
-				'wp_version' => sanitize_text_field( (string) $request->get_param( 'wp_version' ) ),
-				'php_version' => sanitize_text_field( (string) $request->get_param( 'php_version' ) ),
-			),
+			$seen,
 			array( 'id' => (int) $activation['id'] ),
-			array( '%s', '%s', '%s', '%s' ),
+			array_fill( 0, count( $seen ), '%s' ),
 			array( '%d' )
 		);
 
