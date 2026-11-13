@@ -26,7 +26,7 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 
 - [ ] **T-42 [KRITISCH] Echter Katalog.** Produkte, Tarife und Rechte pro Tarif im Shop zuordnen und abnehmen. Die Produktschlüssel müssen zu den Add-ons passen.
 - [ ] **T-132 [KRITISCH] Verlängerungspreis bei Varianten.** Ist ein variables Produkt nur auf dem Hauptprodukt zugeordnet, speichert der Tarif den niedrigsten Variantenpreis. Im E2E-Lauf wurde eine für 79,00 gekaufte Variante mit 59,00 verlängert. Regel festlegen: Zuordnung pro Variante erzwingen oder den Preis der gekauften Variante an der Lizenz speichern.
-- [ ] **T-134 [KRITISCH] Abgleich mit dem Branch `claude/youthful-bardeen-7ejd7a`.** Ein anderer Agent hat dort „Responses carry an Ed25519 signature of the server“ gebaut (12 Dateien). Das berührt dieselbe Stelle wie die Antwortsignatur aus T-57 (`payload`, `payload_signature`). Vor dem Merge entscheiden, welches Verfahren gilt, und Client, API-Doku und Tests angleichen.
+- [ ] **T-134 [KRITISCH] Server-Signatur im Client prüfen.** Der Server liefert jetzt zusätzlich `signature_ed25519` und `key_id` (zusammengeführt aus dem Branch `claude/youthful-bardeen-7ejd7a`). Der mitgelieferte `LicenseClient` prüft sie noch nicht. Im Add-on den öffentlichen Schlüssel fest hinterlegen (`wp wplc signing-key --field=public_key`) und Antworten sowie den Offline-Cache ohne gültige Signatur ablehnen. Produktiv den Schlüssel über `WPLC_RESPONSE_SIGNING_KEY` setzen.
 - [ ] **T-22 [KRITISCH] Echte Parallelität.** Replay, Sperren, Einmal-Tokens und Statuswechsel sind nur nacheinander getestet (*Integration*). Mit gleichzeitigen Anfragen gegen MySQL prüfen.
 - [ ] **T-90 [KRITISCH] Produktivserver.** HTTPS, Schlüssel als Konstanten in `wp-config.php`, Backups, erprobte Wiederherstellung, eine einzelne schreibende Datenbankinstanz (siehe `docs/CONCEPT-CHECKOUT-RENEWAL.md`, Datenbank-Voraussetzungen).
 - [ ] **T-135 [KRITISCH] Paketablage auf nginx.** Lokal gespeicherte ZIPs sind per `.htaccess` geschützt; auf nginx schützt nur der zufällige Dateiname. Entweder die Ablage außerhalb des Webroots legen (`wplc_package_storage_dir`) oder eine nginx-Regel dokumentieren und prüfen.
@@ -113,7 +113,7 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 - [x] **T-20** Admin-Hinweis, solange Schlüssel aus den WordPress-Salts abgeleitet werden. *Unit.*
 - [x] **T-21** Aktivierungs-Limit hinter Proxy und pro Schlüssel. *Unit, Integration.*
 - [x] **T-52, T-53** Staging endet mit der Live-Site; dieselbe Site ersetzt ihre alte Aktivierung. *Integration, E2E.*
-- [x] **T-57** Antwortsignatur über den rohen Text, an die Anfrage gebunden, abwärtskompatibel. *Unit, E2E. Siehe T-134.*
+- [x] **T-57** Antwortsignatur über den rohen Text, an die Anfrage gebunden, abwärtskompatibel; zusätzlich Ed25519-Signatur des Servers. *Unit, Integration, E2E. Client-Prüfung siehe T-134.*
 - [x] **T-59** Sperrnamen pro Site eindeutig; Datenbank-Voraussetzungen dokumentiert.
 - [x] **T-60, T-100** Versionierte Migrationen; Schema 11. *E2E: Upgrade 10 → 11 auf laufender Datenbank.*
 
