@@ -1,0 +1,57 @@
+/* WP License Captain: product editor entitlement checklist and license screens. */
+#woocommerce-product-data .wplc-entitlements {
+	padding: 5px 20px 5px 162px;
+	margin: 9px 0;
+	border: 0;
+}
+
+#woocommerce-product-data .woocommerce_variation .wplc-entitlements {
+	padding-left: 0;
+}
+
+#woocommerce-product-data .wplc-entitlements legend {
+	float: left;
+	width: 150px;
+	margin-left: -150px;
+	padding: 0;
+}
+
+#woocommerce-product-data .woocommerce_variation .wplc-entitlements legend {
+	float: none;
+	width: auto;
+	margin: 0 0 4px;
+	font-weight: 600;
+}
+
+#woocommerce-product-data .wplc-entitlements label {
+	float: none;
+	display: block;
+	width: auto;
+	margin: 0 0 4px;
+	padding: 0;
+}
+
+#woocommerce-product-data .wplc-entitlements ul {
+	margin: 4px 0 12px;
+	columns: 2 260px;
+}
+
+#woocommerce-product-data .wplc-entitlements code {
+	font-size: 11px;
+}
+
+.wplc-license-detail .wplc-inline-form {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	align-items: center;
+	margin: 0 8px 8px 0;
+}
+
+.wplc-license-detail h2 {
+	margin-top: 2em;
+}
+
+.wplc-license-detail table.widefat th[scope="row"] {
+	width: 220px;
+}
