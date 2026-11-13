@@ -239,7 +239,9 @@ final class ActivationService {
 
 		return Response::signed(
 			array( 'activation_id' => (int) $activation['id'], 'status' => 'deactivated' ),
-			(string) $activation['installation_secret']
+			(string) $activation['installation_secret'],
+			200,
+			(string) $activation['installation_uuid']
 		);
 	}
 
@@ -302,7 +304,7 @@ final class ActivationService {
 			'cache_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * DAY_IN_SECONDS ),
 		);
 
-		return Response::signed( $data, $secret );
+		return Response::signed( $data, $secret, 200, $installation_uuid );
 	}
 
 	/**

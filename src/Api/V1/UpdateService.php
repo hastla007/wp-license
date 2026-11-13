@@ -47,7 +47,7 @@ final class UpdateService {
 		$packages = apply_filters( 'wplc_update_packages', array(), $product_key );
 		$package = is_array( $packages ) ? ( $packages[ $product_key ] ?? null ) : null;
 		if ( ! is_array( $package ) || empty( $package['version'] ) || empty( $package['package_url'] ) || empty( $package['sha256'] ) ) {
-			return Response::signed( array( 'update_available' => false, 'reason' => 'package_unavailable' ), (string) $activation['installation_secret'] );
+			return Response::signed( array( 'update_available' => false, 'reason' => 'package_unavailable' ), (string) $activation['installation_secret'], 200, (string) $activation['installation_uuid'] );
 		}
 
 		$version = sanitize_text_field( (string) $package['version'] );
@@ -57,7 +57,7 @@ final class UpdateService {
 			return new \WP_Error( 'package_configuration_invalid', __( 'The update package is not configured with a trusted HTTPS URL and SHA-256 checksum.', 'wp-license' ), array( 'status' => 503 ) );
 		}
 		if ( ! version_compare( $version, $current, '>' ) ) {
-			return Response::signed( array( 'update_available' => false, 'current_version' => $current ), (string) $activation['installation_secret'] );
+			return Response::signed( array( 'update_available' => false, 'current_version' => $current ), (string) $activation['installation_secret'], 200, (string) $activation['installation_uuid'] );
 		}
 
 		$token = bin2hex( random_bytes( 32 ) );
@@ -92,7 +92,7 @@ final class UpdateService {
 			'download_expires_at' => $expires_at,
 		);
 
-		return Response::signed( $payload, (string) $activation['installation_secret'] );
+		return Response::signed( $payload, (string) $activation['installation_secret'], 200, (string) $activation['installation_uuid'] );
 	}
 
 	/**

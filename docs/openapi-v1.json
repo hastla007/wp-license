@@ -427,6 +427,14 @@
             "type": "string",
             "pattern": "^[a-f0-9]{64}$",
             "description": "HMAC-SHA-256 over JSON_UNESCAPED_SLASHES encoding of data using the installation secret."
+          },
+          "signature_ed25519": {
+            "type": "string",
+            "description": "Base64 Ed25519 signature of \"wplc-response-v1\\n{installation UUID}\\n{JSON of data}\" with the server key (docs/API-V1.md)."
+          },
+          "key_id": {
+            "type": "string",
+            "description": "First 16 hex characters of SHA-256 of the Ed25519 public key."
           }
         }
       },
