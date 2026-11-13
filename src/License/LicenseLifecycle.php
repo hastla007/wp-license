@@ -613,6 +613,13 @@ final class LicenseLifecycle {
 	 * @return void
 	 */
 	public static function expire_after_grace( int $license_id ): void {
+		// The grace-end job is scheduled when a renewal fails and is not withdrawn when the
+		// customer pays afterwards: never expire a license that (again) grants access.
+		$license = self::get_license( $license_id );
+		if ( ! $license || self::has_access( $license ) ) {
+			return;
+		}
+
 		self::transition(
 			$license_id,
 			'expired',
@@ -652,6 +659,19 @@ final class LicenseLifecycle {
 
 		foreach ( $ids as $license_id ) {
 			self::transition( (int) $license_id, 'expired', 'Paid period ended', 'license_expired' );
+		}
+
+		// Safety net for past-due licenses whose grace period is over but whose grace-end job
+		// never ran or was never scheduled (e.g. the customer cancelled while a retry was pending).
+		$past_due_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT id FROM {$tables['licenses']} WHERE status = %s AND paid_until IS NOT NULL AND paid_until <= %s ORDER BY id ASC LIMIT 200",
+				'past_due',
+				gmdate( 'Y-m-d H:i:s', time() - self::GRACE_DAYS * DAY_IN_SECONDS )
+			)
+		);
+		foreach ( $past_due_ids as $license_id ) {
+			self::expire_after_grace( (int) $license_id );
 		}
 	}
 
