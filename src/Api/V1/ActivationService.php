@@ -8,6 +8,7 @@
 namespace WPLC\Api\V1;
 
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\ActivationManager;
 use WPLC\License\AuditLog;
 use WPLC\License\LicenseKey;
 use WPLC\License\LicenseLifecycle;
@@ -21,6 +22,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Handles first-time activation and signed deactivation requests.
  */
 final class ActivationService {
+	/** @var int Anonymous activation attempts per client address and minute. */
+	private const ATTEMPTS_PER_IP = 30;
+
+	/** @var int Activation attempts per license-key prefix and minute. */
+	private const ATTEMPTS_PER_KEY = 20;
+
+	/** @var int Length of the normalized key prefix (`WPLC-` plus eight characters). */
+	private const KEY_PREFIX_LENGTH = 13;
 
 	/**
 	 * Activate one WordPress installation.
@@ -43,7 +52,15 @@ final class ActivationService {
 		if ( false === $activation_attempts ) {
 			return new \WP_Error( 'rate_limit_store_unavailable', __( 'Activation rate limiting is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
 		}
-		if ( $activation_attempts > 30 ) {
+		if ( $activation_attempts > self::ATTEMPTS_PER_IP ) {
+			return new \WP_Error( 'rate_limited', __( 'Too many activation attempts. Try again later.', 'wp-license' ), array( 'status' => 429 ) );
+		}
+		// Second bucket per key prefix: one key cannot be hammered from many addresses.
+		$key_attempts = self::key_attempt_count( $license_key );
+		if ( false === $key_attempts ) {
+			return new \WP_Error( 'rate_limit_store_unavailable', __( 'Activation rate limiting is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
+		}
+		if ( $key_attempts > self::ATTEMPTS_PER_KEY ) {
 			return new \WP_Error( 'rate_limited', __( 'Too many activation attempts. Try again later.', 'wp-license' ), array( 'status' => 429 ) );
 		}
 		if ( '' === $license_key || '' === $product_key || ! wp_is_uuid( $installation_uuid ) || strlen( $secret ) < 32 || strlen( $secret ) > 128 || '' === $site_url || ! in_array( $environment, array( 'production', 'staging', 'development' ), true ) ) {
@@ -126,7 +143,7 @@ final class ActivationService {
 		}
 
 		$limit = self::site_limit( (int) $license['id'], $license );
-		$lock_name = 'wplc_' . substr( hash( 'sha256', 'license:' . (int) $license['id'] ), 0, 48 );
+		$lock_name = ActivationManager::lock_name( (int) $license['id'] );
 		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
 		if ( '1' !== (string) $locked ) {
 			return new \WP_Error( 'retry_later', __( 'The license is being updated. Retry shortly.', 'wp-license' ), array( 'status' => 503 ) );
@@ -178,6 +195,29 @@ final class ActivationService {
 					return new \WP_Error( 'activation_failed', __( 'The activation could not be updated. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
 				}
 				return self::signed_entitlement_response( (int) $license['id'], (int) $existing['id'], $installation_uuid, $secret );
+			}
+
+			// The same site activating with a new installation ID (lost options,
+			// database restore) replaces its previous activation instead of
+			// occupying a second slot. The caller proved possession of the key.
+			$replaced = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT id FROM {$tables['activations']} WHERE license_id = %d AND environment = %s AND site_url = %s AND status = %s AND installation_uuid <> %s",
+					(int) $license['id'],
+					$environment,
+					$site_url,
+					'active',
+					$installation_uuid
+				)
+			);
+			if ( '' !== $wpdb->last_error ) {
+				return new \WP_Error( 'activation_failed', __( 'Existing activations of this site could not be verified.', 'wp-license' ), array( 'status' => 500 ) );
+			}
+			foreach ( is_array( $replaced ) ? $replaced : array() as $replaced_id ) {
+				// A replaced live site takes its staging child with it.
+				if ( ! ActivationManager::deactivate_while_locked( (int) $replaced_id, 'Replaced by a new installation of the same site', 0, 'site_replaced' ) ) {
+					return new \WP_Error( 'activation_failed', __( 'The previous activation of this site could not be replaced. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
+				}
 			}
 
 			if ( 'production' === $environment ) {
@@ -279,37 +319,22 @@ final class ActivationService {
 			return new \WP_Error( 'activation_mismatch', __( 'The authenticated installation does not match this activation.', 'wp-license' ), array( 'status' => 403 ) );
 		}
 
-		$tables = Schema::table_names();
-		$lock_name = 'wplc_' . substr( hash( 'sha256', 'license:' . (int) $activation['license_id'] ), 0, 48 );
+		$lock_name = ActivationManager::lock_name( (int) $activation['license_id'] );
 		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
 		if ( '1' !== (string) $locked ) {
 			return new \WP_Error( 'retry_later', __( 'The license is being updated. Retry shortly.', 'wp-license' ), array( 'status' => 503 ) );
 		}
 
 		try {
-			$now = gmdate( 'Y-m-d H:i:s' );
-			$updated = $wpdb->update(
-				$tables['activations'],
-				array( 'status' => 'deactivated', 'deactivated_at' => $now, 'last_seen_at' => $now ),
-				array( 'id' => (int) $activation['id'], 'status' => 'active' ),
-				array( '%s', '%s', '%s' ),
-				array( '%d', '%s' )
-			);
-			if ( 1 !== $updated ) {
+			if ( ! ActivationManager::deactivate_while_locked( (int) $activation['id'], 'Deactivated by the installation owner' ) ) {
 				return new \WP_Error( 'deactivation_failed', __( 'The installation could not be deactivated.', 'wp-license' ), array( 'status' => 409 ) );
 			}
-			AuditLog::record(
-				'site_deactivated',
-				'activation',
-				(int) $activation['id'],
-				'Deactivated by the installation owner',
-				array( 'status' => 'active', 'site_url' => $activation['site_url'] ),
-				array( 'status' => 'deactivated' )
-			);
 
 			return Response::signed(
 				array( 'activation_id' => (int) $activation['id'], 'status' => 'deactivated' ),
-				(string) $activation['installation_secret']
+				(string) $activation['installation_secret'],
+				200,
+				(string) $activation['request_nonce']
 			);
 		} finally {
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
@@ -375,7 +400,9 @@ final class ActivationService {
 			'cache_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * DAY_IN_SECONDS ),
 		);
 
-		return Response::signed( $data, $secret );
+		// Activation is not HMAC-authenticated; the installation ID the client
+		// just generated takes the place of the request nonce.
+		return Response::signed( $data, $secret, 200, $installation_uuid );
 	}
 
 	/**
@@ -446,16 +473,45 @@ final class ActivationService {
 	}
 
 	/**
-	 * Atomically count anonymous activation attempts by validated remote address.
+	 * Atomically count anonymous activation attempts by client address.
 	 *
-	 * @return int|false Current attempt count, or false when storage/address is invalid.
+	 * The address comes from ClientIp (REMOTE_ADDR, or a configured trusted
+	 * proxy header). IPv6 clients share one bucket per /64. A request without a
+	 * resolvable address lands in a shared bucket instead of failing for
+	 * everyone.
+	 *
+	 * @return int|false Current attempt count, or false when the store is unavailable.
 	 */
 	private static function activation_attempt_count() {
-		$ip = trim( (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) );
-		if ( false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-			return false;
+		$bucket = ClientIp::rate_limit_bucket( ClientIp::current() );
+		if ( '' === $bucket ) {
+			$bucket = 'unknown';
 		}
 
-		return Authenticator::increment_rate_limit( hash( 'sha256', 'activation-ip:' . $ip ) );
+		return Authenticator::increment_rate_limit( hash( 'sha256', 'activation-ip:' . $bucket ) );
+	}
+
+	/**
+	 * Atomically count activation attempts for one license-key prefix.
+	 *
+	 * @param string $license_key Normalized (trimmed, uppercase) license key.
+	 * @return int|false Current attempt count (zero without a key), or false when the store is unavailable.
+	 */
+	private static function key_attempt_count( string $license_key ) {
+		if ( '' === $license_key ) {
+			return 0;
+		}
+
+		return Authenticator::increment_rate_limit( self::key_limiter_hash( $license_key ) );
+	}
+
+	/**
+	 * Limiter key for a license-key prefix; never stores key material.
+	 *
+	 * @param string $license_key License key.
+	 * @return string SHA-256 limiter hash.
+	 */
+	public static function key_limiter_hash( string $license_key ): string {
+		return hash( 'sha256', 'activation-key:' . substr( strtoupper( trim( $license_key ) ), 0, self::KEY_PREFIX_LENGTH ) );
 	}
 }

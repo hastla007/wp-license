@@ -232,8 +232,18 @@
         ],
         "responses": {
           "302": {
-            "description": "Redirect to an allow-listed HTTPS package URL.",
+            "description": "Redirect to an allow-listed HTTPS package URL. Sent with Cache-Control: no-store and Referrer-Policy: no-referrer.",
             "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string"
+                }
+              },
               "Location": {
                 "schema": {
                   "type": "string",
@@ -416,17 +426,28 @@
         "type": "object",
         "required": [
           "data",
-          "signature"
+          "signature",
+          "payload",
+          "payload_signature"
         ],
         "properties": {
           "data": {
             "type": "object",
-            "description": "Response-specific payload. Entitlement responses include activation_id, installation_id, license_status, paid_until, site_limit, site_count, environment, entitlements, server_time and cache_expires_at."
+            "description": "Response-specific payload. Entitlement responses include activation_id, installation_id, license_status, paid_until, site_limit, site_count, environment, entitlements, server_time and cache_expires_at. Kept for clients that predate payload; current clients must read the data member of the verified payload instead."
           },
           "signature": {
             "type": "string",
             "pattern": "^[a-f0-9]{64}$",
-            "description": "HMAC-SHA-256 over JSON_UNESCAPED_SLASHES encoding of data using the installation secret."
+            "description": "Legacy: HMAC-SHA-256 over JSON_UNESCAPED_SLASHES encoding of data using the installation secret. Verifiable only by re-encoding data identically; superseded by payload_signature."
+          },
+          "payload": {
+            "type": "string",
+            "description": "The exact JSON text that was signed: an object with the members data (same content as the data field) and nonce. nonce echoes the X-WPLC-Nonce header of an authenticated request; for POST /activations it is the installation_id of the request. Verify payload_signature over these bytes before decoding, then compare nonce with the value sent."
+          },
+          "payload_signature": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Lowercase hex HMAC-SHA-256 over the payload string as transmitted, keyed by the installation secret."
           }
         }
       },

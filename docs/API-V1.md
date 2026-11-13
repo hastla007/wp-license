@@ -2,7 +2,7 @@
 
 Base namespace: `/wp-json/wplc/v1`.
 
-All requests must use HTTPS. Activation requests are rate-limited by source IP. Authenticated installation requests are signed with the secret created by the product client and rate-limited by installation ID.
+All requests must use HTTPS. Activation requests are rate-limited by client address (30 per minute) and by license-key prefix (20 per minute); see [Rate limits behind a proxy or CDN](#rate-limits-behind-a-proxy-or-cdn). Authenticated installation requests are signed with the secret created by the product client and rate-limited by installation ID.
 
 ## First activation
 
@@ -39,11 +39,36 @@ Successful responses use the envelope:
     "server_time": "2026-11-12 00:00:00",
     "cache_expires_at": "2026-11-26 00:00:00"
   },
-  "signature": "hex HMAC-SHA-256"
+  "signature": "hex HMAC-SHA-256",
+  "payload": "{\"data\":{\"activation_id\":123,...},\"nonce\":\"uuid-v4\"}",
+  "payload_signature": "hex HMAC-SHA-256"
 }
 ```
 
-The response signature is HMAC-SHA-256 over the JSON encoding of `data` with `JSON_UNESCAPED_SLASHES`, keyed by the installation secret.
+### Response signature
+
+Every signed response carries two signatures, both keyed by the installation secret:
+
+- `payload` is the exact JSON text the server signed: an object with the members `data` (the same content as the top-level `data`) and `nonce`. `payload_signature` is the lowercase hex HMAC-SHA-256 over that string exactly as transmitted.
+- `nonce` echoes the `X-WPLC-Nonce` header of an authenticated request. `POST /activations` is not HMAC-authenticated, so there `nonce` is the `installation_id` from the request body.
+- `data` and `signature` are the original v1 fields and remain unchanged: `signature` is HMAC-SHA-256 over the server's JSON encoding of `data` with `JSON_UNESCAPED_SLASHES`. A client can only check it by re-encoding `data` byte-identically, and it is not bound to a request.
+
+Clients must verify in this order:
+
+1. If `payload` or `payload_signature` is present: compare `payload_signature` with the HMAC of the received `payload` string in constant time, then JSON-decode `payload`, require `nonce` to equal the value sent with this request, and use `payload.data`. Ignore the top-level `data`.
+2. Only if both fields are absent (a server older than this change): fall back to the `signature` check over the re-encoded `data`.
+
+The bundled client additionally remembers that its server sent a `payload` at activation and from then on rejects responses without one, so stripping the new fields cannot force the weaker check. Product plugins that bundle an older client copy keep working because `data` and `signature` are still sent.
+
+Signed responses are sent with `Cache-Control: no-store` and `Referrer-Policy: no-referrer`; exclude `/wp-json/wplc/` from page and CDN caches as well.
+
+### Activating the same site again
+
+The client keeps its installation ID and secret in one option. If valid credentials are already stored, `LicenseClient::activate()` first calls `/entitlements/check` and returns that result instead of creating a second activation; pass `true` as the fourth argument (`$force`) to request a new activation regardless.
+
+When a new installation ID activates with the same `environment` and the same normalized `site_url` as an existing active activation of the same license (lost options, database restore, migration), the server replaces the old activation instead of counting a second site: the old one is deactivated (audit action `site_replaced`), together with its staging site if it was a live site, and the new one takes the slot. The old credentials stop working (`activation_not_found`). Possession of the license key authorizes this.
+
+Deactivating a live site, whether through this API, the customer account, or the admin, also deactivates the staging site linked to it.
 
 ## Authenticated requests
 
@@ -66,6 +91,22 @@ SHA256_OF_RAW_REQUEST_BODY
 
 The server rejects timestamps outside five minutes, repeated nonces, malformed signatures and inactive activations.
 
+## Rate limits behind a proxy or CDN
+
+Anonymous activation attempts are counted per client address (IPv6: per /64) and per license-key prefix (the first 13 characters, stored only as a hash). Exceeding either returns `429 rate_limited`. A request whose address cannot be determined is counted in one shared bucket.
+
+By default the address is `REMOTE_ADDR`. Behind a reverse proxy or CDN that is the proxy, so all customers would share one bucket. Configure the forwarding header in `wp-config.php`:
+
+```php
+define( 'WPLC_TRUSTED_PROXY_HEADER', 'HTTP_CF_CONNECTING_IP' ); // or 'HTTP_X_FORWARDED_FOR'
+define( 'WPLC_TRUSTED_PROXIES', array( '173.245.48.0/20', '2400:cb00::/32' ) ); // addresses of your proxies
+```
+
+- The header is used only when `REMOTE_ADDR` matches an entry of `WPLC_TRUSTED_PROXIES` (single IPs or CIDR ranges, IPv4 and IPv6).
+- For a list header such as `X-Forwarded-For` the right-most address that is not a trusted proxy is used; anything further left is supplied by the client and ignored.
+- If `WPLC_TRUSTED_PROXIES` is not defined, the header is trusted from every peer. That is only safe when the origin server cannot be reached directly (firewall restricted to the proxy); otherwise anyone can send the header and choose their own bucket. With `X-Forwarded-For` and no proxy list the right-most entry is used, which is correct for exactly one proxy in front of the origin.
+- The filter `wplc_client_ip` receives the resolved address (or an empty string) for custom setups.
+
 ## Routes
 
 | Method | Route | Purpose |
@@ -74,7 +115,7 @@ The server rejects timestamps outside five minutes, repeated nonces, malformed s
 | DELETE | `/activations/{activation_id}` | Deactivate the authenticated installation |
 | POST | `/entitlements/check` | Return current status and feature rights |
 | POST | `/updates/check` | Return signed release metadata and a short-lived package grant |
-| GET | `/updates/download/{token}` | Consume a one-use grant and redirect to the allow-listed package host |
+| GET | `/updates/download/{token}` | Consume a one-use grant and redirect to the allow-listed package host (`Cache-Control: no-store`, `Referrer-Policy: no-referrer`) |
 
 ## Credential rotation and recovery
 

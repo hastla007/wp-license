@@ -122,6 +122,9 @@ final class Authenticator {
 		}
 
 		$activation['installation_secret'] = $secret;
+		// Echoed inside the signed response payload so a recorded response
+		// cannot be replayed against a later request.
+		$activation['request_nonce'] = $nonce;
 
 		return $activation;
 	}

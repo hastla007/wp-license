@@ -7,6 +7,10 @@
 
 namespace WPLC\Api\V1;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * Strict, stable normalization for live, staging, and development site URLs.
  */

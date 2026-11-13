@@ -98,6 +98,6 @@ final class EntitlementService {
 			'cache_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * DAY_IN_SECONDS ),
 		);
 
-		return Response::signed( $data, (string) $activation['installation_secret'] );
+		return Response::signed( $data, (string) $activation['installation_secret'], 200, (string) $activation['request_nonce'] );
 	}
 }

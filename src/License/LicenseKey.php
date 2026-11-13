@@ -81,6 +81,22 @@ final class LicenseKey {
 	}
 
 	/**
+	 * Whether license keys are derived from the WordPress auth salt because no
+	 * dedicated secret is configured in wp-config.php.
+	 *
+	 * Must mirror the precedence in configured_keys().
+	 *
+	 * @return bool
+	 */
+	public static function uses_fallback_secret(): bool {
+		if ( defined( 'WPLC_LICENSE_KEY_SECRETS' ) && is_array( WPLC_LICENSE_KEY_SECRETS ) ) {
+			return false;
+		}
+
+		return ! ( defined( 'WPLC_LICENSE_KEY_SECRET' ) && '' !== (string) WPLC_LICENSE_KEY_SECRET );
+	}
+
+	/**
 	 * Resolve configured license-key secrets, retaining previous key IDs during rotation.
 	 *
 	 * @return array<string,string>
