@@ -7,6 +7,10 @@
 
 namespace WPLC\License;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * Explicit transition policy shared by lifecycle and renewal handlers.
  */

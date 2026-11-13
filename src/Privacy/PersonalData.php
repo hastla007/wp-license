@@ -64,7 +64,27 @@ final class PersonalData {
 	}
 
 	/**
+	 * Licenses exported per page.
+	 */
+	private const EXPORT_LICENSES_PER_PAGE = 20;
+
+	/**
+	 * Installations exported together with their license. Further rows follow on later pages.
+	 */
+	private const EXPORT_ACTIVATIONS_PER_LICENSE = 100;
+
+	/**
+	 * Installations per page once the license pages are exhausted.
+	 */
+	private const EXPORT_OVERFLOW_PER_PAGE = 100;
+
+	/**
 	 * Export one page of license and installation information for a WordPress user.
+	 *
+	 * Pages 1..n walk the customer's licenses in ID order, each with its first
+	 * installations. Licenses with more installations than fit are continued on
+	 * the pages after n; WordPress merges those rows into the same export item
+	 * because they share the item ID. "done" is only reported when both are exhausted.
 	 *
 	 * @param string $email_address User email.
 	 * @param int    $page          Page number.
@@ -78,15 +98,24 @@ final class PersonalData {
 			return array( 'data' => array(), 'done' => true );
 		}
 
-		$tables = Schema::table_names();
-		$limit  = 100;
-		$offset = max( 0, $page - 1 ) * $limit;
+		$tables        = Schema::table_names();
+		$user_id       = (int) $user->ID;
+		$page          = max( 1, $page );
+		$limit         = self::EXPORT_LICENSES_PER_PAGE;
+		$license_count = (int) $wpdb->get_var(
+			$wpdb->prepare( "SELECT COUNT(*) FROM {$tables['licenses']} WHERE customer_id = %d", $user_id )
+		);
+		$license_pages = max( 1, intdiv( $license_count + $limit - 1, $limit ) );
+		if ( $page > $license_pages ) {
+			return self::export_overflow_activations( $user_id, $page - $license_pages );
+		}
+
 		$licenses = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT * FROM {$tables['licenses']} WHERE customer_id = %d ORDER BY id ASC LIMIT %d OFFSET %d",
-				(int) $user->ID,
+				$user_id,
 				$limit,
-				$offset
+				( $page - 1 ) * $limit
 			),
 			ARRAY_A
 		);
@@ -112,16 +141,14 @@ final class PersonalData {
 
 			$activations = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT site_url,environment,status,activated_at,last_seen_at,deactivated_at FROM {$tables['activations']} WHERE license_id = %d ORDER BY id ASC",
-					(int) $license['id']
+					"SELECT site_url,environment,status,product_version,wp_version,php_version,activated_at,last_seen_at,deactivated_at FROM {$tables['activations']} WHERE license_id = %d ORDER BY id ASC LIMIT %d",
+					(int) $license['id'],
+					self::EXPORT_ACTIVATIONS_PER_LICENSE
 				),
 				ARRAY_A
 			);
 			foreach ( (array) $activations as $index => $activation ) {
-				$license_data[] = array( 'name' => sprintf( __( 'Installation %d site URL', 'wp-license' ), $index + 1 ), 'value' => (string) $activation['site_url'] );
-				$license_data[] = array( 'name' => sprintf( __( 'Installation %d environment', 'wp-license' ), $index + 1 ), 'value' => (string) $activation['environment'] );
-				$license_data[] = array( 'name' => sprintf( __( 'Installation %d status', 'wp-license' ), $index + 1 ), 'value' => (string) $activation['status'] );
-				$license_data[] = array( 'name' => sprintf( __( 'Installation %d activated at', 'wp-license' ), $index + 1 ), 'value' => (string) $activation['activated_at'] );
+				$license_data = array_merge( $license_data, self::activation_export_fields( $activation, $index + 1 ) );
 			}
 
 			$data[] = array(
@@ -132,10 +159,120 @@ final class PersonalData {
 			);
 		}
 
+		if ( $page < $license_pages ) {
+			return array( 'data' => $data, 'done' => false );
+		}
+
+		$overflow = self::overflow_activations( $user_id, 1, 0 );
 		return array(
 			'data' => $data,
-			'done' => count( (array) $licenses ) < $limit,
+			'done' => null !== $overflow && ! $overflow,
 		);
+	}
+
+	/**
+	 * Export installations that did not fit next to their license.
+	 *
+	 * @param int $user_id       Customer user ID.
+	 * @param int $overflow_page Page within the overflow phase, starting at 1.
+	 * @return array<string,mixed>
+	 */
+	private static function export_overflow_activations( int $user_id, int $overflow_page ): array {
+		$limit  = self::EXPORT_OVERFLOW_PER_PAGE;
+		$offset = ( max( 1, $overflow_page ) - 1 ) * $limit;
+		$rows   = self::overflow_activations( $user_id, $limit + 1, $offset );
+		if ( null === $rows ) {
+			// Database error: keep the request retryable instead of reporting a complete export.
+			return array( 'data' => array(), 'done' => false );
+		}
+
+		$done = count( $rows ) <= $limit;
+		$data = array();
+		foreach ( array_slice( $rows, 0, $limit ) as $index => $activation ) {
+			$data[] = array(
+				'group_id' => 'wp-license-captain',
+				'group_label' => __( 'WP License Captain licenses', 'wp-license' ),
+				'item_id' => 'license-' . (string) $activation['license_uuid'],
+				'data' => self::activation_export_fields( $activation, self::EXPORT_ACTIVATIONS_PER_LICENSE + $offset + $index + 1 ),
+			);
+		}
+
+		return array( 'data' => $data, 'done' => $done );
+	}
+
+	/**
+	 * Installations beyond the first EXPORT_ACTIVATIONS_PER_LICENSE of each license of a customer.
+	 *
+	 * @param int $user_id Customer user ID.
+	 * @param int $limit   Maximum rows.
+	 * @param int $offset  Rows to skip.
+	 * @return array<int,array<string,mixed>>|null Null on database error.
+	 */
+	private static function overflow_activations( int $user_id, int $limit, int $offset ): ?array {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$rows   = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT a.site_url,a.environment,a.status,a.product_version,a.wp_version,a.php_version,a.activated_at,a.last_seen_at,a.deactivated_at,l.license_uuid
+				FROM {$tables['activations']} a
+				INNER JOIN {$tables['licenses']} l ON l.id = a.license_id
+				WHERE l.customer_id = %d
+				AND a.id > ( SELECT x.id FROM {$tables['activations']} x WHERE x.license_id = a.license_id ORDER BY x.id ASC LIMIT 1 OFFSET %d )
+				ORDER BY a.id ASC LIMIT %d OFFSET %d",
+				$user_id,
+				self::EXPORT_ACTIVATIONS_PER_LICENSE - 1,
+				$limit,
+				$offset
+			),
+			ARRAY_A
+		);
+
+		if ( ! is_array( $rows ) || '' !== (string) $wpdb->last_error ) {
+			return null;
+		}
+		return $rows;
+	}
+
+	/**
+	 * Export rows for one installation. Secrets and verifiers are never included.
+	 *
+	 * @param array<string,mixed> $activation Activation row.
+	 * @param int                 $number     Running number used in the labels.
+	 * @return array<int,array<string,string>>
+	 */
+	private static function activation_export_fields( array $activation, int $number ): array {
+		$fields = array(
+			/* translators: %d: running number of the installation. */
+			'site_url' => __( 'Installation %d site URL', 'wp-license' ),
+			/* translators: %d: running number of the installation. */
+			'environment' => __( 'Installation %d environment', 'wp-license' ),
+			/* translators: %d: running number of the installation. */
+			'status' => __( 'Installation %d status', 'wp-license' ),
+			/* translators: %d: running number of the installation. */
+			'product_version' => __( 'Installation %d product version', 'wp-license' ),
+			/* translators: %d: running number of the installation. */
+			'wp_version' => __( 'Installation %d WordPress version', 'wp-license' ),
+			/* translators: %d: running number of the installation. */
+			'php_version' => __( 'Installation %d PHP version', 'wp-license' ),
+			/* translators: %d: running number of the installation. */
+			'activated_at' => __( 'Installation %d activated at', 'wp-license' ),
+			/* translators: %d: running number of the installation. */
+			'last_seen_at' => __( 'Installation %d last seen at', 'wp-license' ),
+			/* translators: %d: running number of the installation. */
+			'deactivated_at' => __( 'Installation %d deactivated at', 'wp-license' ),
+		);
+
+		$rows = array();
+		foreach ( $fields as $column => $label ) {
+			$value = isset( $activation[ $column ] ) ? (string) $activation[ $column ] : '';
+			if ( '' === $value && ! in_array( $column, array( 'site_url', 'environment', 'status', 'activated_at' ), true ) ) {
+				continue;
+			}
+			$rows[] = array( 'name' => sprintf( $label, $number ), 'value' => $value );
+		}
+
+		return $rows;
 	}
 
 	/**
