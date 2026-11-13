@@ -12,7 +12,7 @@ References:
 
 ## Current behavior
 
-The registry only exposes adapters that explicitly register. No PayPal adapter is registered, so checkout for a license with automatic renewal is rejected when PayPal is selected. This fails closed rather than silently taking a one-time payment and claiming that it will renew.
+The registry only exposes adapters that explicitly register. No PayPal adapter is registered. A license can still be bought with PayPal: the purchase is never blocked. If the customer ticks the automatic renewal option and pays with PayPal, no consent is stored, the order gets a note, and the license runs for the paid period and is renewed manually. This applies to the classic and the block checkout. The plugin never claims that a PayPal purchase will renew by itself.
 
 ## Required design before enabling PayPal
 
