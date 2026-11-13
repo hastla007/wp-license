@@ -6,6 +6,7 @@
  * Requires at least: 6.5
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
+ * WC requires at least: 8.9
  * Text Domain: wp-license
  * Domain Path: /languages
  *
@@ -50,8 +51,8 @@ add_action(
 		if ( class_exists( '\\Automattic\\WooCommerce\\Utilities\\FeaturesUtil' ) ) {
 			// Orders are only accessed through WooCommerce CRUD APIs.
 			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', WPLC_FILE, true );
-			// The renewal consent field is only implemented for the classic checkout.
-			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', WPLC_FILE, false );
+			// The renewal opt-in is an additional checkout field in the block checkout (BlockCheckoutConsent).
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', WPLC_FILE, true );
 		}
 	}
 );

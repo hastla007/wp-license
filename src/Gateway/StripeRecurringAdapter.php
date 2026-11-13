@@ -7,6 +7,8 @@
 
 namespace WPLC\Gateway;
 
+use WPLC\Compatibility\Requirements;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -17,6 +19,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * This adapter intentionally supports saved card PaymentMethods only. Other
  * Stripe payment methods may require mandates, delayed settlement, or customer
  * interaction and are rejected until they have a reviewed implementation.
+ *
+ * The gateway offers no public API for this. The adapter calls its internals
+ * (`WC_Stripe_API::request()`, `WC_Stripe_Helper::get_stripe_amount()`, the user
+ * option `_stripe_customer_id`, order meta `_stripe_source_id`), verified against
+ * the gateway source of versions 9.6.0 and 11.2.0. Requirements::stripe_adapter_status()
+ * switches the adapter off when the gateway is missing, too old or has lost one of them.
  */
 final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 
@@ -52,13 +60,10 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 	 * @inheritDoc
 	 */
 	public function supports_checkout(): bool {
-		if ( ! class_exists( 'WC_Stripe_API' ) || ! class_exists( 'WC_Stripe_Helper' ) || ! class_exists( 'WC_Payment_Tokens' ) ) {
-			return false;
-		}
-		$gateways = function_exists( 'WC' ) && WC()->payment_gateways() ? WC()->payment_gateways()->payment_gateways() : array();
 		// A first-time buyer has no saved card yet; the card is saved with the order
 		// when consent is given, so checkout support only depends on the gateway.
-		return ! empty( $gateways['stripe'] ) && 'yes' === $gateways['stripe']->enabled;
+		$status = Requirements::stripe_adapter_status();
+		return $status['ok'];
 	}
 
 	/**
@@ -70,6 +75,10 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 		}
 		$token = \WC_Payment_Tokens::get( $token_id );
 		if ( ! $token || 'stripe' !== $token->get_gateway_id() || (int) $token->get_user_id() !== $customer_id ) {
+			return false;
+		}
+		// The gateway stores Link and other wallets under the same gateway ID; only cards are supported.
+		if ( 'CC' !== $token->get_type() ) {
 			return false;
 		}
 		$payment_method = (string) $token->get_token();
@@ -93,7 +102,12 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 		}
 		$token = \WC_Payment_Tokens::get( $token_id );
 		$customer = (string) get_user_option( '_stripe_customer_id', $customer_id );
-		$amount = \WC_Stripe_Helper::get_stripe_amount( $order->get_total(), $order->get_currency() );
+		try {
+			// Throws since gateway 11.2.0 when the amount exceeds what Stripe accepts.
+			$amount = \WC_Stripe_Helper::get_stripe_amount( $order->get_total(), $order->get_currency() );
+		} catch ( \Throwable $exception ) {
+			$amount = 0;
+		}
 		if ( ! is_int( $amount ) || $amount <= 0 ) {
 			return new \WP_Error( 'stripe_amount_invalid', __( 'The renewal amount is not valid for Stripe.', 'wp-license' ) );
 		}
@@ -103,6 +117,9 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 			'currency' => strtolower( $order->get_currency() ),
 			'customer' => $customer,
 			'payment_method' => (string) $token->get_token(),
+			// Without this Stripe enables automatic payment methods and rejects a confirmed
+			// intent that has no return_url. The gateway sends the same for its own off-session charges.
+			'payment_method_types' => array( 'card' ),
 			'off_session' => 'true',
 			'confirm' => 'true',
 			'description' => sprintf( 'WP License Captain renewal order #%d', $order->get_id() ),
@@ -190,7 +207,20 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 		if ( $token_id || ! $order instanceof \WC_Order || 'stripe' !== $order->get_payment_method() || ! $order->get_customer_id() ) {
 			return $token_id;
 		}
+		if ( ! class_exists( 'WC_Payment_Tokens' ) ) {
+			return 0;
+		}
 		$adapter = new self();
+		// The gateway records the PaymentMethod it charged in `_stripe_source_id` and does not
+		// attach the saved token to the order. Prefer the card the customer actually paid with.
+		$paid_with = (string) $order->get_meta( '_stripe_source_id', true );
+		if ( 0 === strpos( $paid_with, 'pm_' ) ) {
+			foreach ( \WC_Payment_Tokens::get_customer_tokens( (int) $order->get_customer_id(), 'stripe' ) as $token ) {
+				if ( $paid_with === (string) $token->get_token() && $adapter->supports_saved_token( (int) $token->get_id(), (int) $order->get_customer_id() ) ) {
+					return (int) $token->get_id();
+				}
+			}
+		}
 		$tokens = \WC_Payment_Tokens::get_order_tokens( $order->get_id() );
 		foreach ( $tokens as $token ) {
 			if ( 'stripe' === $token->get_gateway_id() && $adapter->supports_saved_token( (int) $token->get_id(), (int) $order->get_customer_id() ) ) {

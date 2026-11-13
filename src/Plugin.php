@@ -24,6 +24,8 @@ use WPLC\Update\ReleaseRegistry;
 use WPLC\Update\PackageStream;
 use WPLC\Update\CustomerDownload;
 use WPLC\Billing\RecurringConsent;
+use WPLC\Billing\BlockCheckoutConsent;
+use WPLC\Compatibility\Requirements;
 use WPLC\Billing\ManualRenewal;
 use WPLC\Billing\RenewalProcessor;
 use WPLC\Gateway\StripeRecurringAdapter;
@@ -114,7 +116,9 @@ final class Plugin {
 		CatalogCsv::register_hooks();
 		Diagnostics::register_hooks();
 		KeyConfigurationNotice::register_hooks();
+		Requirements::register_hooks();
 		RecurringConsent::register_hooks();
+		BlockCheckoutConsent::register_hooks();
 		RenewalProcessor::register_hooks();
 		ManualRenewal::register_hooks();
 		StripeRecurringAdapter::register_hooks();
