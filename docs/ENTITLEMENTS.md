@@ -2,6 +2,14 @@
 
 This catalog gives feature gates stable identifiers shared by the server and product clients. Labels are presentation only; integrations must authorize by identifier. An absent entitlement denies the new premium feature. Existing free/legacy features remain available as documented in the product plan.
 
+## Core plugins are free and ungated
+
+Decision of 13 Nov 2026: the core plugin of each product stays completely free, with no license check and no locked features, so it can be published on WordPress.org. Consequences for this catalog:
+
+- Core features have **no** entitlement keys. Nothing in a core plugin asks the license server for anything.
+- Entitlement keys exist only for features that ship in the separate premium add-on plugin.
+- An expired or missing license can only switch off add-on features. It never changes what the core plugin does.
+
 ## Identifier rules
 
 - Prefix keys by product: `affiliate.`, `voucher.`, or `pass.`.
@@ -17,11 +25,11 @@ This catalog gives feature gates stable identifiers shared by the server and pro
 | Affiliate Captain Starter | `affiliate.partner_portal`, `affiliate.coupon_attribution`, `affiliate.order_refund_handling`, `affiliate.basic_commissions`, `affiliate.manual_payout_csv`; live sites: 1 |
 | Affiliate Captain Pro | Starter plus `affiliate.partner_groups`, `affiliate.product_category_rates`, `affiliate.bonuses`, `affiliate.recurring_commissions`, `affiliate.extended_api`; live sites: 3 |
 | Affiliate Captain Agency | Pro plus `affiliate.white_label_portal`, `affiliate.webhooks`, `affiliate.multiple_programs`, `affiliate.priority_support`; live sites: 10 |
-| Voucher Captain Free | `voucher.basic_issue`, `voucher.basic_email`, `voucher.single_online_redemption`; live sites: 1 |
-| Voucher Captain Solo | Free plus `voucher.custom_branding`, `voucher.pdf_templates`, `voucher.automatic_delivery`; live sites: 1 |
+| Voucher Captain (core, free on WordPress.org) | No entitlements. Every core feature works without a license, a key or a server call. |
+| Voucher Captain Solo | Core plus `voucher.custom_branding`, `voucher.pdf_templates`, `voucher.automatic_delivery`; live sites: 1 |
 | Voucher Captain Business | Solo plus `voucher.qr_redemption`, `voucher.partial_balance`, `voucher.staff_roles`, `voucher.scheduled_delivery`, `voucher.bulk_import_export`, `voucher.reports`; live sites: 5 |
 | Voucher Captain Agency | Business plus `voucher.central_license_overview`, `voucher.white_label`, `voucher.priority_support`; live sites: 25 |
-| WP Pass Captain Core | `pass.events`, `pass.free_tickets`, `pass.reservations_basic`, `pass.ticket_links`, `pass.scanner_basic`, `pass.reports_basic`, `pass.privacy_tools`; no license required |
+| WP Pass Captain (core, free on WordPress.org) | No entitlements. Every core feature works without a license, a key or a server call. |
 | WP Pass Captain Pro | Core plus `pass.woocommerce_sales`, `pass.membership_passes`, `pass.campaign_codes`, `pass.waitlist`, `pass.csv_export`; live sites: 1 |
 | WP Pass Captain Business | Pro plus `pass.seating`, `pass.service_slots`, `pass.pos`, `pass.offline_checkin`, `pass.team_assignment`, `pass.advanced_reports`, `pass.api_webhooks`; live sites: 5 |
 | WP Pass Captain Agency | Business plus `pass.client_license_management`, `pass.white_label`, `pass.priority_support`; live sites: 25 |
