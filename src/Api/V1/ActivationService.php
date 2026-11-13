@@ -279,7 +279,7 @@ final class ActivationService {
 
 		$paid_until = $license['paid_until'] ?? null;
 		$activation = $wpdb->get_row(
-			$wpdb->prepare( "SELECT environment,staging_parent_id FROM {$tables['activations']} WHERE id = %d LIMIT 1", $activation_id ),
+			$wpdb->prepare( "SELECT environment,staging_parent_id,site_url FROM {$tables['activations']} WHERE id = %d LIMIT 1", $activation_id ),
 			ARRAY_A
 		);
 		$site_count = (int) $wpdb->get_var(
@@ -299,6 +299,7 @@ final class ActivationService {
 			'site_count' => $site_count,
 			'environment' => is_array( $activation ) ? (string) $activation['environment'] : 'production',
 			'staging_parent_id' => is_array( $activation ) && $activation['staging_parent_id'] ? (int) $activation['staging_parent_id'] : null,
+			'site_url' => is_array( $activation ) ? (string) $activation['site_url'] : '',
 			'entitlements' => $entitlements,
 			'server_time' => gmdate( 'Y-m-d H:i:s' ),
 			'cache_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * DAY_IN_SECONDS ),

@@ -71,4 +71,37 @@ final class SiteUrl {
 
 		return $scheme . '://' . $authority . $path;
 	}
+
+	/**
+	 * Whether a reported site URL names the same site as the stored activation URL.
+	 *
+	 * The scheme and a leading "www." are ignored, so moving a site to HTTPS or between the bare and the www host
+	 * does not lock it out; host, port and path must match. Invalid URLs never match.
+	 *
+	 * @param string $stored Site URL stored with the activation.
+	 * @param string $reported Site URL reported by the installation.
+	 * @return bool
+	 */
+	public static function same_site( string $stored, string $reported ): bool {
+		$stored = self::identity( $stored );
+		$reported = self::identity( $reported );
+
+		return '' !== $stored && '' !== $reported && hash_equals( $stored, $reported );
+	}
+
+	/**
+	 * Normalized URL without scheme and leading "www." ('' when invalid).
+	 *
+	 * @param string $url Input URL.
+	 * @return string
+	 */
+	private static function identity( string $url ): string {
+		$normalized = self::normalize( $url );
+		if ( '' === $normalized ) {
+			return '';
+		}
+		$identity = (string) preg_replace( '#^https?://#', '', $normalized );
+
+		return 0 === strpos( $identity, 'www.' ) ? substr( $identity, 4 ) : $identity;
+	}
 }

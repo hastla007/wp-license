@@ -62,9 +62,22 @@ final class ApiSecurityIntegrationTest extends WP_UnitTestCase {
 		}
 	}
 
-	private function signed_request( string $nonce, ?string $timestamp = null ): WP_REST_Request {
+	public function test_site_url_binds_the_credential_to_the_activated_site(): void {
+		$same = rest_get_server()->dispatch( $this->signed_request( 'integration-nonce-site00001', null, '{"product_version":"1.0.0","site_url":"http://www.shop.example.test/"}' ) );
+		$this->assertSame( 200, $same->get_status() );
+		$this->assertSame( 'https://shop.example.test', $same->get_data()['data']['site_url'] );
+
+		$copy = rest_get_server()->dispatch( $this->signed_request( 'integration-nonce-site00002', null, '{"product_version":"1.0.0","site_url":"https://copy.example.test"}' ) );
+		$this->assertSame( 409, $copy->get_status() );
+		$this->assertSame( 'site_mismatch', $copy->get_data()['code'] );
+
+		// Older clients send no site_url and keep working.
+		$legacy = rest_get_server()->dispatch( $this->signed_request( 'integration-nonce-site00003' ) );
+		$this->assertSame( 200, $legacy->get_status() );
+	}
+
+	private function signed_request( string $nonce, ?string $timestamp = null, string $body = '{"product_version":"1.0.0"}' ): WP_REST_Request {
 		$timestamp = null === $timestamp ? (string) time() : $timestamp;
-		$body = '{"product_version":"1.0.0"}';
 		$request = new WP_REST_Request( 'POST', '/wplc/v1/entitlements/check' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_header( 'X-WPLC-Installation-Id', self::INSTALLATION_UUID );

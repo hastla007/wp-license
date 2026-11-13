@@ -35,6 +35,7 @@ Successful responses use the envelope:
     "license_status": "active",
     "paid_until": "2027-11-12 00:00:00",
     "site_limit": 3,
+    "site_url": "https://shop.example",
     "entitlements": {},
     "server_time": "2026-11-12 00:00:00",
     "cache_expires_at": "2026-11-26 00:00:00"
@@ -129,6 +130,24 @@ SHA256_OF_RAW_REQUEST_BODY
 ```
 
 The server rejects timestamps outside five minutes, repeated nonces, malformed signatures and inactive activations.
+
+### Site binding
+
+An activation belongs to the `site_url` it was activated with. Clients send their current home URL as `site_url` in
+the JSON body of every authenticated POST (`/entitlements/check`, `/updates/check`); the body is covered by the
+request signature. When it does not name the activation's site the server answers `409 site_mismatch`, so a
+credential copied into another website (clone, staging copy, second shop) is not served. The comparison uses the
+normalized URL (`SiteUrl::normalize()`) and ignores the scheme and a leading `www.`; host, port and path must match.
+Requests without `site_url` (older clients, `DELETE /activations/{id}`) are not checked.
+
+Signed entitlement data (activation and `/entitlements/check`) carries the activation's `site_url`, so clients can
+also refuse an offline snapshot copied into another website.
+
+- **Moved site:** repeat `POST /activations` with the same installation ID, secret and license key from the new
+  address – the idempotent path stores the new `site_url` (no new slot).
+- **Staging copy:** a copy of a live site must not reuse the live credential (it gets `site_mismatch`); it activates
+  with its own installation ID as `environment: staging` and `staging_parent_installation_id` of the live
+  installation (one staging site per live activation, no live slot).
 
 ## Routes
 

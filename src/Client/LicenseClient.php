@@ -140,6 +140,8 @@ final class LicenseClient {
 		if ( is_wp_error( $credentials ) ) {
 			return $credentials;
 		}
+		// The server compares the reported site with the activation (409 site_mismatch for a copied credential).
+		$payload['site_url'] = home_url();
 		$response = $this->request( 'POST', $path, $payload, $credentials['installation_secret'], true, $credentials['installation_id'] );
 		return is_wp_error( $response ) ? $response : self::verify_envelope( $response, $credentials['installation_secret'] );
 	}

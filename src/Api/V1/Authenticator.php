@@ -121,9 +121,36 @@ final class Authenticator {
 			}
 		}
 
+		$site = self::check_site( (string) ( $activation['site_url'] ?? '' ), $request->get_param( 'site_url' ) );
+		if ( is_wp_error( $site ) ) {
+			return $site;
+		}
+
 		$activation['installation_secret'] = $secret;
 
 		return $activation;
+	}
+
+	/**
+	 * Bind authenticated requests to the activated site.
+	 *
+	 * Clients send their normalized home URL as `site_url` in the signed request body. A credential copied into
+	 * another site then fails with 409 `site_mismatch`. Requests without `site_url` (older clients, deactivation)
+	 * are accepted unchanged.
+	 *
+	 * @param string $stored Site URL stored with the activation.
+	 * @param mixed $reported Reported `site_url` parameter (null when absent).
+	 * @return true|\WP_Error
+	 */
+	public static function check_site( string $stored, $reported ) {
+		if ( null === $reported || '' === $reported ) {
+			return true;
+		}
+		if ( ! is_string( $reported ) || ! SiteUrl::same_site( $stored, $reported ) ) {
+			return new \WP_Error( 'site_mismatch', __( 'This installation is activated for another website. Activate this website separately.', 'wp-license' ), array( 'status' => 409 ) );
+		}
+
+		return true;
 	}
 
 	/**

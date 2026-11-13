@@ -93,6 +93,7 @@ final class EntitlementService {
 			'site_limit' => ActivationService::site_limit( (int) $license['id'], $license ),
 			'site_count' => $site_count,
 			'environment' => (string) $activation['environment'],
+			'site_url' => (string) $activation['site_url'],
 			'entitlements' => $entitlements,
 			'server_time' => gmdate( 'Y-m-d H:i:s' ),
 			'cache_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * DAY_IN_SECONDS ),

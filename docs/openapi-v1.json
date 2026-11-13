@@ -163,6 +163,9 @@
           "404": {
             "$ref": "#/components/responses/ApiError"
           },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
           "429": {
             "$ref": "#/components/responses/ApiError"
           }
@@ -206,6 +209,9 @@
             "$ref": "#/components/responses/ApiError"
           },
           "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
             "$ref": "#/components/responses/ApiError"
           },
           "503": {
@@ -418,6 +424,11 @@
           },
           "php_version": {
             "type": "string"
+          },
+          "site_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Current home URL of the installation. When present it must name the activation's site (scheme and a leading www. are ignored), otherwise 409 site_mismatch."
           }
         }
       },
@@ -434,6 +445,11 @@
           },
           "current_version": {
             "type": "string"
+          },
+          "site_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Current home URL of the installation. When present it must name the activation's site (scheme and a leading www. are ignored), otherwise 409 site_mismatch."
           }
         }
       },

@@ -19,4 +19,24 @@ final class SiteUrlTest extends TestCase {
 		$this->assertSame( '', SiteUrl::normalize( 'https://example.com:0' ) );
 		$this->assertSame( '', SiteUrl::normalize( 'https://example.com\\admin' ) );
 	}
+
+	public function test_same_site_ignores_scheme_www_case_and_trailing_slash(): void {
+		$this->assertTrue( SiteUrl::same_site( 'https://shop.example', 'http://WWW.shop.example/' ) );
+		$this->assertTrue( SiteUrl::same_site( 'https://www.shop.example/de', 'https://shop.example:443/de/' ) );
+	}
+
+	public function test_same_site_requires_host_port_and_path(): void {
+		$this->assertFalse( SiteUrl::same_site( 'https://shop.example', 'https://copy.example' ) );
+		$this->assertFalse( SiteUrl::same_site( 'https://shop.example', 'https://staging.shop.example' ) );
+		$this->assertFalse( SiteUrl::same_site( 'https://shop.example', 'https://shop.example:8443' ) );
+		$this->assertFalse( SiteUrl::same_site( 'https://shop.example/de', 'https://shop.example/at' ) );
+		$this->assertFalse( SiteUrl::same_site( 'https://shop.example', 'not a url' ) );
+		$this->assertFalse( SiteUrl::same_site( '', '' ) );
+	}
+
+	public function test_requests_without_site_url_are_not_checked(): void {
+		$this->assertTrue( \WPLC\Api\V1\Authenticator::check_site( 'https://shop.example', null ) );
+		$this->assertTrue( \WPLC\Api\V1\Authenticator::check_site( 'https://shop.example', '' ) );
+		$this->assertTrue( \WPLC\Api\V1\Authenticator::check_site( 'https://shop.example', 'https://www.shop.example/' ) );
+	}
 }
