@@ -55,6 +55,13 @@ final class ApiSecurityIntegrationTest extends WP_UnitTestCase {
 	}
 
 	public function test_real_rest_requests_are_limited_after_120_authenticated_calls_per_minute(): void {
+		// The limiter counts per calendar minute. Start early in a minute so all
+		// 121 requests land in the same bucket instead of straddling a boundary.
+		$seconds_into_minute = (int) gmdate( 's' );
+		if ( $seconds_into_minute > 45 ) {
+			sleep( 61 - $seconds_into_minute );
+		}
+
 		for ( $index = 1; $index <= 121; ++$index ) {
 			$nonce = 'integration-nonce-' . str_pad( (string) $index, 8, '0', STR_PAD_LEFT );
 			$response = rest_get_server()->dispatch( $this->signed_request( $nonce ) );
