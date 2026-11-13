@@ -325,13 +325,13 @@ function e2e_form( string $html, array $needles ): ?array {
 			}
 		}
 		$fields = array();
-		if ( preg_match( '/<form\b[^>]*\baction="([^"]*)"/', $form, $action ) ) {
+		if ( preg_match( '/<form\b[^>]*\baction=["\']([^"\']*)["\']/', $form, $action ) ) {
 			$fields['__action'] = html_entity_decode( $action[1] );
 		}
 		if ( preg_match_all( '/<input\b[^>]*>/', $form, $inputs ) ) {
 			foreach ( $inputs[0] as $input ) {
-				if ( preg_match( '/\bname="([^"]+)"/', $input, $name ) && ! preg_match( '/\btype="(submit|file|checkbox|radio)"/', $input ) ) {
-					$fields[ $name[1] ] = preg_match( '/\bvalue="([^"]*)"/', $input, $value ) ? html_entity_decode( $value[1] ) : '';
+				if ( preg_match( '/\bname=["\']([^"\']+)["\']/', $input, $name ) && ! preg_match( '/\btype=["\'](submit|file|checkbox|radio)["\']/', $input ) ) {
+					$fields[ $name[1] ] = preg_match( '/\bvalue=["\']([^"\']*)["\']/', $input, $value ) ? html_entity_decode( $value[1] ) : '';
 				}
 			}
 		}
