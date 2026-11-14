@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP License Captain 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14T22:59:14+00:00\n"
+"POT-Creation-Date: 2026-11-14T23:53:34+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -771,7 +771,7 @@ msgstr ""
 
 #: src/Admin/LicenseDetail.php:50
 #: src/Admin/LicenseDetail.php:405
-#: src/Admin/LicenseListTable.php:70
+#: src/Admin/LicenseListTable.php:82
 #: src/Admin/RenewalReviewAdmin.php:148
 msgid "License"
 msgstr ""
@@ -812,7 +812,7 @@ msgstr ""
 
 #: src/Admin/LicenseDetail.php:158
 #: src/Admin/LicenseDetail.php:556
-#: src/Admin/LicenseListTable.php:71
+#: src/Admin/LicenseListTable.php:83
 #: src/Admin/RenewalReviewAdmin.php:148
 msgid "Customer"
 msgstr ""
@@ -857,7 +857,7 @@ msgstr ""
 #: src/Admin/LicenseDetail.php:269
 #: src/Admin/LicenseDetail.php:321
 #: src/Admin/LicenseDetail.php:350
-#: src/Admin/LicenseListTable.php:73
+#: src/Admin/LicenseListTable.php:85
 #: src/Admin/ReleaseAdmin.php:93
 #: src/Admin/Settings.php:408
 #: src/Privacy/PersonalData.php:129
@@ -869,12 +869,12 @@ msgid "Billing interval"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:162
-#: src/Catalog/ProductEditor.php:157
+#: src/Catalog/ProductEditor.php:167
 msgid "Monthly"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:162
-#: src/Catalog/ProductEditor.php:158
+#: src/Catalog/ProductEditor.php:168
 msgid "Yearly"
 msgstr ""
 
@@ -885,7 +885,7 @@ msgstr ""
 
 #: src/Admin/LicenseDetail.php:164
 #: src/Admin/LicenseDetail.php:578
-#: src/Admin/LicenseListTable.php:74
+#: src/Admin/LicenseListTable.php:86
 msgid "Paid until"
 msgstr ""
 
@@ -895,7 +895,7 @@ msgstr ""
 
 #: src/Admin/LicenseDetail.php:166
 #: src/Admin/LicenseDetail.php:407
-#: src/Admin/LicenseListTable.php:76
+#: src/Admin/LicenseListTable.php:88
 msgid "Renewal"
 msgstr ""
 
@@ -905,13 +905,13 @@ msgstr ""
 
 #. translators: 1: active live sites, 2: allowed live sites.
 #: src/Admin/LicenseDetail.php:169
-#: src/Admin/LicenseListTable.php:75
+#: src/Admin/LicenseListTable.php:87
 msgid "Live sites"
 msgstr ""
 
 #. translators: 1: number of active live sites, 2: allowed number of live sites.
 #: src/Admin/LicenseDetail.php:169
-#: src/Admin/LicenseListTable.php:409
+#: src/Admin/LicenseListTable.php:579
 #, php-format
 msgid "%1$d / %2$s"
 msgstr ""
@@ -933,7 +933,7 @@ msgid "Parent license"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:175
-#: src/Admin/LicenseListTable.php:77
+#: src/Admin/LicenseListTable.php:89
 msgid "Created"
 msgstr ""
 
@@ -1078,7 +1078,7 @@ msgid "Grace ends"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:343
-#: src/Catalog/ProductEditor.php:224
+#: src/Catalog/ProductEditor.php:234
 msgid "Entitlements"
 msgstr ""
 
@@ -1209,35 +1209,35 @@ msgstr ""
 msgid "Add license"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:72
+#: src/Admin/LicenseListTable.php:84
 msgid "Product / Plan"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:348
+#: src/Admin/LicenseListTable.php:518
 msgid "View and manage"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:449
+#: src/Admin/LicenseListTable.php:619
 msgid "No licenses found."
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:465
+#: src/Admin/LicenseListTable.php:635
 msgid "Filter by status"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:466
+#: src/Admin/LicenseListTable.php:636
 msgid "All statuses"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:472
+#: src/Admin/LicenseListTable.php:642
 msgid "Filter by product"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:473
+#: src/Admin/LicenseListTable.php:643
 msgid "All products"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:479
+#: src/Admin/LicenseListTable.php:649
 msgid "Filter"
 msgstr ""
 
@@ -2216,54 +2216,54 @@ msgid "License product key"
 msgstr ""
 
 #: src/Catalog/ProductEditor.php:140
-msgid "Stable product identifier, for example affiliate-captain."
+msgid "Stable product identifier. Must match the key of the premium add-on: voucher-captain, pass-captain or affiliate-captain."
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:146
+#: src/Catalog/ProductEditor.php:156
 msgid "License plan key"
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:154
+#: src/Catalog/ProductEditor.php:164
 msgid "License billing interval"
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:165
+#: src/Catalog/ProductEditor.php:175
 msgid "Live site limit"
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:178
+#: src/Catalog/ProductEditor.php:188
 msgid "License support level"
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:181
+#: src/Catalog/ProductEditor.php:191
 msgid "Community"
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:182
+#: src/Catalog/ProductEditor.php:192
 msgid "Standard"
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:183
+#: src/Catalog/ProductEditor.php:193
 msgid "Priority"
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:195
+#: src/Catalog/ProductEditor.php:205
 msgid "Advanced: additional entitlements (JSON)"
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:199
+#: src/Catalog/ProductEditor.php:209
 msgid "Optional JSON object for numeric limits and entitlement keys that are not in the list above. The live-site limit and support level are added automatically."
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:388
+#: src/Catalog/ProductEditor.php:398
 msgid "The advanced entitlements field must contain a valid JSON object. No product changes were saved."
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:407
+#: src/Catalog/ProductEditor.php:417
 msgid "A license product needs a product key, plan key, and valid billing interval."
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:434
+#: src/Catalog/ProductEditor.php:444
 msgid "The license plan could not be saved to the catalog. No product changes were saved."
 msgstr ""
 
@@ -2757,7 +2757,7 @@ msgstr ""
 msgid "Please activate WooCommerce before activating WP License Captain."
 msgstr ""
 
-#: src/Plugin.php:168
+#: src/Plugin.php:214
 msgid "WP License Captain requires WooCommerce to be installed and active."
 msgstr ""
 

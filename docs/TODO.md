@@ -21,7 +21,7 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
   - T-133: Im Modus „Checkout Sessions / Adaptive Pricing“ des Stripe-Plugins speichert der Filter die Karte möglicherweise nicht.
   - Anleitung mit Testkarten, Hilfsbefehlen und Ergebnisprotokoll: `docs/STRIPE-TEST-PLAN.md` (neun Fälle, etwa 30 bis 45 Minuten).
 - [ ] **T-130 [KRITISCH] Browser-Abnahme.** Noch niemand hat das Plugin auf dem Bildschirm gesehen. Prüfen: Block-Checkout mit Opt-in (T-14, nur *Quelltext*), klassischer Checkout, Produkteditor mit Rechte-Auswahl und Varianten (JavaScript ungeprüft), Kundenkonto mit Kopieren-Button und Bestätigungen, Adminliste, Detailseite, Einstellungen, Releases, die deutschen Texte, die sechs E-Mails in einem Mailprogramm. *Vorbereitet am 14.11.:* Screenshots aller Seiten und Mails auf Englisch und Deutsch mit Chromium; dabei drei Fehler gefunden und behoben (Opt-in bei Überweisung sichtbar, interner Tarifschlüssel in Mails, Umbrüche in der Lizenzliste). Nicht prüfbar waren Block-Checkout und WooCommerce-Oberflächen (Testumgebung ohne gebaute WooCommerce-Skripte) und die deutschen Texte von WordPress und WooCommerce selbst. Offen bleibt die Abnahme durch einen Menschen.
-- [ ] **T-131 [KRITISCH] Produkt-Add-ons.** Kein Produkt-Plugin spricht bisher mit dem Server. Die Aufgaben stehen in den `TODO.md` von `wp-couponmaster`, `wp-passmaster` und `wpaffiliatemaster` (Abschnitt „Premium-Add-on“, B1 bis B11). Ersetzt die früheren T-40 und T-41. Jedes Add-on muss den öffentlichen Signaturschlüssel des Servers an `LicenseClient` übergeben (T-134, `docs/CLIENT-INTEGRATION.md`). *Vorbereitet am 14.11.:* Vorlage `examples/premium-addon-starter/` deckt B1 und B3 bis B11 ab (Lizenzseite, Rechte fail-closed, signierter Offline-Cache 14 Tage, Updater mit SHA-256-Prüfung, Deinstallation, Datenschutz, Tests, Release-Build); `bin/init-addon.php` erzeugt daraus ein Produkt-Add-on. Im E2E-Lauf gegen den echten Server geprüft (44 Prüfungen). Offen: die drei Add-on-Repositories anlegen (T-159) und die Produktschlüssel festlegen (T-158).
+- [ ] **T-131 [KRITISCH] Produkt-Add-ons.** Kein Produkt-Plugin spricht bisher mit dem Server. Die Aufgaben stehen in den `TODO.md` von `wp-couponmaster`, `wp-passmaster` und `wpaffiliatemaster` (Abschnitt „Premium-Add-on“, B1 bis B11). Ersetzt die früheren T-40 und T-41. Jedes Add-on muss den öffentlichen Signaturschlüssel des Servers an `LicenseClient` übergeben (T-134, `docs/CLIENT-INTEGRATION.md`). *Vorbereitet am 14.11.:* Vorlage `examples/premium-addon-starter/` deckt B1 und B3 bis B11 ab (Lizenzseite, Rechte fail-closed, signierter Offline-Cache 14 Tage, Updater mit SHA-256-Prüfung, Deinstallation, Datenschutz, Tests, Release-Build); `bin/init-addon.php` erzeugt daraus ein Produkt-Add-on. Im E2E-Lauf gegen den echten Server geprüft (44 Prüfungen). Offen: die drei Add-on-Repositories anlegen; bis dahin liegen die erzeugten Add-ons unter `addons/`.
 
 ## 2. Kritisch: vor dem ersten echten Verkauf
 
@@ -56,8 +56,6 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 
 ## 5. Entscheidungen
 
-- [ ] **T-158** Produktschlüssel festlegen, bevor das erste Add-on gebaut wird. Server-Katalog, API-Doku und E2E nutzen `voucher-captain`, `pass-captain`, `affiliate-captain`; die TODOs der Kern-Plugins schlagen `voucher`, `pass`, `affiliate` vor; `docs/PRODUCT-COMPATIBILITY.md` nennt `wp-pass-captain`. Empfehlung: `voucher-captain`, `pass-captain`, `affiliate-captain`.
-- [ ] **T-159** Grundlage der Add-ons: die Vorlage `examples/premium-addon-starter/` oder das in der TODO von `wpaffiliatemaster` beschriebene Monorepo `captain-pro` mit eigener Bibliothek. Danach die Repositories anlegen.
 - [ ] **T-121** Eigenbau-Verlängerung behalten oder WooCommerce Subscriptions einsetzen. Nach T-12 entscheiden.
 - [ ] **T-152** Behält eine bezahlte Bestellung, die ohne Erstattung storniert wird, ihre Lizenz? Heute ja.
 - [ ] **T-153** Bleiben Entwicklungs-Aktivierungen auf lokalen Hosts unbegrenzt? Heute ja.
@@ -97,6 +95,8 @@ Belege: *Unit* 509 Tests (+48 Add-on-Vorlage), *Integration* 196 Tests (HPOS und
 
 ### Entscheidungen
 
+- [x] **T-158** Produktschlüssel `voucher-captain`, `pass-captain`, `affiliate-captain` (14.11.2026). Im Rechtekatalog hinterlegt, im Produkteditor vorgeschlagen, in `docs/ENTITLEMENTS.md` dokumentiert.
+- [x] **T-159** Grundlage der Add-ons ist die Vorlage `examples/premium-addon-starter/`, nicht das Monorepo `captain-pro` (14.11.2026).
 - [x] Kern-Plugins bleiben kostenlos, ohne Lizenzprüfung und ohne gesperrte Funktionen; Premium liegt in getrennten Add-ons (13.11.2026, `docs/IMPLEMENTATION-PLAN.md`). Kernfunktionen sind keine Rechte mehr (`EntitlementCatalog`).
 - [x] Auto-Verlängerung ist ein Opt-in; ein Kauf hängt nie davon ab (`docs/CONCEPT-CHECKOUT-RENEWAL.md`).
 - [x] Mindestversion WooCommerce 8.9 (T-104).

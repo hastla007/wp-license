@@ -137,9 +137,19 @@ final class ProductEditor {
 				'value' => $values['product_key'],
 				'placeholder' => 'voucher-captain',
 				'desc_tip' => true,
-				'description' => __( 'Stable product identifier, for example affiliate-captain.', 'wp-license' ),
+				'description' => __( 'Stable product identifier. Must match the key of the premium add-on: voucher-captain, pass-captain or affiliate-captain.', 'wp-license' ),
+				'custom_attributes' => array( 'list' => 'wplc-known-product-keys' ),
 			)
 		);
+		static $datalist_printed = false;
+		if ( ! $datalist_printed ) {
+			$datalist_printed = true;
+			echo '<datalist id="wplc-known-product-keys">';
+			foreach ( array_keys( EntitlementCatalog::known_product_keys() ) as $known_key ) {
+				echo '<option value="' . esc_attr( $known_key ) . '"></option>';
+			}
+			echo '</datalist>';
+		}
 		woocommerce_wp_text_input(
 			array(
 				'id' => $name( '_wplc_plan_key' ),

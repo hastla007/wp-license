@@ -49,6 +49,17 @@ final class EntitlementCatalogTest extends TestCase {
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( '' ) );
 	}
 
+	public function test_the_decided_product_keys_map_to_their_entitlement_prefix(): void {
+		$this->assertSame(
+			array( 'voucher-captain' => 'voucher', 'pass-captain' => 'pass', 'affiliate-captain' => 'affiliate' ),
+			EntitlementCatalog::known_product_keys()
+		);
+		foreach ( EntitlementCatalog::known_product_keys() as $product_key => $group ) {
+			$this->assertSame( array( $group ), EntitlementCatalog::groups_for_product_key( $product_key ) );
+			$this->assertArrayHasKey( $group, EntitlementCatalog::all() );
+		}
+	}
+
 	public function test_split_ticks_known_true_keys_and_keeps_the_rest_as_json(): void {
 		$split = EntitlementCatalog::split(
 			array(

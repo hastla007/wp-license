@@ -123,6 +123,38 @@ final class EntitlementCatalog {
 	}
 
 	/**
+	 * Product keys of the premium add-ons (decided 14.11.2026, T-158).
+	 *
+	 * The key on a license product must equal the key the add-on sends; each maps to its entitlement prefix.
+	 */
+	public const PRODUCT_KEYS = array(
+		'voucher-captain'   => 'voucher',
+		'pass-captain'      => 'pass',
+		'affiliate-captain' => 'affiliate',
+	);
+
+	/**
+	 * Known product keys, filterable for further products.
+	 *
+	 * @return array<string,string> Product key => entitlement group.
+	 */
+	public static function known_product_keys(): array {
+		/**
+		 * Filter the product keys suggested in the product editor.
+		 *
+		 * @param array<string,string> $keys Product key => entitlement group (prefix without the dot).
+		 */
+		$keys = function_exists( 'apply_filters' ) ? apply_filters( 'wplc_known_product_keys', self::PRODUCT_KEYS ) : self::PRODUCT_KEYS;
+		$clean = array();
+		foreach ( (array) $keys as $key => $group ) {
+			if ( is_string( $key ) && is_string( $group ) && '' !== $key ) {
+				$clean[ $key ] = $group;
+			}
+		}
+		return $clean;
+	}
+
+	/**
 	 * Catalog groups that belong to a license product key such as "voucher-captain".
 	 *
 	 * @param string $product_key License product key from the product editor.
@@ -133,6 +165,10 @@ final class EntitlementCatalog {
 		$matches     = array();
 		if ( '' === $product_key ) {
 			return $matches;
+		}
+		$known = self::known_product_keys();
+		if ( isset( $known[ $product_key ] ) ) {
+			return array( $known[ $product_key ] );
 		}
 		foreach ( array_keys( self::all() ) as $group ) {
 			if ( false !== strpos( $product_key, (string) $group ) ) {

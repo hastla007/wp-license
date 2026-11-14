@@ -21,7 +21,7 @@ new LicenseClient( string $server_url, string $product_key, string $product_vers
 ```
 
 - `$server_url`: site URL of the license server. Must be `https`, without credentials, query or fragment; otherwise every call returns `wplc_configuration_invalid` or fails.
-- `$product_key`: the stable product key from the server catalog, for example `affiliate-captain`.
+- `$product_key`: the stable product key from the server catalog: `voucher-captain`, `pass-captain` or `affiliate-captain` (see [ENTITLEMENTS.md](ENTITLEMENTS.md)).
 - `$product_version`: installed version of the product plugin.
 - `$option_key`: name of the option that holds this product's credentials. Use one per product.
 - `$server_public_keys`: the license server's Ed25519 public key(s), base64, as printed by `wp wplc signing-key --field=public_key`. **Embed it in every add-on build.** With a pinned key the client rejects every response (`wplc_server_signature_invalid`) that does not carry a valid `signature_ed25519` of the server for this installation. Without it, anybody who can read the installation secret from the site's options can forge entitlement data, because the HMAC uses that secret. During a key rotation, ship the old and the new key (`wp wplc signing-key --prepare --field=next_public_key` prints the new one before it is used), then drop the old one; see docs/SECURITY-OPERATIONS.md, "Rotating the response signing key". In production set the server key with `WPLC_RESPONSE_SIGNING_KEY` in `wp-config.php` so it does not change with the database.
