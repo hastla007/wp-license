@@ -193,7 +193,7 @@ final class Authenticator {
 		$tables = Schema::table_names();
 		$hits   = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT hits FROM {$tables['request_limits']} WHERE limiter_hash = %s AND bucket_start = %s LIMIT 1",
+				"SELECT hits FROM {$tables['request_limits']} WHERE limiter_hash = %s AND bucket_start = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
 				$limiter_hash,
 				gmdate( 'Y-m-d H:i:00' )
 			)

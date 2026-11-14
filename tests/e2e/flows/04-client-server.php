@@ -193,9 +193,25 @@ $detail        = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-licenses&licen
 e2e_ok( 200 === $detail['code'] && false !== strpos( $detail['body'], 'site-a.example' ) && false !== strpos( $detail['body'], 'voucher.local' ) && false === strpos( $detail['body'], $key ), 'admin license detail lists the activations and does not print the full key', $detail['code'] );
 $list = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-licenses' ), array( 'cookies' => $admin_cookies ) );
 e2e_ok( 200 === $list['code'] && false !== strpos( $list['body'], $license['key_prefix'] ), 'admin license list shows the license', $list['code'] );
-$search = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-licenses&s=' . rawurlencode( $key ) ), array( 'cookies' => $admin_cookies ) );
+// T-141: the search is a nonce-protected POST; the redirect URL carries only an opaque token.
+preg_match( '/name="_wpnonce" value="([^"]+)"/', $list['body'], $nonce_match );
+$posted = e2e_http(
+	'POST',
+	admin_url( 'admin-post.php' ),
+	array(
+		'cookies' => $admin_cookies,
+		'body'    => array(
+			'action'           => 'wplc_admin_license_search',
+			'_wpnonce'         => $nonce_match[1] ?? '',
+			'_wp_http_referer' => '/wp-admin/admin.php?page=wplc-licenses',
+			's'                => $key,
+		),
+	)
+);
+e2e_ok( 302 === $posted['code'] && false !== strpos( $posted['location'], 'wplc_search=' ) && false === strpos( $posted['location'], $key ) && false === strpos( $posted['location'], $license['key_prefix'] ), 'admin search redirects to a URL without the key', $posted['code'] . ' ' . $posted['location'] );
+$search = e2e_http( 'GET', $posted['location'], array( 'cookies' => $admin_cookies ) );
 $other_license = e2e_license( (int) $license_ids[1] );
-e2e_ok( 200 === $search['code'] && false !== strpos( $search['body'], $license['key_prefix'] ) && false === strpos( $search['body'], $other_license['key_prefix'] ) && false !== strpos( $search['body'], 'Search results for the pasted license key' ), 'admin search by pasted full key finds exactly that license', $search['code'] );
+e2e_ok( 200 === $search['code'] && false !== strpos( $search['body'], $license['key_prefix'] ) && false === strpos( $search['body'], $other_license['key_prefix'] ) && false !== strpos( $search['body'], 'Search results for the pasted license key' ) && false === strpos( $search['body'], $key ), 'admin search by pasted full key finds exactly that license and does not echo the key', $search['code'] );
 // Known and reported, not asserted: the pasted key stays in the GET URL, so WordPress repeats it in the search box and the sort links.
 $search = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-licenses&s=' . rawurlencode( 'alice@customer.test' ) ), array( 'cookies' => $admin_cookies ) );
 e2e_ok( 200 === $search['code'] && false !== strpos( $search['body'], $license['key_prefix'] ) && false !== strpos( $search['body'], $other_license['key_prefix'] ), 'admin search by customer email finds both licenses', $search['code'] );
