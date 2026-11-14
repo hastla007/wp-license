@@ -7,6 +7,7 @@
 
 namespace WPLC\Notifications\Emails;
 
+use WPLC\Admin\Settings;
 use WPLC\Notifications\Notifications;
 use WPLC\Notifications\Placeholders;
 
@@ -115,10 +116,21 @@ abstract class LicenseEmail extends \WC_Email {
 			'license_key' => '',
 			'email_heading' => $this->get_heading(),
 			'additional_content' => $this->get_additional_content(),
+			'sender_note' => self::sender_note(),
 			'sent_to_admin' => false,
 			'plain_text' => $plain_text,
 			'email' => $this,
 		);
+	}
+
+	/**
+	 * Sender note from the license settings, already stored as plain text.
+	 *
+	 * @return string Empty when none is set.
+	 */
+	protected static function sender_note(): string {
+		$note = Settings::get( 'sender_note', '' );
+		return is_string( $note ) ? trim( $note ) : '';
 	}
 
 	/**
