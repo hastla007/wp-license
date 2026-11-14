@@ -80,4 +80,21 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( $once, $twice );
 		$this->assertSame( Settings::defaults()['reminder_days'], Settings::sanitize( 'not an array' )['reminder_days'] );
 	}
+
+	public function test_audit_diff_lists_changed_keys_and_only_safe_values(): void {
+		$old = array( 'package_hosts' => array( 'a.example.com' ), 'reminder_days' => '30,7', 'sender_note' => 'Old note' );
+		$new = array( 'package_hosts' => array( 'a.example.com', 'b.example.com' ), 'reminder_days' => '30,7', 'sender_note' => 'New note' );
+
+		$diff = Settings::settings_diff( $old, $new );
+
+		$this->assertSame( array( 'package_hosts', 'sender_note' ), $diff['changed'] );
+		$this->assertSame( array( 'package_hosts' => array( 'a.example.com' ) ), $diff['before'] );
+		$this->assertSame( array( 'package_hosts' => array( 'a.example.com', 'b.example.com' ) ), $diff['after'] );
+		$this->assertStringNotContainsString( 'note', (string) json_encode( $diff['before'] + $diff['after'] ) );
+	}
+
+	public function test_audit_diff_treats_missing_keys_as_defaults(): void {
+		$this->assertSame( array(), Settings::settings_diff( array(), Settings::defaults() )['changed'] );
+		$this->assertSame( array( 'reminder_days' ), Settings::settings_diff( array(), array( 'reminder_days' => '14' ) )['changed'] );
+	}
 }

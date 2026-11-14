@@ -8,36 +8,44 @@ WooCommerce → License diagnostics (`manage_woocommerce`), `src/Admin/Diagnosti
 
 - Versions: PHP, WordPress, WooCommerce, license schema, database.
 - HTTPS, OpenSSL, Action Scheduler, Stripe gateway class loaded, update package provider registered.
-- Four counters (`Diagnostics::metrics()`):
+- Five counters (`Diagnostics::metrics()`):
 
 | Metric key | Counts | Default alert threshold |
 | --- | --- | --- |
 | `pending_webhooks` | Stripe events stored but not reconciled yet | 1 |
 | `manual_review_webhooks` | Stripe events that ended as `manual_review` in the last 24 hours | 1 |
-| `overdue_renewals` | Renewals in `scheduled` or `failed` whose retry time (or, without one, period start) has passed | 1 |
+| `overdue_renewals` | Stuck renewals (rules below): a queued attempt or check that did not run, or a grace period that ended without the renewal being closed | 1 |
+| `review_required_renewals` | Renewals in `review_required`: the payment result stayed unknown, a payment went through while the license changed, or a paid manual renewal (e.g. a late bank transfer) could not be applied. An administrator resolves them under WooCommerce → Renewals to review (see [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#renewals-to-review)) | 1 |
 | `expired_download_grants` | Unused update download grants past their expiry | none |
 
 WooCommerce → License settings additionally shows whether the Stripe webhook secret and the key constants are set, the schema version, the checkout type and the grace period.
 
 ## Alert hook
 
-Once a day (with `wplc_daily_lifecycle`) each metric is compared with its threshold. When the value is at or above it:
+Once a day (with `wplc_daily_lifecycle`) each metric is compared with its threshold. `review_required_renewals` is also checked right away when a renewal goes to review. When the value is at or above it:
 
 ```php
-do_action( 'wplc/health_alert', string $metric_key, int $value, int $threshold );
+do_action( 'wplc/health_alert', string $metric_key, int $value, int $threshold, string $admin_url );
 ```
+
+`$admin_url` is the admin screen where the cause is handled: "Renewals to review" for `review_required_renewals`, the diagnostics page for the other metrics (`Diagnostics::screen_url()`). Subscribers registered with three accepted arguments keep working. The diagnostics page shows a button to "Renewals to review" while its counter is above zero, and the menu entry carries a count badge.
 
 Thresholds can be changed with the filter `wplc_health_alert_thresholds` (array metric key → threshold; remove a key to silence it). Example subscriber:
 
 ```php
-add_action( 'wplc/health_alert', function ( $metric, $value, $threshold ) {
-	wp_mail( 'ops@example.com', "License server: $metric", "$metric = $value (threshold $threshold)" );
-}, 10, 3 );
+add_action( 'wplc/health_alert', function ( $metric, $value, $threshold, $url = '' ) {
+	wp_mail( 'ops@example.com', "License server: $metric", "$metric = $value (threshold $threshold)\n$url" );
+}, 10, 4 );
 ```
 
 Notes on reading the values:
 
-- `overdue_renewals` also counts a `failed` renewal that has no retry left and is waiting for the end of its grace period, so it can stay above zero for several days per affected license.
+- `overdue_renewals` counts only renewals that are stuck. With a tolerance of one hour (`Diagnostics::STUCK_RENEWAL_TOLERANCE`, the same as the daily requeue sweep), a renewal is stuck when it is
+  - `scheduled`, `failed` or `reconciling` and its retry time (next attempt, retry or hourly check) passed more than an hour ago: the queued job did not run;
+  - `processing` for more than an hour: the stuck check after 20 minutes did not resolve it;
+  - `scheduled`, `failed` or `manual_action_required` without a retry time and its grace period ended more than an hour ago: the grace-end job did not expire the license (expiry closes the row).
+
+  Not counted, because these are known waiting states: a future retry or check, a `failed` renewal without retries left that waits for the end of its grace period, `manual_action_required` before the grace end, `manual` (waits for the customer), and `review_required` (own metric). The daily run that emits the alert also requeues lost jobs (`requeue_overdue_renewals()`), so a lost job usually shows up in one daily check only; a value that stays above zero means the queue does not run or the row cannot be processed. Classification: `Diagnostics::is_stuck_renewal()`.
 - `pending_webhooks` above zero for more than a few minutes means the background queue is not running.
 - The check runs once a day. For faster detection, monitor the scheduled actions below directly.
 
@@ -59,7 +67,8 @@ Single actions, WooCommerce → Status → Scheduled Actions, filter by group `w
 
 | Hook | Argument | Does |
 | --- | --- | --- |
-| `wplc_process_renewal` | renewal ID | Automatic charge attempt at `paid_until` and on retry days |
+| `wplc_process_renewal` | renewal ID | Automatic charge attempt at `paid_until` and on retry days; hourly check (same idempotency key) of a `reconciling` renewal |
+| `wplc_resolve_failed_renewal_order` | order ID | Records a renewal order an administrator set to Failed during reconciliation or review as a definite decline |
 | `wplc_reconcile_stuck_renewal` | renewal ID | Checks a renewal left in `processing` 20 minutes after the attempt started |
 | `wplc/renewal_grace_ended` | license ID | Expires the license at the end of the grace period |
 | `wplc_process_stripe_webhook` | inbox ID | Reconciles a received Stripe event |
@@ -70,7 +79,7 @@ Watch for failed actions and for pending actions whose scheduled time is in the 
 ## Logs
 
 - **WooCommerce log source `wp-license`** (WooCommerce → Status → Logs): email and reminder errors (`src/Notifications/Notifications.php`) and data retention runs (`src/Maintenance/Retention.php`).
-- **Audit log** (table `{prefix}wplc_audit_log`): changes to licenses, activations, renewals and releases, and rejected webhook events, with action, object, reason and before/after values. Visible per license on the license detail screen. Actions worth alerting on: `stripe_webhook_mismatch`, `stripe_webhook_manual_review`, `stripe_webhook_amount_mismatch`, `chargeback_received`, `renewal_result_unknown`, `renewal_recovery_mismatch`, `renewal_recovery_amount_mismatch`, `manual_renewal_rejected`.
+- **Audit log** (table `{prefix}wplc_audit_log`): changes to licenses, activations, renewals and releases, rejected webhook events, settings changes (`settings_updated`) and catalog CSV imports (`catalog_csv_imported`), with action, object, acting user, reason and before/after values. License entries are visible per license on the license detail screen; system-level entries (object ID 0, see [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md)) only in the table. Actions worth alerting on: `stripe_webhook_mismatch`, `stripe_webhook_manual_review`, `stripe_webhook_amount_mismatch`, `chargeback_received`, `renewal_result_unknown`, `renewal_review_required`, `renewal_recovery_mismatch`, `renewal_recovery_amount_mismatch`, `manual_renewal_rejected`. Review resolutions are audited as `renewal_review_booked`, `renewal_result_resolved` and `renewal_review_closed` (renewal) and `renewal_booked_after_review` (license), each with the acting administrator.
 - **Event inbox** (table `{prefix}wplc_event_inbox`): received Stripe events with their outcome; see [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md).
 - **Orders:** renewal orders with the meta `_wplc_renewal_review = yes` are paid but were not applied to a license.
 

@@ -48,8 +48,13 @@ interface RecurringGatewayAdapter {
 	 * Failure codes with a meaning for the retry logic:
 	 * - `renewal_manual_action_required`: the customer must authenticate; retries stop.
 	 * - `renewal_result_unknown`: it is not known whether the charge went through
-	 *   (timeout, network or gateway server error). The attempt is repeated with
-	 *   the SAME key, so the adapter must pass the key to the gateway unchanged.
+	 *   (timeout, network or gateway server error). This is not a decline: the
+	 *   license is not touched and the renewal waits for reconciliation. Checks
+	 *   call charge() again with the SAME key for up to 12 hours after the first
+	 *   request, so the adapter must pass the key to the gateway unchanged and the
+	 *   gateway must replay the first result for a known key. After that the
+	 *   renewal goes to administrator review; a new key is never used before the
+	 *   outcome is known.
 	 * Every other error is a definite decline; the next attempt gets a new key.
 	 *
 	 * Adapters should store the gateway payment reference on the order (meta

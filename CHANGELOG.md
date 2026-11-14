@@ -4,7 +4,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
-Consolidation of all earlier development branches into one code base. Preview: covered by unit tests and lint, not yet run in a real shop or against a Stripe test account. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
+Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
 ### Added
 
@@ -20,6 +20,11 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - Refunding a renewal order takes back the renewed period.
 - Automatic deletion of old audit, event and activation records after configurable retention periods.
 - German translation (formal), translation template and `bin/make-pot.sh`.
+- Diagnostics: package storage check (is the private ZIP directory publicly readable?), metric for renewals with an unknown payment result, settings changes and catalog CSV imports in the audit log.
+- `WPLC_PACKAGE_STORAGE_DIR` puts uploaded ZIP files outside the web root.
+- Product-plugin client: pinned Ed25519 server keys and helpers for a verified offline cache.
+- End-to-end test run as a GitHub Actions job.
+- Admin page "Renewals to review" for renewals whose payment may have been taken without extending the license (unknown result, license changed during the charge, late manual payment), with book / mark as not paid / close actions.
 
 ### Changed
 
@@ -32,6 +37,15 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - Server responses to product plugins are signed over the exact transmitted data and bound to the request.
 - Rejected admin actions return to the screen with an explanation instead of an error page.
 - The plugin loads without Composer.
+- When the payment gateway gives no definite result for an automatic renewal, the license is left untouched, the customer gets no "payment failed" email, and the payment is checked again hourly with the same idempotency key; after 12 hours the renewal goes to admin review.
+- A partial refund of a renewal order keeps the renewed term and is recorded; refunds adding up to the total take the period back.
+- Audit reasons are stored as codes and shown in the admin's language.
+- The activation limit per address counts only failed attempts, so a valid license key is not blocked by other people's mistakes.
+- Site URLs: non-canonical IPv4 spellings are rejected, paths are normalized, internationalized domains work without the `intl` extension.
+- The customer account shows the product name instead of the internal plan key.
+- The "overdue renewals" alert counts only renewals that are really stuck.
+- Classic checkout shows the automatic-renewal opt-in only while a payment method that can renew is selected.
+- License emails show the bought variation instead of the internal plan key.
 
 ### Fixed
 
@@ -43,11 +57,17 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - The Stripe webhook rejected ordinary shop payments, which could lead Stripe to disable the endpoint.
 - The 14-day grace period after a failed renewal had no effect.
 - The activation limit counted all customers behind a proxy or CDN as one address.
+- Licenses for a variation of a variable product mapped only on the parent product renewed at the lowest variation price. A license now stores the regular price of the bought variation and renews at it (database schema 13).
+- The sender note setting was saved but never shown in emails.
+- The reminder log table was created outside the versioned schema (now schema 12).
+- A refused package URL used up the one-time download link.
 
 ### Security
 
 - Secrets for license keys and installation credentials can be set as constants in `wp-config.php` and rotated.
 - One-time, short-lived download links; packages are only delivered from private storage or trusted HTTPS hosts.
+- A full license key typed into the admin search no longer appears in URLs, browser history or server logs.
+- Product plugins can reject data that was not signed by the license server, even if the site's own database was changed.
 
 ### Known limitations
 

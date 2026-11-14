@@ -1,0 +1,84 @@
+name: E2E
+
+# End-to-end run of the whole plugin in a real WordPress + WooCommerce shop
+# (tests/e2e/bin/run-e2e.sh, about four minutes). See tests/e2e/README.md.
+# Unit, integration and static analysis live in phpunit.yml and quality.yml.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: e2e (WP latest, WC 11.2.2, PHP 8.3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_ROOT_HOST: "%"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      WPLC_E2E_DB_HOST: 127.0.0.1
+      WPLC_E2E_DB_USER: root
+      WPLC_E2E_DB_PASS: root
+      WPLC_E2E_DB_NAME: wplc_e2e
+      # Keep in sync with the "current" cell of the integration matrix in phpunit.yml.
+      WPLC_E2E_WP_VERSION: latest
+      WPLC_E2E_WC_VERSION: 11.2.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli, curl, zip, intl, mbstring, openssl, sodium
+          # composer is only used by the driver's fallback sources (wordpress.org unreachable).
+          tools: composer:v2
+          coverage: none
+      # mysql client for the database reset; fuser (psmisc) frees the server port.
+      - run: sudo apt-get update && sudo apt-get install -y default-mysql-client psmisc
+      # No vendor/ and no composer install: the driver copies the plugin without vendor/ on
+      # purpose (fallback autoloader). WP-CLI, WordPress and WooCommerce are downloaded by the
+      # driver into WPLC_E2E_SITE. HTTPS needs no certificate: WordPress runs as
+      # https://shop.test, router.php and the e2e mu-plugin map it to the local PHP server.
+      - name: Run the E2E flows
+        shell: bash
+        # Below the job timeout, so a hang counts as a failed step and the logs are uploaded.
+        timeout-minutes: 15
+        env:
+          WPLC_E2E_SITE: ${{ runner.temp }}/wplc-e2e-site
+        run: |
+          mkdir -p "$WPLC_E2E_SITE"
+          tests/e2e/bin/run-e2e.sh 2>&1 | tee "$WPLC_E2E_SITE/e2e-output.log"
+      - name: Upload E2E logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
+          # The driver's own files start with a dot (.e2e-server.log, .e2e-results.tsv).
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/wplc-e2e-site/e2e-output.log
+            ${{ runner.temp }}/wplc-e2e-site/.e2e-results.tsv
+            ${{ runner.temp }}/wplc-e2e-site/.e2e-server.log
+            ${{ runner.temp }}/wplc-e2e-site/.e2e-tools/core-download.err
+            ${{ runner.temp }}/wplc-e2e-site/wp-content/debug.log

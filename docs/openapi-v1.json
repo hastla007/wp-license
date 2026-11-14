@@ -69,6 +69,9 @@
           "429": {
             "$ref": "#/components/responses/ApiError"
           },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          },
           "503": {
             "$ref": "#/components/responses/ApiError"
           }
@@ -117,6 +120,12 @@
           },
           "409": {
             "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ApiError"
           }
         }
       }
@@ -160,7 +169,13 @@
           "404": {
             "$ref": "#/components/responses/ApiError"
           },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
           "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "503": {
             "$ref": "#/components/responses/ApiError"
           }
         }
@@ -199,10 +214,19 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
           "401": {
             "$ref": "#/components/responses/ApiError"
           },
           "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
             "$ref": "#/components/responses/ApiError"
           },
           "503": {
@@ -310,6 +334,9 @@
           },
           "400": {
             "description": "Invalid signature, body, or required renewal metadata."
+          },
+          "409": {
+            "description": "The event ID was already recorded with a different payload (wplc_stripe_event_conflict)."
           },
           "500": {
             "description": "Event could not be recorded."

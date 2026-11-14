@@ -50,17 +50,16 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	/**
-	 * Report undeclared responses without hiding the behavioral assertions made before.
+	 * Fail on undeclared responses, after the behavioral assertions made before.
 	 *
 	 * @return void
 	 */
-	private function flag_spec_gaps(): void {
-		if ( $this->spec_gaps ) {
-			$this->markTestIncomplete(
-				'SPEC GAP: docs/openapi-v1.json does not declare: ' . implode( '; ', array_unique( $this->spec_gaps ) )
-				. '. Clients generated from the contract will not handle these responses.'
-			);
-		}
+	private function assert_no_spec_gaps(): void {
+		$this->assertSame(
+			array(),
+			array_values( array_unique( $this->spec_gaps ) ),
+			'SPEC GAP: docs/openapi-v1.json does not declare these responses. Clients generated from the contract will not handle them.'
+		);
 	}
 
 	/**
@@ -176,7 +175,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 			1,
 			(int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['audit_log']} WHERE action = %s AND object_id = %d", 'site_activated', (int) $data['activation_id'] ) )
 		);
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	public function test_activation_accepts_a_lowercase_key_with_surrounding_whitespace(): void {
@@ -205,6 +204,38 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'https://moved.example.com', $this->activation( (int) $first_data['activation_id'] )['site_url'] );
 	}
 
+	public function test_new_installation_replaces_an_activation_stored_with_the_legacy_url_spelling(): void {
+		global $wpdb;
+		$tables  = $this->tables();
+		$license = $this->seed_license( array(), array( 'sites.live_limit' => 1 ) );
+		$first   = $this->activate_via_api( $license['key'], array( 'site_url' => 'https://legacy.example.com/a/b' ) );
+		$first_id = (int) $first['response']->get_data()['data']['activation_id'];
+		// Before T-146 the duplicate slash was stored verbatim.
+		$wpdb->update( $tables['activations'], array( 'site_url' => 'https://legacy.example.com/a//b' ), array( 'id' => $first_id ) );
+
+		$second = $this->activate_via_api( $license['key'], array( 'site_url' => 'https://legacy.example.com/a//b/' ) );
+		$data   = $this->assertSignedEnvelope( 'POST', '/activations', $second['response'], $second['secret'] );
+
+		$this->assertNotSame( 'active', $this->activation( $first_id )['status'], 'The legacy row must be replaced, not counted.' );
+		$this->assertSame( 'https://legacy.example.com/a/b', $this->activation( (int) $data['activation_id'] )['site_url'] );
+		$this->assertSame( 1, $data['site_count'] );
+	}
+
+	public function test_activation_normalizes_paths_and_rejects_non_canonical_ipv4_hosts(): void {
+		$license = $this->seed_license();
+		$result  = $this->activate_via_api( $license['key'], array( 'site_url' => 'https://Shop.Example.com//a/./b/../store/' ) );
+		$data    = $this->assertSignedEnvelope( 'POST', '/activations', $result['response'], $result['secret'] );
+		$this->assertSame( 'https://shop.example.com/a/store', $this->activation( (int) $data['activation_id'] )['site_url'] );
+
+		$this->assertContractError(
+			'POST',
+			'/activations',
+			400,
+			'invalid_activation',
+			$this->activate_via_api( $license['key'], array( 'site_url' => 'http://0x7f.1' ) )['response']
+		);
+	}
+
 	public function test_site_limit_is_enforced_with_409_site_limit(): void {
 		$license = $this->seed_license( array(), array( 'sites.live_limit' => 2 ) );
 
@@ -219,7 +250,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		global $wpdb;
 		$tables = $this->tables();
 		$this->assertSame( 2, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['activations']} WHERE license_id = %d", $license['id'] ) ) );
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	public function test_staging_activation_rules(): void {
@@ -259,7 +290,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 			'staging_limit',
 			$this->activate_via_api( $license['key'], array( 'environment' => 'staging', 'staging_parent_installation_id' => $live['uuid'] ) )['response']
 		);
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	public function test_staging_parent_of_another_license_is_rejected(): void {
@@ -291,7 +322,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 			$this->assertSame( 'development', $data['environment'], $url );
 			$this->assertSame( 0, $data['site_count'], 'Development sites must not use a live slot.' );
 		}
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	public function test_development_activation_accepts_the_ipv6_loopback(): void {
@@ -338,7 +369,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 			$this->assertApiError( 403, 'expired', $response );
 			$this->check_declared( 'POST', '/activations', $response );
 		}
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	public function test_activation_is_allowed_during_the_renewal_grace_period(): void {
@@ -390,7 +421,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		global $wpdb;
 		$tables = $this->tables();
 		$this->assertSame( 0, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables['activations']}" ) );
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	public function test_site_url_longer_than_the_column_is_rejected_as_invalid_input(): void {
@@ -462,7 +493,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$fresh = $this->activate_via_api( $license['key'] );
 		$this->assertSame( 200, $fresh['response']->get_status() );
 		$this->assertSame( 1, $fresh['response']->get_data()['data']['site_count'] );
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	public function test_activation_attempts_are_rate_limited_per_ip(): void {
@@ -475,10 +506,38 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$unknown = \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() );
 		$this->assertContractError( 'POST', '/activations', 429, 'rate_limited', $this->activate_via_api( $unknown )['response'] );
 
-		// A valid key is locked out as well: the limiter runs before the key lookup.
-		$license = $this->seed_license();
+		// T-142: a valid key is not locked out by other failures from the same address ...
+		$license = $this->seed_license( array(), array( 'sites.live_limit' => 5 ) );
+		$this->assertSame( 200, $this->activate_via_api( $license['key'] )['response']->get_status() );
+
+		// ... but the throttled address gets only 30 answers per minute that look at
+		// the key at all (31st invalid + valid above + 28 more); then everything is 429.
+		for ( $attempt = 1; $attempt <= 28; $attempt++ ) {
+			$unknown = \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() );
+			$this->assertSame( 429, $this->activate_via_api( $unknown )['response']->get_status(), 'Throttled attempt ' . $attempt );
+		}
 		$this->assertSame( 429, $this->activate_via_api( $license['key'] )['response']->get_status() );
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
+	}
+
+	public function test_successful_activations_do_not_count_towards_the_address_limit(): void {
+		// T-142: an agency activating many sites from one server is not throttled.
+		$license = $this->seed_license( array(), array( 'sites.live_limit' => 40 ) );
+		for ( $attempt = 1; $attempt <= 35; $attempt++ ) {
+			$this->assertSame( 200, $this->activate_via_api( $license['key'] )['response']->get_status(), 'Activation ' . $attempt );
+		}
+	}
+
+	public function test_failures_on_a_known_key_prefix_do_not_lock_out_the_valid_key(): void {
+		// Someone who knows a customer's key prefix guesses the rest.
+		$license = $this->seed_license();
+		$guess   = substr( $license['key'], 0, 13 ) . substr( \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() ), 13 );
+		for ( $attempt = 1; $attempt <= 20; $attempt++ ) {
+			$this->assertSame( 401, $this->activate_via_api( $guess )['response']->get_status(), 'Attempt ' . $attempt );
+		}
+		$this->assertSame( 429, $this->activate_via_api( $guess )['response']->get_status() );
+
+		$this->assertSame( 200, $this->activate_via_api( $license['key'] )['response']->get_status() );
 	}
 
 	public function test_activation_attempts_are_rate_limited_per_key(): void {
@@ -534,7 +593,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 			'activation_not_found',
 			$this->dispatch( $this->api_request( 'POST', '/wplc/v1/entitlements/check', array(), $first ) )
 		);
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	public function test_api_deactivation_of_a_live_site_also_releases_its_staging_site(): void {
@@ -591,7 +650,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 
 		$row = $this->activation( $id );
 		$this->assertSame( array( '2.0.0', '6.9', '8.3.1' ), array( $row['product_version'], $row['wp_version'], $row['php_version'] ) );
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	public function test_entitlement_check_reports_lost_rights_without_entitlements(): void {
@@ -643,7 +702,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 200, $this->dispatch( $this->api_request( 'POST', $route, array(), $site, 'replay-nonce-0000000001' ) )->get_status() );
 		$replay = $this->dispatch( $this->api_request( 'POST', $route, array(), $site, 'replay-nonce-0000000001' ) );
 		$this->assertContractError( 'POST', '/entitlements/check', 409, 'request_replayed', $replay );
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	// ------------------------------------------------------------------
@@ -688,7 +747,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$data     = $this->assertSignedEnvelope( 'POST', '/updates/check', $response, $site['secret'] );
 
 		$this->assertFalse( $data['update_available'] );
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	public function test_update_check_offers_a_newer_package_through_a_one_time_grant(): void {
@@ -717,7 +776,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$same = $this->dispatch( $this->api_request( 'POST', '/wplc/v1/updates/check', array( 'product_key' => 'test-product', 'current_version' => '2.0.0' ), $site ) );
 		$this->assertFalse( $this->assertSignedEnvelope( 'POST', '/updates/check', $same, $site['secret'] )['update_available'] );
 		$this->assertSame( 1, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables['download_tokens']}" ) );
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	public function test_update_check_rejects_other_products_inactive_licenses_and_untrusted_packages(): void {
@@ -743,7 +802,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertContractError( 'POST', '/updates/check', 403, 'license_inactive', $revoked );
 
 		$this->assertSame( 0, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables['download_tokens']}" ) );
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	// ------------------------------------------------------------------
@@ -767,7 +826,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		} catch ( WPLC_Test_Halt $halt ) {
 			$this->assertSame( array( 'status', 404 ), array( $halt->kind, $halt->status ) );
 		}
-		$this->flag_spec_gaps();
+		$this->assert_no_spec_gaps();
 	}
 
 	/**

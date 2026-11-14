@@ -26,14 +26,25 @@ final class LicenseClient {
 	private $product_version;
 	/** @var string */
 	private $option_key;
+	/** @var string[] Pinned Ed25519 public keys of the server (base64). */
+	private $server_public_keys = array();
+
+	/** Context prefix of the server's Ed25519 response signature (see WPLC\Security\ResponseSigner). */
+	public const SIGNATURE_CONTEXT = 'wplc-response-v1';
 
 	/**
-	 * @param string $server_url WP License Captain site URL.
-	 * @param string $product_key Stable product identifier.
-	 * @param string $product_version Installed product version.
-	 * @param string $option_key Product-specific option key.
+	 * @param string          $server_url WP License Captain site URL.
+	 * @param string          $product_key Stable product identifier.
+	 * @param string          $product_version Installed product version.
+	 * @param string          $option_key Product-specific option key.
+	 * @param string|string[] $server_public_keys Pinned Ed25519 public key(s) of the license server, base64, as printed
+	 *                                            by `wp wplc signing-key --field=public_key`. Embed them in the product
+	 *                                            build; pass the old and the new key during a rotation. When set, every
+	 *                                            response must carry a valid server signature. Strongly recommended:
+	 *                                            without it, anybody who knows the installation secret (stored in this
+	 *                                            site's options) can forge entitlement data.
 	 */
-	public function __construct( string $server_url, string $product_key, string $product_version, string $option_key ) {
+	public function __construct( string $server_url, string $product_key, string $product_version, string $option_key, $server_public_keys = array() ) {
 		$server_url = untrailingslashit( esc_url_raw( $server_url, array( 'https' ) ) );
 		$server_parts = wp_parse_url( $server_url );
 		$this->server_url = (
@@ -48,6 +59,16 @@ final class LicenseClient {
 		$this->product_key = sanitize_key( $product_key );
 		$this->product_version = sanitize_text_field( $product_version );
 		$this->option_key = sanitize_key( $option_key );
+		foreach ( (array) $server_public_keys as $public_key ) {
+			if ( '' !== trim( (string) $public_key ) ) {
+				$this->server_public_keys[] = trim( $public_key );
+			}
+		}
+	}
+
+	/** Whether this client pins server keys and therefore requires the server's Ed25519 signature. */
+	public function requires_server_signature(): bool {
+		return array() !== $this->server_public_keys;
 	}
 
 	/**
@@ -97,7 +118,7 @@ final class LicenseClient {
 		if ( is_wp_error( $response ) ) {
 			return $response;
 		}
-		$verified = self::verify_envelope( $response['envelope'], $secret, $response['nonce'] );
+		$verified = $this->verify_response( $response['envelope'], $secret, $response['nonce'], false, $installation_id );
 		if ( is_wp_error( $verified ) ) {
 			return $verified;
 		}
@@ -163,7 +184,7 @@ final class LicenseClient {
 		if ( is_wp_error( $response ) ) {
 			return $response;
 		}
-		$verified = self::verify_envelope( $response['envelope'], (string) $credentials['installation_secret'], $response['nonce'], ! empty( $credentials['signed_payload'] ) );
+		$verified = $this->verify_response( $response['envelope'], (string) $credentials['installation_secret'], $response['nonce'], ! empty( $credentials['signed_payload'] ), (string) $credentials['installation_id'] );
 		if ( ! is_wp_error( $verified ) ) {
 			delete_option( $this->option_key );
 		}
@@ -187,7 +208,130 @@ final class LicenseClient {
 			return $response;
 		}
 
-		return self::verify_envelope( $response['envelope'], (string) $credentials['installation_secret'], $response['nonce'], ! empty( $credentials['signed_payload'] ) );
+		return $this->verify_response( $response['envelope'], (string) $credentials['installation_secret'], $response['nonce'], ! empty( $credentials['signed_payload'] ), (string) $credentials['installation_id'] );
+	}
+
+	/**
+	 * Re-verify a response envelope that the product stored as an offline cache.
+	 *
+	 * Store the complete envelope as received (the `envelope` key of the array returned by
+	 * check_entitlements_envelope()), never only the decoded data, and call this before every use of the cache. With
+	 * pinned server keys the cache is accepted only with a valid server signature for this installation, so writing
+	 * the option table is not enough to unlock features. Without pinned keys only the HMAC is checked.
+	 *
+	 * @param array<string,mixed> $envelope Envelope as received from the server.
+	 * @return array<string,mixed>|\WP_Error Verified data.
+	 */
+	public function verify_cached_envelope( array $envelope ) {
+		$credentials = $this->credentials();
+		if ( is_wp_error( $credentials ) ) {
+			return $credentials;
+		}
+		// The request nonce of a cached answer is not known any more; freshness is the product's job (issued_at).
+		return $this->verify_response( $envelope, (string) $credentials['installation_secret'], '', true, (string) $credentials['installation_id'] );
+	}
+
+	/**
+	 * Like check_entitlements(), but also returns the raw envelope for an offline cache.
+	 *
+	 * @return array{data:array<string,mixed>,envelope:array<string,mixed>}|\WP_Error
+	 */
+	public function check_entitlements_envelope() {
+		$credentials = $this->credentials();
+		if ( is_wp_error( $credentials ) ) {
+			return $credentials;
+		}
+		$response = $this->request( 'POST', '/wplc/v1/entitlements/check', array( 'product_version' => $this->product_version ), $credentials['installation_secret'], true, $credentials['installation_id'] );
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		$verified = $this->verify_response( $response['envelope'], (string) $credentials['installation_secret'], $response['nonce'], ! empty( $credentials['signed_payload'] ), (string) $credentials['installation_id'] );
+		if ( is_wp_error( $verified ) ) {
+			return $verified;
+		}
+		return array( 'data' => $verified, 'envelope' => $response['envelope'] );
+	}
+
+	/**
+	 * HMAC verification plus, with pinned keys, the server's Ed25519 signature.
+	 *
+	 * @param array<string,mixed> $envelope Response wrapper.
+	 * @param string              $secret Installation secret.
+	 * @param string              $expected_nonce Request nonce ('' skips the comparison).
+	 * @param bool                $require_payload Reject responses without a signed payload.
+	 * @param string              $installation_id Installation UUID the answer must be signed for.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	private function verify_response( array $envelope, string $secret, string $expected_nonce, bool $require_payload, string $installation_id ) {
+		$verified = self::verify_envelope( $envelope, $secret, $expected_nonce, $require_payload || $this->requires_server_signature() );
+		if ( is_wp_error( $verified ) || ! $this->requires_server_signature() ) {
+			return $verified;
+		}
+		$server = self::verified_server_data( $envelope, $installation_id, $this->server_public_keys );
+		if ( ! is_array( $server ) ) {
+			return new \WP_Error( 'wplc_server_signature_invalid', __( 'The license server response is not signed by the expected license server.', 'wp-license' ) );
+		}
+		// Both checks read the same payload bytes, so the data is identical.
+		return $server;
+	}
+
+	/**
+	 * Pure verification of the server's Ed25519 signature of an envelope.
+	 *
+	 * The server signs "wplc-response-v1\n{installation UUID}\n{JSON of data}". The JSON of the data is cut out of the
+	 * received `payload` string (`{"data":<JSON>,"nonce":<string>}`) byte for byte instead of being re-encoded, so the
+	 * check does not depend on the JSON encoder of either side.
+	 *
+	 * @param array<string,mixed> $envelope Decoded response body.
+	 * @param string              $installation_id Installation UUID.
+	 * @param string[]            $public_keys Accepted public keys (base64).
+	 * @return array<string,mixed>|string Verified data, or `wplc_server_signature_invalid`.
+	 */
+	public static function verified_server_data( array $envelope, string $installation_id, array $public_keys ) {
+		$invalid = 'wplc_server_signature_invalid';
+		$payload = $envelope['payload'] ?? null;
+		$signature = $envelope['signature_ed25519'] ?? null;
+		if ( '' === $installation_id || ! is_string( $payload ) || ! is_string( $signature ) || ! function_exists( 'sodium_crypto_sign_verify_detached' ) ) {
+			return $invalid;
+		}
+		$decoded = json_decode( $payload, true );
+		if ( ! is_array( $decoded ) || ! isset( $decoded['data'], $decoded['nonce'] ) || ! is_array( $decoded['data'] ) || ! is_string( $decoded['nonce'] ) ) {
+			return $invalid;
+		}
+		$prefix = '{"data":';
+		$suffix = wp_json_encode( array( 'nonce' => $decoded['nonce'] ), JSON_UNESCAPED_SLASHES );
+		if ( ! is_string( $suffix ) ) {
+			return $invalid;
+		}
+		$suffix = ',' . substr( $suffix, 1 );
+		$data_length = strlen( $payload ) - strlen( $prefix ) - strlen( $suffix );
+		if ( $data_length < 2 || 0 !== strpos( $payload, $prefix ) || substr( $payload, -strlen( $suffix ) ) !== $suffix ) {
+			return $invalid;
+		}
+		$data_json = substr( $payload, strlen( $prefix ), $data_length );
+		// The cut-out part must be exactly the data, nothing smuggled around it.
+		if ( json_decode( $data_json, true ) !== $decoded['data'] ) {
+			return $invalid;
+		}
+		$message = self::SIGNATURE_CONTEXT . "\n" . strtolower( $installation_id ) . "\n" . $data_json;
+		$raw_signature = base64_decode( $signature, true );
+		if ( false === $raw_signature || 64 !== strlen( $raw_signature ) ) {
+			return $invalid;
+		}
+		foreach ( $public_keys as $public_key ) {
+			$raw_key = base64_decode( (string) $public_key, true );
+			if ( false === $raw_key || 32 !== strlen( $raw_key ) ) {
+				continue;
+			}
+			try {
+				if ( sodium_crypto_sign_verify_detached( $raw_signature, $message, $raw_key ) ) {
+					return $decoded['data'];
+				}
+			} catch ( \Throwable $e ) {
+				continue;
+			}
+		}
+		return $invalid;
 	}
 
 	/**

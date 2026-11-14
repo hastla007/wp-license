@@ -2,7 +2,7 @@
 
 Base namespace: `/wp-json/wplc/v1`.
 
-All requests must use HTTPS. Activation requests are rate-limited by client address (30 per minute) and by license-key prefix (20 per minute); see [Rate limits behind a proxy or CDN](#rate-limits-behind-a-proxy-or-cdn). Authenticated installation requests are signed with the secret created by the product client and rate-limited by installation ID.
+All requests must use HTTPS. Failed activation attempts are rate-limited by client address (30 per minute) and by license-key prefix (20 per minute); a valid key is not blocked by other clients' failures; see [Rate limits behind a proxy or CDN](#rate-limits-behind-a-proxy-or-cdn). Authenticated installation requests are signed with the secret created by the product client and rate-limited by installation ID.
 
 ## First activation
 
@@ -24,6 +24,20 @@ JSON body:
 ```
 
 The client generates and retains the installation ID and secret locally. The optional `environment` is `production`, `staging` or `development`; staging also requires `staging_parent_installation_id` for an active live activation on the same license. A license allows at most one active staging site per live activation. Development activations do not consume a live-site slot. The server stores a SHA-256 verifier and an AES-256-GCM encrypted copy of the secret. The complete license key is not stored in plaintext.
+
+### site_url rules
+
+`site_url` is normalized by `WPLC\Api\V1\SiteUrl::normalize()` and the result is stored as the site's identity. An invalid URL fails with `400 invalid_activation`.
+
+- **Scheme:** `http` or `https`, lower-cased. `http` and `https` are different sites.
+- **Rejected:** credentials (`user@`), query, fragment, backslashes, NUL bytes, port 0 or above 65535, and URLs whose normal form is longer than 255 characters.
+- **Host:** lower-cased, trailing dots removed. The default port (443 for `https`, 80 for `http`) is dropped, any other port kept. No label may contain `--` in its third and fourth position unless it starts with `xn--`.
+- **IPv4:** only canonical dotted decimal (`192.168.1.10`). A host whose last label is a number, or `0x` plus hex digits, is rejected: `192.168.001.010`, `0177.0.0.1`, `0x7f.1`, `2130706433`, `127.1`, `999.1.1.1`, `example.123`. These spellings are refused rather than converted because resolvers disagree on them (leading zero as octal or decimal).
+- **IPv6:** in brackets, written in canonical compressed lower-case form (`[2001:0db8:0:0:0:0:0:1]` → `[2001:db8::1]`).
+- **Internationalized domains:** converted to Punycode with UTS #46 non-transitional processing, as browsers do: `MÜNCHEN.de` → `xn--mnchen-3ya.de`, `straße.de` → `xn--strae-oqa.de` (not `strasse.de`). With the PHP extension `intl` this uses `idn_to_ascii()`. Without it, a built-in encoder accepts lower- and upper-case letters of common scripts (Latin including Vietnamese, Greek, Cyrillic, Thai, Japanese kana, CJK ideographs, Hangul) and produces exactly the same result; hosts it cannot map with certainty (combining characters, compatibility forms such as ligatures or full-width letters, right-to-left scripts, symbols, other dot characters) are rejected. A host is therefore never stored in two different forms depending on the server; at most a rare host is refused without `intl`.
+- **Path:** the WordPress subdirectory, if any. Duplicate slashes are collapsed, `.` and `..` segments (also written `%2e`) are resolved, trailing slashes removed: `https://example.com//a/./b/../shop/` → `https://example.com/a/shop`. Case and other percent-encoding are kept as sent (`/Shop` and `/shop`, `/%7Euser` and `/~user` are different sites).
+
+Activations stored before these rules (T-146) keep their stored `site_url`. When a new installation ID activates a site, the server looks for an active activation under the new normal form and under the form the previous rules produced for the same input, so an existing site is replaced rather than counted twice (see below). An installation that activates again with its own ID updates the stored URL to the new form. URLs that are now rejected (non-canonical IPv4 hosts) cannot be activated again; installations already activated with them keep working, because authenticated requests do not send the site URL.
 
 Successful responses use the envelope:
 
@@ -91,9 +105,22 @@ SHA256_OF_RAW_REQUEST_BODY
 
 The server rejects timestamps outside five minutes, repeated nonces, malformed signatures and inactive activations.
 
+Errors of the signed routes (`DELETE /activations/{activation_id}`, `POST /entitlements/check`, `POST /updates/check`) before the route itself runs:
+
+| Status | Code | When |
+| --- | --- | --- |
+| 401 | `invalid_request_signature` | Headers missing or malformed, or the signature does not match |
+| 401 | `request_expired` | Timestamp more than five minutes off |
+| 401 | `activation_not_found`, `installation_secret_invalid` | Installation not active, or its stored credential cannot be read |
+| 409 | `request_replayed` | Nonce already used by this installation in the last ten minutes; sign again with a new nonce |
+| 429 | `rate_limited` | More than 120 requests by this installation within the current minute |
+| 503 | `replay_store_unavailable`, `rate_limit_store_unavailable` | Replay protection or rate limiting could not be recorded; retry later |
+
+Route-specific errors on top: `DELETE /activations/{activation_id}` answers `403 activation_mismatch`, `409 deactivation_failed` and `503 retry_later` (license busy); `POST /entitlements/check` answers `404 license_not_found`; `POST /updates/check` answers `400` for missing arguments, `403 license_inactive` and `503 package_configuration_invalid` or `download_token_error`. `docs/openapi-v1.json` declares all of them.
+
 ## Rate limits behind a proxy or CDN
 
-Anonymous activation attempts are counted per client address (IPv6: per /64) and per license-key prefix (the first 13 characters, stored only as a hash). Exceeding either returns `429 rate_limited`. A request whose address cannot be determined is counted in one shared bucket.
+Failed anonymous activation attempts (unknown key, invalid request) are counted per client address (IPv6: per /64) and per license-key prefix (the first 13 characters, stored only as a hash). Successful activations are not counted. After 30 failures per address or 20 per prefix within a minute, unknown keys and invalid requests are answered `429 rate_limited`, while a recognized key is still accepted; after another 30 (address) or 20 (prefix) requests in the same minute every request returns `429 rate_limited`. The reasoning is in `docs/SECURITY-OPERATIONS.md` (T-142). A request whose address cannot be determined is counted in one shared bucket.
 
 By default the address is `REMOTE_ADDR`. Behind a reverse proxy or CDN that is the proxy, so all customers would share one bucket. Configure the forwarding header in `wp-config.php`:
 

@@ -16,6 +16,7 @@
 #   WPLC_E2E_WP_VERSION  WordPress version         (default: latest)
 #   WPLC_E2E_WC_VERSION  WooCommerce version       (default: 11.2.2)
 #   WPLC_E2E_PORT        local HTTP port           (default: 8765)
+#   WPLC_E2E_SERVER_WORKERS  worker processes of the PHP server (default: 8; flow 11 needs >= 4)
 #   WPLC_E2E_KEEP_DB=1   do not reset the database (re-run flows on the existing state)
 #
 # Needs: bash, php (with mysqli, curl, zip), curl, tar, a mysql/mariadb client, and
@@ -36,6 +37,7 @@ DB_HOST="${WPLC_E2E_DB_HOST:-127.0.0.1}"
 WP_VERSION="${WPLC_E2E_WP_VERSION:-latest}"
 WC_VERSION="${WPLC_E2E_WC_VERSION:-11.2.2}"
 PORT="${WPLC_E2E_PORT:-8765}"
+SERVER_WORKERS="${WPLC_E2E_SERVER_WORKERS:-8}"
 SITE_URL="https://shop.test"
 
 TOOLS="$SITE/.e2e-tools"
@@ -43,6 +45,7 @@ WPCLI="$TOOLS/wp-cli.phar"
 DEBUG_LOG="$SITE/wp-content/debug.log"
 SERVER_LOG="$SITE/.e2e-server.log"
 export WPLC_E2E_PORT="$PORT"
+export WPLC_E2E_SERVER_WORKERS="$SERVER_WORKERS"
 export WPLC_E2E_DEBUG_LOG="$DEBUG_LOG"
 export WPLC_E2E_DIR="$E2E_DIR"
 export COMPOSER_ALLOW_SUPERUSER=1
@@ -174,7 +177,7 @@ cp "$E2E_DIR/mu-plugins/"*.php "$SITE/wp-content/mu-plugins/"
 if command -v fuser >/dev/null 2>&1; then
 	fuser -k "$PORT/tcp" >/dev/null 2>&1 || true
 fi
-PHP_CLI_SERVER_WORKERS=4 php -d memory_limit=1G -S "127.0.0.1:$PORT" -t "$SITE" "$E2E_DIR/router.php" >"$SERVER_LOG" 2>&1 &
+PHP_CLI_SERVER_WORKERS="$SERVER_WORKERS" php -d memory_limit=1G -S "127.0.0.1:$PORT" -t "$SITE" "$E2E_DIR/router.php" >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 trap 'kill "$SERVER_PID" >/dev/null 2>&1 || true' EXIT
 for _ in $(seq 1 50); do
@@ -220,7 +223,8 @@ for flow in "${FLOWS[@]}"; do
 	if [ "$log_after" -gt "$log_before" ]; then
 		new_lines="$(tail -n +"$((log_before + 1))" "$DEBUG_LOG")"
 		# Lines that start a log entry and name plugin code (stack-trace lines of foreign errors do not count).
-		ours="$(printf '%s\n' "$new_lines" | grep -E '^\[' | grep -E 'plugins/wp-license/|WPLC\\|wp-license</code>|wplc' | cut -c1-600 || true)"
+		# The site path itself may contain "wplc" (default: .../wplc-e2e-site), so it is removed before matching.
+		ours="$(printf '%s\n' "$new_lines" | grep -E '^\[' | awk -v site="$SITE" '{ line = $0; while ( ( i = index( line, site ) ) > 0 ) { line = substr( line, 1, i - 1 ) "<site>" substr( line, i + length( site ) ) } print line }' | grep -E 'plugins/wp-license/|WPLC\\|wp-license</code>|wplc' | cut -c1-600 || true)"
 		if [ -n "$ours" ]; then
 			echo "FAIL  [$name] debug.log has new entries from wp-license code:"
 			printf '%s\n' "$ours" | head -20 | sed 's/^/        /'

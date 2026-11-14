@@ -169,18 +169,86 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 		$site    = $this->activate_via_api( $license['key'] );
 		$token   = $this->request_grant( $site );
 
-		add_filter(
-			'wplc_resolve_update_package_url',
-			static function () {
-				return 'https://attacker.example.net/package.zip';
-			}
-		);
+		$resolver = static function () {
+			return 'https://attacker.example.net/package.zip';
+		};
+		add_filter( 'wplc_resolve_update_package_url', $resolver );
 
 		$halt = $this->download( $token );
 		$this->assertSame( array( 'status', 404 ), array( $halt->kind, $halt->status ) );
-		// Documents current behavior: the grant is already burned at this point,
-		// so the client has to run a new update check after the resolver is fixed.
+		// T-142: the target is validated before the grant is consumed.
+		$grant = $this->grant( $token );
+		$this->assertNull( $grant['consumed_at'] );
+		$this->assertSame( $this->package_url(), $grant['package_url'] );
+
+		// Once the storage hook is fixed, the same grant works exactly once.
+		remove_filter( 'wplc_resolve_update_package_url', $resolver );
+		$fixed = $this->download( $token );
+		$this->assertSame( array( 'redirect', $this->package_url() ), array( $fixed->kind, $fixed->location ) );
 		$this->assertNotNull( $this->grant( $token )['consumed_at'] );
+		$second = $this->download( $token );
+		$this->assertSame( array( 'status', 404 ), array( $second->kind, $second->status ) );
+	}
+
+	public function test_storage_resolver_returning_a_non_string_keeps_the_grant(): void {
+		$license = $this->seed_license();
+		$site    = $this->activate_via_api( $license['key'] );
+		$token   = $this->request_grant( $site );
+
+		add_filter( 'wplc_resolve_update_package_url', '__return_false' );
+
+		$halt = $this->download( $token );
+		$this->assertSame( array( 'status', 404 ), array( $halt->kind, $halt->status ) );
+		$this->assertNull( $this->grant( $token )['consumed_at'] );
+	}
+
+	public function test_customer_download_with_an_untrusted_resolved_url_uses_no_download_allowance(): void {
+		global $wpdb;
+		$tables   = $this->tables();
+		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
+		$license  = $this->seed_license( array( 'customer_id' => $customer ) );
+		$now      = gmdate( 'Y-m-d H:i:s' );
+		$wpdb->insert(
+			$tables['releases'],
+			array(
+				'product_key'   => 'test-product',
+				'version'       => '2.0.0',
+				'channel'       => 'stable',
+				'package_url'   => $this->package_url(),
+				'storage'       => 'url',
+				'sha256'        => str_repeat( 'cd', 32 ),
+				'release_notes' => '',
+				'status'        => 'published',
+				'published_at'  => $now,
+				'created_at'    => $now,
+				'updated_at'    => $now,
+			)
+		);
+		wp_set_current_user( $customer );
+		$_SERVER['REQUEST_METHOD'] = 'POST';
+		add_filter(
+			'wplc_customer_download_hourly_limit',
+			static function () {
+				return 1;
+			}
+		);
+		$post = array(
+			'license_id' => $license['id'],
+			'_wpnonce'   => wp_create_nonce( \WPLC\Update\CustomerDownload::nonce_action( $license['id'] ) ),
+		);
+
+		$resolver = static function () {
+			return 'https://attacker.example.net/package.zip';
+		};
+		add_filter( 'wplc_resolve_update_package_url', $resolver );
+		$refused = $this->run_admin_post( \WPLC\Update\CustomerDownload::ACTION, $post );
+		$this->assertSame( array( 'die', 503 ), array( $refused['outcome'], $refused['status'] ) );
+		$this->assertSame( '0', (string) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['package_streams']} WHERE license_id = %d", $license['id'] ) ) );
+
+		// With the hook fixed, the only download allowed this hour still works.
+		remove_filter( 'wplc_resolve_update_package_url', $resolver );
+		$served = $this->run_admin_post( \WPLC\Update\CustomerDownload::ACTION, $post );
+		$this->assertSame( array( 'redirect', $this->package_url() ), array( $served['outcome'], $served['location'] ) );
 	}
 
 	public function test_expired_and_consumed_grants_are_purged_after_the_retention_period(): void {

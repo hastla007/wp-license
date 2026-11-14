@@ -10,6 +10,7 @@ namespace WPLC\Account;
 use WPLC\Admin\Format;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
+use WPLC\License\AuditReason;
 use WPLC\License\LicenseKey;
 use WPLC\License\LicenseLifecycle;
 
@@ -287,6 +288,32 @@ final class CustomerPortal {
 	}
 
 	/**
+	 * Heading of a license: the name of the product the customer bought.
+	 *
+	 * The plan key is an internal identifier and is never shown to customers.
+	 * The WooCommerce product (for a variation, its name with the chosen plan)
+	 * is what the customer recognizes from the shop and the order.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param string              $product_name Catalog product name, used when the shop product is gone.
+	 * @return string
+	 */
+	private static function license_title( array $license, string $product_name ): string {
+		$product_id = (int) ( $license['renewal_product_id'] ?? 0 );
+		if ( $product_id > 0 && function_exists( 'wc_get_product' ) ) {
+			$product = wc_get_product( $product_id );
+			if ( $product instanceof \WC_Product ) {
+				$title = trim( wp_strip_all_tags( (string) $product->get_name() ) );
+				if ( '' !== $title ) {
+					return $title;
+				}
+			}
+		}
+
+		return $product_name;
+	}
+
+	/**
 	 * Render one license.
 	 *
 	 * @param array<string,mixed> $license License row.
@@ -316,7 +343,7 @@ final class CustomerPortal {
 		$key_id = 'wplc-key-' . $license_id;
 
 		echo '<section class="wplc-license" aria-labelledby="wplc-license-title-' . esc_attr( (string) $license_id ) . '">';
-		echo '<h3 id="wplc-license-title-' . esc_attr( (string) $license_id ) . '">' . esc_html( $name . ' — ' . (string) $license['plan_key'] ) . '</h3>';
+		echo '<h3 id="wplc-license-title-' . esc_attr( (string) $license_id ) . '">' . esc_html( self::license_title( $license, $name ) ) . '</h3>';
 		echo '<p><strong>' . esc_html__( 'Status:', 'wp-license' ) . '</strong> ' . esc_html( Format::license_status_label( $status ) ) . '</p>';
 
 		if ( '' !== $key ) {
@@ -576,7 +603,7 @@ final class CustomerPortal {
 		$manager = '\\WPLC\\License\\ActivationManager';
 		if ( class_exists( $manager ) && method_exists( $manager, 'deactivate' ) ) {
 			// Shared implementation: also deactivates staging children and writes the audit entries.
-			$deactivated = (bool) call_user_func( array( $manager, 'deactivate' ), $activation_id, 'Deactivated by license owner', get_current_user_id() );
+			$deactivated = (bool) call_user_func( array( $manager, 'deactivate' ), $activation_id, AuditReason::DEACTIVATED_BY_OWNER, get_current_user_id() );
 			self::finish( $deactivated ? 'site_deactivated' : 'site_failed' );
 		}
 
@@ -596,7 +623,7 @@ final class CustomerPortal {
 				'site_deactivated',
 				'activation',
 				$activation_id,
-				'Deactivated by license owner',
+				AuditReason::DEACTIVATED_BY_OWNER,
 				array( 'status' => 'active', 'site_url' => $row['site_url'] ),
 				array( 'status' => 'deactivated' ),
 				get_current_user_id()
@@ -639,7 +666,7 @@ final class CustomerPortal {
 			self::finish( 'license_not_found' );
 		}
 
-		$scheduled = LicenseLifecycle::schedule_cancellation( $license_id, 'Customer requested cancellation', get_current_user_id() );
+		$scheduled = LicenseLifecycle::schedule_cancellation( $license_id, AuditReason::CANCELLATION_REQUESTED, get_current_user_id() );
 		self::finish( $scheduled ? 'cancel_scheduled' : 'cancel_failed' );
 	}
 

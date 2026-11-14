@@ -1,11 +1,11 @@
 # WP License Captain — To-do-Liste
 
-Stand: 13.11.2026, nach der Zusammenführung aller Arbeitspakete auf `main`. Dies ist die einzige Aufgabenliste des Lizenzservers. Die Aufgaben der drei Produkt-Plugins (Kern-Plugin und Premium-Add-on) stehen in deren eigenen `TODO.md`.
+Stand: 14.11.2026, Branch `claude/zen-babbage-7q4nac` (20 Aufgaben abgeschlossen, siehe Abschnitt 6 „Abgeschlossen am 14.11.2026“). Dies ist die einzige Aufgabenliste des Lizenzservers. Die Aufgaben der drei Produkt-Plugins (Kern-Plugin und Premium-Add-on) stehen in deren eigenen `TODO.md`.
 
 **Regeln**
 
 - Ein Haken bedeutet: umgesetzt **und** belegt. Der Beleg steht dabei.
-- Belegarten: *Unit* (PHPUnit ohne WordPress), *Integration* (WordPress + WooCommerce + MySQL, 4 Kombinationen in CI), *E2E* (Durchlauf in einer echten WordPress/WooCommerce-Installation, `tests/e2e/`, 542 Prüfungen), *Quelltext* (gegen den Quellcode von WooCommerce oder des Stripe-Plugins gelesen, nicht ausgeführt).
+- Belegarten: *Unit* (PHPUnit ohne WordPress), *Integration* (WordPress + WooCommerce + MySQL, 4 Kombinationen in CI, 181 Tests), *E2E* (Durchlauf in einer echten WordPress/WooCommerce-Installation, `tests/e2e/`, 684 Prüfungen, seit 14.11. auch als CI-Job), *Quelltext* (gegen den Quellcode von WooCommerce oder des Stripe-Plugins gelesen, nicht ausgeführt).
 - Was nur per *Quelltext* belegt ist, gilt als offen, bis es im Browser oder gegen Stripe gelaufen ist.
 - Kritikalität: **[KRITISCH]** blockiert den ersten echten Verkauf, **[WICHTIG]** blockiert den öffentlichen Launch, **[OPTIMIERUNG]** kann danach folgen.
 - Nummern bleiben stabil; erledigte Nummern stehen in Abschnitt 6.
@@ -19,41 +19,24 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
   - T-51: Ereignis `charge.dispute.created` im Stripe-Dashboard aktivieren; Streitfall sperrt die Lizenz.
   - T-58: Adapter gegen Stripe-Plugin 9.6 bis 11.2 gelesen; die Karte der Bestellung wird über `_stripe_source_id` gefunden.
   - T-133: Im Modus „Checkout Sessions / Adaptive Pricing“ des Stripe-Plugins speichert der Filter die Karte möglicherweise nicht.
-- [ ] **T-130 [KRITISCH] Browser-Abnahme.** Noch niemand hat das Plugin auf dem Bildschirm gesehen. Prüfen: Block-Checkout mit Opt-in (T-14, nur *Quelltext*), klassischer Checkout, Produkteditor mit Rechte-Auswahl und Varianten (JavaScript ungeprüft), Kundenkonto mit Kopieren-Button und Bestätigungen, Adminliste, Detailseite, Einstellungen, Releases, die deutschen Texte, die sechs E-Mails in einem Mailprogramm.
-- [ ] **T-131 [KRITISCH] Produkt-Add-ons.** Kein Produkt-Plugin spricht bisher mit dem Server. Die Aufgaben stehen in den `TODO.md` von `wp-couponmaster`, `wp-passmaster` und `wpaffiliatemaster` (Abschnitt „Premium-Add-on“, B1 bis B11). Ersetzt die früheren T-40 und T-41.
+- [ ] **T-130 [KRITISCH] Browser-Abnahme.** Noch niemand hat das Plugin auf dem Bildschirm gesehen. Prüfen: Block-Checkout mit Opt-in (T-14, nur *Quelltext*), klassischer Checkout, Produkteditor mit Rechte-Auswahl und Varianten (JavaScript ungeprüft), Kundenkonto mit Kopieren-Button und Bestätigungen, Adminliste, Detailseite, Einstellungen, Releases, die deutschen Texte, die sechs E-Mails in einem Mailprogramm. *Vorbereitet am 14.11.:* Screenshots aller Seiten und Mails auf Englisch und Deutsch mit Chromium; dabei drei Fehler gefunden und behoben (Opt-in bei Überweisung sichtbar, interner Tarifschlüssel in Mails, Umbrüche in der Lizenzliste). Nicht prüfbar waren Block-Checkout und WooCommerce-Oberflächen (Testumgebung ohne gebaute WooCommerce-Skripte) und die deutschen Texte von WordPress und WooCommerce selbst. Offen bleibt die Abnahme durch einen Menschen.
+- [ ] **T-131 [KRITISCH] Produkt-Add-ons.** Kein Produkt-Plugin spricht bisher mit dem Server. Die Aufgaben stehen in den `TODO.md` von `wp-couponmaster`, `wp-passmaster` und `wpaffiliatemaster` (Abschnitt „Premium-Add-on“, B1 bis B11). Ersetzt die früheren T-40 und T-41. Jedes Add-on muss den öffentlichen Signaturschlüssel des Servers an `LicenseClient` übergeben (T-134, `docs/CLIENT-INTEGRATION.md`).
 
 ## 2. Kritisch: vor dem ersten echten Verkauf
 
 - [ ] **T-42 [KRITISCH] Echter Katalog.** Produkte, Tarife und Rechte pro Tarif im Shop zuordnen und abnehmen. Die Produktschlüssel müssen zu den Add-ons passen.
-- [ ] **T-132 [KRITISCH] Verlängerungspreis bei Varianten.** Ist ein variables Produkt nur auf dem Hauptprodukt zugeordnet, speichert der Tarif den niedrigsten Variantenpreis. Im E2E-Lauf wurde eine für 79,00 gekaufte Variante mit 59,00 verlängert. Regel festlegen: Zuordnung pro Variante erzwingen oder den Preis der gekauften Variante an der Lizenz speichern.
-- [ ] **T-134 [KRITISCH] Server-Signatur im Client prüfen.** Der Server liefert jetzt zusätzlich `signature_ed25519` und `key_id` (zusammengeführt aus dem Branch `claude/youthful-bardeen-7ejd7a`). Der mitgelieferte `LicenseClient` prüft sie noch nicht. Im Add-on den öffentlichen Schlüssel fest hinterlegen (`wp wplc signing-key --field=public_key`) und Antworten sowie den Offline-Cache ohne gültige Signatur ablehnen. Produktiv den Schlüssel über `WPLC_RESPONSE_SIGNING_KEY` setzen.
-- [ ] **T-22 [KRITISCH] Echte Parallelität.** Replay, Sperren, Einmal-Tokens und Statuswechsel sind nur nacheinander getestet (*Integration*). Mit gleichzeitigen Anfragen gegen MySQL prüfen.
 - [ ] **T-90 [KRITISCH] Produktivserver.** HTTPS, Schlüssel als Konstanten in `wp-config.php`, Backups, erprobte Wiederherstellung, eine einzelne schreibende Datenbankinstanz (siehe `docs/CONCEPT-CHECKOUT-RENEWAL.md`, Datenbank-Voraussetzungen).
-- [ ] **T-135 [KRITISCH] Paketablage auf nginx.** Lokal gespeicherte ZIPs sind per `.htaccess` geschützt; auf nginx schützt nur der zufällige Dateiname. Entweder die Ablage außerhalb des Webroots legen (`wplc_package_storage_dir`) oder eine nginx-Regel dokumentieren und prüfen.
 
 ## 3. Wichtig: vor dem öffentlichen Launch
 
 ### Fehler und Lücken im Code
 
-- [ ] **T-136 [WICHTIG]** Bei unklarem Zahlungsergebnis (`renewal_result_unknown`) wird die Lizenz auf „Zahlung überfällig“ gesetzt und die Mail „Zahlung fehlgeschlagen“ verschickt, obwohl die Abbuchung gelungen sein kann.
-- [ ] **T-50 [WICHTIG]** Teilerstattung einer Verlängerungsbestellung ändert nichts an der Lizenz. Die Vollerstattung ist umgesetzt, aber nicht in einem Test belegt.
-- [ ] **T-137 [WICHTIG]** Eine bezahlte manuelle Verlängerung, die außerhalb des Zeitfensters eingeht (späte Überweisung), wird nur per Bestellnotiz vermerkt. Es fehlen Adminliste und Erstattungsweg.
-- [ ] **T-138 [WICHTIG]** Etwa 30 Begründungstexte im Audit-Verlauf sind fest auf Englisch und erscheinen so im Admin (`RenewalProcessor`, `ManualRenewal`, `LicenseLifecycle`, `ActivationManager`, `CustomerPortal`). Ebenso die Stripe-Zahlungsbeschreibung auf dem Kundenbeleg (`StripeRecurringAdapter.php`).
-- [ ] **T-139 [WICHTIG]** Weitere Übersetzungsfehler: „1 live sites“ ohne Mehrzahlform (`LicenseDetail.php`), „Release“ als Verb und Substantiv ohne Kontext, interner Tarifschlüssel in der Überschrift des Kundenkontos, Aktivierungsfehler erscheinen vor dem Laden der Übersetzung auf Englisch.
-- [ ] **T-140 [WICHTIG]** Die Einstellung „Absenderhinweis“ wird gespeichert, aber in keiner Mail ausgegeben.
-- [ ] **T-141 [WICHTIG]** Ein in die Adminsuche eingefügter vollständiger Lizenzschlüssel bleibt in der URL, in Sortierlinks, im Verlauf und in Zugriffslogs. Suche per POST umstellen.
-- [ ] **T-142 [WICHTIG]** Das Aktivierungs-Limit pro Adresse greift vor der Schlüsselprüfung; ein gültiger Schlüssel wird mitgesperrt. Liefert der Speicher-Hook eine nicht erlaubte URL, ist das Download-Token trotzdem verbraucht.
-- [ ] **T-143 [WICHTIG]** Die Kennzahl `overdue_renewals` zählt auch den Normalzustand zwischen letztem Wiederholungsversuch und Kulanzende und löst täglich Alarm aus. Einstellungsänderungen und CSV-Importe schreiben keinen Audit-Eintrag.
-- [ ] **T-144 [WICHTIG]** Die Tabelle `wplc_reminder_log` legt sich selbst an und ist dem Schema nicht bekannt. In `Schema` übernehmen.
-- [ ] **T-145 [WICHTIG]** API-Spezifikation: die Antworten 409, 429 und 503 der signierten Routen sind nicht deklariert. Drei Integrationstests sind deshalb als unvollständig markiert.
-- [ ] **T-146 [WICHTIG]** `SiteUrl`: IP-Schreibweisen wie `0x7f.1` oder `192.168.001.010` und nicht normalisierte Pfade werden akzeptiert; ohne die PHP-Erweiterung `intl` werden alle Umlaut-Domains abgelehnt. Regeln festlegen (alt T-87, Verhalten ist in Tests festgehalten).
+- [ ] **T-155 [WICHTIG]** `payment_intent.payment_failed` per Webhook löst eine Verlängerung im Status `reconciling` nicht auf; dazu fehlt eine Versuchsnummer in den Metadaten des PaymentIntent. Heute klärt der stündliche Abgleich mit demselben Idempotency-Key den Fall.
 - [ ] **T-61 [WICHTIG]** Multisite: Mindestverhalten umgesetzt (`docs/MULTISITE.md`), auf einem Netzwerk nie ausgeführt.
-- [ ] **T-92 [WICHTIG]** Datenbereinigung: Fristen per *Unit* belegt, die Löschabfragen sind nie gegen eine Datenbank gelaufen.
 
 ### Tests und Betrieb
 
-- [ ] **T-147 [WICHTIG]** Den E2E-Lauf (`tests/e2e/bin/run-e2e.sh`, etwa vier Minuten) als CI-Job aufnehmen. Anleitung steht in `tests/e2e/README.md`.
-- [ ] **T-148 [WICHTIG]** Zweimal schlug ein einzelner Integrationstest lokal einmalig fehl, als zwei Testläufe denselben Datenbankserver nutzten. Die serverweiten Sperrnamen sind inzwischen pro Site eindeutig; beobachten, ob es in CI wieder auftritt.
+- [ ] **T-148 [WICHTIG]** Zweimal schlug ein einzelner Integrationstest lokal einmalig fehl, als zwei Testläufe denselben Datenbankserver nutzten. Die serverweiten Sperrnamen sind inzwischen pro Site eindeutig; beobachten, ob es in CI wieder auftritt. Am 14.11. traten ähnliche Zufallsfehler nur auf, solange parallele Testläufe versehentlich dieselbe Datenbank nutzten; mit getrennten Datenbanken waren alle Läufe stabil.
 - [ ] **T-95 [WICHTIG]** Release-Workflow (`.github/workflows/release.yml`) ist geschrieben und nie gelaufen. Mit einem Test-Tag ausführen und das ZIP auf einer leeren Installation prüfen.
 - [ ] **T-86 [WICHTIG]** Schlüsselrotation und Key-ID-Wiederherstellung (WP-CLI) an einer Datenbankkopie mit Backup und Restore abnehmen.
 - [ ] **T-89 [WICHTIG]** Lasttest mit realistischen Mengen; Abfragepläne der Listen prüfen.
@@ -73,6 +56,7 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 - [ ] **T-102 [OPTIMIERUNG]** Adminliste: Bulk-Aktionen und Filter nach Bestellung oder Verlängerung.
 - [ ] **T-150 [OPTIMIERUNG]** Die Bezeichnungen der Produktfunktionen im Rechtekatalog liegen in der Textdomain dieses Plugins und müssen hier mitübersetzt werden. In die Add-ons verlagern.
 - [ ] **T-151 [OPTIMIERUNG]** WP-CLI-Ausgaben und Logmeldungen sind englisch.
+- [ ] **T-156 [OPTIMIERUNG]** Systemweite Audit-Einträge (Einstellungen, CSV-Import, Schlüsselrotation; Objekt-ID 0) erscheinen auf keiner Adminseite.
 
 ## 5. Entscheidungen
 
@@ -83,6 +67,30 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 - [ ] **T-122** Zahlungsereignisse: Adapter-Ergebnis und Webhook werden beide ausgewertet; der Webhook ist der Abgleich. Zuständigkeit schriftlich bestätigen.
 
 ## 6. Erledigt
+
+### Abgeschlossen am 14.11.2026
+
+Belege: *Unit* 489 Tests, *Integration* 181 Tests (HPOS und klassische Bestellspeicherung, MariaDB 10.11, WordPress 7.1.4, WooCommerce 11.2.2), *E2E* 684 Prüfungen, blockierendes PHPCS ohne neue Befunde, PHPStan Stufe 5 ohne neue Befunde. Alle 12 CI-Jobs auf GitHub grün (PR #40, Commit 92dcb5c).
+
+- [x] **T-132** Verlängerungspreis der gekauften Variante wird an der Lizenz gespeichert (`renewal_product_id`, Migration 13). Automatische Verlängerung belastet den zugestimmten Betrag; manuelle Verlängerung nutzt den aktuellen regulären Preis der gekauften Variante. *Integration, E2E (79,00 statt 59,00).* Offen bleibt nur die Frage, ob Altlizenzen nachkorrigiert werden; vor dem ersten Verkauf gegenstandslos.
+- [x] **T-134** `LicenseClient` prüft die Ed25519-Signatur gegen fest hinterlegte öffentliche Schlüssel (mehrere während einer Rotation), auch für den Offline-Cache (`check_entitlements_envelope()`, `verify_cached_envelope()`). *Unit: gefälschte Antwort mit gültigem HMAC wird abgelehnt.* Die Add-ons müssen den Schlüssel einbauen (T-131).
+- [x] **T-135** Paketablage außerhalb des Webroots per `WPLC_PACKAGE_STORAGE_DIR`; Selbsttest auf öffentliche Abrufbarkeit in Diagnose und Releases; nginx-Regel dokumentiert. *Unit, E2E.*
+- [x] **T-136** Unklares Zahlungsergebnis: Lizenz bleibt unverändert, keine Fehlermail, Status `reconciling`, stündlicher Abgleich mit demselben Idempotency-Key, nach 12 Stunden `review_required` mit Alarm. *Unit, Integration (12 Tests), E2E.* Folgeaufgaben T-154, T-155.
+- [x] **T-50** Teilerstattung einer Verlängerung: Laufzeit bleibt, Audit-Eintrag und Bestellnotiz; Vollerstattung (auch schrittweise) setzt die Verlängerung zurück. *Integration.*
+- [x] **T-138** Audit-Begründungen als Codes gespeichert und bei der Anzeige übersetzt (`AuditReason`); Stripe-Zahlungsbeschreibung übersetzbar. *Unit.*
+- [x] **T-139** Pluralform „Live-Website(s)“, „Release“ mit Kontext, Produktname statt Tarifschlüssel im Kundenkonto, Textdomain vor der Aktivierung geladen. 83 neue Texte in `de_DE` und `de_DE_formal`. *Geprüft mit WordPress (Plural- und Kontextsuche); nicht auf dem Bildschirm, siehe T-130.*
+- [x] **T-140** Absenderhinweis in allen sechs E-Mails (HTML und Text). *Unit.*
+- [x] **T-141** Adminsuche per POST; die URL trägt nur ein zufälliges Token, ein voller Schlüssel wird nur als Hash gespeichert. *Unit, Integration, E2E.*
+- [x] **T-142** Aktivierungs-Limit zählt nur Fehlversuche; ein gültiger Schlüssel kommt durch, mit Obergrenze gegen Ausprobieren. Ein abgelehnter Speicherort verbraucht das Download-Token nicht mehr. *Unit, Integration.*
+- [x] **T-143** `overdue_renewals` zählt nur hängende Verlängerungen; Einstellungsänderungen und CSV-Importe schreiben Audit-Einträge. *Unit, Integration.*
+- [x] **T-144** `wplc_reminder_log` im Schema (Migration 12). *Unit, Integration, E2E (Upgrade).*
+- [x] **T-145** API-Spezifikation deklariert 409, 429 und 503; die drei unvollständigen Integrationstests prüfen jetzt hart. *Integration.*
+- [x] **T-146** `SiteUrl`: nicht kanonische IPv4-Schreibweisen abgelehnt, Pfade normalisiert, Umlaut-Domains auch ohne `intl` (gegen `idn_to_ascii` über alle BMP-Zeichen geprüft); bestehende Aktivierungen werden weiter erkannt. *Unit, Integration.*
+- [x] **T-154, T-137** Adminseite „Zu prüfende Verlängerungen“ mit Zähler im Menü: unklares Zahlungsergebnis, bezahlt aber Lizenz während der Zahlung geändert, verspätete oder nicht anwendbare manuelle Zahlung. Aktionen „Verlängerung buchen“, „Als nicht bezahlt markieren“, „Ohne Buchung abschließen“, jeweils mit Pflichtbegründung, Sperre und Audit-Eintrag; Doppelklick ändert nichts. Solange ein Fall offen ist, läuft die Lizenz höchstens 30 Tage länger nicht ab (Zugang endet trotzdem mit der Kulanzzeit). Schema 14. *Unit, Integration (11 Tests), E2E.* Bekannte Lücke: Eine gesperrte Lizenz mit abgelaufenem Zeitraum lässt sich nicht reaktivieren, ihr Fall nur schließen.
+- [x] **T-22** Echte Parallelität gegen MariaDB: neuer E2E-Ablauf `11-concurrency` mit 8 Server-Prozessen und Startschranke (Nonce-Replay, Site-Limit, Einmal-Download, Statuswechsel während einer Abbuchung, doppelt laufende Verlängerung, mehrfach bezahlte manuelle Verlängerung, parallele Bestell-Hooks; je 28 Runden). Vier Fehler gefunden und behoben: (1) Lizenz während der Abbuchung gesperrt/erstattet/abgelaufen → Verlängerung bezahlt, Lizenz nicht verlängert; jetzt `review_required` mit Alarm. (2) Kündigung während der Abbuchung ging verloren. (3) Statuswechsel ohne Sperre; jetzt eine Sperre pro Lizenz, Reihenfolge Verlängerung → Lizenz. (4) Parallele Bestell-Hooks erzeugten Datenbankfehler und unvollständige Lizenzlisten. *E2E, Integration (6 Regressionstests).* Nicht abgedeckt: parallele Stripe-Webhooks (T-12).
+- [x] **T-157** PHPStan: der erste CI-Lauf fand 13 Befunde und einen Test, der nur mit gebautem WooCommerce scheiterte; behoben, CI grün.
+- [x] **T-92** Löschabfragen der Datenbereinigung gegen die Datenbank. *Integration.*
+- [x] **T-147** E2E-Lauf als CI-Job (`.github/workflows/e2e.yml`). Dabei behoben: Der Pfad `wplc-e2e-site` wurde dem Plugin zugeschrieben, jede fremde Warnung ließ den Lauf scheitern. *Lokal mit MariaDB und auf GitHub mit MySQL 8.0 grün (PR #40, Commit 92dcb5c).*
 
 ### Entscheidungen
 

@@ -15,13 +15,18 @@ Copy the file into the product plugin under the product's own namespace. Its err
 ## Constructor
 
 ```php
-new LicenseClient( string $server_url, string $product_key, string $product_version, string $option_key )
+new LicenseClient( string $server_url, string $product_key, string $product_version, string $option_key, string|array $server_public_keys = array() )
 ```
 
 - `$server_url`: site URL of the license server. Must be `https`, without credentials, query or fragment; otherwise every call returns `wplc_configuration_invalid` or fails.
 - `$product_key`: the stable product key from the server catalog, for example `affiliate-captain`.
 - `$product_version`: installed version of the product plugin.
 - `$option_key`: name of the option that holds this product's credentials. Use one per product.
+- `$server_public_keys`: the license server's Ed25519 public key(s), base64, as printed by `wp wplc signing-key --field=public_key`. **Embed it in every add-on build.** With a pinned key the client rejects every response (`wplc_server_signature_invalid`) that does not carry a valid `signature_ed25519` of the server for this installation. Without it, anybody who can read the installation secret from the site's options can forge entitlement data, because the HMAC uses that secret. During a key rotation, ship the old and the new key, then drop the old one. In production set the server key with `WPLC_RESPONSE_SIGNING_KEY` in `wp-config.php` so it does not change with the database.
+
+### Offline cache
+
+Never cache only the decoded data. Use `check_entitlements_envelope()`, store the returned `envelope` unchanged, and call `verify_cached_envelope( $envelope )` before every use of the cache. With pinned keys a cache that was not signed by the server for this installation is rejected. Check the age of the cached data (`issued_at`) yourself.
 
 ## Methods
 
@@ -33,6 +38,10 @@ All methods return the verified data array or a `WP_Error`.
 | `check_entitlements()` | Current license status and feature rights |
 | `check_update()` | Ask for a newer version |
 | `deactivate()` | Release this site's activation and delete the stored credentials |
+| `check_entitlements_envelope()` | Like `check_entitlements()`, returns `array( 'data' => …, 'envelope' => … )` for an offline cache |
+| `verify_cached_envelope( array $envelope )` | Re-verify a cached envelope (HMAC and, with pinned keys, the server signature) |
+| `requires_server_signature()` | Whether server keys are pinned |
+| `LicenseClient::verified_server_data( array $envelope, string $installation_id, array $public_keys )` | Static, pure check of the server's Ed25519 signature; returns the data or `wplc_server_signature_invalid` |
 | `LicenseClient::verified_data( array $envelope, string $secret, string $expected_nonce = '', bool $require_payload = false )` | Static, pure verification of a response envelope (used internally; useful in tests) |
 
 ### `activate()`

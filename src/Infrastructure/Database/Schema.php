@@ -21,8 +21,19 @@ final class Schema {
 	 *
 	 * 11: renewals.status widened to 30 characters ("manual_action_required" has 22;
 	 *     WordPress refuses to write a value longer than the column).
+	 * 12: reminder_log adopted from ReminderLog, which created it on first use
+	 *     (same name, columns and keys; the old version option is removed).
+	 * 13: licenses.renewal_product_id, the purchased WooCommerce product or
+	 *     variation whose regular price renews the license (T-132).
+	 * 14: renewals.review_reason and renewals.review_at, the reason and start of
+	 *     an open review case (T-154, T-137); existing cases are backfilled.
 	 */
-	public const VERSION = '11';
+	public const VERSION = '14';
+
+	/**
+	 * Option in which ReminderLog recorded its self-installed table (up to schema 11).
+	 */
+	public const LEGACY_REMINDER_LOG_VERSION_OPTION = 'wplc_reminder_log_version';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -41,10 +52,15 @@ final class Schema {
 	 * partial failure or on a fresh install with empty tables) and returns true
 	 * on success. Add new steps here together with a VERSION bump.
 	 *
-	 * @var array<string,array{0:string,1:string}>
+	 * Keys are integers at runtime (PHP casts numeric string keys).
+	 *
+	 * @var array<int,array{0:class-string,1:string}>
 	 */
 	private static $steps = array(
 		'10' => array( self::class, 'step_10_autoload_schema_version' ),
+		'12' => array( self::class, 'step_12_adopt_reminder_log' ),
+		'13' => array( self::class, 'step_13_renewal_product_column' ),
+		'14' => array( self::class, 'step_14_renewal_review_columns' ),
 	);
 
 	/**
@@ -108,7 +124,7 @@ final class Schema {
 	 *
 	 * @param string   $installed Installed schema version.
 	 * @param string   $target Target schema version.
-	 * @param string[] $step_versions Versions that have a registered step.
+	 * @param array<int|string> $step_versions Versions that have a registered step.
 	 * @return string[]
 	 */
 	public static function pending_step_versions( string $installed, string $target, array $step_versions ): array {
@@ -250,6 +266,7 @@ final class Schema {
 				renewal_amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				renewal_currency_decimals tinyint(3) unsigned NOT NULL DEFAULT 2,
 				renewal_currency char(3) NOT NULL DEFAULT 'EUR',
+				renewal_product_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				cancel_at_period_end tinyint(1) NOT NULL DEFAULT 0,
 				revoked_at datetime DEFAULT NULL,
 				billing_interval varchar(10) NOT NULL DEFAULT 'year',
@@ -315,6 +332,8 @@ final class Schema {
 				retry_at datetime DEFAULT NULL,
 				grace_ends_at datetime DEFAULT NULL,
 				attempt_count smallint(5) unsigned NOT NULL DEFAULT 0,
+				review_reason varchar(255) NOT NULL DEFAULT '',
+				review_at datetime DEFAULT NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
@@ -417,6 +436,18 @@ final class Schema {
 				KEY license_source_created (license_id,source,created_at),
 				KEY stream_expiry (expires_at)
 			) {$charset_collate};",
+			// Created by ReminderLog itself up to schema 11 with exactly this layout,
+			// so dbDelta leaves an existing table and its rows unchanged.
+			"CREATE TABLE {$tables['reminder_log']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				license_id bigint(20) unsigned NOT NULL,
+				reminder_type varchar(40) NOT NULL,
+				period_end datetime NOT NULL,
+				sent_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY license_reminder (license_id,reminder_type,period_end),
+				KEY sent_at (sent_at)
+			) {$charset_collate};",
 		);
 
 		foreach ( $sql as $statement ) {
@@ -490,6 +521,7 @@ final class Schema {
 			'audit_log'    => $prefix . 'audit_log',
 			'releases'     => $prefix . 'releases',
 			'package_streams' => $prefix . 'package_streams',
+			'reminder_log' => $prefix . 'reminder_log',
 		);
 	}
 
@@ -515,7 +547,7 @@ final class Schema {
 	 *
 	 * @return bool
 	 */
-	private static function step_10_autoload_schema_version(): bool {
+	private static function step_10_autoload_schema_version(): bool { // @phpstan-ignore method.unused (called through self::$steps)
 		if ( false === get_option( self::VERSION_OPTION, false ) || self::version_is_autoloaded() ) {
 			// Fresh install (store_version() creates the row autoloaded) or already migrated.
 			return true;
@@ -526,6 +558,104 @@ final class Schema {
 
 		// Not fatal when the flag could not be changed: the value is rewritten with autoload right after.
 		return true;
+	}
+
+	/**
+	 * Schema 12: the reminder log belongs to the schema.
+	 *
+	 * dbDelta has already created the table or found the one ReminderLog
+	 * installed earlier (identical layout, rows are kept). Only the separate
+	 * version option of the old installer is left to remove.
+	 *
+	 * @return bool
+	 */
+	private static function step_12_adopt_reminder_log(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		delete_option( self::LEGACY_REMINDER_LOG_VERSION_OPTION );
+
+		return true;
+	}
+
+	/**
+	 * Schema 13: confirm that dbDelta added licenses.renewal_product_id.
+	 *
+	 * dbDelta reports no errors, so a column it could not add would only show
+	 * up as failing license inserts. Existing licenses keep the value 0: their
+	 * renewal price is resolved through the source order item at renewal time
+	 * (see RenewalOrder::price()). The stored renewal amounts are not changed.
+	 *
+	 * @return bool
+	 */
+	private static function step_13_renewal_product_column(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		global $wpdb;
+
+		$tables = self::table_names();
+		$exists = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+				$tables['licenses'],
+				'renewal_product_id'
+			)
+		);
+
+		return 1 === (int) $exists;
+	}
+
+	/**
+	 * Schema 14: reason and start of open review cases (T-154, T-137).
+	 *
+	 * dbDelta adds the columns. Existing `review_required` rows get the reason
+	 * and time of their latest `renewal_review_required` audit entry (else the
+	 * row's last change). Paid manual renewals that were rejected before this
+	 * version (audit `manual_renewal_rejected`; until now only an order note)
+	 * become review cases as well, unless their period was paid, refunded or
+	 * is already in review. Idempotent: only rows without `review_at` change.
+	 *
+	 * @return bool
+	 */
+	private static function step_14_renewal_review_columns(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		global $wpdb;
+
+		$tables = self::table_names();
+		$count  = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name IN (%s, %s)',
+				$tables['renewals'],
+				'review_reason',
+				'review_at'
+			)
+		);
+		if ( 2 !== $count ) {
+			return false;
+		}
+
+		$renewals = $tables['renewals'];
+		$audit    = $tables['audit_log'];
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names from table_names(), values prepared.
+		$open = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$renewals} r LEFT JOIN {$audit} a ON a.id = ( SELECT MAX(a2.id) FROM {$audit} a2 WHERE a2.object_type = %s AND a2.object_id = r.id AND a2.action = %s )"
+				. " SET r.review_reason = COALESCE( LEFT( a.reason, 255 ), '' ), r.review_at = COALESCE( a.created_at, r.updated_at ) WHERE r.status = %s AND r.review_at IS NULL",
+				'renewal',
+				'renewal_review_required',
+				'review_required'
+			)
+		);
+		$rejected = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$renewals} r JOIN {$audit} a ON a.id = ( SELECT MAX(a2.id) FROM {$audit} a2 WHERE a2.object_type = %s AND a2.object_id = r.id AND a2.action = %s )"
+				. ' SET r.review_reason = LEFT( a.reason, 255 ), r.review_at = a.created_at, r.retry_at = NULL, r.status = %s WHERE r.status NOT IN (%s, %s, %s, %s) AND r.review_at IS NULL',
+				'renewal',
+				'manual_renewal_rejected',
+				'review_required',
+				'paid',
+				'refunded',
+				'review_required',
+				'closed'
+			)
+		);
+		// phpcs:enable
+
+		return false !== $open && false !== $rejected;
 	}
 
 	/**
@@ -552,6 +682,36 @@ final class Schema {
 		$autoload = $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s LIMIT 1", self::VERSION_OPTION ) );
 
 		return is_string( $autoload ) && in_array( $autoload, array( 'yes', 'on', 'auto', 'auto-on' ), true );
+	}
+
+	/**
+	 * Insert a row whose UNIQUE key a concurrent request may have inserted first.
+	 *
+	 * The duplicate-key error of the losing request is expected and not logged;
+	 * every other database error is reported as $wpdb->insert() would.
+	 *
+	 * @param string                $table Table name.
+	 * @param array<string,mixed>   $data Column => value.
+	 * @param array<int,string>     $format Value formats.
+	 * @return int|null Insert ID, 0 when the unique key already exists, null on another error.
+	 */
+	public static function insert_unique( string $table, array $data, array $format ): ?int {
+		global $wpdb;
+
+		$suppressed = $wpdb->suppress_errors( true );
+		$result     = $wpdb->insert( $table, $data, $format );
+		$wpdb->suppress_errors( $suppressed );
+		if ( false !== $result ) {
+			return (int) $wpdb->insert_id;
+		}
+		$dbh   = $wpdb->dbh;
+		$errno = $dbh instanceof \mysqli ? (int) mysqli_errno( $dbh ) : 0; // phpcs:ignore WordPress.DB.RestrictedFunctions.mysql_mysqli_errno
+		if ( 1062 === $errno || false !== stripos( (string) $wpdb->last_error, 'Duplicate entry' ) ) {
+			return 0;
+		}
+		$wpdb->print_error();
+
+		return null;
 	}
 
 	/**

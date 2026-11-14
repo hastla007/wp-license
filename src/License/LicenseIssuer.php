@@ -78,10 +78,34 @@ final class LicenseIssuer {
 			}
 
 			if ( $issued ) {
-				$item->update_meta_data( '_wplc_license_ids', array_values( array_unique( $issued ) ) );
+				// Read the complete list back: concurrent hooks for the same order each store
+				// every license of the item, so neither overwrites the other with a subset.
+				$item->update_meta_data( '_wplc_license_ids', self::issued_for_item( (int) $item_id, $issued ) );
 				$item->save_meta_data();
 			}
 		}
+	}
+
+	/**
+	 * Every license issued for an order item, in unit order.
+	 *
+	 * @param int   $order_item_id Order item ID.
+	 * @param int[] $fallback IDs known to this request, used when the read fails.
+	 * @return int[]
+	 */
+	private static function issued_for_item( int $order_item_id, array $fallback ): array {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT id FROM {$tables['licenses']} WHERE source_order_item_id = %d ORDER BY unit_index ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+				$order_item_id
+			)
+		);
+		$ids = array_map( 'intval', is_array( $ids ) ? $ids : array() );
+
+		return $ids ? $ids : array_values( array_unique( $fallback ) );
 	}
 
 	/**
@@ -132,6 +156,13 @@ final class LicenseIssuer {
 			$gateway_id = '';
 		}
 
+		// T-132: the license renews at the regular price of the product or
+		// variation that was bought. A plan mapped on a variable parent holds
+		// the lowest variation price, which is wrong for every other variation.
+		$purchased = $item->get_product();
+		$renewal_product_id = $purchased ? (int) $purchased->get_id() : 0;
+		$renewal_price = $purchased ? Catalog::product_regular_price( $purchased ) : null;
+
 		$stored = self::store_license(
 			$plan,
 			array(
@@ -145,10 +176,14 @@ final class LicenseIssuer {
 				'source_order_id' => (int) $order->get_id(),
 				'source_order_item_id' => (int) $item->get_id(),
 				'unit_index' => $unit_index,
+				'renewal_product_id' => $renewal_product_id,
+				'renewal_price' => $renewal_price,
 			)
 		);
 		if ( ! $stored ) {
-			return 0;
+			// A concurrent paid-order hook may have issued this unit a moment earlier
+			// (UNIQUE order_unit): that license counts, and that request announces it.
+			return self::find_existing( (int) $item->get_id(), $unit_index );
 		}
 		$license_id = $stored['id'];
 		$uuid       = $stored['uuid'];
@@ -189,11 +224,15 @@ final class LicenseIssuer {
 	 * @param array<string,mixed> $plan Catalog plan.
 	 * @param array<string,mixed> $context customer_id, renewal_enabled, payment_gateway_id, payment_token_id,
 	 *                                     starts_at, paid_until, next_payment_at, source_order_id,
-	 *                                     source_order_item_id (null for manual licenses), unit_index.
+	 *                                     source_order_item_id (null for manual licenses), unit_index,
+	 *                                     renewal_product_id and renewal_price (optional; the plan price
+	 *                                     is used when no price of the purchased product is given).
 	 * @return array{id:int,uuid:string,key:string}|null
 	 */
 	private static function store_license( array $plan, array $context ): ?array {
 		global $wpdb;
+
+		$price = self::renewal_price( $plan, $context['renewal_price'] ?? null );
 
 		$tables = Schema::table_names();
 		$uuid   = wp_generate_uuid4();
@@ -203,7 +242,9 @@ final class LicenseIssuer {
 			return null;
 		}
 
-		$result = $wpdb->insert(
+		// Order units are unique (source_order_item_id, unit_index); a concurrent hook that lost
+		// the race gets 0 here without a database error in the log.
+		$result = Schema::insert_unique(
 			$tables['licenses'],
 			array(
 				'license_uuid' => $uuid,
@@ -219,9 +260,10 @@ final class LicenseIssuer {
 				'renewal_enabled' => (int) $context['renewal_enabled'],
 				'payment_gateway_id' => (string) $context['payment_gateway_id'],
 				'payment_token_id' => (int) $context['payment_token_id'],
-				'renewal_amount_minor' => max( 0, (int) $plan['price_minor'] ),
-				'renewal_currency_decimals' => max( 0, min( 6, (int) ( $plan['price_decimals'] ?? 2 ) ) ),
-				'renewal_currency' => strtoupper( sanitize_text_field( (string) $plan['currency'] ) ),
+				'renewal_amount_minor' => $price['amount_minor'],
+				'renewal_currency_decimals' => $price['decimals'],
+				'renewal_currency' => $price['currency'],
+				'renewal_product_id' => max( 0, (int) ( $context['renewal_product_id'] ?? 0 ) ),
 				'cancel_at_period_end' => 0,
 				'revoked_at' => null,
 				'billing_interval' => (string) $plan['billing_interval'],
@@ -234,14 +276,14 @@ final class LicenseIssuer {
 				'created_at' => gmdate( 'Y-m-d H:i:s' ),
 				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
-			array( '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
+			array( '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
 		);
 
-		if ( false === $result ) {
+		if ( ! $result ) {
 			return null;
 		}
 
-		$license_id = (int) $wpdb->insert_id;
+		$license_id = $result;
 		$entitlements = json_decode( (string) $plan['entitlements_json'], true );
 		if ( is_array( $entitlements ) ) {
 			foreach ( $entitlements as $entitlement_key => $value ) {
@@ -290,6 +332,32 @@ final class LicenseIssuer {
 	}
 
 	/**
+	 * Renewal price stored on a new license.
+	 *
+	 * The regular price of the purchased product wins; the plan price is the
+	 * fallback (manual licenses, products without a usable price).
+	 *
+	 * @param array<string,mixed>                                         $plan Catalog plan.
+	 * @param array{amount_minor:int,decimals:int,currency:string}|null $product_price Regular price of the purchased product.
+	 * @return array{amount_minor:int,decimals:int,currency:string}
+	 */
+	public static function renewal_price( array $plan, ?array $product_price ): array {
+		if ( is_array( $product_price ) && (int) $product_price['amount_minor'] > 0 ) {
+			return array(
+				'amount_minor' => (int) $product_price['amount_minor'],
+				'decimals' => max( 0, min( 6, (int) $product_price['decimals'] ) ),
+				'currency' => strtoupper( (string) $product_price['currency'] ),
+			);
+		}
+
+		return array(
+			'amount_minor' => max( 0, (int) ( $plan['price_minor'] ?? 0 ) ),
+			'decimals' => max( 0, min( 6, (int) ( $plan['price_decimals'] ?? 2 ) ) ),
+			'currency' => strtoupper( sanitize_text_field( (string) ( $plan['currency'] ?? '' ) ) ),
+		);
+	}
+
+	/**
 	 * Issue a license without an order (goodwill, migration). Audited.
 	 *
 	 * The license does not renew automatically; the customer can renew it manually.
@@ -331,6 +399,7 @@ final class LicenseIssuer {
 				'source_order_id' => null,
 				'source_order_item_id' => null,
 				'unit_index' => 0,
+				'renewal_product_id' => (int) ( $plan['woocommerce_variation_id'] ?? 0 ) ? (int) $plan['woocommerce_variation_id'] : (int) ( $plan['woocommerce_product_id'] ?? 0 ),
 			)
 		);
 		if ( ! $stored ) {

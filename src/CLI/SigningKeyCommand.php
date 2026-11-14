@@ -62,7 +62,7 @@ final class SigningKeyCommand {
 			if ( null === ResponseSigner::rotate() ) {
 				\WP_CLI::error( 'The key comes from WPLC_RESPONSE_SIGNING_KEY or could not be stored; rotate it in wp-config.php.' );
 			}
-			AuditLog::record( 'response_signing_key_rotated', 'system', 0, 'Response signing key rotated', array( 'key_id' => ResponseSigner::key_id_of( $old ) ), array( 'key_id' => ResponseSigner::key_id_of( ResponseSigner::public_key() ) ) );
+			AuditLog::record( 'response_signing_key_rotated', 'system', 0, \WPLC\License\AuditReason::SIGNING_KEY_ROTATED, array( 'key_id' => ResponseSigner::key_id_of( $old ) ), array( 'key_id' => ResponseSigner::key_id_of( ResponseSigner::public_key() ) ) );
 		}
 		$public = ResponseSigner::public_key();
 		if ( '' === $public ) {

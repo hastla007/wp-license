@@ -52,11 +52,18 @@ Version 1 product requests are signed over method, REST route, timestamp, nonce,
 
 ### Activation rate limits and client addresses
 
-Unauthenticated activation attempts are limited to 30 per minute per client address (IPv6 per /64) and 20 per minute per license-key prefix (first 13 characters, hashed), so one key cannot be tried from many addresses. A request without a resolvable address is counted in a shared `unknown` bucket rather than rejected. A failing limit store still fails closed with 503.
+Unauthenticated activation attempts are limited by **failed** attempts: 30 per minute per client address (IPv6 per /64) and 20 per minute per license-key prefix (first 13 characters, hashed), so one key cannot be tried from many addresses. A failure is an unknown key or a request rejected before the key lookup (missing fields, invalid development URL). Successful activations and answers about a recognized key (wrong product, expired) do not count. A request without a resolvable address is counted in a shared `unknown` bucket rather than rejected. A failing limit store still fails closed with 503.
+
+Once an address or prefix has reached its failure limit within the current minute it is throttled (T-142):
+
+- Every unknown key and every malformed request is answered `429 rate_limited`, the same answer as for a fully blocked client, so the error code tells a guesser nothing new.
+- The key is still looked up (one indexed hash comparison). A recognized key proceeds, so customers behind a shared address (office NAT, agency server, CDN without proxy configuration) are no longer locked out by someone else's typos or guessing. Before T-142 every attempt counted before the key check and a valid key was blocked together with the guesser.
+- Letting valid keys through is an oracle. It is bounded: requests made while throttled are counted in a second bucket with the same limit, and past it every request gets 429 without a key lookup. One address can therefore receive at most 60 key-dependent answers per minute (30 failures plus 30 throttled requests), one prefix at most 40. Against a 64-hex-character HMAC part of the key this is no practical guessing rate.
+- A valid key is still blocked when its address (or its prefix) keeps sending past the throttled ceiling within the same minute; deliberate flooding from a shared address can delay activations by up to a minute, accidental failures cannot.
 
 The address is `REMOTE_ADDR` unless `WPLC_TRUSTED_PROXY_HEADER` names a forwarding header (`HTTP_CF_CONNECTING_IP`, `HTTP_X_FORWARDED_FOR`, ...). The header is honored only if the direct peer is listed in `WPLC_TRUSTED_PROXIES` (IPs or CIDR ranges). Leaving `WPLC_TRUSTED_PROXIES` undefined trusts the header from any peer; do that only when the origin accepts connections from the proxy alone, otherwise an attacker sets the header and evades the per-address limit (the per-key limit still applies). Behind a CDN without this configuration all customers share one bucket and a single client can block activations for everyone. Keep the proxy list current with the provider's published ranges. Details: `docs/API-V1.md`.
 
-Known trade-off: the key prefix is shown in the customer account and in the admin, so someone who knows a customer's prefix can hold that one key at its limit and delay its activations; other keys are unaffected.
+Known trade-off: the key prefix is shown in the customer account and in the admin, so someone who knows a customer's prefix can push that one key past its throttled ceiling (40 requests per minute) and delay its activations; failed guesses below that no longer block the valid key, and other keys are unaffected.
 
 ### Response signatures
 
@@ -68,11 +75,22 @@ All deactivations (REST, customer account, admin) go through `ActivationManager:
 
 Update download grants are stored as hashes, consumed atomically, and checked again against current license state before redirect. Restrict package hosts to HTTPS allowlisted hosts. Keep package URLs and grant records only for the documented operational retention period.
 
+### Private package directory
+
+Uploaded release ZIPs are paid content. By default they live in `wp-content/uploads/wplc-packages/`, protected by `.htaccess`/`web.config` (Apache, IIS) and by 128-bit random file names. nginx ignores `.htaccess`, so on nginx the file name is the only barrier unless you act:
+
+1. **Preferred:** move the directory outside the web root with `define( 'WPLC_PACKAGE_STORAGE_DIR', '/var/lib/wplc-packages' );` in `wp-config.php` (absolute, writable by the PHP user, mode `0750`, included in backups). An invalid or web-reachable value is ignored and reported, never silently used.
+2. **Otherwise:** add `location ^~ /wp-content/uploads/wplc-packages/ { deny all; }` to the nginx `server` block, adapted to the real uploads path (multisite: `/wp-content/uploads/sites/{id}/wplc-packages/`) and placed before regex locations.
+3. **Verify:** **WooCommerce → License diagnostics → Package storage** must show "Outside the web root" or "refused to deliver a test file". The self-check fetches a canary file over HTTP, caches the answer for 12 hours and runs only on the diagnostics and releases pages; press **Check again** after every web server change. "Publicly readable" also raises an error notice on **License releases**. "Could not reach the site" (loopback blocked) means: verify by hand with `curl -I https://shop.example/wp-content/uploads/wplc-packages/index.html`, which must return `403`.
+
+If the self-check ever reported "Publicly readable" in production, treat the stored packages as potentially downloaded: consider rotating them (withdraw and publish new versions) and review web server access logs for requests to the directory.
+
 Renewal execution uses a per-renewal MySQL advisory lock and the provider adapter must pass an idempotency key through to the gateway. This cannot by itself resolve an ambiguous provider timeout: reconcile provider state before retrying a charge.
 
 ## Deployment and recovery checklist
 
 - Use HTTPS for the license API and package delivery.
+- Keep uploaded packages outside the web root (`WPLC_PACKAGE_STORAGE_DIR`) or deny the directory on nginx, and confirm the package storage self-check on the diagnostics page.
 - Restrict database, `wp-config.php`, CI, and secret-manager access.
 - Back up database and package metadata before schema, key, or release changes.
 - Restore a recent backup to an isolated staging copy and verify schema, license verifiers, activation authentication, renewal links, and package records.
