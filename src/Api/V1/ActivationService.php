@@ -209,7 +209,7 @@ final class ActivationService {
 			}
 			$url_marks = implode( ',', array_fill( 0, count( $site_urls ), '%s' ) );
 			$replaced = $wpdb->get_col(
-				$wpdb->prepare(
+				$wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- the values are passed as one array.
 					"SELECT id FROM {$tables['activations']} WHERE license_id = %d AND environment = %s AND site_url IN ({$url_marks}) AND status = %s AND installation_uuid <> %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Only generated placeholders are interpolated.
 					array_merge( array( (int) $license['id'], $environment ), $site_urls, array( 'active', $installation_uuid ) )
 				)
