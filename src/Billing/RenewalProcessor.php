@@ -115,7 +115,7 @@ final class RenewalProcessor {
 			$wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ),
 			ARRAY_A
 		);
-		if ( ! is_array( $renewal ) || in_array( $renewal['status'], array( 'paid', 'cancelled', 'expired', 'manual_action_required', 'refunded', 'manual', self::STATUS_REVIEW ), true ) ) {
+		if ( ! is_array( $renewal ) || in_array( $renewal['status'], array( 'paid', 'cancelled', 'expired', 'manual_action_required', 'refunded', 'manual', self::STATUS_REVIEW, RenewalReview::STATUS_CLOSED ), true ) ) {
 			return;
 		}
 		// The previous attempt may have charged the customer. It is only ever re-sent with the
@@ -505,10 +505,8 @@ final class RenewalProcessor {
 	 * @return void
 	 */
 	private static function flag_for_review( array $renewal, string $reason ): void {
-		global $wpdb;
-
 		$renewal_id = (int) $renewal['id'];
-		self::set_renewal_status( $renewal_id, self::STATUS_REVIEW, null );
+		RenewalReview::open( $renewal_id, sanitize_key( $reason ) );
 		$order = self::renewal_order( $renewal );
 		if ( $order ) {
 			$order->add_order_note( __( 'The result of the automatic renewal payment is still unknown and automatic attempts have stopped. Check the payment in the payment gateway: if it was taken, set this order to Processing or Completed to book the renewal; if it was not, set it to Failed to resume the automatic retries.', 'wp-license' ) );
@@ -521,9 +519,6 @@ final class RenewalProcessor {
 			array( 'status' => (string) $renewal['status'] ),
 			array( 'status' => self::STATUS_REVIEW, 'order_id' => $order ? (int) $order->get_id() : 0 )
 		);
-		$tables = Schema::table_names();
-		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status = %s", self::STATUS_REVIEW ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
-		\WPLC\Admin\Diagnostics::emit_alert( 'review_required_renewals', $count );
 	}
 
 	/**
@@ -545,7 +540,8 @@ final class RenewalProcessor {
 		$renewal_id = (int) $renewal['id'];
 		$tables = Schema::table_names();
 		$current = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$tables['licenses']} WHERE id = %d", (int) $license['id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
-		self::set_renewal_status( $renewal_id, self::STATUS_REVIEW, null, (int) $order->get_id() );
+		// The order is paid now, whatever opened an earlier case: this is the reason to show.
+		RenewalReview::open( $renewal_id, AuditReason::LICENSE_CHANGED_DURING_CHARGE, (int) $order->get_id(), true );
 		if ( self::STATUS_REVIEW === (string) $renewal['status'] ) {
 			// A repeated paid-order hook while the license still cannot be extended: already reported.
 			return;
@@ -565,8 +561,6 @@ final class RenewalProcessor {
 			array( 'status' => (string) $renewal['status'], 'license_status' => (string) $license['status'] ),
 			array( 'status' => self::STATUS_REVIEW, 'license_status' => $current, 'order_id' => (int) $order->get_id() )
 		);
-		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status = %s", self::STATUS_REVIEW ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
-		\WPLC\Admin\Diagnostics::emit_alert( 'review_required_renewals', $count );
 	}
 
 	/**
@@ -659,18 +653,35 @@ final class RenewalProcessor {
 			) {
 				return;
 			}
-			AuditLog::record(
-				'renewal_result_resolved',
-				'renewal',
-				$renewal_id,
-				AuditReason::PAYMENT_NOT_TAKEN,
-				array( 'status' => (string) $renewal['status'] ),
-				array( 'outcome' => 'failed' )
-			);
-			self::fail_attempt( $renewal, $license, new \WP_Error( 'renewal_payment_not_taken', __( 'The renewal order was set to failed after its payment result was checked.', 'wp-license' ) ) );
+			self::resolve_as_declined_locked( $renewal, $license, AuditReason::PAYMENT_NOT_TAKEN );
 		} finally {
 			self::unlock( $renewal_id );
 		}
+	}
+
+	/**
+	 * Record the attempt of a renewal whose result was unknown as a definite decline.
+	 *
+	 * The caller holds the per-renewal lock and has checked that the renewal is
+	 * in STATUS_RECONCILING or STATUS_REVIEW and its order is not paid.
+	 *
+	 * @param array<string,mixed> $renewal Renewal row.
+	 * @param array<string,mixed> $license License row.
+	 * @param string              $reason Stored audit reason.
+	 * @param int                 $actor_user_id Administrator, zero for the order-status path.
+	 * @return void
+	 */
+	public static function resolve_as_declined_locked( array $renewal, array $license, string $reason, int $actor_user_id = 0 ): void {
+		AuditLog::record(
+			'renewal_result_resolved',
+			'renewal',
+			(int) $renewal['id'],
+			$reason,
+			array( 'status' => (string) $renewal['status'] ),
+			array( 'outcome' => 'failed' ),
+			$actor_user_id
+		);
+		self::fail_attempt( $renewal, $license, new \WP_Error( 'renewal_payment_not_taken', __( 'The renewal order was set to failed after its payment result was checked.', 'wp-license' ) ) );
 	}
 
 	/**
@@ -861,7 +872,7 @@ final class RenewalProcessor {
 			$order->save();
 		}
 
-		if ( in_array( $renewal['status'], array( 'cancelled', 'expired', 'refunded' ), true ) || in_array( $license['status'], array( 'revoked', 'suspended' ), true ) ) {
+		if ( in_array( $renewal['status'], array( 'cancelled', 'expired', 'refunded', RenewalReview::STATUS_CLOSED ), true ) || in_array( $license['status'], array( 'revoked', 'suspended' ), true ) ) {
 			self::finish_stripe_event( $inbox_id, 'manual_review' );
 			AuditLog::record( 'stripe_webhook_manual_review', 'renewal', (int) $renewal['id'], AuditReason::STRIPE_EVENT_FOR_CLOSED_RECORD );
 			return;
@@ -951,6 +962,16 @@ final class RenewalProcessor {
 				return;
 			}
 			if ( 'paid' === $renewal['status'] ) {
+				return;
+			}
+			$closed = (string) $order->get_meta( RenewalReview::META_CLOSED, true );
+			if ( '' !== $closed ) {
+				// An administrator closed the review of this order without booking it. Never book it
+				// silently; an order that was unpaid then and is paid now goes back to review.
+				if ( 'unpaid' === $closed && RenewalReview::STATUS_CLOSED === $renewal['status'] && RenewalReview::open( $renewal_id, AuditReason::PAID_AFTER_REVIEW_CLOSED ) ) {
+					AuditLog::record( 'renewal_review_required', 'renewal', $renewal_id, AuditReason::PAID_AFTER_REVIEW_CLOSED, array( 'status' => RenewalReview::STATUS_CLOSED ), array( 'status' => self::STATUS_REVIEW, 'order_id' => $order_id ) );
+					$order->add_order_note( __( 'WP License Captain: this renewal order was paid after its review had been closed. The renewal was not booked; it is back in the review list.', 'wp-license' ) );
+				}
 				return;
 			}
 			if ( RenewalOrder::is_manual( $order ) ) {

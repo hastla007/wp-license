@@ -61,6 +61,14 @@ final class AuditReason {
 	public const RECOVERY_METADATA_MISMATCH     = 'recovery_metadata_mismatch';
 	public const RECOVERY_NOT_ALLOWED           = 'recovery_not_allowed';
 	public const RECOVERY_AMOUNT_MISMATCH       = 'recovery_amount_mismatch';
+	public const MANUAL_LICENSE_NOT_EXTENDED    = 'manual_license_not_extended';
+	public const LICENSE_CHANGED_DURING_CHARGE  = 'license_changed_during_charge';
+	public const LICENSE_CHANGED_WHILE_UNKNOWN  = 'license_changed_while_unknown';
+	public const PAID_AFTER_REVIEW_CLOSED       = 'paid_after_review_closed';
+	public const REVIEW_BOOKED                  = 'review_booked';
+	public const REVIEW_NOT_PAID                = 'review_not_paid';
+	public const REVIEW_CLOSED                  = 'review_closed';
+	public const RENEWED_AFTER_REVIEW           = 'renewed_after_review';
 
 	/**
 	 * Build the stored form of a reason.
@@ -196,6 +204,18 @@ final class AuditReason {
 			self::MANUAL_PERIOD_CHANGED          => array( __( 'The license period changed after the renewal order was created.', 'wp-license' ), array() ),
 			self::MANUAL_RENEWAL_NOT_ALLOWED     => array( __( 'The license status or renewal window did not allow a manual renewal.', 'wp-license' ), array() ),
 			self::MANUAL_PRICE_MISMATCH          => array( __( 'The paid order line did not match the renewal price.', 'wp-license' ), array() ),
+			self::MANUAL_LICENSE_NOT_EXTENDED    => array( __( 'The license could not be extended when the paid manual renewal was booked.', 'wp-license' ), array() ),
+			// Review of renewals that need an administrator (T-154, T-137). The note is the administrator's own text.
+			/* translators: %s: reason entered by the administrator. */
+			self::REVIEW_BOOKED                  => array( __( 'Renewal booked by an administrator after review: %s', 'wp-license' ), array( 'note' ) ),
+			/* translators: %s: reason entered by the administrator. */
+			self::REVIEW_NOT_PAID                => array( __( 'Marked as not paid by an administrator after review: %s', 'wp-license' ), array( 'note' ) ),
+			/* translators: %s: reason entered by the administrator. */
+			self::REVIEW_CLOSED                  => array( __( 'Review closed without booking the renewal: %s', 'wp-license' ), array( 'note' ) ),
+			/* translators: 1: WooCommerce order number, 2: reason entered by the administrator. */
+			self::RENEWED_AFTER_REVIEW           => array( __( 'Renewed by an administrator after reviewing order #%1$d: %2$s', 'wp-license' ), array( 'order', 'note' ) ),
+			self::LICENSE_CHANGED_WHILE_UNKNOWN  => array( __( 'The license was changed while the payment result was still unknown.', 'wp-license' ), array() ),
+			self::PAID_AFTER_REVIEW_CLOSED       => array( __( 'The renewal order was paid after its review had been closed without booking.', 'wp-license' ), array() ),
 			// Automatic renewals and payment events.
 			self::RENEWAL_ALREADY_PAID           => array( __( 'The renewal order was already paid.', 'wp-license' ), array() ),
 			self::RENEWAL_CONFIRMED_BY_ADAPTER   => array( __( 'The payment gateway confirmed the renewal.', 'wp-license' ), array() ),

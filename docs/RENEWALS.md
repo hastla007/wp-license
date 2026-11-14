@@ -77,16 +77,19 @@ Checks only re-send the request while it is safe. A renewal in `reconciling` goe
 
 ### Review (`review_required`)
 
-Automatic attempts stop. The license is not changed. Audit entry `renewal_review_required` (reason e.g. `result_unknown_timeout`, `renewal_cancelled`), an order note with instructions, and `wplc/health_alert` with metric `review_required_renewals` right away and in the daily check (see [MONITORING.md](MONITORING.md)).
+Automatic attempts stop. The license is not changed. The renewal row stores the reason (`review_reason`, e.g. `result_unknown_timeout`, `renewal_cancelled`, `license_changed_while_unknown`) and the start of the case (`review_at`, schema 14). Audit entry `renewal_review_required`, an order note with instructions, and `wplc/health_alert` with metric `review_required_renewals` right away and in the daily check (see [MONITORING.md](MONITORING.md)).
 
-The administrator checks the payment in the gateway dashboard (the PaymentIntent, if known, is in `_wplc_payment_intent_id`) and then sets the renewal order:
+The case is listed under **WooCommerce → Renewals to review** (T-154; details and rules in [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#renewals-to-review)). The administrator checks the payment in the gateway dashboard (the PaymentIntent, if known, is in `_wplc_payment_intent_id`) and then, with a reason:
 
-- **Processing or Completed** if the money was taken: the renewal is booked and the license extended.
-- **Failed** if it was not: `wplc_resolve_failed_renewal_order` records a definite decline (audit `renewal_result_resolved`), the license becomes `past_due` with the usual email, and retries continue with a new idempotency key.
+- **Book renewal** if the money was taken: the renewal is booked, the license extended to the end of the charged period (or one period from now if that period is already over), and the order marked paid.
+- **Mark as not paid** if it was not: the order becomes Failed and the attempt is recorded as a definite decline (audit `renewal_result_resolved`), the license becomes `past_due` with the usual email, and retries continue with a new idempotency key.
+- **Close without booking** after a refund or another decision: renewal `closed`, license unchanged.
 
-Until then the normal rules apply: an `active` license is expired by the daily job 15 days after `paid_until`. Resolve reviews within the grace period.
+Setting the renewal order to Processing/Completed or Failed by hand still works as before and has the same effect as the first two actions (without the administrator's reason in the audit entry).
 
-**Paid, but the license changed during the charge** (audit reason `license_changed_during_charge`, T-22). The gateway confirmed the payment, but while the request was running an administrator suspended or revoked the license, the original order was refunded, or the license expired. The license is not extended (a suspended or revoked license never is) and the renewal is not recorded as `paid`; it goes to `review_required`, and the paid order gets a note naming the new license status. Refund the payment, or, if the customer keeps the license, reactivate it and extend its term by hand (license screen, "extend"). A cancellation at period end made while the charge was running does not go to review: the charged period is booked, the cancellation stays, and the next period is not charged.
+**Expiry is deferred** while a case is open: the daily job and the grace-end job do not expire the license, for at most 30 days after the case was opened (`LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS`). Access is not extended by this: it ends with the normal grace period (14 days after `paid_until`). After 30 days the license expires normally; the case stays listed and booking it reactivates the license.
+
+**Paid, but the license changed during the charge** (audit reason `license_changed_during_charge`, T-22). The gateway confirmed the payment, but while the request was running an administrator suspended or revoked the license, the original order was refunded, or the license expired. The license is not extended (a suspended or revoked license never is) and the renewal is not recorded as `paid`; it goes to `review_required` (reason `license_changed_during_charge`), and the paid order gets a note naming the new license status. In "Renewals to review": refund the payment on the order and **close** the case, or, if the customer keeps the license, **book** it (an expired license is reactivated; a suspended or revoked one must be reactivated first). A cancellation at period end made while the charge was running does not go to review: the charged period is booked, the cancellation stays, and the next period is not charged.
 
 ### Customer authentication (3-D Secure)
 
@@ -109,7 +112,7 @@ If the renewal order is paid, the renewal is booked. Otherwise the attempt is tr
 - After `paid_until`: access for 14 more days if the license is `past_due`, or if automatic renewal is on and not cancelled.
 - Everything else: no access.
 
-At the end of the grace period `wplc/renewal_grace_ended` expires the license. The daily job is the backstop: it expires `active` licenses without automatic renewal at `paid_until`, and any `active` license 15 days after `paid_until`.
+At the end of the grace period `wplc/renewal_grace_ended` expires the license. The daily job is the backstop: it expires `active` licenses without automatic renewal at `paid_until`, and any `active` license 15 days after `paid_until`. A license with a renewal under review is not expired by either job for up to 30 days after the review started (see "Review").
 
 ### Cancellation
 
@@ -125,7 +128,7 @@ The customer can cancel at period end in the account and withdraw the cancellati
 - **Expired licenses:** a manual renewal payment is the only payment that reactivates an `expired` license, and only inside the window.
 - **Automatic renewal setting:** unchanged. A manual renewal does not switch automatic renewal on and does not remove a scheduled cancellation.
 - **Booking:** `RenewalProcessor::handle_paid_order()` reacts to `woocommerce_payment_complete` and the status changes to processing/completed. Duplicate hooks are harmless: the renewal row is claimed with a conditional update.
-- **Rejected payments:** if a paid order cannot be applied (period changed, window passed, order line altered), the order gets a note and the meta `_wplc_renewal_review = yes`; the license is not changed. This needs manual handling by the shop.
+- **Rejected payments (T-137):** if a paid order cannot be applied (window passed, e.g. a late bank transfer; license suspended or revoked; period changed; order line altered; license lock unavailable), the license is not changed. The order gets a note and the meta `_wplc_renewal_review = yes`, audit `manual_renewal_rejected`, and the renewal row becomes a review case (`review_required`, reason e.g. `manual_renewal_not_allowed`) listed under "Renewals to review". There the shop books it (a late payment reactivates an expired license for one period from the booking) or refunds the order and closes the case. Cases rejected before schema 14 are taken over from the audit log by the migration.
 
 ### Order metas
 
@@ -140,6 +143,7 @@ The customer can cancel at period end in the account and withdraw the cancellati
 | `_wplc_payment_intent_id` | Stripe PaymentIntent of the last automatic attempt |
 | `_wplc_result_unknown_since` | `{attempt_count}\|{unix time}`: first request of the attempt whose result is unknown |
 | `_wplc_renewal_review` | `yes` when a paid order could not be applied |
+| `_wplc_review_closed` | `paid` or `unpaid`: the review of this order was closed without booking, and the order's state then. Such an order is never booked automatically; an `unpaid` one that is paid later goes back to review |
 
 ## Renewal price
 
@@ -173,7 +177,8 @@ The order line always uses the bought product (or, if it is gone, the plan's pro
 | `paid` | Paid and booked |
 | `failed` | Last attempt failed definitely; a retry may be scheduled |
 | `reconciling` | Result of the last attempt is unknown; checked hourly with the same idempotency key, license untouched |
-| `review_required` | Result stayed unknown (or a check was no longer safe), or the payment went through after the license was suspended/revoked; no automatic attempts, an administrator decides |
+| `review_required` | Result stayed unknown (or a check was no longer safe), the payment went through after the license was suspended/revoked, or a paid manual renewal could not be applied; no automatic attempts, an administrator decides in "Renewals to review" |
+| `closed` | A review case closed by an administrator without booking (refunded or decided otherwise); not charged again |
 | `manual_action_required` | Customer must authenticate or pay; no automatic retries |
 | `manual` | Created by a manual renewal, waiting for the customer's payment |
 | `cancelled` | Not charged: cancelled, license ended, or period replaced by an admin term change |
@@ -208,7 +213,7 @@ The stored price is a catalog price: gross if the shop enters prices including t
 
 - Not verified against Stripe: card saving at first purchase, off-session charge, 3-D Secure, declines, timeouts.
 - An unknown result is only resolved by re-sending the same request (idempotent replay), by the Stripe success webhook or by hand. The adapter contract has no read-only status lookup, and a `payment_intent.payment_failed` webhook does not resolve a `reconciling` renewal (it cannot be matched to the attempt safely).
-- There is no admin screen listing `review_required` renewals; use the diagnostics counter, the audit log and the order notes.
-- A paid manual renewal that is rejected is not refunded automatically.
+- A paid manual renewal that is rejected is not refunded automatically; "Renewals to review" links to the order, the refund is made there.
+- A suspended license whose paid period has ended cannot be reactivated from the admin (reactivation needs a future `paid_until`, "Change term" is not offered for suspended licenses), so a review case for it can only be closed.
 - Partial refunds of renewal orders are ignored.
 - Licenses with automatic renewal that were issued before schema 13 for a variation of a parent-mapped variable product keep the stored amount, which may be the lowest variation price. It is not raised automatically; their manual renewals use the variation price.

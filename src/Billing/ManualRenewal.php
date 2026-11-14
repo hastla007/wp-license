@@ -187,6 +187,10 @@ final class ManualRenewal {
 				AuditLog::record( 'manual_renewal_order_failed', 'renewal', $renewal_id, $order->get_error_code(), null, null, $customer_id );
 				return $order;
 			}
+			if ( $order->is_paid() && '' !== (string) $order->get_meta( RenewalReview::META_CLOSED, true ) ) {
+				// An administrator closed the review of this paid order without booking it.
+				return $not_available;
+			}
 			if ( $order->is_paid() ) {
 				// Paid but not booked yet (missed hook): book it now instead of asking for money again.
 				RenewalProcessor::queue_paid_order_reconciliation( (int) $order->get_id() );
@@ -272,7 +276,7 @@ final class ManualRenewal {
 				array( '%s', '%s', '%s' ),
 				array( '%d' )
 			);
-			self::reject( $order, $renewal_id, 'The license could not be extended' );
+			self::reject( $order, $renewal_id, AuditReason::MANUAL_LICENSE_NOT_EXTENDED );
 			return false;
 		}
 
@@ -300,12 +304,17 @@ final class ManualRenewal {
 	/**
 	 * Record a paid order that could not renew its license, for manual review.
 	 *
+	 * The renewal row becomes a review case (T-137): it is listed on the
+	 * review screen, where the administrator books the renewal or closes the
+	 * case after a refund. The license is not changed.
+	 *
 	 * @param \WC_Order $order Order.
 	 * @param int       $renewal_id Renewal ID.
-	 * @param string    $problem Internal reason.
+	 * @param string    $problem Reason code (AuditReason).
 	 * @return void
 	 */
 	private static function reject( $order, int $renewal_id, string $problem ): void {
+		RenewalReview::open( $renewal_id, $problem, (int) $order->get_id() );
 		// One note per order is enough when hooks fire repeatedly.
 		if ( 'yes' !== $order->get_meta( '_wplc_renewal_review', true ) ) {
 			$order->update_meta_data( '_wplc_renewal_review', 'yes' );

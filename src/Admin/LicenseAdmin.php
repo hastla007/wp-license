@@ -44,6 +44,7 @@ final class LicenseAdmin {
 		add_action( 'admin_post_wplc_admin_license_search', array( self::class, 'handle_search' ) );
 		AdminNotices::register_hooks();
 		Settings::register_hooks();
+		RenewalReviewAdmin::register_hooks();
 	}
 
 	/**

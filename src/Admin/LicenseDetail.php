@@ -8,6 +8,7 @@
 namespace WPLC\Admin;
 
 use WPLC\Billing\Money;
+use WPLC\Billing\RenewalReview;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditReason;
 use WPLC\License\LicenseLifecycle;
@@ -77,6 +78,7 @@ final class LicenseDetail {
 		echo '</h1> <a href="' . esc_url( LicenseAdmin::list_url() ) . '" class="page-title-action">' . esc_html__( 'All licenses', 'wp-license' ) . '</a>';
 		echo '<hr class="wp-header-end">';
 
+		self::render_review_notice( $license_id );
 		self::render_summary( $license, is_string( $display_name ) ? $display_name : '', $activations, $entitlements );
 		self::render_actions( $license );
 		self::render_activations( $activations );
@@ -84,6 +86,26 @@ final class LicenseDetail {
 		self::render_entitlements( $entitlements );
 		self::render_audit_log( $license_id, $activations, $renewals );
 		echo '</div>';
+	}
+
+	/**
+	 * Warn when a renewal of this license waits for an administrator (T-154).
+	 *
+	 * @param int $license_id License ID.
+	 * @return void
+	 */
+	private static function render_review_notice( int $license_id ): void {
+		foreach ( RenewalReview::open_cases_for_license( $license_id ) as $case ) {
+			$since    = Format::utc_timestamp( $case['review_at'] ?: $case['updated_at'] );
+			$deferred = null !== $since ? $since + LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS * DAY_IN_SECONDS : null;
+			echo '<div class="notice notice-warning inline wplc-review-notice"><p><strong>' . esc_html__( 'A renewal of this license needs review.', 'wp-license' ) . '</strong> ';
+			if ( '' !== (string) $case['review_reason'] ) {
+				echo esc_html( AuditReason::label( (string) $case['review_reason'] ) ) . ' ';
+			}
+			/* translators: 1: date the review started, 2: date until which the expiry of the license is deferred. */
+			echo esc_html( sprintf( __( 'Open since %1$s. The license does not expire before the review is resolved, at the latest until %2$s.', 'wp-license' ), Format::date( $case['review_at'] ?: $case['updated_at'], true ), null !== $deferred ? Format::date( gmdate( 'Y-m-d H:i:s', $deferred ), true ) : '—' ) );
+			echo ' <a href="' . esc_url( RenewalReviewAdmin::list_url() . '#wplc-review-' . (int) $case['id'] ) . '">' . esc_html__( 'Resolve it in "Renewals to review"', 'wp-license' ) . '</a></p></div>';
+		}
 	}
 
 	/**

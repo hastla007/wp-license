@@ -15,7 +15,7 @@ WooCommerce → License diagnostics (`manage_woocommerce`), `src/Admin/Diagnosti
 | `pending_webhooks` | Stripe events stored but not reconciled yet | 1 |
 | `manual_review_webhooks` | Stripe events that ended as `manual_review` in the last 24 hours | 1 |
 | `overdue_renewals` | Stuck renewals (rules below): a queued attempt or check that did not run, or a grace period that ended without the renewal being closed | 1 |
-| `review_required_renewals` | Renewals in `review_required`: the payment result stayed unknown and an administrator must check the payment (see [RENEWALS.md](RENEWALS.md)) | 1 |
+| `review_required_renewals` | Renewals in `review_required`: the payment result stayed unknown, a payment went through while the license changed, or a paid manual renewal (e.g. a late bank transfer) could not be applied. An administrator resolves them under WooCommerce → Renewals to review (see [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#renewals-to-review)) | 1 |
 | `expired_download_grants` | Unused update download grants past their expiry | none |
 
 WooCommerce → License settings additionally shows whether the Stripe webhook secret and the key constants are set, the schema version, the checkout type and the grace period.
@@ -25,15 +25,17 @@ WooCommerce → License settings additionally shows whether the Stripe webhook s
 Once a day (with `wplc_daily_lifecycle`) each metric is compared with its threshold. `review_required_renewals` is also checked right away when a renewal goes to review. When the value is at or above it:
 
 ```php
-do_action( 'wplc/health_alert', string $metric_key, int $value, int $threshold );
+do_action( 'wplc/health_alert', string $metric_key, int $value, int $threshold, string $admin_url );
 ```
+
+`$admin_url` is the admin screen where the cause is handled: "Renewals to review" for `review_required_renewals`, the diagnostics page for the other metrics (`Diagnostics::screen_url()`). Subscribers registered with three accepted arguments keep working. The diagnostics page shows a button to "Renewals to review" while its counter is above zero, and the menu entry carries a count badge.
 
 Thresholds can be changed with the filter `wplc_health_alert_thresholds` (array metric key → threshold; remove a key to silence it). Example subscriber:
 
 ```php
-add_action( 'wplc/health_alert', function ( $metric, $value, $threshold ) {
-	wp_mail( 'ops@example.com', "License server: $metric", "$metric = $value (threshold $threshold)" );
-}, 10, 3 );
+add_action( 'wplc/health_alert', function ( $metric, $value, $threshold, $url = '' ) {
+	wp_mail( 'ops@example.com', "License server: $metric", "$metric = $value (threshold $threshold)\n$url" );
+}, 10, 4 );
 ```
 
 Notes on reading the values:
@@ -77,7 +79,7 @@ Watch for failed actions and for pending actions whose scheduled time is in the 
 ## Logs
 
 - **WooCommerce log source `wp-license`** (WooCommerce → Status → Logs): email and reminder errors (`src/Notifications/Notifications.php`) and data retention runs (`src/Maintenance/Retention.php`).
-- **Audit log** (table `{prefix}wplc_audit_log`): changes to licenses, activations, renewals and releases, rejected webhook events, settings changes (`settings_updated`) and catalog CSV imports (`catalog_csv_imported`), with action, object, acting user, reason and before/after values. License entries are visible per license on the license detail screen; system-level entries (object ID 0, see [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md)) only in the table. Actions worth alerting on: `stripe_webhook_mismatch`, `stripe_webhook_manual_review`, `stripe_webhook_amount_mismatch`, `chargeback_received`, `renewal_result_unknown`, `renewal_review_required`, `renewal_recovery_mismatch`, `renewal_recovery_amount_mismatch`, `manual_renewal_rejected`.
+- **Audit log** (table `{prefix}wplc_audit_log`): changes to licenses, activations, renewals and releases, rejected webhook events, settings changes (`settings_updated`) and catalog CSV imports (`catalog_csv_imported`), with action, object, acting user, reason and before/after values. License entries are visible per license on the license detail screen; system-level entries (object ID 0, see [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md)) only in the table. Actions worth alerting on: `stripe_webhook_mismatch`, `stripe_webhook_manual_review`, `stripe_webhook_amount_mismatch`, `chargeback_received`, `renewal_result_unknown`, `renewal_review_required`, `renewal_recovery_mismatch`, `renewal_recovery_amount_mismatch`, `manual_renewal_rejected`. Review resolutions are audited as `renewal_review_booked`, `renewal_result_resolved` and `renewal_review_closed` (renewal) and `renewal_booked_after_review` (license), each with the acting administrator.
 - **Event inbox** (table `{prefix}wplc_event_inbox`): received Stripe events with their outcome; see [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md).
 - **Orders:** renewal orders with the meta `_wplc_renewal_review = yes` are paid but were not applied to a license.
 

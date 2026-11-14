@@ -40,7 +40,8 @@
 	font-size: 11px;
 }
 
-.wplc-license-detail .wplc-inline-form {
+.wplc-license-detail .wplc-inline-form,
+.wplc-renewal-review .wplc-inline-form {
 	display: inline-flex;
 	flex-wrap: wrap;
 	gap: 4px;
