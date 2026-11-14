@@ -86,11 +86,6 @@ final class IsolatedJob {
 			return;
 		}
 
-		try {
-			call_user_func_array( $this->callback, $args );
-			DailyRunner::mark_run( $this->name );
-		} catch ( \Throwable $error ) {
-			DailyRunner::record_failure( $this->name, $error );
-		}
+		DailyRunner::run_job( $this->name, $this->callback, $args );
 	}
 }

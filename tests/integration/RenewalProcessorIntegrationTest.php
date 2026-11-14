@@ -657,8 +657,11 @@ final class RenewalProcessorIntegrationTest extends WPLC_Renewal_TestCase {
 			}
 		);
 		$this->assertFalse( $ok );
-		$beats = get_option( LicenseLifecycle::HEARTBEAT_OPTION );
-		$this->assertFalse( $beats['test_job']['ok'] );
+		// One wrapper and one store: the failure is kept by DailyRunner, heartbeats by Diagnostics.
+		$this->assertStringContainsString( 'boom', \WPLC\Maintenance\DailyRunner::failures()['test_job']['message'] );
+		$this->assertSame( 0, \WPLC\Admin\Diagnostics::last_run( 'test_job' ), 'A failed task leaves no heartbeat.' );
+		$this->assertTrue( LicenseLifecycle::run_guarded( 'test_job', '__return_true' ) );
+		$this->assertGreaterThan( 0, \WPLC\Admin\Diagnostics::last_run( 'test_job' ) );
 
 		// An alert receiver that throws inside a renewal job does not stop the daily chain.
 		$f = $this->renewing_license();
@@ -680,10 +683,10 @@ final class RenewalProcessorIntegrationTest extends WPLC_Renewal_TestCase {
 
 		do_action( 'wplc_daily_lifecycle' );
 
-		$beats = get_option( LicenseLifecycle::HEARTBEAT_OPTION );
-		$this->assertFalse( $beats['expire_due_licenses']['ok'], 'The exception of the listener was caught and recorded.' );
+		$failures = \WPLC\Maintenance\DailyRunner::failures();
+		$this->assertArrayHasKey( 'license_lifecycle_expire_due_licenses', $failures, 'The exception of the listener was caught and recorded.' );
 		$this->assertSame( 'expired', $this->license( $expiring )['status'] );
-		$this->assertTrue( $beats['repair_missing_schedules']['ok'], 'Tasks after the failing one still ran.' );
+		$this->assertGreaterThan( 0, \WPLC\Admin\Diagnostics::last_run( 'renewal_processor_repair_missing_schedules' ), 'Tasks after the failing one still ran.' );
 		$this->assertSame( 'scheduled', $this->renewal( $f['renewal_id'] )['status'], 'The repair task ran after the failing task.' );
 	}
 }

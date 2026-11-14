@@ -98,7 +98,8 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( $this->table_exists( Schema::table_names()['reminder_log'] ) );
 		$this->assertSame( Schema::VERSION, (string) get_option( Schema::VERSION_OPTION ) );
 		$this->assertSame( array(), Schema::verify() );
-		$this->assertSame( '1', (string) get_option( 'wplc_reminder_log_version' ), 'Step 18 aligns the option of the former self-installer.' );
+		$this->assertSame( \WPLC\Notifications\ReminderLog::VERSION, (string) get_option( 'wplc_reminder_log_version' ), 'Step 18 aligns the option of the former self-installer (layout 2: status column).' );
+		$this->assertSame( '2', \WPLC\Notifications\ReminderLog::VERSION );
 	}
 
 	// B-12, A-106: a failed ALTER is not booked as done, is reported and is retried after a pause.
@@ -258,7 +259,7 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		foreach ( Schema::table_names() as $table ) {
 			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 		}
-		$this->assertSame( '1', (string) get_option( 'wplc_reminder_log_version', '1' ) );
+		$this->assertSame( \WPLC\Notifications\ReminderLog::VERSION, (string) get_option( 'wplc_reminder_log_version', '2' ) );
 		$this->assertSame( Schema::VERSION, (string) get_option( Schema::VERSION_OPTION ) );
 
 		\WPLC\Plugin::activate();
@@ -277,11 +278,42 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		}
 		require dirname( __DIR__, 2 ) . '/uninstall.php';
 
+		global $wpdb;
+		// Every option a class of the plugin writes (A-117): none may survive the opt-in.
+		$options = array(
+			\WPLC\Catalog\Catalog::IDS_OPTION,
+			\WPLC\Security\ResponseSigner::OPTION,
+			\WPLC\Security\ResponseSigner::KEY_ID_OPTION,
+			\WPLC\Update\ReleaseRegistry::SLUG_OPTION,
+			\WPLC\Admin\Diagnostics::LAST_RUN_OPTION,
+			\WPLC\Admin\Settings::OPTION,
+			\WPLC\Maintenance\DailyRunner::FAILURES_OPTION,
+			\WPLC\Maintenance\DailyRunner::LAST_RUN_OPTION,
+			\WPLC\Maintenance\GapGuard::OPTION,
+			\WPLC\Maintenance\GapReconciler::HANDLED_OPTION,
+			\WPLC\Maintenance\SiteGuard::OPTION,
+			\WPLC\Maintenance\SiteGuard::KEEP_OPTION,
+			\WPLC\Maintenance\SiteGuard::PAUSED_SINCE_OPTION,
+			\WPLC\Account\CustomerPortal::REWRITE_VERSION_OPTION,
+			\WPLC\Plugin::DEACTIVATED_OPTION,
+			Schema::ERROR_OPTION,
+			Schema::DIAGNOSTICS_ERROR_OPTION,
+			Schema::VERIFIED_OPTION,
+			'wplc_reminder_cursor',
+			'wplc_job_heartbeats',
+		);
+		foreach ( $options as $option ) {
+			update_option( $option, 'x', false );
+		}
+		set_transient( 'wplc_key_sample', array( 'x' ), HOUR_IN_SECONDS );
+
 		wplc_uninstall_site( true );
 
 		foreach ( Schema::table_names() as $table ) {
 			$this->assertFalse( $this->table_exists( $table ), $table );
 		}
+		$left = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'wplc\\_%' OR option_name LIKE '\\_transient\\_wplc\\_%' OR option_name LIKE '\\_transient\\_timeout\\_wplc\\_%'" );
+		$this->assertSame( array(), $left, 'Options left behind by the opt-in uninstall.' );
 		$this->assertFalse( get_option( Schema::VERSION_OPTION ) );
 		$this->assertFalse( get_option( 'wplc_reminder_log_version' ) );
 

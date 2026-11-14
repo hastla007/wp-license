@@ -315,7 +315,9 @@ final class RenewalLifecycleIntegrationTest extends WPLC_Renewal_TestCase {
 		$this->assertSame( '0', (string) $license['renewal_enabled'] );
 		$this->assertNull( $license['next_payment_at'] );
 		$this->assertSame( 'cancelled', $this->renewal( $f['renewal_id'] )['status'] );
-		$this->assertContains( 'renewal_disabled', $this->audit_actions( 'license', $f['license_id'] ) );
+		$actions = $this->audit_actions( 'license', $f['license_id'] );
+		$this->assertSame( 1, count( array_keys( $actions, 'renewal_disabled', true ) ), 'One handler writes one entry.' );
+		$this->assertFalse( has_action( 'deleted_user', array( LicenseLifecycle::class, 'handle_deleted_user' ) ) );
 	}
 
 	/** B-185: a manual renewal paid late but inside grace continues from the due date. */

@@ -20,7 +20,7 @@ A PayPal integration must use a PayPal-approved vaulted payment source or PayPal
 
 Do not ship a filter-only adapter or invoke private plugin methods as a substitute for that integration. If the store uses the native PayPal Subscriptions module, the product model and order flow must explicitly support its subscription object; the current license product is not a WooCommerce Subscription product.
 
-## Open product decision: which payment methods renew automatically (B-63)
+## Decision: which payment methods renew automatically (B-63, decided 14 November 2026)
 
 Today exactly one case renews automatically: a card saved through the official WooCommerce Stripe gateway, charged off-session. Everything else is renewed by the customer on the pay page (any payment method), after the usual reminders.
 
@@ -32,6 +32,9 @@ Today exactly one case renews automatically: a card saved through the official W
 | Klarna and other pay-later methods (Stripe) | No | Not designed for unattended repeat charges; would need the provider's recurring product |
 | PayPal | No, see above | A PayPal-approved vault or subscription flow |
 
-**Question for the owner:** is card-only automatic renewal acceptable for launch, or must SEPA Direct Debit renew automatically as well? If SEPA is required, it is a separate project (adapter, mandate handling, late returns), not a configuration switch. Until decided, no further adapter is built.
+**Decided by the owner on 14 November 2026:**
+
+1. **Automatic renewal at launch is card-only (Stripe).** SEPA Direct Debit, PayPal and every other payment method renew manually: the customer gets the reminder emails and pays the renewal in the account with any payment method the shop offers. Whether a SEPA adapter is built is decided later; until then no further adapter exists and the table above describes the product.
+2. **When the stored card is gone, no other card of the customer is ever charged.** The renewal is not attempted with another saved method, even if the customer has one on file. The customer gets the email "saved card no longer available" (`wplc_payment_method_missing`, once per period) and either adds a card and switches automatic renewal on again under "Licenses", or renews manually.
 
 Technical precaution that is already in place: a PaymentIntent in the state `processing` (which card payments normally never reach, but asynchronous methods do) is no longer treated as "the customer must authenticate". The renewal waits (`renewal_payment_processing`, no failed attempt, no mail) and is booked when Stripe reports success, either through `payment_intent.succeeded` or at the next look.

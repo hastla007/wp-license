@@ -578,7 +578,7 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 				return new \WP_Error( 'renewal_gateway_rate_limited', __( 'Stripe limited the number of requests. The renewal is tried again later.', 'wp-license' ), array( 'wait' => self::RATE_LIMIT_WAIT_SECONDS ) );
 			case 'configuration':
 				// A-16: Stripe refused the request itself. A corrected request must not get this stored answer.
-				$order->update_meta_data( self::META_KEY_SALT, absint( $order->get_meta( self::META_KEY_SALT, true ) ) + 1 );
+				$order->update_meta_data( self::META_KEY_SALT, (string) ( absint( $order->get_meta( self::META_KEY_SALT, true ) ) + 1 ) );
 				$order->update_meta_data( '_wplc_stripe_error_code', $class['code'] );
 				$order->save_meta_data();
 				$order->add_order_note(
@@ -943,9 +943,8 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	 */
 	private function retrieve( string $api ) {
 		try {
-			$response = is_callable( array( 'WC_Stripe_API', 'retrieve' ) )
-				? \WC_Stripe_API::retrieve( $api )
-				: \WC_Stripe_API::request( array(), $api, 'GET' );
+			// Part of every supported gateway version (Requirements::STRIPE_REQUIRED_SYMBOLS).
+			$response = \WC_Stripe_API::retrieve( $api );
 		} catch ( \Throwable $exception ) {
 			return null;
 		}
@@ -978,8 +977,8 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	 * customer's default card (B-61, B-78): the customer agreed to renew with
 	 * what they paid with, not with another card on file.
 	 *
-	 * @param int       $token_id Existing filter value.
-	 * @param \WC_Order $order Paid order.
+	 * @param int   $token_id Existing filter value.
+	 * @param mixed $order Paid order (WC_Order); a filter argument, so anything else is ignored.
 	 * @return int
 	 */
 	public static function token_id_for_order( int $token_id, $order ): int {

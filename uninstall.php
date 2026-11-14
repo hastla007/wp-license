@@ -9,8 +9,9 @@
  * What stays after "Delete" in the plugin list, on every site of a network:
  * - the {prefix}wplc_* tables,
  * - the options wplc_schema_version, wplc_reminder_log_version, wplc_settings,
- *   wplc_site_fingerprint, wplc_rewrite_version and wplc_response_signing_key
- *   (the signing key the delivered add-ons verify responses with),
+ *   wplc_site_fingerprint, wplc_rewrite_version, wplc_release_product_slugs,
+ *   wplc_response_signing_key and wplc_response_signing_key_id (the signing
+ *   key the delivered add-ons verify responses with),
  * - uploaded packages in wp-content/uploads/wplc-packages/ (or the directory
  *   set with the wplc_package_storage_dir filter),
  * - order and order item meta (_wplc_*) and the refund markers.
@@ -51,9 +52,12 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 		$working_state = array(
 			'wplc_reminder_cursor',
 			'wplc_deactivated_at',
+			// Former heartbeat options, folded into wplc_last_run by schema step 19.
 			'wplc_last_daily_run',
-			'wplc_job_failures',
 			'wplc_job_heartbeats',
+			'wplc_job_failures',
+			// Cached list of the license products; rebuilt from the catalog.
+			'wplc_license_product_ids',
 			'wplc_gap_window',
 			'wplc_gap_reconciled_orders',
 			'wplc_billing_paused_since',
@@ -66,21 +70,24 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 		foreach ( $working_state as $option ) {
 			delete_option( $option );
 		}
-		// Cursors of the former privacy eraser (one option per user).
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'wplc_privacy_eraser_cursor_' ) . '%' ) );
+		// Cursors of the former privacy eraser (one option per user) and the plugin's transients
+		// (key sample, lock counters, cached catalog and package checks).
+		foreach ( array( 'wplc_privacy_eraser_cursor_', '_transient_wplc_', '_transient_timeout_wplc_' ) as $prefix ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( $prefix ) . '%' ) );
+		}
 
 		if ( ! $remove_data ) {
 			return;
 		}
 
-		$tables = array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'reminder_log' );
+		$tables = array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log' );
 		foreach ( $tables as $table ) {
 			$name = $wpdb->prefix . 'wplc_' . $table;
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- fixed table names, explicit opt-in.
 			$wpdb->query( "DROP TABLE IF EXISTS `{$name}`" );
 		}
 		// Also the version options: a later reinstall must create the tables again.
-		foreach ( array( 'wplc_schema_version', 'wplc_reminder_log_version', 'wplc_settings', 'wplc_site_fingerprint', 'wplc_rewrite_version', 'wplc_response_signing_key' ) as $option ) {
+		foreach ( array( 'wplc_schema_version', 'wplc_reminder_log_version', 'wplc_settings', 'wplc_site_fingerprint', 'wplc_rewrite_version', 'wplc_response_signing_key', 'wplc_response_signing_key_id', 'wplc_release_product_slugs' ) as $option ) {
 			delete_option( $option );
 		}
 	}

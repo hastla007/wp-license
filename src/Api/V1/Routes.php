@@ -28,7 +28,7 @@ final class Routes {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'rest_api_init', array( self::class, 'register_routes' ) );
-		add_action( 'wplc_cleanup_security_rows', array( Authenticator::class, 'cleanup_security_rows' ) );
+		add_action( 'wplc_cleanup_security_rows', array( Authenticator::class, 'run_cleanup' ) );
 		add_action( 'wplc_daily_lifecycle', array( UpdateService::class, 'purge_expired_grants' ) );
 		// Errors are WP_Error objects until here; every answer of the API leaves through these two filters.
 		add_filter( 'rest_request_after_callbacks', array( self::class, 'finish_response' ), 999, 3 );
@@ -160,7 +160,7 @@ final class Routes {
 	 *
 	 * @param mixed            $response Result of the route callback: response, WP_Error, or raw data.
 	 * @param mixed            $handler  Matched route handler.
-	 * @param \WP_REST_Request $request  Request.
+	 * @param mixed            $request  Request (WP_REST_Request; other callers of the filter may pass anything).
 	 * @return mixed
 	 */
 	public static function finish_response( $response, $handler, $request ) {
@@ -172,9 +172,6 @@ final class Routes {
 			$response = rest_convert_error_to_response( $response );
 		} else {
 			$response = rest_ensure_response( $response );
-		}
-		if ( ! $response instanceof \WP_REST_Response ) {
-			return $response;
 		}
 
 		Response::no_store( $response );
@@ -198,7 +195,7 @@ final class Routes {
 	 *
 	 * @param mixed            $response Response.
 	 * @param mixed            $server   REST server.
-	 * @param \WP_REST_Request $request  Request.
+	 * @param mixed            $request  Request (WP_REST_Request; other callers of the filter may pass anything).
 	 * @return mixed
 	 */
 	public static function finish_unrouted_response( $response, $server, $request ) {

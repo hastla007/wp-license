@@ -50,7 +50,7 @@ final class UpdateService {
 		$product_key = sanitize_key( self::text_param( $request, 'product_key', 100 ) );
 		$current = self::text_param( $request, 'current_version', 40 );
 		if ( ! is_array( $license ) || $license['product_key'] !== $product_key ) {
-			return new \WP_Error( 'license_inactive', __( 'An active license for this product is required to access updates.', 'wp-license' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'license_inactive', 'An active license for this product is required to access updates.', array( 'status' => 403 ) );
 		}
 		$has_access = LicenseLifecycle::has_access( $license );
 		$sign = static function ( array $data ) use ( $activation ) {
@@ -112,7 +112,7 @@ final class UpdateService {
 		$url = esc_url_raw( (string) $package['package_url'], array( 'https' ) );
 		$checksum = strtolower( sanitize_text_field( (string) $package['sha256'] ) );
 		if ( ! preg_match( '/^[a-f0-9]{64}$/D', $checksum ) || ! self::trusted_package_url( $url ) ) {
-			return new \WP_Error( 'package_configuration_invalid', __( 'The update package is not configured with a trusted HTTPS URL and SHA-256 checksum.', 'wp-license' ), array( 'status' => 503 ) );
+			return new \WP_Error( 'package_configuration_invalid', 'The update package is not configured with a trusted HTTPS URL and SHA-256 checksum.', array( 'status' => 503 ) );
 		}
 		// With target_version the package is offered even when it is older than the installed one.
 		$offer = $is_newer || ( '' !== $context['target_version'] && $version === $context['target_version'] && $version !== $current );
@@ -146,7 +146,7 @@ final class UpdateService {
 			array( '%d', '%s', '%s', '%s', '%s', '%s' )
 		);
 		if ( false === $inserted ) {
-			return new \WP_Error( 'download_token_error', __( 'A secure package download could not be prepared.', 'wp-license' ), array( 'status' => 503 ) );
+			return new \WP_Error( 'download_token_error', 'A secure package download could not be prepared.', array( 'status' => 503 ) );
 		}
 		$payload['package_url'] = rest_url( 'wplc/v1/updates/download/' . $token );
 		$payload['package'] = $payload['package_url'];

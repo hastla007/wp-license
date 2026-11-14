@@ -24,6 +24,7 @@ final class SiteGuardIntegrationTest extends WPLC_Integration_TestCase {
 		delete_option( SiteGuard::PAUSED_SINCE_OPTION );
 		delete_option( GapGuard::OPTION );
 		delete_option( DailyRunner::LAST_RUN_OPTION );
+		delete_option( \WPLC\Admin\Diagnostics::LAST_RUN_OPTION );
 		delete_option( DailyRunner::FAILURES_OPTION );
 		SiteGuard::remember();
 	}
@@ -253,7 +254,7 @@ final class SiteGuardIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertStringContainsString( 'alert receiver exploded', $failures['diagnostics_emit_alerts']['message'] );
 		$this->assertGreaterThan( time() - 60, DailyRunner::last_run(), 'The run completes and writes its heartbeat.' );
 
-		// Alerts were moved behind every other job.
+		// Alerts run behind every other job.
 		$alert_priority = null;
 		foreach ( $wp_filter[ DailyRunner::HOOK ]->callbacks as $priority => $callbacks ) {
 			foreach ( $callbacks as $entry ) {
@@ -332,7 +333,7 @@ final class SiteGuardIntegrationTest extends WPLC_Integration_TestCase {
 		$renewal_id = (int) $wpdb->insert_id;
 		$snapshot   = function () use ( $wpdb, $tables, $renewal_id, $license ) {
 			return array(
-				$wpdb->get_row( $wpdb->prepare( "SELECT status, attempt_count, renewal_order_id FROM {$tables['renewals']} WHERE id = %d", $renewal_id ), ARRAY_A ),
+				$wpdb->get_row( $wpdb->prepare( "SELECT status, attempt_count, renewal_order_id, last_error FROM {$tables['renewals']} WHERE id = %d", $renewal_id ), ARRAY_A ),
 				$this->license( $license['id'] )['status'],
 			);
 		};
@@ -512,5 +513,25 @@ final class SiteGuardIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertIsArray( $window );
 		$this->assertSame( 'daily_run_missed', $window['source'] );
 		$this->assertGreaterThan( time() - 60, DailyRunner::last_run() );
+	}
+
+	// Schema 19: one heartbeat store; the two former options are folded in and removed.
+	public function test_schema_19_folds_the_former_heartbeat_options(): void {
+		$legacy = time() - 3 * DAY_IN_SECONDS;
+		update_option( DailyRunner::LAST_RUN_OPTION, $legacy, false );
+		update_option( 'wplc_job_heartbeats', array( 'expire_due_licenses' => array( 'time' => $legacy, 'ok' => true ) ), false );
+		update_option( \WPLC\Admin\Diagnostics::LAST_RUN_OPTION, array( 'daily_lifecycle' => $legacy - 100, 'reminders' => 5 ), false );
+
+		$this->assertTrue( Schema::run_registered_step( '19' ) );
+
+		$this->assertFalse( get_option( DailyRunner::LAST_RUN_OPTION ) );
+		$this->assertFalse( get_option( 'wplc_job_heartbeats' ) );
+		$this->assertSame( $legacy, \WPLC\Admin\Diagnostics::last_run( 'daily_lifecycle' ) );
+		$this->assertSame( 5, \WPLC\Admin\Diagnostics::last_run( 'reminders' ) );
+		$this->assertSame( $legacy, DailyRunner::last_run(), 'Gap detection reads the same store.' );
+
+		// A run that did not fire for days is found through the folded value as well.
+		do_action( DailyRunner::HOOK );
+		$this->assertSame( 'daily_run_missed', GapGuard::window()['source'] );
 	}
 }

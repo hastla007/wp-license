@@ -45,9 +45,11 @@ final class LicenseStateMachine {
 			'active' => array( 'suspended' ),
 			'past_due' => array( 'suspended' ),
 		),
-		// Undo of a revocation (e.g. an order set to "refunded" by mistake). Needs its own permission in the UI.
+		// Undo of a revocation (e.g. an order set to "refunded" by mistake; needs its own permission in
+		// the UI) and the way back for a suspended license, also when its term ended meanwhile.
 		'admin_restore' => array(
 			'revoked' => array( 'active' ),
+			'suspended' => array( 'active' ),
 		),
 		'license_expired' => array(
 			'active' => array( 'expired' ),

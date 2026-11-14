@@ -235,6 +235,6 @@ Pushing a tag `v1.2.3` runs `.github/workflows/release.yml`: it fails unless the
 
 ## Product client integration status
 
-**There is no finished WordPress updater yet.** The bundled `WPLC\Client\LicenseClient` only transports the update check (`check_update()`); it does not hook into WordPress' update system, does not download, and does not verify the SHA-256. No product add-on talks to this server so far. The premium add-ons (not the free core plugins) will carry the client; their tasks are listed in the `TODO.md` of each product repository.
+The client library in `src/Client/` contains the WordPress updater for add-ons: `WPLC\Client\Updater` hooks into the update transient and the plugin information screen, asks for metadata on the periodic check (`check_update( false )`: no download grant is stored), asks for the package right before the installation (`check_update( true )`), and verifies the SHA-256 of the downloaded file before WordPress unpacks it. `WPLC\Client\LicenseManager` is the facade an add-on uses; `bin/export-client.php` copies the library into an add-on under the add-on's namespace and text domain ([CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md)). The three add-on repositories do not ship it yet.
 
 The server side described above is covered by unit and integration tests. The full path — publish, update check, download, install through the WordPress updater, withdraw — has not been run with a real add-on and must be validated in a test shop before launch.

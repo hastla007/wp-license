@@ -101,11 +101,54 @@ final class Orphans {
 		}
 
 		$wpdb->query( $wpdb->prepare( "UPDATE {$tables['audit_log']} SET actor_user_id = 0 WHERE actor_user_id = %d", $user_id ) );
+		// The consent evidence (B-37) stays with the license, without the account.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$tables['consents']} SET customer_id = 0 WHERE customer_id = %d", $user_id ) );
 		// phpcs:enable
 	}
 
 	/**
-	 * A stored payment method was deleted: licenses that renew with it stop renewing automatically.
+	 * Why a payment token is being deleted, as far as the request tells.
+	 *
+	 * B-57: a gateway deletes and recreates WooCommerce token rows on its own when it
+	 * syncs the saved cards with the payment provider. Only a deletion the customer
+	 * asked for is a reason to stop automatic renewal.
+	 *
+	 * @param int $token_id Deleted token ID.
+	 * @return string 'customer' (My Account "delete payment method" request for this token),
+	 *                'privacy' (personal data erasure), 'user_deleted', 'gateway_sync' or 'other'.
+	 */
+	public static function token_deletion_context( int $token_id ): string {
+		global $wp;
+
+		if ( doing_filter( 'woocommerce_get_customer_payment_tokens' ) ) {
+			// The gateway removes and re-creates its token rows while it lists the saved methods.
+			// StripeRecurringAdapter::keep_license_on_token_sync() (priority 1) has detached the
+			// licenses from the row; they are charged by their payment method reference.
+			return 'gateway_sync';
+		}
+		if ( doing_action( 'delete_user' ) || doing_action( 'deleted_user' ) || doing_action( 'wpmu_delete_user' ) ) {
+			return 'user_deleted';
+		}
+		if ( doing_action( 'wp_ajax_wp-privacy-erase-personal-data' ) || doing_action( 'wp_privacy_personal_data_erased' ) ) {
+			return 'privacy';
+		}
+		// WooCommerce checked the nonce `delete-payment-method-<id>` and the owner before it deletes.
+		$requested = is_object( $wp ) && isset( $wp->query_vars['delete-payment-method'] ) ? absint( $wp->query_vars['delete-payment-method'] ) : 0;
+		if ( $requested > 0 && $requested === $token_id && is_user_logged_in() ) {
+			return 'customer';
+		}
+
+		return 'other';
+	}
+
+	/**
+	 * A stored payment method was deleted: when the customer asked for it, the licenses
+	 * that renew with it stop renewing automatically instead of running into failed charges.
+	 *
+	 * The only listener of `woocommerce_payment_token_deleted`. A deletion that
+	 * does not come from the customer (gateway sync, import, another plugin)
+	 * changes nothing: the license keeps its settings and the charge path reports
+	 * a missing payment method as a configuration problem.
 	 *
 	 * @param mixed $token_id WooCommerce payment token ID.
 	 * @return void
@@ -114,22 +157,54 @@ final class Orphans {
 		global $wpdb;
 
 		$token_id = (int) $token_id;
+		if ( $token_id < 1 ) {
+			return;
+		}
+		$context = self::token_deletion_context( $token_id );
 		/**
 		 * Filter whether deleting a payment method switches automatic renewal off.
 		 *
-		 * Return false when another component moves the licenses to a different payment method.
+		 * True by default only for deletions the customer asked for (My Account,
+		 * privacy erasure, deleted account). Return false when another component
+		 * moves the licenses to a different payment method, or true for a
+		 * deletion of your own that should stop renewals.
 		 *
-		 * @param bool $disable  Default true.
-		 * @param int  $token_id Deleted payment token ID.
+		 * @param bool   $disable  Whether to switch automatic renewal off.
+		 * @param int    $token_id Deleted payment token ID.
+		 * @param string $context  'customer', 'privacy', 'user_deleted', 'gateway_sync' or 'other'.
 		 */
-		if ( $token_id < 1 || ! apply_filters( 'wplc_disable_renewal_on_token_deletion', true, $token_id ) ) {
+		if ( ! apply_filters( 'wplc_disable_renewal_on_token_deletion', in_array( $context, array( 'customer', 'privacy', 'user_deleted' ), true ), $token_id, $context ) ) {
 			return;
 		}
 		$tables = Schema::table_names();
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- only the table name is interpolated.
 		$license_ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$tables['licenses']} WHERE payment_token_id = %d ORDER BY id ASC LIMIT 1000", $token_id ) );
+		$changed     = array();
 		foreach ( (array) $license_ids as $license_id ) {
-			RenewalSwitch::off( (int) $license_id, 'Stored payment method deleted', get_current_user_id() );
+			$license_id = (int) $license_id;
+			if ( ! RenewalSwitch::off( $license_id, 'Stored payment method deleted', get_current_user_id() ) ) {
+				continue;
+			}
+			$changed[] = $license_id;
+
+			/**
+			 * Fires after automatic renewal was switched off because the saved payment method was deleted.
+			 *
+			 * @param int $license_id License ID.
+			 * @param int $token_id   Deleted WooCommerce payment token ID.
+			 */
+			do_action( 'wplc/renewal_disabled_token_deleted', $license_id, $token_id );
+		}
+
+		if ( $changed ) {
+			/**
+			 * Fires once per deleted payment method after automatic renewal was switched off for its licenses.
+			 *
+			 * @param int[]  $license_ids Changed licenses.
+			 * @param int    $token_id    Deleted WooCommerce payment token ID.
+			 * @param string $context     'customer', 'privacy', 'user_deleted' or 'other'.
+			 */
+			do_action( 'wplc/renewals_disabled_for_deleted_token', $changed, $token_id, $context );
 		}
 	}
 

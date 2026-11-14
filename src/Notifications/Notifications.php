@@ -7,6 +7,7 @@
 
 namespace WPLC\Notifications;
 
+use WPLC\Maintenance\SiteGuard;
 use WPLC\Compatibility\Requirements;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\LicenseKey;
@@ -35,6 +36,7 @@ final class Notifications {
 		'expiry_reminder' => 'ExpiryReminderEmail',
 		'renewal_notice' => 'RenewalNoticeEmail',
 		'payment_failed' => 'PaymentFailedEmail',
+		'payment_method_missing' => 'PaymentMethodMissingEmail',
 		'expired' => 'LicenseExpiredEmail',
 		'renewed' => 'LicenseRenewedEmail',
 		'cancelled' => 'CancellationConfirmedEmail',
@@ -93,6 +95,10 @@ final class Notifications {
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'send_due_reminders' ), 20 );
 		add_action( self::CONTINUE_HOOK, array( self::class, 'send_due_reminders' ) );
 		add_action( 'wplc/cancellation_scheduled', array( self::class, 'on_cancellation_scheduled' ), 20, 2 );
+		// B-192: the saved card is gone; no other card is charged, the customer is asked to act.
+		add_action( 'wplc/renewal_payment_method_missing', array( self::class, 'on_payment_method_missing' ), 20, 4 );
+		// B-41: no automatic charge without the logged advance notice.
+		add_filter( 'wplc_renewal_charge_allowed', array( self::class, 'charge_allowed' ), 10, 3 );
 		add_action( self::RETRY_HOOK, array( self::class, 'retry_email' ), 10, 5 );
 		// Fired by the admin package; these always go out, whatever was sent before.
 		add_action( 'wplc/license_key_reissued', array( self::class, 'on_key_resend' ), 20, 3 );
@@ -168,7 +174,9 @@ final class Notifications {
 			if ( ! $license ) {
 				return;
 			}
-			$period = ! empty( $license['paid_until'] ) ? (string) $license['paid_until'] : (string) $license['starts_at'];
+			// Keyed by the start of the license: it never changes, while paid_until moves with every
+			// renewal and term change and would let the first email go out a second time.
+			$period = ! empty( $license['starts_at'] ) ? (string) $license['starts_at'] : (string) $license['paid_until'];
 			self::send_once(
 				'issued',
 				'issued',
@@ -322,6 +330,93 @@ final class Notifications {
 	}
 
 	/**
+	 * B-192: the card saved for the automatic renewal no longer exists.
+	 *
+	 * Sent once per license period, on the first attempt that finds the card
+	 * missing ($first). Decision of the owner: no other card of the customer is
+	 * ever charged instead; the customer adds a card or renews manually.
+	 *
+	 * @param mixed $license_id  License ID.
+	 * @param mixed $renewal_id  Renewal ID (unused).
+	 * @param mixed $customer_id Customer ID (unused; the license row is read again).
+	 * @param mixed $first       Whether this is the first report for the renewal.
+	 * @return void
+	 */
+	public static function on_payment_method_missing( $license_id = 0, $renewal_id = 0, $customer_id = 0, $first = false ): void {
+		unset( $renewal_id, $customer_id );
+		if ( ! $first ) {
+			return;
+		}
+		try {
+			$license = self::get_license( (int) $license_id );
+			if ( ! $license || empty( $license['customer_id'] ) || empty( $license['paid_until'] ) || SiteGuard::billing_paused() ) {
+				return;
+			}
+			self::send_once( 'payment_method_missing', 'payment_method_missing', $license, (string) $license['paid_until'], array() );
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'Payment method missing email failed: ' . $error->getMessage(), (int) $license_id );
+		}
+	}
+
+	/**
+	 * B-41: an automatic renewal is only charged after its advance notice was
+	 * accepted by the mailer for the period that ends now.
+	 *
+	 * Hooked to `wplc_renewal_charge_allowed`. Without the logged notice (email
+	 * switched off, mailer refused it, plugin was inactive at the time) the
+	 * charge is postponed: the renewal processor records `renewal_blocked` with
+	 * this code, fires `wplc/renewal_blocked` and tries again later. The missing
+	 * notice is sent now, so the next attempt can go through; a charge therefore
+	 * never happens in the same run as its announcement.
+	 *
+	 * @param mixed $allowed Decision so far.
+	 * @param mixed $renewal Renewal row.
+	 * @param mixed $license License row.
+	 * @return mixed True, or a WP_Error with the code `renewal_notice_not_sent`.
+	 */
+	public static function charge_allowed( $allowed, $renewal = array(), $license = array() ) {
+		if ( true !== $allowed || ! is_array( $license ) || empty( $license['id'] ) ) {
+			return $allowed;
+		}
+		/**
+		 * Filter whether an automatic charge needs the logged advance notice.
+		 *
+		 * Return false only when your customers are told about the charge in another
+		 * documented way (for example business customers with a contract).
+		 *
+		 * @param bool                $required Default true.
+		 * @param array<string,mixed> $license  License row.
+		 * @param mixed               $renewal  Renewal row.
+		 */
+		if ( ! apply_filters( 'wplc_renewal_requires_advance_notice', true, $license, $renewal ) ) {
+			return $allowed;
+		}
+		if ( self::renewal_notice_sent( $license ) ) {
+			return $allowed;
+		}
+
+		try {
+			if ( ! SiteGuard::billing_paused() && ! empty( $license['paid_until'] ) && ReminderSchedule::renews_automatically( $license ) ) {
+				self::send_once(
+					'renewal_notice',
+					ReminderSchedule::TYPE_RENEWAL_NOTICE,
+					$license,
+					(string) $license['paid_until'],
+					array(
+						'days_left' => 0,
+						'due_at'    => time() + 6 * HOUR_IN_SECONDS,
+					),
+					true
+				);
+			}
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'Late renewal notice failed: ' . $error->getMessage(), (int) $license['id'] );
+		}
+
+		return new \WP_Error( 'renewal_notice_not_sent', 'The advance notice of this automatic charge has not been sent.' );
+	}
+
+	/**
 	 * Expiry lead days: defaults, then the settings option, then the filter.
 	 *
 	 * @return int[]
@@ -353,12 +448,20 @@ final class Notifications {
 	 * @return int
 	 */
 	public static function notice_days(): int {
+		$days     = ReminderSchedule::DEFAULT_NOTICE_DAYS;
+		$settings = get_option( 'wplc_settings', array() );
+		if ( is_array( $settings ) && isset( $settings['renewal_notice_days'] ) && is_numeric( $settings['renewal_notice_days'] ) && (int) $settings['renewal_notice_days'] >= 1 ) {
+			$days = (int) $settings['renewal_notice_days'];
+		}
+
 		/**
-		 * Filter the lead time of the automatic renewal notice. Zero disables it.
+		 * Filter the lead time of the automatic renewal notice. Zero disables the
+		 * notice; automatic charges are then postponed unless the filter
+		 * `wplc_renewal_requires_advance_notice` returns false (B-41).
 		 *
-		 * @param int $days Lead days.
+		 * @param int $days Lead days (setting "Renewal notice lead days", default 7).
 		 */
-		return max( 0, min( 365, (int) apply_filters( 'wplc_renewal_notice_lead_days', ReminderSchedule::DEFAULT_NOTICE_DAYS ) ) );
+		return max( 0, min( 365, (int) apply_filters( 'wplc_renewal_notice_lead_days', $days ) ) );
 	}
 
 	/**
@@ -383,6 +486,10 @@ final class Notifications {
 		global $wpdb;
 
 		if ( ! function_exists( 'WC' ) ) {
+			return;
+		}
+		if ( SiteGuard::billing_paused() ) {
+			// B-01: a staging copy or restored database must not write to customers.
 			return;
 		}
 		$lead_days   = self::lead_days();
@@ -697,6 +804,9 @@ final class Notifications {
 				return in_array( $status, array( 'active', 'past_due' ), true );
 			case 'payment_failed':
 				return 'past_due' === $status;
+			case 'payment_method_missing':
+				// Still unpaid for the period, still renewing automatically and still without a usable card on file.
+				return in_array( $status, array( 'active', 'past_due' ), true ) && ! empty( $license['renewal_enabled'] ) && (string) ( $license['paid_until'] ?? '' ) === $period_end;
 			case 'expired':
 			case 'suspended':
 			case 'revoked':
@@ -890,9 +1000,14 @@ final class Notifications {
 		 * @param string[]            $steps   Plain-text steps.
 		 * @param array<string,mixed> $license License row, may be empty.
 		 */
-		$filtered = apply_filters( 'wplc_install_steps', $steps, $license );
+		$filtered = array();
+		foreach ( (array) apply_filters( 'wplc_install_steps', $steps, $license ) as $step ) {
+			if ( is_scalar( $step ) && '' !== (string) $step ) {
+				$filtered[] = (string) $step;
+			}
+		}
 
-		return is_array( $filtered ) ? array_values( array_filter( array_map( 'strval', $filtered ), 'strlen' ) ) : $steps;
+		return $filtered;
 	}
 
 	/**
@@ -908,9 +1023,9 @@ final class Notifications {
 		 * @param string $url         URL, empty for none.
 		 * @param string $product_key Product key.
 		 */
-		$url = apply_filters( 'wplc_product_docs_url', '', $product_key );
+		$url = (string) apply_filters( 'wplc_product_docs_url', '', $product_key );
 
-		return is_string( $url ) ? esc_url_raw( $url ) : '';
+		return esc_url_raw( $url );
 	}
 
 	/**
@@ -933,9 +1048,9 @@ final class Notifications {
 		 * @param string              $plan_key Internal plan key.
 		 * @param array<string,mixed> $license  License row.
 		 */
-		$filtered = apply_filters( 'wplc_plan_label', $label, $plan_key, $license );
+		$filtered = (string) apply_filters( 'wplc_plan_label', $label, $plan_key, $license );
 
-		return is_string( $filtered ) && '' !== $filtered ? $filtered : $label;
+		return '' !== $filtered ? $filtered : $label;
 	}
 
 	/**
@@ -954,9 +1069,9 @@ final class Notifications {
 		 *
 		 * @param string $address Email address.
 		 */
-		$filtered = apply_filters( 'wplc_support_email', $address );
+		$filtered = (string) apply_filters( 'wplc_support_email', $address );
 
-		return is_string( $filtered ) && is_email( $filtered ) ? $filtered : '';
+		return is_email( $filtered ) ? $filtered : '';
 	}
 
 	/**

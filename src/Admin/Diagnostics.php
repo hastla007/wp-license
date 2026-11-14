@@ -53,15 +53,57 @@ final class Diagnostics {
 	 */
 	public const KEY_SAMPLE_SIZE = 50;
 
+	/**
+	 * Events of other packages that are passed on as health alerts: hook => metric key.
+	 *
+	 * @var array<string,string>
+	 */
+	private const EVENT_ALERTS = array(
+		'wplc/renewal_blocked'                  => 'renewal_blocked',
+		'wplc/renewal_needs_review'             => 'renewal_needs_review',
+		'wplc/license_needs_review'             => 'license_needs_review',
+		'wplc/renewal_lock_unavailable'         => 'renewal_lock_unavailable',
+		'wplc/response_signing_key_unavailable' => 'response_signing_key_unavailable',
+	);
+
 	/** Register the support page. */
 	public static function register_hooks(): void {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ), 30 );
 		add_action( 'admin_notices', array( self::class, 'render_daily_run_notice' ) );
-		// The heartbeat brackets the daily chain: a start without an end is a run that broke off.
-		add_action( 'wplc_daily_lifecycle', array( self::class, 'mark_daily_started' ), -1000 );
-		add_action( 'wplc_daily_lifecycle', array( self::class, 'mark_daily_finished' ), PHP_INT_MAX );
+		// The heartbeat brackets of the daily chain (mark_daily_started/_finished) are written by
+		// Maintenance\DailyRunner, which also isolates the jobs and writes one heartbeat per job.
 		// The alarm runs after the work it reports on.
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'emit_alerts' ), PHP_INT_MAX - 1 );
+		// Events that need a human are passed on to the monitoring hook right away.
+		foreach ( array_keys( self::EVENT_ALERTS ) as $hook ) {
+			add_action( $hook, array( self::class, 'forward_event_alert' ), 99, 0 );
+		}
+	}
+
+	/**
+	 * Pass an event of another package on as `wplc/health_alert` (metric, 1, 1).
+	 *
+	 * A receiver that throws must not break the renewal or request that raised the event.
+	 *
+	 * @return void
+	 */
+	public static function forward_event_alert(): void {
+		$hook = (string) current_filter();
+		if ( ! isset( self::EVENT_ALERTS[ $hook ] ) ) {
+			return;
+		}
+		try {
+			/** This action is documented in src/Admin/Diagnostics.php */
+			do_action( 'wplc/health_alert', self::EVENT_ALERTS[ $hook ], 1, 1 );
+		} catch ( \Throwable $error ) {
+			global $wp_current_filter;
+			if ( is_array( $wp_current_filter ) && 'wplc/health_alert' === end( $wp_current_filter ) ) {
+				array_pop( $wp_current_filter );
+			}
+			if ( function_exists( 'wc_get_logger' ) ) {
+				wc_get_logger()->error( 'A wplc/health_alert receiver failed: ' . $error->getMessage(), array( 'source' => 'wp-license' ) );
+			}
+		}
 	}
 
 	/**
@@ -74,15 +116,15 @@ final class Diagnostics {
 	 * @return void
 	 */
 	public static function mark_run( string $job ): void {
-		$job = substr( (string) preg_replace( '/[^a-z0-9_]/', '', strtolower( $job ) ), 0, 40 );
+		$job = substr( (string) preg_replace( '/[^a-z0-9_]/', '', strtolower( $job ) ), 0, 64 );
 		if ( '' === $job ) {
 			return;
 		}
 		$runs         = self::last_runs();
 		$runs[ $job ] = time();
-		if ( count( $runs ) > 40 ) {
+		if ( count( $runs ) > 60 ) {
 			asort( $runs );
-			$runs = array_slice( $runs, -40, null, true );
+			$runs = array_slice( $runs, -60, null, true );
 		}
 		update_option( self::LAST_RUN_OPTION, $runs, false );
 	}
@@ -233,11 +275,12 @@ final class Diagnostics {
 			'pending_webhooks'           => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['event_inbox']} WHERE source = %s AND outcome = %s", 'stripe', 'pending_reconciliation' ) ),
 			'manual_review_webhooks'     => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['event_inbox']} WHERE source = %s AND outcome = %s AND processed_at >= %s", 'stripe', 'manual_review', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) ),
 			'overdue_renewals'           => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status IN (%s,%s) AND (retry_at <= %s OR (retry_at IS NULL AND period_start <= %s))", 'scheduled', 'failed', $now, $now ) ),
+			'payment_review_renewals'    => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status = %s", 'payment_review' ) ),
 			'expired_download_grants'    => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['download_tokens']} WHERE consumed_at IS NULL AND expires_at <= %s", $now ) ),
 			'stuck_processing_renewals'  => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status = %s AND updated_at <= %s", 'processing', $stuck ) ),
 			'renewing_without_renewal'   => (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COUNT(*) FROM {$tables['licenses']} l WHERE l.renewal_enabled = 1 AND l.cancel_at_period_end = 0 AND l.status IN ('active','past_due') AND NOT EXISTS ( SELECT 1 FROM {$tables['renewals']} r WHERE r.license_id = l.id AND r.status IN ('scheduled','processing','failed','manual_action_required') ) AND l.updated_at <= %s",
+					"SELECT COUNT(*) FROM {$tables['licenses']} l WHERE l.renewal_enabled = 1 AND l.cancel_at_period_end = 0 AND l.status IN ('active','past_due') AND NOT EXISTS ( SELECT 1 FROM {$tables['renewals']} r WHERE r.license_id = l.id AND r.status IN ('scheduled','processing','failed','manual_action_required','payment_review') ) AND l.updated_at <= %s",
 					gmdate( 'Y-m-d H:i:s', time() - 600 )
 				)
 			),
@@ -250,6 +293,9 @@ final class Diagnostics {
 				)
 			),
 			'failed_scheduled_actions'   => self::failed_scheduled_actions(),
+			'orders_with_issuance_problem' => max( 0, self::orders_with_issuance_problem() ),
+			'failed_jobs'                => count( \WPLC\Maintenance\DailyRunner::failures( DAY_IN_SECONDS ) ),
+			'release_problems'           => count( \WPLC\Update\ReleaseRegistry::problems( false ) ),
 			'unmapped_license_products'  => self::unmapped_license_products(),
 		);
 	}
@@ -285,16 +331,43 @@ final class Diagnostics {
 	 * @return int
 	 */
 	public static function unmapped_license_products(): int {
-		global $wpdb;
-		$tables = Schema::table_names();
+		return count( \WPLC\Catalog\Catalog::flagged_without_mapping( 500 ) );
+	}
 
-		return (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->postmeta} pm INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE pm.meta_key = %s AND pm.meta_value = %s AND p.post_type IN ('product','product_variation') AND p.post_status NOT IN ('trash','auto-draft') AND NOT EXISTS ( SELECT 1 FROM {$tables['plans']} pl WHERE pl.active = 1 AND ( ( p.post_type = 'product' AND pl.woocommerce_product_id = p.ID ) OR ( p.post_type = 'product_variation' AND ( pl.woocommerce_variation_id = p.ID OR ( pl.woocommerce_product_id = p.post_parent AND pl.woocommerce_variation_id = 0 ) ) ) ) )",
-				'_wplc_is_license_product',
-				'yes'
-			)
+	/**
+	 * Orders the issuer could not turn into licenses (meta LicenseIssuer::META_PROBLEM), at most 200 counted.
+	 *
+	 * @return int -1 when the orders cannot be queried.
+	 */
+	public static function orders_with_issuance_problem(): int {
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return -1;
+		}
+		$query = array(
+			'limit'  => 200,
+			'return' => 'ids',
+			'type'   => 'shop_order',
 		);
+		$util  = '\\Automattic\\WooCommerce\\Utilities\\OrderUtil';
+		if ( class_exists( $util ) && call_user_func( array( $util, 'custom_orders_table_usage_is_enabled' ) ) ) {
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- diagnostics page and daily alert only; few orders carry the key.
+			$query['meta_query'] = array(
+				array(
+					'key'     => \WPLC\License\LicenseIssuer::META_PROBLEM,
+					'compare' => 'EXISTS',
+				),
+			);
+		} else {
+			// The legacy order storage does not accept meta_query; these two arguments reach WP_Query.
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- diagnostics page and daily alert only.
+			$query['meta_key']     = \WPLC\License\LicenseIssuer::META_PROBLEM;
+			$query['meta_compare'] = 'EXISTS';
+		}
+		try {
+			return count( (array) wc_get_orders( $query ) );
+		} catch ( \Throwable $error ) {
+			return -1;
+		}
 	}
 
 	/**
@@ -307,8 +380,6 @@ final class Diagnostics {
 	 * @return array{checked:int,verified:int}
 	 */
 	public static function key_sample( bool $fresh = false ): array {
-		global $wpdb;
-
 		$cached = $fresh ? false : get_transient( 'wplc_key_sample' );
 		if ( is_array( $cached ) && isset( $cached['checked'], $cached['verified'] ) ) {
 			return array(
@@ -317,21 +388,8 @@ final class Diagnostics {
 			);
 		}
 
-		$tables = Schema::table_names();
-		$rows   = $wpdb->get_results(
-			$wpdb->prepare( "SELECT license_uuid, license_key_secret_id, license_key_hash FROM {$tables['licenses']} ORDER BY id DESC LIMIT %d", self::KEY_SAMPLE_SIZE ),
-			ARRAY_A
-		);
-		$result = array(
-			'checked'  => 0,
-			'verified' => 0,
-		);
-		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
-			++$result['checked'];
-			if ( LicenseKey::matches_hash( (string) $row['license_uuid'], (string) $row['license_key_secret_id'], (string) $row['license_key_hash'] ) ) {
-				++$result['verified'];
-			}
-		}
+		// The check itself belongs to the key class (B-64); this method only caches it.
+		$result = LicenseKey::verification_sample( self::KEY_SAMPLE_SIZE );
 		set_transient( 'wplc_key_sample', $result, 5 * MINUTE_IN_SECONDS );
 
 		return $result;
@@ -345,8 +403,6 @@ final class Diagnostics {
 	 * @return bool
 	 */
 	public static function lock_self_test(): bool {
-		global $wpdb;
-
 		/**
 		 * Lets the package that owns the lock helper answer the self-test with its own implementation.
 		 *
@@ -359,15 +415,8 @@ final class Diagnostics {
 			return $override;
 		}
 
-		$name   ='wplc_selftest_' . md5( $wpdb->prefix . wp_rand() );
-		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $name, 1 ) );
-		if ( '1' !== (string) $locked ) {
-			return false;
-		}
-		$held     = $wpdb->get_var( $wpdb->prepare( 'SELECT IS_USED_LOCK(%s) = CONNECTION_ID()', $name ) );
-		$released = $wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $name ) );
-
-		return '1' === (string) $held && '1' === (string) $released;
+		// The same lock scope and connection the activation and renewal code uses (B-165).
+		return \WPLC\License\ActivationManager::lock_self_test();
 	}
 
 	/**
@@ -424,6 +473,10 @@ final class Diagnostics {
 				'paid_without_extension'    => 1,
 				'failed_scheduled_actions'  => 1,
 				'unmapped_license_products' => 1,
+				'payment_review_renewals'   => 1,
+				'orders_with_issuance_problem' => 1,
+				'failed_jobs'               => 1,
+				'release_problems'          => 1,
 			)
 		);
 		if ( ! is_array( $thresholds ) ) {
@@ -439,9 +492,8 @@ final class Diagnostics {
 					if ( is_array( $wp_current_filter ) && 'wplc/health_alert' === end( $wp_current_filter ) ) {
 						array_pop( $wp_current_filter );
 					}
-					if ( function_exists( 'wc_get_logger' ) ) {
-						wc_get_logger()->error( 'A wplc/health_alert receiver failed: ' . $error->getMessage(), array( 'source' => 'wp-license' ) );
-					}
+					// Logged and shown under "failed jobs"; the remaining alerts are still sent.
+					\WPLC\Maintenance\DailyRunner::record_failure( 'diagnostics_emit_alerts', $error );
 				}
 			}
 		}
@@ -498,8 +550,8 @@ final class Diagnostics {
 			$help = __( 'The database was already updated by a newer plugin version. This older version may not handle the data correctly; install the newer version again.', 'wp-license' );
 		}
 		$add( __( 'License schema (installed / expected)', 'wp-license' ), $schema . ' / ' . Schema::VERSION, $schema_ok ? 'ok' : 'warning', $help );
-		// Written by the migration when a step fails (option reserved for the schema package).
-		$migration_error = get_option( 'wplc_schema_error', '' );
+		// Written by the migration when a step fails.
+		$migration_error = get_option( Schema::DIAGNOSTICS_ERROR_OPTION, '' );
 		if ( is_string( $migration_error ) && '' !== $migration_error ) {
 			$add( __( 'Last migration error', 'wp-license' ), $migration_error, 'warning' );
 		}
@@ -510,6 +562,47 @@ final class Diagnostics {
 			$missing ? 'warning' : 'ok',
 			$missing ? __( 'These tables are missing. Deactivate and reactivate the plugin.', 'wp-license' ) : ''
 		);
+		// Target/actual comparison of every column (Schema::status()).
+		$structure = Schema::status()['problems'];
+		$add(
+			__( 'Table structure', 'wp-license' ),
+			$structure ? implode( '; ', array_slice( $structure, 0, 10 ) ) : __( 'Matches this plugin version', 'wp-license' ),
+			$structure ? 'warning' : 'ok',
+			$structure ? __( 'Columns are missing or have another type than this version expects. The plugin repairs this in the next admin or cron request; if the row stays, check the database user\'s ALTER privilege.', 'wp-license' ) : ''
+		);
+
+		// Billing pause (staging copy, restored database, constant) and processing gaps.
+		$pause_reasons = array(
+			'constant'         => __( 'WPLC_PAUSE_BILLING is set in wp-config.php', 'wp-license' ),
+			'schema_downgrade' => __( 'the database belongs to a newer plugin version', 'wp-license' ),
+			'fingerprint'      => __( 'the site address or database changed (copy or restore); confirm the notice at the top of the admin pages', 'wp-license' ),
+			'environment'      => __( 'the environment type is not "production"', 'wp-license' ),
+		);
+		$pause_reason  = \WPLC\Maintenance\SiteGuard::pause_reason();
+		$paused        = \WPLC\Maintenance\SiteGuard::billing_paused();
+		$pause_text    = __( 'Running', 'wp-license' );
+		if ( $paused ) {
+			/* translators: %s: reason. */
+			$pause_text = sprintf( __( 'Paused: %s', 'wp-license' ), isset( $pause_reasons[ $pause_reason ] ) ? $pause_reasons[ $pause_reason ] : __( 'the filter wplc_billing_paused', 'wp-license' ) );
+		} elseif ( '' !== $pause_reason ) {
+			$pause_text = __( 'Running (the pause was lifted by the filter wplc_billing_paused)', 'wp-license' );
+		}
+		$add(
+			__( 'Charges, expiry and customer emails', 'wp-license' ),
+			$pause_text,
+			$paused ? 'warning' : 'ok',
+			$paused ? __( 'While paused nothing is charged, no license expires and no reminder or status email is sent. The API keeps answering.', 'wp-license' ) : ''
+		);
+		$hold_until = \WPLC\Maintenance\GapGuard::active_until();
+		if ( $hold_until > 0 ) {
+			$add(
+				__( 'Processing gap', 'wp-license' ),
+				/* translators: %s: date and time. */
+				sprintf( __( 'Licenses that became due during the gap are not expired before %s', 'wp-license' ), Format::date( gmdate( 'Y-m-d H:i:s', $hold_until ), true ) ),
+				'warning',
+				__( 'The plugin was inactive, billing was paused or the daily run stood still. Renewals and orders of that time are caught up first.', 'wp-license' )
+			);
+		}
 
 		$add(
 			__( 'Server time (UTC) / site time', 'wp-license' ),
@@ -549,11 +642,21 @@ final class Diagnostics {
 			$next ? '' : __( 'Deactivate and reactivate the plugin to schedule it again.', 'wp-license' )
 		);
 		foreach ( self::last_runs() as $job => $timestamp ) {
-			if ( in_array( $job, array( self::JOB_DAILY, self::JOB_DAILY_STARTED, self::JOB_FIRST_SEEN ), true ) ) {
+			if ( in_array( $job, array( self::JOB_DAILY, self::JOB_DAILY_STARTED, self::JOB_FIRST_SEEN, 'stripe_webhook', 'stripe_webhook_live', 'stripe_webhook_test', 'stripe_webhook_rejected' ), true ) ) {
 				continue;
 			}
 			/* translators: %s: internal job name. */
 			$add( sprintf( __( 'Last run: %s', 'wp-license' ), $job ), Format::date( gmdate( 'Y-m-d H:i:s', $timestamp ), true ) );
+		}
+
+		foreach ( \WPLC\Maintenance\DailyRunner::failures() as $job => $failure ) {
+			$add(
+				/* translators: %s: internal job name. */
+				sprintf( __( 'Last failure: %s', 'wp-license' ), (string) $job ),
+				Format::date( gmdate( 'Y-m-d H:i:s', (int) $failure['time'] ), true ) . ' — ' . (string) $failure['message'],
+				time() - (int) $failure['time'] < DAY_IN_SECONDS ? 'warning' : '',
+				__( 'The job threw an error and was skipped; the jobs after it still ran. The full message is in the WooCommerce log (source wp-license).', 'wp-license' )
+			);
 		}
 
 		$scheduler = function_exists( 'as_enqueue_async_action' );
@@ -575,19 +678,44 @@ final class Diagnostics {
 			$stripe['ok'] ? 'ok' : 'warning'
 		);
 		$add( __( 'Stripe gateway version', 'wp-license' ), defined( 'WC_STRIPE_VERSION' ) ? (string) WC_STRIPE_VERSION : __( 'Not loaded', 'wp-license' ) );
-		$secret = defined( 'WPLC_STRIPE_WEBHOOK_SECRET' ) && '' !== (string) WPLC_STRIPE_WEBHOOK_SECRET;
+		$secret = \WPLC\Api\V1\StripeWebhook::is_configured();
 		$add( __( 'Stripe webhook secret', 'wp-license' ), $secret ? __( 'Set', 'wp-license' ) : __( 'Not set. Stripe events are rejected.', 'wp-license' ), $secret ? 'ok' : 'warning' );
 		$add( __( 'Last valid Stripe event', 'wp-license' ), self::last_stripe_event() );
+		$webhook_runs = self::last_runs();
+		foreach ( array( 'stripe_webhook_live' => __( 'Last Stripe event in live mode', 'wp-license' ), 'stripe_webhook_test' => __( 'Last Stripe event in test mode', 'wp-license' ) ) as $job => $label ) {
+			if ( isset( $webhook_runs[ $job ] ) ) {
+				$add( $label, Format::date( gmdate( 'Y-m-d H:i:s', $webhook_runs[ $job ] ), true ) );
+			}
+		}
+		if ( isset( $webhook_runs['stripe_webhook_rejected'] ) ) {
+			$add(
+				__( 'Last rejected Stripe webhook request', 'wp-license' ),
+				Format::date( gmdate( 'Y-m-d H:i:s', $webhook_runs['stripe_webhook_rejected'] ), true ),
+				time() - $webhook_runs['stripe_webhook_rejected'] < DAY_IN_SECONDS ? 'warning' : '',
+				__( 'A request to the webhook URL had no valid signature. If this repeats, the signing secret in wp-config.php does not match the endpoint in the Stripe dashboard (live and test mode have different secrets).', 'wp-license' )
+			);
+		}
 		$count( __( 'Pending Stripe events', 'wp-license' ), $metrics['pending_webhooks'], __( 'Events that were received but not processed yet. They are retried by the background queue.', 'wp-license' ) );
 		$count( __( 'Stripe events needing review (24 hours)', 'wp-license' ), $metrics['manual_review_webhooks'], __( 'The event could not be matched to a renewal. Compare the payment in the Stripe dashboard with the renewal order.', 'wp-license' ) );
 		$count( __( 'Overdue renewal attempts', 'wp-license' ), $metrics['overdue_renewals'], __( 'Renewals whose next attempt lies in the past. A few are normal shortly before the queue runs.', 'wp-license' ) );
 		$count( __( 'Renewals stuck in processing (over 1 hour)', 'wp-license' ), $metrics['stuck_processing_renewals'], __( 'A payment attempt started and never reported back. Check the renewal order and the payment in Stripe before anything is retried.', 'wp-license' ) );
+		$count( __( 'Renewals with an unclear payment result', 'wp-license' ), $metrics['payment_review_renewals'], __( 'The payment provider did not give a final answer and the automatic check could not resolve it. Compare the renewal order with the payment in the provider\'s dashboard, then extend the license by hand or cancel the order. Nothing is charged again automatically.', 'wp-license' ) );
 		$count( __( 'Licenses with automatic renewal but no open renewal', 'wp-license' ), $metrics['renewing_without_renewal'], __( 'These licenses would not be charged at the end of their term. The daily run schedules missing renewals.', 'wp-license' ) );
 		$count( __( 'Paid renewals without extension', 'wp-license' ), $metrics['paid_without_extension'], __( 'The latest renewal of these licenses is paid, but the license does not run until the end of the paid period. Extend the term by hand or refund the order.', 'wp-license' ) );
 		$count( __( 'Unused expired download grants', 'wp-license' ), $metrics['expired_download_grants'], '' );
 
 		// Catalog and keys.
 		$count( __( 'License products without a plan', 'wp-license' ), $metrics['unmapped_license_products'], __( 'These products are ticked as license product but have no product key and plan. They are sold without a license. Open the product and complete the license fields.', 'wp-license' ) );
+		if ( self::orders_with_issuance_problem() >= 0 ) {
+			$count( __( 'Paid orders without their licenses', 'wp-license' ), $metrics['orders_with_issuance_problem'], __( 'A license could not be created for these orders; the reason is in the order notes. Issuing is retried daily.', 'wp-license' ) );
+		}
+		foreach ( \WPLC\Update\ReleaseRegistry::problems( true ) as $problem ) {
+			$add(
+				__( 'Update packages', 'wp-license' ),
+				(string) $problem['message'] . ( (int) $problem['release_id'] > 0 ? ' (#' . (int) $problem['release_id'] . ')' : '' ),
+				'warning'
+			);
+		}
 		$sample = self::key_sample( true );
 		$add(
 			__( 'License keys verifiable with the current secret', 'wp-license' ),
@@ -602,7 +730,45 @@ final class Diagnostics {
 			$fallback ? __( 'Not configured; the WordPress salts are used', 'wp-license' ) : __( 'Configured', 'wp-license' ),
 			$fallback ? 'warning' : 'ok'
 		);
-		$add( __( 'Response signing key (Ed25519, public)', 'wp-license' ), \WPLC\Security\ResponseSigner::public_key() ?: __( 'Unavailable', 'wp-license' ) );
+		$signer        = \WPLC\Security\ResponseSigner::status();
+		$signer_states = array(
+			'sodium_unavailable'     => __( 'the PHP extension sodium is missing', 'wp-license' ),
+			'constant_invalid'       => __( 'WPLC_RESPONSE_SIGNING_KEY is not a valid key', 'wp-license' ),
+			'undecryptable'          => __( 'the stored key cannot be decrypted with the configured secrets', 'wp-license' ),
+			'corrupt'                => __( 'the stored key is damaged', 'wp-license' ),
+			'missing'                => __( 'the stored key is gone', 'wp-license' ),
+			'encryption_unavailable' => __( 'the key could not be encrypted for storage', 'wp-license' ),
+			'storage_failed'         => __( 'the key could not be stored', 'wp-license' ),
+			'busy'                   => __( 'another request is creating the key', 'wp-license' ),
+			'unavailable'            => __( 'no key available', 'wp-license' ),
+		);
+		$signer_ok     = 'ok' === $signer['state'];
+		$add(
+			__( 'Response signing key (Ed25519, public)', 'wp-license' ),
+			$signer_ok
+				? $signer['public_key'] . ' (' . ( '' !== $signer['key_id'] ? $signer['key_id'] . ', ' : '' ) . ( 'constant' === $signer['source'] ? 'wp-config.php' : __( 'stored in the database', 'wp-license' ) ) . ')'
+				/* translators: %s: reason. */
+				: sprintf( __( 'Unavailable: %s', 'wp-license' ), isset( $signer_states[ $signer['state'] ] ) ? $signer_states[ $signer['state'] ] : $signer['state'] ),
+			$signer_ok ? 'ok' : 'warning',
+			$signer_ok
+				? ( 'constant' === $signer['source'] ? '' : __( 'The key is stored encrypted in the database. For a production server, keep it in wp-config.php as WPLC_RESPONSE_SIGNING_KEY ("wp wplc signing-key"), so a restored or copied database cannot change it.', 'wp-license' ) )
+				: __( 'API responses are sent without the Ed25519 signature. Add-ons that require it treat the license server as unreachable.', 'wp-license' )
+		);
+		$old_secrets = \WPLC\CLI\RotateInstallationSecretsCommand::pending_count();
+		$add(
+			__( 'Installation secrets encrypted with an old key', 'wp-license' ),
+			(string) $old_secrets,
+			$old_secrets > 0 ? 'warning' : 'ok',
+			$old_secrets > 0 ? __( 'Run "wp wplc rotate-installation-secrets" before you remove the previous encryption key from wp-config.php.', 'wp-license' ) : ''
+		);
+		foreach ( array( 0 => __( 'Rejected API requests today (UTC)', 'wp-license' ), 1 => __( 'Rejected API requests yesterday (UTC)', 'wp-license' ) ) as $days_ago => $label ) {
+			$rejected = \WPLC\Api\V1\ApiLog::counts( $days_ago );
+			$parts    = array();
+			foreach ( $rejected as $code => $number ) {
+				$parts[] = $code . ': ' . (int) $number;
+			}
+			$add( $label, $parts ? implode( ', ', $parts ) : __( 'None', 'wp-license' ) );
+		}
 
 		// Infrastructure.
 		$lock = self::lock_self_test();

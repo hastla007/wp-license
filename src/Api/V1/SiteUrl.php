@@ -236,7 +236,7 @@ final class SiteUrl {
 			 * @param string $host   Lower-case host.
 			 */
 			$filtered = apply_filters( 'wplc_registrable_domain', $domain, $host );
-			$domain = is_string( $filtered ) && '' !== $filtered ? strtolower( $filtered ) : $domain;
+			$domain = '' !== (string) $filtered ? strtolower( (string) $filtered ) : $domain;
 		}
 
 		return $domain;

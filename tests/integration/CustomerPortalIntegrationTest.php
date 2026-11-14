@@ -590,26 +590,14 @@ final class CustomerPortalIntegrationTest extends WPLC_Portal_TestCase {
 		$this->assertStringContainsString( 'pay_for_order=true', $result['location'] );
 	}
 
-	public function test_B17_download_form_is_retargeted_to_the_frontend(): void {
-		$original = '<form method="post" class="wplc-download-package" action="https://shop.test/wp-admin/admin-post.php?action=wplc_download_package">'
-			. '<input type="hidden" name="license_id" value="7"><input type="hidden" id="_wpnonce" name="_wpnonce" value="abc123">'
-			. '<button type="submit" class="button">Download version 1.2.0</button></form>';
-
-		$html = CustomerPortal::retarget_form( $original, 'wplc_download_package', 'https://shop.test/my-account/wplc-licenses/' );
-
-		$this->assertStringContainsString( 'action="https://shop.test/my-account/wplc-licenses/"', $html );
-		$this->assertStringNotContainsString( 'admin-post.php', $html );
-		$this->assertStringNotContainsString( 'id="_wpnonce"', $html );
-		$fields = $this->form_fields( $html );
-		$this->assertSame(
-			array( 'license_id' => '7', '_wpnonce' => 'abc123', 'wplc_portal' => '1', 'action' => 'wplc_download_package', 'wplc_return' => 'https://shop.test/my-account/wplc-licenses/' ),
-			$fields
-		);
-
-		// Unknown markup is left alone and keeps working through admin-post.php.
-		$unknown = '<form method="post" action="https://shop.test/elsewhere"><button>x</button></form>';
-		$this->assertSame( $unknown, CustomerPortal::retarget_form( $unknown, 'wplc_download_package', 'https://shop.test/a/' ) );
-		$this->assertSame( $original . $original, CustomerPortal::retarget_form( $original . $original, 'wplc_download_package', 'https://shop.test/a/' ) );
+	public function test_B17_download_form_needs_no_retargeting(): void {
+		// Wave 2: CustomerDownload::render_button() posts to the portal URL itself (tested in
+		// ReleaseUpdateIntegrationTest); the string surgery on its markup is gone.
+		$this->assertFalse( method_exists( CustomerPortal::class, 'retarget_form' ) );
+		$method = new ReflectionMethod( \WPLC\Update\CustomerDownload::class, 'form_url' );
+		$method->setAccessible( true );
+		$this->assertSame( CustomerPortal::form_url(), $method->invoke( null ) );
+		$this->assertStringNotContainsString( 'wp-admin', (string) $method->invoke( null ) );
 	}
 
 	public function test_B17_download_post_with_an_expired_token_does_not_die_in_the_handler(): void {

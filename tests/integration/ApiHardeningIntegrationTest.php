@@ -348,7 +348,7 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( array( 'nonces' => 25, 'limits' => 25 ), $deleted );
 		$this->assertSame( 1, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables['request_nonces']} WHERE activation_id >= 900000" ) );
 		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['request_limits']} WHERE limiter_hash = %s", hash( 'sha256', 'fresh' ) ) ) );
-		$this->assertNotFalse( has_action( 'wplc_cleanup_security_rows', array( Authenticator::class, 'cleanup_security_rows' ) ) );
+		$this->assertNotFalse( has_action( 'wplc_cleanup_security_rows', array( Authenticator::class, 'run_cleanup' ) ) );
 	}
 
 	public function test_rejected_requests_are_counted_and_announced(): void {

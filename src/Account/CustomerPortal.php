@@ -167,9 +167,8 @@ final class CustomerPortal {
 			add_filter( 'woocommerce_get_query_vars', array( self::class, 'add_query_var' ) );
 		}
 		$mask  = EP_PAGES;
-		$query = function_exists( 'WC' ) && is_object( WC() ) && isset( WC()->query ) ? WC()->query : null;
-		if ( is_object( $query ) && is_callable( array( $query, 'get_endpoints_mask' ) ) ) {
-			$mask = (int) $query->get_endpoints_mask();
+		if ( function_exists( 'WC' ) ) {
+			$mask = (int) WC()->query->get_endpoints_mask();
 		}
 		add_rewrite_endpoint( self::endpoint_slug(), $mask );
 	}
@@ -278,7 +277,7 @@ final class CustomerPortal {
 	 * @return void
 	 */
 	public static function send_no_cache(): void {
-		if ( class_exists( '\\WC_Cache_Helper' ) && is_callable( array( '\\WC_Cache_Helper', 'set_nocache_constants' ) ) ) {
+		if ( class_exists( '\\WC_Cache_Helper' ) ) {
 			\WC_Cache_Helper::set_nocache_constants();
 		}
 		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
@@ -451,7 +450,7 @@ final class CustomerPortal {
 		$related['activations'] = self::group_rows(
 			$wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT id, license_id, site_url, environment, status, activated_at, last_seen_at FROM {$tables['activations']} WHERE status = %s AND license_id IN ({$placeholders}) ORDER BY activated_at DESC",
+					"SELECT id, license_id, site_url, environment, status, activated_at, last_seen_at FROM {$tables['activations']} WHERE status = %s AND license_id IN ({$placeholders}) ORDER BY activated_at DESC, id DESC",
 					array_merge( array( 'active' ), $license_ids )
 				),
 				ARRAY_A
@@ -583,9 +582,10 @@ final class CustomerPortal {
 		 * @param array<string,mixed> $view    Display values handed to templates/myaccount/wplc-license.php.
 		 * @param array<string,mixed> $license License row.
 		 */
-		$filtered = apply_filters( 'wplc_account_license_view', $view, $license );
+		$filtered = (array) apply_filters( 'wplc_account_license_view', $view, $license );
 
-		return is_array( $filtered ) ? array_merge( $view, $filtered ) : $view;
+		// Keys a filter removed fall back to the built-in values; the template relies on all of them.
+		return array_merge( $view, $filtered );
 	}
 
 	/**
@@ -595,11 +595,7 @@ final class CustomerPortal {
 	 * @return bool
 	 */
 	private static function can_renew( array $license ): bool {
-		$manual_renewal = '\\WPLC\\Billing\\ManualRenewal';
-
-		return class_exists( $manual_renewal )
-			&& is_callable( array( $manual_renewal, 'can_renew' ) )
-			&& (bool) call_user_func( array( $manual_renewal, 'can_renew' ), $license );
+		return \WPLC\Billing\ManualRenewal::can_renew( $license );
 	}
 
 	/**
@@ -612,9 +608,7 @@ final class CustomerPortal {
 		static $cache = array();
 
 		if ( ! isset( $cache[ $product_key ] ) ) {
-			$registry              = '\\WPLC\\Update\\ReleaseRegistry';
-			$cache[ $product_key ] = class_exists( $registry ) && is_callable( array( $registry, 'latest_published' ) )
-				&& null !== call_user_func( array( $registry, 'latest_published' ), $product_key );
+			$cache[ $product_key ] = null !== \WPLC\Update\ReleaseRegistry::latest_published( $product_key );
 		}
 		return $cache[ $product_key ];
 	}
@@ -1066,15 +1060,7 @@ final class CustomerPortal {
 		if ( ! LicenseLifecycle::schedule_cancellation( $license_id, 'Customer requested cancellation', get_current_user_id() ) ) {
 			return 'cancel_failed';
 		}
-
-		/**
-		 * Fires after a customer cancelled the automatic renewal of a license.
-		 * The notification package confirms the cancellation by email.
-		 *
-		 * @param int $license_id   License ID.
-		 * @param int $cancelled_at Unix timestamp at which the cancellation was received.
-		 */
-		do_action( 'wplc/cancellation_scheduled', $license_id, time() );
+		// LicenseLifecycle fired `wplc/cancellation_scheduled`; the notification package confirms by email.
 
 		return 'cancel_scheduled';
 	}
@@ -1303,53 +1289,17 @@ final class CustomerPortal {
 	}
 
 	/**
-	 * Print the download form of the update package, re-targeted to the frontend.
+	 * Print the download form of the update package.
 	 *
-	 * The form itself is rendered by CustomerDownload::render_button() with
-	 * admin-post.php as its target. The same fields are accepted by
-	 * handle_front_post(), so only the target is replaced here; when the markup
-	 * is not as expected the form is printed unchanged and keeps working
-	 * through admin-post.php.
+	 * CustomerDownload::render_button() posts to the page that is being
+	 * rendered (form_url()) and handles the request on the front end itself
+	 * (B-17), so the markup is printed as it is.
 	 *
 	 * @param array<string,mixed> $license License row.
 	 * @return void
 	 */
 	private static function render_download_form( array $license ): void {
-		$download = '\\WPLC\\Update\\CustomerDownload';
-		if ( ! class_exists( $download ) || ! is_callable( array( $download, 'render_button' ) ) ) {
-			return;
-		}
-		ob_start();
-		call_user_func( array( $download, 'render_button' ), $license );
-		$html = (string) ob_get_clean();
-		if ( '' === $html ) {
-			return;
-		}
-
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markup of CustomerDownload::render_button(), escaped there; the inserted values are escaped in retarget_form().
-		echo self::retarget_form( $html, 'wplc_download_package', self::form_url() );
-	}
-
-	/**
-	 * Point a form that targets admin-post.php to a frontend URL.
-	 *
-	 * @param string $html   Markup with exactly one form.
-	 * @param string $action Form action name.
-	 * @param string $url    Frontend URL.
-	 * @return string
-	 */
-	public static function retarget_form( string $html, string $action, string $url ): string {
-		if ( 1 !== substr_count( $html, '<form' ) || 1 !== substr_count( $html, '</form>' ) || ! preg_match( '/<form\b[^>]*\saction="[^"]*admin-post\.php[^"]*"/', $html ) ) {
-			return $html;
-		}
-		$fields = '<input type="hidden" name="' . esc_attr( self::FORM_MARKER ) . '" value="1">'
-			. '<input type="hidden" name="action" value="' . esc_attr( $action ) . '">'
-			. '<input type="hidden" name="wplc_return" value="' . esc_attr( $url ) . '">';
-		$html   = (string) preg_replace( '/(<form\b[^>]*\saction=")[^"]*(")/', '${1}' . esc_url( $url ) . '${2}', $html, 1 );
-		// Several forms share one page: the nonce field must not carry an id.
-		$html = str_replace( ' id="_wpnonce"', '', $html );
-
-		return str_replace( '</form>', $fields . '</form>', $html );
+		\WPLC\Update\CustomerDownload::render_button( $license );
 	}
 
 	/**
@@ -1366,9 +1316,8 @@ final class CustomerPortal {
 			return;
 		}
 
-		$consent  = '\\WPLC\\Billing\\RecurringConsent';
 		$licensed = (bool) LicenseLifecycle::license_ids_for_order( (int) $order->get_id() );
-		$pending  = ! $licensed && class_exists( $consent ) && is_callable( array( $consent, 'order_contains_license' ) ) && call_user_func( array( $consent, 'order_contains_license' ), $order );
+		$pending  = ! $licensed && \WPLC\Billing\RecurringConsent::order_contains_license( $order );
 		if ( ! $licensed && ! $pending ) {
 			return;
 		}

@@ -29,6 +29,10 @@ final class Schema {
 	 * 18: {prefix}wplc_reminder_log is part of the schema (it used to install itself);
 	 *     indexes for retention and diagnostics (activations.status_deactivated,
 	 *     event_inbox.outcome_processed).
+	 * 19: one heartbeat store: the options `wplc_last_daily_run` and `wplc_job_heartbeats`
+	 *     are folded into `wplc_last_run` and deleted. Indexes licenses.source_order
+	 *     (licenses of an order: refunds, order screen, reconciliation) and
+	 *     licenses.created_at (default sorting of the admin list), added by dbDelta (A-105).
 	 * 20: licenses.gateway_customer_ref, gateway_method_ref, gateway_mode (payment reference of
 	 *     the gateway at purchase, B-57). Nullable columns only, added by dbDelta; no data step.
 	 */
@@ -81,6 +85,7 @@ final class Schema {
 	private static $steps = array(
 		'10' => array( self::class, 'step_10_autoload_schema_version' ),
 		'18' => array( self::class, 'step_18_adopt_reminder_log' ),
+		'19' => array( self::class, 'step_19_one_heartbeat_store' ),
 	);
 
 	/**
@@ -553,6 +558,37 @@ final class Schema {
 	}
 
 	/**
+	 * Create or complete one plugin table from its CREATE TABLE statement.
+	 *
+	 * For code that finds its table missing outside a migration request (the
+	 * reminder log before a reminder is sent). The statement is the one of the
+	 * schema, so there is no second definition of the table.
+	 *
+	 * @param string $key Table key as in table_names(), e.g. "reminder_log".
+	 * @return bool False for an unknown key or in the downgrade state; true after dbDelta ran.
+	 */
+	public static function create_table( string $key ): bool {
+		global $wpdb;
+
+		$tables = self::table_names();
+		if ( ! isset( $tables[ $key ] ) || self::is_downgraded() ) {
+			return false;
+		}
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		foreach ( self::table_statements() as $statement ) {
+			if ( self::expected_columns( $statement )['table'] === $tables[ $key ] ) {
+				$suppressed = $wpdb->suppress_errors( true );
+				\dbDelta( $statement );
+				$wpdb->suppress_errors( $suppressed );
+
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * CREATE TABLE statements of every plugin table (dbDelta layout).
 	 *
 	 * @return string[]
@@ -632,7 +668,9 @@ final class Schema {
 				UNIQUE KEY order_unit (source_order_item_id,unit_index),
 				KEY customer_product (customer_id,product_key),
 				KEY status_paid_until (status,paid_until),
-				KEY next_payment_at (next_payment_at)
+				KEY next_payment_at (next_payment_at),
+				KEY source_order (source_order_id),
+				KEY created_at (created_at)
 			) {$charset_collate};",
 			"CREATE TABLE {$tables['activations']} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -914,6 +952,34 @@ final class Schema {
 		if ( '2' !== (string) get_option( 'wplc_reminder_log_version', '' ) ) {
 			update_option( 'wplc_reminder_log_version', '2', false );
 		}
+
+		return true;
+	}
+
+	/**
+	 * Schema 19: one heartbeat store.
+	 *
+	 * Three packages kept the time of the last job run in three options. The
+	 * time of the last completed daily run moves into `wplc_last_run` (job
+	 * `daily_lifecycle`, read by the diagnostics page, the admin notice and the
+	 * gap detection); the two other options are deleted.
+	 *
+	 * Public only so the step table can call it.
+	 *
+	 * @return bool
+	 */
+	public static function step_19_one_heartbeat_store(): bool {
+		$legacy = (int) get_option( 'wplc_last_daily_run', 0 );
+		if ( $legacy > 0 ) {
+			$runs = get_option( 'wplc_last_run', array() );
+			$runs = is_array( $runs ) ? $runs : array();
+			if ( empty( $runs['daily_lifecycle'] ) || (int) $runs['daily_lifecycle'] < $legacy ) {
+				$runs['daily_lifecycle'] = $legacy;
+				update_option( 'wplc_last_run', $runs, false );
+			}
+		}
+		delete_option( 'wplc_last_daily_run' );
+		delete_option( 'wplc_job_heartbeats' );
 
 		return true;
 	}

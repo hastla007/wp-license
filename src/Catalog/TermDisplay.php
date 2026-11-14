@@ -7,7 +7,7 @@
 
 namespace WPLC\Catalog;
 
-use WPLC\Billing\Money;
+use WPLC\Notifications\RenewalTerms;
 use WPLC\Gateway\Registry;
 use WPLC\Infrastructure\Database\Schema;
 
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class TermDisplay {
 
 	/**
-	 * Register display hooks. Called from ProductEditor::register_hooks().
+	 * Register display hooks. Called from Plugin::on_plugins_loaded().
 	 *
 	 * @return void
 	 */
@@ -135,31 +135,11 @@ final class TermDisplay {
 	 * @return string
 	 */
 	public static function renewal_price_text( array $mapping, $product ): string {
-		$decimals = max( 0, min( 6, (int) ( $mapping['price_decimals'] ?? 2 ) ) );
-		$amount   = (float) Money::to_decimal( max( 0, (int) ( $mapping['price_minor'] ?? 0 ) ), $decimals );
-		$suffix   = '';
-
-		if ( is_object( $product ) && function_exists( 'wc_tax_enabled' ) && wc_tax_enabled() ) {
-			// The shop setting for cart and checkout; it also holds where no cart exists (emails, admin).
-			$including = 'incl' === get_option( 'woocommerce_tax_display_cart' );
-			$amount    = (float) ( $including
-				? wc_get_price_including_tax( $product, array( 'price' => $amount ) )
-				: wc_get_price_excluding_tax( $product, array( 'price' => $amount ) ) );
-			$suffix = (string) ( $including ? WC()->countries->inc_tax_or_vat() : WC()->countries->ex_tax_or_vat() );
-		}
-
-		$price = html_entity_decode(
-			wp_strip_all_tags( wc_price( $amount, array( 'currency' => (string) ( $mapping['currency'] ?? '' ) ) ) ),
-			ENT_QUOTES,
-			'UTF-8'
+		// One place for the renewal amount and its wording: Notifications\RenewalTerms.
+		return RenewalTerms::per_interval_text(
+			RenewalTerms::plan_amount( $mapping, $product ),
+			(string) ( $mapping['billing_interval'] ?? 'year' )
 		);
-		$text  = 'month' === (string) ( $mapping['billing_interval'] ?? 'year' )
-			/* translators: %s: price, for example "9,90 €". */
-			? sprintf( __( '%s per month', 'wp-license' ), $price )
-			/* translators: %s: price, for example "59,00 €". */
-			: sprintf( __( '%s per year', 'wp-license' ), $price );
-
-		return '' === trim( $suffix ) ? $text : $text . ' ' . trim( $suffix );
 	}
 
 	/**

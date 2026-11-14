@@ -307,7 +307,7 @@ final class StripeWebhook {
 	 * @return array<int,array{secret:string,mode:string}> mode is `live`, `test` or empty for both.
 	 */
 	private static function secrets(): array {
-		$live = defined( 'WPLC_STRIPE_WEBHOOK_SECRET' ) && is_string( WPLC_STRIPE_WEBHOOK_SECRET ) ? (string) WPLC_STRIPE_WEBHOOK_SECRET : '';
+		$live = defined( 'WPLC_STRIPE_WEBHOOK_SECRET' ) ? (string) WPLC_STRIPE_WEBHOOK_SECRET : '';
 		$test = defined( 'WPLC_STRIPE_WEBHOOK_SECRET_TEST' ) && is_string( WPLC_STRIPE_WEBHOOK_SECRET_TEST ) ? (string) WPLC_STRIPE_WEBHOOK_SECRET_TEST : '';
 		$blog_id = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
 		if ( defined( 'WPLC_STRIPE_WEBHOOK_SECRETS' ) && is_array( WPLC_STRIPE_WEBHOOK_SECRETS ) ) {
@@ -326,11 +326,10 @@ final class StripeWebhook {
 			 * @param array{live:string,test:string} $configured Secrets from the constants.
 			 * @param int                            $blog_id Current blog ID.
 			 */
-			$filtered = apply_filters( 'wplc_stripe_webhook_secrets', $configured, $blog_id );
-			$configured = is_array( $filtered ) ? $filtered : $configured;
+			$configured = apply_filters( 'wplc_stripe_webhook_secrets', $configured, $blog_id );
 		}
 
-		return self::secret_list( (string) ( $configured['live'] ?? '' ), (string) ( $configured['test'] ?? '' ) );
+		return self::secret_list( (string) $configured['live'], (string) $configured['test'] );
 	}
 
 	/**
@@ -434,8 +433,14 @@ final class StripeWebhook {
 		return 1 === count( $found ) ? (int) key( $found ) : 0;
 	}
 
-	/** Verify Stripe's timestamped HMAC-SHA256 signature with a five-minute tolerance. */
-	private static function verify_signature( string $body, string $header ): bool {
+	/**
+	 * Verify Stripe's timestamped HMAC-SHA256 signature with a five-minute tolerance.
+	 *
+	 * @param string $body Raw request body.
+	 * @param string $header `Stripe-Signature` header.
+	 * @return bool
+	 */
+	public static function verify_signature( string $body, string $header ): bool {
 		return null !== self::matching_secret_mode( $body, $header, self::secrets(), time() );
 	}
 
@@ -467,7 +472,7 @@ final class StripeWebhook {
 		}
 		$matched = null;
 		foreach ( $secrets as $candidate ) {
-			$secret = (string) ( $candidate['secret'] ?? '' );
+			$secret = $candidate['secret'];
 			if ( '' === $secret ) {
 				continue;
 			}
@@ -475,7 +480,7 @@ final class StripeWebhook {
 			foreach ( $signatures as $signature ) {
 				// No early exit: every candidate is compared, whichever matches.
 				if ( hash_equals( $expected, $signature ) && null === $matched ) {
-					$matched = (string) ( $candidate['mode'] ?? '' );
+					$matched = $candidate['mode'];
 				}
 			}
 		}

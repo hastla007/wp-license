@@ -32,6 +32,13 @@ final class Catalog {
 	public const PRODUCT_KEY_PATTERN = '/^[a-z0-9][a-z0-9-]{1,99}$/D';
 
 	/**
+	 * Everything an older version stored as product key (output of sanitize_key():
+	 * underscores, a leading hyphen, a single character). Only for reading and
+	 * for products that already exist; new keys must match PRODUCT_KEY_PATTERN (B-174).
+	 */
+	public const LEGACY_PRODUCT_KEY_PATTERN = '/^[a-z0-9_-]{1,100}$/D';
+
+	/**
 	 * Pattern of a plan key: like a product key, but one character is enough.
 	 */
 	public const PLAN_KEY_PATTERN = '/^[a-z0-9][a-z0-9-]{0,99}$/D';
@@ -68,6 +75,32 @@ final class Catalog {
 	 */
 	public static function is_valid_product_key( string $key ): bool {
 		return 1 === preg_match( self::PRODUCT_KEY_PATTERN, $key );
+	}
+
+	/**
+	 * Whether releases, packages and API lookups may work with a product key (B-174).
+	 *
+	 * One rule for the catalog, the release registry and the package storage:
+	 * a key of the current form is accepted; a key of the former, wider form
+	 * (with underscores) only when a product with exactly this key exists, so
+	 * the releases of products created by an older version keep working and no
+	 * new key of that form can appear.
+	 *
+	 * @param string $key Product key.
+	 * @return bool
+	 */
+	public static function accepts_product_key( string $key ): bool {
+		global $wpdb;
+
+		if ( self::is_valid_product_key( $key ) ) {
+			return true;
+		}
+		if ( 1 !== preg_match( self::LEGACY_PRODUCT_KEY_PATTERN, $key ) ) {
+			return false;
+		}
+		$tables = Schema::table_names();
+
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE product_key = %s', $tables['products'], $key ) ) > 0;
 	}
 
 	/**
@@ -601,7 +634,11 @@ final class Catalog {
 	/**
 	 * Products and variations whose meta says "license product" but that have no
 	 * plan (after a copy that bypassed WooCommerce, for example by a translation
-	 * plugin). Customers who buy them get no license. For the diagnostics screen.
+	 * plugin). Customers who buy them get no license. For the diagnostics screen
+	 * (the one check behind the row and the health metric `unmapped_license_products`).
+	 *
+	 * A product counts as mapped when it has an active plan itself or through one
+	 * of its variations; a variation also through the plan of its parent.
 	 *
 	 * @param int $limit Maximum number of IDs.
 	 * @return array<int,int>
@@ -615,9 +652,9 @@ final class Catalog {
 			$wpdb->prepare(
 				"SELECT p.ID FROM {$wpdb->postmeta} pm
 				INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
-				LEFT JOIN {$tables['plans']} pl ON (
-					( p.post_type = 'product' AND pl.woocommerce_product_id = p.ID AND pl.woocommerce_variation_id = 0 )
-					OR ( p.post_type = 'product_variation' AND pl.woocommerce_variation_id = p.ID )
+				LEFT JOIN {$tables['plans']} pl ON pl.active = 1 AND (
+					( p.post_type = 'product' AND pl.woocommerce_product_id = p.ID )
+					OR ( p.post_type = 'product_variation' AND ( pl.woocommerce_variation_id = p.ID OR ( pl.woocommerce_product_id = p.post_parent AND pl.woocommerce_variation_id = 0 ) ) )
 				)
 				WHERE pm.meta_key = '_wplc_is_license_product' AND pm.meta_value = 'yes'
 					AND p.post_type IN ( 'product', 'product_variation' )

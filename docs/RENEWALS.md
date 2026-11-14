@@ -31,6 +31,32 @@ When the license is issued, `renewal_enabled` is set only if all of these hold: 
 
 The Stripe adapter (`StripeRecurringAdapter`) accepts only saved card PaymentMethods (`pm_…`) of the official WooCommerce Stripe gateway for customers with a Stripe customer ID (`cus_…`). It uses internal classes of that gateway (`WC_Stripe_API`, `WC_Stripe_Helper`), which are not a public API. There is no PayPal adapter.
 
+### Decisions of 14 November 2026
+
+- **Card-only at launch.** Automatic renewal exists for cards saved through the WooCommerce Stripe gateway. SEPA Direct Debit, PayPal and all other methods renew manually through the reminder email and the account ([PAYPAL-COMPATIBILITY.md](PAYPAL-COMPATIBILITY.md)). A SEPA adapter is decided later.
+- **Never another card.** When the card a license renews with no longer exists, the plugin does not charge any other card of the customer. `PaymentReference::resolve_token()` only accepts the stored token or the token row the gateway re-created for the same payment method reference. Otherwise the renewal is postponed with `renewal_payment_method_missing`, the action `wplc/renewal_payment_method_missing( $license_id, $renewal_id, $customer_id, $first )` fires, and on the first report of a period the customer gets the email "saved card no longer available" (`wplc_payment_method_missing`, switchable under WooCommerce → Settings → Emails).
+
+### Advance notice before a charge (B-41)
+
+A due renewal is only charged when the advance notice ("your license renews on …") was accepted by the mailer for the period that ends. `Notifications::charge_allowed()` answers the filter `wplc_renewal_charge_allowed`:
+
+- notice on record (reminder log, type `renewal_notice`, status `sent`): the charge runs;
+- no notice (email switched off, mailer refused it, the plugin was inactive a week before): the renewal is postponed for six hours with `last_error = renewal_notice_not_sent`, audit entry `renewal_blocked` and the action `wplc/renewal_blocked`. Nothing counts as a failed payment. The missing notice is sent at that moment, so the next attempt goes through; a charge never happens in the same run as its announcement. While the mailer keeps refusing, the renewal stays postponed and expires unattempted after the manual renewal window.
+- The lead time is the setting "Renewal notice lead days" (default 7, at least 1). For a term shorter than twice the lead time the notice is sent at half the term instead of being dropped.
+- `add_filter( 'wplc_renewal_requires_advance_notice', '__return_false' )` switches the rule off for shops that announce the charge in another documented way.
+
+### Deleted payment methods (B-57)
+
+One listener (`Maintenance\Orphans::on_payment_token_deleted()`) decides, and `Maintenance\RenewalSwitch::off()` is the only code that switches automatic renewal off (audit action `renewal_disabled`):
+
+| Who deletes the token row | What happens |
+| --- | --- |
+| The customer (My Account → Payment methods → Delete), a privacy erasure, the deletion of the account | Automatic renewal is switched off, the token and gateway references are removed, open automatic renewals are cancelled. The customer sees a notice and can switch renewal on again with another card. |
+| The Stripe gateway while it lists the saved methods (it deletes and re-creates its token rows) | Nothing is switched off. `StripeRecurringAdapter::keep_license_on_token_sync()` detaches the license from the row (audit `payment_token_detached`); the charge finds the re-created row through the payment method reference. |
+| Anything else (import, another plugin) | Nothing changes. If the method is really gone, the next charge reports `renewal_payment_method_missing`. |
+
+The filter `wplc_disable_renewal_on_token_deletion( $disable, $token_id, $context )` overrides the decision (`context`: `customer`, `privacy`, `user_deleted`, `gateway_sync`, `other`).
+
 ### Charge
 
 1. `RenewalScheduler::schedule_next()` creates the renewal row and schedules `wplc_process_renewal` for `paid_until` (Action Scheduler group `wplc`, WP-Cron as fallback). A license with a scheduled cancellation gets no row.
@@ -106,7 +132,7 @@ If the renewal order is paid, the renewal is booked. Otherwise the attempt is tr
 
 ### Daily jobs
 
-All run on `wplc_daily_lifecycle`. Each one is wrapped in `LicenseLifecycle::run_guarded()`: an exception is logged (WooCommerce log, source `wplc`) and does not stop the jobs after it. The time and result of every run are stored in the option `wplc_job_heartbeats` (`job => array( time, ok )`).
+All run on `wplc_daily_lifecycle`. Each one is isolated by `WPLC\Maintenance\DailyRunner` (the single wrapper for all daily jobs): an exception is logged (WooCommerce log, source `wp-license`), kept in the option `wplc_job_failures` and does not stop the jobs after it. A job that finished writes its heartbeat into the option `wplc_last_run` under its job name, for example `renewal_processor_requeue_overdue_renewals`. `LicenseLifecycle::run_guarded( $job, $callable )` delegates to the same wrapper for code that runs a job outside the daily hook.
 
 | Job | What it does |
 | --- | --- |
@@ -134,7 +160,7 @@ A renewal whose grace period is over although no charge was ever attempted (queu
 
 ### Paused billing
 
-`LicenseLifecycle::billing_paused()` asks `WPLC\Maintenance\SiteGuard::billing_paused()` when that class exists (staging clone, restored database) and applies the filter `wplc_billing_paused`. While paused, no renewal is charged, no license is expired and none of the daily renewal jobs runs.
+`LicenseLifecycle::billing_paused()` and `RenewalProcessor::billing_paused()` delegate to `WPLC\Maintenance\SiteGuard::billing_paused()` (staging clone, restored database, `WPLC_PAUSE_BILLING`), which applies the filter `wplc_billing_paused` (arguments: paused, reason). While paused, no renewal is charged, no license is expired and none of the daily renewal jobs runs.
 
 ### Cancellation
 
@@ -245,7 +271,7 @@ Manual renewals use the current catalog price and read it by the current shop se
 ## Known gaps
 
 - Not verified against Stripe: card saving at first purchase, off-session charge, 3-D Secure, declines, timeouts.
-- A payment in `payment_review` or a rejected manual renewal is not refunded automatically, and no admin screen lists them (order note, audit log and the action `wplc/renewal_needs_review` only).
+- A payment in `payment_review` or a rejected manual renewal is not refunded automatically. The diagnostics page counts renewals in `payment_review` and the events `wplc/renewal_needs_review`, `wplc/renewal_blocked`, `wplc/license_needs_review` and `wplc/renewal_lock_unavailable` are passed on as `wplc/health_alert`; there is no list screen for them (order note and audit log).
 - Partial refunds of renewal orders are ignored.
 - The manual price (current catalog price) and the automatic price (amount agreed at purchase) of the same period can differ.
 - The currency of a renewal is the one stored at purchase; a later change of the shop currency is not handled.

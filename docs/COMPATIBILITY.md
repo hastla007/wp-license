@@ -16,7 +16,8 @@ These are the combinations the integration suite runs against in CI (`.github/wo
 - "latest stable" WordPress is resolved at run time; the WooCommerce version is pinned in the workflow matrix and in `bin/install-test-env.sh` and must be raised by hand.
 - Database in CI: MySQL 8.0.
 - Unit tests and the syntax check additionally run on PHP 7.4, 8.1, 8.2 and 8.3 without WordPress.
-- The plugin declares HPOS compatibility and declares the block-based checkout as incompatible (`wp-license.php`); the block checkout is not tested.
+- The plugin declares HPOS and block-based checkout compatibility (`wp-license.php`). In the block checkout the renewal opt-in is an additional checkout field (`BlockCheckoutConsent`, WooCommerce 8.9 or later); it is covered by integration tests through the Store API, not by a browser test.
+- Plugin version: 0.2.0 in `wp-license.php` (`WPLC_VERSION`) and `readme.txt` (stable tag); the schema version is independent of it (`Schema::VERSION`).
 
 Not part of the matrix and therefore unverified: multisite, MariaDB, PHP 8.4 and newer, WooCommerce versions between 9.4 and the pinned recent version, the WooCommerce Stripe gateway plugin, and a live Stripe account.
 

@@ -7,6 +7,8 @@
 
 namespace WPLC\Maintenance;
 
+use WPLC\Admin\Diagnostics;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -20,8 +22,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * When the hook fires, each callback is replaced by an {@see IsolatedJob}:
  * - a \Throwable is logged and the next job runs,
  * - the health alerts run last, after the jobs they report on,
- * - a heartbeat is written for the maintenance jobs (`Diagnostics::mark_run()` when
- *   available; the diagnostics package brackets the whole run itself),
+ * - a heartbeat is written for every job that finished (`Diagnostics::mark_run()`,
+ *   option `wplc_last_run`); the run itself is bracketed by the heartbeats
+ *   `daily_lifecycle_started` and `daily_lifecycle`,
  * - billing jobs are skipped while {@see SiteGuard::billing_paused()} is true;
  *   cleanup jobs still run.
  *
@@ -42,7 +45,10 @@ final class DailyRunner {
 	public const HOURLY_HOOK = 'wplc_cleanup_security_rows';
 
 	/**
-	 * Option with the unix time of the last completed daily run.
+	 * Former option with the unix time of the last completed daily run.
+	 *
+	 * The time now lives in the heartbeat store (`wplc_last_run`, job `daily_lifecycle`).
+	 * The old option is only read until schema step 19 has folded it in.
 	 */
 	public const LAST_RUN_OPTION = 'wplc_last_daily_run';
 
@@ -92,11 +98,11 @@ final class DailyRunner {
 	);
 
 	/**
-	 * Heartbeat receiver of the diagnostics package; called only when it exists.
+	 * Number of isolated jobs running right now (nested calls of run_job() pass through).
 	 *
-	 * @var mixed
+	 * @var int
 	 */
-	private static $heartbeat = array( '\\WPLC\\Admin\\Diagnostics', 'mark_run' );
+	private static $depth = 0;
 
 	/**
 	 * Register hooks.
@@ -125,11 +131,12 @@ final class DailyRunner {
 		}
 
 		try {
-			$now = time();
+			$now      = time();
+			$last_run = self::last_run();
+			Diagnostics::mark_daily_started();
 			SiteGuard::remember();
 			SiteGuard::track_pause( $now );
 
-			$last_run = (int) get_option( self::LAST_RUN_OPTION, 0 );
 			if ( $last_run > 0 && $now - $last_run >= self::MISSED_RUN_SECONDS ) {
 				// Cron or the queue stood still (or a backup was restored): renewals were not attempted.
 				GapGuard::record( $last_run, $now, 'daily_run_missed' );
@@ -147,7 +154,7 @@ final class DailyRunner {
 	 */
 	public static function finish(): void {
 		try {
-			update_option( self::LAST_RUN_OPTION, time(), false );
+			Diagnostics::mark_daily_finished();
 		} catch ( \Throwable $error ) {
 			self::record_failure( 'daily_lifecycle_finish', $error );
 		}
@@ -185,18 +192,78 @@ final class DailyRunner {
 	 * @return int
 	 */
 	public static function last_run(): int {
-		return (int) get_option( self::LAST_RUN_OPTION, 0 );
+		$last = Diagnostics::last_run( Diagnostics::JOB_DAILY );
+
+		return $last > 0 ? $last : (int) get_option( self::LAST_RUN_OPTION, 0 );
+	}
+
+	/**
+	 * Whether an isolated job is running right now.
+	 *
+	 * @return bool
+	 */
+	public static function in_job(): bool {
+		return self::$depth > 0;
+	}
+
+	/**
+	 * Run one job: a \Throwable is logged and kept for the diagnostics page, a finished job writes its heartbeat.
+	 *
+	 * The one implementation of "a failing job must not stop the jobs after it" (B-34)
+	 * and of the job heartbeat (B-35). Called by {@see IsolatedJob} for hooked jobs and
+	 * by code that runs a job directly. A call made while another job is running
+	 * passes through, so the outer job reports the result once.
+	 *
+	 * @param string   $job  Job name.
+	 * @param callable $task Task.
+	 * @param mixed[]  $args Arguments for the task.
+	 * @return bool True when the task finished without an exception.
+	 */
+	public static function run_job( string $job, callable $task, array $args = array() ): bool {
+		if ( self::$depth > 0 ) {
+			call_user_func_array( $task, $args );
+
+			return true;
+		}
+
+		++self::$depth;
+		try {
+			call_user_func_array( $task, $args );
+		} catch ( \Throwable $error ) {
+			self::$depth = 0;
+			self::record_failure( $job, $error );
+
+			return false;
+		}
+		self::$depth = 0;
+		self::mark_run( $job );
+
+		return true;
 	}
 
 	/**
 	 * Last failure per job for the diagnostics page.
 	 *
+	 * @param int $max_age Only failures of the last $max_age seconds; 0 for all kept ones.
 	 * @return array<string,array{time:int,message:string}>
 	 */
-	public static function failures(): array {
-		$failures = get_option( self::FAILURES_OPTION, array() );
+	public static function failures( int $max_age = 0 ): array {
+		$stored   = get_option( self::FAILURES_OPTION, array() );
+		$failures = array();
+		foreach ( is_array( $stored ) ? $stored : array() as $job => $failure ) {
+			if ( ! is_array( $failure ) || ! isset( $failure['time'], $failure['message'] ) ) {
+				continue;
+			}
+			if ( $max_age > 0 && time() - (int) $failure['time'] > $max_age ) {
+				continue;
+			}
+			$failures[ (string) $job ] = array(
+				'time'    => (int) $failure['time'],
+				'message' => (string) $failure['message'],
+			);
+		}
 
-		return is_array( $failures ) ? $failures : array();
+		return $failures;
 	}
 
 	/**
@@ -214,7 +281,7 @@ final class DailyRunner {
 		$class = self::callback_class( $callback );
 		$runs  = '' === $class || 0 !== strpos( $class, 'WPLC\\' ) || in_array( $class, self::SAFE_WHILE_PAUSED, true );
 		if ( 'WPLC\\Admin\\Diagnostics' === $class ) {
-			// Heartbeats are bookkeeping; health alerts about a paused copy would only be noise.
+			// Health alerts about a paused copy would only be noise.
 			$runs = ! self::is_alert_callback( $callback );
 		}
 
@@ -237,17 +304,10 @@ final class DailyRunner {
 	 * @return void
 	 */
 	public static function mark_run( string $job ): void {
-		if ( ! in_array( $job, array( 'retention_run_scheduled', 'retention_sweep_scheduled', 'gap_reconciler_run_scheduled' ), true ) ) {
-			// Only the jobs of this package; every other package reports its own runs.
-			return;
-		}
-		$target = self::$heartbeat;
-		if ( is_callable( $target ) ) {
-			try {
-				call_user_func( $target, $job );
-			} catch ( \Throwable $error ) {
-				unset( $error );
-			}
+		try {
+			Diagnostics::mark_run( $job );
+		} catch ( \Throwable $error ) {
+			unset( $error );
 		}
 	}
 

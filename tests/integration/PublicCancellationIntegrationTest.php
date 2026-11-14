@@ -425,8 +425,11 @@ final class PublicCancellationIntegrationTest extends WPLC_Portal_TestCase {
 		$affected  = $this->seed_auto_license( array( 'payment_gateway_id' => 'wplc_test_gateway', 'payment_token_id' => $token ) );
 		$unrelated = $this->seed_auto_license( array( 'payment_gateway_id' => 'wplc_test_gateway', 'payment_token_id' => $other ) );
 
+		// B-57: only the customer's own request counts, not a gateway that re-creates its token rows.
 		wp_set_current_user( $this->customer );
+		$GLOBALS['wp']->query_vars['delete-payment-method'] = (string) $token;
 		WC_Payment_Tokens::delete( $token );
+		unset( $GLOBALS['wp']->query_vars['delete-payment-method'] );
 
 		$row = $this->license( $affected['id'] );
 		$this->assertSame( 0, (int) $row['renewal_enabled'], 'Without the payment method the license must not run into failed charges.' );

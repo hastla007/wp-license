@@ -26,9 +26,6 @@ final class LicenseLifecycle {
 	/** Seconds one expiry run may take before it hands over to a follow-up run (A-80). */
 	public const EXPIRY_TIME_BUDGET = 20;
 
-	/** Option that stores the last run of every background job (B-35). */
-	public const HEARTBEAT_OPTION = 'wplc_job_heartbeats';
-
 	/**
 	 * Why the last admin_extend() / admin_set_status() / admin_restore() call returned false.
 	 *
@@ -48,8 +45,9 @@ final class LicenseLifecycle {
 		// B-36: a paid order that is cancelled or fails afterwards (bounced debit).
 		add_action( 'woocommerce_order_status_cancelled', array( self::class, 'handle_order_cancelled' ), 20, 1 );
 		add_action( 'woocommerce_order_status_failed', array( self::class, 'handle_order_cancelled' ), 20, 1 );
-		// A-25: nobody is left to charge or to notify.
-		add_action( 'deleted_user', array( self::class, 'handle_deleted_user' ), 20, 1 );
+		// B-60: a paid renewal order the gateway cancelled because the payment was refunded at the provider.
+		add_action( 'wplc/renewal_order_voided', array( self::class, 'handle_renewal_order_voided' ), 10, 1 );
+		// A-25: a deleted customer account is handled by Maintenance\Orphans::on_user_deleted().
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'expire_due_licenses' ) );
 		add_action( 'wplc_expire_due_licenses', array( self::class, 'expire_due_licenses' ) );
 		// Public extension point; fired by chargeback_for_order() for Stripe disputes.
@@ -77,47 +75,29 @@ final class LicenseLifecycle {
 	/**
 	 * Whether charging, job-driven status changes and customer mails are paused (B-01).
 	 *
-	 * The decision belongs to WPLC\Maintenance\SiteGuard (staging clone, restored
-	 * database, WPLC_PAUSE_BILLING). Without that class nothing is paused.
+	 * Delegates to WPLC\Maintenance\SiteGuard::billing_paused() (staging clone, restored
+	 * database, WPLC_PAUSE_BILLING), which also applies the filter `wplc_billing_paused`.
 	 *
 	 * @return bool
 	 */
 	public static function billing_paused(): bool {
-		$guard = '\\WPLC\\Maintenance\\SiteGuard';
-		$paused = class_exists( $guard ) && method_exists( $guard, 'billing_paused' ) && true === call_user_func( array( $guard, 'billing_paused' ) );
-
-		/**
-		 * Filters whether billing jobs are paused.
-		 *
-		 * @param bool $paused Decision of the site guard.
-		 */
-		return (bool) apply_filters( 'wplc_billing_paused', $paused );
+		return \WPLC\Maintenance\SiteGuard::billing_paused();
 	}
 
 	/**
 	 * Run one background task so that a failure cannot stop the tasks after it (B-34).
 	 *
-	 * Catches every Throwable, logs it and records the time of the run (B-35) in
-	 * the option HEARTBEAT_OPTION as `job => array( time, ok )`.
+	 * Delegates to WPLC\Maintenance\DailyRunner::run_job(): a Throwable is logged and
+	 * kept in DailyRunner::failures(), a finished task writes its heartbeat (B-35)
+	 * through Diagnostics::mark_run(). Inside a job that DailyRunner already isolates
+	 * (the daily run) the task just runs and the outer job reports the result.
 	 *
 	 * @param string   $job Job name.
 	 * @param callable $task Task.
 	 * @return bool True when the task finished without an exception.
 	 */
 	public static function run_guarded( string $job, callable $task ): bool {
-		$ok = true;
-		try {
-			call_user_func( $task );
-		} catch ( \Throwable $error ) {
-			$ok = false;
-			self::log_error( $job . ': ' . $error->getMessage() );
-		}
-		$beats = get_option( self::HEARTBEAT_OPTION, array() );
-		$beats = is_array( $beats ) ? $beats : array();
-		$beats[ sanitize_key( $job ) ] = array( 'time' => time(), 'ok' => $ok );
-		update_option( self::HEARTBEAT_OPTION, $beats, false );
-
-		return $ok;
+		return \WPLC\Maintenance\DailyRunner::run_job( sanitize_key( $job ), $task );
 	}
 
 	/**
@@ -138,7 +118,7 @@ final class LicenseLifecycle {
 	 * Machine-readable reason of the last refused administrator action.
 	 *
 	 * One of '', 'invalid_input', 'not_allowed', 'renewal_in_progress',
-	 * 'term_changed', 'term_ended', 'update_failed'.
+	 * 'term_changed', 'status_changed', 'term_ended', 'update_failed'.
 	 *
 	 * @return string
 	 */
@@ -282,6 +262,21 @@ final class LicenseLifecycle {
 	}
 
 	/**
+	 * A paid renewal order was cancelled by the gateway after the payment was refunded at
+	 * the provider (B-60). Same consequence as a full refund of the renewal order: the
+	 * period is rolled back and automatic renewal is switched off; the license is not suspended.
+	 *
+	 * @param mixed $order_id Renewal order ID.
+	 * @return void
+	 */
+	public static function handle_renewal_order_voided( $order_id ): void {
+		$order_id = absint( $order_id );
+		if ( $order_id ) {
+			self::handle_renewal_order_refund( $order_id );
+		}
+	}
+
+	/**
 	 * Undo a renewal whose WooCommerce order was refunded in full.
 	 *
 	 * The license is not revoked: its paid period is rolled back by the length
@@ -302,7 +297,7 @@ final class LicenseLifecycle {
 		global $wpdb;
 
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
-		if ( ! $order || ! is_callable( array( $order, 'get_meta' ) ) ) {
+		if ( ! $order ) {
 			return;
 		}
 		$license_id = absint( $order->get_meta( '_wplc_renewal_for_license', true ) );
@@ -437,6 +432,11 @@ final class LicenseLifecycle {
 		if ( ! apply_filters( 'wplc_suspend_license_on_order_status', true, $order ) ) {
 			return;
 		}
+		if ( 'yes' === $order->get_meta( '_wplc_renewal_voided', true ) ) {
+			// The money went back to the customer: handled like a refund of the renewal
+			// (handle_renewal_order_voided()), not like a bounced payment.
+			return;
+		}
 
 		$tables = Schema::table_names();
 		$ids = array_map(
@@ -484,29 +484,10 @@ final class LicenseLifecycle {
 	}
 
 	/**
-	 * Switch automatic renewal off for the licenses of a deleted user (A-25).
-	 *
-	 * @param mixed $user_id Deleted user ID.
-	 * @return void
-	 */
-	public static function handle_deleted_user( $user_id ): void {
-		global $wpdb;
-
-		$user_id = absint( $user_id );
-		if ( ! $user_id ) {
-			return;
-		}
-		$tables = Schema::table_names();
-		$ids = (array) $wpdb->get_col(
-			$wpdb->prepare( "SELECT id FROM %i WHERE customer_id = %d AND renewal_enabled = 1", $tables['licenses'], $user_id )
-		);
-		foreach ( $ids as $license_id ) {
-			self::disable_renewal( (int) $license_id, __( 'The customer account was deleted', 'wp-license' ), get_current_user_id() );
-		}
-	}
-
-	/**
 	 * Switch automatic renewal off for good and close open automatic renewals.
+	 *
+	 * Delegates to WPLC\Maintenance\RenewalSwitch::off(), the single writer of this change
+	 * (audit action `renewal_disabled`).
 	 *
 	 * @param int    $license_id License ID.
 	 * @param string $reason Reason for the audit log.
@@ -514,23 +495,7 @@ final class LicenseLifecycle {
 	 * @return bool
 	 */
 	public static function disable_renewal( int $license_id, string $reason, int $actor_user_id = 0 ): bool {
-		global $wpdb;
-
-		$tables = Schema::table_names();
-		$updated = $wpdb->update(
-			$tables['licenses'],
-			array( 'renewal_enabled' => 0, 'next_payment_at' => null, 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ),
-			array( 'id' => $license_id, 'renewal_enabled' => 1 ),
-			array( '%d', '%s', '%s' ),
-			array( '%d', '%d' )
-		);
-		if ( 1 !== $updated ) {
-			return false;
-		}
-		self::cancel_open_renewals( $license_id, false, 'renewal_disabled', __( 'WP License Captain: automatic renewal was switched off.', 'wp-license' ) );
-		AuditLog::record( 'renewal_disabled', 'license', $license_id, $reason, array( 'renewal_enabled' => 1 ), array( 'renewal_enabled' => 0 ), $actor_user_id );
-
-		return true;
+		return \WPLC\Maintenance\RenewalSwitch::off( $license_id, $reason, $actor_user_id );
 	}
 
 	/**
@@ -574,7 +539,7 @@ final class LicenseLifecycle {
 		$tables = Schema::table_names();
 		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM %i WHERE source_order_id = %d", $tables['licenses'], $order_id ) ) );
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
-		$renewed = $order && is_callable( array( $order, 'get_meta' ) ) ? absint( $order->get_meta( '_wplc_renewal_for_license', true ) ) : 0;
+		$renewed = $order ? absint( $order->get_meta( '_wplc_renewal_for_license', true ) ) : 0;
 		if ( $renewed && self::get_license( $renewed ) ) {
 			$ids[] = $renewed;
 		}
@@ -787,9 +752,10 @@ final class LicenseLifecycle {
 	 * @param int    $license_id License ID.
 	 * @param string $reason Cancellation reason.
 	 * @param int    $actor_user_id User ID or zero for system action.
+	 * @param int    $received_at Unix time at which the cancellation was received; zero for now.
 	 * @return bool
 	 */
-	public static function schedule_cancellation( int $license_id, string $reason = '', int $actor_user_id = 0 ): bool {
+	public static function schedule_cancellation( int $license_id, string $reason = '', int $actor_user_id = 0, int $received_at = 0 ): bool {
 		global $wpdb;
 
 		$license = self::get_license( $license_id );
@@ -843,6 +809,19 @@ final class LicenseLifecycle {
 			array( 'status' => $license['status'], 'cancel_at_period_end' => 1 ),
 			$actor_user_id
 		);
+
+		/**
+		 * Fires after the automatic renewal of a license was cancelled for the end of the paid
+		 * period, whoever asked for it (account, public cancellation page, administrator, CLI).
+		 * The notification package confirms the cancellation by email.
+		 *
+		 * @param int $license_id   License ID.
+		 * @param int $cancelled_at Unix timestamp at which the cancellation was received.
+		 */
+		if ( empty( $license['cancel_at_period_end'] ) ) {
+			// Only the cancellation itself, not a repeated request for an already cancelled license.
+			do_action( 'wplc/cancellation_scheduled', $license_id, $received_at > 0 ? $received_at : time() );
+		}
 
 		return true;
 	}
@@ -898,18 +877,30 @@ final class LicenseLifecycle {
 	}
 
 	/**
-	 * Take back a revocation (B-47), e.g. after an order was set to "refunded" by mistake.
+	 * Bring a revoked or suspended license back (B-47, A-51).
 	 *
-	 * The caller must check a capability of its own; this is stronger than a
-	 * normal status change. Automatic renewal stays off.
+	 * The one implementation of "restore": the way back from a revocation (for
+	 * example an order set to "refunded" by mistake) and from "suspended and the
+	 * period has ended". Used by the admin screen through SupportActions::restore().
+	 *
+	 * The caller must check a capability of its own; undoing a revocation is
+	 * stronger than a normal status change. Automatic renewal of a restored
+	 * revoked license stays off; a suspended license keeps its renewal setting
+	 * and gets the renewal of the new period scheduled.
+	 *
+	 * Refused (false, see last_refusal()) without a reason or actor, when the
+	 * status is not the expected one (`status_changed`, a stale form), while an
+	 * automatic charge is in flight (`renewal_in_progress`) and when the term
+	 * would end in the past (`term_ended`).
 	 *
 	 * @param int         $license_id License ID.
 	 * @param string      $reason Required reason.
 	 * @param int         $actor_user_id Administrator user ID.
 	 * @param string|null $paid_until_utc New paid-through date ('Y-m-d H:i:s' UTC); null keeps the stored one.
+	 * @param string|null $expected_status Status the administrator saw (`revoked` or `suspended`); null accepts both.
 	 * @return bool
 	 */
-	public static function admin_restore( int $license_id, string $reason, int $actor_user_id, ?string $paid_until_utc = null ): bool {
+	public static function admin_restore( int $license_id, string $reason, int $actor_user_id, ?string $paid_until_utc = null, ?string $expected_status = null ): bool {
 		global $wpdb;
 
 		self::$last_refusal = '';
@@ -918,7 +909,16 @@ final class LicenseLifecycle {
 			self::$last_refusal = 'invalid_input';
 			return false;
 		}
-		if ( ! $license || ! LicenseStateMachine::allows( (string) $license['status'], 'active', 'admin_restore' ) ) {
+		if ( ! $license ) {
+			self::$last_refusal = 'not_allowed';
+			return false;
+		}
+		$old_status = (string) $license['status'];
+		if ( null !== $expected_status && $old_status !== $expected_status ) {
+			self::$last_refusal = 'status_changed';
+			return false;
+		}
+		if ( ! LicenseStateMachine::allows( $old_status, 'active', 'admin_restore' ) ) {
 			self::$last_refusal = 'not_allowed';
 			return false;
 		}
@@ -927,44 +927,61 @@ final class LicenseLifecycle {
 			self::$last_refusal = 'term_ended';
 			return false;
 		}
+		if ( self::renewal_in_progress( $license_id ) ) {
+			self::$last_refusal = 'renewal_in_progress';
+			return false;
+		}
 
 		$tables = Schema::table_names();
 		$now = gmdate( 'Y-m-d H:i:s' );
+		// A revocation ends the automatic renewal for good; a suspension only pauses the license.
+		$renews = 'suspended' === $old_status && ! empty( $license['renewal_enabled'] ) && empty( $license['cancel_at_period_end'] );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = NULL, paid_until = %s, next_payment_at = NULL, updated_at = %s WHERE id = %d AND status = %s",
+				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = NULL, paid_until = %s, renewal_enabled = IF( %d = 1, renewal_enabled, 0 ), next_payment_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s",
 				$tables['licenses'],
 				'active',
 				'',
 				$paid_until,
+				'suspended' === $old_status ? 1 : 0,
+				$renews ? 1 : 0,
+				$paid_until,
 				$now,
 				$license_id,
-				'revoked'
+				$old_status
 			)
 		);
 		if ( 1 !== (int) $updated ) {
-			self::$last_refusal = 'update_failed';
+			self::$last_refusal = 'status_changed';
 			return false;
 		}
-		$wpdb->query(
-			$wpdb->prepare(
-				"UPDATE %i SET status = %s, ends_at = %s WHERE license_id = %d AND status IN ('revoked','suspended','active')",
-				$tables['entitlements'],
-				'active',
-				$paid_until,
-				$license_id
-			)
+		$wpdb->update(
+			$tables['entitlements'],
+			array( 'status' => 'active', 'ends_at' => $paid_until ),
+			array( 'license_id' => $license_id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+		// Open renewals belong to the old period; the scheduler creates the row for the new one.
+		self::cancel_open_renewals(
+			$license_id,
+			false,
+			'license_restored',
+			__( 'WP License Captain: an administrator restored the license with a new term; this renewal order is no longer needed.', 'wp-license' )
 		);
 		AuditLog::record(
 			'admin_restore',
 			'license',
 			$license_id,
 			$reason,
-			array( 'status' => 'revoked', 'paid_until' => $license['paid_until'] ),
+			array( 'status' => $old_status, 'paid_until' => $license['paid_until'] ),
 			array( 'status' => 'active', 'paid_until' => $paid_until ),
 			$actor_user_id
 		);
-		self::fire_status_changed( $license_id, 'revoked', 'active', 'admin_restore' );
+		if ( $renews && class_exists( '\\WPLC\\Billing\\RenewalScheduler' ) ) {
+			\WPLC\Billing\RenewalScheduler::schedule_next( $license_id );
+		}
+		self::fire_status_changed( $license_id, $old_status, 'active', 'admin_restore' );
 
 		return true;
 	}
@@ -1198,6 +1215,11 @@ final class LicenseLifecycle {
 		if ( ! $license || self::has_access( $license ) ) {
 			return;
 		}
+		// B-14: the period ended during a processing gap; the daily run comes back to this
+		// license (safety net for past-due licenses) once the hold period is over.
+		if ( \WPLC\Maintenance\GapGuard::protects( isset( $license['paid_until'] ) ? (string) $license['paid_until'] : null ) ) {
+			return;
+		}
 
 		self::transition(
 			$license_id,
@@ -1281,6 +1303,11 @@ final class LicenseLifecycle {
 				$cursor = (int) $license_id;
 				$license = self::get_license( $cursor );
 				if ( ! $license || 'active' !== $license['status'] || self::has_access( $license ) ) {
+					continue;
+				}
+				// B-14: due while the plugin was off, billing was paused or the daily run stood still.
+				// The renewal and order catch-up get the hold period before the license may expire.
+				if ( \WPLC\Maintenance\GapGuard::protects( isset( $license['paid_until'] ) ? (string) $license['paid_until'] : null, $now ) ) {
 					continue;
 				}
 				self::transition( $cursor, 'expired', __( 'Paid period ended', 'wp-license' ), 'license_expired', 0, $license );

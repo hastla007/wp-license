@@ -107,13 +107,43 @@ final class AdminDiagnosticsIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	public function test_b35_daily_run_is_bracketed_by_heartbeats_and_the_alarm_runs_last(): void {
-		$this->assertSame( -1000, has_action( 'wplc_daily_lifecycle', array( Diagnostics::class, 'mark_daily_started' ) ) );
-		$this->assertSame( PHP_INT_MAX, has_action( 'wplc_daily_lifecycle', array( Diagnostics::class, 'mark_daily_finished' ) ) );
-		$this->assertSame( PHP_INT_MAX - 1, has_action( 'wplc_daily_lifecycle', array( Diagnostics::class, 'emit_alerts' ) ) );
+		// One wrapper (Maintenance\DailyRunner) brackets the run and writes the heartbeats;
+		// Diagnostics no longer registers brackets of its own.
+		$this->assertFalse( has_action( 'wplc_daily_lifecycle', array( Diagnostics::class, 'mark_daily_started' ) ) );
+		$this->assertSame( PHP_INT_MIN, has_action( 'wplc_daily_lifecycle', array( \WPLC\Maintenance\DailyRunner::class, 'begin' ) ) );
+		$this->assertSame( PHP_INT_MAX, has_action( 'wplc_daily_lifecycle', array( \WPLC\Maintenance\DailyRunner::class, 'finish' ) ) );
 
-		Diagnostics::mark_daily_started();
-		Diagnostics::mark_daily_finished();
+		$order = array();
+		add_action(
+			'wplc/health_alert',
+			static function () use ( &$order ) {
+				$order[] = 'alert';
+			}
+		);
+		add_filter(
+			'wplc_health_alert_thresholds',
+			static function () {
+				return array( 'pending_webhooks' => 0 );
+			}
+		);
+		add_action(
+			'wplc_daily_lifecycle',
+			static function () use ( &$order ) {
+				$order[] = 'late-job';
+			},
+			5000
+		);
+		do_action( 'wplc_daily_lifecycle' );
+
+		$this->assertSame( array( 'late-job', 'alert' ), $order, 'The alarm runs after the work it reports on.' );
+		$runs = Diagnostics::last_runs();
+		$this->assertArrayHasKey( Diagnostics::JOB_DAILY_STARTED, $runs );
+		$this->assertArrayHasKey( Diagnostics::JOB_DAILY, $runs );
+		$this->assertArrayHasKey( 'license_lifecycle_expire_due_licenses', $runs, 'Every job of the run leaves its own heartbeat.' );
+		$this->assertArrayHasKey( 'renewal_processor_reconcile_unbooked_paid_orders', $runs, 'Long job names are kept in full.' );
 		$this->assertSame( 'ok', Diagnostics::daily_run_state()['state'] );
+		$this->assertSame( $runs[ Diagnostics::JOB_DAILY ], \WPLC\Maintenance\DailyRunner::last_run(), 'One store for the heartbeat and the gap detection.' );
+		$this->assertFalse( get_option( 'wplc_job_heartbeats' ), 'The second heartbeat option is gone.' );
 	}
 
 	public function test_b35_daily_run_state_detects_missing_and_broken_runs(): void {

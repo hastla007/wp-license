@@ -163,6 +163,8 @@ final class RenewalOrderIntegrationTest extends WPLC_Renewal_TestCase {
 	public function test_b76_unknown_flag_keeps_the_current_interpretation(): void {
 		$this->set_tax( true );
 		$f = $this->renewing_license( -60, '119.00' );
+		// A license issued before the flag existed (new licenses get it from the issuer).
+		$GLOBALS['wpdb']->query( $GLOBALS['wpdb']->prepare( 'UPDATE %i SET renewal_amount_includes_tax = NULL WHERE id = %d', $this->tables()['licenses'], $f['license_id'] ) );
 		$this->assertNull( $this->license( $f['license_id'] )['renewal_amount_includes_tax'] );
 
 		$order = $this->automatic_order( $f );

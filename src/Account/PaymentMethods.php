@@ -35,7 +35,8 @@ final class PaymentMethods {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'wplc_account_license_renewal', array( self::class, 'render' ), 10, 2 );
-		add_action( 'woocommerce_payment_token_deleted', array( self::class, 'on_token_deleted' ), 10, 2 );
+		// The switch-off itself is done by Maintenance\Orphans (one handler, customer-initiated deletions only).
+		add_action( 'wplc/renewals_disabled_for_deleted_token', array( self::class, 'notice_after_token_deleted' ), 10, 1 );
 	}
 
 	/**
@@ -79,9 +80,6 @@ final class PaymentMethods {
 		$usable = array();
 		foreach ( $adapters as $gateway_id => $adapter ) {
 			foreach ( \WC_Payment_Tokens::get_customer_tokens( $user_id, (string) $gateway_id ) as $token ) {
-				if ( ! $token instanceof \WC_Payment_Token ) {
-					continue;
-				}
 				$token_id = (int) $token->get_id();
 				if ( (int) $token->get_user_id() === $user_id && $adapter->supports_saved_token( $token_id, $user_id ) ) {
 					$usable[ $token_id ] = $token;
@@ -237,7 +235,7 @@ final class PaymentMethods {
 	 * @return string
 	 */
 	public static function token_label( $token ): string {
-		$label = is_callable( array( $token, 'get_display_name' ) ) ? wp_strip_all_tags( (string) $token->get_display_name() ) : '';
+		$label = wp_strip_all_tags( (string) $token->get_display_name() );
 		if ( '' === trim( $label ) ) {
 			/* translators: %d: number of the saved payment method. */
 			$label = sprintf( __( 'Saved payment method #%d', 'wp-license' ), (int) $token->get_id() );
@@ -326,6 +324,9 @@ final class PaymentMethods {
 		if ( 1 !== (int) $updated ) {
 			return false;
 		}
+		// B-57: the license follows the gateway's reference of the new method, not only the token row.
+		\WPLC\Gateway\PaymentReference::clear( $license_id );
+		\WPLC\Gateway\PaymentReference::store( $license_id, (string) $tokens[ $token_id ]->get_gateway_id(), $token_id, $user_id );
 
 		AuditLog::record(
 			'payment_method_changed',
@@ -389,6 +390,8 @@ final class PaymentMethods {
 		if ( 1 !== (int) $updated ) {
 			return false;
 		}
+		\WPLC\Gateway\PaymentReference::clear( $license_id );
+		\WPLC\Gateway\PaymentReference::store( $license_id, (string) $tokens[ $token_id ]->get_gateway_id(), $token_id, $user_id );
 
 		// Evidence of what the customer agreed to: wording (hash), language, amount, interval, first charge.
 		$text  = self::consent_text( $license );
@@ -412,89 +415,36 @@ final class PaymentMethods {
 			$user_id
 		);
 
-		$scheduler = '\\WPLC\\Billing\\RenewalScheduler';
-		if ( class_exists( $scheduler ) && is_callable( array( $scheduler, 'schedule_next' ) ) ) {
-			call_user_func( array( $scheduler, 'schedule_next' ), $license_id );
-		}
+		\WPLC\Billing\RenewalScheduler::schedule_next( $license_id );
 
 		return true;
 	}
 
 	/**
-	 * A saved payment method was deleted (by the customer, a privacy erasure
-	 * or the gateway): licenses that were renewed with it stop renewing
-	 * automatically instead of running into failed charges.
+	 * Tell the customer who deleted a saved payment method what that means for the licenses.
 	 *
 	 * The licenses stay valid until the end of the paid period; the customer
 	 * gets the usual expiry reminders and can renew by hand or switch
 	 * automatic renewal on again with another payment method.
 	 *
-	 * @param mixed $token_id Deleted token ID.
-	 * @param mixed $token    Deleted token object.
+	 * @param mixed $license_ids Licenses whose automatic renewal was switched off.
 	 * @return void
 	 */
-	public static function on_token_deleted( $token_id = 0, $token = null ): void {
+	public static function notice_after_token_deleted( $license_ids = array() ): void {
 		global $wpdb;
 
-		$token_id = absint( $token_id );
-		if ( $token_id <= 0 ) {
+		$license_ids = array_values( array_filter( array_map( 'absint', (array) $license_ids ) ) );
+		$user_id     = get_current_user_id();
+		if ( ! $license_ids || $user_id <= 0 ) {
 			return;
 		}
-
-		$tables   = Schema::table_names();
-		$licenses = $wpdb->get_results(
-			$wpdb->prepare(
-				'SELECT id, customer_id, status FROM %i WHERE payment_token_id = %d AND renewal_enabled = 1 LIMIT 200',
-				$tables['licenses'],
-				$token_id
-			),
-			ARRAY_A
-		);
-
-		$owner   = 0;
+		$tables  = Schema::table_names();
 		$changed = 0;
-		foreach ( is_array( $licenses ) ? $licenses : array() as $license ) {
-			$license_id = (int) $license['id'];
-			$updated    = $wpdb->query(
-				$wpdb->prepare(
-					'UPDATE %i SET renewal_enabled = 0, payment_token_id = 0, updated_at = %s WHERE id = %d AND payment_token_id = %d AND renewal_enabled = 1',
-					$tables['licenses'],
-					gmdate( 'Y-m-d H:i:s' ),
-					$license_id,
-					$token_id
-				)
-			);
-			if ( 1 !== (int) $updated ) {
-				continue;
-			}
-			++$changed;
-			$owner = (int) $license['customer_id'];
-			AuditLog::record(
-				'renewal_disabled',
-				'license',
-				$license_id,
-				'Automatic renewal switched off: the saved payment method was deleted',
-				array(
-					'renewal_enabled'   => 1,
-					'payment_method_id' => $token_id,
-				),
-				array(
-					'renewal_enabled'   => 0,
-					'payment_method_id' => 0,
-				),
-				get_current_user_id()
-			);
-
-			/**
-			 * Fires after automatic renewal was switched off because the saved payment method was deleted.
-			 *
-			 * @param int $license_id License ID.
-			 * @param int $token_id   Deleted WooCommerce payment token ID.
-			 */
-			do_action( 'wplc/renewal_disabled_token_deleted', $license_id, $token_id );
+		foreach ( $license_ids as $license_id ) {
+			$changed += (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE id = %d AND customer_id = %d', $tables['licenses'], $license_id, $user_id ) );
 		}
 
-		if ( $changed > 0 && $owner > 0 && get_current_user_id() === $owner ) {
+		if ( $changed > 0 ) {
 			CustomerPortal::add_session_notice(
 				sprintf(
 					/* translators: %d: number of licenses. */
@@ -509,6 +459,5 @@ final class PaymentMethods {
 				'notice'
 			);
 		}
-		unset( $token );
 	}
 }

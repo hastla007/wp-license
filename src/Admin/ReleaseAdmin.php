@@ -31,7 +31,7 @@ final class ReleaseAdmin {
 	 * @return void
 	 */
 	public static function register_hooks(): void {
-		add_action( 'admin_menu', array( self::class, 'register_menu' ) );
+		add_action( 'admin_menu', array( self::class, 'register_menu' ), 15 );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 		add_action( 'admin_post_wplc_release_create', array( self::class, 'handle_create' ) );
 		add_action( 'admin_post_wplc_release_import', array( self::class, 'handle_import' ) );
@@ -47,13 +47,14 @@ final class ReleaseAdmin {
 	 */
 	public static function register_menu(): void {
 		add_submenu_page(
-			'woocommerce',
+			Capabilities::menu_parent(),
 			__( 'License releases', 'wp-license' ),
 			__( 'License releases', 'wp-license' ),
 			self::capability(),
 			self::PAGE,
 			array( self::class, 'render' )
 		);
+		LicenseAdmin::connect_page( self::PAGE, __( 'License releases', 'wp-license' ) );
 	}
 
 	/**
@@ -67,8 +68,8 @@ final class ReleaseAdmin {
 		if ( self::PAGE !== $page ) {
 			return;
 		}
-		wp_enqueue_style( 'wplc-admin', plugins_url( 'assets/css/wplc-admin.css', WPLC_FILE ), array(), WPLC_VERSION );
-		wp_enqueue_script( 'wplc-ui', plugins_url( 'assets/js/wplc-ui.js', WPLC_FILE ), array(), WPLC_VERSION, true );
+		wp_enqueue_style( 'wplc-admin', plugins_url( 'assets/css/wplc-admin.css', WPLC_FILE ), array(), \WPLC\Account\CustomerPortal::asset_version( 'assets/css/wplc-admin.css' ) );
+		wp_enqueue_script( 'wplc-ui', plugins_url( 'assets/js/wplc-ui.js', WPLC_FILE ), array(), \WPLC\Account\CustomerPortal::asset_version( 'assets/js/wplc-ui.js' ), true );
 	}
 
 	/**
@@ -281,15 +282,7 @@ final class ReleaseAdmin {
 	 * @return string
 	 */
 	private static function capability(): string {
-		/**
-		 * Filters the capability for one area of the plugin.
-		 *
-		 * @param mixed  $capability Capability name (string). Anything else falls back to the default.
-		 * @param string $area Area of the plugin; here "publish_releases".
-		 */
-		$capability = apply_filters( 'wplc_capability', 'manage_woocommerce', 'publish_releases' );
-
-		return is_string( $capability ) && '' !== $capability ? $capability : 'manage_woocommerce';
+		return Capabilities::cap( 'publish_releases' );
 	}
 
 	/**

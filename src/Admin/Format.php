@@ -77,6 +77,7 @@ final class Format {
 			'succeeded'              => __( 'Paid', 'wp-license' ),
 			'failed'                 => __( 'Failed', 'wp-license' ),
 			'manual_action_required' => __( 'Customer action required', 'wp-license' ),
+			'payment_review'         => __( 'Payment result unclear – check manually', 'wp-license' ),
 			'cancelled'              => __( 'Cancelled', 'wp-license' ),
 			'manual'                 => __( 'Awaiting customer payment', 'wp-license' ),
 			'refunded'               => __( 'Refunded', 'wp-license' ),

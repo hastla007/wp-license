@@ -25,13 +25,20 @@ Everything is per site: tables, the schema version option `wplc_schema_version`,
 
 The secret constants in `wp-config.php` are the same for every site of the network. For the license-key and encryption key rings that is harmless: each site has its own tables.
 
-For Stripe it is a limit. Stripe creates one signing secret per webhook endpoint, every site has its own endpoint URL (`https://{site}/wp-json/wplc/v1/webhooks/stripe`), and `WPLC_STRIPE_WEBHOOK_SECRET` holds exactly one secret. Therefore:
+Stripe creates one signing secret per webhook endpoint, and every site has its own endpoint URL (`https://{site}/wp-json/wplc/v1/webhooks/stripe`). The secrets are therefore configured per site:
 
-- **Only one site of a network can receive Stripe webhooks.** Create the webhook endpoint in Stripe for that site only and put its secret into the constant. On any other site of the network every delivery fails the signature check.
-- Do not point two endpoints at two sites with the same Stripe account: the second site rejects everything, and even with a matching secret it would receive the events of the first site's payments, which it cannot assign (they end in manual review).
-- A second license shop therefore needs its own WordPress installation (own `wp-config.php`, own Stripe webhook endpoint), not a second site in the same network.
+```php
+define( 'WPLC_STRIPE_WEBHOOK_SECRETS', array(
+	1 => array( 'live' => 'whsec_…', 'test' => 'whsec_…' ),
+	4 => 'whsec_…', // live secret of site 4
+) );
+```
 
-A webhook secret per site and a site identifier in the payment metadata are not implemented.
+- Once `WPLC_STRIPE_WEBHOOK_SECRETS` is defined, a site without an entry accepts no webhook. Without it, `WPLC_STRIPE_WEBHOOK_SECRET` (and `WPLC_STRIPE_WEBHOOK_SECRET_TEST`) apply to the site that owns the endpoint; give them to one site only.
+- Every PaymentIntent the plugin creates carries the site identifier in its metadata, and an event that belongs to another site or to the other mode (live/test) is refused instead of ending in manual review. Details: [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md).
+- The settings page and the diagnostics page of each site show whether a secret is configured for that site (`StripeWebhook::is_configured()`), and the time of the last valid event per mode.
+
+
 
 ## Known limits
 

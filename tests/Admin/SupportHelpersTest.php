@@ -116,7 +116,7 @@ final class SupportHelpersTest extends TestCase {
 	/** B-134: a key that is missing from the input does not reset the others to something else. */
 	public function test_sanitize_fills_missing_keys(): void {
 		$clean = Settings::sanitize( array( 'reminder_days' => '10' ) );
-		$this->assertSame( array( 'package_hosts', 'reminder_days', 'sender_note' ), array_keys( $clean ) );
+		$this->assertSame( array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'sender_note' ), array_keys( $clean ) );
 		$this->assertSame( '10', $clean['reminder_days'] );
 		$this->assertSame( array(), $clean['package_hosts'] );
 

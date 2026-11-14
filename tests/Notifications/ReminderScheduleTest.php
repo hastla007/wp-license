@@ -154,6 +154,17 @@ final class ReminderScheduleTest extends TestCase {
 		$this->assertSame( 'renewal_notice', $due['marker'] );
 	}
 
+	// B-41: a notice lead time longer than half the term is shortened, never dropped.
+	public function test_B41_renewal_notice_of_a_short_term_is_shortened_not_suppressed(): void {
+		$monthly = array( 'billing_interval' => 'month', 'renewal_enabled' => 1 );
+
+		$this->assertNull( $this->due( $monthly + array( 'paid_until' => '2027-03-28 12:00:00' ), self::NOW, array( 30, 7 ), 30 ), '18 days out, lead shortened to 15' );
+		$due = $this->due( $monthly + array( 'paid_until' => '2027-03-24 12:00:00' ), self::NOW, array( 30, 7 ), 30 );
+		$this->assertIsArray( $due, 'Formerly suppressed: 30 days of notice on a monthly term.' );
+		$this->assertSame( 'renewal_notice', $due['marker'] );
+		$this->assertSame( 15, $due['lead'] );
+	}
+
 	public function test_custom_and_empty_lead_days(): void {
 		$due = $this->due( array( 'paid_until' => '2027-03-24 00:00:00' ), self::NOW, array( 3, 14, 60 ), 7 );
 		$this->assertSame( 'expiry_14', $due['marker'] );

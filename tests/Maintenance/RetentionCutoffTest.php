@@ -29,6 +29,8 @@ final class RetentionCutoffTest extends TestCase {
 				'ended_license_activations' => 30,
 				'reminder_log' => 730,
 				'anonymize_licenses' => 0,
+				// Wave 2: consent evidence of ended licenses, ten years.
+				'consents' => 3650,
 			),
 			Retention::DEFAULT_DAYS
 		);
@@ -41,6 +43,7 @@ final class RetentionCutoffTest extends TestCase {
 				'inactive_activations' => '2026-03-10 08:00:00',
 				'ended_license_activations' => '2027-02-08 08:00:00',
 				'reminder_log' => '2025-03-10 08:00:00',
+				'consents' => '2017-03-12 08:00:00',
 			),
 			Retention::cutoffs( Retention::DEFAULT_DAYS, self::NOW ),
 			'The anonymisation of ended licenses is off unless a period is configured.'
@@ -75,6 +78,7 @@ final class RetentionCutoffTest extends TestCase {
 				'ended_license_activations' => '-1',
 				'reminder_log' => 1.5,
 				'anonymize_licenses' => 'yes',
+				'consents' => 'never',
 				'licenses' => 1,
 			),
 			self::NOW
@@ -96,7 +100,7 @@ final class RetentionCutoffTest extends TestCase {
 
 	public function test_unknown_rules_are_ignored(): void {
 		$this->assertSame(
-			array( 'audit_log', 'event_inbox', 'event_inbox_open', 'activations', 'inactive_activations', 'ended_license_activations', 'reminder_log' ),
+			array( 'audit_log', 'event_inbox', 'event_inbox_open', 'activations', 'inactive_activations', 'ended_license_activations', 'reminder_log', 'consents' ),
 			array_keys( Retention::cutoffs( array( 'orders' => 1 ), self::NOW ) )
 		);
 	}
