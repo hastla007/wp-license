@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP License Captain 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14T23:55:45+00:00\n"
+"POT-Creation-Date: 2026-11-14T23:56:43+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -2336,7 +2336,7 @@ msgid "License product key"
 msgstr ""
 
 #: src/Catalog/ProductEditor.php:140
-msgid "Stable product identifier. Must match the key of the premium add-on: voucher-captain, pass-captain or affiliate-captain."
+msgid "Stable product identifier. Must match the key of the premium add-on: voucher-captain-pro, pass-captain-pro or affiliate-captain-pro."
 msgstr ""
 
 #: src/Catalog/ProductEditor.php:156

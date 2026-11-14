@@ -12,7 +12,7 @@ Erfasst am 12.11.2026 aus den jeweiligen `readme.txt`- und `composer.json`-Datei
 ## Client- und Gate-Entscheidungen
 
 - Der gebundelte Lizenzclient bleibt PHP-7.4-kompatibel, damit Affiliate Captain nicht unbeabsichtigt eine höhere PHP-Mindestversion erhält.
-- Produktschlüssel (festgelegt am 14.11.2026, T-158): `voucher-captain`, `pass-captain`, `affiliate-captain`; siehe [ENTITLEMENTS.md](ENTITLEMENTS.md#product-keys-decided-14-nov-2026-t-158). Textdomain und Optionsschlüssel der Add-ons ergeben sich aus deren Slug (`voucher-captain-pro`, `pass-captain-pro`, `affiliate-captain-pro`).
+- Produktschlüssel (festgelegt am 14.11.2026, T-158): `voucher-captain-pro`, `pass-captain-pro`, `affiliate-captain-pro` (Schlüssel = Ordner = Textdomain des Add-ons in hastla007/captain-pro); siehe [ENTITLEMENTS.md](ENTITLEMENTS.md#product-keys-decided-14-nov-2026-t-158).
 - Der Client verifiziert die signierte Serverantwort vor Entitlement-Auswertung; der Offlinecache nutzt denselben Installation-Key und darf serverseitige Ablaufzeit oder 14 Tage nicht überschreiten.
 - Bestehende Funktionen bleiben frei. Konkrete Premium-Feature-Keys müssen vor Aktivierung eines Gates je Produkt in einem versionierten Mapping festgelegt werden; bis dahin bleiben bereits veröffentlichte Funktionen ungated.
 - REST-/Updater-Kompatibilität, PHP-Matrix sowie die Kombinationen WordPress 6.2/6.4/6.5 und WooCommerce 8.2/8.9 sind vor Launch in den jeweiligen Produkt-CIs abzunehmen.

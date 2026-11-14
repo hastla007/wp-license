@@ -135,9 +135,9 @@ final class ProductEditor {
 				'id' => $name( '_wplc_product_key' ),
 				'label' => __( 'License product key', 'wp-license' ),
 				'value' => $values['product_key'],
-				'placeholder' => 'voucher-captain',
+				'placeholder' => 'voucher-captain-pro',
 				'desc_tip' => true,
-				'description' => __( 'Stable product identifier. Must match the key of the premium add-on: voucher-captain, pass-captain or affiliate-captain.', 'wp-license' ),
+				'description' => __( 'Stable product identifier. Must match the key of the premium add-on: voucher-captain-pro, pass-captain-pro or affiliate-captain-pro.', 'wp-license' ),
 				'custom_attributes' => array( 'list' => 'wplc-known-product-keys' ),
 			)
 		);

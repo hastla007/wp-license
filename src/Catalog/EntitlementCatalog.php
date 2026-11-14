@@ -120,14 +120,15 @@ final class EntitlementCatalog {
 	}
 
 	/**
-	 * Product keys of the premium add-ons (decided 14.11.2026, T-158).
+	 * Product keys of the premium add-ons (decided 14.11.2026, T-158): key = add-on folder = text domain
+	 * (hastla007/captain-pro).
 	 *
 	 * The key on a license product must equal the key the add-on sends; each maps to its entitlement prefix.
 	 */
 	public const PRODUCT_KEYS = array(
-		'voucher-captain'   => 'voucher',
-		'pass-captain'      => 'pass',
-		'affiliate-captain' => 'affiliate',
+		'voucher-captain-pro'   => 'voucher',
+		'pass-captain-pro'      => 'pass',
+		'affiliate-captain-pro' => 'affiliate',
 	);
 
 	/**
@@ -152,7 +153,7 @@ final class EntitlementCatalog {
 	}
 
 	/**
-	 * Catalog groups that belong to a license product key such as "voucher-captain".
+	 * Catalog groups that belong to a license product key such as "voucher-captain-pro".
 	 *
 	 * @param string $product_key License product key from the product editor.
 	 * @return string[] Matching group keys; empty when none matches.

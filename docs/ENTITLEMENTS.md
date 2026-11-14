@@ -12,13 +12,13 @@ Decision of 13 Nov 2026: the core plugin of each product stays completely free, 
 
 ## Product keys (decided 14 Nov 2026, T-158)
 
-The product key on a license product in the shop and the key the premium add-on sends must be identical. Each key maps to one entitlement prefix (`EntitlementCatalog::PRODUCT_KEYS`; further products via the filter `wplc_known_product_keys`).
+The product key on a license product in the shop and the key the premium add-on sends must be identical. Key = add-on folder = text domain; the add-ons live in hastla007/captain-pro. Each key maps to one entitlement prefix (`EntitlementCatalog::PRODUCT_KEYS`; further products via the filter `wplc_known_product_keys`).
 
 | Product | Product key | Entitlement prefix | Premium add-on |
 |---|---|---|---|
-| Voucher Captain | `voucher-captain` | `voucher.` | `voucher-captain-pro` |
-| WP Pass Captain | `pass-captain` | `pass.` | `pass-captain-pro` |
-| Affiliate Captain | `affiliate-captain` | `affiliate.` | `affiliate-captain-pro` |
+| Voucher Captain | `voucher-captain-pro` | `voucher.` | `voucher-captain-pro` |
+| WP Pass Captain | `pass-captain-pro` | `pass.` | `pass-captain-pro` |
+| Affiliate Captain | `affiliate-captain-pro` | `affiliate.` | `affiliate-captain-pro` |
 
 The product editor suggests these keys. The plan key (for example `solo`, `business`, `agency`) is set per product or variation and is independent of the product key.
 

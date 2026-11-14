@@ -13,7 +13,7 @@ JSON body:
 ```json
 {
   "license_key": "WPLC-...",
-  "product_key": "voucher-captain",
+  "product_key": "voucher-captain-pro",
   "installation_id": "uuid-v4",
   "installation_secret": "at-least-32-random-characters",
   "site_url": "https://shop.example",

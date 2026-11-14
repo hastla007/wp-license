@@ -41,11 +41,9 @@ It covers section "B. Premium-Add-on" (B1–B11) of the core plugins' TODO.md. E
 
 The starter code itself is PHP 7.4-compatible; raise `Requires PHP` to the core plugin's minimum.
 
-### Product key: one decision needed
+### Product key (decided 14.11.2026)
 
-The core plugins' TODOs propose `voucher`, `pass` and `affiliate` (B4). The server catalog examples, the API docs and the e2e suite use `voucher-captain`, `pass-captain` and `affiliate-captain`; `docs/PRODUCT-COMPATIBILITY.md` says `wp-pass-captain`, and the work-in-progress `captain-pro` monorepo uses `affiliate-captain-pro`.
-
-**Recommendation: `voucher-captain`, `pass-captain`, `affiliate-captain`.** They are what the server side already uses and tests, they stay unambiguous next to other products, and the product editor's entitlement checkboxes match them (it groups by the `voucher`/`pass`/`affiliate` part). Since the core plugins are free, the license is for the add-on anyway, so a `-pro` suffix adds nothing. Whatever is chosen must be set on the license products in WooCommerce before the first sale and never changed afterwards: activations, update checks and releases are matched on the exact string.
+The product keys are `voucher-captain-pro`, `pass-captain-pro` and `affiliate-captain-pro` (key = add-on folder = text domain), see `docs/ENTITLEMENTS.md`. The production add-ons are built in the repository hastla007/captain-pro, which copies the license client from `src/Client`; this starter stays a tested reference for the server interface. The key must be set on the license products in WooCommerce before the first sale and never changed afterwards: activations, update checks and releases are matched on the exact string.
 
 ## Creating a product add-on (B1–B11)
 

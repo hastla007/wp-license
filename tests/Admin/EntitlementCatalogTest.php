@@ -51,7 +51,7 @@ final class EntitlementCatalogTest extends TestCase {
 
 	public function test_the_decided_product_keys_map_to_their_entitlement_prefix(): void {
 		$this->assertSame(
-			array( 'voucher-captain' => 'voucher', 'pass-captain' => 'pass', 'affiliate-captain' => 'affiliate' ),
+			array( 'voucher-captain-pro' => 'voucher', 'pass-captain-pro' => 'pass', 'affiliate-captain-pro' => 'affiliate' ),
 			EntitlementCatalog::known_product_keys()
 		);
 		foreach ( EntitlementCatalog::known_product_keys() as $product_key => $group ) {
