@@ -14,8 +14,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Decides which reminder, if any, a license is due for at a given moment.
  *
- * All calculations are done in UTC and on whole calendar days, so the result
- * does not depend on the hour at which the daily job happens to run.
+ * All calculations are done on whole calendar days, so the result does not
+ * depend on the hour at which the daily job happens to run. Callers pass the
+ * site timezone; without one the days are UTC days.
  */
 final class ReminderSchedule {
 
@@ -79,14 +80,30 @@ final class ReminderSchedule {
 	}
 
 	/**
-	 * Whole UTC calendar days from the day of $now to the day of $target.
+	 * Whole calendar days from the day of $now to the day of $target.
 	 *
-	 * @param int $target Unix timestamp (non-negative).
-	 * @param int $now    Unix timestamp (non-negative).
+	 * Counted in the given timezone (UTC when none is given), so that the number
+	 * matches the date printed next to it: a license that ends later today is
+	 * zero days away, one that ends tomorrow one day, whatever the hour.
+	 *
+	 * @param int                $target   Unix timestamp (non-negative).
+	 * @param int                $now      Unix timestamp (non-negative).
+	 * @param \DateTimeZone|null $timezone Timezone the calendar days are counted in.
 	 * @return int Negative when the target day is in the past.
 	 */
-	public static function days_until( int $target, int $now ): int {
-		return intdiv( max( 0, $target ), 86400 ) - intdiv( max( 0, $now ), 86400 );
+	public static function days_until( int $target, int $now, ?\DateTimeZone $timezone = null ): int {
+		$target = max( 0, $target );
+		$now    = max( 0, $now );
+		if ( null === $timezone ) {
+			return intdiv( $target, 86400 ) - intdiv( $now, 86400 );
+		}
+
+		// Compare the local calendar dates as UTC midnights: no DST hour can shift the result.
+		$utc        = new \DateTimeZone( 'UTC' );
+		$target_day = new \DateTimeImmutable( ( new \DateTimeImmutable( '@' . $target ) )->setTimezone( $timezone )->format( 'Y-m-d' ), $utc );
+		$now_day    = new \DateTimeImmutable( ( new \DateTimeImmutable( '@' . $now ) )->setTimezone( $timezone )->format( 'Y-m-d' ), $utc );
+
+		return intdiv( $target_day->getTimestamp() - $now_day->getTimestamp(), 86400 );
 	}
 
 	/**
@@ -116,9 +133,10 @@ final class ReminderSchedule {
 	 * @param int                 $now         Unix timestamp.
 	 * @param int[]               $lead_days   Expiry lead days.
 	 * @param int                 $notice_days Renewal notice lead days.
+	 * @param \DateTimeZone|null  $timezone    Timezone calendar days are counted in (default UTC).
 	 * @return array<string,mixed>|null type, lead, marker, period_end, days_left, due_at.
 	 */
-	public static function due_reminder( array $license, int $now, array $lead_days, int $notice_days ): ?array {
+	public static function due_reminder( array $license, int $now, array $lead_days, int $notice_days, ?\DateTimeZone $timezone = null ): ?array {
 		if ( 'active' !== (string) ( $license['status'] ?? '' ) || empty( $license['paid_until'] ) ) {
 			return null;
 		}
@@ -135,7 +153,7 @@ final class ReminderSchedule {
 			if ( false === $charge_at ) {
 				$charge_at = $paid_until;
 			}
-			$days = self::days_until( $charge_at, $now );
+			$days = self::days_until( $charge_at, $now, $timezone );
 			if ( $notice_days < 1 || $charge_at <= $now || $days > $notice_days || $notice_days * 2 > $term ) {
 				return null;
 			}
@@ -149,7 +167,7 @@ final class ReminderSchedule {
 			);
 		}
 
-		$days  = self::days_until( $paid_until, $now );
+		$days  = self::days_until( $paid_until, $now, $timezone );
 		$match = 0;
 		foreach ( self::parse_lead_days( $lead_days ) as $lead ) {
 			if ( $lead * 2 > $term ) {

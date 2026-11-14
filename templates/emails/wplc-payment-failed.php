@@ -7,7 +7,9 @@
  * @package WPLC
  *
  * @var array<string,string> $view               Display values: product, plan, key_prefix, valid_until, days_left,
- *                                               amount, currency, charge_date, grace_until, account_url, pay_url.
+ *                                               amount (including tax), amount_includes_tax, currency, interval,
+ *                                               charge_date, grace_until, account_url, pay_url, can_renew_now,
+ *                                               renew_from, cancelled_at, status, support_email.
  * @var string               $email_heading      Email heading.
  * @var string               $additional_content Additional content from the email settings.
  * @var WC_Email             $email              Email object.
@@ -16,7 +18,7 @@
 defined( 'ABSPATH' ) || exit;
 
 $view = array_merge(
-	array_fill_keys( array( 'product', 'plan', 'key_prefix', 'valid_until', 'days_left', 'amount', 'currency', 'charge_date', 'grace_until', 'account_url', 'pay_url' ), '' ),
+	array_fill_keys( array( 'product', 'plan', 'key_prefix', 'valid_until', 'days_left', 'amount', 'amount_includes_tax', 'currency', 'interval', 'charge_date', 'grace_until', 'account_url', 'pay_url', 'can_renew_now', 'renew_from', 'cancelled_at', 'status', 'support_email' ), '' ),
 	isset( $view ) && is_array( $view ) ? $view : array()
 );
 
