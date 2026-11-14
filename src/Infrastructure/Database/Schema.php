@@ -52,7 +52,9 @@ final class Schema {
 	 * partial failure or on a fresh install with empty tables) and returns true
 	 * on success. Add new steps here together with a VERSION bump.
 	 *
-	 * @var array<string,array{0:string,1:string}>
+	 * Keys are integers at runtime (PHP casts numeric string keys).
+	 *
+	 * @var array<int,array{0:class-string,1:string}>
 	 */
 	private static $steps = array(
 		'10' => array( self::class, 'step_10_autoload_schema_version' ),
@@ -122,7 +124,7 @@ final class Schema {
 	 *
 	 * @param string   $installed Installed schema version.
 	 * @param string   $target Target schema version.
-	 * @param string[] $step_versions Versions that have a registered step.
+	 * @param array<int|string> $step_versions Versions that have a registered step.
 	 * @return string[]
 	 */
 	public static function pending_step_versions( string $installed, string $target, array $step_versions ): array {
@@ -545,7 +547,7 @@ final class Schema {
 	 *
 	 * @return bool
 	 */
-	private static function step_10_autoload_schema_version(): bool {
+	private static function step_10_autoload_schema_version(): bool { // @phpstan-ignore method.unused (called through self::$steps)
 		if ( false === get_option( self::VERSION_OPTION, false ) || self::version_is_autoloaded() ) {
 			// Fresh install (store_version() creates the row autoloaded) or already migrated.
 			return true;
@@ -567,7 +569,7 @@ final class Schema {
 	 *
 	 * @return bool
 	 */
-	private static function step_12_adopt_reminder_log(): bool {
+	private static function step_12_adopt_reminder_log(): bool { // @phpstan-ignore method.unused (called through self::$steps)
 		delete_option( self::LEGACY_REMINDER_LOG_VERSION_OPTION );
 
 		return true;
@@ -583,7 +585,7 @@ final class Schema {
 	 *
 	 * @return bool
 	 */
-	private static function step_13_renewal_product_column(): bool {
+	private static function step_13_renewal_product_column(): bool { // @phpstan-ignore method.unused (called through self::$steps)
 		global $wpdb;
 
 		$tables = self::table_names();
@@ -610,7 +612,7 @@ final class Schema {
 	 *
 	 * @return bool
 	 */
-	private static function step_14_renewal_review_columns(): bool {
+	private static function step_14_renewal_review_columns(): bool { // @phpstan-ignore method.unused (called through self::$steps)
 		global $wpdb;
 
 		$tables = self::table_names();
