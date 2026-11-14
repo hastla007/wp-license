@@ -27,6 +27,18 @@ final class LicenseListTable extends \WP_List_Table {
 	public const PER_PAGE = 50;
 
 	/**
+	 * Search: most license IDs a key-prefix fragment is resolved to before
+	 * the list falls back to filtering with LIKE.
+	 */
+	private const MAX_RESOLVED_IDS = 1000;
+
+	/**
+	 * Search: most product/plan pairs a term is resolved to before the list
+	 * falls back to filtering with LIKE.
+	 */
+	private const MAX_RESOLVED_PAIRS = 200;
+
+	/**
 	 * Product key => display name.
 	 *
 	 * @var array<string,string>
@@ -164,24 +176,32 @@ final class LicenseListTable extends \WP_List_Table {
 		}
 		$where = $conditions ? ' WHERE ' . implode( ' AND ', $conditions ) : '';
 
-		$count_sql = "SELECT COUNT(*) FROM {$tables['licenses']}{$where}";
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Only table names and fixed fragments are interpolated.
-		$total = $params ? (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) ) : (int) $wpdb->get_var( $count_sql );
-
 		$order_columns = array(
 			'created'    => 'created_at',
 			'paid_until' => 'paid_until',
 			'status'     => 'status',
 		);
-		$order_by      = $order_columns[ $filters['orderby'] ];
-		$direction     = 'asc' === $filters['order'] ? 'ASC' : 'DESC';
-		$page          = $this->get_pagenum();
-		$params[]      = self::PER_PAGE;
-		$params[]      = ( $page - 1 ) * self::PER_PAGE;
-		$list_sql      = "SELECT * FROM {$tables['licenses']}{$where} ORDER BY {$order_by} {$direction}, id {$direction} LIMIT %d OFFSET %d";
+		$order_by    = $order_columns[ $filters['orderby'] ];
+		$direction   = 'asc' === $filters['order'] ? 'ASC' : 'DESC';
+		$page        = $this->get_pagenum();
+		$offset      = ( $page - 1 ) * self::PER_PAGE;
+		$list_params = array_merge( $params, array( self::PER_PAGE, $offset ) );
+		// Deferred join (T-89): the IDs of the page are sorted and skipped in an index,
+		// full rows are read for these IDs only. Deep pages stay cheap.
+		$ids_sql = "SELECT id FROM {$tables['licenses']}{$where} ORDER BY {$order_by} {$direction}, id {$direction} LIMIT %d OFFSET %d";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Column and direction come from fixed allowlists.
-		$items       = $wpdb->get_results( $wpdb->prepare( $list_sql, $params ), ARRAY_A );
-		$this->items = is_array( $items ) ? $items : array();
+		$ids         = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( $ids_sql, $list_params ) ) );
+		$this->items = self::rows_in_order( $ids );
+
+		// A page that is not full is the end of the result: no COUNT(*) needed.
+		$found = count( $ids );
+		if ( $found < self::PER_PAGE && ( $found > 0 || 1 === $page ) ) {
+			$total = $offset + $found;
+		} else {
+			$count_sql = "SELECT COUNT(*) FROM {$tables['licenses']}{$where}";
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Only table names and fixed fragments are interpolated.
+			$total = $params ? (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) ) : (int) $wpdb->get_var( $count_sql );
+		}
 
 		$this->prime_row_data();
 
@@ -193,6 +213,39 @@ final class LicenseListTable extends \WP_List_Table {
 				'total_pages' => (int) ceil( $total / self::PER_PAGE ),
 			)
 		);
+	}
+
+	/**
+	 * Full license rows for the given IDs, in the order of the IDs.
+	 *
+	 * @param int[] $ids License IDs.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function rows_in_order( array $ids ): array {
+		global $wpdb;
+
+		if ( ! $ids ) {
+			return array();
+		}
+		$tables = Schema::table_names();
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Placeholders are generated here.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $ids ),
+			ARRAY_A
+		);
+		// phpcs:enable
+		$by_id = array();
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$by_id[ (int) $row['id'] ] = $row;
+		}
+		$ordered = array();
+		foreach ( $ids as $id ) {
+			if ( isset( $by_id[ $id ] ) ) {
+				$ordered[] = $by_id[ $id ];
+			}
+		}
+
+		return $ordered;
 	}
 
 	/**
@@ -225,9 +278,16 @@ final class LicenseListTable extends \WP_List_Table {
 				);
 
 			case LicenseSearch::TYPE_NUMBER:
+				$sql    = 'id = %d OR customer_id = %d';
+				$params = array( (int) $search['value'], (int) $search['value'] );
+				$prefix = self::key_prefix_condition( $search['value'] );
+				if ( null !== $prefix ) {
+					$sql   .= ' OR ' . $prefix['sql'];
+					$params = array_merge( $params, $prefix['params'] );
+				}
 				return array(
-					'sql'    => '(id = %d OR customer_id = %d OR key_prefix LIKE %s)',
-					'params' => array( (int) $search['value'], (int) $search['value'], '%' . $wpdb->esc_like( $search['value'] ) . '%' ),
+					'sql'    => '(' . $sql . ')',
+					'params' => $params,
 				);
 
 			case LicenseSearch::TYPE_EMAIL:
@@ -244,17 +304,127 @@ final class LicenseListTable extends \WP_List_Table {
 				);
 		}
 
-		$like     = '%' . $wpdb->esc_like( $search['value'] ) . '%';
-		$sql      = 'key_prefix LIKE %s OR product_key LIKE %s OR plan_key LIKE %s';
-		$params   = array( $like, $like, $like );
+		// Key prefix, product key, plan key or customer email contain the term. Each
+		// part is resolved to an indexable condition first (T-89), so the license
+		// table is not scanned with leading-wildcard LIKEs across columns.
+		$parts  = array();
+		$params = array();
+		foreach ( array( self::key_prefix_condition( $search['value'] ), self::product_plan_condition( $search['value'] ) ) as $part ) {
+			if ( null !== $part ) {
+				$parts[] = $part['sql'];
+				$params  = array_merge( $params, $part['params'] );
+			}
+		}
 		$user_ids = self::user_ids_by_email( $search['value'] );
 		if ( $user_ids ) {
-			$sql   .= ' OR customer_id IN (' . implode( ',', array_fill( 0, count( $user_ids ), '%d' ) ) . ')';
-			$params = array_merge( $params, $user_ids );
+			$parts[] = 'customer_id IN (' . implode( ',', array_fill( 0, count( $user_ids ), '%d' ) ) . ')';
+			$params  = array_merge( $params, $user_ids );
+		}
+		if ( ! $parts ) {
+			return array(
+				'sql'    => '1 = 0',
+				'params' => array(),
+			);
 		}
 
 		return array(
-			'sql'    => '(' . $sql . ')',
+			'sql'    => '(' . implode( ' OR ', $parts ) . ')',
+			'params' => $params,
+		);
+	}
+
+	/**
+	 * Condition for "key_prefix contains the fragment", or null when no license can match.
+	 *
+	 * Same result as `key_prefix LIKE '%fragment%'`, which reads every row:
+	 * - Every prefix is "WPLC-" and 8 hex digits (LicenseKey::prefix()). A
+	 *   plain ASCII fragment with any other character cannot match.
+	 * - A fragment starting with "WPLC-" can only match at the start, so an
+	 *   anchored LIKE uses the key_prefix index as a range.
+	 * - Otherwise the matching IDs are collected from the key_prefix index
+	 *   alone (index-only scan). Too many matches keep the plain LIKE.
+	 *
+	 * @param string $fragment Search term.
+	 * @return array{sql:string,params:array<int,mixed>}|null
+	 */
+	private static function key_prefix_condition( string $fragment ): ?array {
+		global $wpdb;
+
+		$ascii = 1 !== preg_match( '/[^\x20-\x7e]/', $fragment );
+		if ( '' === $fragment || strlen( $fragment ) > 32 || ( $ascii && 1 === preg_match( '/[^0-9A-FLPW\-]/i', $fragment ) ) ) {
+			return null;
+		}
+		if ( $ascii && 1 === preg_match( '/^WPLC-[0-9A-F]{0,8}$/i', $fragment ) ) {
+			return array(
+				'sql'    => 'key_prefix LIKE %s',
+				'params' => array( $wpdb->esc_like( $fragment ) . '%' ),
+			);
+		}
+
+		$like   = '%' . $wpdb->esc_like( $fragment ) . '%';
+		$tables = Schema::table_names();
+		$ids    = $wpdb->get_col(
+			$wpdb->prepare( "SELECT id FROM {$tables['licenses']} WHERE key_prefix LIKE %s LIMIT %d", $like, self::MAX_RESOLVED_IDS + 1 ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+		);
+		$ids    = array_map( 'intval', (array) $ids );
+		if ( ! $ids ) {
+			return null;
+		}
+		if ( count( $ids ) > self::MAX_RESOLVED_IDS ) {
+			return array(
+				'sql'    => 'key_prefix LIKE %s',
+				'params' => array( $like ),
+			);
+		}
+
+		return array(
+			'sql'    => 'id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')',
+			'params' => $ids,
+		);
+	}
+
+	/**
+	 * Condition for "product key or plan key contains the term", or null when none does.
+	 *
+	 * Same result as `product_key LIKE '%term%' OR plan_key LIKE '%term%'`:
+	 * the distinct product/plan pairs of all licenses (few, read from the
+	 * product_plan index) are matched first, then licenses are selected by pair.
+	 *
+	 * @param string $term Search term.
+	 * @return array{sql:string,params:array<int,mixed>}|null
+	 */
+	private static function product_plan_condition( string $term ): ?array {
+		global $wpdb;
+
+		$like   = '%' . $wpdb->esc_like( $term ) . '%';
+		$tables = Schema::table_names();
+		$pairs  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT p.product_key, p.plan_key FROM ( SELECT product_key, plan_key FROM {$tables['licenses']} GROUP BY product_key, plan_key ) p WHERE p.product_key LIKE %s OR p.plan_key LIKE %s LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+				$like,
+				$like,
+				self::MAX_RESOLVED_PAIRS + 1
+			),
+			ARRAY_A
+		);
+		$pairs  = is_array( $pairs ) ? $pairs : array();
+		if ( ! $pairs ) {
+			return null;
+		}
+		if ( count( $pairs ) > self::MAX_RESOLVED_PAIRS ) {
+			return array(
+				'sql'    => '(product_key LIKE %s OR plan_key LIKE %s)',
+				'params' => array( $like, $like ),
+			);
+		}
+		$params = array();
+		foreach ( $pairs as $pair ) {
+			$params[] = (string) $pair['product_key'];
+			$params[] = (string) $pair['plan_key'];
+		}
+
+		return array(
+			'sql'    => '(product_key, plan_key) IN (' . implode( ',', array_fill( 0, count( $pairs ), '(%s,%s)' ) ) . ')',
 			'params' => $params,
 		);
 	}

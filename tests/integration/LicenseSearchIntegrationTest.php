@@ -56,6 +56,16 @@ final class LicenseSearchIntegrationTest extends WPLC_Integration_TestCase {
 	 * @return int[] License IDs on the first page.
 	 */
 	private function listed_ids( string $location ): array {
+		return array_map( 'intval', wp_list_pluck( $this->list_table( $location )->items, 'id' ) );
+	}
+
+	/**
+	 * Prepared list table for a list URL.
+	 *
+	 * @param string $location List URL.
+	 * @return LicenseListTable
+	 */
+	private function list_table( string $location ): LicenseListTable {
 		$query = array();
 		parse_str( (string) wp_parse_url( $location, PHP_URL_QUERY ), $query );
 		$_GET     = $query;
@@ -75,7 +85,7 @@ final class LicenseSearchIntegrationTest extends WPLC_Integration_TestCase {
 		$table = new LicenseListTable();
 		$table->prepare_items();
 
-		return array_map( 'intval', wp_list_pluck( $table->items, 'id' ) );
+		return $table;
 	}
 
 	public function test_a_pasted_key_finds_its_license_without_appearing_in_the_url_or_storage(): void {
@@ -111,6 +121,51 @@ final class LicenseSearchIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( array( $other['id'] ), $this->listed_ids( $this->search( $prefix ) ) );
 		// A cut-off key is reduced to its public prefix and still finds the license.
 		$this->assertSame( array( $other['id'] ), $this->listed_ids( $this->search( substr( $other['key'], 0, 60 ) ) ) );
+	}
+
+	public function test_rewritten_text_and_number_searches_match_like_the_plain_like_filters(): void {
+		$day   = static function ( int $days ): string {
+			return gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
+		};
+		$alpha = $this->seed_license( array( 'key_prefix' => 'WPLC-AB12CD34', 'product_key' => 't89-alpha', 'plan_key' => 'gold', 'created_at' => $day( 3 ) ) );
+		$beta  = $this->seed_license( array( 'key_prefix' => 'WPLC-0012AB99', 'product_key' => 't89-beta', 'plan_key' => 'silver-12', 'created_at' => $day( 2 ) ) );
+		$gamma = $this->seed_license( array( 'key_prefix' => 'WPLC-99999999', 'product_key' => 't89-beta', 'plan_key' => 'single', 'created_at' => $day( 1 ) ) );
+
+		// Key prefix fragments: inside the hex part, anchored at "WPLC-" (any case), impossible characters.
+		$this->assertSame( array( $alpha['id'] ), $this->listed_ids( $this->search( '12CD' ) ) );
+		$this->assertSame( array( $beta['id'], $alpha['id'] ), $this->listed_ids( $this->search( 'ab' ) ) );
+		$this->assertSame( array( $alpha['id'] ), $this->listed_ids( $this->search( 'wplc-ab12' ) ) );
+		$this->assertSame( array(), $this->listed_ids( $this->search( 'zzz-no-match' ) ) );
+		// A number matches license ID, customer ID or a key prefix fragment.
+		$this->assertSame( array( $beta['id'] ), $this->listed_ids( $this->search( '0012' ) ) );
+		$this->assertSame( array( $gamma['id'] ), $this->listed_ids( $this->search( '9999' ) ) );
+		// Product and plan keys, case-insensitive; newest first.
+		$this->assertSame( array( $gamma['id'], $beta['id'] ), $this->listed_ids( $this->search( 'T89-BETA' ) ) );
+		$this->assertSame( array( $alpha['id'] ), $this->listed_ids( $this->search( 'gold' ) ) );
+		$this->assertSame( array( $beta['id'] ), $this->listed_ids( $this->search( 'silver-1' ) ) );
+		// Oldest first: the deferred join keeps the order of the IDs.
+		$this->assertSame( array( $alpha['id'], $beta['id'], $gamma['id'] ), $this->listed_ids( $this->search( 't89-', array( 'orderby' => 'created', 'order' => 'asc' ) ) ) );
+	}
+
+	public function test_total_count_with_and_without_count_query(): void {
+		for ( $i = 0; $i < LicenseListTable::PER_PAGE + 2; $i++ ) {
+			$this->seed_license( array( 'status' => 'suspended', 'created_at' => gmdate( 'Y-m-d H:i:s', time() - $i ) ) );
+		}
+		$this->seed_license( array( 'status' => 'revoked' ) );
+		$list = add_query_arg( 'status', 'suspended', LicenseAdmin::list_url() );
+
+		$first = $this->list_table( $list );
+		$this->assertCount( LicenseListTable::PER_PAGE, $first->items );
+		$this->assertSame( LicenseListTable::PER_PAGE + 2, (int) $first->get_pagination_arg( 'total_items' ) );
+		$this->assertSame( 2, (int) $first->get_pagination_arg( 'total_pages' ) );
+
+		$second = $this->list_table( add_query_arg( 'paged', 2, $list ) );
+		$this->assertCount( 2, $second->items );
+		$this->assertSame( LicenseListTable::PER_PAGE + 2, (int) $second->get_pagination_arg( 'total_items' ) );
+
+		$revoked = $this->list_table( add_query_arg( 'status', 'revoked', LicenseAdmin::list_url() ) );
+		$this->assertCount( 1, $revoked->items );
+		$this->assertSame( 1, (int) $revoked->get_pagination_arg( 'total_items' ) );
 	}
 
 	public function test_an_empty_search_redirects_to_the_unfiltered_list(): void {

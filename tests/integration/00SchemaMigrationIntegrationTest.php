@@ -100,6 +100,32 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( array( 'status' => 'paid', 'review_reason' => '', 'review_at' => null ), $row( $ids['paid'] ), 'A period paid since then stays as it is.' );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['renewals']} WHERE license_id = %d", 999000 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
 
+		// Schema 15 (T-89): indexes for the license list, the account page and diagnostics.
+		$indexes = array(
+			'licenses'    => array( 'customer_created', 'status_created', 'product_created', 'product_plan', 'created_at', 'paid_until', 'key_prefix' ),
+			'event_inbox' => array( 'outcome_processed' ),
+		);
+		foreach ( $indexes as $table => $names ) {
+			foreach ( $names as $name ) {
+				$this->assertSame(
+					'1',
+					(string) $wpdb->get_var(
+						$wpdb->prepare(
+							'SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s AND index_name = %s',
+							$tables[ $table ],
+							$name
+						)
+					),
+					'Missing index ' . $table . '.' . $name
+				);
+			}
+		}
+		$this->assertTrue( Schema::run_registered_step( '15' ), 'Step 15 finds every index.' );
+		$wpdb->query( "ALTER TABLE {$tables['licenses']} DROP INDEX key_prefix" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name from Schema.
+		$this->assertFalse( Schema::run_registered_step( '15' ), 'Step 15 reports a missing index.' );
+		$this->assertTrue( Schema::migrate(), 'dbDelta adds the index again.' );
+		$this->assertTrue( Schema::run_registered_step( '15' ) );
+
 		foreach ( Schema::table_names() as $table_name ) {
 			$table_exists = $wpdb->get_var(
 				$wpdb->prepare(

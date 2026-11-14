@@ -28,7 +28,7 @@ final class Schema {
 	 * 14: renewals.review_reason and renewals.review_at, the reason and start of
 	 *     an open review case (T-154, T-137); existing cases are backfilled.
 	 */
-	public const VERSION = '14';
+	public const VERSION = '15';
 
 	/**
 	 * Option in which ReminderLog recorded its self-installed table (up to schema 11).
@@ -61,6 +61,7 @@ final class Schema {
 		'12' => array( self::class, 'step_12_adopt_reminder_log' ),
 		'13' => array( self::class, 'step_13_renewal_product_column' ),
 		'14' => array( self::class, 'step_14_renewal_review_columns' ),
+		'15' => array( self::class, 'step_15_list_indexes' ),
 	);
 
 	/**
@@ -283,7 +284,14 @@ final class Schema {
 				UNIQUE KEY license_key_hash (license_key_hash),
 				UNIQUE KEY order_unit (source_order_item_id,unit_index),
 				KEY customer_product (customer_id,product_key),
+				KEY customer_created (customer_id,created_at),
 				KEY status_paid_until (status,paid_until),
+				KEY status_created (status,created_at),
+				KEY product_created (product_key,created_at),
+				KEY product_plan (product_key,plan_key),
+				KEY created_at (created_at),
+				KEY paid_until (paid_until),
+				KEY key_prefix (key_prefix),
 				KEY next_payment_at (next_payment_at)
 			) {$charset_collate};",
 			"CREATE TABLE {$tables['activations']} (
@@ -366,7 +374,8 @@ final class Schema {
 				outcome varchar(40) NOT NULL DEFAULT 'received',
 				PRIMARY KEY  (id),
 				UNIQUE KEY source_event (source,source_event_id),
-				KEY inbox_pending (processed_at,received_at)
+				KEY inbox_pending (processed_at,received_at),
+				KEY outcome_processed (outcome,processed_at)
 			) {$charset_collate};",
 			"CREATE TABLE {$tables['request_nonces']} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -656,6 +665,44 @@ final class Schema {
 		// phpcs:enable
 
 		return false !== $open && false !== $rejected;
+	}
+
+	/**
+	 * Indexes added by schema 15 (T-89), table key => index names.
+	 *
+	 * @var array<string,string[]>
+	 */
+	private const LIST_INDEXES = array(
+		'licenses'    => array( 'customer_created', 'status_created', 'product_created', 'product_plan', 'created_at', 'paid_until', 'key_prefix' ),
+		'event_inbox' => array( 'outcome_processed' ),
+	);
+
+	/**
+	 * Schema 15: indexes for the license list, the account page and diagnostics (T-89).
+	 *
+	 * dbDelta adds the indexes (see docs/PERFORMANCE.md for the queries they
+	 * serve); no data changes. dbDelta reports no errors, so the step checks
+	 * that every index exists; a missing one is retried on the next request.
+	 *
+	 * @return bool
+	 */
+	private static function step_15_list_indexes(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		global $wpdb;
+
+		$tables = self::table_names();
+		foreach ( self::LIST_INDEXES as $table => $indexes ) {
+			$found = $wpdb->get_col(
+				$wpdb->prepare(
+					'SELECT DISTINCT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s',
+					$tables[ $table ]
+				)
+			);
+			if ( array_diff( $indexes, array_map( 'strval', (array) $found ) ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
