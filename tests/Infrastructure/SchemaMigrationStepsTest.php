@@ -46,6 +46,18 @@ final class SchemaMigrationStepsTest extends TestCase {
 		);
 	}
 
+	public function test_schema_13_adds_the_renewal_product_step(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$property->setAccessible( true );
+		$steps = $property->getValue();
+		$this->assertSame( '13', Schema::VERSION );
+		$this->assertArrayHasKey( '13', $steps );
+		$this->assertSame( 'step_13_renewal_product_column', $steps['13'][1] );
+		// An install on schema 12 runs only the new step; one on 11 runs 12 and 13.
+		$this->assertSame( array( '13' ), Schema::pending_step_versions( '12', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '12', '13' ), Schema::pending_step_versions( '11', Schema::VERSION, array_keys( $steps ) ) );
+	}
+
 	public function test_each_successful_step_is_recorded_in_order(): void {
 		$log = array();
 		$steps = array(

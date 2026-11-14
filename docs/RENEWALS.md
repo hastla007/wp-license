@@ -10,8 +10,10 @@ Source: `src/Billing/*`, `src/License/LicenseLifecycle.php`, `src/License/Licens
 | --- | --- | --- |
 | Started by | Scheduler at `paid_until` | Customer, button "Renew now" in the account |
 | Payment method | Saved card through a gateway adapter (only Stripe exists) | Any payment method on the WooCommerce pay page |
-| Price | Amount stored on the license at purchase (`renewal_amount_minor`) | Plan price in the catalog at the time the order is created |
+| Price | Amount stored on the license at purchase (`renewal_amount_minor`) | Current regular price of the purchased product or variation when the order is created |
 | Requires | Opt-in at checkout and a saved token | License in the renewal window |
+
+See "Renewal price" below for how both amounts are determined.
 
 Both use the same renewal row per license period (unique key `sha256("wplc:{license_id}:{period_start}")`) and the same WooCommerce order, so a period can be paid only once. The license key never changes.
 
@@ -115,7 +117,7 @@ The customer can cancel at period end in the account and withdraw the cancellati
 
 - **Window:** 30 days before to 30 days after `paid_until` (`LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS`), for licenses in status `active`, `past_due` or `expired`. Not offered when the period is already paid.
 - **Start:** the account posts to `admin-post.php?action=wplc_start_renewal` (nonce `wplc_start_renewal_{license_id}`, logged-in owner only). The order is created or reused and the customer is redirected to its pay page.
-- **Price:** the plan's price in the catalog. The catalog stores the product's regular price (not a running sale price) whenever the product is saved. If the plan no longer exists, the amount stored on the license is used.
+- **Price:** the current regular price of the purchased product or variation (see "Renewal price").
 - **Same key:** the license, its key and its activations stay; only `paid_until` moves.
 - **New period:** starts at the later of `paid_until` and the payment time. Renewing early loses no days; renewing late is not billed retroactively.
 - **Expired licenses:** a manual renewal payment is the only payment that reactivates an `expired` license, and only inside the window.
@@ -136,6 +138,29 @@ The customer can cancel at period end in the account and withdraw the cancellati
 | `_wplc_payment_intent_id` | Stripe PaymentIntent of the last automatic attempt |
 | `_wplc_result_unknown_since` | `{attempt_count}\|{unix time}`: first request of the attempt whose result is unknown |
 | `_wplc_renewal_review` | `yes` when a paid order could not be applied |
+
+## Renewal price
+
+### At purchase
+
+When a license is issued, it stores the **regular price of the product or variation that was actually bought** (`renewal_amount_minor`, `renewal_currency_decimals`, `renewal_currency`) and the ID of that product or variation (`renewal_product_id`, schema 13). A running sale price is never stored. The plan price is only used when the bought product has no usable price, and for licenses issued by an administrator without an order (those record the plan's variation or product as `renewal_product_id`).
+
+This matters for variable products that are mapped only on the parent product: the plan of such a mapping holds the lowest variation price, because WooCommerce reports the lowest variation price for a variable parent. Before T-132 every variation renewed at that lowest price (a variation bought for 79.00 renewed for 59.00).
+
+### Automatic renewal
+
+Charges exactly the stored amount. A later price change in the shop does not change it: the customer consented to off-session charges of that amount, and raising it without notice is not acceptable.
+
+### Manual renewal
+
+The customer sees the amount on the pay page before paying, so the manual renewal follows the shop's current price of what the customer bought:
+
+1. The current regular price of `renewal_product_id`, if that product or variation still exists and has a price. A later regular-price change of the variation therefore applies to manual renewals. This keeps the earlier rule ("current catalog price") but applies it to the bought variation instead of the plan.
+2. If the product or variation was deleted or has no price: the stored amount, i.e. the price of that variation at purchase. The plan price is not used, because for parent-level mappings it is the lowest variation price.
+
+Licenses issued before schema 13 have `renewal_product_id = 0`. For them the product is resolved through the source order line (`source_order_id`, `source_order_item_id`). If that does not resolve either, the plan price is used as before, and the stored amount when the plan has no price.
+
+The order line always uses the bought product (or, if it is gone, the plan's product), so its tax class applies.
 
 ## Renewal statuses
 
@@ -184,3 +209,4 @@ The stored price is a catalog price: gross if the shop enters prices including t
 - There is no admin screen listing `review_required` renewals; use the diagnostics counter, the audit log and the order notes.
 - A paid manual renewal that is rejected is not refunded automatically.
 - Partial refunds of renewal orders are ignored.
+- Licenses with automatic renewal that were issued before schema 13 for a variation of a parent-mapped variable product keep the stored amount, which may be the lowest variation price. It is not raised automatically; their manual renewals use the variation price.
