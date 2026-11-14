@@ -100,7 +100,8 @@ e2e_ok( null === $wpdb->get_row( "SELECT id FROM {$t['releases']} WHERE version 
 // --- Publish through the row form. ---
 $publish_form = e2e_form( $result_page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $release['id'] . '"' ) );
 e2e_ok( is_array( $publish_form ), 'draft row has a publish form' );
-$published = e2e_submit( (array) $publish_form, $admin_cookies );
+// B-137: publishing needs a reason.
+$published = e2e_submit( (array) $publish_form, $admin_cookies, array( 'reason' => 'e2e: first release' ) );
 $release   = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['releases']} WHERE id = %d", (int) $release['id'] ), ARRAY_A );
 e2e_ok( 302 === $published['code'] && 'published' === $release['status'] && ! empty( $release['published_at'] ), 'release is published', array( $published['code'], $release['status'] ) );
 
@@ -132,12 +133,16 @@ if ( $opened ) {
 }
 unlink( $tmp );
 
-// Second use of the same token and of the stream URL fails.
+// B-19: a second fetch inside the reuse window (120 s) is served; afterwards the token is dead.
 $second = $follow( $package_url );
-e2e_eq( 404, $second['code'], 'second use of the same download token fails (404)' );
+e2e_eq( 200, $second['code'], 'a second fetch of the same download URL inside the reuse window is served' );
+$wpdb->query( $wpdb->prepare( "UPDATE {$t['download_tokens']} SET consumed_at = %s WHERE consumed_at IS NOT NULL", gmdate( 'Y-m-d H:i:s', time() - 300 ) ) );
+$wpdb->query( $wpdb->prepare( "UPDATE {$t['package_streams']} SET consumed_at = %s WHERE consumed_at IS NOT NULL", gmdate( 'Y-m-d H:i:s', time() - 300 ) ) );
+$late = $follow( $package_url );
+e2e_eq( 404, $late['code'], 'after the reuse window the download token fails (404)' );
 if ( isset( $download['hops'][1] ) ) {
 	$stream_again = e2e_http( 'GET', $download['hops'][1]['url'] );
-	e2e_eq( 404, $stream_again['code'], 'second use of the stream URL fails (404)' );
+	e2e_eq( 404, $stream_again['code'], 'after the reuse window the stream URL fails (404)' );
 }
 $unknown = e2e_http( 'GET', $server . '/wp-json/wplc/v1/updates/download/' . str_repeat( 'ab', 32 ) );
 e2e_eq( 404, $unknown['code'], 'an unknown download token answers 404' );
@@ -186,7 +191,7 @@ $upload        = e2e_multipart( array_merge( $fields, array( '_wpnonce' => (stri
 e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $admin_cookies, 'headers' => $upload['headers'], 'body' => $upload['body'] ) );
 $release_120 = $wpdb->get_row( "SELECT * FROM {$t['releases']} WHERE product_key = 'voucher-captain' AND version = '1.2.0'", ARRAY_A );
 $page        = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
-e2e_submit( (array) e2e_form( $page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $release_120['id'] . '"' ) ), $admin_cookies );
+e2e_submit( (array) e2e_form( $page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $release_120['id'] . '"' ) ), $admin_cookies, array( 'reason' => 'e2e: second release' ) );
 $update = $client->check_update();
 e2e_ok( is_array( $update ) && '1.2.0' === ( $update['version'] ?? null ) && hash( 'sha256', $zip_120 ) === ( $update['sha256'] ?? null ), 'after publishing 1.2.0 the client is offered 1.2.0', $error_of( $update ) );
 // Duplicate version is refused.
@@ -219,7 +224,7 @@ $remote   = $wpdb->get_row( "SELECT * FROM {$t['releases']} WHERE product_key = 
 e2e_ok( is_array( $remote ) && 'url' === $remote['storage'] && 'draft' === $remote['status'], 'manifest import creates a draft with remote storage', array( $imported['location'], $remote ) );
 if ( is_array( $remote ) ) {
 	$page = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
-	$done = e2e_submit( (array) e2e_form( $page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $remote['id'] . '"' ) ), $admin_cookies );
+	$done = e2e_submit( (array) e2e_form( $page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $remote['id'] . '"' ) ), $admin_cookies, array( 'reason' => 'e2e: remote release' ) );
 	e2e_eq( 'draft', (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$t['releases']} WHERE id = %d", (int) $remote['id'] ) ), 'publishing a release whose host is not on the allow-list is refused' );
 	$after = e2e_http( 'GET', $done['location'], array( 'cookies' => $admin_cookies ) );
 	e2e_ok( false !== strpos( $after['body'], 'notice-error' ), 'the refusal is shown as an error notice' );
@@ -229,7 +234,8 @@ e2e_login( 0 );
 // --- A license without access gets neither update metadata nor a download. ---
 $wpdb->update( $t['licenses'], array( 'status' => 'suspended' ), array( 'id' => (int) $license['id'] ) );
 $result = $client->check_update();
-e2e_ok( is_wp_error( $result ) && 'license_inactive' === $result->get_error_code(), 'suspended license: update check is refused (license_inactive)', $error_of( $result ) );
+// B-140: signed answer with the reason instead of a bare 403; never a package.
+e2e_ok( is_array( $result ) && false === ( $result['license_active'] ?? null ) && 'license_suspended' === ( $result['reason'] ?? null ) && '' === ( $result['package_url'] ?? '' ), 'suspended license: update check names the reason and offers no package', $error_of( $result ) );
 $wpdb->update( $t['licenses'], array( 'status' => 'active' ), array( 'id' => (int) $license['id'] ) );
 $update = $client->check_update();
 $wpdb->update( $t['licenses'], array( 'status' => 'suspended' ), array( 'id' => (int) $license['id'] ) );
