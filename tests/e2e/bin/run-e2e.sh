@@ -220,7 +220,8 @@ for flow in "${FLOWS[@]}"; do
 	if [ "$log_after" -gt "$log_before" ]; then
 		new_lines="$(tail -n +"$((log_before + 1))" "$DEBUG_LOG")"
 		# Lines that start a log entry and name plugin code (stack-trace lines of foreign errors do not count).
-		ours="$(printf '%s\n' "$new_lines" | grep -E '^\[' | grep -E 'plugins/wp-license/|WPLC\\|wp-license</code>|wplc' | cut -c1-600 || true)"
+		# The site path itself may contain "wplc" (default: .../wplc-e2e-site), so it is removed before matching.
+		ours="$(printf '%s\n' "$new_lines" | grep -E '^\[' | awk -v site="$SITE" '{ line = $0; while ( ( i = index( line, site ) ) > 0 ) { line = substr( line, 1, i - 1 ) "<site>" substr( line, i + length( site ) ) } print line }' | grep -E 'plugins/wp-license/|WPLC\\|wp-license</code>|wplc' | cut -c1-600 || true)"
 		if [ -n "$ours" ]; then
 			echo "FAIL  [$name] debug.log has new entries from wp-license code:"
 			printf '%s\n' "$ours" | head -20 | sed 's/^/        /'
