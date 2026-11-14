@@ -237,9 +237,10 @@ final class AdminDiagnosticsIntegrationTest extends WPLC_Integration_TestCase {
 	public function test_a75_ticked_license_product_without_plan_is_counted(): void {
 		$before = Diagnostics::unmapped_license_products();
 
+		// Written past the WooCommerce hooks (as a translation plugin or a raw import would do):
+		// a save through the product object now either creates the plan or resets the flag (B-21).
 		$orphan = $this->create_simple_product();
-		$orphan->update_meta_data( '_wplc_is_license_product', 'yes' );
-		$orphan->save();
+		update_post_meta( $orphan->get_id(), '_wplc_is_license_product', 'yes' );
 
 		$mapped = $this->create_license_product( array( 'product_key' => 'diag-product' ) );
 		$mapped->update_meta_data( '_wplc_is_license_product', 'yes' );
