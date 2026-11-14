@@ -43,6 +43,11 @@ final class Schema {
 	public const ERROR_OPTION = 'wplc_schema_last_error';
 
 	/**
+	 * Option with the plain message of the last failed migration, shown on the diagnostics page.
+	 */
+	public const DIAGNOSTICS_ERROR_OPTION = 'wplc_schema_error';
+
+	/**
 	 * Autoloaded option "<version>|<unix time>" of the last successful structure check.
 	 */
 	public const VERIFIED_OPTION = 'wplc_schema_verified';
@@ -64,7 +69,7 @@ final class Schema {
 	 * partial failure or on a fresh install with empty tables) and returns true
 	 * on success. Add new steps here together with a VERSION bump.
 	 *
-	 * @var array<string,array{0:string,1:string}>
+	 * @var array<int|string,array{0:string,1:string}>
 	 */
 	private static $steps = array(
 		'10' => array( self::class, 'step_10_autoload_schema_version' ),
@@ -533,6 +538,9 @@ final class Schema {
 		if ( null !== get_option( self::ERROR_OPTION, null ) ) {
 			delete_option( self::ERROR_OPTION );
 		}
+		if ( null !== get_option( self::DIAGNOSTICS_ERROR_OPTION, null ) ) {
+			delete_option( self::DIAGNOSTICS_ERROR_OPTION );
+		}
 
 		return true;
 	}
@@ -862,9 +870,11 @@ final class Schema {
 	 * dbDelta has created the table by now; the old option is aligned so the
 	 * former installer stays quiet.
 	 *
+	 * Public only so the step table can call it.
+	 *
 	 * @return bool
 	 */
-	private static function step_18_adopt_reminder_log(): bool {
+	public static function step_18_adopt_reminder_log(): bool {
 		if ( '1' !== (string) get_option( 'wplc_reminder_log_version', '' ) ) {
 			update_option( 'wplc_reminder_log_version', '1', false );
 		}
@@ -925,6 +935,7 @@ final class Schema {
 			),
 			false
 		);
+		update_option( self::DIAGNOSTICS_ERROR_OPTION, function_exists( 'mb_substr' ) ? mb_substr( $message, 0, 2000 ) : substr( $message, 0, 2000 ), false );
 		if ( '' !== (string) get_option( self::VERIFIED_OPTION, '' ) ) {
 			delete_option( self::VERIFIED_OPTION );
 		}

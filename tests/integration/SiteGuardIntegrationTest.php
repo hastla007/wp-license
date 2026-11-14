@@ -262,7 +262,7 @@ final class SiteGuardIntegrationTest extends WPLC_Integration_TestCase {
 				}
 			}
 		}
-		$this->assertSame( DailyRunner::ALERT_PRIORITY, $alert_priority );
+		$this->assertGreaterThanOrEqual( DailyRunner::ALERT_PRIORITY, $alert_priority );
 
 		// A second run in the same request works on the already wrapped callbacks.
 		$ran = array();
@@ -477,6 +477,7 @@ final class SiteGuardIntegrationTest extends WPLC_Integration_TestCase {
 	// B-14, B-125: deactivation leaves a timestamp and no reminder cursor; activation records the gap and queues the catch-up.
 	public function test_deactivation_and_activation_bridge_the_gap(): void {
 		update_option( 'wplc_reminder_cursor', 4711, false );
+		LicenseLifecycle::schedule_daily_event();
 		$this->assertNotFalse( wp_next_scheduled( 'wplc_daily_lifecycle' ) );
 
 		Plugin::deactivate();

@@ -37,6 +37,7 @@ use WPLC\Maintenance\SiteGuard;
 use WPLC\Maintenance\GapGuard;
 use WPLC\Maintenance\GapReconciler;
 use WPLC\Maintenance\DailyRunner;
+use WPLC\Maintenance\Orphans;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -77,6 +78,18 @@ final class Plugin {
 
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			wp_die( esc_html__( 'Please activate WooCommerce before activating WP License Captain.', 'wp-license' ) );
+		}
+
+		if ( ! Requirements::woocommerce_is_supported() ) {
+			wp_die(
+				esc_html(
+					sprintf(
+						/* translators: %s: minimum WooCommerce version. */
+						__( 'WP License Captain requires WooCommerce %s or later.', 'wp-license' ),
+						Requirements::MIN_WC
+					)
+				)
+			);
 		}
 
 		self::for_each_site( (bool) $network_wide, array( self::class, 'activate_site' ) );
@@ -221,6 +234,7 @@ final class Plugin {
 		PersonalData::register_hooks();
 		Notifications::register_hooks();
 		Retention::register_hooks();
+		Orphans::register_hooks();
 		SiteGuard::register_hooks();
 		GapReconciler::register_hooks();
 		// Last: wraps the job callbacks registered above (isolation, pause gate, heartbeat).

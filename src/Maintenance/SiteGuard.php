@@ -363,7 +363,7 @@ final class SiteGuard {
 	 */
 	private static function is_plugin_related_screen(): bool {
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		$id     = is_object( $screen ) && isset( $screen->id ) ? (string) $screen->id : '';
+		$id     = $screen instanceof \WP_Screen ? (string) $screen->id : '';
 
 		return '' === $id || 'plugins' === $id || 'dashboard' === $id || false !== strpos( $id, 'wplc' ) || false !== strpos( $id, 'woocommerce' );
 	}

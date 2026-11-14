@@ -10,7 +10,10 @@ namespace WPLC\Maintenance;
 use WPLC\Catalog\Catalog;
 use WPLC\Compatibility\Requirements;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\Billing\RenewalProcessor;
 use WPLC\License\AuditLog;
+use WPLC\License\LicenseIssuer;
+use WPLC\License\LicenseLifecycle;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -66,9 +69,32 @@ final class GapReconciler {
 	 * @return void
 	 */
 	public static function register_hooks(): void {
-		add_action( self::HOOK, array( self::class, 'run' ), 10, 0 );
+		add_action( self::HOOK, array( self::class, 'run_scheduled' ), 10, 0 );
 		// Before the expiry run (priority 10), so a found gap protects licenses in the same run.
-		add_action( DailyRunner::HOOK, array( self::class, 'run' ), 5, 0 );
+		add_action( DailyRunner::HOOK, array( self::class, 'run_scheduled' ), 5, 0 );
+	}
+
+	/**
+	 * Scheduled job.
+	 *
+	 * @return void
+	 */
+	public static function run_scheduled(): void {
+		self::run();
+	}
+
+	/**
+	 * Order ID of an entry returned by wc_get_orders(), which yields IDs or objects.
+	 *
+	 * @param mixed $entry ID or order object.
+	 * @return int
+	 */
+	private static function order_id( $entry ): int {
+		if ( is_object( $entry ) && is_callable( array( $entry, 'get_id' ) ) ) {
+			return (int) $entry->get_id();
+		}
+
+		return is_numeric( $entry ) ? (int) $entry : 0;
 	}
 
 	/**
@@ -172,7 +198,7 @@ final class GapReconciler {
 					$summary['complete'] = false;
 					break 2;
 				}
-				$order_id = (int) $order_id;
+				$order_id = self::order_id( $order_id );
 				$order    = wc_get_order( $order_id );
 				if ( ! $order instanceof \WC_Order || ! $order->is_paid() ) {
 					continue;
@@ -181,14 +207,11 @@ final class GapReconciler {
 
 				if ( $order->get_meta( '_wplc_renewal_for_license', true ) ) {
 					if ( ! isset( $handled[ $order_id ] ) && self::renewal_is_open( absint( $order->get_meta( '_wplc_renewal_id', true ) ) ) ) {
-						$handler = array( '\\WPLC\\Billing\\RenewalProcessor', 'handle_paid_order' );
-						if ( is_callable( $handler ) ) {
-							call_user_func( $handler, $order_id );
-							$handled[ $order_id ] = $now;
-							$changed              = true;
-							++$summary['renewal_orders'];
-							AuditLog::record( 'gap_renewal_order_reconciled', 'order', $order_id, 'Paid renewal order found without a booked renewal; handed to the renewal processor.' );
-						}
+						RenewalProcessor::handle_paid_order( $order_id );
+						$handled[ $order_id ] = $now;
+						$changed              = true;
+						++$summary['renewal_orders'];
+						AuditLog::record( 'gap_renewal_order_reconciled', 'order', $order_id, 'Paid renewal order found without a booked renewal; handed to the renewal processor.' );
 					}
 					continue;
 				}
@@ -197,11 +220,7 @@ final class GapReconciler {
 				if ( $missing < 1 ) {
 					continue;
 				}
-				$issuer = array( '\\WPLC\\License\\LicenseIssuer', 'maybe_issue_order' );
-				if ( ! is_callable( $issuer ) ) {
-					continue;
-				}
-				call_user_func( $issuer, $order_id );
+				LicenseIssuer::maybe_issue_order( $order_id );
 				$still_missing = self::missing_license_units( $order );
 				if ( $still_missing < $missing ) {
 					++$summary['orders_issued'];
@@ -246,7 +265,7 @@ final class GapReconciler {
 
 		$expected = array();
 		foreach ( $order->get_items( 'line_item' ) as $item_id => $item ) {
-			if ( ! is_callable( array( $item, 'get_product_id' ) ) ) {
+			if ( ! $item instanceof \WC_Order_Item_Product ) {
 				continue;
 			}
 			$product_id   = (int) $item->get_product_id();
@@ -300,11 +319,6 @@ final class GapReconciler {
 	 * @return array<string,mixed>
 	 */
 	private static function reconcile_refunds( int $since, float $deadline, array $summary ): array {
-		$handler = array( '\\WPLC\\License\\LicenseLifecycle', 'handle_refund' );
-		if ( ! is_callable( $handler ) ) {
-			return $summary;
-		}
-
 		for ( $page = 1; $page <= 200; ++$page ) {
 			$refunds = wc_get_orders(
 				array(
@@ -314,17 +328,19 @@ final class GapReconciler {
 					'paged'        => $page,
 					'orderby'      => 'ID',
 					'order'        => 'ASC',
+					'return'       => 'ids',
 				)
 			);
 			if ( ! is_array( $refunds ) || ! $refunds ) {
 				break;
 			}
 
-			foreach ( $refunds as $refund ) {
+			foreach ( $refunds as $refund_id ) {
 				if ( microtime( true ) >= $deadline ) {
 					$summary['complete'] = false;
 					break 2;
 				}
+				$refund = wc_get_order( self::order_id( $refund_id ) );
 				if ( ! $refund instanceof \WC_Order_Refund || $refund->get_meta( '_wplc_refund_processed', true ) ) {
 					continue;
 				}
@@ -333,7 +349,7 @@ final class GapReconciler {
 				if ( ! $parent instanceof \WC_Order || ! self::refund_is_unprocessed( $refund, $parent ) ) {
 					continue;
 				}
-				call_user_func( $handler, $parent_id, (int) $refund->get_id() );
+				LicenseLifecycle::handle_refund( $parent_id, (int) $refund->get_id() );
 				++$summary['refunds'];
 				AuditLog::record( 'gap_refund_reconciled', 'order', $parent_id, 'Refund found that was never applied to the licenses; processed afterwards.', null, array( 'refund_id' => (int) $refund->get_id() ) );
 			}
@@ -398,10 +414,6 @@ final class GapReconciler {
 	private static function reconcile_refunded_orders( int $since, float $deadline, array $summary ): array {
 		global $wpdb;
 
-		$handler = array( '\\WPLC\\License\\LicenseLifecycle', 'handle_full_refund' );
-		if ( ! is_callable( $handler ) ) {
-			return $summary;
-		}
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- only table names are interpolated.
 		$tables = Schema::table_names();
 
@@ -427,7 +439,7 @@ final class GapReconciler {
 					$summary['complete'] = false;
 					break 2;
 				}
-				$order_id = (int) $order_id;
+				$order_id = self::order_id( $order_id );
 				$order    = wc_get_order( $order_id );
 				if ( ! $order instanceof \WC_Order ) {
 					continue;
@@ -450,7 +462,7 @@ final class GapReconciler {
 				if ( ! $open ) {
 					continue;
 				}
-				call_user_func( $handler, $order_id );
+				LicenseLifecycle::handle_full_refund( $order_id );
 				++$summary['full_refunds'];
 				AuditLog::record( 'gap_full_refund_reconciled', 'order', $order_id, 'Refunded order found whose licenses were still usable; processed afterwards.' );
 			}

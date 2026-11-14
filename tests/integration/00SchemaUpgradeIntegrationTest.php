@@ -21,8 +21,16 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		remove_filter( 'query', array( $this, 'break_renewals_alter' ) );
 		$this->permanent_tables();
 		delete_option( Schema::ERROR_OPTION );
+		delete_option( Schema::DIAGNOSTICS_ERROR_OPTION );
 		update_option( Schema::VERSION_OPTION, Schema::VERSION, true );
 		Schema::migrate();
+		// The uninstall tests clear the cron events for good (DDL commits the test transaction).
+		\WPLC\License\LicenseLifecycle::schedule_daily_event();
+		\WPLC\Api\V1\Routes::schedule_cleanup_event();
+		\WPLC\Maintenance\SiteGuard::remember();
+		// DDL committed parts of this test; commit the restored state too, otherwise the
+		// rollback in parent::tear_down() would leave the database without it.
+		$GLOBALS['wpdb']->query( 'COMMIT' );
 		parent::tear_down();
 	}
 
@@ -106,6 +114,7 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		$this->assertIsArray( $error );
 		$this->assertStringContainsString( 'renewals.status: varchar(20), expected varchar(30)', $error['message'] );
 		$this->assertStringContainsString( 'Database error:', $error['message'] );
+		$this->assertSame( $error['message'], get_option( 'wplc_schema_error' ), 'The diagnostics page reads this option.' );
 		$status = Schema::status();
 		$this->assertSame( '10', $status['installed'] );
 		$this->assertSame( Schema::VERSION, $status['expected'] );
@@ -127,6 +136,7 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( 30, $this->renewals_status_length() );
 		$this->assertSame( Schema::VERSION, (string) get_option( Schema::VERSION_OPTION ) );
 		$this->assertNull( get_option( Schema::ERROR_OPTION, null ) );
+		$this->assertNull( get_option( 'wplc_schema_error', null ) );
 	}
 
 	// B-12: tables missing although the stored version is current are created again.
@@ -211,6 +221,73 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		update_option( Schema::VERSION_OPTION, Schema::VERSION, true );
 		$this->assertFalse( Schema::is_downgraded() );
 		$wpdb->query( "ALTER TABLE {$tables['renewals']} MODIFY status varchar(30) NOT NULL DEFAULT 'scheduled'" );
+	}
+
+	// A-117: uninstall removes scheduled work and working state, keeps the business records.
+	public function test_uninstall_keeps_data_and_removes_working_state(): void {
+		$this->permanent_tables();
+		update_option( 'wplc_reminder_cursor', 12, false );
+		update_option( 'wplc_gap_window', array( 'from' => 1, 'to' => 2 ), false );
+		update_option( 'wplc_privacy_eraser_cursor_77', 5, false );
+		if ( ! wp_next_scheduled( 'wplc_daily_lifecycle' ) ) {
+			wp_schedule_event( time() + 300, 'daily', 'wplc_daily_lifecycle' );
+		}
+		if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
+			define( 'WP_UNINSTALL_PLUGIN', 'wp-license/wp-license.php' );
+		}
+
+		require dirname( __DIR__, 2 ) . '/uninstall.php';
+
+		$this->assertFalse( wp_next_scheduled( 'wplc_daily_lifecycle' ) );
+		$this->assertFalse( get_option( 'wplc_reminder_cursor' ) );
+		$this->assertFalse( get_option( 'wplc_gap_window' ) );
+		wp_cache_delete( 'notoptions', 'options' );
+		wp_cache_delete( 'wplc_privacy_eraser_cursor_77', 'options' );
+		$this->assertFalse( get_option( 'wplc_privacy_eraser_cursor_77' ) );
+		$this->assertSame( Schema::VERSION, (string) get_option( Schema::VERSION_OPTION ) );
+		foreach ( Schema::table_names() as $table ) {
+			$this->assertTrue( $this->table_exists( $table ), $table );
+		}
+	}
+
+	// A-79: tables dropped by hand while the options stayed - reinstalling creates them again, reminder log included.
+	public function test_reactivation_after_manually_dropped_tables_recreates_them(): void {
+		global $wpdb;
+
+		$this->permanent_tables();
+		foreach ( Schema::table_names() as $table ) {
+			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+		}
+		$this->assertSame( '1', (string) get_option( 'wplc_reminder_log_version', '1' ) );
+		$this->assertSame( Schema::VERSION, (string) get_option( Schema::VERSION_OPTION ) );
+
+		\WPLC\Plugin::activate();
+
+		foreach ( Schema::table_names() as $table ) {
+			$this->assertTrue( $this->table_exists( $table ), $table );
+		}
+		$this->assertSame( array(), Schema::verify() );
+	}
+
+	// A-117: the opt-in removes tables and options, and a later activation starts from scratch.
+	public function test_opt_in_uninstall_removes_tables_and_options(): void {
+		$this->permanent_tables();
+		if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
+			define( 'WP_UNINSTALL_PLUGIN', 'wp-license/wp-license.php' );
+		}
+		require dirname( __DIR__, 2 ) . '/uninstall.php';
+
+		wplc_uninstall_site( true );
+
+		foreach ( Schema::table_names() as $table ) {
+			$this->assertFalse( $this->table_exists( $table ), $table );
+		}
+		$this->assertFalse( get_option( Schema::VERSION_OPTION ) );
+		$this->assertFalse( get_option( 'wplc_reminder_log_version' ) );
+
+		\WPLC\Plugin::activate();
+		$this->assertSame( Schema::VERSION, (string) get_option( Schema::VERSION_OPTION ) );
+		$this->assertSame( array(), Schema::verify() );
 	}
 
 	// B-103: a deleted subsite takes the reminder log with it.

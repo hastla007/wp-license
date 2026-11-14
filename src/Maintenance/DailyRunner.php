@@ -20,7 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * When the hook fires, each callback is replaced by an {@see IsolatedJob}:
  * - a \Throwable is logged and the next job runs,
  * - the health alerts run last, after the jobs they report on,
- * - a heartbeat is written per job (`Diagnostics::mark_run()` when available),
+ * - a heartbeat is written for the maintenance jobs (`Diagnostics::mark_run()` when
+ *   available; the diagnostics package brackets the whole run itself),
  * - billing jobs are skipped while {@see SiteGuard::billing_paused()} is true;
  *   cleanup jobs still run.
  *
@@ -91,6 +92,13 @@ final class DailyRunner {
 	);
 
 	/**
+	 * Heartbeat receiver of the diagnostics package; called only when it exists.
+	 *
+	 * @var mixed
+	 */
+	private static $heartbeat = array( '\\WPLC\\Admin\\Diagnostics', 'mark_run' );
+
+	/**
 	 * Register hooks.
 	 *
 	 * @return void
@@ -140,7 +148,6 @@ final class DailyRunner {
 	public static function finish(): void {
 		try {
 			update_option( self::LAST_RUN_OPTION, time(), false );
-			self::mark_run( 'daily_lifecycle' );
 		} catch ( \Throwable $error ) {
 			self::record_failure( 'daily_lifecycle_finish', $error );
 		}
@@ -206,6 +213,10 @@ final class DailyRunner {
 
 		$class = self::callback_class( $callback );
 		$runs  = '' === $class || 0 !== strpos( $class, 'WPLC\\' ) || in_array( $class, self::SAFE_WHILE_PAUSED, true );
+		if ( 'WPLC\\Admin\\Diagnostics' === $class ) {
+			// Heartbeats are bookkeeping; health alerts about a paused copy would only be noise.
+			$runs = ! self::is_alert_callback( $callback );
+		}
 
 		/**
 		 * Filter whether a job runs although billing is paused.
@@ -226,7 +237,11 @@ final class DailyRunner {
 	 * @return void
 	 */
 	public static function mark_run( string $job ): void {
-		$target = array( '\\WPLC\\Admin\\Diagnostics', 'mark_run' );
+		if ( ! in_array( $job, array( 'retention_run_scheduled', 'retention_sweep_scheduled', 'gap_reconciler_run_scheduled' ), true ) ) {
+			// Only the jobs of this package; every other package reports its own runs.
+			return;
+		}
+		$target = self::$heartbeat;
 		if ( is_callable( $target ) ) {
 			try {
 				call_user_func( $target, $job );
@@ -296,6 +311,20 @@ final class DailyRunner {
 	}
 
 	/**
+	 * Whether a callback is the health-alert job of the diagnostics package.
+	 *
+	 * @param mixed $callback Callback.
+	 * @return bool
+	 */
+	private static function is_alert_callback( $callback ): bool {
+		if ( is_string( $callback ) && false !== strpos( $callback, '::' ) ) {
+			$callback = explode( '::', $callback, 2 );
+		}
+
+		return is_array( $callback ) && 2 === count( $callback ) && 'WPLC\\Admin\\Diagnostics' === self::callback_class( $callback ) && 'emit_alerts' === $callback[1];
+	}
+
+	/**
 	 * Class a callback belongs to, '' for functions and closures.
 	 *
 	 * @param mixed $callback Callback.
@@ -351,7 +380,7 @@ final class DailyRunner {
 				}
 
 				$target = $priority;
-				if ( $alerts_last && 'WPLC\\Admin\\Diagnostics' === $class && (int) $priority < self::ALERT_PRIORITY ) {
+				if ( $alerts_last && self::is_alert_callback( $callback ) && (int) $priority < self::ALERT_PRIORITY ) {
 					$target = self::ALERT_PRIORITY;
 				}
 				$accepted_args = isset( $entry['accepted_args'] ) ? (int) $entry['accepted_args'] : 1;
