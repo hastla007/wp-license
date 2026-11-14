@@ -201,15 +201,17 @@ final class Retention {
 	private static function delete_activations( array $tables, string $cutoff ): int {
 		global $wpdb;
 
+		// Anti-join instead of NOT EXISTS (T-89): MariaDB materialized the subquery by
+		// scanning every activation; the LEFT JOIN looks children up in staging_parent.
 		$ids = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT a.id FROM {$tables['activations']} a INNER JOIN {$tables['licenses']} l ON l.id = a.license_id WHERE a.status <> %s AND a.deactivated_at IS NOT NULL AND a.deactivated_at < %s AND l.status IN (%s,%s,%s) AND NOT EXISTS ( SELECT 1 FROM {$tables['activations']} c WHERE c.staging_parent_id = a.id AND c.status = %s ) ORDER BY a.id ASC LIMIT %d",
+				"SELECT a.id FROM {$tables['activations']} a INNER JOIN {$tables['licenses']} l ON l.id = a.license_id LEFT JOIN {$tables['activations']} c ON c.staging_parent_id = a.id AND c.status = %s WHERE a.status <> %s AND a.deactivated_at IS NOT NULL AND a.deactivated_at < %s AND l.status IN (%s,%s,%s) AND c.id IS NULL ORDER BY a.id ASC LIMIT %d",
+				'active',
 				'active',
 				$cutoff,
 				self::TERMINAL_STATES[0],
 				self::TERMINAL_STATES[1],
 				self::TERMINAL_STATES[2],
-				'active',
 				self::BATCH_SIZE
 			)
 		);
