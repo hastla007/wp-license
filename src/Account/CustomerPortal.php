@@ -339,7 +339,7 @@ final class CustomerPortal {
 			? sprintf( __( '%1$d of %2$d', 'wp-license' ), $live_sites, $related['limits'][ $license_id ] )
 			: (string) $live_sites;
 
-		$key    = LicenseKey::for_uuid( (string) $license['license_uuid'], (string) ( $license['license_key_secret_id'] ?? 'legacy' ) );
+		$key    = LicenseKey::verified_for_license( (string) $license['license_uuid'], (string) ( $license['license_key_secret_id'] ?? 'legacy' ), (string) ( $license['license_key_hash'] ?? '' ) );
 		$key_id = 'wplc-key-' . $license_id;
 
 		echo '<section class="wplc-license" aria-labelledby="wplc-license-title-' . esc_attr( (string) $license_id ) . '">';
