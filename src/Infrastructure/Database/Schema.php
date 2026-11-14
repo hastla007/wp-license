@@ -21,8 +21,9 @@ final class Schema {
 	 *
 	 * 11: renewals.status widened to 30 characters ("manual_action_required" has 22;
 	 *     WordPress refuses to write a value longer than the column).
+	 * 15: releases.requires_core and releases.plugin_file (added by dbDelta, no data step).
 	 */
-	public const VERSION = '11';
+	public const VERSION = '15';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -394,6 +395,8 @@ final class Schema {
 				requires_php varchar(20) NOT NULL DEFAULT '',
 				requires_wp varchar(20) NOT NULL DEFAULT '',
 				tested_wp varchar(20) NOT NULL DEFAULT '',
+				requires_core varchar(20) NOT NULL DEFAULT '',
+				plugin_file varchar(190) NOT NULL DEFAULT '',
 				release_notes longtext NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'draft',
 				published_at datetime DEFAULT NULL,
