@@ -27,6 +27,13 @@ final class Settings {
 	public const OPTION = 'wplc_settings';
 
 	/**
+	 * Package hosts the last sanitize() call of this request stored or kept (null before the first call).
+	 *
+	 * @var string[]|null
+	 */
+	private static $accepted_hosts = null;
+
+	/**
 	 * Admin page slug.
 	 */
 	public const PAGE = 'wplc-settings';
@@ -300,7 +307,12 @@ final class Settings {
 				);
 			}
 
-			if ( $hosts['valid'] !== $current_hosts ) {
+			if ( is_array( $input['package_hosts'] ) && null !== self::$accepted_hosts && $hosts['valid'] === self::$accepted_hosts ) {
+				// Second pass of the same save: WordPress sanitizes again when it adds the option
+				// for the first time, now with our own result and without the form's fingerprint.
+				// Only the list this request already accepted passes; a posted array does not.
+				$hosts_out = self::$accepted_hosts;
+			} elseif ( $hosts['valid'] !== $current_hosts ) {
 				$seen = isset( $input['package_hosts_seen'] ) && is_string( $input['package_hosts_seen'] ) ? $input['package_hosts_seen'] : '';
 				if ( ! self::is_form_submission() ) {
 					// WP-CLI, tests and other code: no browser tab can be stale.
@@ -314,6 +326,8 @@ final class Settings {
 				}
 			}
 		}
+
+		self::$accepted_hosts = $hosts_out;
 
 		$days = self::sanitize_reminder_days( is_string( $current['reminder_days'] ) ? $current['reminder_days'] : '' );
 		if ( array_key_exists( 'reminder_days', $input ) ) {

@@ -993,6 +993,43 @@ final class AdminSupportIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertArrayNotHasKey( 'package_hosts_seen', get_option( Settings::OPTION ) );
 	}
 
+	// Found by the E2E run: on a fresh installation the option does not exist yet. WordPress then
+	// sanitizes twice (update_option falls through to add_option); the second pass has no form
+	// fingerprint and used to discard the hosts the first pass had accepted.
+	public function test_b134_first_save_of_the_settings_form_keeps_the_package_hosts(): void {
+		add_filter( 'sanitize_option_' . Settings::OPTION, array( Settings::class, 'sanitize' ) );
+		wp_set_current_user( $this->admin );
+		delete_option( Settings::OPTION );
+		ob_start();
+		Settings::render_package_hosts_field();
+		$field = (string) ob_get_clean();
+		$this->assertSame( 1, preg_match( '/\[package_hosts_seen\]" value="([a-f0-9]{20})"/', $field, $match ) );
+
+		$_POST['option_page'] = Settings::OPTION;
+		update_option(
+			Settings::OPTION,
+			array(
+				'package_hosts'      => "downloads.example.com\nhttps://not-a-host.example/path",
+				'package_hosts_seen' => $match[1],
+				'reminder_days'      => '14,7',
+				'sender_note'        => '',
+			)
+		);
+
+		$this->assertSame( array( 'downloads.example.com' ), Settings::get( 'package_hosts' ) );
+
+		// An array posted instead of the textarea does not get around the fingerprint.
+		update_option(
+			Settings::OPTION,
+			array(
+				'package_hosts' => array( 'evil.example.com' ),
+				'reminder_days' => '14,7',
+			)
+		);
+		unset( $_POST['option_page'] );
+		$this->assertSame( array( 'downloads.example.com' ), Settings::get( 'package_hosts' ) );
+	}
+
 	public function test_b49_b134_shop_manager_cannot_change_package_hosts_and_changes_are_audited(): void {
 		add_filter( 'sanitize_option_' . Settings::OPTION, array( Settings::class, 'sanitize' ) );
 		wp_set_current_user( $this->admin );

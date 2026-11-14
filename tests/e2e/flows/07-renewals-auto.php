@@ -51,14 +51,26 @@ e2e_as_site( '' );
 // =====================================================================================
 wplc_e2e_clear_mails();
 $due        = $utc( time() - HOUR_IN_SECONDS );
-$renewal_id = e2e_move_paid_until( $l_success, $due );
+// Without the advance notice on record (third argument false), to show B-41 first.
+$renewal_id = e2e_move_paid_until( $l_success, $due, false );
 $renewal    = e2e_renewal( $renewal_id );
 e2e_ok( $renewal_id > 0 && 'scheduled' === $renewal['status'] && $due === $renewal['period_start'], '[time simulated] the paid period ended one hour ago; renewal scheduled for it', $renewal );
 $expected_end = $utc( \WPLC\Billing\RenewalScheduler::period_end( strtotime( $due . ' UTC' ), 'year' ) );
 e2e_eq( $expected_end, $renewal['period_end'], 'renewal period_end = period_start + 1 year' );
 e2e_eq( $utc( strtotime( $due . ' UTC' ) + 14 * DAY_IN_SECONDS ), $renewal['grace_ends_at'], 'grace ends 14 days after the period start' );
 
+// B-41: the advance notice of this charge was never sent (the plugin "was not running" a week
+// ago). The charge is postponed, the notice goes out now, and the next attempt charges.
 e2e_ok( e2e_run_action( 'wplc_process_renewal', array( $renewal_id ) ), 'Action Scheduler runs the pending wplc_process_renewal job' );
+$postponed = e2e_renewal( $renewal_id );
+e2e_eq( array( 0, 'scheduled', 'renewal_notice_not_sent', '0' ), array( count( e2e_charges() ), $postponed['status'], $postponed['last_error'], (string) $postponed['attempt_count'] ), 'B-41: without the advance notice nothing is charged; the renewal waits (not counted as a failed payment)' );
+$notice_mails = e2e_mails_with_subject( 'license renews on' );
+e2e_ok( 1 === count( $notice_mails ) && false !== strpos( wp_json_encode( $notice_mails[0]['to'] ), 'dave@customer.test' ), 'B-41: the missing advance notice is sent to the customer now', array_column( wplc_e2e_mails(), 'subject' ) );
+e2e_ok( \WPLC\Notifications\Notifications::renewal_notice_sent( e2e_license( $l_success ) ) && in_array( 'renewal_blocked', e2e_audit_actions( 'renewal', $renewal_id ), true ), 'B-41: the notice is on record and the postponed charge is in the audit log' );
+e2e_eq( 1, count( e2e_pending_actions( 'wplc_process_renewal', array( $renewal_id ) ) ), 'B-41: the next attempt is queued' );
+// [time simulated] six hours later the queued attempt is due.
+$wpdb->update( $t['renewals'], array( 'retry_at' => $utc( time() - 60 ) ), array( 'id' => $renewal_id ) );
+e2e_ok( e2e_run_action( 'wplc_process_renewal', array( $renewal_id ) ), '[time simulated] the queued attempt runs' );
 $charges = e2e_charges();
 e2e_eq( 1, count( $charges ), 'the adapter was asked to charge exactly once' );
 $renewal = e2e_renewal( $renewal_id );
@@ -119,7 +131,11 @@ $renewal = e2e_renewal( $renewal_id );
 $license = e2e_license( $l_success );
 e2e_eq( array( 'failed', '1' ), array( $renewal['status'], $renewal['attempt_count'] ), 'declined: renewal failed, attempt_count 1' );
 e2e_eq( array( 'past_due', $due ), array( $license['status'], $license['paid_until'] ), 'declined: license is past_due, paid_until unchanged' );
-e2e_eq( $utc( $start + DAY_IN_SECONDS ), $renewal['retry_at'], 'first retry is scheduled one day after the period start' );
+// B-11: on its day after the period start, but never sooner than a day after the failed attempt
+// (here the attempt ran two hours after the period ended).
+$attempted_at = strtotime( (string) $renewal['last_attempt_at'] . ' UTC' );
+e2e_ok( $attempted_at >= $start + 2 * HOUR_IN_SECONDS - 5, 'the time of the failed attempt is stored on the renewal', $renewal['last_attempt_at'] );
+e2e_eq( $utc( max( $start + DAY_IN_SECONDS, $attempted_at + DAY_IN_SECONDS ) ), $renewal['retry_at'], 'first retry is scheduled for day 1 after the period start, at least a day after the failed attempt' );
 e2e_eq( 1, count( e2e_pending_actions( 'wplc_process_renewal', array( $renewal_id ) ) ), 'the retry job is pending in Action Scheduler' );
 $failed_order_id = (int) $renewal['renewal_order_id'];
 $failed_order    = wc_get_order( $failed_order_id );

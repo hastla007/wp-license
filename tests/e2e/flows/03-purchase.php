@@ -216,7 +216,7 @@ foreach ( WC()->mailer()->get_emails() as $registry_key => $email ) {
 	}
 }
 ksort( $registered );
-e2e_eq( array( 'wplc_expiry_reminder', 'wplc_license_expired', 'wplc_license_issued', 'wplc_license_renewed', 'wplc_payment_failed', 'wplc_renewal_notice' ), array_keys( $registered ), 'six license emails are registered with the WooCommerce mailer' );
+e2e_eq( array( 'wplc_cancellation_confirmed', 'wplc_expiry_reminder', 'wplc_license_expired', 'wplc_license_issued', 'wplc_license_renewed', 'wplc_license_revoked', 'wplc_license_suspended', 'wplc_payment_failed', 'wplc_renewal_notice' ), array_keys( $registered ), 'nine license emails are registered with the WooCommerce mailer (cancellation confirmation, suspension and revocation were added)' );
 $settings_ok = true;
 foreach ( $registered as $email ) {
 	ob_start();

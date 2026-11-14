@@ -30,7 +30,9 @@ final class Schema {
 	 *     indexes for retention and diagnostics (activations.status_deactivated,
 	 *     event_inbox.outcome_processed).
 	 * 19: one heartbeat store: the options `wplc_last_daily_run` and `wplc_job_heartbeats`
-	 *     are folded into `wplc_last_run` and deleted.
+	 *     are folded into `wplc_last_run` and deleted. Indexes licenses.source_order
+	 *     (licenses of an order: refunds, order screen, reconciliation) and
+	 *     licenses.created_at (default sorting of the admin list), added by dbDelta (A-105).
 	 */
 	public const VERSION = '19';
 
@@ -661,7 +663,9 @@ final class Schema {
 				UNIQUE KEY order_unit (source_order_item_id,unit_index),
 				KEY customer_product (customer_id,product_key),
 				KEY status_paid_until (status,paid_until),
-				KEY next_payment_at (next_payment_at)
+				KEY next_payment_at (next_payment_at),
+				KEY source_order (source_order_id),
+				KEY created_at (created_at)
 			) {$charset_collate};",
 			"CREATE TABLE {$tables['activations']} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

@@ -140,6 +140,9 @@ define( 'WPLC_INSTALLATION_ENCRYPTION_KEYS', array( 'e2e-2026' => 'e2e-only-inst
 define( 'WPLC_INSTALLATION_ENCRYPTION_KEY_ID', 'e2e-2026' );
 define( 'WPLC_LICENSE_KEY_SECRETS', array( 'e2e-2026' => 'e2e-only-license-key-secret-0123456789abcdef' ) );
 define( 'WPLC_LICENSE_KEY_ID', 'e2e-2026' );
+// The throw-away site must charge, expire and send mail whatever its environment type says
+// (the staging guard pauses billing when WP_ENVIRONMENT_TYPE is not "production").
+define( 'WPLC_PAUSE_BILLING', false );
 PHP
 	wp core install --url="$SITE_URL" --title="WPLC E2E" --admin_user=admin --admin_password=admin-e2e-pass --admin_email=admin@shop.test --skip-email || die "wp core install failed"
 	wp rewrite structure '/%postname%/' >/dev/null || die "rewrite structure"

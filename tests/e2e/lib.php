@@ -483,18 +483,33 @@ function e2e_audit_actions( string $object_type, int $object_id ): array {
  * unpaid renewal rows and, for a renewal-enabled license, lets the plugin schedule the
  * renewal for the new period (so period, grace end and idempotency key are consistent).
  *
+ * A period that already ended would have had its advance notice ("your license renews
+ * on …") sent while it was still running; the plugin only charges with that notice on
+ * record (B-41). For a renewing license moved into the past the notice is therefore
+ * recorded in the reminder log through its public API, unless $announced is false
+ * (flow 07-renewals-auto shows the real sequence: charge postponed, notice sent, charge).
+ *
  * @param int    $license_id License ID.
  * @param string $paid_until New paid_until, UTC 'Y-m-d H:i:s'.
+ * @param bool   $announced  Whether the advance notice of a period that already ended counts as sent.
  * @return int Renewal row ID (0 when the license does not renew automatically).
  */
-function e2e_move_paid_until( int $license_id, string $paid_until ): int {
+function e2e_move_paid_until( int $license_id, string $paid_until, bool $announced = true ): int {
 	global $wpdb;
 	$t = e2e_tables();
 	$wpdb->query( $wpdb->prepare( "UPDATE {$t['licenses']} SET paid_until = %s, next_payment_at = IF( renewal_enabled = 1, %s, NULL ) WHERE id = %d", $paid_until, $paid_until, $license_id ) );
 	$wpdb->query( $wpdb->prepare( "UPDATE {$t['entitlements']} SET ends_at = %s WHERE license_id = %d", $paid_until, $license_id ) );
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$t['renewals']} WHERE license_id = %d AND status <> 'paid'", $license_id ) );
 
-	return \WPLC\Billing\RenewalScheduler::schedule_next( $license_id );
+	$renewal_id = \WPLC\Billing\RenewalScheduler::schedule_next( $license_id );
+	if ( $announced && $renewal_id > 0 && $paid_until <= gmdate( 'Y-m-d H:i:s' ) ) {
+		$type = \WPLC\Notifications\ReminderSchedule::TYPE_RENEWAL_NOTICE;
+		if ( \WPLC\Notifications\ReminderLog::CLAIMED === \WPLC\Notifications\ReminderLog::claim( $license_id, $type, $paid_until ) ) {
+			\WPLC\Notifications\ReminderLog::confirm( $license_id, $type, $paid_until );
+		}
+	}
+
+	return $renewal_id;
 }
 
 /**
@@ -526,6 +541,8 @@ function e2e_age_renewal( int $renewal_id, int $days ): void {
 	);
 	$wpdb->query( $wpdb->prepare( "UPDATE {$t['licenses']} SET paid_until = %s, next_payment_at = IF( renewal_enabled = 1, %s, NULL ) WHERE id = %d", $start, $start, (int) $renewal['license_id'] ) );
 	$wpdb->query( $wpdb->prepare( "UPDATE {$t['entitlements']} SET ends_at = %s WHERE license_id = %d", $start, (int) $renewal['license_id'] ) );
+	// The log of the emails sent for this period moves with it (the advance notice is keyed by the period end).
+	$wpdb->query( $wpdb->prepare( "UPDATE {$t['reminder_log']} SET period_end = %s WHERE license_id = %d AND period_end = %s", $start, (int) $renewal['license_id'], $renewal['period_start'] ) );
 }
 
 /**

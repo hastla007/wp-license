@@ -44,5 +44,19 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 			);
 			$this->assertSame( '1', (string) $table_exists, 'Missing WPLC schema table: ' . $table_name );
 		}
+
+		// A-105 (schema 18 and 19): the indexes the order lookups, the admin list, retention and diagnostics rely on.
+		$tables  = Schema::table_names();
+		$indexes = array(
+			'licenses'    => array( 'source_order', 'created_at', 'status_paid_until' ),
+			'activations' => array( 'status_deactivated' ),
+			'event_inbox' => array( 'outcome_processed' ),
+		);
+		foreach ( $indexes as $table => $names ) {
+			$present = (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s', $tables[ $table ] ) );
+			foreach ( $names as $name ) {
+				$this->assertContains( $name, $present, $table . '.' . $name );
+			}
+		}
 	}
 }

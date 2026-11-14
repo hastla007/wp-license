@@ -196,7 +196,8 @@ e2e_ok( 200 === $list['code'] && false !== strpos( $list['body'], $license['key_
 $search = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-licenses&s=' . rawurlencode( $key ) ), array( 'cookies' => $admin_cookies ) );
 $other_license = e2e_license( (int) $license_ids[1] );
 e2e_ok( 200 === $search['code'] && false !== strpos( $search['body'], $license['key_prefix'] ) && false === strpos( $search['body'], $other_license['key_prefix'] ) && false !== strpos( $search['body'], 'Search results for the pasted license key' ), 'admin search by pasted full key finds exactly that license', $search['code'] );
-// Known and reported, not asserted: the pasted key stays in the GET URL, so WordPress repeats it in the search box and the sort links.
+// The search form of the list posts the term (a pasted key does not end up in the URL or the server log);
+// a GET link with "s" as used here still works.
 $search = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-licenses&s=' . rawurlencode( 'alice@customer.test' ) ), array( 'cookies' => $admin_cookies ) );
 e2e_ok( 200 === $search['code'] && false !== strpos( $search['body'], $license['key_prefix'] ) && false !== strpos( $search['body'], $other_license['key_prefix'] ), 'admin search by customer email finds both licenses', $search['code'] );
 $alice_cookies = e2e_login( (int) e2e_get( 'alice_id' ) );
@@ -214,7 +215,12 @@ $staging_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['activations']
 e2e_eq( array( 'deactivated', 'deactivated' ), array( $parent_row['status'], $staging_row['status'] ), 'deactivating the live site cascades to its staging site' );
 $as_site( 'https://staging.site-a.example' );
 $result = $client_staging->check_entitlements();
-e2e_ok( is_wp_error( $result ) && 'activation_not_found' === $result->get_error_code(), 'the staging site\'s credentials stop working (activation_not_found)', $error_of( $result ) );
+// The API no longer answers "activation_not_found" for a known, deactivated installation: the check
+// returns a signed "deactivated" state without rights, so the add-on can tell "released" from "server unreachable".
+$deactivated_answer = static function ( $result ) {
+	return is_array( $result ) && 'deactivated' === ( $result['activation_status'] ?? '' ) && false === ( $result['access'] ?? null ) && empty( $result['entitlements'] );
+};
+e2e_ok( $deactivated_answer( $result ), 'the staging site\'s credentials stop working (signed answer: deactivated, no access, no entitlements)', is_array( $result ) ? $result : $error_of( $result ) );
 $audit = e2e_rows( 'audit_log', "object_type = 'activation' AND object_id IN (" . (int) $parent_row['id'] . ',' . (int) $staging_row['id'] . ')' );
 e2e_ok( count( $audit ) >= 2, 'both deactivations are in the audit log', count( $audit ) );
 e2e_ok( false === strpos( wp_json_encode( e2e_rows( 'audit_log' ) ), (string) $credentials_a['installation_secret'] ) && false === strpos( wp_json_encode( e2e_rows( 'audit_log' ) ), $key ), 'audit log contains neither the installation secret nor the license key' );
@@ -235,7 +241,7 @@ $replaced = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$t['activations
 e2e_eq( 'deactivated', $replaced, 'the previous activation of site B is deactivated' );
 e2e_ok( count( e2e_rows( 'audit_log', "action = 'site_replaced'" ) ) >= 1, 'audit log has a site_replaced entry' );
 $result = $client_b->check_entitlements();
-e2e_ok( is_wp_error( $result ) && 'activation_not_found' === $result->get_error_code(), 'the replaced credentials stop working', $error_of( $result ) );
+e2e_ok( $deactivated_answer( $result ), 'the replaced credentials stop working (signed answer: deactivated, no access, no entitlements)', is_array( $result ) ? $result : $error_of( $result ) );
 $result = $client_b_restored->check_entitlements();
 e2e_ok( is_array( $result ) && 'active' === ( $result['license_status'] ?? null ), 'the new credentials work', $error_of( $result ) );
 

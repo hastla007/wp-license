@@ -117,7 +117,9 @@ e2e_ok( ! empty( $revoked['revoked_at'] ) && '0' === $revoked['renewal_enabled']
 e2e_eq( array( 'revoked' ), array_values( array_unique( array_column( e2e_rows( 'entitlements', 'license_id = ' . (int) $licenses[2]['id'] ), 'status' ) ) ), 'revoked license: entitlements are revoked' );
 e2e_eq( 'cancelled', e2e_rows( 'renewals', 'license_id = ' . (int) $licenses[2]['id'] )[0]['status'], 'revoked license: its renewal is cancelled' );
 $check = $client_carol3->check_entitlements();
-e2e_ok( ( is_array( $check ) && 'revoked' === ( $check['license_status'] ?? '' ) && empty( $check['entitlements'] ) ) || is_wp_error( $check ), 'the activated site of the revoked license gets no entitlements any more', is_array( $check ) ? $check : $error_of( $check ) );
+// A revoked license loses its installations at once; the site gets a signed answer without rights
+// ("deactivated", or "revoked" while the installation still exists).
+e2e_ok( ( is_array( $check ) && in_array( $check['license_status'] ?? '', array( 'revoked', 'deactivated' ), true ) && false === ( $check['access'] ?? null ) && empty( $check['entitlements'] ) ) || is_wp_error( $check ), 'the activated site of the revoked license gets no entitlements any more', is_array( $check ) ? $check : $error_of( $check ) );
 e2e_note( 'entitlements check after revocation answered: ' . ( is_array( $check ) ? wp_json_encode( array( 'license_status' => $check['license_status'] ?? null, 'entitlements' => $check['entitlements'] ?? null ) ) : $error_of( $check ) ) );
 delete_option( 'wplc_e2e_client_other' );
 $other_site = new LicenseClient( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_other' );
