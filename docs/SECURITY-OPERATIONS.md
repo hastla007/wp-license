@@ -68,11 +68,22 @@ All deactivations (REST, customer account, admin) go through `ActivationManager:
 
 Update download grants are stored as hashes, consumed atomically, and checked again against current license state before redirect. Restrict package hosts to HTTPS allowlisted hosts. Keep package URLs and grant records only for the documented operational retention period.
 
+### Private package directory
+
+Uploaded release ZIPs are paid content. By default they live in `wp-content/uploads/wplc-packages/`, protected by `.htaccess`/`web.config` (Apache, IIS) and by 128-bit random file names. nginx ignores `.htaccess`, so on nginx the file name is the only barrier unless you act:
+
+1. **Preferred:** move the directory outside the web root with `define( 'WPLC_PACKAGE_STORAGE_DIR', '/var/lib/wplc-packages' );` in `wp-config.php` (absolute, writable by the PHP user, mode `0750`, included in backups). An invalid or web-reachable value is ignored and reported, never silently used.
+2. **Otherwise:** add `location ^~ /wp-content/uploads/wplc-packages/ { deny all; }` to the nginx `server` block, adapted to the real uploads path (multisite: `/wp-content/uploads/sites/{id}/wplc-packages/`) and placed before regex locations.
+3. **Verify:** **WooCommerce → License diagnostics → Package storage** must show "Outside the web root" or "refused to deliver a test file". The self-check fetches a canary file over HTTP, caches the answer for 12 hours and runs only on the diagnostics and releases pages; press **Check again** after every web server change. "Publicly readable" also raises an error notice on **License releases**. "Could not reach the site" (loopback blocked) means: verify by hand with `curl -I https://shop.example/wp-content/uploads/wplc-packages/index.html`, which must return `403`.
+
+If the self-check ever reported "Publicly readable" in production, treat the stored packages as potentially downloaded: consider rotating them (withdraw and publish new versions) and review web server access logs for requests to the directory.
+
 Renewal execution uses a per-renewal MySQL advisory lock and the provider adapter must pass an idempotency key through to the gateway. This cannot by itself resolve an ambiguous provider timeout: reconcile provider state before retrying a charge.
 
 ## Deployment and recovery checklist
 
 - Use HTTPS for the license API and package delivery.
+- Keep uploaded packages outside the web root (`WPLC_PACKAGE_STORAGE_DIR`) or deny the directory on nginx, and confirm the package storage self-check on the diagnostics page.
 - Restrict database, `wp-config.php`, CI, and secret-manager access.
 - Back up database and package metadata before schema, key, or release changes.
 - Restore a recent backup to an isolated staging copy and verify schema, license verifiers, activation authentication, renewal links, and package records.

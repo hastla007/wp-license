@@ -82,7 +82,7 @@ e2e_ok( false === strpos( $release['release_notes'], '<script' ) && false !== st
 $stored_path = \WPLC\Update\LocalPackageStorage::path_for_key( (string) $release['package_url'] );
 e2e_ok( null !== $stored_path && is_file( $stored_path ) && hash_file( 'sha256', $stored_path ) === $release['sha256'], 'package file is in the storage directory and matches the checksum', $stored_path );
 $storage_dir = \WPLC\Update\LocalPackageStorage::base_dir();
-e2e_ok( is_file( $storage_dir . '/.htaccess' ) && is_file( $storage_dir . '/index.html' ) && is_file( $storage_dir . '/web.config' ), 'storage directory has .htaccess, web.config and index.html guards' );
+e2e_ok( is_file( $storage_dir . '/.htaccess' ) && is_file( $storage_dir . '/index.html' ) && is_file( $storage_dir . '/web.config' ) && is_file( $storage_dir . '/index.php' ), 'storage directory has .htaccess, web.config, index.html and index.php guards' );
 e2e_ok( (bool) preg_match( '/^voucher-captain-1\.1\.0-[a-f0-9]{32}\.zip$/', (string) $release['package_url'] ), 'stored file name carries 128 random bits (not guessable where .htaccess is ignored, e.g. nginx)', $release['package_url'] );
 $result_page = e2e_http( 'GET', $created['location'], array( 'cookies' => $admin_cookies ) );
 e2e_ok( 200 === $result_page['code'] && false !== strpos( $result_page['body'], 'Draft release created' ) && false !== strpos( $result_page['body'], '1.1.0' ), 'releases screen shows the notice and the draft', $result_page['code'] );

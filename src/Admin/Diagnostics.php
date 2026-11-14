@@ -8,6 +8,8 @@
 namespace WPLC\Admin;
 
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\Update\LocalPackageStorage;
+use WPLC\Update\PackageStorageCheck;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -19,6 +21,62 @@ final class Diagnostics {
 	public static function register_hooks(): void {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ) );
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'emit_alerts' ) );
+		add_action( 'admin_post_wplc_storage_recheck', array( self::class, 'handle_storage_recheck' ) );
+	}
+
+	/** Forget the cached package storage probe and return to the page. */
+	public static function handle_storage_recheck(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view diagnostics.', 'wp-license' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wplc_storage_recheck' );
+		PackageStorageCheck::forget();
+		wp_safe_redirect( admin_url( 'admin.php?page=wplc-diagnostics' ) );
+		exit;
+	}
+
+	/**
+	 * Render the package storage section: location, source and HTTP self-check.
+	 *
+	 * @return void
+	 */
+	private static function render_storage(): void {
+		$status = PackageStorageCheck::status();
+		$sources = array(
+			'constant' => __( 'WPLC_PACKAGE_STORAGE_DIR constant', 'wp-license' ),
+			'filter' => __( 'wplc_package_storage_dir filter', 'wp-license' ),
+			'default' => __( 'Default (uploads directory)', 'wp-license' ),
+		);
+		$rows = array(
+			__( 'Directory', 'wp-license' ) => $status['dir'],
+			__( 'Configured by', 'wp-license' ) => $sources[ $status['source'] ] ?? $status['source'],
+			__( 'Writable', 'wp-license' ) => $status['writable'] ? __( 'Yes', 'wp-license' ) : __( 'No', 'wp-license' ),
+			__( 'Public access', 'wp-license' ) => PackageStorageCheck::result_label( $status['probe'] ),
+		);
+		if ( $status['checked_at'] > 0 ) {
+			$rows[ __( 'Last checked (UTC)', 'wp-license' ) ] = gmdate( 'Y-m-d H:i:s', $status['checked_at'] );
+		}
+
+		echo '<h2>' . esc_html__( 'Package storage', 'wp-license' ) . '</h2>';
+		if ( '' !== $status['constant_error'] ) {
+			echo '<div class="notice notice-error inline"><p>' . esc_html( LocalPackageStorage::dir_error_message( $status['constant_error'] ) ) . ' ' . esc_html__( 'The constant is ignored and the default directory is used.', 'wp-license' ) . '</p></div>';
+		}
+		echo '<table class="widefat striped"><tbody>';
+		foreach ( $rows as $label => $value ) {
+			echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>' . esc_html( (string) $value ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
+		if ( $status['web_reachable'] ) {
+			$rule = null !== $status['url'] ? PackageStorageCheck::nginx_rule( $status['url'] ) : '';
+			echo '<p>' . esc_html__( 'The directory lies inside the web root. Apache and IIS honour the generated .htaccess and web.config; nginx does not. Recommended: set WPLC_PACKAGE_STORAGE_DIR in wp-config.php to a directory outside the web root, or add this rule to the nginx server block:', 'wp-license' ) . '</p>';
+			if ( '' !== $rule ) {
+				echo '<pre><code>' . esc_html( $rule ) . '</code></pre>';
+			}
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			echo '<input type="hidden" name="action" value="wplc_storage_recheck">';
+			wp_nonce_field( 'wplc_storage_recheck' );
+			echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Check again', 'wp-license' ) . '</button></form>';
+		}
 	}
 
 	/**
@@ -107,6 +165,8 @@ final class Diagnostics {
 		foreach ( $rows as $label => $value ) {
 			echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>' . esc_html( (string) $value ) . '</td></tr>';
 		}
-		echo '</tbody></table></div>';
+		echo '</tbody></table>';
+		self::render_storage();
+		echo '</div>';
 	}
 }
