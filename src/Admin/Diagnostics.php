@@ -214,7 +214,7 @@ final class Diagnostics {
 		$metrics = self::metrics();
 		foreach ( self::thresholds() as $metric => $threshold ) {
 			if ( isset( $metrics[ $metric ] ) && is_numeric( $threshold ) && $metrics[ $metric ] >= (int) $threshold ) {
-				do_action( 'wplc/health_alert', sanitize_key( (string) $metric ), $metrics[ $metric ], (int) $threshold );
+				do_action( 'wplc/health_alert', sanitize_key( (string) $metric ), $metrics[ $metric ], (int) $threshold, self::screen_url( (string) $metric ) );
 			}
 		}
 	}
@@ -232,8 +232,22 @@ final class Diagnostics {
 	public static function emit_alert( string $metric, int $value ): void {
 		$thresholds = self::thresholds();
 		if ( isset( $thresholds[ $metric ] ) && is_numeric( $thresholds[ $metric ] ) && $value >= (int) $thresholds[ $metric ] ) {
-			do_action( 'wplc/health_alert', sanitize_key( $metric ), $value, (int) $thresholds[ $metric ] );
+			do_action( 'wplc/health_alert', sanitize_key( $metric ), $value, (int) $thresholds[ $metric ], self::screen_url( $metric ) );
 		}
+	}
+
+	/**
+	 * Admin screen where the cause of a metric is handled, passed to `wplc/health_alert` as the 4th argument.
+	 *
+	 * @param string $metric Metric key.
+	 * @return string Absolute admin URL.
+	 */
+	public static function screen_url( string $metric ): string {
+		if ( 'review_required_renewals' === $metric ) {
+			return RenewalReviewAdmin::list_url();
+		}
+
+		return admin_url( 'admin.php?page=wplc-diagnostics' );
 	}
 
 	/**
@@ -290,7 +304,7 @@ final class Diagnostics {
 			__( 'Pending Stripe events', 'wp-license' ) => $metrics['pending_webhooks'],
 			__( 'Stripe events needing review', 'wp-license' ) => $metrics['manual_review_webhooks'],
 			__( 'Stuck renewals (job not run, grace period over)', 'wp-license' ) => $metrics['overdue_renewals'],
-			__( 'Renewals with unknown payment result needing review', 'wp-license' ) => $metrics['review_required_renewals'],
+			__( 'Renewals needing review (unknown payment result, payment not applied)', 'wp-license' ) => $metrics['review_required_renewals'],
 			__( 'Unused expired download grants', 'wp-license' ) => $metrics['expired_download_grants'],
 		);
 
@@ -301,6 +315,9 @@ final class Diagnostics {
 			echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>' . esc_html( (string) $value ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
+		if ( $metrics['review_required_renewals'] > 0 ) {
+			echo '<p><a class="button" href="' . esc_url( RenewalReviewAdmin::list_url() ) . '">' . esc_html__( 'Open "Renewals to review"', 'wp-license' ) . '</a></p>';
+		}
 		self::render_storage();
 		echo '</div>';
 	}

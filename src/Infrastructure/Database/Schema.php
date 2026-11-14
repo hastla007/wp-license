@@ -25,8 +25,10 @@ final class Schema {
 	 *     (same name, columns and keys; the old version option is removed).
 	 * 13: licenses.renewal_product_id, the purchased WooCommerce product or
 	 *     variation whose regular price renews the license (T-132).
+	 * 14: renewals.review_reason and renewals.review_at, the reason and start of
+	 *     an open review case (T-154, T-137); existing cases are backfilled.
 	 */
-	public const VERSION = '13';
+	public const VERSION = '14';
 
 	/**
 	 * Option in which ReminderLog recorded its self-installed table (up to schema 11).
@@ -56,6 +58,7 @@ final class Schema {
 		'10' => array( self::class, 'step_10_autoload_schema_version' ),
 		'12' => array( self::class, 'step_12_adopt_reminder_log' ),
 		'13' => array( self::class, 'step_13_renewal_product_column' ),
+		'14' => array( self::class, 'step_14_renewal_review_columns' ),
 	);
 
 	/**
@@ -327,6 +330,8 @@ final class Schema {
 				retry_at datetime DEFAULT NULL,
 				grace_ends_at datetime DEFAULT NULL,
 				attempt_count smallint(5) unsigned NOT NULL DEFAULT 0,
+				review_reason varchar(255) NOT NULL DEFAULT '',
+				review_at datetime DEFAULT NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
@@ -591,6 +596,64 @@ final class Schema {
 		);
 
 		return 1 === (int) $exists;
+	}
+
+	/**
+	 * Schema 14: reason and start of open review cases (T-154, T-137).
+	 *
+	 * dbDelta adds the columns. Existing `review_required` rows get the reason
+	 * and time of their latest `renewal_review_required` audit entry (else the
+	 * row's last change). Paid manual renewals that were rejected before this
+	 * version (audit `manual_renewal_rejected`; until now only an order note)
+	 * become review cases as well, unless their period was paid, refunded or
+	 * is already in review. Idempotent: only rows without `review_at` change.
+	 *
+	 * @return bool
+	 */
+	private static function step_14_renewal_review_columns(): bool {
+		global $wpdb;
+
+		$tables = self::table_names();
+		$count  = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name IN (%s, %s)',
+				$tables['renewals'],
+				'review_reason',
+				'review_at'
+			)
+		);
+		if ( 2 !== $count ) {
+			return false;
+		}
+
+		$renewals = $tables['renewals'];
+		$audit    = $tables['audit_log'];
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names from table_names(), values prepared.
+		$open = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$renewals} r LEFT JOIN {$audit} a ON a.id = ( SELECT MAX(a2.id) FROM {$audit} a2 WHERE a2.object_type = %s AND a2.object_id = r.id AND a2.action = %s )"
+				. " SET r.review_reason = COALESCE( LEFT( a.reason, 255 ), '' ), r.review_at = COALESCE( a.created_at, r.updated_at ) WHERE r.status = %s AND r.review_at IS NULL",
+				'renewal',
+				'renewal_review_required',
+				'review_required'
+			)
+		);
+		$rejected = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$renewals} r JOIN {$audit} a ON a.id = ( SELECT MAX(a2.id) FROM {$audit} a2 WHERE a2.object_type = %s AND a2.object_id = r.id AND a2.action = %s )"
+				. ' SET r.review_reason = LEFT( a.reason, 255 ), r.review_at = a.created_at, r.retry_at = NULL, r.status = %s WHERE r.status NOT IN (%s, %s, %s, %s) AND r.review_at IS NULL',
+				'renewal',
+				'manual_renewal_rejected',
+				'review_required',
+				'paid',
+				'refunded',
+				'review_required',
+				'closed'
+			)
+		);
+		// phpcs:enable
+
+		return false !== $open && false !== $rejected;
 	}
 
 	/**

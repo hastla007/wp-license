@@ -50,12 +50,22 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
 		$property->setAccessible( true );
 		$steps = $property->getValue();
-		$this->assertSame( '13', Schema::VERSION );
 		$this->assertArrayHasKey( '13', $steps );
 		$this->assertSame( 'step_13_renewal_product_column', $steps['13'][1] );
-		// An install on schema 12 runs only the new step; one on 11 runs 12 and 13.
-		$this->assertSame( array( '13' ), Schema::pending_step_versions( '12', Schema::VERSION, array_keys( $steps ) ) );
-		$this->assertSame( array( '12', '13' ), Schema::pending_step_versions( '11', Schema::VERSION, array_keys( $steps ) ) );
+		// An install on schema 11 runs 12, 13 and every later step.
+		$this->assertSame( array( '12', '13' ), Schema::pending_step_versions( '11', '13', array_keys( $steps ) ) );
+	}
+
+	public function test_schema_14_adds_the_renewal_review_step(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$property->setAccessible( true );
+		$steps = $property->getValue();
+		$this->assertSame( '14', Schema::VERSION );
+		$this->assertArrayHasKey( '14', $steps );
+		$this->assertSame( 'step_14_renewal_review_columns', $steps['14'][1] );
+		// An install on schema 13 runs only the new step; one on 12 runs 13 and 14.
+		$this->assertSame( array( '14' ), Schema::pending_step_versions( '13', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '13', '14' ), Schema::pending_step_versions( '12', Schema::VERSION, array_keys( $steps ) ) );
 	}
 
 	public function test_each_successful_step_is_recorded_in_order(): void {

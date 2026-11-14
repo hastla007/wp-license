@@ -489,6 +489,119 @@ final class LicenseLifecycle {
 	}
 
 	/**
+	 * Extend a license for a renewal an administrator booked after review (T-154, T-137).
+	 *
+	 * Same transitions as admin_extend() (active, past_due or expired become
+	 * active); suspended and revoked licenses are refused. Unlike admin_extend()
+	 * this is a renewal: listeners see `renewal_succeeded` (the customer gets the
+	 * "renewed" email). The caller holds the per-renewal lock and has claimed the
+	 * renewal row.
+	 *
+	 * @param int    $license_id License ID.
+	 * @param string $paid_until_utc New paid-through date, 'Y-m-d H:i:s' UTC, in the future.
+	 * @param string $reason Stored reason (AuditReason::RENEWED_AFTER_REVIEW with the administrator's note).
+	 * @param int    $actor_user_id Administrator user ID.
+	 * @return bool
+	 */
+	public static function book_reviewed_renewal( int $license_id, string $paid_until_utc, string $reason, int $actor_user_id ): bool {
+		return (bool) self::with_license_lock(
+			$license_id,
+			static function () use ( $license_id, $paid_until_utc, $reason, $actor_user_id ) {
+				global $wpdb;
+
+				if ( ! self::valid_utc_datetime( $paid_until_utc ) || $paid_until_utc <= gmdate( 'Y-m-d H:i:s' ) ) {
+					return false;
+				}
+				$license = self::get_license( $license_id );
+				if ( ! $license || ! LicenseStateMachine::allows( (string) $license['status'], 'active', 'admin_extend' ) ) {
+					return false;
+				}
+				$tables  = Schema::table_names();
+				$now     = gmdate( 'Y-m-d H:i:s' );
+				$updated = $wpdb->query(
+					$wpdb->prepare(
+						"UPDATE {$tables['licenses']} SET status = %s, status_reason = %s, paid_until = %s, next_payment_at = IF( renewal_enabled = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+						'active',
+						'',
+						$paid_until_utc,
+						$paid_until_utc,
+						$now,
+						$license_id,
+						(string) $license['status']
+					)
+				);
+				if ( false === $updated || 0 === $updated ) {
+					return false;
+				}
+				$wpdb->update(
+					$tables['entitlements'],
+					array( 'status' => 'active', 'ends_at' => $paid_until_utc ),
+					array( 'license_id' => $license_id ),
+					array( '%s', '%s' ),
+					array( '%d' )
+				);
+				// Open rows belong to the old period; the caller schedules the new one.
+				self::close_open_renewals( $license_id, $now );
+				AuditLog::record(
+					'renewal_booked_after_review',
+					'license',
+					$license_id,
+					$reason,
+					array( 'status' => $license['status'], 'paid_until' => $license['paid_until'] ),
+					array( 'status' => 'active', 'paid_until' => $paid_until_utc ),
+					$actor_user_id
+				);
+				self::fire_status_changed( $license_id, (string) $license['status'], 'active', 'renewal_succeeded' );
+
+				return true;
+			}
+		);
+	}
+
+	/**
+	 * Days an open review case defers the expiry of its license, counted from the start of the case.
+	 *
+	 * While a renewal of the license waits for an administrator (`review_required`),
+	 * the daily job and the grace-end job do not set the license to `expired`: the
+	 * customer may have paid. Access follows the normal rules (has_access()); only
+	 * the status change, with its email and the switch-off of automatic renewal, waits.
+	 * After this many days the license expires normally; the case stays open and can
+	 * still be booked (which reactivates the license).
+	 */
+	public const REVIEW_EXPIRY_DEFERRAL_DAYS = 30;
+
+	/**
+	 * Whether an open review case currently defers the expiry of a license.
+	 *
+	 * @param int $license_id License ID.
+	 * @return bool
+	 */
+	public static function expiry_deferred_by_review( int $license_id ): bool {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$tables['renewals']} WHERE license_id = %d AND status = %s AND COALESCE( review_at, updated_at ) > %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+				$license_id,
+				'review_required',
+				self::review_deferral_cutoff( time() )
+			)
+		) > 0;
+	}
+
+	/**
+	 * Cases opened after this UTC datetime defer expiry. Pure.
+	 *
+	 * @param int $now Unix time.
+	 * @return string
+	 */
+	public static function review_deferral_cutoff( int $now ): string {
+		return gmdate( 'Y-m-d H:i:s', $now - self::REVIEW_EXPIRY_DEFERRAL_DAYS * 86400 );
+	}
+
+	/**
 	 * Announce a successful status transition or renewal.
 	 *
 	 * @param int    $license_id License ID.
@@ -775,7 +888,8 @@ final class LicenseLifecycle {
 		// The grace-end job is scheduled when a renewal fails and is not withdrawn when the
 		// customer pays afterwards: never expire a license that (again) grants access.
 		$license = self::get_license( $license_id );
-		if ( ! $license || self::has_access( $license ) ) {
+		if ( ! $license || self::has_access( $license ) || self::expiry_deferred_by_review( $license_id ) ) {
+			// An open review case defers the expiry (the daily job retries later).
 			return;
 		}
 
@@ -807,12 +921,17 @@ final class LicenseLifecycle {
 		global $wpdb;
 
 		$tables = Schema::table_names();
+		// Licenses with an open review case (a renewal that may have been paid) wait, at most
+		// REVIEW_EXPIRY_DEFERRAL_DAYS after the case was opened.
 		$ids = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT id FROM {$tables['licenses']} WHERE status = %s AND paid_until IS NOT NULL AND ( ( ( renewal_enabled = 0 OR cancel_at_period_end = 1 ) AND paid_until <= %s ) OR paid_until <= %s ) ORDER BY id ASC LIMIT 250",
+				"SELECT l.id FROM {$tables['licenses']} l WHERE l.status = %s AND l.paid_until IS NOT NULL AND ( ( ( l.renewal_enabled = 0 OR l.cancel_at_period_end = 1 ) AND l.paid_until <= %s ) OR l.paid_until <= %s )"
+				. " AND NOT EXISTS ( SELECT 1 FROM {$tables['renewals']} r WHERE r.license_id = l.id AND r.status = %s AND COALESCE( r.review_at, r.updated_at ) > %s ) ORDER BY l.id ASC LIMIT 250",
 				'active',
 				gmdate( 'Y-m-d H:i:s' ),
-				gmdate( 'Y-m-d H:i:s', time() - ( self::GRACE_DAYS + 1 ) * DAY_IN_SECONDS )
+				gmdate( 'Y-m-d H:i:s', time() - ( self::GRACE_DAYS + 1 ) * DAY_IN_SECONDS ),
+				'review_required',
+				self::review_deferral_cutoff( time() )
 			)
 		);
 
@@ -857,15 +976,25 @@ final class LicenseLifecycle {
 				$license_id
 			)
 		);
-		$wpdb->query(
-			$wpdb->prepare(
-				"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, updated_at = %s WHERE license_id = %d AND status = %s",
-				'review_required',
-				$now,
-				$license_id,
-				'reconciling'
-			)
+		$reconciling = $wpdb->get_col(
+			$wpdb->prepare( "SELECT id FROM {$tables['renewals']} WHERE license_id = %d AND status = %s", $license_id, 'reconciling' ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
 		);
+		foreach ( (array) $reconciling as $renewal_id ) {
+			$moved = $wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$tables['renewals']} SET status = %s, review_reason = %s, review_at = %s, retry_at = NULL, updated_at = %s WHERE id = %d AND status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+					'review_required',
+					AuditReason::LICENSE_CHANGED_WHILE_UNKNOWN,
+					$now,
+					$now,
+					(int) $renewal_id,
+					'reconciling'
+				)
+			);
+			if ( 1 === (int) $moved ) {
+				AuditLog::record( 'renewal_review_required', 'renewal', (int) $renewal_id, AuditReason::LICENSE_CHANGED_WHILE_UNKNOWN, array( 'status' => 'reconciling' ), array( 'status' => 'review_required' ) );
+			}
+		}
 	}
 
 	/**
