@@ -515,7 +515,7 @@ final class RenewalProcessor {
 			array( 'status' => self::STATUS_REVIEW, 'order_id' => $order ? (int) $order->get_id() : 0 )
 		);
 		$tables = Schema::table_names();
-		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status = %s", self::STATUS_REVIEW ) );
+		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status = %s", self::STATUS_REVIEW ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
 		\WPLC\Admin\Diagnostics::emit_alert( 'review_required_renewals', $count );
 	}
 
@@ -555,7 +555,7 @@ final class RenewalProcessor {
 			return;
 		}
 		$tables = Schema::table_names();
-		$status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ) );
+		$status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
 		if ( ! in_array( $status, array( self::STATUS_RECONCILING, self::STATUS_REVIEW ), true ) ) {
 			return;
 		}
@@ -598,8 +598,8 @@ final class RenewalProcessor {
 		}
 		try {
 			$tables = Schema::table_names();
-			$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ), ARRAY_A );
-			$license = is_array( $renewal ) ? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", (int) $renewal['license_id'] ), ARRAY_A ) : null;
+			$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+			$license = is_array( $renewal ) ? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", (int) $renewal['license_id'] ), ARRAY_A ) : null; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
 			if (
 				! is_array( $renewal )
 				|| ! is_array( $license )
