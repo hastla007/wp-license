@@ -634,3 +634,20 @@ function e2e_as_site( string $home ): void {
 		2
 	);
 }
+
+/**
+ * A LicenseClient as an add-on would build it: pinned to the Ed25519 public key of the
+ * license server, so every answer is verified against the pinned key (not only the HMAC).
+ *
+ * The client refuses to use its credentials from another site address than the one it
+ * activated with: wrap its calls in e2e_as_site( <the site of this client> ).
+ *
+ * @param string $server  Server URL.
+ * @param string $product Product key.
+ * @param string $version Installed version.
+ * @param string $option  Option that holds the credentials.
+ * @return \WPLC\Client\LicenseClient
+ */
+function e2e_client( string $server, string $product, string $version, string $option ): \WPLC\Client\LicenseClient {
+	return new \WPLC\Client\LicenseClient( $server, $product, $version, $option, array( 'public_keys' => array( \WPLC\Security\ResponseSigner::public_key() ) ) );
+}

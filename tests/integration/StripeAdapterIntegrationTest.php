@@ -1029,6 +1029,14 @@ final class StripeAdapterIntegrationTest extends WPLC_Renewal_TestCase {
 
 		$this->assertSame( array( array( $order->get_id(), $f['renewal_id'], $f['license_id'] ) ), $voided );
 		$this->assertContains( 'renewal_order_voided', $this->audit_actions( 'renewal', $f['renewal_id'] ) );
+
+		// Wave 3: the lifecycle handles it like a refund of the renewal: the period is rolled back and
+		// automatic renewal switched off; the license is not suspended like after a bounced payment.
+		$license = $this->license( $f['license_id'] );
+		$this->assertNotSame( 'suspended', $license['status'] );
+		$this->assertSame( '0', (string) $license['renewal_enabled'] );
+		$this->assertSame( 'refunded', $this->renewal( $f['renewal_id'] )['status'] );
+		$this->assertLessThanOrEqual( gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ), (string) $license['paid_until'], 'The refunded period no longer counts.' );
 	}
 
 	/** B-60: an unpaid renewal order that is closed is not a void. */

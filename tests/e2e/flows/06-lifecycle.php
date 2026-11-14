@@ -95,7 +95,7 @@ add_filter(
 	2
 );
 delete_option( 'wplc_e2e_client_carol3' );
-$client_carol3 = new LicenseClient( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_carol3' );
+$client_carol3 = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_carol3' );
 $activated     = $client_carol3->activate( e2e_key( $licenses[2] ) );
 e2e_ok( is_array( $activated ), 'the license that will be refunded is activated on a site first', $error_of( $activated ) );
 
@@ -122,7 +122,7 @@ $check = $client_carol3->check_entitlements();
 e2e_ok( ( is_array( $check ) && in_array( $check['license_status'] ?? '', array( 'revoked', 'deactivated' ), true ) && false === ( $check['access'] ?? null ) && empty( $check['entitlements'] ) ) || is_wp_error( $check ), 'the activated site of the revoked license gets no entitlements any more', is_array( $check ) ? $check : $error_of( $check ) );
 e2e_note( 'entitlements check after revocation answered: ' . ( is_array( $check ) ? wp_json_encode( array( 'license_status' => $check['license_status'] ?? null, 'entitlements' => $check['entitlements'] ?? null ) ) : $error_of( $check ) ) );
 delete_option( 'wplc_e2e_client_other' );
-$other_site = new LicenseClient( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_other' );
+$other_site = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_other' );
 $GLOBALS['wplc_e2e_home'] = 'https://carol-new.example';
 $denied = $other_site->activate( e2e_key( $licenses[2] ) );
 e2e_ok( is_wp_error( $denied ) && 403 === (int) ( $denied->get_error_data()['status'] ?? 0 ), 'a revoked license cannot be activated (403)', $error_of( $denied ) );
@@ -174,7 +174,7 @@ e2e_ok( 200 === $detail['code'] && false !== strpos( $detail['body'], 'notice-su
 e2e_ok( null === e2e_form( $detail['body'], array( 'value="wplc_admin_extend_license"' ) ), 'a suspended license has no "Change term" form' );
 delete_option( 'wplc_e2e_client_suspended' );
 $GLOBALS['wplc_e2e_home'] = 'https://suspended.example';
-$suspended_client = new LicenseClient( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_suspended' );
+$suspended_client = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_suspended' );
 $denied           = $suspended_client->activate( e2e_key( $before ) );
 e2e_ok( is_wp_error( $denied ) && 403 === (int) ( $denied->get_error_data()['status'] ?? 0 ), 'a suspended license cannot be activated (403)', $error_of( $denied ) );
 
@@ -249,7 +249,7 @@ $bob_account = e2e_http( 'GET', wc_get_account_endpoint_url( 'wplc-licenses' ), 
 e2e_ok( false !== strpos( $bob_account['body'], $manual['key_prefix'] ) && false !== strpos( $bob_account['body'], e2e_key( $manual ) ), 'the manual license appears in the customer account with its key' );
 delete_option( 'wplc_e2e_client_manual' );
 $GLOBALS['wplc_e2e_home'] = 'https://bob-agency.example';
-$manual_client = new LicenseClient( $server, 'affiliate-captain', '2.0.0', 'wplc_e2e_client_manual' );
+$manual_client = e2e_client( $server, 'affiliate-captain', '2.0.0', 'wplc_e2e_client_manual' );
 $activated     = $manual_client->activate( e2e_key( $manual ) );
 e2e_ok( is_array( $activated ) && 10 === ( $activated['site_limit'] ?? null ), 'the manual license activates on a site (limit 10 from the plan)', $error_of( $activated ) );
 $GLOBALS['wplc_e2e_home'] = '';

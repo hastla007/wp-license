@@ -41,7 +41,7 @@ $license_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$t['licenses']}" )
 // One activated site, to observe what a customer site is told in each state.
 e2e_as_site( 'https://dave-shop.example' );
 delete_option( 'wplc_e2e_client_dave' );
-$client = new LicenseClient( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_dave' );
+$client = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_dave' );
 $result = $client->activate( e2e_key( $licenses[0] ) );
 e2e_ok( is_array( $result ), 'site activated on the renewing license', $error_of( $result ) );
 e2e_as_site( '' );

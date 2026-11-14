@@ -36,6 +36,7 @@ final class Notifications {
 		'expiry_reminder' => 'ExpiryReminderEmail',
 		'renewal_notice' => 'RenewalNoticeEmail',
 		'payment_failed' => 'PaymentFailedEmail',
+		'payment_method_missing' => 'PaymentMethodMissingEmail',
 		'expired' => 'LicenseExpiredEmail',
 		'renewed' => 'LicenseRenewedEmail',
 		'cancelled' => 'CancellationConfirmedEmail',
@@ -94,6 +95,8 @@ final class Notifications {
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'send_due_reminders' ), 20 );
 		add_action( self::CONTINUE_HOOK, array( self::class, 'send_due_reminders' ) );
 		add_action( 'wplc/cancellation_scheduled', array( self::class, 'on_cancellation_scheduled' ), 20, 2 );
+		// B-192: the saved card is gone; no other card is charged, the customer is asked to act.
+		add_action( 'wplc/renewal_payment_method_missing', array( self::class, 'on_payment_method_missing' ), 20, 4 );
 		// B-41: no automatic charge without the logged advance notice.
 		add_filter( 'wplc_renewal_charge_allowed', array( self::class, 'charge_allowed' ), 10, 3 );
 		add_action( self::RETRY_HOOK, array( self::class, 'retry_email' ), 10, 5 );
@@ -324,6 +327,35 @@ final class Notifications {
 			return false;
 		}
 		return ReminderLog::was_sent( (int) $license['id'], ReminderSchedule::TYPE_RENEWAL_NOTICE, (string) $license['paid_until'] );
+	}
+
+	/**
+	 * B-192: the card saved for the automatic renewal no longer exists.
+	 *
+	 * Sent once per license period, on the first attempt that finds the card
+	 * missing ($first). Decision of the owner: no other card of the customer is
+	 * ever charged instead; the customer adds a card or renews manually.
+	 *
+	 * @param mixed $license_id  License ID.
+	 * @param mixed $renewal_id  Renewal ID (unused).
+	 * @param mixed $customer_id Customer ID (unused; the license row is read again).
+	 * @param mixed $first       Whether this is the first report for the renewal.
+	 * @return void
+	 */
+	public static function on_payment_method_missing( $license_id = 0, $renewal_id = 0, $customer_id = 0, $first = false ): void {
+		unset( $renewal_id, $customer_id );
+		if ( ! $first ) {
+			return;
+		}
+		try {
+			$license = self::get_license( (int) $license_id );
+			if ( ! $license || empty( $license['customer_id'] ) || empty( $license['paid_until'] ) || SiteGuard::billing_paused() ) {
+				return;
+			}
+			self::send_once( 'payment_method_missing', 'payment_method_missing', $license, (string) $license['paid_until'], array() );
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'Payment method missing email failed: ' . $error->getMessage(), (int) $license_id );
+		}
 	}
 
 	/**
@@ -772,6 +804,9 @@ final class Notifications {
 				return in_array( $status, array( 'active', 'past_due' ), true );
 			case 'payment_failed':
 				return 'past_due' === $status;
+			case 'payment_method_missing':
+				// Still unpaid for the period, still renewing automatically and still without a usable card on file.
+				return in_array( $status, array( 'active', 'past_due' ), true ) && ! empty( $license['renewal_enabled'] ) && (string) ( $license['paid_until'] ?? '' ) === $period_end;
 			case 'expired':
 			case 'suspended':
 			case 'revoked':

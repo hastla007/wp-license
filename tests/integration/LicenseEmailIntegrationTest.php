@@ -494,11 +494,47 @@ final class LicenseEmailIntegrationTest extends WPLC_Portal_TestCase {
 	}
 
 	// ------------------------------------------------------------------
+	// B-192: the saved card is gone.
+	// ------------------------------------------------------------------
+
+	public function test_B192_customer_is_told_once_that_the_saved_card_is_gone(): void {
+		$paid_until = gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS );
+		$license    = $this->seed_ordered_license( array( 'paid_until' => $paid_until, 'next_payment_at' => $paid_until ), true );
+
+		// A repeated report of the same renewal ($first false) sends nothing.
+		do_action( 'wplc/renewal_payment_method_missing', $license['id'], 5, $this->customer, false );
+		$this->assertSame( array(), $this->mails() );
+
+		do_action( 'wplc/renewal_payment_method_missing', $license['id'], 5, $this->customer, true );
+		// Another renewal row of the same period (re-scheduled) reports "first" again: still one email.
+		do_action( 'wplc/renewal_payment_method_missing', $license['id'], 6, $this->customer, true );
+
+		$mails = $this->mails();
+		$this->assertCount( 1, $mails );
+		$this->assertSame( $license['order']->get_billing_email(), $mails[0]['to'] );
+		$this->assertStringContainsString( 'is no longer available', $mails[0]['subject'] );
+		$text = html_entity_decode( wp_strip_all_tags( $mails[0]['body'] ), ENT_QUOTES );
+		$this->assertStringContainsString( 'We do not charge any other card of yours in its place.', $text );
+		$this->assertStringContainsString( 'renew the license manually', $text );
+		$this->assertStringContainsString( 'wplc-licenses', $mails[0]['body'] );
+
+		// Switchable like the other license emails.
+		$email          = $this->email_object( 'payment_method_missing' );
+		$this->assertSame( 'wplc_payment_method_missing', $email->id );
+		$this->assertTrue( $email->is_customer_email() );
+		$email->enabled = 'no';
+		$other          = $this->seed_ordered_license( array( 'paid_until' => $paid_until ), true );
+		do_action( 'wplc/renewal_payment_method_missing', $other['id'], 7, $this->customer, true );
+		$email->enabled = 'yes';
+		$this->assertCount( 1, $this->mails() );
+	}
+
+	// ------------------------------------------------------------------
 	// B-115: email preview.
 	// ------------------------------------------------------------------
 
 	public function test_B115_preview_shows_sample_data_for_every_license_email(): void {
-		foreach ( array( 'issued', 'expiry_reminder', 'renewal_notice', 'payment_failed', 'expired', 'renewed', 'cancelled', 'suspended', 'revoked' ) as $key ) {
+		foreach ( array( 'issued', 'expiry_reminder', 'renewal_notice', 'payment_failed', 'payment_method_missing', 'expired', 'renewed', 'cancelled', 'suspended', 'revoked' ) as $key ) {
 			$email = $this->email_object( $key );
 			// What WooCommerce does before the filter: a dummy order as the object.
 			$email->set_object( new WC_Order() );

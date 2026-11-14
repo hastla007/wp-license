@@ -642,7 +642,7 @@ final class Diagnostics {
 			$next ? '' : __( 'Deactivate and reactivate the plugin to schedule it again.', 'wp-license' )
 		);
 		foreach ( self::last_runs() as $job => $timestamp ) {
-			if ( in_array( $job, array( self::JOB_DAILY, self::JOB_DAILY_STARTED, self::JOB_FIRST_SEEN ), true ) ) {
+			if ( in_array( $job, array( self::JOB_DAILY, self::JOB_DAILY_STARTED, self::JOB_FIRST_SEEN, 'stripe_webhook', 'stripe_webhook_live', 'stripe_webhook_test', 'stripe_webhook_rejected' ), true ) ) {
 				continue;
 			}
 			/* translators: %s: internal job name. */
@@ -678,9 +678,23 @@ final class Diagnostics {
 			$stripe['ok'] ? 'ok' : 'warning'
 		);
 		$add( __( 'Stripe gateway version', 'wp-license' ), defined( 'WC_STRIPE_VERSION' ) ? (string) WC_STRIPE_VERSION : __( 'Not loaded', 'wp-license' ) );
-		$secret = defined( 'WPLC_STRIPE_WEBHOOK_SECRET' ) && '' !== (string) WPLC_STRIPE_WEBHOOK_SECRET;
+		$secret = \WPLC\Api\V1\StripeWebhook::is_configured();
 		$add( __( 'Stripe webhook secret', 'wp-license' ), $secret ? __( 'Set', 'wp-license' ) : __( 'Not set. Stripe events are rejected.', 'wp-license' ), $secret ? 'ok' : 'warning' );
 		$add( __( 'Last valid Stripe event', 'wp-license' ), self::last_stripe_event() );
+		$webhook_runs = self::last_runs();
+		foreach ( array( 'stripe_webhook_live' => __( 'Last Stripe event in live mode', 'wp-license' ), 'stripe_webhook_test' => __( 'Last Stripe event in test mode', 'wp-license' ) ) as $job => $label ) {
+			if ( isset( $webhook_runs[ $job ] ) ) {
+				$add( $label, Format::date( gmdate( 'Y-m-d H:i:s', $webhook_runs[ $job ] ), true ) );
+			}
+		}
+		if ( isset( $webhook_runs['stripe_webhook_rejected'] ) ) {
+			$add(
+				__( 'Last rejected Stripe webhook request', 'wp-license' ),
+				Format::date( gmdate( 'Y-m-d H:i:s', $webhook_runs['stripe_webhook_rejected'] ), true ),
+				time() - $webhook_runs['stripe_webhook_rejected'] < DAY_IN_SECONDS ? 'warning' : '',
+				__( 'A request to the webhook URL had no valid signature. If this repeats, the signing secret in wp-config.php does not match the endpoint in the Stripe dashboard (live and test mode have different secrets).', 'wp-license' )
+			);
+		}
 		$count( __( 'Pending Stripe events', 'wp-license' ), $metrics['pending_webhooks'], __( 'Events that were received but not processed yet. They are retried by the background queue.', 'wp-license' ) );
 		$count( __( 'Stripe events needing review (24 hours)', 'wp-license' ), $metrics['manual_review_webhooks'], __( 'The event could not be matched to a renewal. Compare the payment in the Stripe dashboard with the renewal order.', 'wp-license' ) );
 		$count( __( 'Overdue renewal attempts', 'wp-license' ), $metrics['overdue_renewals'], __( 'Renewals whose next attempt lies in the past. A few are normal shortly before the queue runs.', 'wp-license' ) );

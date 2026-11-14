@@ -45,6 +45,8 @@ final class LicenseLifecycle {
 		// B-36: a paid order that is cancelled or fails afterwards (bounced debit).
 		add_action( 'woocommerce_order_status_cancelled', array( self::class, 'handle_order_cancelled' ), 20, 1 );
 		add_action( 'woocommerce_order_status_failed', array( self::class, 'handle_order_cancelled' ), 20, 1 );
+		// B-60: a paid renewal order the gateway cancelled because the payment was refunded at the provider.
+		add_action( 'wplc/renewal_order_voided', array( self::class, 'handle_renewal_order_voided' ), 10, 1 );
 		// A-25: a deleted customer account is handled by Maintenance\Orphans::on_user_deleted().
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'expire_due_licenses' ) );
 		add_action( 'wplc_expire_due_licenses', array( self::class, 'expire_due_licenses' ) );
@@ -260,6 +262,21 @@ final class LicenseLifecycle {
 	}
 
 	/**
+	 * A paid renewal order was cancelled by the gateway after the payment was refunded at
+	 * the provider (B-60). Same consequence as a full refund of the renewal order: the
+	 * period is rolled back and automatic renewal is switched off; the license is not suspended.
+	 *
+	 * @param mixed $order_id Renewal order ID.
+	 * @return void
+	 */
+	public static function handle_renewal_order_voided( $order_id ): void {
+		$order_id = absint( $order_id );
+		if ( $order_id ) {
+			self::handle_renewal_order_refund( $order_id );
+		}
+	}
+
+	/**
 	 * Undo a renewal whose WooCommerce order was refunded in full.
 	 *
 	 * The license is not revoked: its paid period is rolled back by the length
@@ -413,6 +430,11 @@ final class LicenseLifecycle {
 		 * @param \WC_Order $order Order.
 		 */
 		if ( ! apply_filters( 'wplc_suspend_license_on_order_status', true, $order ) ) {
+			return;
+		}
+		if ( 'yes' === $order->get_meta( '_wplc_renewal_voided', true ) ) {
+			// The money went back to the customer: handled like a refund of the renewal
+			// (handle_renewal_order_voided()), not like a bounced payment.
 			return;
 		}
 

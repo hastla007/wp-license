@@ -518,10 +518,11 @@ final class Settings {
 			'state' => version_compare( $schema, Schema::VERSION, '>=' ) ? 'ok' : 'warning',
 		);
 
-		$webhook_secret = defined( 'WPLC_STRIPE_WEBHOOK_SECRET' ) && is_string( WPLC_STRIPE_WEBHOOK_SECRET ) && '' !== WPLC_STRIPE_WEBHOOK_SECRET;
+		// Live and test secrets, per site on a network: the webhook class knows all sources.
+		$webhook_secret = \WPLC\Api\V1\StripeWebhook::is_configured();
 		$rows[]         = array(
 			'label' => __( 'Stripe webhook secret', 'wp-license' ),
-			'value' => $webhook_secret ? __( 'Constant WPLC_STRIPE_WEBHOOK_SECRET is set.', 'wp-license' ) : __( 'Constant WPLC_STRIPE_WEBHOOK_SECRET is not set. Stripe events are rejected.', 'wp-license' ),
+			'value' => $webhook_secret ? __( 'A webhook signing secret is configured in wp-config.php.', 'wp-license' ) : __( 'No webhook signing secret is configured (WPLC_STRIPE_WEBHOOK_SECRET in wp-config.php). Stripe events are rejected.', 'wp-license' ),
 			'state' => $webhook_secret ? 'ok' : 'warning',
 		);
 		$rows[]         = array(
