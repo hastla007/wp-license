@@ -88,6 +88,8 @@ $save_product = static function ( int $product_id, string $type, array $fields )
 			'_tax_class'             => '',
 			'_sku'                   => (string) get_post_meta( $product_id, '_sku', true ),
 			'woocommerce_meta_nonce' => wp_create_nonce( 'woocommerce_save_data' ),
+			// Hidden marker the editor renders with the license fields; without it a save leaves the plan alone.
+			'_wplc_fields_present'   => '1',
 		),
 		$fields
 	);
@@ -224,6 +226,7 @@ $variation_fields = array(
 	'variable_is_virtual'               => array( 'on', 'on' ),
 	'variation_menu_order'              => array( '0', '1' ),
 	'attribute_plan'                    => array( 'Business', 'Agency' ),
+	'_wplc_variation_fields_present'    => array( '1', '1' ),
 	'_wplc_variation_is_license_product'=> array( 'yes', 'yes' ),
 	'_wplc_variation_product_key'       => array( 'affiliate-captain', 'affiliate-captain' ),
 	'_wplc_variation_plan_key'          => array( 'business', 'agency-monthly' ),
@@ -244,8 +247,7 @@ $saved = e2e_http(
 				'security'     => wp_create_nonce( 'save-variations' ),
 				'product_id'   => (string) $variable_id,
 				'product-type' => 'variable',
-				// The AJAX save carries the WooCommerce meta nonce of the surrounding form.
-				'woocommerce_meta_nonce' => wp_create_nonce( 'woocommerce_save_data' ),
+				// A-05: the browser sends only the variation rows and `security` here, no meta box nonce.
 			),
 			$variation_fields
 		),
@@ -290,6 +292,7 @@ $pairs = array(
 	array( 'attribute_variation[0]', '1' ),
 	array( 'attribute_position[0]', '0' ),
 	// Parent ("General" tab) license fields: unchecked checkbox is not submitted, the rest is.
+	array( '_wplc_fields_present', '1' ),
 	array( '_wplc_product_key', '' ),
 	array( '_wplc_plan_key', '' ),
 	array( '_wplc_billing_interval', 'year' ),
@@ -341,6 +344,7 @@ foreach ( array( 'Standard' => array( 'PC-STD', '79.00' ), 'Launch offer' => arr
 }
 WC_Product_Variable::sync( $parent_mapped_id );
 $parent_fields = array(
+	array( '_wplc_fields_present', '1' ),
 	array( '_wplc_is_license_product', 'yes' ),
 	array( '_wplc_product_key', 'pass-captain' ),
 	array( '_wplc_plan_key', 'single' ),
@@ -382,6 +386,7 @@ foreach ( array( 0, 1 ) as $index ) {
 	$with_variations[] = array( 'variation_menu_order[' . $index . ']', (string) $index );
 	$with_variations[] = array( 'attribute_term[' . $index . ']', 0 === $index ? 'Standard' : 'Launch offer' );
 	// License fields of an unlicensed variation: checkbox not sent, the rest empty/default.
+	$with_variations[] = array( '_wplc_variation_fields_present[' . $index . ']', '1' );
 	$with_variations[] = array( '_wplc_variation_product_key[' . $index . ']', '' );
 	$with_variations[] = array( '_wplc_variation_plan_key[' . $index . ']', '' );
 	$with_variations[] = array( '_wplc_variation_billing_interval[' . $index . ']', 'year' );

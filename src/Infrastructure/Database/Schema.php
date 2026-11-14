@@ -21,8 +21,9 @@ final class Schema {
 	 *
 	 * 11: renewals.status widened to 30 characters ("manual_action_required" has 22;
 	 *     WordPress refuses to write a value longer than the column).
+	 * 13: table `consents` (evidence of the automatic renewal consent per license, B-37).
 	 */
-	public const VERSION = '11';
+	public const VERSION = '13';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -417,6 +418,25 @@ final class Schema {
 				KEY license_source_created (license_id,source,created_at),
 				KEY stream_expiry (expires_at)
 			) {$charset_collate};",
+			"CREATE TABLE {$tables['consents']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				license_id bigint(20) unsigned NOT NULL,
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				customer_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				consent_at datetime NOT NULL,
+				source varchar(20) NOT NULL DEFAULT '',
+				locale varchar(20) NOT NULL DEFAULT '',
+				text_hash char(64) NOT NULL DEFAULT '',
+				consent_text text NOT NULL,
+				amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				currency_decimals tinyint(3) unsigned NOT NULL DEFAULT 2,
+				currency char(3) NOT NULL DEFAULT 'EUR',
+				billing_interval varchar(10) NOT NULL DEFAULT 'year',
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY license_consent (license_id,consent_at),
+				KEY customer_id (customer_id)
+			) {$charset_collate};",
 		);
 
 		foreach ( $sql as $statement ) {
@@ -490,6 +510,7 @@ final class Schema {
 			'audit_log'    => $prefix . 'audit_log',
 			'releases'     => $prefix . 'releases',
 			'package_streams' => $prefix . 'package_streams',
+			'consents'     => $prefix . 'consents',
 		);
 	}
 

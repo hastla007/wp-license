@@ -7,6 +7,8 @@
 
 namespace WPLC\Billing;
 
+use WPLC\Catalog\Catalog;
+use WPLC\Catalog\TermDisplay;
 use WPLC\Gateway\Registry;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -21,6 +23,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * This class renders the opt-in in the classic (shortcode) checkout and holds
  * the rules both checkouts share. The block checkout field lives in
  * BlockCheckoutConsent and ends in the same order meta.
+ *
+ * "Does the cart or order contain a license product" is always answered by
+ * Catalog::find_mapping(), the rule the license issuer uses as well.
  */
 final class RecurringConsent {
 
@@ -28,6 +33,13 @@ final class RecurringConsent {
 	 * Order meta with the UTC time of the consent. LicenseIssuer reads it.
 	 */
 	const META_CONSENT_AT = '_wplc_recurring_consent_at';
+
+	/**
+	 * Order meta with the evidence of the consent: array with `text` (wording and
+	 * renewal terms the customer saw), `hash` (SHA-256 of the text), `locale` and
+	 * `source` (classic or block). LicenseIssuer copies it to every license.
+	 */
+	const META_EVIDENCE = '_wplc_recurring_consent_evidence';
 
 	/**
 	 * Order meta: consent was requested with a payment method that cannot renew.
@@ -44,11 +56,33 @@ final class RecurringConsent {
 		add_action( 'woocommerce_review_order_before_submit', array( self::class, 'render_checkbox' ) );
 		add_action( 'woocommerce_checkout_create_order', array( self::class, 'save_consent' ), 10, 2 );
 		add_filter( 'woocommerce_checkout_registration_required', array( self::class, 'require_account' ) );
+		// With WooCommerce's defaults account creation in the checkout is off; requiring an
+		// account without offering one would lock every new customer out.
+		add_filter( 'woocommerce_checkout_registration_enabled', array( self::class, 'enable_registration' ) );
 		add_action( 'woocommerce_checkout_order_processed', array( self::class, 'add_unsupported_note_for_classic_order' ), 10, 3 );
 		// The older `wc_stripe_force_save_source` is deprecated since Stripe gateway 9.6.0 and
 		// raises a deprecation notice when hooked; the supported minimum is 9.6.0.
 		add_filter( 'wc_stripe_force_save_payment_method', array( self::class, 'force_save_payment_method' ), 10, 2 );
 		add_action( 'woocommerce_email_after_order_table', array( self::class, 'render_email_hint' ), 10, 3 );
+		add_action( 'woocommerce_thankyou', array( self::class, 'render_thankyou_hint' ), 5 );
+
+		// Express buttons (Apple Pay, Google Pay, Link) skip the checkout form: no account, no opt-in.
+		add_filter( 'wc_stripe_hide_payment_request_on_product_page', array( self::class, 'hide_express_on_product_page' ), 10, 2 );
+		add_filter( 'wc_stripe_show_payment_request_on_cart', array( self::class, 'show_express_for_cart' ) );
+		add_filter( 'wc_stripe_show_payment_request_on_checkout', array( self::class, 'show_express_for_cart' ) );
+	}
+
+	/**
+	 * Wording of the opt-in, shared by both checkouts.
+	 *
+	 * It refers to the renewal price that TermDisplay prints for every license
+	 * in the cart and the order summary ("Automatic renewal (optional): 59,00 € per year"),
+	 * which is the regular price that will be charged, not a sale price.
+	 *
+	 * @return string
+	 */
+	public static function label(): string {
+		return __( 'Renew automatically: I authorize charging my saved payment method the renewal price shown for each license at the end of every term, until I cancel. Without this option the license ends after the paid term.', 'wp-license' );
 	}
 
 	/**
@@ -67,7 +101,7 @@ final class RecurringConsent {
 				'type' => 'checkbox',
 				'class' => array( 'form-row-wide' ),
 				'required' => false,
-				'label' => __( 'Renew this license automatically: I authorize renewal charges at the displayed monthly or yearly price to my saved card until I cancel. Without this option the license ends after the paid period.', 'wp-license' ),
+				'label' => self::label(),
 			),
 			''
 		);
@@ -84,7 +118,8 @@ final class RecurringConsent {
 		$gateway_id = sanitize_key( (string) ( $data['payment_method'] ?? '' ) );
 		self::apply_decision(
 			$order,
-			self::decide( self::consent_posted(), self::cart_contains_license(), Registry::supports_checkout( $gateway_id ) )
+			self::decide( self::consent_posted(), self::order_contains_license( $order ) || self::cart_contains_license(), Registry::supports_checkout( $gateway_id ) ),
+			'classic'
 		);
 	}
 
@@ -111,21 +146,54 @@ final class RecurringConsent {
 	 *
 	 * @param \WC_Order $order    Order.
 	 * @param string    $decision Result of decide().
+	 * @param string    $source   Checkout that collected the consent: `classic` or `block`.
 	 * @return void
 	 */
-	public static function apply_decision( $order, string $decision ): void {
+	public static function apply_decision( $order, string $decision, string $source = '' ): void {
 		if ( 'granted' === $decision ) {
 			$order->update_meta_data( self::META_CONSENT_AT, gmdate( 'Y-m-d H:i:s' ) );
+			$order->update_meta_data( self::META_EVIDENCE, self::evidence( $order, $source ) );
 			$order->delete_meta_data( self::META_UNSUPPORTED );
 			return;
 		}
 
 		$order->delete_meta_data( self::META_CONSENT_AT );
+		$order->delete_meta_data( self::META_EVIDENCE );
 		if ( 'unsupported' !== $decision ) {
 			$order->delete_meta_data( self::META_UNSUPPORTED );
 		} elseif ( 'noted' !== $order->get_meta( self::META_UNSUPPORTED, true ) ) {
 			$order->update_meta_data( self::META_UNSUPPORTED, '1' );
 		}
+	}
+
+	/**
+	 * What the customer agreed to: the wording of the opt-in plus the renewal
+	 * terms of every license in the order, in the language of the checkout.
+	 *
+	 * @param \WC_Order $order  Order.
+	 * @param string    $source `classic` or `block`.
+	 * @return array{text:string,hash:string,locale:string,source:string}
+	 */
+	public static function evidence( $order, string $source ): array {
+		$lines = array( self::label() );
+		foreach ( $order->get_items( 'line_item' ) as $item ) {
+			if ( ! $item instanceof \WC_Order_Item_Product ) {
+				continue;
+			}
+			$mapping = Catalog::find_mapping( (int) $item->get_product_id(), (int) $item->get_variation_id() );
+			if ( ! $mapping ) {
+				continue;
+			}
+			$lines[] = $item->get_name() . ': ' . TermDisplay::renewal_price_text( $mapping, $item->get_product() );
+		}
+		$text = implode( "\n", $lines );
+
+		return array(
+			'text' => $text,
+			'hash' => hash( 'sha256', $text ),
+			'locale' => function_exists( 'determine_locale' ) ? (string) determine_locale() : (string) get_locale(),
+			'source' => $source,
+		);
 	}
 
 	/**
@@ -169,6 +237,19 @@ final class RecurringConsent {
 	}
 
 	/**
+	 * Offer account creation in the checkout whenever a license is in the cart.
+	 *
+	 * WooCommerce's default is "no account creation during checkout". Together
+	 * with require_account() a new customer could then not buy a license at all.
+	 *
+	 * @param bool $enabled Whether the shop allows account creation in the checkout.
+	 * @return bool
+	 */
+	public static function enable_registration( $enabled ) {
+		return $enabled || self::cart_contains_license();
+	}
+
+	/**
 	 * Ask the Stripe gateway to save the card when the customer opted in,
 	 * otherwise there is no payment method to renew with.
 	 *
@@ -191,7 +272,7 @@ final class RecurringConsent {
 	}
 
 	/**
-	 * Whether an order contains a mapped license product.
+	 * Whether an order contains a product that issues a license.
 	 *
 	 * @param \WC_Order $order Order.
 	 * @return bool
@@ -201,8 +282,7 @@ final class RecurringConsent {
 			return false;
 		}
 		foreach ( $order->get_items( 'line_item' ) as $item ) {
-			$product = is_callable( array( $item, 'get_product' ) ) ? $item->get_product() : null;
-			if ( $product && 'yes' === $product->get_meta( '_wplc_is_license_product', true ) ) {
+			if ( $item instanceof \WC_Order_Item_Product && Catalog::is_license_item( (int) $item->get_product_id(), (int) $item->get_variation_id() ) ) {
 				return true;
 			}
 		}
@@ -210,7 +290,7 @@ final class RecurringConsent {
 	}
 
 	/**
-	 * Tell the customer where to find the license key.
+	 * Tell the customer where to find the license key, and that an opt-in was not possible.
 	 *
 	 * @param \WC_Order $order         Order.
 	 * @param bool      $sent_to_admin Whether the email goes to the admin.
@@ -218,7 +298,16 @@ final class RecurringConsent {
 	 * @return void
 	 */
 	public static function render_email_hint( $order, $sent_to_admin = false, $plain_text = false ): void {
-		if ( $sent_to_admin || ! $order instanceof \WC_Order || ! $order->is_paid() || ! function_exists( 'wc_get_account_endpoint_url' ) ) {
+		if ( $sent_to_admin || ! $order instanceof \WC_Order ) {
+			return;
+		}
+
+		if ( '' !== (string) $order->get_meta( self::META_UNSUPPORTED, true ) ) {
+			$text = self::unsupported_text();
+			echo $plain_text ? "\n" . esc_html( $text ) . "\n" : '<p>' . esc_html( $text ) . '</p>';
+		}
+
+		if ( ! $order->is_paid() || ! function_exists( 'wc_get_account_endpoint_url' ) ) {
 			return;
 		}
 
@@ -240,6 +329,61 @@ final class RecurringConsent {
 			return;
 		}
 		echo '<p>' . esc_html( $text ) . ' <a href="' . esc_url( $url ) . '">' . esc_html( $url ) . '</a></p>';
+	}
+
+	/**
+	 * Order received page: say that the requested automatic renewal is not active.
+	 *
+	 * @param mixed $order_id Order ID.
+	 * @return void
+	 */
+	public static function render_thankyou_hint( $order_id ): void {
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( absint( $order_id ) ) : null;
+		if ( ! $order instanceof \WC_Order || '' === (string) $order->get_meta( self::META_UNSUPPORTED, true ) ) {
+			return;
+		}
+		echo '<p class="woocommerce-info wplc-renewal-unsupported">' . esc_html( self::unsupported_text() ) . '</p>';
+	}
+
+	/**
+	 * Customer-facing explanation for an opt-in that could not be honored.
+	 *
+	 * @return string
+	 */
+	private static function unsupported_text(): string {
+		return __( 'You asked for automatic renewal, but the payment method you chose does not support it. Your license will not renew automatically and ends after the paid term. You can renew it in your account before it ends.', 'wp-license' );
+	}
+
+	/**
+	 * Hide the express payment buttons on the page of a license product for guests.
+	 *
+	 * @param mixed $hide Whether the buttons are hidden already.
+	 * @param mixed $post Product post.
+	 * @return bool
+	 */
+	public static function hide_express_on_product_page( $hide, $post = null ) {
+		if ( $hide || is_user_logged_in() ) {
+			return (bool) $hide;
+		}
+		$post_id = is_object( $post ) && isset( $post->ID ) ? (int) $post->ID : (int) get_the_ID();
+		if ( $post_id <= 0 ) {
+			return (bool) $hide;
+		}
+
+		return in_array( $post_id, Catalog::license_product_ids(), true );
+	}
+
+	/**
+	 * Hide the express payment buttons in cart and checkout while a guest has a license in the cart.
+	 *
+	 * @param mixed $show Whether the buttons are shown.
+	 * @return bool
+	 */
+	public static function show_express_for_cart( $show ) {
+		if ( ! $show || is_user_logged_in() ) {
+			return (bool) $show;
+		}
+		return ! self::cart_contains_license();
 	}
 
 	/**
@@ -270,7 +414,7 @@ final class RecurringConsent {
 	}
 
 	/**
-	 * Check whether the cart contains a mapped license product.
+	 * Check whether the cart contains a product that issues a license.
 	 *
 	 * @return bool
 	 */
@@ -280,8 +424,10 @@ final class RecurringConsent {
 		}
 
 		foreach ( WC()->cart->get_cart() as $cart_item ) {
-			$product = $cart_item['data'] ?? null;
-			if ( $product && 'yes' === $product->get_meta( '_wplc_is_license_product', true ) ) {
+			if ( ! is_array( $cart_item ) ) {
+				continue;
+			}
+			if ( Catalog::is_license_item( (int) ( $cart_item['product_id'] ?? 0 ), (int) ( $cart_item['variation_id'] ?? 0 ) ) ) {
 				return true;
 			}
 		}
