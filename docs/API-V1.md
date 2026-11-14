@@ -2,7 +2,7 @@
 
 Base namespace: `/wp-json/wplc/v1`.
 
-All requests must use HTTPS. Activation requests are rate-limited by client address (30 per minute) and by license-key prefix (20 per minute); see [Rate limits behind a proxy or CDN](#rate-limits-behind-a-proxy-or-cdn). Authenticated installation requests are signed with the secret created by the product client and rate-limited by installation ID.
+All requests must use HTTPS. Failed activation attempts are rate-limited by client address (30 per minute) and by license-key prefix (20 per minute); a valid key is not blocked by other clients' failures; see [Rate limits behind a proxy or CDN](#rate-limits-behind-a-proxy-or-cdn). Authenticated installation requests are signed with the secret created by the product client and rate-limited by installation ID.
 
 ## First activation
 
@@ -120,7 +120,7 @@ Route-specific errors on top: `DELETE /activations/{activation_id}` answers `403
 
 ## Rate limits behind a proxy or CDN
 
-Anonymous activation attempts are counted per client address (IPv6: per /64) and per license-key prefix (the first 13 characters, stored only as a hash). Exceeding either returns `429 rate_limited`. A request whose address cannot be determined is counted in one shared bucket.
+Failed anonymous activation attempts (unknown key, invalid request) are counted per client address (IPv6: per /64) and per license-key prefix (the first 13 characters, stored only as a hash). Successful activations are not counted. After 30 failures per address or 20 per prefix within a minute, unknown keys and invalid requests are answered `429 rate_limited`, while a recognized key is still accepted; after another 30 (address) or 20 (prefix) requests in the same minute every request returns `429 rate_limited`. The reasoning is in `docs/SECURITY-OPERATIONS.md` (T-142). A request whose address cannot be determined is counted in one shared bucket.
 
 By default the address is `REMOTE_ADDR`. Behind a reverse proxy or CDN that is the proxy, so all customers would share one bucket. Configure the forwarding header in `wp-config.php`:
 

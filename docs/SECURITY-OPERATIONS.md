@@ -52,11 +52,18 @@ Version 1 product requests are signed over method, REST route, timestamp, nonce,
 
 ### Activation rate limits and client addresses
 
-Unauthenticated activation attempts are limited to 30 per minute per client address (IPv6 per /64) and 20 per minute per license-key prefix (first 13 characters, hashed), so one key cannot be tried from many addresses. A request without a resolvable address is counted in a shared `unknown` bucket rather than rejected. A failing limit store still fails closed with 503.
+Unauthenticated activation attempts are limited by **failed** attempts: 30 per minute per client address (IPv6 per /64) and 20 per minute per license-key prefix (first 13 characters, hashed), so one key cannot be tried from many addresses. A failure is an unknown key or a request rejected before the key lookup (missing fields, invalid development URL). Successful activations and answers about a recognized key (wrong product, expired) do not count. A request without a resolvable address is counted in a shared `unknown` bucket rather than rejected. A failing limit store still fails closed with 503.
+
+Once an address or prefix has reached its failure limit within the current minute it is throttled (T-142):
+
+- Every unknown key and every malformed request is answered `429 rate_limited`, the same answer as for a fully blocked client, so the error code tells a guesser nothing new.
+- The key is still looked up (one indexed hash comparison). A recognized key proceeds, so customers behind a shared address (office NAT, agency server, CDN without proxy configuration) are no longer locked out by someone else's typos or guessing. Before T-142 every attempt counted before the key check and a valid key was blocked together with the guesser.
+- Letting valid keys through is an oracle. It is bounded: requests made while throttled are counted in a second bucket with the same limit, and past it every request gets 429 without a key lookup. One address can therefore receive at most 60 key-dependent answers per minute (30 failures plus 30 throttled requests), one prefix at most 40. Against a 64-hex-character HMAC part of the key this is no practical guessing rate.
+- A valid key is still blocked when its address (or its prefix) keeps sending past the throttled ceiling within the same minute; deliberate flooding from a shared address can delay activations by up to a minute, accidental failures cannot.
 
 The address is `REMOTE_ADDR` unless `WPLC_TRUSTED_PROXY_HEADER` names a forwarding header (`HTTP_CF_CONNECTING_IP`, `HTTP_X_FORWARDED_FOR`, ...). The header is honored only if the direct peer is listed in `WPLC_TRUSTED_PROXIES` (IPs or CIDR ranges). Leaving `WPLC_TRUSTED_PROXIES` undefined trusts the header from any peer; do that only when the origin accepts connections from the proxy alone, otherwise an attacker sets the header and evades the per-address limit (the per-key limit still applies). Behind a CDN without this configuration all customers share one bucket and a single client can block activations for everyone. Keep the proxy list current with the provider's published ranges. Details: `docs/API-V1.md`.
 
-Known trade-off: the key prefix is shown in the customer account and in the admin, so someone who knows a customer's prefix can hold that one key at its limit and delay its activations; other keys are unaffected.
+Known trade-off: the key prefix is shown in the customer account and in the admin, so someone who knows a customer's prefix can push that one key past its throttled ceiling (40 requests per minute) and delay its activations; failed guesses below that no longer block the valid key, and other keys are unaffected.
 
 ### Response signatures
 
