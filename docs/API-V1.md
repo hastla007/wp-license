@@ -91,6 +91,19 @@ SHA256_OF_RAW_REQUEST_BODY
 
 The server rejects timestamps outside five minutes, repeated nonces, malformed signatures and inactive activations.
 
+Errors of the signed routes (`DELETE /activations/{activation_id}`, `POST /entitlements/check`, `POST /updates/check`) before the route itself runs:
+
+| Status | Code | When |
+| --- | --- | --- |
+| 401 | `invalid_request_signature` | Headers missing or malformed, or the signature does not match |
+| 401 | `request_expired` | Timestamp more than five minutes off |
+| 401 | `activation_not_found`, `installation_secret_invalid` | Installation not active, or its stored credential cannot be read |
+| 409 | `request_replayed` | Nonce already used by this installation in the last ten minutes; sign again with a new nonce |
+| 429 | `rate_limited` | More than 120 requests by this installation within the current minute |
+| 503 | `replay_store_unavailable`, `rate_limit_store_unavailable` | Replay protection or rate limiting could not be recorded; retry later |
+
+Route-specific errors on top: `DELETE /activations/{activation_id}` answers `403 activation_mismatch`, `409 deactivation_failed` and `503 retry_later` (license busy); `POST /entitlements/check` answers `404 license_not_found`; `POST /updates/check` answers `400` for missing arguments, `403 license_inactive` and `503 package_configuration_invalid` or `download_token_error`. `docs/openapi-v1.json` declares all of them.
+
 ## Rate limits behind a proxy or CDN
 
 Anonymous activation attempts are counted per client address (IPv6: per /64) and per license-key prefix (the first 13 characters, stored only as a hash). Exceeding either returns `429 rate_limited`. A request whose address cannot be determined is counted in one shared bucket.
