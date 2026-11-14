@@ -469,7 +469,8 @@ final class RenewalOrder {
 			foreach ( $variations as $variation_id ) {
 				$plan = $wpdb->get_row(
 					$wpdb->prepare(
-						"SELECT * FROM {$tables['plans']} WHERE active = 1 AND woocommerce_product_id = %d AND woocommerce_variation_id = %d AND product_key = %s LIMIT 1",
+						"SELECT * FROM %i WHERE active = 1 AND woocommerce_product_id = %d AND woocommerce_variation_id = %d AND product_key = %s LIMIT 1",
+						$tables['plans'],
 						$ids['product_id'],
 						$variation_id,
 						$product_key
@@ -484,7 +485,8 @@ final class RenewalOrder {
 
 		$plans = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$tables['plans']} WHERE active = 1 AND product_key = %s AND plan_key = %s ORDER BY id DESC",
+				"SELECT * FROM %i WHERE active = 1 AND product_key = %s AND plan_key = %s ORDER BY id DESC",
+				$tables['plans'],
 				$product_key,
 				$plan_key
 			),

@@ -88,7 +88,6 @@ final class RenewalLifecycleIntegrationTest extends WPLC_Renewal_TestCase {
 		$this->assertFalse( LicenseLifecycle::admin_extend( $license, $this->future( 60 ), 'second admin, stale form', 2, $seen ) );
 
 		$this->assertSame( 'term_changed', LicenseLifecycle::last_refusal() );
-		$this->assertSame( $this->license( $license )['paid_until'], $this->license( $license )['paid_until'] );
 		$this->assertGreaterThan( $this->future( 399 ), $this->license( $license )['paid_until'] );
 	}
 

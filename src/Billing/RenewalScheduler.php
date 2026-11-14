@@ -29,7 +29,7 @@ final class RenewalScheduler {
 
 		$tables = Schema::table_names();
 		$license = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], $license_id ),
 			ARRAY_A
 		);
 		if ( ! is_array( $license ) || empty( $license['renewal_enabled'] ) || empty( $license['paid_until'] ) ) {
@@ -54,7 +54,8 @@ final class RenewalScheduler {
 		// wanted again (the license is renewal-enabled and not cancelled, checked above).
 		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['renewals']} SET status = %s, retry_at = period_start, last_error = %s, updated_at = %s WHERE id = %d AND status IN (%s, %s)",
+				"UPDATE %i SET status = %s, retry_at = period_start, last_error = %s, updated_at = %s WHERE id = %d AND status IN (%s, %s)",
+				$tables['renewals'],
 				'scheduled',
 				'',
 				gmdate( 'Y-m-d H:i:s' ),
@@ -63,7 +64,7 @@ final class RenewalScheduler {
 				'cancelled'
 			)
 		);
-		$status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ) );
+		$status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM %i WHERE id = %d LIMIT 1", $tables['renewals'], $renewal_id ) );
 		if ( 'scheduled' === $status ) {
 			self::enqueue( $renewal_id, $start_timestamp );
 		}
@@ -123,7 +124,7 @@ final class RenewalScheduler {
 		$tables = Schema::table_names();
 		$idempotency_key = self::idempotency_key( $license_id, $period_start );
 		$existing = (int) $wpdb->get_var(
-			$wpdb->prepare( "SELECT id FROM {$tables['renewals']} WHERE idempotency_key = %s LIMIT 1", $idempotency_key )
+			$wpdb->prepare( "SELECT id FROM %i WHERE idempotency_key = %s LIMIT 1", $tables['renewals'], $idempotency_key )
 		);
 		if ( $existing ) {
 			return $existing;
@@ -150,7 +151,7 @@ final class RenewalScheduler {
 		if ( false === $inserted || ! $wpdb->insert_id ) {
 			// A concurrent request may have inserted the same unique key.
 			return (int) $wpdb->get_var(
-				$wpdb->prepare( "SELECT id FROM {$tables['renewals']} WHERE idempotency_key = %s LIMIT 1", $idempotency_key )
+				$wpdb->prepare( "SELECT id FROM %i WHERE idempotency_key = %s LIMIT 1", $tables['renewals'], $idempotency_key )
 			);
 		}
 

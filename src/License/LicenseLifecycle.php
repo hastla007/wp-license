@@ -264,7 +264,8 @@ final class LicenseLifecycle {
 		$tables = Schema::table_names();
 		$ids = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT id FROM {$tables['licenses']} WHERE source_order_id = %d AND status IN ('active','past_due','suspended')",
+				"SELECT id FROM %i WHERE source_order_id = %d AND status IN ('active','past_due','suspended')",
+				$tables['licenses'],
 				$order_id
 			)
 		);
@@ -313,7 +314,8 @@ final class LicenseLifecycle {
 		$tables = Schema::table_names();
 		$renewal = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$tables['renewals']} WHERE id = %d AND license_id = %d AND renewal_order_id = %d LIMIT 1",
+				"SELECT * FROM %i WHERE id = %d AND license_id = %d AND renewal_order_id = %d LIMIT 1",
+				$tables['renewals'],
 				$renewal_id,
 				$license_id,
 				$order_id
@@ -328,7 +330,8 @@ final class LicenseLifecycle {
 		$now = gmdate( 'Y-m-d H:i:s' );
 		$claimed = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, updated_at = %s WHERE id = %d AND status = %s",
+				"UPDATE %i SET status = %s, retry_at = NULL, updated_at = %s WHERE id = %d AND status = %s",
+				$tables['renewals'],
 				'refunded',
 				$now,
 				$renewal_id,
@@ -350,7 +353,8 @@ final class LicenseLifecycle {
 				: gmdate( 'Y-m-d H:i:s', $paid_until - ( $period_end - $period_start ) );
 			$rolled_back = (int) $wpdb->query(
 				$wpdb->prepare(
-					"UPDATE {$tables['licenses']} SET paid_until = %s, next_payment_at = NULL, renewal_enabled = 0, updated_at = %s WHERE id = %d AND paid_until = %s",
+					"UPDATE %i SET paid_until = %s, next_payment_at = NULL, renewal_enabled = 0, updated_at = %s WHERE id = %d AND paid_until = %s",
+					$tables['licenses'],
 					$new_paid_until,
 					$now,
 					$license_id,
@@ -439,7 +443,8 @@ final class LicenseLifecycle {
 			'intval',
 			(array) $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT id FROM {$tables['licenses']} WHERE source_order_id = %d AND status IN ('active','past_due')",
+					"SELECT id FROM %i WHERE source_order_id = %d AND status IN ('active','past_due')",
+					$tables['licenses'],
 					$order_id
 				)
 			)
@@ -448,7 +453,8 @@ final class LicenseLifecycle {
 		if ( $renewal_id ) {
 			$renewed = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT license_id FROM {$tables['renewals']} WHERE id = %d AND renewal_order_id = %d AND status = %s LIMIT 1",
+					"SELECT license_id FROM %i WHERE id = %d AND renewal_order_id = %d AND status = %s LIMIT 1",
+					$tables['renewals'],
 					$renewal_id,
 					$order_id,
 					'paid'
@@ -492,7 +498,7 @@ final class LicenseLifecycle {
 		}
 		$tables = Schema::table_names();
 		$ids = (array) $wpdb->get_col(
-			$wpdb->prepare( "SELECT id FROM {$tables['licenses']} WHERE customer_id = %d AND renewal_enabled = 1", $user_id )
+			$wpdb->prepare( "SELECT id FROM %i WHERE customer_id = %d AND renewal_enabled = 1", $tables['licenses'], $user_id )
 		);
 		foreach ( $ids as $license_id ) {
 			self::disable_renewal( (int) $license_id, __( 'The customer account was deleted', 'wp-license' ), get_current_user_id() );
@@ -566,7 +572,7 @@ final class LicenseLifecycle {
 			return array();
 		}
 		$tables = Schema::table_names();
-		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$tables['licenses']} WHERE source_order_id = %d", $order_id ) ) );
+		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM %i WHERE source_order_id = %d", $tables['licenses'], $order_id ) ) );
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
 		$renewed = $order && is_callable( array( $order, 'get_meta' ) ) ? absint( $order->get_meta( '_wplc_renewal_for_license', true ) ) : 0;
 		if ( $renewed && self::get_license( $renewed ) ) {
@@ -623,7 +629,8 @@ final class LicenseLifecycle {
 		$now = gmdate( 'Y-m-d H:i:s' );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET status = %s, status_reason = %s, paid_until = %s, next_payment_at = IF( renewal_enabled = 1 AND cancel_at_period_end = 0, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s AND IFNULL( paid_until, '' ) = %s",
+				"UPDATE %i SET status = %s, status_reason = %s, paid_until = %s, next_payment_at = IF( renewal_enabled = 1 AND cancel_at_period_end = 0, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s AND IFNULL( paid_until, '' ) = %s",
+				$tables['licenses'],
 				'active',
 				'',
 				$paid_until_utc,
@@ -681,7 +688,7 @@ final class LicenseLifecycle {
 		global $wpdb;
 
 		$tables = Schema::table_names();
-		$query = $wpdb->prepare( "SELECT id FROM {$tables['renewals']} WHERE license_id = %d AND status = %s", $license_id, 'processing' );
+		$query = $wpdb->prepare( "SELECT id FROM %i WHERE license_id = %d AND status = %s", $tables['renewals'], $license_id, 'processing' );
 		$ids = (array) $wpdb->get_col( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
 		if ( ! $ids ) {
 			return false;
@@ -714,7 +721,8 @@ final class LicenseLifecycle {
 		$tables = Schema::table_names();
 		$rows = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, status, renewal_order_id FROM {$tables['renewals']} WHERE license_id = %d AND status IN ('scheduled','failed','manual_action_required','manual')",
+				"SELECT id, status, renewal_order_id FROM %i WHERE license_id = %d AND status IN ('scheduled','failed','manual_action_required','manual')",
+				$tables['renewals'],
 				$license_id
 			),
 			ARRAY_A
@@ -726,7 +734,8 @@ final class LicenseLifecycle {
 			}
 			$updated = $wpdb->query(
 				$wpdb->prepare(
-					"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, last_error = %s, updated_at = %s WHERE id = %d AND status = %s",
+					"UPDATE %i SET status = %s, retry_at = NULL, last_error = %s, updated_at = %s WHERE id = %d AND status = %s",
+					$tables['renewals'],
 					'cancelled',
 					substr( sanitize_key( $code ), 0, 100 ),
 					gmdate( 'Y-m-d H:i:s' ),
@@ -794,7 +803,8 @@ final class LicenseLifecycle {
 		if ( ! empty( $license['paid_until'] ) && class_exists( '\\WPLC\\Billing\\RenewalProcessor' ) ) {
 			$renewal_id = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT id FROM {$tables['renewals']} WHERE license_id = %d AND period_start = %s LIMIT 1",
+					"SELECT id FROM %i WHERE license_id = %d AND period_start = %s LIMIT 1",
+					$tables['renewals'],
 					$license_id,
 					(string) $license['paid_until']
 				)
@@ -922,7 +932,8 @@ final class LicenseLifecycle {
 		$now = gmdate( 'Y-m-d H:i:s' );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET status = %s, status_reason = %s, revoked_at = NULL, paid_until = %s, next_payment_at = NULL, updated_at = %s WHERE id = %d AND status = %s",
+				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = NULL, paid_until = %s, next_payment_at = NULL, updated_at = %s WHERE id = %d AND status = %s",
+				$tables['licenses'],
 				'active',
 				'',
 				$paid_until,
@@ -937,7 +948,8 @@ final class LicenseLifecycle {
 		}
 		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['entitlements']} SET status = %s, ends_at = %s WHERE license_id = %d AND status IN ('revoked','suspended','active')",
+				"UPDATE %i SET status = %s, ends_at = %s WHERE license_id = %d AND status IN ('revoked','suspended','active')",
+				$tables['entitlements'],
 				'active',
 				$paid_until,
 				$license_id
@@ -1084,7 +1096,8 @@ final class LicenseLifecycle {
 		}
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET status = %s, status_reason = %s, paid_until = %s, next_payment_at = IF( renewal_enabled = 1 AND cancel_at_period_end = 0, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s AND IFNULL( paid_until, '' ) = %s",
+				"UPDATE %i SET status = %s, status_reason = %s, paid_until = %s, next_payment_at = IF( renewal_enabled = 1 AND cancel_at_period_end = 0, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s AND IFNULL( paid_until, '' ) = %s",
+				$tables['licenses'],
 				'active',
 				'',
 				$paid_until,
@@ -1159,7 +1172,8 @@ final class LicenseLifecycle {
 		$tables = Schema::table_names();
 		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['entitlements']} SET ends_at = %s WHERE license_id = %d AND status = %s AND ( ends_at IS NULL OR ends_at <> %s )",
+				"UPDATE %i SET ends_at = %s WHERE license_id = %d AND status = %s AND ( ends_at IS NULL OR ends_at <> %s )",
+				$tables['entitlements'],
 				(string) $license['paid_until'],
 				$license_id,
 				'active',
@@ -1275,7 +1289,8 @@ final class LicenseLifecycle {
 					break 2;
 				}
 			}
-		} while ( count( $ids ) >= 200 );
+			$fetched = count( $ids );
+		} while ( $fetched >= 200 );
 
 		// Safety net for past-due licenses whose grace period is over but whose grace-end job
 		// never ran or was never scheduled (e.g. the customer cancelled while a retry was pending).
@@ -1286,7 +1301,8 @@ final class LicenseLifecycle {
 			}
 			$ids = (array) $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT id FROM {$tables['licenses']} WHERE id > %d AND status = %s AND paid_until IS NOT NULL AND paid_until <= %s ORDER BY id ASC LIMIT 200",
+					"SELECT id FROM %i WHERE id > %d AND status = %s AND paid_until IS NOT NULL AND paid_until <= %s ORDER BY id ASC LIMIT 200",
+					$tables['licenses'],
 					$cursor,
 					'past_due',
 					gmdate( 'Y-m-d H:i:s', $now - self::GRACE_DAYS * DAY_IN_SECONDS )
@@ -1300,7 +1316,8 @@ final class LicenseLifecycle {
 					break 2;
 				}
 			}
-		} while ( count( $ids ) >= 200 );
+			$fetched = count( $ids );
+		} while ( $fetched >= 200 );
 
 		if ( $more ) {
 			if ( function_exists( 'as_schedule_single_action' ) ) {
@@ -1352,7 +1369,8 @@ final class LicenseLifecycle {
 		$now = gmdate( 'Y-m-d H:i:s' );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET status = %s, status_reason = %s, revoked_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s AND IFNULL( paid_until, '' ) = %s",
+				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s AND IFNULL( paid_until, '' ) = %s",
+				$tables['licenses'],
 				$new_status,
 				self::clip( sanitize_textarea_field( $reason ) ),
 				'revoked' === $new_status ? 1 : 0,
@@ -1402,7 +1420,8 @@ final class LicenseLifecycle {
 			// B-190: also the rows a previous suspension left as `suspended`.
 			$wpdb->query(
 				$wpdb->prepare(
-					"UPDATE {$tables['entitlements']} SET status = %s WHERE license_id = %d AND status IN ('active','suspended')",
+					"UPDATE %i SET status = %s WHERE license_id = %d AND status IN ('active','suspended')",
+					$tables['entitlements'],
 					'revoked',
 					$license_id
 				)
@@ -1436,7 +1455,8 @@ final class LicenseLifecycle {
 		$tables = Schema::table_names();
 		$ids = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT id FROM {$tables['licenses']} WHERE source_order_item_id = %d AND status IN ('active','past_due','suspended') ORDER BY unit_index DESC LIMIT %d",
+				"SELECT id FROM %i WHERE source_order_item_id = %d AND status IN ('active','past_due','suspended') ORDER BY unit_index DESC LIMIT %d",
+				$tables['licenses'],
 				$order_item_id,
 				$quantity
 			)
@@ -1456,7 +1476,7 @@ final class LicenseLifecycle {
 
 		$tables = Schema::table_names();
 		$row = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], $license_id ),
 			ARRAY_A
 		);
 
@@ -1502,7 +1522,8 @@ final class LicenseLifecycle {
 		$tables  = Schema::table_names();
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET cancel_at_period_end = 0, status_reason = %s, next_payment_at = IF( renewal_enabled = 1, paid_until, NULL ), updated_at = %s WHERE id = %d AND status = %s AND cancel_at_period_end = 1",
+				"UPDATE %i SET cancel_at_period_end = 0, status_reason = %s, next_payment_at = IF( renewal_enabled = 1, paid_until, NULL ), updated_at = %s WHERE id = %d AND status = %s AND cancel_at_period_end = 1",
+				$tables['licenses'],
 				'',
 				gmdate( 'Y-m-d H:i:s' ),
 				$license_id,

@@ -173,7 +173,7 @@ final class RenewalProcessor {
 
 		$tables = Schema::table_names();
 		$renewal = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['renewals'], $renewal_id ),
 			ARRAY_A
 		);
 		if ( ! is_array( $renewal ) || ! in_array( $renewal['status'], array( 'scheduled', 'failed', 'processing' ), true ) ) {
@@ -193,7 +193,7 @@ final class RenewalProcessor {
 		$grace_over = $grace_end && $now >= $grace_end;
 
 		$license = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", (int) $renewal['license_id'] ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], (int) $renewal['license_id'] ),
 			ARRAY_A
 		);
 		if ( ! is_array( $license ) ) {
@@ -490,7 +490,7 @@ final class RenewalProcessor {
 		$order_id = (int) $order->get_id();
 		$tables = Schema::table_names();
 		// Never trust the row read before the charge: the term may have been changed meanwhile.
-		$current = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ), ARRAY_A );
+		$current = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], $license_id ), ARRAY_A );
 		$current = is_array( $current ) ? $current : $license;
 
 		$old_status = false;
@@ -813,7 +813,7 @@ final class RenewalProcessor {
 		global $wpdb;
 		$tables = Schema::table_names();
 		$event = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$tables['event_inbox']} WHERE id = %d AND source = %s LIMIT 1", $inbox_id, 'stripe' ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE id = %d AND source = %s LIMIT 1", $tables['event_inbox'], $inbox_id, 'stripe' ),
 			ARRAY_A
 		);
 		if ( ! is_array( $event ) || 'pending_reconciliation' !== $event['outcome'] ) {
@@ -867,11 +867,11 @@ final class RenewalProcessor {
 		global $wpdb;
 		$tables = Schema::table_names();
 		$renewal = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", absint( $payload['renewal_id'] ) ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['renewals'], absint( $payload['renewal_id'] ) ),
 			ARRAY_A
 		);
 		$license = is_array( $renewal ) ? $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", (int) $renewal['license_id'] ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], (int) $renewal['license_id'] ),
 			ARRAY_A
 		) : null;
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( absint( $payload['order_id'] ?? 0 ) ) : false;
@@ -978,8 +978,8 @@ final class RenewalProcessor {
 		}
 		try {
 			$tables = Schema::table_names();
-			$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ), ARRAY_A );
-			$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ), ARRAY_A );
+			$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['renewals'], $renewal_id ), ARRAY_A );
+			$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], $license_id ), ARRAY_A );
 			if ( is_array( $renewal ) && in_array( $renewal['status'], array( 'paid', 'refunded' ), true ) && (int) $renewal['renewal_order_id'] === $order_id ) {
 				return;
 			}
@@ -1054,7 +1054,8 @@ final class RenewalProcessor {
 				do {
 					$ids = (array) $wpdb->get_col(
 						$wpdb->prepare(
-							"SELECT id FROM {$tables['renewals']} WHERE id > %d AND status IN (%s, %s) AND retry_at IS NOT NULL AND retry_at <= %s ORDER BY id ASC LIMIT 500",
+							"SELECT id FROM %i WHERE id > %d AND status IN (%s, %s) AND retry_at IS NOT NULL AND retry_at <= %s ORDER BY id ASC LIMIT 500",
+							$tables['renewals'],
 							$cursor,
 							'scheduled',
 							'failed',
@@ -1067,7 +1068,8 @@ final class RenewalProcessor {
 						RenewalScheduler::enqueue( $cursor, time() + 30 + (int) floor( $spread / 50 ) * MINUTE_IN_SECONDS );
 						++$spread;
 					}
-				} while ( count( $ids ) >= 500 && microtime( true ) < $deadline );
+					$fetched = count( $ids );
+				} while ( $fetched >= 500 && microtime( true ) < $deadline );
 			}
 		);
 	}
@@ -1112,7 +1114,8 @@ final class RenewalProcessor {
 							AuditLog::record( 'renewal_schedule_repaired', 'license', $cursor, __( 'The renewal of the next period was missing and has been scheduled', 'wp-license' ) );
 						}
 					}
-				} while ( count( $ids ) >= 200 && microtime( true ) < $deadline );
+					$fetched = count( $ids );
+				} while ( $fetched >= 200 && microtime( true ) < $deadline );
 			}
 		);
 	}
@@ -1143,7 +1146,8 @@ final class RenewalProcessor {
 				do {
 					$rows = (array) $wpdb->get_results(
 						$wpdb->prepare(
-							"SELECT id, renewal_order_id FROM {$tables['renewals']} WHERE id > %d AND renewal_order_id IS NOT NULL AND renewal_order_id > 0 AND status IN (%s, %s, %s, %s) ORDER BY id ASC LIMIT 200",
+							"SELECT id, renewal_order_id FROM %i WHERE id > %d AND renewal_order_id IS NOT NULL AND renewal_order_id > 0 AND status IN (%s, %s, %s, %s) ORDER BY id ASC LIMIT 200",
+							$tables['renewals'],
 							$cursor,
 							'scheduled',
 							'failed',
@@ -1159,7 +1163,8 @@ final class RenewalProcessor {
 							self::reconcile_paid_renewal_order( (int) $order->get_id() );
 						}
 					}
-				} while ( count( $rows ) >= 200 && microtime( true ) < $deadline );
+					$fetched = count( $rows );
+				} while ( $fetched >= 200 && microtime( true ) < $deadline );
 			}
 		);
 	}
@@ -1181,7 +1186,8 @@ final class RenewalProcessor {
 				$tables = Schema::table_names();
 				$ids = (array) $wpdb->get_col(
 					$wpdb->prepare(
-						"SELECT id FROM {$tables['event_inbox']} WHERE source = %s AND outcome = %s AND processed_at IS NULL AND received_at <= %s ORDER BY id ASC LIMIT 200",
+						"SELECT id FROM %i WHERE source = %s AND outcome = %s AND processed_at IS NULL AND received_at <= %s ORDER BY id ASC LIMIT 200",
+						$tables['event_inbox'],
 						'stripe',
 						'pending_reconciliation',
 						gmdate( 'Y-m-d H:i:s', time() - self::STUCK_AFTER_SECONDS )
@@ -1237,7 +1243,7 @@ final class RenewalProcessor {
 						continue;
 					}
 					try {
-						$status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$tables['renewals']} WHERE id = %d", $renewal_id ) );
+						$status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM %i WHERE id = %d", $tables['renewals'], $renewal_id ) );
 						if ( $status === (string) $row['status'] ) {
 							self::close_renewal( $row, 'cancelled', 'manual' === $status ? 'renewal_window_ended' : 'renewal_obsolete' );
 						}
@@ -1266,7 +1272,8 @@ final class RenewalProcessor {
 				$tables = Schema::table_names();
 				$ids = (array) $wpdb->get_col(
 					$wpdb->prepare(
-						"SELECT id FROM {$tables['renewals']} WHERE status = %s AND updated_at <= %s ORDER BY id ASC LIMIT 200",
+						"SELECT id FROM %i WHERE status = %s AND updated_at <= %s ORDER BY id ASC LIMIT 200",
+						$tables['renewals'],
 						'processing',
 						gmdate( 'Y-m-d H:i:s', time() - self::STUCK_AFTER_SECONDS )
 					)
@@ -1303,7 +1310,7 @@ final class RenewalProcessor {
 		}
 		try {
 			$tables = Schema::table_names();
-			$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ), ARRAY_A );
+			$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['renewals'], $renewal_id ), ARRAY_A );
 			if (
 				! is_array( $renewal )
 				|| 'processing' !== $renewal['status']
@@ -1311,7 +1318,7 @@ final class RenewalProcessor {
 			) {
 				return;
 			}
-			$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", (int) $renewal['license_id'] ), ARRAY_A );
+			$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], (int) $renewal['license_id'] ), ARRAY_A );
 			if ( ! is_array( $license ) ) {
 				self::close_renewal( $renewal, 'cancelled', 'license_missing' );
 				return;

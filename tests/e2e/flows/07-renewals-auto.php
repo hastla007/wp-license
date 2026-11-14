@@ -141,8 +141,11 @@ e2e_ok( false !== strpos( $account['body'], 'Complete renewal payment' ) && fals
 e2e_login( 0 );
 
 // Retries 2, 3, 4.
-$expected_retries = array( 2 => $utc( $start + 3 * DAY_IN_SECONDS ), 3 => $utc( $start + 7 * DAY_IN_SECONDS ), 4 => null );
+// After the last retry the renewal waits for the end of grace with a date (B-190), without a queued charge job.
+$expected_retries = array( 2 => $utc( $start + 3 * DAY_IN_SECONDS ), 3 => $utc( $start + 7 * DAY_IN_SECONDS ), 4 => $utc( $start + \WPLC\License\LicenseLifecycle::GRACE_DAYS * DAY_IN_SECONDS ) );
 foreach ( $expected_retries as $attempt => $retry_at ) {
+	// B-188: a job that runs before retry_at does not charge, so the retry is made due first.
+	$wpdb->update( $t['renewals'], array( 'retry_at' => $utc( time() - 5 ) ), array( 'id' => $renewal_id ) );
 	$ran     = e2e_run_action( 'wplc_process_renewal', array( $renewal_id ) );
 	$renewal = e2e_renewal( $renewal_id );
 	e2e_ok( $ran && (string) $attempt === $renewal['attempt_count'] && 'failed' === $renewal['status'] && $retry_at === $renewal['retry_at'], "[job run early] attempt {$attempt}: failed again, next retry " . ( $retry_at ? $retry_at : 'none' ), array( $ran, $renewal['attempt_count'], $renewal['status'], $renewal['retry_at'] ) );
@@ -277,6 +280,8 @@ e2e_run_action( 'wplc_process_renewal', array( $renewal_id_m ) );
 $unknown = e2e_renewal( $renewal_id_m );
 e2e_ok( 'failed' === $unknown['status'] && '0' === $unknown['attempt_count'] && abs( strtotime( $unknown['retry_at'] . ' UTC' ) - ( time() + HOUR_IN_SECONDS ) ) < 120, 'unknown outcome (timeout): attempt not counted, retry within the hour', $unknown );
 e2e_ok( 'failed' !== wc_get_order( (int) $unknown['renewal_order_id'] )->get_status(), 'unknown outcome: the order is not marked failed', wc_get_order( (int) $unknown['renewal_order_id'] )->get_status() );
+// B-188: make the repeat due; a job that runs before retry_at does not charge.
+$wpdb->update( $t['renewals'], array( 'retry_at' => $utc( time() - 5 ) ), array( 'id' => $renewal_id_m ) );
 e2e_run_action( 'wplc_process_renewal', array( $renewal_id_m ) );
 $keys = array_column( e2e_charges(), 'key' );
 e2e_ok( 2 === count( $keys ) && $keys[0] === $keys[1], 'the repeated attempt sends the same idempotency key', $keys );

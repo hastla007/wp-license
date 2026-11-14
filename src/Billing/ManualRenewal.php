@@ -54,7 +54,8 @@ final class ManualRenewal {
 		$tables = Schema::table_names();
 		$status = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT status FROM {$tables['renewals']} WHERE idempotency_key = %s LIMIT 1",
+				"SELECT status FROM %i WHERE idempotency_key = %s LIMIT 1",
+				$tables['renewals'],
 				RenewalScheduler::idempotency_key( (int) $license_row['id'], (string) $license_row['paid_until'] )
 			)
 		);
@@ -86,23 +87,24 @@ final class ManualRenewal {
 	/**
 	 * New paid-through date of a manual renewal.
 	 *
-	 * B-185: one rule for every way of paying. While the payment arrives before
-	 * the end of the grace period (paid_until + LicenseLifecycle::GRACE_DAYS) the
-	 * new period continues from the old due date, exactly like an automatic
-	 * renewal: the customer had access during those days, so paying late gifts
-	 * none. Only a payment after the grace period (expired license inside the
-	 * manual renewal window) starts the period at the payment time, because the
-	 * gap without access is not billed.
+	 * B-185: one rule for every way of paying. While the license has not expired
+	 * and the payment arrives before the end of the grace period (paid_until +
+	 * LicenseLifecycle::GRACE_DAYS) the new period continues from the old due
+	 * date, exactly like an automatic renewal: the customer had access during
+	 * those days, so paying late gifts none. A payment for an expired license,
+	 * or after the grace period, starts the period at the payment time, because
+	 * the gap without access is not billed.
 	 *
 	 * @param string $paid_until Current paid_until ('Y-m-d H:i:s' UTC), may be empty.
 	 * @param string $interval Billing interval.
 	 * @param int    $paid_at Unix timestamp of the payment.
 	 * @param int    $anchor_day Billing day of month (RenewalScheduler::anchor_day()), zero for none.
+	 * @param bool   $expired Whether the license had already expired when it was paid.
 	 * @return string 'Y-m-d H:i:s' UTC.
 	 */
-	public static function next_paid_until( string $paid_until, string $interval, int $paid_at, int $anchor_day = 0 ): string {
+	public static function next_paid_until( string $paid_until, string $interval, int $paid_at, int $anchor_day = 0, bool $expired = false ): string {
 		$current = '' === $paid_until ? 0 : (int) strtotime( $paid_until . ' UTC' );
-		$from = $current && $paid_at <= $current + LicenseLifecycle::GRACE_DAYS * 86400 ? $current : max( $current, $paid_at );
+		$from = $current && ! $expired && $paid_at <= $current + LicenseLifecycle::GRACE_DAYS * 86400 ? $current : max( $current, $paid_at );
 
 		return gmdate( 'Y-m-d H:i:s', RenewalScheduler::period_end( $from, $interval, $anchor_day ) );
 	}
@@ -154,7 +156,7 @@ final class ManualRenewal {
 
 		$not_available = new \WP_Error( 'manual_renewal_unavailable', __( 'This license cannot be renewed at the moment.', 'wp-license' ) );
 		$tables = Schema::table_names();
-		$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ), ARRAY_A );
+		$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], $license_id ), ARRAY_A );
 		// Same answer for a foreign and a missing license.
 		if ( ! is_array( $license ) || ! $customer_id || (int) $license['customer_id'] !== $customer_id || ! self::in_window( $license, time() ) ) {
 			return $not_available;
@@ -170,8 +172,8 @@ final class ManualRenewal {
 		}
 		try {
 			// Re-read under the lock: an automatic charge may just have finished.
-			$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ), ARRAY_A );
-			$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ), ARRAY_A );
+			$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], $license_id ), ARRAY_A );
+			$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['renewals'], $renewal_id ), ARRAY_A );
 			if (
 				! is_array( $license )
 				|| ! is_array( $renewal )
@@ -243,14 +245,19 @@ final class ManualRenewal {
 		$paid_until = empty( $license['paid_until'] ) ? 0 : (int) strtotime( (string) $license['paid_until'] . ' UTC' );
 
 		$anchor_day = RenewalScheduler::anchor_day( $license );
-		$new_paid_until = self::next_paid_until( (string) $renewal['period_start'], (string) $license['billing_interval'], $paid_at, $anchor_day );
+		$new_paid_until = self::next_paid_until( (string) $renewal['period_start'], (string) $license['billing_interval'], $paid_at, $anchor_day, 'expired' === $license['status'] );
 		$tables = Schema::table_names();
 		$now = gmdate( 'Y-m-d H:i:s' );
 
 		// B-32: an earlier run extended the license and stopped before the renewal was marked paid.
+		// The license is active by now, so both possible results of that run are compared.
+		$from_payment = self::next_paid_until( (string) $renewal['period_start'], (string) $license['billing_interval'], $paid_at, $anchor_day, true );
 		$already_applied = (string) $renewal['period_start'] !== (string) $license['paid_until']
-			&& (string) $license['paid_until'] === $new_paid_until
+			&& in_array( (string) $license['paid_until'], array( $new_paid_until, $from_payment ), true )
 			&& 'active' === $license['status'];
+		if ( $already_applied ) {
+			$new_paid_until = (string) $license['paid_until'];
+		}
 
 		$old_status = (string) $license['status'];
 		if ( ! $already_applied ) {
@@ -278,7 +285,8 @@ final class ManualRenewal {
 
 		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['renewals']} SET status = %s, period_end = %s, renewal_order_id = %d, retry_at = NULL, last_error = %s, updated_at = %s WHERE id = %d AND status <> %s",
+				"UPDATE %i SET status = %s, period_end = %s, renewal_order_id = %d, retry_at = NULL, last_error = %s, updated_at = %s WHERE id = %d AND status <> %s",
+				$tables['renewals'],
 				'paid',
 				$new_paid_until,
 				$order_id,
