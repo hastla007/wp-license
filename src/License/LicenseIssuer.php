@@ -239,6 +239,14 @@ final class LicenseIssuer {
 		$key_id = LicenseKey::current_key_id();
 		$key    = LicenseKey::for_uuid( $uuid, $key_id );
 		if ( '' === $key_id || '' === $key ) {
+			// WPLC_LICENSE_KEY_ID names no entry of WPLC_LICENSE_KEY_SECRETS (typo during a key rotation): no
+			// license can be issued until wp-config.php is fixed. Say so instead of failing silently.
+			if ( function_exists( 'wc_get_logger' ) ) {
+				wc_get_logger()->error(
+					sprintf( 'License not issued: the current license key ID "%s" (WPLC_LICENSE_KEY_ID) has no secret in WPLC_LICENSE_KEY_SECRETS.', $key_id ),
+					array( 'source' => 'wp-license' )
+				);
+			}
 			return null;
 		}
 

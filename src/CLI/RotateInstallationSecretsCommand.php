@@ -9,6 +9,7 @@ namespace WPLC\CLI;
 
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
+use WPLC\Security\ResponseSigner;
 use WPLC\Security\SecretCrypto;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -31,9 +32,10 @@ final class RotateInstallationSecretsCommand {
 	}
 
 	/**
-	 * Rotate activation secrets to the configured current key.
+	 * Rotate activation secrets and the stored response signing keys to the configured current key.
 	 *
-	 * By default this command reports what would change. Pass --apply to write.
+	 * By default this command reports what would change. Pass --apply to write. The stored response signing key
+	 * (and a prepared next key) are checked on every run, also with --after-id.
 	 * Use --after-id to resume from a recorded activation ID.
 	 *
 	 * ## OPTIONS
@@ -147,9 +149,51 @@ final class RotateInstallationSecretsCommand {
 		}
 
 		\WP_CLI::log( sprintf( 'Mode: %s', $apply ? 'apply' : 'dry-run' ) );
-		\WP_CLI::log( sprintf( 'Inspected: %d; needing rotation: %d; already current: %d; changed concurrently: %d; failed: %d; last ID: %d', $inspected, $rotated, $already_current, $stale_rows, $failed, $last_id ) );
+		\WP_CLI::log( sprintf( 'Inspected: %d; %s: %d; already current: %d; changed concurrently: %d; failed: %d; last ID: %d', $inspected, $apply ? 'rotated' : 'needing rotation', $rotated, $already_current, $stale_rows, $failed, $last_id ) );
 		if ( $failed > 0 ) {
 			\WP_CLI::warning( 'Some rows need manual investigation. No failed row was modified.' );
 		}
+
+		// The stored response signing keys are encrypted with the same key ring. Without this step an old
+		// encryption key looked unused after the activations were done, and removing it silently disabled the
+		// Ed25519 response signature, so every client that pins the public key rejected the server.
+		$signing_failed = false;
+		foreach ( array( ResponseSigner::OPTION => 'Response signing key', ResponseSigner::NEXT_OPTION => 'Prepared next signing key' ) as $option => $label ) {
+			$status = ResponseSigner::reencrypt_option( $option, $apply );
+			if ( 'rotated' === $status ) {
+				AuditLog::record(
+					'response_signing_key_reencrypted',
+					'system',
+					0,
+					\WPLC\License\AuditReason::INSTALLATION_SECRET_ROTATED,
+					array( 'option' => $option, 'envelope_version' => 'legacy_or_previous' ),
+					array( 'option' => $option, 'envelope_version' => 'v1_current' )
+				);
+			}
+			$signing_failed = $signing_failed || 'undecryptable' === $status;
+			if ( 'empty' !== $status || ResponseSigner::OPTION === $option ) {
+				\WP_CLI::log( sprintf( '%s: %s', $label, self::status_text( $status ) ) );
+			}
+		}
+		if ( $signing_failed ) {
+			\WP_CLI::warning( 'A stored response signing key cannot be decrypted with the configured key ring. Put the previous encryption key back into WPLC_INSTALLATION_ENCRYPTION_KEYS; until then responses carry no Ed25519 signature and clients that pin the public key reject them.' );
+		}
+	}
+
+	/**
+	 * Human-readable status of ResponseSigner::reencrypt_option().
+	 *
+	 * @param string $status Status.
+	 */
+	private static function status_text( string $status ): string {
+		$texts = array(
+			'constant'      => 'from WPLC_RESPONSE_SIGNING_KEY, nothing stored',
+			'empty'         => 'not stored yet',
+			'current'       => 'already current',
+			'rotate'        => 'needs rotation',
+			'rotated'       => 'rotated',
+			'undecryptable' => 'CANNOT BE DECRYPTED',
+		);
+		return $texts[ $status ] ?? $status;
 	}
 }
