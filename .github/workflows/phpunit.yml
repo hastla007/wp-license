@@ -48,7 +48,7 @@ jobs:
         run: php -d disable_functions=idn_to_ascii vendor/bin/phpunit --filter SiteUrl
 
   integration:
-    name: integration (WP ${{ matrix.wp }}, WC ${{ matrix.wc }}, PHP ${{ matrix.php }}, ${{ matrix.hpos == '1' && 'HPOS' || 'legacy orders' }})
+    name: integration (WP ${{ matrix.wp }}, WC ${{ matrix.wc }}, PHP ${{ matrix.php }}, ${{ matrix.hpos == '1' && 'HPOS' || 'legacy orders' }}${{ matrix.multisite == '1' && ', multisite' || '' }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -60,6 +60,8 @@ jobs:
           # Current: latest WordPress, pinned recent WooCommerce (keep in sync with bin/install-test-env.sh).
           - { wp: "latest", wc: "11.2.2", php: "8.3", hpos: "1" }
           - { wp: "latest", wc: "11.2.2", php: "8.3", hpos: "0" }
+          # Multisite network (docs/MULTISITE.md); the WordPress test library reads WP_MULTISITE.
+          - { wp: "latest", wc: "11.2.2", php: "8.3", hpos: "1", multisite: "1" }
     services:
       mysql:
         image: mysql:8.0
@@ -77,6 +79,7 @@ jobs:
       WP_TESTS_DIR: /tmp/wordpress-tests-lib
       WP_CORE_DIR: /tmp/wordpress
       WPLC_TEST_HPOS: ${{ matrix.hpos }}
+      WP_MULTISITE: ${{ matrix.multisite || '0' }}
       WPLC_EXPECT_WP_VERSION: ${{ matrix.wp }}
       WPLC_EXPECT_WC_VERSION: ${{ matrix.wc }}
     steps:

@@ -12,7 +12,7 @@ No `composer.lock` is committed: the dependencies are development tools only and
 | PHP syntax | `phpunit.yml` / `unit (X)` | yes | Every PHP file parses on PHP 7.4, 8.1, 8.2 and 8.3 |
 | Unit tests | `phpunit.yml` / `unit (X)` | yes | Pure logic without WordPress, on PHP 7.4, 8.1, 8.2 and 8.3 |
 | Site URL rules without intl | `phpunit.yml` / `unit (X)` | yes | `SiteUrl::normalize()` behaves as documented when `idn_to_ascii()` is unavailable |
-| Integration tests | `phpunit.yml` / `integration (…)` (4 cells), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
+| Integration tests | `phpunit.yml` / `integration (…)` (5 cells), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
 | PHPCS security + compatibility | `quality.yml` / `phpcs` | yes (new findings) | Escaping, nonces, input sanitization, prepared SQL, PHP 7.4 compatibility |
 | PHPCS coding standard | `quality.yml` / `phpcs` | no (report only) | WordPress-Extra and WordPress-Docs style |
 | PHPStan level 5 | `quality.yml` / `phpstan` | yes (new errors) | Undefined methods/variables, wrong argument counts and types in `src/` and `wp-license.php` |
@@ -65,6 +65,7 @@ Environment variables:
 | `WP_CORE_DIR` | `/tmp/wordpress` | WordPress core; WooCommerce is expected in `wp-content/plugins/woocommerce` |
 | `WPLC_WC_DIR` | derived from `WP_CORE_DIR` | Another WooCommerce directory (must be a release build with `vendor/`) |
 | `WPLC_TEST_HPOS` | `1` | `1` = HPOS, `0` = legacy order storage |
+| `WP_MULTISITE` | `0` | `1` installs WordPress as a multisite network (read by the WordPress test library); `MultisiteIntegrationTest.php` only runs then |
 | `WPLC_EXPECT_WP_VERSION`, `WPLC_EXPECT_WC_VERSION` | unset | When set, the environment test asserts these versions |
 
 What the suites cover:
@@ -73,6 +74,7 @@ What the suites cover:
 |---|---|
 | `00EnvironmentIntegrationTest.php` | Plugin booted behind WooCommerce, order storage mode, permanent tables |
 | `00SchemaMigrationIntegrationTest.php` | Schema creation and repeatability |
+| `MultisiteIntegrationTest.php` | Network only (`WP_MULTISITE=1`): tables, schema version, licenses, REST answers, lock names and cron events per site; network/site activation and deactivation, site deletion, uninstall (docs/MULTISITE.md) |
 | `OrderLicenseIssuanceIntegrationTest.php` | T-81: paid order → one license per unit, duplicate hooks, unmapped products, variations, guest orders, renewal orders |
 | `OrderRefundIntegrationTest.php` | T-81: partial refunds by quantity, full refunds with and without line items, amount-only refunds |
 | `AuthorizationIntegrationTest.php` | T-23: foreign customer, missing/invalid nonce and missing capability for every `admin_post_wplc_*` handler |
