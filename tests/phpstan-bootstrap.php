@@ -19,4 +19,5 @@ define( 'WPLC_LICENSE_KEY_ID', '' );
 define( 'WPLC_LICENSE_KEY_SECRET', '' );
 define( 'WPLC_LICENSE_KEY_SECRETS', array() );
 define( 'WPLC_STRIPE_WEBHOOK_SECRET', '' );
+define( 'WPLC_RESPONSE_SIGNING_KEY', '' );
 define( 'WP_CLI', false );
