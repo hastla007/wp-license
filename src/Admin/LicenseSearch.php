@@ -75,16 +75,14 @@ final class LicenseSearch {
 	 * Remove everything a mail client or word processor may have put into a pasted key:
 	 * whitespace, non-breaking and zero-width spaces, and typographic dashes (B-173).
 	 *
+	 * One rule for the admin search, the API and the customer account:
+	 * LicenseKey::normalize().
+	 *
 	 * @param string $term Pasted text.
-	 * @return string
+	 * @return string Upper-case key characters and hyphens only.
 	 */
 	public static function compact_key( string $term ): string {
-		// U+2010..U+2015 hyphens and dashes, U+2212 minus, U+00AD soft hyphen is dropped below.
-		$dashes  = array( "\xE2\x80\x90", "\xE2\x80\x91", "\xE2\x80\x92", "\xE2\x80\x93", "\xE2\x80\x94", "\xE2\x80\x95", "\xE2\x88\x92" );
-		$compact = str_replace( $dashes, '-', $term );
-		$compact = preg_replace( '/[^A-Za-z0-9-]+/', '', $compact );
-
-		return is_string( $compact ) ? $compact : $term;
+		return \WPLC\License\LicenseKey::normalize( $term );
 	}
 
 	/**

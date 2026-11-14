@@ -116,7 +116,7 @@ final class LicenseLifecycle {
 	 * Machine-readable reason of the last refused administrator action.
 	 *
 	 * One of '', 'invalid_input', 'not_allowed', 'renewal_in_progress',
-	 * 'term_changed', 'term_ended', 'update_failed'.
+	 * 'term_changed', 'status_changed', 'term_ended', 'update_failed'.
 	 *
 	 * @return string
 	 */
@@ -855,18 +855,30 @@ final class LicenseLifecycle {
 	}
 
 	/**
-	 * Take back a revocation (B-47), e.g. after an order was set to "refunded" by mistake.
+	 * Bring a revoked or suspended license back (B-47, A-51).
 	 *
-	 * The caller must check a capability of its own; this is stronger than a
-	 * normal status change. Automatic renewal stays off.
+	 * The one implementation of "restore": the way back from a revocation (for
+	 * example an order set to "refunded" by mistake) and from "suspended and the
+	 * period has ended". Used by the admin screen through SupportActions::restore().
+	 *
+	 * The caller must check a capability of its own; undoing a revocation is
+	 * stronger than a normal status change. Automatic renewal of a restored
+	 * revoked license stays off; a suspended license keeps its renewal setting
+	 * and gets the renewal of the new period scheduled.
+	 *
+	 * Refused (false, see last_refusal()) without a reason or actor, when the
+	 * status is not the expected one (`status_changed`, a stale form), while an
+	 * automatic charge is in flight (`renewal_in_progress`) and when the term
+	 * would end in the past (`term_ended`).
 	 *
 	 * @param int         $license_id License ID.
 	 * @param string      $reason Required reason.
 	 * @param int         $actor_user_id Administrator user ID.
 	 * @param string|null $paid_until_utc New paid-through date ('Y-m-d H:i:s' UTC); null keeps the stored one.
+	 * @param string|null $expected_status Status the administrator saw (`revoked` or `suspended`); null accepts both.
 	 * @return bool
 	 */
-	public static function admin_restore( int $license_id, string $reason, int $actor_user_id, ?string $paid_until_utc = null ): bool {
+	public static function admin_restore( int $license_id, string $reason, int $actor_user_id, ?string $paid_until_utc = null, ?string $expected_status = null ): bool {
 		global $wpdb;
 
 		self::$last_refusal = '';
@@ -875,7 +887,16 @@ final class LicenseLifecycle {
 			self::$last_refusal = 'invalid_input';
 			return false;
 		}
-		if ( ! $license || ! LicenseStateMachine::allows( (string) $license['status'], 'active', 'admin_restore' ) ) {
+		if ( ! $license ) {
+			self::$last_refusal = 'not_allowed';
+			return false;
+		}
+		$old_status = (string) $license['status'];
+		if ( null !== $expected_status && $old_status !== $expected_status ) {
+			self::$last_refusal = 'status_changed';
+			return false;
+		}
+		if ( ! LicenseStateMachine::allows( $old_status, 'active', 'admin_restore' ) ) {
 			self::$last_refusal = 'not_allowed';
 			return false;
 		}
@@ -884,44 +905,61 @@ final class LicenseLifecycle {
 			self::$last_refusal = 'term_ended';
 			return false;
 		}
+		if ( self::renewal_in_progress( $license_id ) ) {
+			self::$last_refusal = 'renewal_in_progress';
+			return false;
+		}
 
 		$tables = Schema::table_names();
 		$now = gmdate( 'Y-m-d H:i:s' );
+		// A revocation ends the automatic renewal for good; a suspension only pauses the license.
+		$renews = 'suspended' === $old_status && ! empty( $license['renewal_enabled'] ) && empty( $license['cancel_at_period_end'] );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = NULL, paid_until = %s, next_payment_at = NULL, updated_at = %s WHERE id = %d AND status = %s",
+				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = NULL, paid_until = %s, renewal_enabled = IF( %d = 1, renewal_enabled, 0 ), next_payment_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s",
 				$tables['licenses'],
 				'active',
 				'',
 				$paid_until,
+				'suspended' === $old_status ? 1 : 0,
+				$renews ? 1 : 0,
+				$paid_until,
 				$now,
 				$license_id,
-				'revoked'
+				$old_status
 			)
 		);
 		if ( 1 !== (int) $updated ) {
-			self::$last_refusal = 'update_failed';
+			self::$last_refusal = 'status_changed';
 			return false;
 		}
-		$wpdb->query(
-			$wpdb->prepare(
-				"UPDATE %i SET status = %s, ends_at = %s WHERE license_id = %d AND status IN ('revoked','suspended','active')",
-				$tables['entitlements'],
-				'active',
-				$paid_until,
-				$license_id
-			)
+		$wpdb->update(
+			$tables['entitlements'],
+			array( 'status' => 'active', 'ends_at' => $paid_until ),
+			array( 'license_id' => $license_id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+		// Open renewals belong to the old period; the scheduler creates the row for the new one.
+		self::cancel_open_renewals(
+			$license_id,
+			false,
+			'license_restored',
+			__( 'WP License Captain: an administrator restored the license with a new term; this renewal order is no longer needed.', 'wp-license' )
 		);
 		AuditLog::record(
 			'admin_restore',
 			'license',
 			$license_id,
 			$reason,
-			array( 'status' => 'revoked', 'paid_until' => $license['paid_until'] ),
+			array( 'status' => $old_status, 'paid_until' => $license['paid_until'] ),
 			array( 'status' => 'active', 'paid_until' => $paid_until ),
 			$actor_user_id
 		);
-		self::fire_status_changed( $license_id, 'revoked', 'active', 'admin_restore' );
+		if ( $renews && class_exists( '\\WPLC\\Billing\\RenewalScheduler' ) ) {
+			\WPLC\Billing\RenewalScheduler::schedule_next( $license_id );
+		}
+		self::fire_status_changed( $license_id, $old_status, 'active', 'admin_restore' );
 
 		return true;
 	}

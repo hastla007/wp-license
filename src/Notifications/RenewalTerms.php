@@ -79,6 +79,71 @@ final class RenewalTerms {
 	}
 
 	/**
+	 * Renewal amount of a catalog plan as the shop displays prices in cart and checkout.
+	 *
+	 * For the product page, the cart and the consent text, where no license exists
+	 * yet: the plan's regular price for the product that is bought, including or
+	 * excluding tax by the shop setting "display prices during cart and checkout".
+	 *
+	 * @param array<string,mixed> $mapping Plan row (price_minor, price_decimals, currency).
+	 * @param mixed               $product WC_Product that is bought, for the tax class.
+	 * @return array{minor:int,tax_minor:int,decimals:int,currency:string,includes_tax:bool,tax_label:string}
+	 */
+	public static function plan_amount( array $mapping, $product ): array {
+		$decimals = max( 0, min( 6, (int) ( $mapping['price_decimals'] ?? 2 ) ) );
+		$minor    = max( 0, (int) ( $mapping['price_minor'] ?? 0 ) );
+		$result   = array(
+			'minor'        => $minor,
+			'tax_minor'    => 0,
+			'decimals'     => $decimals,
+			'currency'     => (string) ( $mapping['currency'] ?? '' ),
+			'includes_tax' => false,
+			'tax_label'    => '',
+		);
+		if ( ! is_object( $product ) || ! function_exists( 'wc_tax_enabled' ) || ! wc_tax_enabled() ) {
+			return $result;
+		}
+
+		$catalog   = (float) Money::to_decimal( $minor, $decimals );
+		// The shop setting for cart and checkout; it also holds where no cart exists (emails, admin).
+		$including = 'incl' === get_option( 'woocommerce_tax_display_cart' );
+		$amount    = (float) ( $including
+			? wc_get_price_including_tax( $product, array( 'price' => $catalog ) )
+			: wc_get_price_excluding_tax( $product, array( 'price' => $catalog ) ) );
+		$shown     = Money::to_minor_units( number_format( $amount, $decimals, '.', '' ), $decimals );
+		if ( false !== $shown ) {
+			$result['minor'] = (int) $shown;
+		}
+		$result['includes_tax'] = $including;
+		$result['tax_label']    = trim( (string) ( $including ? WC()->countries->inc_tax_or_vat() : WC()->countries->ex_tax_or_vat() ) );
+
+		return $result;
+	}
+
+	/**
+	 * "59,00 € per year (incl. VAT)": an amount of plan_amount() or gross() with its interval.
+	 *
+	 * @param array<string,mixed> $amount   Result of plan_amount() or gross().
+	 * @param string              $interval Billing interval (`month`, anything else is a year).
+	 * @return string
+	 */
+	public static function per_interval_text( array $amount, string $interval ): string {
+		$price = Placeholders::plain( self::price_html( $amount ) );
+		if ( '' === $price && function_exists( 'wc_price' ) ) {
+			// A free plan is still named with its price.
+			$price = Placeholders::plain( (string) wc_price( 0, array( 'currency' => (string) ( $amount['currency'] ?? '' ) ) ) );
+		}
+		$text = 'month' === $interval
+			/* translators: %s: price, for example "9,90 €". */
+			? sprintf( __( '%s per month', 'wp-license' ), $price )
+			/* translators: %s: price, for example "59,00 €". */
+			: sprintf( __( '%s per year', 'wp-license' ), $price );
+		$label = trim( (string) ( $amount['tax_label'] ?? '' ) );
+
+		return '' === $label ? $text : $text . ' ' . $label;
+	}
+
+	/**
 	 * Let integrations (VAT exemption, external tax services) correct the estimate.
 	 *
 	 * @param array<string,mixed> $result  Calculated amount.

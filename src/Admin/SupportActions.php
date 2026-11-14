@@ -7,7 +7,6 @@
 
 namespace WPLC\Admin;
 
-use WPLC\Billing\RenewalScheduler;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\ActivationManager;
 use WPLC\License\AuditLog;
@@ -301,7 +300,13 @@ final class SupportActions {
 			return self::RESULT_PROCESSING;
 		}
 
-		return LicenseLifecycle::admin_extend( $license_id, $paid_until_utc, $reason, $actor_user_id ) ? self::RESULT_OK : self::RESULT_FAILED;
+		// B-133: the lifecycle repeats the check inside its conditional update (5th argument),
+		// so two administrators cannot both change the term they saw.
+		if ( LicenseLifecycle::admin_extend( $license_id, $paid_until_utc, $reason, $actor_user_id, $expected_paid_until ) ) {
+			return self::RESULT_OK;
+		}
+
+		return self::result_for_refusal( LicenseLifecycle::last_refusal() );
 	}
 
 	/**
@@ -359,85 +364,32 @@ final class SupportActions {
 	 * @return string One of the RESULT_* constants.
 	 */
 	public static function restore( int $license_id, string $paid_until_utc, string $expected_status, string $reason, int $actor_user_id ): string {
-		global $wpdb;
-
 		$reason = self::limit_reason( $reason );
 		if ( '' === $reason || ! in_array( $expected_status, array( 'suspended', 'revoked' ), true ) || ! self::valid_utc_datetime( $paid_until_utc ) || $paid_until_utc <= gmdate( 'Y-m-d H:i:s' ) ) {
 			return self::RESULT_FAILED;
 		}
-		$license = self::license( $license_id );
-		if ( ! $license ) {
-			return self::RESULT_FAILED;
+
+		// One implementation: LicenseLifecycle::admin_restore() (compare-and-set on the status the
+		// administrator saw, open renewals of the old period cancelled, audit entry, status event).
+		if ( LicenseLifecycle::admin_restore( $license_id, $reason, $actor_user_id, $paid_until_utc, $expected_status ) ) {
+			return self::RESULT_OK;
 		}
-		if ( (string) $license['status'] !== $expected_status ) {
-			return self::RESULT_STALE;
-		}
-		if ( self::has_processing_renewal( $license_id ) ) {
+
+		return self::result_for_refusal( LicenseLifecycle::last_refusal() );
+	}
+
+	/**
+	 * Map the reason a lifecycle action was refused to a RESULT_* constant.
+	 *
+	 * @param string $refusal LicenseLifecycle::last_refusal().
+	 * @return string
+	 */
+	private static function result_for_refusal( string $refusal ): string {
+		if ( 'renewal_in_progress' === $refusal ) {
 			return self::RESULT_PROCESSING;
 		}
 
-		$tables  = Schema::table_names();
-		$now     = gmdate( 'Y-m-d H:i:s' );
-		$updated = $wpdb->query(
-			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET status = %s, status_reason = %s, revoked_at = NULL, paid_until = %s, next_payment_at = IF( renewal_enabled = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s",
-				'active',
-				'',
-				$paid_until_utc,
-				$paid_until_utc,
-				$now,
-				$license_id,
-				$expected_status
-			)
-		);
-		if ( 1 !== (int) $updated ) {
-			return self::RESULT_STALE;
-		}
-
-		$wpdb->update(
-			$tables['entitlements'],
-			array(
-				'status'  => 'active',
-				'ends_at' => $paid_until_utc,
-			),
-			array( 'license_id' => $license_id ),
-			array( '%s', '%s' ),
-			array( '%d' )
-		);
-		// Open renewals belong to the old period; the scheduler creates the row for the new one.
-		$wpdb->query(
-			$wpdb->prepare(
-				"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, updated_at = %s WHERE license_id = %d AND status IN ('scheduled','failed','manual_action_required')",
-				'cancelled',
-				$now,
-				$license_id
-			)
-		);
-
-		AuditLog::record(
-			'admin_restore',
-			'license',
-			$license_id,
-			$reason,
-			array(
-				'status'     => $expected_status,
-				'paid_until' => $license['paid_until'],
-			),
-			array(
-				'status'     => 'active',
-				'paid_until' => $paid_until_utc,
-			),
-			$actor_user_id
-		);
-
-		if ( ! empty( $license['renewal_enabled'] ) ) {
-			RenewalScheduler::schedule_next( $license_id );
-		}
-
-		/** This action is documented in src/License/LicenseLifecycle.php */
-		do_action( 'wplc/license_status_changed', $license_id, $expected_status, 'active', 'admin_restore' );
-
-		return self::RESULT_OK;
+		return in_array( $refusal, array( 'term_changed', 'status_changed' ), true ) ? self::RESULT_STALE : self::RESULT_FAILED;
 	}
 
 	/**

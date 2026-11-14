@@ -42,7 +42,7 @@ final class CatalogCsv {
 	 * @return void
 	 */
 	public static function register_hooks(): void {
-		add_action( 'admin_menu', array( self::class, 'register_menu' ) );
+		add_action( 'admin_menu', array( self::class, 'register_menu' ), 15 );
 		add_action( 'admin_post_wplc_export_catalog_csv', array( self::class, 'export' ) );
 		add_action( 'admin_post_wplc_import_catalog_csv', array( self::class, 'import' ) );
 	}
@@ -53,8 +53,7 @@ final class CatalogCsv {
 	 * @return string
 	 */
 	private static function capability(): string {
-		/** This filter is documented in src/Catalog/ProductEditor.php */
-		return (string) apply_filters( 'wplc_capability', 'manage_woocommerce', 'manage_catalog' );
+		return Capabilities::cap( 'manage_catalog' );
 	}
 
 	/**
@@ -64,13 +63,14 @@ final class CatalogCsv {
 	 */
 	public static function register_menu(): void {
 		add_submenu_page(
-			'woocommerce',
+			Capabilities::menu_parent(),
 			__( 'License catalog CSV', 'wp-license' ),
 			__( 'License catalog CSV', 'wp-license' ),
 			self::capability(),
 			'wplc-catalog-csv',
 			array( self::class, 'render' )
 		);
+		LicenseAdmin::connect_page( 'wplc-catalog-csv', __( 'License catalog CSV', 'wp-license' ) );
 	}
 
 	/**

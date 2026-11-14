@@ -69,15 +69,8 @@ final class ProductEditor {
 	 * @return bool
 	 */
 	private static function can_manage_catalog(): bool {
-		/**
-		 * Filters the capability needed for an area of WP License Captain.
-		 *
-		 * @since 0.2.0
-		 *
-		 * @param string $capability Default capability.
-		 * @param string $area       Area, here `manage_catalog`.
-		 */
-		return current_user_can( (string) apply_filters( 'wplc_capability', 'manage_woocommerce', 'manage_catalog' ) );
+		// One capability map for the whole plugin (filter `wplc_capability`, B-48).
+		return \WPLC\Admin\Capabilities::can( 'manage_catalog' );
 	}
 
 	/**
@@ -368,8 +361,8 @@ final class ProductEditor {
 		if ( ! $screen || 'product' !== $screen->id ) {
 			return;
 		}
-		wp_enqueue_style( 'wplc-admin', plugins_url( 'assets/css/wplc-admin.css', WPLC_FILE ), array(), WPLC_VERSION );
-		wp_enqueue_script( 'wplc-product-editor', plugins_url( 'assets/js/wplc-product-editor.js', WPLC_FILE ), array( 'jquery' ), WPLC_VERSION, true );
+		wp_enqueue_style( 'wplc-admin', plugins_url( 'assets/css/wplc-admin.css', WPLC_FILE ), array(), \WPLC\Account\CustomerPortal::asset_version( 'assets/css/wplc-admin.css' ) );
+		wp_enqueue_script( 'wplc-product-editor', plugins_url( 'assets/js/wplc-product-editor.js', WPLC_FILE ), array( 'jquery' ), \WPLC\Account\CustomerPortal::asset_version( 'assets/js/wplc-product-editor.js' ), true );
 	}
 
 	/**

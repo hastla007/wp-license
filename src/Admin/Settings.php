@@ -437,7 +437,9 @@ final class Settings {
 		if ( self::PAGE !== $page ) {
 			return;
 		}
-		wp_enqueue_script( 'wplc-ui', plugins_url( 'assets/js/wplc-ui.js', WPLC_FILE ), array(), WPLC_VERSION, true );
+		// B-124: the version follows the file, so an update is not hidden by browser or CDN caches.
+		wp_enqueue_style( 'wplc-admin', plugins_url( 'assets/css/wplc-admin.css', WPLC_FILE ), array(), \WPLC\Account\CustomerPortal::asset_version( 'assets/css/wplc-admin.css' ) );
+		wp_enqueue_script( 'wplc-ui', plugins_url( 'assets/js/wplc-ui.js', WPLC_FILE ), array(), \WPLC\Account\CustomerPortal::asset_version( 'assets/js/wplc-ui.js' ), true );
 	}
 
 	/**
@@ -460,7 +462,8 @@ final class Settings {
 			if ( isset( $row['copy'] ) ) {
 				echo '<label class="screen-reader-text" for="wplc-webhook-url">' . esc_html( $row['label'] ) . '</label>';
 				echo '<input type="text" readonly class="regular-text code" id="wplc-webhook-url" value="' . esc_attr( $row['copy'] ) . '"> ';
-				echo '<button type="button" class="button" data-wplc-copy="wplc-webhook-url" data-wplc-copied="' . esc_attr__( 'Copied', 'wp-license' ) . '">' . esc_html__( 'Copy', 'wp-license' ) . '</button>';
+				echo '<button type="button" class="button" data-wplc-copy="wplc-webhook-url" data-wplc-copied="' . esc_attr__( 'Copied', 'wp-license' ) . '" data-wplc-copy-failed="' . esc_attr__( 'Copying failed. Select the address and copy it by hand.', 'wp-license' ) . '">' . esc_html__( 'Copy', 'wp-license' ) . '</button>';
+				echo ' <span role="status" aria-live="polite" data-wplc-copy-status="wplc-webhook-url"></span>';
 			} else {
 				$state = $row['state'] ?? '';
 				if ( 'ok' === $state ) {

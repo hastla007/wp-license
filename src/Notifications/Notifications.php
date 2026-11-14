@@ -171,7 +171,9 @@ final class Notifications {
 			if ( ! $license ) {
 				return;
 			}
-			$period = ! empty( $license['paid_until'] ) ? (string) $license['paid_until'] : (string) $license['starts_at'];
+			// Keyed by the start of the license: it never changes, while paid_until moves with every
+			// renewal and term change and would let the first email go out a second time.
+			$period = ! empty( $license['starts_at'] ) ? (string) $license['starts_at'] : (string) $license['paid_until'];
 			self::send_once(
 				'issued',
 				'issued',

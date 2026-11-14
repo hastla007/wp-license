@@ -451,7 +451,7 @@ final class CustomerPortal {
 		$related['activations'] = self::group_rows(
 			$wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT id, license_id, site_url, environment, status, activated_at, last_seen_at FROM {$tables['activations']} WHERE status = %s AND license_id IN ({$placeholders}) ORDER BY activated_at DESC",
+					"SELECT id, license_id, site_url, environment, status, activated_at, last_seen_at FROM {$tables['activations']} WHERE status = %s AND license_id IN ({$placeholders}) ORDER BY activated_at DESC, id DESC",
 					array_merge( array( 'active' ), $license_ids )
 				),
 				ARRAY_A
@@ -1295,53 +1295,20 @@ final class CustomerPortal {
 	}
 
 	/**
-	 * Print the download form of the update package, re-targeted to the frontend.
+	 * Print the download form of the update package.
 	 *
-	 * The form itself is rendered by CustomerDownload::render_button() with
-	 * admin-post.php as its target. The same fields are accepted by
-	 * handle_front_post(), so only the target is replaced here; when the markup
-	 * is not as expected the form is printed unchanged and keeps working
-	 * through admin-post.php.
+	 * CustomerDownload::render_button() posts to the page that is being
+	 * rendered (form_url()) and handles the request on the front end itself
+	 * (B-17), so the markup is printed as it is.
 	 *
 	 * @param array<string,mixed> $license License row.
 	 * @return void
 	 */
 	private static function render_download_form( array $license ): void {
 		$download = '\\WPLC\\Update\\CustomerDownload';
-		if ( ! class_exists( $download ) || ! is_callable( array( $download, 'render_button' ) ) ) {
-			return;
+		if ( class_exists( $download ) && is_callable( array( $download, 'render_button' ) ) ) {
+			call_user_func( array( $download, 'render_button' ), $license );
 		}
-		ob_start();
-		call_user_func( array( $download, 'render_button' ), $license );
-		$html = (string) ob_get_clean();
-		if ( '' === $html ) {
-			return;
-		}
-
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markup of CustomerDownload::render_button(), escaped there; the inserted values are escaped in retarget_form().
-		echo self::retarget_form( $html, 'wplc_download_package', self::form_url() );
-	}
-
-	/**
-	 * Point a form that targets admin-post.php to a frontend URL.
-	 *
-	 * @param string $html   Markup with exactly one form.
-	 * @param string $action Form action name.
-	 * @param string $url    Frontend URL.
-	 * @return string
-	 */
-	public static function retarget_form( string $html, string $action, string $url ): string {
-		if ( 1 !== substr_count( $html, '<form' ) || 1 !== substr_count( $html, '</form>' ) || ! preg_match( '/<form\b[^>]*\saction="[^"]*admin-post\.php[^"]*"/', $html ) ) {
-			return $html;
-		}
-		$fields = '<input type="hidden" name="' . esc_attr( self::FORM_MARKER ) . '" value="1">'
-			. '<input type="hidden" name="action" value="' . esc_attr( $action ) . '">'
-			. '<input type="hidden" name="wplc_return" value="' . esc_attr( $url ) . '">';
-		$html   = (string) preg_replace( '/(<form\b[^>]*\saction=")[^"]*(")/', '${1}' . esc_url( $url ) . '${2}', $html, 1 );
-		// Several forms share one page: the nonce field must not carry an id.
-		$html = str_replace( ' id="_wpnonce"', '', $html );
-
-		return str_replace( '</form>', $fields . '</form>', $html );
 	}
 
 	/**
