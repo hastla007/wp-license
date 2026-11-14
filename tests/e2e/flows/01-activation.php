@@ -89,6 +89,7 @@ $screens = array(
 	'settings'       => array( 'admin.php?page=wplc-settings', 'wplc_settings' ),
 	'releases'       => array( 'admin.php?page=wplc-releases', 'License releases' ),
 	'diagnostics'    => array( 'admin.php?page=wplc-diagnostics', 'License diagnostics' ),
+	'renewal review' => array( 'admin.php?page=wplc-renewal-review', 'No renewal needs review.' ),
 	'catalog CSV'    => array( 'admin.php?page=wplc-catalog-csv', 'wplc_export_catalog_csv' ),
 	'plugins screen' => array( 'plugins.php', 'WP License Captain' ),
 	'dashboard'      => array( 'index.php', 'wpbody-content' ),
