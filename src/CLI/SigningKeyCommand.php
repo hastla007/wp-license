@@ -61,28 +61,28 @@ final class SigningKeyCommand {
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
 		if ( ! ResponseSigner::available() ) {
-			\WP_CLI::error( 'Ed25519 (sodium) is not available on this server.' );
+			\WP_CLI::error( __( 'Ed25519 (sodium) is not available on this server.', 'wp-license' ) );
 		}
 		if ( ! empty( $assoc_args['prepare'] ) && ! empty( $assoc_args['rotate'] ) ) {
-			\WP_CLI::error( 'Use --prepare and --rotate in separate steps, with a product release in between.' );
+			\WP_CLI::error( __( 'Use --prepare and --rotate in separate steps, with a product release in between.', 'wp-license' ) );
 		}
 		if ( ! empty( $assoc_args['prepare'] ) && null === ResponseSigner::prepare_next() ) {
-			\WP_CLI::error( 'The key comes from WPLC_RESPONSE_SIGNING_KEY, or the prepared key could not be stored or decrypted.' );
+			\WP_CLI::error( __( 'The key comes from WPLC_RESPONSE_SIGNING_KEY, or the prepared key could not be stored or decrypted.', 'wp-license' ) );
 		}
 		if ( ! empty( $assoc_args['rotate'] ) ) {
 			$old = ResponseSigner::public_key();
 			if ( '' === $old && '' !== (string) get_option( ResponseSigner::OPTION, '' ) ) {
-				\WP_CLI::error( 'The stored signing key cannot be decrypted. Restore the previous encryption key in WPLC_INSTALLATION_ENCRYPTION_KEYS instead of replacing the key that clients pin.' );
+				\WP_CLI::error( __( 'The stored signing key cannot be decrypted. Restore the previous encryption key in WPLC_INSTALLATION_ENCRYPTION_KEYS instead of replacing the key that clients pin.', 'wp-license' ) );
 			}
 			ResponseSigner::reset();
 			if ( null === ResponseSigner::rotate() ) {
-				\WP_CLI::error( 'The key comes from WPLC_RESPONSE_SIGNING_KEY, or the new key could not be stored (or the prepared key cannot be decrypted); rotate a constant in wp-config.php.' );
+				\WP_CLI::error( __( 'The key comes from WPLC_RESPONSE_SIGNING_KEY, or the new key could not be stored (or the prepared key cannot be decrypted); rotate a constant in wp-config.php.', 'wp-license' ) );
 			}
 			AuditLog::record( 'response_signing_key_rotated', 'system', 0, \WPLC\License\AuditReason::SIGNING_KEY_ROTATED, array( 'key_id' => ResponseSigner::key_id_of( $old ) ), array( 'key_id' => ResponseSigner::key_id_of( ResponseSigner::public_key() ) ) );
 		}
 		$public = ResponseSigner::public_key();
 		if ( '' === $public ) {
-			\WP_CLI::error( '' !== (string) get_option( ResponseSigner::OPTION, '' ) ? 'The stored signing key cannot be decrypted with WPLC_INSTALLATION_ENCRYPTION_KEYS; responses carry no Ed25519 signature. Restore the previous encryption key.' : 'No response signing key could be created.' );
+			\WP_CLI::error( '' !== (string) get_option( ResponseSigner::OPTION, '' ) ? __( 'The stored signing key cannot be decrypted with WPLC_INSTALLATION_ENCRYPTION_KEYS; responses carry no Ed25519 signature. Restore the previous encryption key.', 'wp-license' ) : __( 'No response signing key could be created.', 'wp-license' ) );
 		}
 		$fields = array(
 			'public_key' => $public,
@@ -97,7 +97,7 @@ final class SigningKeyCommand {
 		$field = isset( $assoc_args['field'] ) ? (string) $assoc_args['field'] : '';
 		if ( '' !== $field ) {
 			if ( ! isset( $fields[ $field ] ) ) {
-				\WP_CLI::error( 'Unknown field.' );
+				\WP_CLI::error( __( 'Unknown field.', 'wp-license' ) );
 			}
 			\WP_CLI::line( $fields[ $field ] );
 			return;

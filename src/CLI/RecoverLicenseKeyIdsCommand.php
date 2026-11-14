@@ -63,10 +63,16 @@ final class RecoverLicenseKeyIdsCommand {
 
 		$target_key_id = isset( $assoc_args['to'] ) ? sanitize_text_field( (string) $assoc_args['to'] ) : '';
 		if ( '' === $target_key_id || ! preg_match( '/^[a-zA-Z0-9._-]{1,32}$/', $target_key_id ) ) {
-			\WP_CLI::error( 'Provide a valid configured key ID with --to=<key-id>.' );
+			\WP_CLI::error( __( 'Provide a valid configured key ID with --to=<key-id>.', 'wp-license' ) );
 		}
 		if ( ! LicenseKey::is_configured( $target_key_id ) ) {
-			\WP_CLI::error( sprintf( 'Key ID "%s" is not configured in WPLC_LICENSE_KEY_SECRETS (or WPLC_LICENSE_KEY_SECRET as "legacy"). Add the secret under that ID first.', $target_key_id ) );
+			\WP_CLI::error(
+				sprintf(
+					/* translators: %s: license key ID passed with --to. */
+					__( 'Key ID "%s" is not configured in WPLC_LICENSE_KEY_SECRETS (or WPLC_LICENSE_KEY_SECRET as "legacy"). Add the secret under that ID first.', 'wp-license' ),
+					$target_key_id
+				)
+			);
 		}
 		$apply = isset( $assoc_args['apply'] );
 		$last_id = isset( $assoc_args['after-id'] ) ? absint( $assoc_args['after-id'] ) : 0;
@@ -138,9 +144,21 @@ final class RecoverLicenseKeyIdsCommand {
 			}
 		}
 
-		\WP_CLI::log( sprintf( 'Mode: %s; inspected: %d; already verified: %d; recoverable: %d; unmatched: %d; changed concurrently: %d; last ID: %d', $apply ? 'apply' : 'dry-run', $inspected, $verified, $recovered, $unmatched, $stale, $last_id ) );
+		\WP_CLI::log(
+			sprintf(
+				/* translators: 1: "apply" or "dry-run", 2: inspected rows, 3: rows already verified, 4: recoverable rows, 5: unmatched rows, 6: rows changed concurrently, 7: last inspected license ID (resume with --after-id). */
+				__( 'Mode: %1$s; inspected: %2$d; already verified: %3$d; recoverable: %4$d; unmatched: %5$d; changed concurrently: %6$d; last ID: %7$d', 'wp-license' ),
+				$apply ? __( 'apply', 'wp-license' ) : __( 'dry-run', 'wp-license' ),
+				$inspected,
+				$verified,
+				$recovered,
+				$unmatched,
+				$stale,
+				$last_id
+			)
+		);
 		if ( $unmatched > 0 ) {
-			\WP_CLI::warning( 'Unmatched rows were not modified. Check the configured key ring and recovery target.' );
+			\WP_CLI::warning( __( 'Unmatched rows were not modified. Check the configured key ring and recovery target.', 'wp-license' ) );
 		}
 	}
 }

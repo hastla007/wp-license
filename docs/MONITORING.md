@@ -78,12 +78,14 @@ Watch for failed actions and for pending actions whose scheduled time is in the 
 
 ## Logs
 
-- **WooCommerce log source `wp-license`** (WooCommerce → Status → Logs): email and reminder errors (`src/Notifications/Notifications.php`) and data retention runs (`src/Maintenance/Retention.php`).
+- **WooCommerce log source `wp-license`** (WooCommerce → Status → Logs): email and reminder errors (`src/Notifications/Notifications.php`), data retention runs (`src/Maintenance/Retention.php`) and licenses not issued because `WPLC_LICENSE_KEY_ID` names no configured secret (`src/License/LicenseIssuer.php`).
 - **Audit log** (table `{prefix}wplc_audit_log`): changes to licenses, activations, renewals and releases, rejected webhook events, settings changes (`settings_updated`) and catalog CSV imports (`catalog_csv_imported`), with action, object, acting user, reason and before/after values. License entries are visible per license on the license detail screen; system-level entries (object ID 0, see [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md)) only in the table. Actions worth alerting on: `stripe_webhook_mismatch`, `stripe_webhook_manual_review`, `stripe_webhook_amount_mismatch`, `chargeback_received`, `renewal_result_unknown`, `renewal_review_required`, `renewal_recovery_mismatch`, `renewal_recovery_amount_mismatch`, `manual_renewal_rejected`. Review resolutions are audited as `renewal_review_booked`, `renewal_result_resolved` and `renewal_review_closed` (renewal) and `renewal_booked_after_review` (license), each with the acting administrator.
 - **Event inbox** (table `{prefix}wplc_event_inbox`): received Stripe events with their outcome; see [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md).
 - **Orders:** renewal orders with the meta `_wplc_renewal_review = yes` are paid but were not applied to a license.
 
 Renewal charging, webhook reconciliation and the REST API write no log file entries; their trace is the audit log.
+
+**Language.** Messages written to the WooCommerce log (source `wp-license`) are always English, whatever the site language: they are meant for operators and support, stay greppable and comparable across installations, and can be quoted in support requests and alert rules without translation. Audit log action and reason codes are machine-readable and not translated either. WP-CLI output (`wp wplc …`) is translated into the site language; the field names printed by `wp wplc signing-key` and the values of `--field` stay English. The command outputs quoted in [SECURITY-OPERATIONS.md](SECURITY-OPERATIONS.md) and [LAUNCH-EVIDENCE.md](LAUNCH-EVIDENCE.md) are the English texts; scripts that parse them should use `--field` where available or switch the site to English for the run.
 
 ## Data retention
 
