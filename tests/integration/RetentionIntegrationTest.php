@@ -313,7 +313,7 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertFalse( $this->exists( 'activations', $old_site['id'] ) );
 		$this->assertSame( 0, (int) $wpdb->get_var( $wpdb->prepare( "SELECT actor_user_id FROM {$tables['audit_log']} WHERE id = %d", $acted ) ) );
 		$this->assertSame( 1, $this->count_rows( 'audit_log', "action = 'license_owner_deleted' AND object_id = " . $license['id'] ) );
-		$this->assertSame( 1, $this->count_rows( 'audit_log', "action = 'auto_renewal_disabled' AND object_id = " . $license['id'] ) );
+		$this->assertSame( 1, $this->count_rows( 'audit_log', "action = 'renewal_disabled' AND object_id = " . $license['id'] ) );
 
 		$untouched = $this->license( $foreign['id'] );
 		$this->assertSame( $other, (int) $untouched['customer_id'] );
@@ -325,17 +325,42 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		$license = $this->seed_license( array( 'renewal_enabled' => 1, 'payment_token_id' => 4711 ) );
 		$other   = $this->seed_license( array( 'renewal_enabled' => 1, 'payment_token_id' => 4712 ) );
 
+		// B-57: a deletion that is not requested by the customer (the gateway syncs its token
+		// rows with the payment provider) must not stop renewals.
 		do_action( 'woocommerce_payment_token_deleted', 4711, null );
+		$this->assertSame( 1, (int) $this->license( $license['id'] )['renewal_enabled'], 'A gateway sync leaves the license untouched.' );
+		$this->assertSame( 4711, (int) $this->license( $license['id'] )['payment_token_id'] );
+		$this->assertSame( 0, $this->count_rows( 'audit_log', "action = 'renewal_disabled' AND object_id = " . $license['id'] ) );
+		$this->assertSame( 'other', Orphans::token_deletion_context( 4711 ) );
+
+		// The My Account request "delete payment method" for exactly this token.
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'customer' ) ) );
+		$GLOBALS['wp']->query_vars['delete-payment-method'] = '4712';
+		$this->assertSame( 'other', Orphans::token_deletion_context( 4711 ), 'The request names another token.' );
+		$GLOBALS['wp']->query_vars['delete-payment-method'] = '4711';
+		$this->assertSame( 'customer', Orphans::token_deletion_context( 4711 ) );
+		do_action( 'woocommerce_payment_token_deleted', 4711, null );
+		unset( $GLOBALS['wp']->query_vars['delete-payment-method'] );
 
 		$this->assertSame( 0, (int) $this->license( $license['id'] )['renewal_enabled'] );
+		$this->assertSame( 1, $this->count_rows( 'audit_log', "action = 'renewal_disabled' AND object_id = " . $license['id'] ), 'One handler, one audit entry.' );
 		$this->assertSame( 0, (int) $this->license( $license['id'] )['payment_token_id'] );
 		$this->assertSame( 'active', $this->license( $license['id'] )['status'] );
 		$this->assertSame( 1, (int) $this->license( $other['id'] )['renewal_enabled'] );
 		$this->assertFalse( RenewalSwitch::off( $license['id'], 'again' ), 'Nothing left to switch off.' );
 
+		$GLOBALS['wp']->query_vars['delete-payment-method'] = '4712';
 		add_filter( 'wplc_disable_renewal_on_token_deletion', '__return_false' );
 		do_action( 'woocommerce_payment_token_deleted', 4712, null );
 		$this->assertSame( 1, (int) $this->license( $other['id'] )['renewal_enabled'] );
+		remove_filter( 'wplc_disable_renewal_on_token_deletion', '__return_false' );
+		unset( $GLOBALS['wp']->query_vars['delete-payment-method'] );
+
+		// An integration can opt in for deletions of its own.
+		add_filter( 'wplc_disable_renewal_on_token_deletion', '__return_true' );
+		do_action( 'woocommerce_payment_token_deleted', 4712, null );
+		remove_filter( 'wplc_disable_renewal_on_token_deletion', '__return_true' );
+		$this->assertSame( 0, (int) $this->license( $other['id'] )['renewal_enabled'] );
 	}
 
 	// A-25: a trashed or deleted order leaves a trace on its licenses and changes nothing else.

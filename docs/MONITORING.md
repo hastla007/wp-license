@@ -14,7 +14,7 @@ WooCommerce → License diagnostics (capability `wplc_view_diagnostics`, by defa
 | Server time / database time | UTC and site time, database clock | Web server and database differ by more than two minutes |
 | HTTPS, OpenSSL | Availability | Missing |
 | Last daily run / Next daily run | Heartbeat of `wplc_daily_lifecycle` (see below) | Not finished for more than 26 hours, broken off, or not scheduled |
-| Last run: *job* | One row per job that reports a heartbeat | – |
+| Last run: *job* | One row per job that reports a heartbeat. All daily jobs do (option `wplc_last_run`, written by the job wrapper `DailyRunner`) | – |
 | Action Scheduler | Availability | Missing (WP-Cron fallback) |
 | Failed scheduled actions (group wplc) | Failed Action Scheduler actions of the plugin | One or more |
 | Automatic renewal (Stripe), Stripe gateway version | Whether the renewal adapter can be used and why not | Gateway missing, too old, disabled, or saved cards switched off |

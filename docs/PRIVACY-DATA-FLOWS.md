@@ -39,7 +39,7 @@ One eraser named `wp-license-captain`. It does not depend on the page number Wor
 | Record | What happens |
 | --- | --- |
 | Ended licenses (`expired`, `revoked`, `cancelled`) | Detached from the account (`customer_id` 0, payment token reference removed). Their installations — also installations that were still active — are deactivated and deleted; email-log rows, download grants and package-download rows of the license are deleted. Audit entry `license_erased`. |
-| Licenses in force | Retained, with their active installations: erasing them would stop a paid service and break the customer's sites. **Automatic renewal is switched off**: the payment token reference is removed, open renewals are cancelled, audit entry `auto_renewal_disabled`. The license ends with its paid period and is erased by a later request or by the anonymisation rule. Deactivated installations of these licenses are deleted. |
+| Licenses in force | Retained, with their active installations: erasing them would stop a paid service and break the customer's sites. **Automatic renewal is switched off**: the payment token reference is removed, open renewals are cancelled, audit entry `renewal_disabled`. The license ends with its paid period and is erased by a later request or by the anonymisation rule. Deactivated installations of these licenses are deleted. |
 | Audit entries the person triggered | The user ID is removed from the entry (`actor_user_id` 0). The entry itself stays for the audit period. |
 | WooCommerce orders, refunds, payment tokens | Not touched here; WooCommerce's own eraser and retention settings apply. |
 
@@ -47,8 +47,8 @@ The messages returned to WordPress state how many licenses were detached, for ho
 
 ## Deleted accounts, payment methods and orders
 
-- **Customer account deleted** (`deleted_user`): the licenses of the account are detached (`customer_id` 0), automatic renewal is switched off, deactivated installations are deleted and the user ID is removed from audit entries. The licenses are **not** revoked; they run until the end of the paid period. Audit entries `license_owner_deleted` and `auto_renewal_disabled`.
-- **Saved payment method deleted** (`woocommerce_payment_token_deleted`): automatic renewal is switched off for the licenses that renew with it, instead of running into a failed charge and a dunning email. The customer can renew manually. Disable with the `wplc_disable_renewal_on_token_deletion` filter if another component moves the license to a different payment method.
+- **Customer account deleted** (`deleted_user`): the licenses of the account are detached (`customer_id` 0), automatic renewal is switched off, deactivated installations are deleted and the user ID is removed from audit entries. The licenses are **not** revoked; they run until the end of the paid period. Audit entries `license_owner_deleted` and `renewal_disabled`.
+- **Saved payment method deleted by the customer** (`woocommerce_payment_token_deleted` during the My Account request "delete payment method", a privacy erasure or the deletion of the account): automatic renewal is switched off for the licenses that renew with it, instead of running into a failed charge and a dunning email. The customer can renew manually. A deletion that does not come from the customer (a payment gateway that deletes and re-creates its token rows while syncing with the provider, an import) changes nothing; if the method is really gone, the next charge reports a configuration problem. The filter `wplc_disable_renewal_on_token_deletion` (arguments: disable, token ID, context `customer`, `privacy`, `user_deleted` or `other`) overrides the decision in both directions.
 - **Order trashed or deleted**: the licenses bought with it are not changed; an audit entry `source_order_removed` keeps them explainable.
 
 ## Suggested privacy policy text

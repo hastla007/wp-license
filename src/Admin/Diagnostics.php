@@ -57,9 +57,8 @@ final class Diagnostics {
 	public static function register_hooks(): void {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ), 30 );
 		add_action( 'admin_notices', array( self::class, 'render_daily_run_notice' ) );
-		// The heartbeat brackets the daily chain: a start without an end is a run that broke off.
-		add_action( 'wplc_daily_lifecycle', array( self::class, 'mark_daily_started' ), -1000 );
-		add_action( 'wplc_daily_lifecycle', array( self::class, 'mark_daily_finished' ), PHP_INT_MAX );
+		// The heartbeat brackets of the daily chain (mark_daily_started/_finished) are written by
+		// Maintenance\DailyRunner, which also isolates the jobs and writes one heartbeat per job.
 		// The alarm runs after the work it reports on.
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'emit_alerts' ), PHP_INT_MAX - 1 );
 	}
@@ -74,15 +73,15 @@ final class Diagnostics {
 	 * @return void
 	 */
 	public static function mark_run( string $job ): void {
-		$job = substr( (string) preg_replace( '/[^a-z0-9_]/', '', strtolower( $job ) ), 0, 40 );
+		$job = substr( (string) preg_replace( '/[^a-z0-9_]/', '', strtolower( $job ) ), 0, 64 );
 		if ( '' === $job ) {
 			return;
 		}
 		$runs         = self::last_runs();
 		$runs[ $job ] = time();
-		if ( count( $runs ) > 40 ) {
+		if ( count( $runs ) > 60 ) {
 			asort( $runs );
-			$runs = array_slice( $runs, -40, null, true );
+			$runs = array_slice( $runs, -60, null, true );
 		}
 		update_option( self::LAST_RUN_OPTION, $runs, false );
 	}
@@ -439,9 +438,8 @@ final class Diagnostics {
 					if ( is_array( $wp_current_filter ) && 'wplc/health_alert' === end( $wp_current_filter ) ) {
 						array_pop( $wp_current_filter );
 					}
-					if ( function_exists( 'wc_get_logger' ) ) {
-						wc_get_logger()->error( 'A wplc/health_alert receiver failed: ' . $error->getMessage(), array( 'source' => 'wp-license' ) );
-					}
+					// Logged and shown under "failed jobs"; the remaining alerts are still sent.
+					\WPLC\Maintenance\DailyRunner::record_failure( 'diagnostics_emit_alerts', $error );
 				}
 			}
 		}

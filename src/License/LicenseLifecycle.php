@@ -26,9 +26,6 @@ final class LicenseLifecycle {
 	/** Seconds one expiry run may take before it hands over to a follow-up run (A-80). */
 	public const EXPIRY_TIME_BUDGET = 20;
 
-	/** Option that stores the last run of every background job (B-35). */
-	public const HEARTBEAT_OPTION = 'wplc_job_heartbeats';
-
 	/**
 	 * Why the last admin_extend() / admin_set_status() / admin_restore() call returned false.
 	 *
@@ -48,8 +45,7 @@ final class LicenseLifecycle {
 		// B-36: a paid order that is cancelled or fails afterwards (bounced debit).
 		add_action( 'woocommerce_order_status_cancelled', array( self::class, 'handle_order_cancelled' ), 20, 1 );
 		add_action( 'woocommerce_order_status_failed', array( self::class, 'handle_order_cancelled' ), 20, 1 );
-		// A-25: nobody is left to charge or to notify.
-		add_action( 'deleted_user', array( self::class, 'handle_deleted_user' ), 20, 1 );
+		// A-25: a deleted customer account is handled by Maintenance\Orphans::on_user_deleted().
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'expire_due_licenses' ) );
 		add_action( 'wplc_expire_due_licenses', array( self::class, 'expire_due_licenses' ) );
 		// Public extension point; fired by chargeback_for_order() for Stripe disputes.
@@ -77,47 +73,29 @@ final class LicenseLifecycle {
 	/**
 	 * Whether charging, job-driven status changes and customer mails are paused (B-01).
 	 *
-	 * The decision belongs to WPLC\Maintenance\SiteGuard (staging clone, restored
-	 * database, WPLC_PAUSE_BILLING). Without that class nothing is paused.
+	 * Delegates to WPLC\Maintenance\SiteGuard::billing_paused() (staging clone, restored
+	 * database, WPLC_PAUSE_BILLING), which also applies the filter `wplc_billing_paused`.
 	 *
 	 * @return bool
 	 */
 	public static function billing_paused(): bool {
-		$guard = '\\WPLC\\Maintenance\\SiteGuard';
-		$paused = class_exists( $guard ) && method_exists( $guard, 'billing_paused' ) && true === call_user_func( array( $guard, 'billing_paused' ) );
-
-		/**
-		 * Filters whether billing jobs are paused.
-		 *
-		 * @param bool $paused Decision of the site guard.
-		 */
-		return (bool) apply_filters( 'wplc_billing_paused', $paused );
+		return \WPLC\Maintenance\SiteGuard::billing_paused();
 	}
 
 	/**
 	 * Run one background task so that a failure cannot stop the tasks after it (B-34).
 	 *
-	 * Catches every Throwable, logs it and records the time of the run (B-35) in
-	 * the option HEARTBEAT_OPTION as `job => array( time, ok )`.
+	 * Delegates to WPLC\Maintenance\DailyRunner::run_job(): a Throwable is logged and
+	 * kept in DailyRunner::failures(), a finished task writes its heartbeat (B-35)
+	 * through Diagnostics::mark_run(). Inside a job that DailyRunner already isolates
+	 * (the daily run) the task just runs and the outer job reports the result.
 	 *
 	 * @param string   $job Job name.
 	 * @param callable $task Task.
 	 * @return bool True when the task finished without an exception.
 	 */
 	public static function run_guarded( string $job, callable $task ): bool {
-		$ok = true;
-		try {
-			call_user_func( $task );
-		} catch ( \Throwable $error ) {
-			$ok = false;
-			self::log_error( $job . ': ' . $error->getMessage() );
-		}
-		$beats = get_option( self::HEARTBEAT_OPTION, array() );
-		$beats = is_array( $beats ) ? $beats : array();
-		$beats[ sanitize_key( $job ) ] = array( 'time' => time(), 'ok' => $ok );
-		update_option( self::HEARTBEAT_OPTION, $beats, false );
-
-		return $ok;
+		return \WPLC\Maintenance\DailyRunner::run_job( sanitize_key( $job ), $task );
 	}
 
 	/**
@@ -484,29 +462,10 @@ final class LicenseLifecycle {
 	}
 
 	/**
-	 * Switch automatic renewal off for the licenses of a deleted user (A-25).
-	 *
-	 * @param mixed $user_id Deleted user ID.
-	 * @return void
-	 */
-	public static function handle_deleted_user( $user_id ): void {
-		global $wpdb;
-
-		$user_id = absint( $user_id );
-		if ( ! $user_id ) {
-			return;
-		}
-		$tables = Schema::table_names();
-		$ids = (array) $wpdb->get_col(
-			$wpdb->prepare( "SELECT id FROM %i WHERE customer_id = %d AND renewal_enabled = 1", $tables['licenses'], $user_id )
-		);
-		foreach ( $ids as $license_id ) {
-			self::disable_renewal( (int) $license_id, __( 'The customer account was deleted', 'wp-license' ), get_current_user_id() );
-		}
-	}
-
-	/**
 	 * Switch automatic renewal off for good and close open automatic renewals.
+	 *
+	 * Delegates to WPLC\Maintenance\RenewalSwitch::off(), the single writer of this change
+	 * (audit action `renewal_disabled`).
 	 *
 	 * @param int    $license_id License ID.
 	 * @param string $reason Reason for the audit log.
@@ -514,23 +473,7 @@ final class LicenseLifecycle {
 	 * @return bool
 	 */
 	public static function disable_renewal( int $license_id, string $reason, int $actor_user_id = 0 ): bool {
-		global $wpdb;
-
-		$tables = Schema::table_names();
-		$updated = $wpdb->update(
-			$tables['licenses'],
-			array( 'renewal_enabled' => 0, 'next_payment_at' => null, 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ),
-			array( 'id' => $license_id, 'renewal_enabled' => 1 ),
-			array( '%d', '%s', '%s' ),
-			array( '%d', '%d' )
-		);
-		if ( 1 !== $updated ) {
-			return false;
-		}
-		self::cancel_open_renewals( $license_id, false, 'renewal_disabled', __( 'WP License Captain: automatic renewal was switched off.', 'wp-license' ) );
-		AuditLog::record( 'renewal_disabled', 'license', $license_id, $reason, array( 'renewal_enabled' => 1 ), array( 'renewal_enabled' => 0 ), $actor_user_id );
-
-		return true;
+		return \WPLC\Maintenance\RenewalSwitch::off( $license_id, $reason, $actor_user_id );
 	}
 
 	/**

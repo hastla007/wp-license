@@ -88,9 +88,9 @@ Installing an older plugin version over a newer database is detected: nothing is
 
 ## Scheduled jobs
 
-- `wplc_daily_lifecycle` (WP-Cron, daily) runs catch-up, expiry, renewal re-queueing, reminders, retention and, last, the health alerts. Each job is isolated: an exception in one job is written to the WooCommerce log (source `wp-license`, "Job … failed and was skipped") and the next job runs. The last failure per job is kept in the option `wplc_job_failures`, the time of the last completed run in `wplc_last_daily_run`.
+- `wplc_daily_lifecycle` (WP-Cron, daily) runs catch-up, expiry, renewal re-queueing, reminders, retention and, last, the health alerts. Each job is isolated: an exception in one job is written to the WooCommerce log (source `wp-license`, "Job … failed and was skipped") and the next job runs. The last failure per job is kept in the option `wplc_job_failures`. Every job that finished writes its heartbeat into the one option `wplc_last_run` (job name => unix time; `daily_lifecycle_started` and `daily_lifecycle` bracket the whole run). `WPLC\Maintenance\DailyRunner` is the only wrapper that isolates jobs and writes heartbeats; `WPLC\Maintenance\SiteGuard::billing_paused()` is the only pause check.
 - `wplc_cleanup_security_rows` (WP-Cron, hourly) deletes expired replay-protection, rate-limit, download-grant and package-stream rows in a loop with a time budget.
-- A daily run that did not fire for two days is recorded as a processing gap. Use a real system cron for `wp-cron.php` on low-traffic sites and monitor `wplc_last_daily_run`.
+- A daily run that did not fire for two days is recorded as a processing gap. Use a real system cron for `wp-cron.php` on low-traffic sites and monitor the entry `daily_lifecycle` of the option `wplc_last_run` (shown on the diagnostics page).
 
 ## Multiple web nodes
 

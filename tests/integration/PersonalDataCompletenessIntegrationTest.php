@@ -228,7 +228,7 @@ final class PersonalDataCompletenessIntegrationTest extends WPLC_Integration_Tes
 		$this->assertSame( 'active', $this->activation( $fixture['mine']['site']['id'] )['status'] );
 		$this->assertSame( 0, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['activations']} WHERE id = %d", $old['id'] ) ) );
 		$this->assertSame( 0, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['audit_log']} WHERE actor_user_id = %d", $fixture['customer'] ) ) );
-		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['audit_log']} WHERE action = %s AND object_id = %d", 'auto_renewal_disabled', $mine ) ) );
+		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['audit_log']} WHERE action = %s AND object_id = %d", 'renewal_disabled', $mine ) ) );
 
 		// The other customer is untouched.
 		$theirs = $this->license( $fixture['theirs']['license']['id'] );

@@ -7,6 +7,8 @@
 
 namespace WPLC\Notifications;
 
+use WPLC\Infrastructure\Database\Schema;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -14,9 +16,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Owns the {prefix}wplc_reminder_log table.
  *
- * The table is self-installed because the notification package may not change
- * the central schema. It can be adopted by the schema class later: keep the
- * table name, the columns and the unique key, then drop the installer here.
+ * The table is part of the plugin schema since schema version 18: its only
+ * definition is the CREATE TABLE statement in Schema, and Schema::migrate()
+ * creates it. maybe_install() checks the table before a reminder is sent and
+ * repairs it through Schema::create_table() when it is missing.
  */
 final class ReminderLog {
 
@@ -72,7 +75,11 @@ final class ReminderLog {
 	}
 
 	/**
-	 * Create the table when it is missing or outdated.
+	 * Make sure the table exists in its current layout.
+	 *
+	 * The table is part of the plugin schema and is normally created by
+	 * Schema::migrate(). This check repairs it from the schema's own statement
+	 * when it is missing or outdated right before a reminder is sent.
 	 *
 	 * The version option alone is not trusted: after the tables were dropped by
 	 * hand (uninstall, restore) the option can still claim that the table exists.
@@ -92,23 +99,8 @@ final class ReminderLog {
 			return true;
 		}
 
-		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-
-		$charset_collate = $wpdb->get_charset_collate();
-		// Rows written before version 2 were only stored for emails that had been handed over: default "sent".
-		\dbDelta(
-			"CREATE TABLE {$table} (
-				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-				license_id bigint(20) unsigned NOT NULL,
-				reminder_type varchar(40) NOT NULL,
-				period_end datetime NOT NULL,
-				sent_at datetime NOT NULL,
-				status varchar(10) NOT NULL DEFAULT 'sent',
-				PRIMARY KEY  (id),
-				UNIQUE KEY license_reminder (license_id,reminder_type,period_end),
-				KEY sent_at (sent_at)
-			) {$charset_collate};"
-		);
+		// The table belongs to the schema (version 18); its definition lives there only.
+		Schema::create_table( 'reminder_log' );
 
 		if ( ! self::table_exists() || ! self::has_status_column() ) {
 			return false;

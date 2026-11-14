@@ -106,7 +106,7 @@ If the renewal order is paid, the renewal is booked. Otherwise the attempt is tr
 
 ### Daily jobs
 
-All run on `wplc_daily_lifecycle`. Each one is wrapped in `LicenseLifecycle::run_guarded()`: an exception is logged (WooCommerce log, source `wplc`) and does not stop the jobs after it. The time and result of every run are stored in the option `wplc_job_heartbeats` (`job => array( time, ok )`).
+All run on `wplc_daily_lifecycle`. Each one is isolated by `WPLC\Maintenance\DailyRunner` (the single wrapper for all daily jobs): an exception is logged (WooCommerce log, source `wp-license`), kept in the option `wplc_job_failures` and does not stop the jobs after it. A job that finished writes its heartbeat into the option `wplc_last_run` under its job name, for example `renewal_processor_requeue_overdue_renewals`. `LicenseLifecycle::run_guarded( $job, $callable )` delegates to the same wrapper for code that runs a job outside the daily hook.
 
 | Job | What it does |
 | --- | --- |
@@ -134,7 +134,7 @@ A renewal whose grace period is over although no charge was ever attempted (queu
 
 ### Paused billing
 
-`LicenseLifecycle::billing_paused()` asks `WPLC\Maintenance\SiteGuard::billing_paused()` when that class exists (staging clone, restored database) and applies the filter `wplc_billing_paused`. While paused, no renewal is charged, no license is expired and none of the daily renewal jobs runs.
+`LicenseLifecycle::billing_paused()` and `RenewalProcessor::billing_paused()` delegate to `WPLC\Maintenance\SiteGuard::billing_paused()` (staging clone, restored database, `WPLC_PAUSE_BILLING`), which applies the filter `wplc_billing_paused` (arguments: paused, reason). While paused, no renewal is charged, no license is expired and none of the daily renewal jobs runs.
 
 ### Cancellation
 
