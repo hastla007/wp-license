@@ -83,8 +83,22 @@ Das Plugin serialisiert kritische Abläufe mit MySQL-`GET_LOCK`. Diese Sperren g
 |---|---|
 | `src/Api/V1/ActivationService.php` (zwei Stellen) | Aktivierung (Platzvergabe) und Deaktivierung über die API |
 | `src/License/ActivationManager.php` | Deaktivierung einer Aktivierung |
-| `src/Billing/RenewalProcessor.php` | Verarbeitung einer Verlängerung (eine Abbuchung je Verlängerung) |
+| `src/Billing/RenewalProcessor.php` | Verarbeitung einer Verlängerung (eine Abbuchung je Verlängerung); auch manuelle Verlängerung, Abgleich bezahlter Verlängerungsbestellungen und Stripe-Ereignisse |
+| `src/License/LicenseLifecycle.php` | Jede Statusänderung einer Lizenz (Sperren, Widerruf, Erstattung, Ablauf, Verlängerung, Laufzeitänderung, Kündigung und deren Rücknahme) samt Berechtigungen und Audit-Eintrag (T-22) |
 | `src/Infrastructure/Database/Schema.php` | Schema-Migration |
+
+### Sperrmodell (T-22)
+
+- **Pro Verlängerung** (`RenewalProcessor::lock()`, Name `wplc_renewal_…`): Wer eine Verlängerung abbucht, bucht oder abgleicht, hält diese Sperre und liest die Zeile danach neu. Ein zweiter Lauf desselben Auftrags (Action Scheduler doppelt, Zahlungshook doppelt) findet sie `paid` und bucht nicht noch einmal. Die Sperre bleibt während des Gateway-Aufrufs gehalten.
+- **Pro Lizenz für den Lebenszyklus** (`LicenseLifecycle::lock_name()`, Name `wplc_license_…`, Wartezeit 10 s, Filter `wplc_license_lock_timeout`): Lesen, Prüfen gegen `LicenseStateMachine`, Schreiben von Lizenz und Berechtigungen und der Audit-Eintrag laufen unter dieser Sperre. Gleichzeitige Änderungen sehen das Ergebnis der vorherigen; der Audit-Verlauf ist eine lückenlose Kette (jeder Eintrag beginnt mit dem Status, mit dem der vorige endete). Die Sperre ist in einer Anfrage wiederbetretbar. `wplc/license_status_changed` feuert erst nach dem Freigeben. Ist die Sperre belegt, schlägt die Änderung fehl (Rückgabe `false`), statt ohne Sperre zu schreiben.
+- **Reihenfolge**: Verlängerungssperre vor Lizenzsperre, nie umgekehrt. Unter der Lizenzsperre wird keine andere Sperre genommen.
+- **Pro Lizenz für Aktivierungen** (`ActivationManager::lock_name()`): Platzvergabe und Deaktivierung; unabhängig von der Lebenszyklus-Sperre.
+- **Ohne Sperre, atomar in SQL**: Einmal-Download-Token und Stream-URLs (`UPDATE … WHERE consumed_at IS NULL`, nur eine Anfrage ändert die Zeile), Request-Nonces (`INSERT IGNORE` auf `UNIQUE(activation_id, nonce_hash)`), Rate-Limits (`ON DUPLICATE KEY UPDATE`), Lizenz je Bestelleinheit (`UNIQUE(source_order_item_id, unit_index)`; der unterlegene Hook übernimmt die Lizenz des Gewinners, ohne Datenbankfehler im Log, `Schema::insert_unique()`), Verlängerungszeile je Zeitraum (`UNIQUE(idempotency_key)`).
+- **Status-Compare-and-Set** (`UPDATE … WHERE status = <gelesen>`) bleibt als zweite Sicherung.
+
+Ändert sich der Lizenzstatus, während das Gateway abbucht (Sperre durch den Admin, Widerruf durch Erstattung, Ablauf), wird die Lizenz nicht verlängert und die Verlängerung geht nach `review_required` statt still auf `paid` (siehe [RENEWALS.md](RENEWALS.md)). Eine Verlängerung setzt `cancel_at_period_end` nie zurück: Eine Kündigung während der Abbuchung bleibt bestehen.
+
+Geprüft wird das mit echten parallelen Anfragen gegen MariaDB/MySQL in `tests/e2e/flows/11-concurrency.php` (siehe `tests/e2e/README.md`) und mit simulierten Verschränkungen in `tests/integration/ConcurrentLifecycleIntegrationTest.php`.
 
 ## Laufzeit, Kulanz und Ablauf
 

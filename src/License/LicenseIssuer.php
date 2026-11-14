@@ -78,10 +78,34 @@ final class LicenseIssuer {
 			}
 
 			if ( $issued ) {
-				$item->update_meta_data( '_wplc_license_ids', array_values( array_unique( $issued ) ) );
+				// Read the complete list back: concurrent hooks for the same order each store
+				// every license of the item, so neither overwrites the other with a subset.
+				$item->update_meta_data( '_wplc_license_ids', self::issued_for_item( (int) $item_id, $issued ) );
 				$item->save_meta_data();
 			}
 		}
+	}
+
+	/**
+	 * Every license issued for an order item, in unit order.
+	 *
+	 * @param int   $order_item_id Order item ID.
+	 * @param int[] $fallback IDs known to this request, used when the read fails.
+	 * @return int[]
+	 */
+	private static function issued_for_item( int $order_item_id, array $fallback ): array {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT id FROM {$tables['licenses']} WHERE source_order_item_id = %d ORDER BY unit_index ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+				$order_item_id
+			)
+		);
+		$ids = array_map( 'intval', is_array( $ids ) ? $ids : array() );
+
+		return $ids ? $ids : array_values( array_unique( $fallback ) );
 	}
 
 	/**
@@ -157,7 +181,9 @@ final class LicenseIssuer {
 			)
 		);
 		if ( ! $stored ) {
-			return 0;
+			// A concurrent paid-order hook may have issued this unit a moment earlier
+			// (UNIQUE order_unit): that license counts, and that request announces it.
+			return self::find_existing( (int) $item->get_id(), $unit_index );
 		}
 		$license_id = $stored['id'];
 		$uuid       = $stored['uuid'];
@@ -216,7 +242,9 @@ final class LicenseIssuer {
 			return null;
 		}
 
-		$result = $wpdb->insert(
+		// Order units are unique (source_order_item_id, unit_index); a concurrent hook that lost
+		// the race gets 0 here without a database error in the log.
+		$result = Schema::insert_unique(
 			$tables['licenses'],
 			array(
 				'license_uuid' => $uuid,
@@ -251,11 +279,11 @@ final class LicenseIssuer {
 			array( '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s' )
 		);
 
-		if ( false === $result ) {
+		if ( ! $result ) {
 			return null;
 		}
 
-		$license_id = (int) $wpdb->insert_id;
+		$license_id = $result;
 		$entitlements = json_decode( (string) $plan['entitlements_json'], true );
 		if ( is_array( $entitlements ) ) {
 			foreach ( $entitlements as $entitlement_key => $value ) {

@@ -617,3 +617,118 @@ function e2e_as_site( string $home ): void {
 		2
 	);
 }
+
+/**
+ * Send HTTP requests to the local server at the same time (curl_multi, one connection each).
+ *
+ * Every request carries the start barrier header of the mu-plugin: the server workers load
+ * WordPress, then wait until the common start moment, so the plugin code of all requests
+ * runs concurrently (the PHP server runs WPLC_E2E_SERVER_WORKERS worker processes).
+ *
+ * @param array<int,array<string,mixed>> $requests Requests: method, path (relative to the site root), headers, body.
+ * @param float                          $lead Seconds between sending and the common start moment.
+ * @return array<int,array{code:int,body:string,waited:bool,location:string,json:mixed}> Responses in request order.
+ */
+function e2e_parallel( array $requests, float $lead = 0.8 ): array {
+	$port    = getenv( 'WPLC_E2E_PORT' ) ? (int) getenv( 'WPLC_E2E_PORT' ) : 8765;
+	$start   = sprintf( '%.6F', microtime( true ) + $lead );
+	$multi   = curl_multi_init();
+	$handles = array();
+	foreach ( $requests as $index => $request ) {
+		$headers = array( 'Host: shop.test', 'X-WPLC-E2E-At: ' . $start, 'Expect:' );
+		foreach ( (array) ( $request['headers'] ?? array() ) as $name => $value ) {
+			$headers[] = $name . ': ' . $value;
+		}
+		$handle = curl_init( 'http://127.0.0.1:' . $port . $request['path'] );
+		curl_setopt_array(
+			$handle,
+			array(
+				CURLOPT_CUSTOMREQUEST  => $request['method'],
+				CURLOPT_HTTPHEADER     => $headers,
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_HEADER         => true,
+				CURLOPT_FOLLOWLOCATION => false,
+				CURLOPT_TIMEOUT        => 60,
+				CURLOPT_FORBID_REUSE   => true,
+				CURLOPT_FRESH_CONNECT  => true,
+				CURLOPT_PROXY          => '',
+			)
+		);
+		if ( isset( $request['body'] ) ) {
+			curl_setopt( $handle, CURLOPT_POSTFIELDS, (string) $request['body'] );
+		}
+		curl_multi_add_handle( $multi, $handle );
+		$handles[ $index ] = $handle;
+		// Send the request now and give a server worker time to take it before the next one
+		// arrives: an idle worker of the PHP server accepts every connection that is waiting
+		// and would then handle two requests one after the other instead of in parallel.
+		$until = microtime( true ) + 0.04;
+		do {
+			curl_multi_exec( $multi, $running );
+			curl_multi_select( $multi, 0.01 );
+		} while ( microtime( true ) < $until );
+	}
+	do {
+		$status = curl_multi_exec( $multi, $running );
+		if ( $running ) {
+			curl_multi_select( $multi, 0.05 );
+		}
+	} while ( $running && CURLM_OK === $status );
+
+	$responses = array();
+	foreach ( $handles as $index => $handle ) {
+		$raw         = (string) curl_multi_getcontent( $handle );
+		$header_size = (int) curl_getinfo( $handle, CURLINFO_HEADER_SIZE );
+		$head        = substr( $raw, 0, $header_size );
+		$body        = (string) substr( $raw, $header_size );
+		$responses[ $index ] = array(
+			'code'     => (int) curl_getinfo( $handle, CURLINFO_RESPONSE_CODE ),
+			'body'     => $body,
+			'waited'   => (bool) preg_match( '/^X-WPLC-E2E-Waited: 1/mi', $head ),
+			'location' => preg_match( '/^Location: *(\S+)/mi', $head, $location ) ? $location[1] : '',
+			'json'     => json_decode( $body, true ),
+		);
+		curl_multi_remove_handle( $multi, $handle );
+		curl_close( $handle );
+	}
+	curl_multi_close( $multi );
+	// The server processes changed the database: drop this process's object cache.
+	wp_cache_flush();
+
+	return $responses;
+}
+
+/**
+ * Run allow-listed operations of the mu-plugin concurrently inside the server processes.
+ *
+ * @param array<int,array{0:string,1:array<string,mixed>}> $ops List of [operation, args].
+ * @return array<int,array{code:int,body:string,waited:bool,json:mixed}>
+ */
+function e2e_race( array $ops ): array {
+	$secret = (string) get_option( 'wplc_e2e_race_secret', '' );
+	if ( strlen( $secret ) < 32 ) {
+		$secret = wp_generate_password( 48, false );
+		update_option( 'wplc_e2e_race_secret', $secret, false );
+	}
+	$requests = array();
+	foreach ( $ops as $op ) {
+		$requests[] = array(
+			'method'  => 'POST',
+			'path'    => '/?wplc_e2e_race=1',
+			'headers' => array( 'X-WPLC-E2E-Race' => $secret, 'Content-Type' => 'application/json' ),
+			'body'    => (string) wp_json_encode( array( 'op' => $op[0], 'args' => $op[1] ) ),
+		);
+	}
+
+	return e2e_parallel( $requests );
+}
+
+/**
+ * How many responses of a parallel batch really waited at the start barrier.
+ *
+ * @param array<int,array<string,mixed>> $responses Responses of e2e_parallel().
+ * @return int
+ */
+function e2e_waited( array $responses ): int {
+	return count( array_filter( array_column( $responses, 'waited' ) ) );
+}

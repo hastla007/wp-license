@@ -86,6 +86,8 @@ The administrator checks the payment in the gateway dashboard (the PaymentIntent
 
 Until then the normal rules apply: an `active` license is expired by the daily job 15 days after `paid_until`. Resolve reviews within the grace period.
 
+**Paid, but the license changed during the charge** (audit reason `license_changed_during_charge`, T-22). The gateway confirmed the payment, but while the request was running an administrator suspended or revoked the license, the original order was refunded, or the license expired. The license is not extended (a suspended or revoked license never is) and the renewal is not recorded as `paid`; it goes to `review_required`, and the paid order gets a note naming the new license status. Refund the payment, or, if the customer keeps the license, reactivate it and extend its term by hand (license screen, "extend"). A cancellation at period end made while the charge was running does not go to review: the charged period is booked, the cancellation stays, and the next period is not charged.
+
 ### Customer authentication (3-D Secure)
 
 When Stripe requires authentication, or the PaymentIntent is `requires_action`, `requires_confirmation` or `processing`, the renewal becomes `manual_action_required` and automatic retries stop. The customer account shows "Complete renewal payment", which links to the pay page of the same order. Paying it extends the license through `reconcile_paid_renewal_order()`; for a `processing` PaymentIntent the `payment_intent.succeeded` webhook does.
@@ -171,7 +173,7 @@ The order line always uses the bought product (or, if it is gone, the plan's pro
 | `paid` | Paid and booked |
 | `failed` | Last attempt failed definitely; a retry may be scheduled |
 | `reconciling` | Result of the last attempt is unknown; checked hourly with the same idempotency key, license untouched |
-| `review_required` | Result stayed unknown (or a check was no longer safe); no automatic attempts, an administrator decides |
+| `review_required` | Result stayed unknown (or a check was no longer safe), or the payment went through after the license was suspended/revoked; no automatic attempts, an administrator decides |
 | `manual_action_required` | Customer must authenticate or pay; no automatic retries |
 | `manual` | Created by a manual renewal, waiting for the customer's payment |
 | `cancelled` | Not charged: cancelled, license ended, or period replaced by an admin term change |

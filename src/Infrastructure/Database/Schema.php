@@ -620,6 +620,36 @@ final class Schema {
 	}
 
 	/**
+	 * Insert a row whose UNIQUE key a concurrent request may have inserted first.
+	 *
+	 * The duplicate-key error of the losing request is expected and not logged;
+	 * every other database error is reported as $wpdb->insert() would.
+	 *
+	 * @param string                $table Table name.
+	 * @param array<string,mixed>   $data Column => value.
+	 * @param array<int,string>     $format Value formats.
+	 * @return int|null Insert ID, 0 when the unique key already exists, null on another error.
+	 */
+	public static function insert_unique( string $table, array $data, array $format ): ?int {
+		global $wpdb;
+
+		$suppressed = $wpdb->suppress_errors( true );
+		$result     = $wpdb->insert( $table, $data, $format );
+		$wpdb->suppress_errors( $suppressed );
+		if ( false !== $result ) {
+			return (int) $wpdb->insert_id;
+		}
+		$dbh   = $wpdb->dbh;
+		$errno = $dbh instanceof \mysqli ? (int) mysqli_errno( $dbh ) : 0; // phpcs:ignore WordPress.DB.RestrictedFunctions.mysql_mysqli_errno
+		if ( 1062 === $errno || false !== stripos( (string) $wpdb->last_error, 'Duplicate entry' ) ) {
+			return 0;
+		}
+		$wpdb->print_error();
+
+		return null;
+	}
+
+	/**
 	 * Server-wide lock name for this site's schema (MySQL limits names to 64 characters).
 	 *
 	 * @return string
