@@ -19,3 +19,19 @@ The registry only exposes adapters that explicitly register. No PayPal adapter i
 A PayPal integration must use a PayPal-approved vaulted payment source or PayPal Subscriptions flow, record the customer approval/mandate and external subscription ID, verify webhook signatures, process duplicate and out-of-order events through the event inbox, and map PayPal billing state to WooCommerce renewal orders and WP License Captain license periods. It must be validated against the actual WooCommerce PayPal Payments release and merchant account configuration.
 
 Do not ship a filter-only adapter or invoke private plugin methods as a substitute for that integration. If the store uses the native PayPal Subscriptions module, the product model and order flow must explicitly support its subscription object; the current license product is not a WooCommerce Subscription product.
+
+## Open product decision: which payment methods renew automatically (B-63)
+
+Today exactly one case renews automatically: a card saved through the official WooCommerce Stripe gateway, charged off-session. Everything else is renewed by the customer on the pay page (any payment method), after the usual reminders.
+
+| Payment method at purchase | Automatic renewal today | What would be needed |
+| --- | --- | --- |
+| Card through Stripe | Yes | – |
+| Link, Amazon Pay, Apple/Google Pay without a saved card (Stripe) | No. The order gets a note and the customer a hint (`wplc_renewal_unavailable_customer_hint`); no other card on file is taken instead | Decide whether a wallet token may be charged off-session; depends on the wallet's own mandate rules |
+| SEPA Direct Debit (Stripe) | No | An adapter of its own: mandate reference and mandate text at checkout, a renewal state "collection running" (a debit settles after days), pre-notification deadlines, and the reversal of a renewal when the debit is returned weeks later |
+| Klarna and other pay-later methods (Stripe) | No | Not designed for unattended repeat charges; would need the provider's recurring product |
+| PayPal | No, see above | A PayPal-approved vault or subscription flow |
+
+**Question for the owner:** is card-only automatic renewal acceptable for launch, or must SEPA Direct Debit renew automatically as well? If SEPA is required, it is a separate project (adapter, mandate handling, late returns), not a configuration switch. Until decided, no further adapter is built.
+
+Technical precaution that is already in place: a PaymentIntent in the state `processing` (which card payments normally never reach, but asynchronous methods do) is no longer treated as "the customer must authenticate". The renewal waits (`renewal_payment_processing`, no failed attempt, no mail) and is booked when Stripe reports success, either through `payment_intent.succeeded` or at the next look.

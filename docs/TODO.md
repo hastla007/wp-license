@@ -91,6 +91,8 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 - [x] Kern-Plugins bleiben kostenlos, ohne Lizenzprüfung und ohne gesperrte Funktionen; Premium liegt in getrennten Add-ons (13.11.2026, `docs/IMPLEMENTATION-PLAN.md`). Kernfunktionen sind keine Rechte mehr (`EntitlementCatalog`).
 - [x] Auto-Verlängerung ist ein Opt-in; ein Kauf hängt nie davon ab (`docs/CONCEPT-CHECKOUT-RENEWAL.md`).
 - [x] Mindestversion WooCommerce 8.9 (T-104).
+- [x] Automatische Verlängerung zum Start nur mit Karte (Stripe). SEPA-Lastschrift, PayPal und andere Zahlarten verlängern manuell über die Erinnerungsmail; ein SEPA-Adapter ist ein späteres Teilprojekt, über das nach den ersten Monaten anhand der Zahlarten in den Bestellungen entschieden wird (14.11.2026, zu B-63).
+- [x] Fehlt die gespeicherte Karte, wird keine andere Karte des Kunden belastet. Die Verlängerung wartet, der Kunde wird per Mail aufgefordert, eine Karte zu hinterlegen oder manuell zu verlängern (14.11.2026, zu B-78).
 
 ### Stand und Qualitätssicherung
 
@@ -448,3 +450,4 @@ Sequenziell hält das Hauptbuch: keine Doppelverlängerung und keine Doppelbelas
 - [ ] **B-189 [OPTIMIERUNG]** (Zahlung) Auch die Währung des Tarifs ist eine Momentaufnahme: nach Währungswechsel des Shops zahlt der Kunde in USD, die Lizenz speichert EUR und verlängert in EUR. Verschärft A-11. (`Catalog.php:64`, `LicenseIssuer.php:222-224`)
 - [ ] **B-190 [OPTIMIERUNG]** (Zahlung) Hängende Zustände der Verlängerungszeilen: `failed` mit `retry_at NULL` zählt dauerhaft als überfällig, `manual_action_required` bis Ablauf, verwaiste Bestellungen mit `_wplc_renewal_id` ohne Bestellnotiz; nach Widerruf bleiben Rechte-Zeilen auf `suspended`. Aufräumregeln und Notizen ergänzen.
 - [ ] **B-191 [OPTIMIERUNG]** (Zahlung) Menge > 1: jede Lizenz verlängert mit eigener Bestellung, also N gleiche Abbuchungen und 3 × N Mails am selben Tag; Kartenherausgeber können das als Duplikat werten. Sammelbestellung je Kunde und Stichtag erwägen.
+- [ ] **B-192 [WICHTIG]** (Entscheidung 14.11.2026) Mail an den Kunden, wenn die gespeicherte Karte für die automatische Verlängerung nicht mehr verfügbar ist: neue Karte hinterlegen oder manuell verlängern. Der Stripe-Adapter feuert dafür `wplc/renewal_payment_method_missing`; es fehlt die Mail. (`src/Notifications/*`)
