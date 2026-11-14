@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP License Captain 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14T15:52:24+00:00\n"
+"POT-Creation-Date: 2026-11-14T16:10:18+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -1755,7 +1755,7 @@ msgid "Your license key and site activations are available in your account under
 msgstr ""
 
 #: src/Billing/RenewalOrder.php:42
-#: src/License/AuditReason.php:231
+#: src/License/AuditReason.php:232
 msgid "WooCommerce order services are unavailable."
 msgstr ""
 
@@ -1764,27 +1764,27 @@ msgid "The saved renewal order does not match this license renewal."
 msgstr ""
 
 #: src/Billing/RenewalOrder.php:63
-#: src/License/AuditReason.php:226
+#: src/License/AuditReason.php:227
 msgid "Multiple WooCommerce orders reference this license renewal; manual review is required."
 msgstr ""
 
 #: src/Billing/RenewalOrder.php:67
-#: src/License/AuditReason.php:227
+#: src/License/AuditReason.php:228
 msgid "An existing WooCommerce order conflicts with this license renewal."
 msgstr ""
 
 #: src/Billing/RenewalOrder.php:71
-#: src/License/AuditReason.php:228
+#: src/License/AuditReason.php:229
 msgid "The existing renewal order could not be linked."
 msgstr ""
 
 #: src/Billing/RenewalOrder.php:86
-#: src/License/AuditReason.php:229
+#: src/License/AuditReason.php:230
 msgid "The source product is no longer available for renewal."
 msgstr ""
 
 #: src/Billing/RenewalOrder.php:89
-#: src/License/AuditReason.php:230
+#: src/License/AuditReason.php:231
 msgid "This license has no renewal price."
 msgstr ""
 
@@ -1797,43 +1797,49 @@ msgid "The renewal order was created but could not be linked. A retry will attem
 msgstr ""
 
 #: src/Billing/RenewalOrder.php:194
-#: src/License/AuditReason.php:225
+#: src/License/AuditReason.php:226
 msgid "Existing renewal orders could not be checked safely."
 msgstr ""
 
 #: src/Billing/RenewalProcessor.php:179
-#: src/License/AuditReason.php:223
+#: src/License/AuditReason.php:224
 msgid "A verified automatic renewal payment method is unavailable."
 msgstr ""
 
 #: src/Billing/RenewalProcessor.php:198
-#: src/License/AuditReason.php:224
+#: src/License/AuditReason.php:225
 msgid "The renewal order is waiting for a payment started by the customer."
 msgstr ""
 
 #: src/Billing/RenewalProcessor.php:212
-#: src/License/AuditReason.php:222
+#: src/License/AuditReason.php:223
 msgid "The payment gateway did not confirm the renewal."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:317
+#: src/Billing/RenewalProcessor.php:323
 msgid "This renewal requires customer authentication. Automatic retries have been stopped."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:382
+#: src/Billing/RenewalProcessor.php:388
 msgid "The payment gateway did not return a definite result for this renewal payment; the payment may have been taken. The renewal is checked again with the same idempotency key and is not charged a second time. The customer was not told that the payment failed."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:508
+#: src/Billing/RenewalProcessor.php:514
 msgid "The result of the automatic renewal payment is still unknown and automatic attempts have stopped. Check the payment in the payment gateway: if it was taken, set this order to Processing or Completed to book the renewal; if it was not, set it to Failed to resume the automatic retries."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:621
-#: src/License/AuditReason.php:232
+#. translators: %s: license status, e.g. suspended.
+#: src/Billing/RenewalProcessor.php:556
+#, php-format
+msgid "WP License Captain: this renewal was paid, but the license could not be extended because its status changed to \"%s\" while the payment was running. Refund the payment, or reactivate the license and extend its term by hand."
+msgstr ""
+
+#: src/Billing/RenewalProcessor.php:670
+#: src/License/AuditReason.php:233
 msgid "The renewal order was set to failed after its payment result was checked."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:1020
+#: src/Billing/RenewalProcessor.php:1069
 msgid "The renewal attempt did not finish and its result is unknown."
 msgstr ""
 
@@ -2158,43 +2164,43 @@ msgid "Saved payment methods are switched off in the Stripe settings, so there i
 msgstr ""
 
 #: src/Gateway/StripeRecurringAdapter.php:97
-#: src/License/AuditReason.php:235
+#: src/License/AuditReason.php:236
 msgid "The renewal order could not be verified."
 msgstr ""
 
 #: src/Gateway/StripeRecurringAdapter.php:101
-#: src/License/AuditReason.php:236
+#: src/License/AuditReason.php:237
 msgid "A saved Stripe card is unavailable for this customer."
 msgstr ""
 
 #: src/Gateway/StripeRecurringAdapter.php:112
-#: src/License/AuditReason.php:237
+#: src/License/AuditReason.php:238
 msgid "The renewal amount is not valid for Stripe."
 msgstr ""
 
 #: src/Gateway/StripeRecurringAdapter.php:138
-#: src/License/AuditReason.php:233
+#: src/License/AuditReason.php:234
 msgid "Stripe did not return a definite result for the renewal payment."
 msgstr ""
 
 #: src/Gateway/StripeRecurringAdapter.php:155
 #: src/Gateway/StripeRecurringAdapter.php:169
-#: src/License/AuditReason.php:234
+#: src/License/AuditReason.php:235
 msgid "The customer must authenticate this payment method before renewal can continue."
 msgstr ""
 
 #: src/Gateway/StripeRecurringAdapter.php:162
-#: src/License/AuditReason.php:238
+#: src/License/AuditReason.php:239
 msgid "Stripe declined the renewal payment."
 msgstr ""
 
 #: src/Gateway/StripeRecurringAdapter.php:172
-#: src/License/AuditReason.php:239
+#: src/License/AuditReason.php:240
 msgid "Stripe did not confirm the renewal payment as succeeded."
 msgstr ""
 
 #: src/Gateway/StripeRecurringAdapter.php:176
-#: src/License/AuditReason.php:240
+#: src/License/AuditReason.php:241
 msgid "Stripe did not return a transaction reference."
 msgstr ""
 
@@ -2369,37 +2375,41 @@ msgid "The paid recovery order did not match the stored renewal amount."
 msgstr ""
 
 #: src/License/AuditReason.php:215
-msgid "The license of this renewal no longer exists."
+msgid "The renewal was paid, but the license status changed while the payment was running, so the license was not extended."
 msgstr ""
 
 #: src/License/AuditReason.php:216
-msgid "The license can no longer be renewed."
+msgid "The license of this renewal no longer exists."
 msgstr ""
 
 #: src/License/AuditReason.php:217
-msgid "The renewal was cancelled."
+msgid "The license can no longer be renewed."
 msgstr ""
 
 #: src/License/AuditReason.php:218
-msgid "The renewal order no longer exists."
+msgid "The renewal was cancelled."
 msgstr ""
 
 #: src/License/AuditReason.php:219
-msgid "The renewal order was closed."
+msgid "The renewal order no longer exists."
 msgstr ""
 
 #: src/License/AuditReason.php:220
+msgid "The renewal order was closed."
+msgstr ""
+
+#: src/License/AuditReason.php:221
 msgid "The payment result stayed unknown for too long."
 msgstr ""
 
 #. translators: 1: license prefix, 2: order item ID.
-#: src/License/LicenseIssuer.php:173
+#: src/License/LicenseIssuer.php:199
 #, php-format
 msgid "WP License Captain issued license %1$s for order item #%2$d."
 msgstr ""
 
 #. translators: %d: license ID
-#: src/License/LicenseLifecycle.php:224
+#: src/License/LicenseLifecycle.php:243
 #, php-format
 msgid "Partial refund: the renewed license #%d keeps its term. Use \"Change term\" on the license if the refund should shorten it."
 msgstr ""

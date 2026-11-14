@@ -212,6 +212,7 @@ final class AuditReason {
 			self::RECOVERY_NOT_ALLOWED           => array( __( 'The renewal status did not allow a customer payment recovery.', 'wp-license' ), array() ),
 			self::RECOVERY_AMOUNT_MISMATCH       => array( __( 'The paid recovery order did not match the stored renewal amount.', 'wp-license' ), array() ),
 			// Review reasons of a renewal whose payment result is unknown.
+			'license_changed_during_charge'      => array( __( 'The renewal was paid, but the license status changed while the payment was running, so the license was not extended.', 'wp-license' ), array() ),
 			'license_missing'                    => array( __( 'The license of this renewal no longer exists.', 'wp-license' ), array() ),
 			'license_not_renewable'              => array( __( 'The license can no longer be renewed.', 'wp-license' ), array() ),
 			'renewal_cancelled'                  => array( __( 'The renewal was cancelled.', 'wp-license' ), array() ),
