@@ -261,14 +261,7 @@ final class LicenseLifecycle {
 			);
 		}
 		// Automatic renewal is off now, so no open period may be charged.
-		$wpdb->query(
-			$wpdb->prepare(
-				"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, updated_at = %s WHERE license_id = %d AND status IN ('scheduled','failed','manual_action_required')",
-				'cancelled',
-				$now,
-				$license_id
-			)
-		);
+		self::close_open_renewals( $license_id, $now );
 
 		AuditLog::record(
 			'renewal_refunded',
@@ -378,14 +371,7 @@ final class LicenseLifecycle {
 			array( '%d' )
 		);
 		// Open renewals belong to the old period; the scheduler creates the row for the new one.
-		$wpdb->query(
-			$wpdb->prepare(
-				"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, updated_at = %s WHERE license_id = %d AND status IN ('scheduled','failed','manual_action_required')",
-				'cancelled',
-				$now,
-				$license_id
-			)
-		);
+		self::close_open_renewals( $license_id, $now );
 
 		AuditLog::record(
 			'admin_extend',
@@ -682,6 +668,40 @@ final class LicenseLifecycle {
 	}
 
 	/**
+	 * Stop every open renewal of a license.
+	 *
+	 * Scheduled and failed rows are cancelled. A row whose last payment result
+	 * is unknown may already have been charged: it is not re-checked any more
+	 * either, but goes to review so the payment is checked by hand.
+	 *
+	 * @param int    $license_id License ID.
+	 * @param string $now Current UTC datetime.
+	 * @return void
+	 */
+	private static function close_open_renewals( int $license_id, string $now ): void {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, updated_at = %s WHERE license_id = %d AND status IN ('scheduled','failed','manual_action_required')",
+				'cancelled',
+				$now,
+				$license_id
+			)
+		);
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, updated_at = %s WHERE license_id = %d AND status = %s",
+				'review_required',
+				$now,
+				$license_id,
+				'reconciling'
+			)
+		);
+	}
+
+	/**
 	 * Apply a status transition and log it.
 	 *
 	 * @param int    $license_id License ID.
@@ -726,14 +746,7 @@ final class LicenseLifecycle {
 				array( '%d', '%s' ),
 				array( '%d' )
 			);
-			$wpdb->query(
-				$wpdb->prepare(
-					"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, updated_at = %s WHERE license_id = %d AND status IN ('scheduled','failed','manual_action_required')",
-					'cancelled',
-					$now,
-					$license_id
-				)
-			);
+			self::close_open_renewals( $license_id, $now );
 		}
 
 		if ( in_array( $new_status, array( 'revoked', 'suspended' ), true ) ) {

@@ -44,20 +44,45 @@ The Stripe adapter (`StripeRecurringAdapter`) accepts only saved card PaymentMet
 The gateway receives `{renewal key}:{attempt_count}` (`RenewalScheduler::attempt_idempotency_key()`). Stripe replays the stored answer for a known key, so a single key for all attempts would return the first decline forever. `attempt_count` advances only after a definite failure was recorded:
 
 - Retry after a recorded decline: new key, new charge request.
-- Repeat of an attempt whose result was never recorded (crash, timeout): same key, Stripe replays the first result, the customer cannot be charged twice.
+- Check of an attempt whose result is unknown (crash, timeout): same key, Stripe replays the first result, the customer cannot be charged twice. A new key is never used before the outcome is known.
 
 ### Retries
 
-After a definite failure the license becomes `past_due` and the next attempt is scheduled at day 1, day 3 and day 7 after the period start. After the third retry fails, no further attempt is made and the license expires when the grace period ends.
+After a definite failure the license becomes `past_due` (this sends the "payment failed" email) and the next attempt is scheduled at day 1, day 3 and day 7 after the period start. After the third retry fails, no further attempt is made and the license expires when the grace period ends. An unknown result is not a definite failure and starts none of this.
 
 ### Unknown result (`renewal_result_unknown`)
 
-The adapter returns this code when Stripe gave no usable answer: exception, transport error, an error type other than `card_error`/`invalid_request_error`, or `idempotency_key_in_use`. Then:
+The adapter returns this code when Stripe gave no usable answer: exception, transport error, an error type other than `card_error`/`invalid_request_error`, or `idempotency_key_in_use`. The stuck-`processing` reconciliation (below) produces the same result. The payment may have been taken, so it is not treated as a decline:
 
-- the attempt counter stays, so the repeat uses the same idempotency key,
-- the repeat is scheduled one hour later,
-- the order is not set to `failed`,
-- the license is still marked `past_due` (see "Known gaps").
+- the renewal becomes `reconciling`; the attempt counter stays, so every check uses the same idempotency key,
+- the order is not set to `failed` and gets an order note,
+- the license keeps its status: it does not become `past_due`, no "payment failed" email is sent, and it keeps access (after `paid_until` through the normal grace rule for licenses with automatic renewal),
+- the customer cannot start a manual renewal for that period ("Renew now" is hidden, the start is refused), so the customer cannot pay twice,
+- audit entry `renewal_result_unknown` (once per attempt), order meta `_wplc_result_unknown_since` = `{attempt_count}|{unix time of the first request}`.
+
+The outcome is resolved by the first of these:
+
+| Event | Result |
+| --- | --- |
+| Hourly check (`wplc_process_renewal`) sends the same key; the gateway replays success | Renewal `paid`, license extended |
+| The check gets a definite decline | Normal failure: order `failed`, attempt counted, license `past_due` + email, retries with a new key |
+| The check gets an unknown result again | Stays `reconciling`, next check one hour later; the window is not restarted |
+| Stripe `payment_intent.succeeded` webhook | Renewal `paid`, license extended (see [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md)) |
+| The renewal order is marked paid (e.g. by an administrator) | Booked through `reconcile_paid_renewal_order()` |
+| 12 hours after the first request (`RenewalProcessor::RESULT_UNKNOWN_WINDOW`), or the end of the grace period if earlier | Renewal `review_required`, nothing is sent again |
+
+Checks only re-send the request while it is safe. A renewal in `reconciling` goes to `review_required` without a request when the window has passed, the license is no longer `active`/`past_due`, the customer cancelled or automatic renewal was switched off, the payment method or adapter is no longer available, or the renewal order is gone, closed or no longer matches. A revoke, expiry, administrator term change or refund of the license moves an open `reconciling` renewal to `review_required` as well, instead of cancelling it. The 12-hour bound keeps every check well inside the 24 hours Stripe keeps idempotency keys; after that the same key would be a new charge.
+
+### Review (`review_required`)
+
+Automatic attempts stop. The license is not changed. Audit entry `renewal_review_required` (reason e.g. `result_unknown_timeout`, `renewal_cancelled`), an order note with instructions, and `wplc/health_alert` with metric `review_required_renewals` right away and in the daily check (see [MONITORING.md](MONITORING.md)).
+
+The administrator checks the payment in the gateway dashboard (the PaymentIntent, if known, is in `_wplc_payment_intent_id`) and then sets the renewal order:
+
+- **Processing or Completed** if the money was taken: the renewal is booked and the license extended.
+- **Failed** if it was not: `wplc_resolve_failed_renewal_order` records a definite decline (audit `renewal_result_resolved`), the license becomes `past_due` with the usual email, and retries continue with a new idempotency key.
+
+Until then the normal rules apply: an `active` license is expired by the daily job 15 days after `paid_until`. Resolve reviews within the grace period.
 
 ### Customer authentication (3-D Secure)
 
@@ -70,7 +95,7 @@ A renewal is set to `processing` before the gateway call. If the request dies th
 - a check is scheduled 20 minutes later (`wplc_reconcile_stuck_renewal`),
 - the daily job also picks up rows that have been `processing` for more than 15 minutes (up to 50 per run).
 
-If the renewal order is paid, the renewal is booked. Otherwise the attempt is treated as "result unknown" and repeated with the same idempotency key. No charge is made by the reconciliation itself.
+If the renewal order is paid, the renewal is booked. Otherwise the attempt is treated as "result unknown" (see above): the renewal becomes `reconciling` and later checks use the same idempotency key. The 12-hour window counts from the moment the row entered `processing`, so a row found by the daily job after more than 12 hours goes straight to `review_required`. No charge is made by the reconciliation itself.
 
 ### Grace period
 
@@ -109,6 +134,7 @@ The customer can cancel at period end in the account and withdraw the cancellati
 | `_wplc_renewal_net_minor` | Pre-tax line total in minor units when the order was priced |
 | `_wplc_renewal_price_decimals` | Precision of that amount |
 | `_wplc_payment_intent_id` | Stripe PaymentIntent of the last automatic attempt |
+| `_wplc_result_unknown_since` | `{attempt_count}\|{unix time}`: first request of the attempt whose result is unknown |
 | `_wplc_renewal_review` | `yes` when a paid order could not be applied |
 
 ## Renewal statuses
@@ -118,7 +144,9 @@ The customer can cancel at period end in the account and withdraw the cancellati
 | `scheduled` | Automatic charge is planned |
 | `processing` | A charge attempt is running |
 | `paid` | Paid and booked |
-| `failed` | Last attempt failed or its result is unknown; a retry may be scheduled |
+| `failed` | Last attempt failed definitely; a retry may be scheduled |
+| `reconciling` | Result of the last attempt is unknown; checked hourly with the same idempotency key, license untouched |
+| `review_required` | Result stayed unknown (or a check was no longer safe); no automatic attempts, an administrator decides |
 | `manual_action_required` | Customer must authenticate or pay; no automatic retries |
 | `manual` | Created by a manual renewal, waiting for the customer's payment |
 | `cancelled` | Not charged: cancelled, license ended, or period replaced by an admin term change |
@@ -152,6 +180,7 @@ The stored price is a catalog price: gross if the shop enters prices including t
 ## Known gaps
 
 - Not verified against Stripe: card saving at first purchase, off-session charge, 3-D Secure, declines, timeouts.
-- An attempt with unknown result marks the license `past_due`, which sends the "payment failed" email although the payment may have succeeded.
+- An unknown result is only resolved by re-sending the same request (idempotent replay), by the Stripe success webhook or by hand. The adapter contract has no read-only status lookup, and a `payment_intent.payment_failed` webhook does not resolve a `reconciling` renewal (it cannot be matched to the attempt safely).
+- There is no admin screen listing `review_required` renewals; use the diagnostics counter, the audit log and the order notes.
 - A paid manual renewal that is rejected is not refunded automatically.
 - Partial refunds of renewal orders are ignored.

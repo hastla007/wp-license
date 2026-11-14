@@ -33,7 +33,8 @@ final class Diagnostics {
 		return array(
 			'pending_webhooks' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['event_inbox']} WHERE source = %s AND outcome = %s", 'stripe', 'pending_reconciliation' ) ),
 			'manual_review_webhooks' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['event_inbox']} WHERE source = %s AND outcome = %s AND processed_at >= %s", 'stripe', 'manual_review', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) ),
-			'overdue_renewals' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status IN (%s,%s) AND (retry_at <= %s OR (retry_at IS NULL AND period_start <= %s))", 'scheduled', 'failed', $now, $now ) ),
+			'overdue_renewals' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status IN (%s,%s,%s) AND (retry_at <= %s OR (retry_at IS NULL AND period_start <= %s))", 'scheduled', 'failed', 'reconciling', $now, $now ) ),
+			'review_required_renewals' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status = %s", 'review_required' ) ),
 			'expired_download_grants' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['download_tokens']} WHERE consumed_at IS NULL AND expires_at <= %s", $now ) ),
 		);
 	}
@@ -45,22 +46,47 @@ final class Diagnostics {
 	 */
 	public static function emit_alerts(): void {
 		$metrics = self::metrics();
+		foreach ( self::thresholds() as $metric => $threshold ) {
+			if ( isset( $metrics[ $metric ] ) && is_numeric( $threshold ) && $metrics[ $metric ] >= (int) $threshold ) {
+				do_action( 'wplc/health_alert', sanitize_key( (string) $metric ), $metrics[ $metric ], (int) $threshold );
+			}
+		}
+	}
+
+	/**
+	 * Emit one threshold event right away, outside the daily run.
+	 *
+	 * Used where waiting for the daily check would be too slow, e.g. a renewal
+	 * whose payment result stayed unknown. Respects the configured thresholds.
+	 *
+	 * @param string $metric Metric key.
+	 * @param int    $value Current value.
+	 * @return void
+	 */
+	public static function emit_alert( string $metric, int $value ): void {
+		$thresholds = self::thresholds();
+		if ( isset( $thresholds[ $metric ] ) && is_numeric( $thresholds[ $metric ] ) && $value >= (int) $thresholds[ $metric ] ) {
+			do_action( 'wplc/health_alert', sanitize_key( $metric ), $value, (int) $thresholds[ $metric ] );
+		}
+	}
+
+	/**
+	 * Alert thresholds per metric key, after the filter.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private static function thresholds(): array {
 		$thresholds = apply_filters(
 			'wplc_health_alert_thresholds',
 			array(
 				'pending_webhooks' => 1,
 				'manual_review_webhooks' => 1,
 				'overdue_renewals' => 1,
+				'review_required_renewals' => 1,
 			)
 		);
-		if ( ! is_array( $thresholds ) ) {
-			return;
-		}
-		foreach ( $thresholds as $metric => $threshold ) {
-			if ( isset( $metrics[ $metric ] ) && is_numeric( $threshold ) && $metrics[ $metric ] >= (int) $threshold ) {
-				do_action( 'wplc/health_alert', sanitize_key( (string) $metric ), $metrics[ $metric ], (int) $threshold );
-			}
-		}
+
+		return is_array( $thresholds ) ? $thresholds : array();
 	}
 
 	/** Add a WooCommerce submenu for authorized shop managers. */
@@ -98,6 +124,7 @@ final class Diagnostics {
 			__( 'Pending Stripe events', 'wp-license' ) => $metrics['pending_webhooks'],
 			__( 'Stripe events needing review', 'wp-license' ) => $metrics['manual_review_webhooks'],
 			__( 'Overdue renewal attempts', 'wp-license' ) => $metrics['overdue_renewals'],
+			__( 'Renewals with unknown payment result needing review', 'wp-license' ) => $metrics['review_required_renewals'],
 			__( 'Unused expired download grants', 'wp-license' ) => $metrics['expired_download_grants'],
 		);
 
