@@ -88,12 +88,54 @@ final class Plugin {
 	/**
 	 * Deactivation clears scheduled work but preserves license and order data.
 	 *
+	 * A network deactivation clears the events of every site of the network, not
+	 * only of the site the request runs on (cron events are stored per site).
+	 *
+	 * @param bool $network_wide True when WordPress deactivates the plugin for the whole network.
 	 * @return void
 	 */
-	public static function deactivate(): void {
+	public static function deactivate( bool $network_wide = false ): void {
+		if ( ! $network_wide || ! is_multisite() ) {
+			self::clear_scheduled_events();
+			return;
+		}
+
+		foreach ( self::network_site_ids() as $site_id ) {
+			switch_to_blog( $site_id );
+			try {
+				self::clear_scheduled_events();
+			} finally {
+				restore_current_blog();
+			}
+		}
+	}
+
+	/**
+	 * Remove the plugin's recurring WP-Cron events of the current site.
+	 *
+	 * @return void
+	 */
+	public static function clear_scheduled_events(): void {
 		wp_clear_scheduled_hook( 'wplc_daily_lifecycle' );
 		wp_clear_scheduled_hook( 'wplc_cleanup_security_rows' );
 		wp_clear_scheduled_hook( 'wplc_send_reminders' );
+	}
+
+	/**
+	 * IDs of all sites of the current network.
+	 *
+	 * @return int[]
+	 */
+	public static function network_site_ids(): array {
+		$ids = get_sites(
+			array(
+				'fields'     => 'ids',
+				'number'     => 0,
+				'network_id' => get_current_network_id(),
+			)
+		);
+
+		return array_map( 'intval', (array) $ids );
 	}
 
 	/**
@@ -113,6 +155,11 @@ final class Plugin {
 	public static function on_plugins_loaded(): void {
 		self::load_textdomain();
 
+		// Also without WooCommerce: on a network the site that deletes another site
+		// (usually the main site) may not run WooCommerce, but the deleted site's
+		// wplc_* tables must still be dropped with it.
+		Schema::register_hooks();
+
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			add_action( 'admin_notices', array( self::class, 'render_woocommerce_notice' ) );
 			return;
@@ -122,7 +169,6 @@ final class Plugin {
 		RecoverLicenseKeyIdsCommand::register();
 		SigningKeyCommand::register();
 		Schema::maybe_upgrade();
-		Schema::register_hooks();
 		ReleaseRegistry::register_hooks();
 		PackageStream::register_hooks();
 		CustomerDownload::register_hooks();
