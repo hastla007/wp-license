@@ -214,7 +214,7 @@ final class LicenseLifecycle {
 			'renewal_partially_refunded',
 			'license',
 			$license_id,
-			'Renewal order #' . $order_id . ' was partially refunded (' . $amount . ' ' . $currency . '); the license term is unchanged',
+			AuditReason::encode( AuditReason::RENEWAL_PARTIALLY_REFUNDED, array( 'order' => $order_id, 'amount' => $amount, 'currency' => $currency ) ),
 			null,
 			array( 'renewal_id' => $renewal_id, 'refund_id' => $refund_id, 'amount' => $amount, 'currency' => $currency )
 		);

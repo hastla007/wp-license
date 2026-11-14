@@ -33,6 +33,7 @@ final class AuditReason {
 	public const REFUNDED_ORDER_UNIT            = 'refunded_order_unit';
 	public const ORDER_REFUNDED                 = 'order_refunded';
 	public const RENEWAL_ORDER_REFUNDED         = 'renewal_order_refunded';
+	public const RENEWAL_PARTIALLY_REFUNDED     = 'renewal_partially_refunded';
 	public const RENEWED_FROM_ORDER             = 'renewed_from_order';
 	public const RENEWED_MANUALLY_FROM_ORDER    = 'renewed_manually_from_order';
 	public const GRACE_PERIOD_ENDED             = 'grace_period_ended';
@@ -175,6 +176,8 @@ final class AuditReason {
 			self::ORDER_REFUNDED                 => array( __( 'The order was refunded in full.', 'wp-license' ), array() ),
 			/* translators: %d: WooCommerce order number. */
 			self::RENEWAL_ORDER_REFUNDED         => array( __( 'Renewal order #%d was refunded in full.', 'wp-license' ), array( 'order' ) ),
+			/* translators: 1: WooCommerce order number, 2: refunded amount, 3: currency code. */
+			self::RENEWAL_PARTIALLY_REFUNDED     => array( __( 'Renewal order #%1$d was partially refunded (%2$s %3$s); the license term is unchanged.', 'wp-license' ), array( 'order', 'amount', 'currency' ) ),
 			/* translators: %d: WooCommerce order number. */
 			self::RENEWED_FROM_ORDER             => array( __( 'Renewed from WooCommerce order #%d.', 'wp-license' ), array( 'order' ) ),
 			/* translators: %d: WooCommerce order number. */
