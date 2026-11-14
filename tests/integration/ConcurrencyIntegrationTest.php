@@ -87,6 +87,8 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 	// ------------------------------------------------------------------
 
 	public function test_download_grant_can_be_consumed_exactly_once(): void {
+		// Strict single use is still available; since B-19 the default is a short reuse window (next test).
+		add_filter( 'wplc_download_reuse_seconds', '__return_zero' );
 		$license = $this->seed_license();
 		$site    = $this->activate_via_api( $license['key'] );
 		$token   = $this->request_grant( $site );
@@ -102,6 +104,57 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 
 		$second = $this->download( $token );
 		$this->assertSame( array( 'status', 404 ), array( $second->kind, $second->status ) );
+	}
+
+	// B-19: a second fetch of the same URL (download manager, scanning proxy) works for a short time only.
+	public function test_used_grant_keeps_working_during_the_reuse_window_only(): void {
+		global $wpdb;
+		$tables  = $this->tables();
+		$license = $this->seed_license();
+		$site    = $this->activate_via_api( $license['key'] );
+		$token   = $this->request_grant( $site );
+
+		$first = $this->download( $token );
+		$this->assertSame( array( 'redirect', $this->package_url() ), array( $first->kind, $first->location ) );
+		$used_at = $this->grant( $token )['consumed_at'];
+		$this->assertNotNull( $used_at );
+
+		$second = $this->download( $token );
+		$this->assertSame( array( 'redirect', $this->package_url() ), array( $second->kind, $second->location ), 'A second fetch inside the reuse window is served.' );
+
+		// The same grant, used more than 120 seconds ago.
+		$wpdb->update( $tables['download_tokens'], array( 'consumed_at' => gmdate( 'Y-m-d H:i:s', time() - 121 ) ), array( 'token_hash' => hash( 'sha256', $token ) ) );
+		$late = $this->download( $token );
+		$this->assertSame( array( 'status', 404 ), array( $late->kind, $late->status ) );
+		$this->assertSame( '', $this->grant( $token )['package_url'], 'After the reuse window a used grant must not keep the package location.' );
+
+		// A revoked license ends the window at once.
+		$token_2 = $this->request_grant( $site );
+		$this->download( $token_2 );
+		$wpdb->update( $tables['licenses'], array( 'status' => 'revoked' ), array( 'id' => $license['id'] ) );
+		$revoked = $this->download( $token_2 );
+		$this->assertSame( array( 'status', 404 ), array( $revoked->kind, $revoked->status ) );
+	}
+
+	// B-19: HEAD answers 200 and does not use the grant up.
+	public function test_head_request_does_not_consume_the_grant(): void {
+		$license = $this->seed_license();
+		$site    = $this->activate_via_api( $license['key'] );
+		$token   = $this->request_grant( $site );
+
+		$this->halt_instead_of_exit();
+		$halt = null;
+		try {
+			$this->dispatch( new WP_REST_Request( 'HEAD', '/wplc/v1/updates/download/' . $token ) );
+		} catch ( WPLC_Test_Halt $caught ) {
+			$halt = $caught;
+		}
+		$this->assertNotNull( $halt );
+		$this->assertSame( array( 'status', 200 ), array( $halt->kind, $halt->status ) );
+		$this->assertNull( $this->grant( $token )['consumed_at'], 'HEAD must leave the grant unused.' );
+
+		$get = $this->download( $token );
+		$this->assertSame( array( 'redirect', $this->package_url() ), array( $get->kind, $get->location ) );
 	}
 
 	public function test_grant_is_refused_after_the_license_was_revoked_and_stays_unconsumed(): void {
@@ -178,9 +231,30 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 
 		$halt = $this->download( $token );
 		$this->assertSame( array( 'status', 404 ), array( $halt->kind, $halt->status ) );
-		// Documents current behavior: the grant is already burned at this point,
-		// so the client has to run a new update check after the resolver is fixed.
-		$this->assertNotNull( $this->grant( $token )['consumed_at'] );
+		// T-142: the resolver runs before the grant is used, so a failing resolver does not burn it.
+		$this->assertNull( $this->grant( $token )['consumed_at'] );
+	}
+
+	// A-32: with wplc_require_package_resolver a permanent package URL is never handed to a client.
+	public function test_strict_mode_refuses_to_redirect_to_the_permanent_package_url(): void {
+		$license = $this->seed_license();
+		$site    = $this->activate_via_api( $license['key'] );
+		$token   = $this->request_grant( $site );
+		add_filter( 'wplc_require_package_resolver', '__return_true' );
+
+		$halt = $this->download( $token );
+		$this->assertSame( array( 'status', 404 ), array( $halt->kind, $halt->status ) );
+		$this->assertNull( $this->grant( $token )['consumed_at'] );
+
+		$signed = $this->package_url() . '?signature=abc';
+		add_filter(
+			'wplc_resolve_update_package_url',
+			static function () use ( $signed ) {
+				return $signed;
+			}
+		);
+		$halt = $this->download( $token );
+		$this->assertSame( array( 'redirect', $signed ), array( $halt->kind, $halt->location ) );
 	}
 
 	public function test_expired_and_consumed_grants_are_purged_after_the_retention_period(): void {

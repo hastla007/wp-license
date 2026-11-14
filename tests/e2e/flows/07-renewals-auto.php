@@ -178,7 +178,8 @@ e2e_as_site( 'https://dave-shop.example' );
 $check = $client->check_entitlements();
 e2e_ok( is_array( $check ) && 'expired' === ( $check['license_status'] ?? null ) && empty( $check['entitlements'] ), 'expired: the site is told "expired" and gets no entitlements', is_array( $check ) ? $check : $error_of( $check ) );
 $update = $client->check_update();
-e2e_ok( is_wp_error( $update ) && 'license_inactive' === $update->get_error_code(), 'expired: no updates', $error_of( $update ) );
+// B-140: signed answer with the reason instead of a bare 403; never a package.
+e2e_ok( is_array( $update ) && false === ( $update['license_active'] ?? null ) && 'license_expired' === ( $update['reason'] ?? null ) && '' === ( $update['package_url'] ?? '' ), 'expired: no updates', $error_of( $update ) );
 e2e_as_site( '' );
 update_option( 'wplc_e2e_fake_mode', 'success' );
 update_option( 'wplc_e2e_fake_charges', array(), false );
