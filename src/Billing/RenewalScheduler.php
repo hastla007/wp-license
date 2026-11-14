@@ -123,7 +123,7 @@ final class RenewalScheduler {
 
 		$automatic = 'manual' !== $initial_status;
 		$now = gmdate( 'Y-m-d H:i:s' );
-		$inserted = $wpdb->insert(
+		$inserted = Schema::insert_unique(
 			$tables['renewals'],
 			array(
 				'license_id' => $license_id,
@@ -139,14 +139,14 @@ final class RenewalScheduler {
 			),
 			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' )
 		);
-		if ( false === $inserted || ! $wpdb->insert_id ) {
+		if ( ! $inserted ) {
 			// A concurrent request may have inserted the same unique key.
 			return (int) $wpdb->get_var(
 				$wpdb->prepare( "SELECT id FROM {$tables['renewals']} WHERE idempotency_key = %s LIMIT 1", $idempotency_key )
 			);
 		}
 
-		return (int) $wpdb->insert_id;
+		return $inserted;
 	}
 
 	/**

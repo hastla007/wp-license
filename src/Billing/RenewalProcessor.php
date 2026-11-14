@@ -254,7 +254,13 @@ final class RenewalProcessor {
 		$renewal_id = (int) $renewal['id'];
 		$order_id = (int) $order->get_id();
 		self::set_renewal_status( $renewal_id, 'paid', null, $order_id );
-		LicenseLifecycle::mark_renewed( (int) $license['id'], (string) $renewal['period_end'], $order_id );
+		if ( ! LicenseLifecycle::mark_renewed( (int) $license['id'], (string) $renewal['period_end'], $order_id ) ) {
+			// The money was taken, but the license changed meanwhile (an administrator suspended it,
+			// the original order was refunded, ...) and may not be extended. Never record such a
+			// renewal as paid: it goes to review so the payment is refunded or booked by hand.
+			self::flag_paid_but_not_booked( $renewal, $license, $order );
+			return;
+		}
 		RenewalScheduler::schedule_next( (int) $license['id'] );
 		AuditLog::record(
 			$audit_action,
@@ -515,6 +521,49 @@ final class RenewalProcessor {
 			array( 'status' => self::STATUS_REVIEW, 'order_id' => $order ? (int) $order->get_id() : 0 )
 		);
 		$tables = Schema::table_names();
+		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status = %s", self::STATUS_REVIEW ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+		\WPLC\Admin\Diagnostics::emit_alert( 'review_required_renewals', $count );
+	}
+
+	/**
+	 * Send a paid renewal whose license could not be extended to review.
+	 *
+	 * Happens when the license status changed while the gateway was charging
+	 * (suspension, refund of the original order, expiry). The order stays paid,
+	 * the license keeps its status and period, and the renewal row is not `paid`.
+	 * An administrator refunds the payment or extends the license by hand.
+	 *
+	 * @param array<string,mixed> $renewal Renewal row as read before the charge.
+	 * @param array<string,mixed> $license License row as read before the charge.
+	 * @param \WC_Order           $order Paid renewal order.
+	 * @return void
+	 */
+	private static function flag_paid_but_not_booked( array $renewal, array $license, $order ): void {
+		global $wpdb;
+
+		$renewal_id = (int) $renewal['id'];
+		$tables = Schema::table_names();
+		$current = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$tables['licenses']} WHERE id = %d", (int) $license['id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+		self::set_renewal_status( $renewal_id, self::STATUS_REVIEW, null, (int) $order->get_id() );
+		if ( self::STATUS_REVIEW === (string) $renewal['status'] ) {
+			// A repeated paid-order hook while the license still cannot be extended: already reported.
+			return;
+		}
+		$order->add_order_note(
+			sprintf(
+				/* translators: %s: license status, e.g. suspended. */
+				__( 'WP License Captain: this renewal was paid, but the license could not be extended because its status changed to "%s" while the payment was running. Refund the payment, or reactivate the license and extend its term by hand.', 'wp-license' ),
+				$current
+			)
+		);
+		AuditLog::record(
+			'renewal_review_required',
+			'renewal',
+			$renewal_id,
+			'license_changed_during_charge',
+			array( 'status' => (string) $renewal['status'], 'license_status' => (string) $license['status'] ),
+			array( 'status' => self::STATUS_REVIEW, 'license_status' => $current, 'order_id' => (int) $order->get_id() )
+		);
 		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status = %s", self::STATUS_REVIEW ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
 		\WPLC\Admin\Diagnostics::emit_alert( 'review_required_renewals', $count );
 	}
