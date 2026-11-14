@@ -1,6 +1,6 @@
 # WP License Captain — To-do-Liste
 
-Stand: 14.11.2026, Branch `claude/zen-babbage-7q4nac` (22 Aufgaben abgeschlossen, siehe Abschnitt 6 „Abgeschlossen am 14.11.2026“). Dies ist die einzige Aufgabenliste des Lizenzservers. Die Aufgaben der drei Produkt-Plugins (Kern-Plugin und Premium-Add-on) stehen in deren eigenen `TODO.md`.
+Stand: 14.11.2026, Branch `claude/zen-babbage-7q4nac` (24 Aufgaben abgeschlossen, siehe Abschnitt 6 „Abgeschlossen am 14.11.2026“). Dies ist die einzige Aufgabenliste des Lizenzservers. Die Aufgaben der drei Produkt-Plugins (Kern-Plugin und Premium-Add-on) stehen in deren eigenen `TODO.md`.
 
 **Regeln**
 
@@ -36,8 +36,6 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 ### Tests und Betrieb
 
 - [ ] **T-148 [WICHTIG]** Zweimal schlug ein einzelner Integrationstest lokal einmalig fehl, als zwei Testläufe denselben Datenbankserver nutzten. Die serverweiten Sperrnamen sind inzwischen pro Site eindeutig; beobachten, ob es in CI wieder auftritt. Am 14.11. traten ähnliche Zufallsfehler nur auf, solange parallele Testläufe versehentlich dieselbe Datenbank nutzten; mit getrennten Datenbanken waren alle Läufe stabil.
-- [ ] **T-95 [WICHTIG]** Release-Workflow (`.github/workflows/release.yml`) ist geschrieben und nie gelaufen. Mit einem Test-Tag ausführen und das ZIP auf einer leeren Installation prüfen.
-- [ ] **T-86 [WICHTIG]** Schlüsselrotation und Key-ID-Wiederherstellung (WP-CLI) an einer Datenbankkopie mit Backup und Restore abnehmen.
 - [ ] **T-89 [WICHTIG]** Lasttest mit realistischen Mengen; Abfragepläne der Listen prüfen.
 - [ ] **T-91 [WICHTIG]** Monitoring anschließen: Empfänger für `wplc/health_alert`, Überwachung von Action Scheduler, Webhooks und Paket-Host (`docs/MONITORING.md`).
 - [ ] **T-31 [WICHTIG]** Externer Paketspeicher (S3 oder GCS) ist nur dokumentiert. Bei Bedarf anbinden und abnehmen.
@@ -69,7 +67,7 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 
 ### Abgeschlossen am 14.11.2026
 
-Belege: *Unit* 504 Tests, *Integration* 194 Tests (HPOS und klassische Bestellspeicherung, MariaDB 10.11, WordPress 7.1.4, WooCommerce 11.2.2), *E2E* 684 Prüfungen, blockierendes PHPCS ohne neue Befunde, PHPStan Stufe 5 ohne neue Befunde. Alle 12 CI-Jobs auf GitHub grün (PR #40, Commit 92dcb5c).
+Belege: *Unit* 508 Tests, *Integration* 194 Tests (HPOS und klassische Bestellspeicherung, MariaDB 10.11, WordPress 7.1.4, WooCommerce 11.2.2), *E2E* 684 Prüfungen, blockierendes PHPCS ohne neue Befunde, PHPStan Stufe 5 ohne neue Befunde. Alle 12 CI-Jobs auf GitHub grün (PR #40, Commit 92dcb5c).
 
 - [x] **T-132** Verlängerungspreis der gekauften Variante wird an der Lizenz gespeichert (`renewal_product_id`, Migration 13). Automatische Verlängerung belastet den zugestimmten Betrag; manuelle Verlängerung nutzt den aktuellen regulären Preis der gekauften Variante. *Integration, E2E (79,00 statt 59,00).* Offen bleibt nur die Frage, ob Altlizenzen nachkorrigiert werden; vor dem ersten Verkauf gegenstandslos.
 - [x] **T-134** `LicenseClient` prüft die Ed25519-Signatur gegen fest hinterlegte öffentliche Schlüssel (mehrere während einer Rotation), auch für den Offline-Cache (`check_entitlements_envelope()`, `verify_cached_envelope()`). *Unit: gefälschte Antwort mit gültigem HMAC wird abgelehnt.* Die Add-ons müssen den Schlüssel einbauen (T-131).
@@ -85,6 +83,8 @@ Belege: *Unit* 504 Tests, *Integration* 194 Tests (HPOS und klassische Bestellsp
 - [x] **T-144** `wplc_reminder_log` im Schema (Migration 12). *Unit, Integration, E2E (Upgrade).*
 - [x] **T-145** API-Spezifikation deklariert 409, 429 und 503; die drei unvollständigen Integrationstests prüfen jetzt hart. *Integration.*
 - [x] **T-146** `SiteUrl`: nicht kanonische IPv4-Schreibweisen abgelehnt, Pfade normalisiert, Umlaut-Domains auch ohne `intl` (gegen `idn_to_ascii` über alle BMP-Zeichen geprüft); bestehende Aktivierungen werden weiter erkannt. *Unit, Integration.*
+- [x] **T-86** Schlüsselrotation an einer Datenbankkopie geprobt (Backup, Rotation beider Schlüsselringe, `rotate-installation-secrets`, Signaturschlüssel, simulierte Fehler, Wiederherstellung). Zwei Fehler behoben: (1) Das Ausmustern des alten Verschlüsselungsschlüssels nach Anleitung schaltete unbemerkt die Ed25519-Signatur ab, alle Clients mit fest hinterlegtem Schlüssel wurden abgewiesen; der Signaturschlüssel wird jetzt mitrotiert, `signing-key --prepare` erzeugt den nächsten Schlüssel vorab. (2) Nach manueller Änderung der Key-ID zeigte das Kundenkonto einen falschen Schlüssel. Ablauf in `docs/SECURITY-OPERATIONS.md`, Nachweis in `docs/LAUNCH-EVIDENCE.md`. Wichtig: Eine wiederhergestellte Datenbank braucht den Schlüsselring vom Zeitpunkt des Backups.
+- [x] **T-95** Release-Build lokal aus `git archive` nachgestellt und das ZIP auf einer leeren WordPress-Installation installiert (Aktivierung ohne Hinweise, 14 Tabellen, alle Adminseiten, Deinstallation). Build in `bin/build-zip.sh`, neuer CI-Job `package.yml` baut das ZIP in jedem PR; `release.yml` prüft auch den Stable tag und testet vor dem Build. Nicht gelaufen: echter Tag-Push mit Release-Upload.
 - [x] **T-61** Multisite auf einem echten Netzwerk geprüft (Netzwerk- und Einzelaktivierung, Tabellen pro Site, Lizenz einer Site bei einer anderen unbekannt, Löschen einer Site entfernt ihre Tabellen). Drei Fehler behoben: Netzwerk-Deaktivierung und Deinstallation räumten nur eine Site auf; Tabellen gelöschter Sites blieben ohne WooCommerce auf der Hauptsite liegen. Neue CI-Zelle für Multisite. *Integration (8 Tests, beide Speicherarten), WP-CLI auf einem Netzwerk.* Grenzen in `docs/MULTISITE.md`.
 - [x] **T-155** Der Stripe-Webhook `payment_intent.payment_failed` klärt ein unklares Zahlungsergebnis als Ablehnung, wenn Versuchsnummer (neue Metadaten `wplc_attempt`), Verlängerung und Betrag passen; ältere Versuche und Ereignisse ohne Versuchsnummer ändern nichts. Offene Prüffälle aus unklarem Ergebnis werden ebenso aufgelöst. *Unit, Integration (7 Tests), E2E.* Der Stripe-Status `requires_payment_method` nach einer Ablehnung ist noch gegen ein echtes Ereignis zu bestätigen (T-12).
 - [x] **T-154, T-137** Adminseite „Zu prüfende Verlängerungen“ mit Zähler im Menü: unklares Zahlungsergebnis, bezahlt aber Lizenz während der Zahlung geändert, verspätete oder nicht anwendbare manuelle Zahlung. Aktionen „Verlängerung buchen“, „Als nicht bezahlt markieren“, „Ohne Buchung abschließen“, jeweils mit Pflichtbegründung, Sperre und Audit-Eintrag; Doppelklick ändert nichts. Solange ein Fall offen ist, läuft die Lizenz höchstens 30 Tage länger nicht ab (Zugang endet trotzdem mit der Kulanzzeit). Schema 14. *Unit, Integration (11 Tests), E2E.* Bekannte Lücke: Eine gesperrte Lizenz mit abgelaufenem Zeitraum lässt sich nicht reaktivieren, ihr Fall nur schließen.

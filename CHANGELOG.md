@@ -61,6 +61,8 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - The sender note setting was saved but never shown in emails.
 - The reminder log table was created outside the versioned schema (now schema 12).
 - A refused package URL used up the one-time download link.
+- Network deactivation and uninstall on multisite cleaned up only one site; tables of deleted sites could stay behind.
+- After a manual change of a license's key ID the customer account showed a wrong license key.
 
 ### Security
 
@@ -68,6 +70,7 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - One-time, short-lived download links; packages are only delivered from private storage or trusted HTTPS hosts.
 - A full license key typed into the admin search no longer appears in URLs, browser history or server logs.
 - Product plugins can reject data that was not signed by the license server, even if the site's own database was changed.
+- Rotating the installation encryption key also re-encrypts the response signing key; before, retiring the old key silently switched the server signature off. `wp wplc signing-key --prepare` publishes the next public key before it is used.
 
 ### Known limitations
 
