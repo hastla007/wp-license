@@ -26,6 +26,7 @@ final class LicenseLifecycle {
 	public static function register_hooks(): void {
 		add_action( 'woocommerce_order_refunded', array( self::class, 'handle_refund' ), 20, 2 );
 		add_action( 'woocommerce_order_fully_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
+		add_action( 'woocommerce_order_partially_refunded', array( self::class, 'handle_partial_renewal_refund' ), 20, 2 );
 		add_action( 'woocommerce_order_status_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'expire_due_licenses' ) );
 		// Public extension point; fired by chargeback_for_order() for Stripe disputes.
@@ -175,6 +176,55 @@ final class LicenseLifecycle {
 		foreach ( $ids as $license_id ) {
 			self::transition( (int) $license_id, 'revoked', 'Order refunded in full', 'order_refund' );
 		}
+	}
+
+	/**
+	 * Record a partial refund of a renewal order (T-50).
+	 *
+	 * A partial refund is a goodwill or price correction: the customer keeps the renewed period, so the license is not
+	 * changed. The refund is written to the audit history and the order notes, and the admin can shorten the term
+	 * with "Change term" when the refund was meant to end the period early. A refund that brings the order to zero
+	 * is a full refund and rolls the renewal back (handle_full_refund).
+	 *
+	 * @param int $order_id  Order ID.
+	 * @param int $refund_id Refund ID.
+	 * @return void
+	 */
+	public static function handle_partial_renewal_refund( int $order_id, int $refund_id ): void {
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+		if ( ! $order || ! is_callable( array( $order, 'get_meta' ) ) ) {
+			return;
+		}
+		$license_id = absint( $order->get_meta( '_wplc_renewal_for_license', true ) );
+		$renewal_id = absint( $order->get_meta( '_wplc_renewal_id', true ) );
+		$refund     = wc_get_order( $refund_id );
+		if ( ! $license_id || ! $renewal_id || ! $refund || (int) $refund->get_parent_id() !== $order_id ) {
+			return;
+		}
+		// The hook may fire more than once for one refund.
+		if ( $refund->get_meta( '_wplc_partial_renewal_refund_recorded', true ) ) {
+			return;
+		}
+		$refund->update_meta_data( '_wplc_partial_renewal_refund_recorded', gmdate( 'Y-m-d H:i:s' ) );
+		$refund->save();
+
+		$amount   = (string) $refund->get_amount();
+		$currency = (string) $order->get_currency();
+		AuditLog::record(
+			'renewal_partially_refunded',
+			'license',
+			$license_id,
+			'Renewal order #' . $order_id . ' was partially refunded (' . $amount . ' ' . $currency . '); the license term is unchanged',
+			null,
+			array( 'renewal_id' => $renewal_id, 'refund_id' => $refund_id, 'amount' => $amount, 'currency' => $currency )
+		);
+		$order->add_order_note(
+			sprintf(
+				/* translators: %d: license ID */
+				__( 'Partial refund: the renewed license #%d keeps its term. Use "Change term" on the license if the refund should shorten it.', 'wp-license' ),
+				$license_id
+			)
+		);
 	}
 
 	/**
