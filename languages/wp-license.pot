@@ -2690,3 +2690,7 @@ msgstr ""
 #: src/Account/SiteOverview.php:730
 msgid "No contact for more than %d days."
 msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:45
+msgid "Automated payouts"
+msgstr ""

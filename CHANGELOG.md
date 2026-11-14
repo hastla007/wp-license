@@ -25,6 +25,7 @@ Consolidation of all earlier development branches into one code base. Preview: c
 ### Changed
 
 - Entitlement catalog: removed `voucher.central_license_overview`, `pass.client_license_management` (now the Sites page of the customer account), `pass.team_assignment` and `affiliate.bonuses` (free in the core plugins). Licenses that stored one of them keep the value; see `docs/ENTITLEMENTS.md`, "Removed keys".
+- Entitlement catalog: added `affiliate.automated_payouts` (automatic payouts through PayPal in Affiliate Captain Pro).
 - Automatic renewal is now an opt-in at checkout and no longer a condition for buying. Without it the license runs for the paid period and can be renewed manually.
 - Buying a license requires a customer account.
 - Failed automatic renewals are retried on day 1, 3 and 7; the license keeps working for 14 days after the end date before it expires.

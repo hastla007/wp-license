@@ -2690,3 +2690,7 @@ msgstr "Version %s ist verfügbar."
 #: src/Account/SiteOverview.php:730
 msgid "No contact for more than %d days."
 msgstr "Seit mehr als %d Tagen kein Kontakt."
+
+#: src/Catalog/EntitlementCatalog.php:45
+msgid "Automated payouts"
+msgstr "Automatische Auszahlungen"

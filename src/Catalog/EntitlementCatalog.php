@@ -42,6 +42,7 @@ final class EntitlementCatalog {
 				array( 'key' => 'affiliate.product_category_rates', 'label' => __( 'Product and category rates', 'wp-license' ) ),
 				array( 'key' => 'affiliate.recurring_commissions', 'label' => __( 'Recurring commissions', 'wp-license' ) ),
 				array( 'key' => 'affiliate.extended_api', 'label' => __( 'Extended API', 'wp-license' ) ),
+				array( 'key' => 'affiliate.automated_payouts', 'label' => __( 'Automated payouts', 'wp-license' ) ),
 				array( 'key' => 'affiliate.white_label_portal', 'label' => __( 'White-label portal', 'wp-license' ) ),
 				array( 'key' => 'affiliate.webhooks', 'label' => __( 'Webhooks', 'wp-license' ) ),
 				array( 'key' => 'affiliate.multiple_programs', 'label' => __( 'Multiple programs', 'wp-license' ) ),
