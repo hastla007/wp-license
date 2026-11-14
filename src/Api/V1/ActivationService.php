@@ -200,14 +200,17 @@ final class ActivationService {
 			// The same site activating with a new installation ID (lost options,
 			// database restore) replaces its previous activation instead of
 			// occupying a second slot. The caller proved possession of the key.
+			// Rows stored before the T-146 normalization rules may hold the older
+			// spelling of the same URL; they are matched as well.
+			$site_urls = SiteUrl::identity_candidates( (string) $request->get_param( 'site_url' ) );
+			if ( ! in_array( $site_url, $site_urls, true ) ) {
+				$site_urls[] = $site_url;
+			}
+			$url_marks = implode( ',', array_fill( 0, count( $site_urls ), '%s' ) );
 			$replaced = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT id FROM {$tables['activations']} WHERE license_id = %d AND environment = %s AND site_url = %s AND status = %s AND installation_uuid <> %s",
-					(int) $license['id'],
-					$environment,
-					$site_url,
-					'active',
-					$installation_uuid
+					"SELECT id FROM {$tables['activations']} WHERE license_id = %d AND environment = %s AND site_url IN ({$url_marks}) AND status = %s AND installation_uuid <> %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Only generated placeholders are interpolated.
+					array_merge( array( (int) $license['id'], $environment ), $site_urls, array( 'active', $installation_uuid ) )
 				)
 			);
 			if ( '' !== $wpdb->last_error ) {

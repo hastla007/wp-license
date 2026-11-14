@@ -25,6 +25,20 @@ JSON body:
 
 The client generates and retains the installation ID and secret locally. The optional `environment` is `production`, `staging` or `development`; staging also requires `staging_parent_installation_id` for an active live activation on the same license. A license allows at most one active staging site per live activation. Development activations do not consume a live-site slot. The server stores a SHA-256 verifier and an AES-256-GCM encrypted copy of the secret. The complete license key is not stored in plaintext.
 
+### site_url rules
+
+`site_url` is normalized by `WPLC\Api\V1\SiteUrl::normalize()` and the result is stored as the site's identity. An invalid URL fails with `400 invalid_activation`.
+
+- **Scheme:** `http` or `https`, lower-cased. `http` and `https` are different sites.
+- **Rejected:** credentials (`user@`), query, fragment, backslashes, NUL bytes, port 0 or above 65535, and URLs whose normal form is longer than 255 characters.
+- **Host:** lower-cased, trailing dots removed. The default port (443 for `https`, 80 for `http`) is dropped, any other port kept. No label may contain `--` in its third and fourth position unless it starts with `xn--`.
+- **IPv4:** only canonical dotted decimal (`192.168.1.10`). A host whose last label is a number, or `0x` plus hex digits, is rejected: `192.168.001.010`, `0177.0.0.1`, `0x7f.1`, `2130706433`, `127.1`, `999.1.1.1`, `example.123`. These spellings are refused rather than converted because resolvers disagree on them (leading zero as octal or decimal).
+- **IPv6:** in brackets, written in canonical compressed lower-case form (`[2001:0db8:0:0:0:0:0:1]` → `[2001:db8::1]`).
+- **Internationalized domains:** converted to Punycode with UTS #46 non-transitional processing, as browsers do: `MÜNCHEN.de` → `xn--mnchen-3ya.de`, `straße.de` → `xn--strae-oqa.de` (not `strasse.de`). With the PHP extension `intl` this uses `idn_to_ascii()`. Without it, a built-in encoder accepts lower- and upper-case letters of common scripts (Latin including Vietnamese, Greek, Cyrillic, Thai, Japanese kana, CJK ideographs, Hangul) and produces exactly the same result; hosts it cannot map with certainty (combining characters, compatibility forms such as ligatures or full-width letters, right-to-left scripts, symbols, other dot characters) are rejected. A host is therefore never stored in two different forms depending on the server; at most a rare host is refused without `intl`.
+- **Path:** the WordPress subdirectory, if any. Duplicate slashes are collapsed, `.` and `..` segments (also written `%2e`) are resolved, trailing slashes removed: `https://example.com//a/./b/../shop/` → `https://example.com/a/shop`. Case and other percent-encoding are kept as sent (`/Shop` and `/shop`, `/%7Euser` and `/~user` are different sites).
+
+Activations stored before these rules (T-146) keep their stored `site_url`. When a new installation ID activates a site, the server looks for an active activation under the new normal form and under the form the previous rules produced for the same input, so an existing site is replaced rather than counted twice (see below). An installation that activates again with its own ID updates the stored URL to the new form. URLs that are now rejected (non-canonical IPv4 hosts) cannot be activated again; installations already activated with them keep working, because authenticated requests do not send the site URL.
+
 Successful responses use the envelope:
 
 ```json
