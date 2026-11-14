@@ -128,7 +128,7 @@ final class SchemaMigrationStepsTest extends TestCase {
 	public function test_table_names_are_stable_per_site_prefix(): void {
 		$tables = Schema::table_names_for_prefix( 'wp_2_' );
 		$this->assertSame(
-			array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents' ),
+			array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log' ),
 			array_keys( $tables )
 		);
 		$this->assertSame( 'wp_2_wplc_licenses', $tables['licenses'] );

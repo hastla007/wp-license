@@ -16,26 +16,55 @@ Rules of thumb for the cache configuration:
 - Exclude by path prefix, not by cookie. API clients send no WordPress cookies, so "bypass cache for logged-in users" does not protect `/wp-json/wplc/`.
 - Do not cache responses to `POST` and `DELETE` at all. Do not let a CDN convert or retry them.
 - Do not strip or rewrite the request headers the API uses for signing, and forward the request body unchanged. Body transformations (minification, "security" rewriting) break the request signature.
-- Do not cache error responses (`401`, `403`, `409`, `429`) for these paths either; some CDNs do by default.
+- Do not cache error responses (`401`, `403`, `404`, `409`, `429`, `503`) for these paths either; some CDNs do by default. Do not rely on response headers here: not every error response of the API carries `Cache-Control: no-store`, so the exclusion has to be a path rule in the cache.
+- `/wp-admin/admin-post.php` is also used by **customers** (deactivate a site, cancel or resume renewal, start a renewal, download). If wp-admin is protected with HTTP basic auth, an IP allow-list or a WAF rule, exempt `admin-post.php` in the same way as `admin-ajax.php`, otherwise these customer actions fail.
+
+## Bot protection and web application firewalls
+
+Every API call comes from a customer's web server, not from a browser: no cookies, no JavaScript, a PHP user agent, often a data-centre IP address. That is exactly what bot protection is built to stop. A blocked request does not reach WordPress, so nothing appears in the plugin's logs; the customer only sees "license check failed", and a challenge page (HTML with status 200 or 403) is not a valid API response.
+
+Configure every layer in front of the shop so that these requests pass without a challenge:
+
+| Path | Method | Who calls it |
+|---|---|---|
+| `/wp-json/wplc/v1/*` (and `/?rest_route=/wplc/v1/...`) | `GET`, `POST`, `DELETE` | Customer sites (activation, entitlement check, update check, downloads) and Stripe (`/wp-json/wplc/v1/webhooks/stripe`) |
+
+- **Cloudflare**: add a WAF custom rule or configuration rule for the path that skips Bot Fight Mode / Super Bot Fight Mode, Browser Integrity Check, managed challenges and "Under Attack" mode. Bot Fight Mode on the free plan cannot be skipped per path; switch it off for the zone or put the API on a host name without it. Do not enable Rocket Loader, email obfuscation or HTML rewriting for the path.
+- **Security plugins** (Wordfence, iThemes/Solid Security, All-In-One Security, "disable REST API" plugins): do not restrict the REST API to logged-in users for the `wplc/v1` namespace, do not block requests without a browser user agent, and do not block the `DELETE` method. Allow-list the namespace where the plugin offers it.
+- **Host firewalls / ModSecurity**: signed requests carry JSON bodies and custom headers; rules against "missing Accept header", "unknown user agent" or "data-centre IP ranges" produce false positives. Exempt the path.
+- **Rate limiting at the edge**: many customer sites behind one hosting company share few IP addresses. Keep edge limits for the path well above the plugin's own limits (30 activation attempts per minute and address), or leave rate limiting to the plugin.
+- **Geo blocking**: customer servers are located where the hosting company is, not where the customer is.
+- **Stripe**: webhook deliveries come from Stripe's published IP ranges and must reach PHP unchallenged and with an unmodified body.
+
+Check after every change of CDN, WAF or security plugin ("activation from a foreign server"):
+
+1. From a server outside your own network (a small VPS, not your office line and not a browser), run `curl -i -X POST https://<shop>/wp-json/wplc/v1/activations -H 'Content-Type: application/json' -d '{}'`.
+2. The answer must be JSON from WordPress with an API error code (for example a 4xx with `"code"`), not an HTML page, not a redirect and not a challenge. A `Server: cloudflare` response with `cf-mitigated: challenge`, an HTML body or a 403 without JSON means the request was stopped in front of WordPress.
+3. Repeat the request ten times within a few seconds; the answers must stay JSON.
+4. Activate a test license from a real test site hosted at a typical hosting company, run an update check and download the package.
 
 ## Download URLs are single-use
 
-`POST /wp-json/wplc/v1/updates/check` returns a `package_url` that points to `GET /wp-json/wplc/v1/updates/download/{token}`. Although it is a `GET`, it is not cacheable:
+Two `GET` routes deliver packages. Although they are `GET`, neither is cacheable:
 
-- the token is valid for a short time and is consumed by the first request; the second request for the same URL is rejected by design;
-- the response is a redirect to the package host, and the license is checked again at that moment.
+| Route | Used for | Behaviour |
+|---|---|---|
+| `GET /wp-json/wplc/v1/updates/download/{token}` | The `package_url` returned by `POST /wp-json/wplc/v1/updates/check` | The token is valid for a short time and is consumed by the first request. The license is checked again, then the response redirects to the package: to the package host for releases stored by URL, or to the stream route below for packages uploaded to the shop |
+| `GET /wp-json/wplc/v1/packages/{token}` | Packages stored on the shop itself (update downloads and downloads from the customer account) | The 64-character token is the only credential, is valid for five minutes and is consumed by the first request. PHP streams the ZIP file itself; the response can be many megabytes and occupies a PHP worker for the whole transfer |
 
 Consequences:
 
-- A cache, link scanner, "preload/prefetch" feature, uptime monitor or security proxy that requests the URL first uses the grant up, and the customer's update then fails. Exclude `/wp-json/wplc/v1/updates/download/` from every component that issues its own requests.
-- Do not cache the redirect response. A cached redirect would hand the package location to requests without a valid grant.
+- A cache, link scanner, "preload/prefetch" feature, uptime monitor, antivirus proxy or security proxy that requests one of these URLs first uses the grant up, and the customer's download then fails. Exclude `/wp-json/wplc/v1/updates/download/` and `/wp-json/wplc/v1/packages/` from every component that issues its own requests.
+- Do not cache either response. A cached redirect or a cached ZIP would hand the package to requests without a valid grant.
+- Do not buffer, compress, transform or scan the stream route at the edge (no "optimisation", no on-the-fly gzip of the ZIP, no response size limit below the package size), and set proxy read timeouts long enough for a slow customer server to fetch the largest package.
+- The tokens are part of the URL path. Do not write full request URLs of these two routes to shared or long-lived access logs, analytics or error trackers; if they are logged, they are worthless after the first use or after a few minutes.
 - Clients must not retry the same URL; they request a new grant with another update check.
 
 ## Object cache
 
 A persistent object cache (Redis, Memcached) is supported as far as WordPress and WooCommerce support it. The plugin reads license, activation, nonce and rate-limit state directly from its own tables, not through the object cache, so no cache group needs special handling. Two points still matter:
 
-- Options are cached by WordPress. After restoring a database backup or copying a site, flush the object cache; otherwise stale schema-version or reminder-cursor options can survive the restore.
+- Options are cached by WordPress. After restoring a database backup or copying a site, flush the object cache; otherwise stale options (settings, the installation fingerprint of the staging guard, the reminder cursor) can survive the restore. A stale cached schema version alone is detected and corrected by the plugin without running a migration.
 - Do not enable full-page or fragment caching features of an object-cache plugin for the paths in the table above.
 
 ## Reverse proxies and client IP addresses
@@ -59,5 +88,5 @@ Run these checks after changing the cache, CDN or proxy configuration. They need
 
 1. Request an API route twice and compare response headers: no cache hit indicator (`X-Cache: HIT`, `CF-Cache-Status: HIT`, `Age` greater than zero) may appear for `/wp-json/wplc/`.
 2. Log in as two different customers in two browsers and open the license page: each sees only their own licenses, and the deactivate and cancel forms work.
-3. Run an update check from a test site and download the package once. A second request for the same download URL must fail.
+3. Run an update check from a test site and download the package once. A second request for the same download URL must fail. Do the same for a package uploaded to the shop (stream route) and compare the SHA-256 of the downloaded file with the release.
 4. Trigger more requests than the rate limit allows from one client and confirm that a second client behind the same proxy is not blocked.
