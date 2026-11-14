@@ -1042,7 +1042,10 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 	// ------------------------------------------------------------------
 
 	public function test_a35_release_actions_use_the_filterable_capability(): void {
-		$this->login_manager();
+		// A shop manager: administrators hold wplc_publish_releases by default (Admin\Capabilities).
+		$manager = self::factory()->user->create( array( 'role' => 'shop_manager' ) );
+		get_user_by( 'id', $manager )->add_cap( 'manage_woocommerce' );
+		wp_set_current_user( $manager );
 		$id   = $this->release( '1.1.0', array(), false );
 		$post = array(
 			'release_id' => $id,

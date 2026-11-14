@@ -571,7 +571,8 @@ final class CustomerPortal {
 			'pay_url'       => $pay_url,
 			'can_renew'     => $can_renew,
 			'activations'   => $activations,
-			'download_hint' => $has_access && ! $has_release ? __( 'No download is available for this product yet. You will find it here as soon as a version has been published.', 'wp-license' ) : '',
+			// The download button prints its own hint when no release is published.
+			'download_hint' => '',
 			'install_steps' => $has_access ? Notifications::install_steps( $license ) : array(),
 			'docs_url'      => $has_access ? Notifications::docs_url( $product_key ) : '',
 		);

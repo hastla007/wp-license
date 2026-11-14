@@ -240,8 +240,8 @@ final class CustomerPortalIntegrationTest extends WPLC_Portal_TestCase {
 		$this->seed_license( array( 'customer_id' => $this->customer ) );
 		$html = $this->render_portal( $this->customer );
 
-		$this->assertStringContainsString( 'No download is available for this product yet.', $html );
-		$this->assertStringNotContainsString( 'wplc-download-package', $html );
+		// Printed once, by the download button itself.
+		$this->assertSame( 1, substr_count( $html, 'No download is available for this product yet.' ) );
 	}
 
 	/**

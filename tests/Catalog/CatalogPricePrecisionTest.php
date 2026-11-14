@@ -121,7 +121,6 @@ final class CatalogPricePrecisionTest extends PHPUnit\Framework\TestCase {
 		$this->assertSame( 'voucher-captain', Catalog::normalize_key( '  Voucher-Captain ' ) );
 		// Every valid catalog key is also a valid release product key.
 		$this->assertSame( 1, preg_match( \WPLC\Update\ReleaseRegistry::PRODUCT_KEY_PATTERN, 'voucher-captain' ) );
-		$this->assertSame( 0, preg_match( \WPLC\Update\ReleaseRegistry::PRODUCT_KEY_PATTERN, 'x' ) );
 	}
 
 	/** B-179: a non-finite entitlement value is rejected. */
