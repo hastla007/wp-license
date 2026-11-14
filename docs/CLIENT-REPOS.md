@@ -10,7 +10,7 @@ Decision of 13 Nov 2026 (`docs/IMPLEMENTATION-PLAN.md`): the three core plugins 
 | WP Pass Captain | [wp-passmaster](https://github.com/hastla007/wp-passmaster) | separate plugin, sold in the shop | `pass-captain-pro` |
 | WP Affiliate Captain | [wpaffiliatemaster](https://github.com/hastla007/wpaffiliatemaster) | separate plugin, sold in the shop | `affiliate-captain-pro` |
 
-The product keys are a proposal that follows the rule "product key = folder of the add-on = text domain". They become final with the real product catalog (TODO T-42); the key in the add-on, in the catalog of the shop and the top-level folder of every release ZIP must be the same.
+The product keys are fixed (decision of 14 Nov 2026) and follow the rule "product key = folder of the add-on = text domain": `voucher-captain-pro`, `pass-captain-pro`, `affiliate-captain-pro`. The key in the add-on, in the catalog of the shop and the top-level folder of every release ZIP must be the same.
 
 The library is written for PHP 7.4 and WordPress 6.5, the lowest requirements among the products, and needs neither WooCommerce nor a class of the license server.
 
