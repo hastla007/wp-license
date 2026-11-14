@@ -10,6 +10,7 @@ namespace WPLC\Api\V1;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\ActivationManager;
 use WPLC\License\AuditLog;
+use WPLC\License\AuditReason;
 use WPLC\License\LicenseKey;
 use WPLC\License\LicenseLifecycle;
 use WPLC\Security\SecretCrypto;
@@ -215,7 +216,7 @@ final class ActivationService {
 			}
 			foreach ( is_array( $replaced ) ? $replaced : array() as $replaced_id ) {
 				// A replaced live site takes its staging child with it.
-				if ( ! ActivationManager::deactivate_while_locked( (int) $replaced_id, 'Replaced by a new installation of the same site', 0, 'site_replaced' ) ) {
+				if ( ! ActivationManager::deactivate_while_locked( (int) $replaced_id, AuditReason::INSTALLATION_REPLACED, 0, 'site_replaced' ) ) {
 					return new \WP_Error( 'activation_failed', __( 'The previous activation of this site could not be replaced. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
 				}
 			}
@@ -291,7 +292,7 @@ final class ActivationService {
 				'site_activated',
 				'activation',
 				$activation_id,
-				'Product installation activated',
+				AuditReason::INSTALLATION_ACTIVATED,
 				null,
 				array( 'license_id' => (int) $license['id'], 'site_url' => $site_url, 'environment' => $environment )
 			);
@@ -326,7 +327,7 @@ final class ActivationService {
 		}
 
 		try {
-			if ( ! ActivationManager::deactivate_while_locked( (int) $activation['id'], 'Deactivated by the installation owner' ) ) {
+			if ( ! ActivationManager::deactivate_while_locked( (int) $activation['id'], AuditReason::DEACTIVATED_BY_INSTALLATION ) ) {
 				return new \WP_Error( 'deactivation_failed', __( 'The installation could not be deactivated.', 'wp-license' ), array( 'status' => 409 ) );
 			}
 

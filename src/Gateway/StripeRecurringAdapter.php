@@ -122,7 +122,7 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 			'payment_method_types' => array( 'card' ),
 			'off_session' => 'true',
 			'confirm' => 'true',
-			'description' => sprintf( 'WP License Captain renewal order #%d', $order->get_id() ),
+			'description' => self::payment_description( $order ),
 			'metadata' => array(
 				'order_id' => (string) $order->get_id(),
 				'wplc_renewal_id' => (string) $order->get_meta( '_wplc_renewal_id', true ),
@@ -176,6 +176,42 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 			return new \WP_Error( 'stripe_transaction_missing', __( 'Stripe did not return a transaction reference.', 'wp-license' ) );
 		}
 		return array( 'success' => true, 'transaction_id' => sanitize_text_field( $transaction_id ) );
+	}
+
+	/**
+	 * Payment description Stripe shows on the customer's receipt and statement.
+	 *
+	 * Written in the shop's language: the charge usually runs in a cron job,
+	 * and a run triggered from the admin must not use the administrator's language.
+	 *
+	 * @param \WC_Order $order Renewal order.
+	 * @return string
+	 */
+	private static function payment_description( $order ): string {
+		$product = '';
+		foreach ( $order->get_items( 'line_item' ) as $item ) {
+			$product = (string) $item->get_name();
+			break;
+		}
+		$site = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+
+		$switched = function_exists( 'switch_to_locale' ) && switch_to_locale( get_locale() );
+		try {
+			if ( '' === $product ) {
+				/* translators: 1: shop name, 2: WooCommerce order number. */
+				$description = sprintf( __( '%1$s: license renewal, order #%2$d', 'wp-license' ), $site, $order->get_id() );
+			} else {
+				/* translators: 1: shop name, 2: product name, 3: WooCommerce order number. */
+				$description = sprintf( __( '%1$s: renewal of %2$s, order #%3$d', 'wp-license' ), $site, $product, $order->get_id() );
+			}
+		} finally {
+			if ( $switched ) {
+				restore_previous_locale();
+			}
+		}
+
+		// Stripe accepts up to 1000 characters.
+		return function_exists( 'mb_substr' ) ? mb_substr( $description, 0, 1000 ) : substr( $description, 0, 1000 );
 	}
 
 	/**

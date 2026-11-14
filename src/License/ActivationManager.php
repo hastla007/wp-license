@@ -127,7 +127,7 @@ final class ActivationManager {
 				'site_deactivated',
 				'activation',
 				(int) $child['id'],
-				'Staging site deactivated together with its live site',
+				AuditReason::STAGING_DEACTIVATED_WITH_LIVE,
 				array(
 					'status' => 'active',
 					'license_id' => (int) $activation['license_id'],

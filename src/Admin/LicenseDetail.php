@@ -9,6 +9,7 @@ namespace WPLC\Admin;
 
 use WPLC\Billing\Money;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\AuditReason;
 use WPLC\License\LicenseLifecycle;
 use WPLC\License\LicenseStateMachine;
 
@@ -111,7 +112,7 @@ final class LicenseDetail {
 
 		$status = Format::license_status_label( (string) $license['status'] );
 		if ( '' !== (string) $license['status_reason'] ) {
-			$status .= ' — ' . (string) $license['status_reason'];
+			$status .= ' — ' . AuditReason::label( (string) $license['status_reason'] );
 		}
 
 		$renewal = Format::renewal_mode_label( $license );
@@ -408,7 +409,7 @@ final class LicenseDetail {
 			echo '<td><code>' . esc_html( (string) $entry['action'] ) . '</code></td>';
 			echo '<td>' . esc_html( ( isset( $object_labels[ $type ] ) ? $object_labels[ $type ] : $type ) . ' #' . (int) $entry['object_id'] ) . '</td>';
 			echo '<td>' . esc_html( $actor_name ) . '</td>';
-			echo '<td>' . esc_html( (string) $entry['reason'] ) . '</td>';
+			echo '<td>' . esc_html( AuditReason::label( (string) $entry['reason'] ) ) . '</td>';
 			echo '<td>' . esc_html( self::change_summary( $entry['before_json'], $entry['after_json'] ) ) . '</td></tr>';
 		}
 		echo '</tbody></table>';

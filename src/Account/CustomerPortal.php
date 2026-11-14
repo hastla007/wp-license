@@ -10,6 +10,7 @@ namespace WPLC\Account;
 use WPLC\Admin\Format;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
+use WPLC\License\AuditReason;
 use WPLC\License\LicenseKey;
 use WPLC\License\LicenseLifecycle;
 
@@ -576,7 +577,7 @@ final class CustomerPortal {
 		$manager = '\\WPLC\\License\\ActivationManager';
 		if ( class_exists( $manager ) && method_exists( $manager, 'deactivate' ) ) {
 			// Shared implementation: also deactivates staging children and writes the audit entries.
-			$deactivated = (bool) call_user_func( array( $manager, 'deactivate' ), $activation_id, 'Deactivated by license owner', get_current_user_id() );
+			$deactivated = (bool) call_user_func( array( $manager, 'deactivate' ), $activation_id, AuditReason::DEACTIVATED_BY_OWNER, get_current_user_id() );
 			self::finish( $deactivated ? 'site_deactivated' : 'site_failed' );
 		}
 
@@ -596,7 +597,7 @@ final class CustomerPortal {
 				'site_deactivated',
 				'activation',
 				$activation_id,
-				'Deactivated by license owner',
+				AuditReason::DEACTIVATED_BY_OWNER,
 				array( 'status' => 'active', 'site_url' => $row['site_url'] ),
 				array( 'status' => 'deactivated' ),
 				get_current_user_id()
@@ -639,7 +640,7 @@ final class CustomerPortal {
 			self::finish( 'license_not_found' );
 		}
 
-		$scheduled = LicenseLifecycle::schedule_cancellation( $license_id, 'Customer requested cancellation', get_current_user_id() );
+		$scheduled = LicenseLifecycle::schedule_cancellation( $license_id, AuditReason::CANCELLATION_REQUESTED, get_current_user_id() );
 		self::finish( $scheduled ? 'cancel_scheduled' : 'cancel_failed' );
 	}
 

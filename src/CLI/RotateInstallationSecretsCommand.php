@@ -139,7 +139,7 @@ final class RotateInstallationSecretsCommand {
 					'installation_secret_rotated',
 					'activation',
 					$last_id,
-					'Installation secret encrypted with the configured current key',
+					\WPLC\License\AuditReason::INSTALLATION_SECRET_ROTATED,
 					array( 'envelope_version' => 'legacy_or_previous' ),
 					array( 'envelope_version' => 'v1_current' )
 				);
