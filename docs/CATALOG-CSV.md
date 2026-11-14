@@ -17,7 +17,7 @@ Columns, in this order:
 | `product_id` | ID of the product; for a variation the ID of its parent product. |
 | `variation_id` | ID of the variation, `0` for a simple product or a plan stored on a variable parent. |
 | `sku` | Must equal the SKU of that product in this shop. This stops a file from another shop from being applied to the wrong products. |
-| `product_key` | 2 to 100 characters: lowercase letters, digits and hyphens, starting with a letter or digit (`voucher-captain`). |
+| `product_key` | 2 to 100 characters: lowercase letters, digits and hyphens, starting with a letter or digit. The three add-on keys are `voucher-captain-pro`, `pass-captain-pro` and `affiliate-captain-pro`. |
 | `plan_key` | 1 to 100 characters, same characters (`business`). |
 | `billing_interval` | `month` or `year`. |
 | `live_site_limit` | Whole number from 1 to 1000. |
