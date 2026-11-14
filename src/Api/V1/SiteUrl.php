@@ -73,9 +73,6 @@ final class SiteUrl {
 		}
 
 		$path = self::normalize_path( $raw_path );
-		if ( null === $path ) {
-			return '';
-		}
 
 		return self::assemble( $scheme, $host, $is_ipv6, $port, $path );
 	}
@@ -195,9 +192,9 @@ final class SiteUrl {
 	 * Collapse duplicate slashes, resolve dot segments, drop trailing slashes.
 	 *
 	 * @param string $path Raw path.
-	 * @return string|null Normalized path ('' for the root), null when invalid.
+	 * @return string Normalized path ('' for the root).
 	 */
-	public static function normalize_path( string $path ): ?string {
+	public static function normalize_path( string $path ): string {
 		if ( '' === $path ) {
 			return '';
 		}

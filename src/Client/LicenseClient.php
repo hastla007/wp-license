@@ -60,7 +60,7 @@ final class LicenseClient {
 		$this->product_version = sanitize_text_field( $product_version );
 		$this->option_key = sanitize_key( $option_key );
 		foreach ( (array) $server_public_keys as $public_key ) {
-			if ( is_string( $public_key ) && '' !== trim( $public_key ) ) {
+			if ( '' !== trim( (string) $public_key ) ) {
 				$this->server_public_keys[] = trim( $public_key );
 			}
 		}

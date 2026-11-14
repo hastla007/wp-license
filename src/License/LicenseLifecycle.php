@@ -211,7 +211,7 @@ final class LicenseLifecycle {
 	 */
 	public static function handle_partial_renewal_refund( int $order_id, int $refund_id ): void {
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
-		if ( ! $order || ! is_callable( array( $order, 'get_meta' ) ) ) {
+		if ( ! $order instanceof \WC_Order ) {
 			return;
 		}
 		$license_id = absint( $order->get_meta( '_wplc_renewal_for_license', true ) );

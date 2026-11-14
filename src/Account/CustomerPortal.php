@@ -302,7 +302,7 @@ final class CustomerPortal {
 		$product_id = (int) ( $license['renewal_product_id'] ?? 0 );
 		if ( $product_id > 0 && function_exists( 'wc_get_product' ) ) {
 			$product = wc_get_product( $product_id );
-			if ( $product && is_callable( array( $product, 'get_name' ) ) ) {
+			if ( $product instanceof \WC_Product ) {
 				$title = trim( wp_strip_all_tags( (string) $product->get_name() ) );
 				if ( '' !== $title ) {
 					return $title;

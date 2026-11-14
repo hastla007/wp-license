@@ -66,7 +66,7 @@ final class AuditReason {
 	 * Build the stored form of a reason.
 	 *
 	 * @param string                    $code Reason code (lowercase letters, digits, underscores).
-	 * @param array<string,int|string> $params Placeholder values; only scalars are kept.
+	 * @param array<string,mixed>       $params Placeholder values; only scalars are kept.
 	 * @return string
 	 */
 	public static function encode( string $code, array $params = array() ): string {
@@ -100,7 +100,7 @@ final class AuditReason {
 			return null;
 		}
 		$params = array();
-		if ( isset( $match[2] ) && '' !== $match[2] ) {
+		if ( isset( $match[2] ) ) {
 			$decoded = json_decode( $match[2], true );
 			if ( ! is_array( $decoded ) ) {
 				return null;

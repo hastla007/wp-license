@@ -159,7 +159,7 @@ final class LicenseIssuer {
 		// T-132: the license renews at the regular price of the product or
 		// variation that was bought. A plan mapped on a variable parent holds
 		// the lowest variation price, which is wrong for every other variation.
-		$purchased = is_callable( array( $item, 'get_product' ) ) ? $item->get_product() : false;
+		$purchased = $item->get_product();
 		$renewal_product_id = $purchased ? (int) $purchased->get_id() : 0;
 		$renewal_price = $purchased ? Catalog::product_regular_price( $purchased ) : null;
 

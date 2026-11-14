@@ -64,7 +64,7 @@ final class RenewalRefundIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 1, $this->audit_count( $license_id, 'renewal_refunded' ) );
 
 		// A repeated hook changes nothing.
-		do_action( 'woocommerce_order_fully_refunded', $fixture['order']->get_id(), 0 );
+		\WPLC\License\LicenseLifecycle::handle_full_refund( $fixture['order']->get_id() );
 		$this->assertSame( 1, $this->audit_count( $license_id, 'renewal_refunded' ) );
 	}
 

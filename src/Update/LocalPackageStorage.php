@@ -163,7 +163,7 @@ final class LocalPackageStorage {
 			}
 		}
 
-		return array_values( array_unique( array_filter( $roots, 'strlen' ) ) );
+		return array_values( array_unique( array_filter( $roots, static function ( string $root ): bool { return '' !== $root; } ) ) );
 	}
 
 	/**
