@@ -738,9 +738,19 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$untrusted = $this->dispatch( $this->api_request( 'POST', '/wplc/v1/updates/check', array( 'product_key' => 'test-product', 'current_version' => '1.0.0' ), $site ) );
 		$this->assertContractError( 'POST', '/updates/check', 503, 'package_configuration_invalid', $untrusted );
 
+		// B-140: a license without access gets a signed answer that names the version and the reason,
+		// but neither a package nor a grant (before: a bare 403 license_inactive).
 		$wpdb->update( $tables['licenses'], array( 'status' => 'revoked' ), array( 'id' => $license['id'] ) );
 		$revoked = $this->dispatch( $this->api_request( 'POST', '/wplc/v1/updates/check', array( 'product_key' => 'test-product', 'current_version' => '1.0.0' ), $site ) );
-		$this->assertContractError( 'POST', '/updates/check', 403, 'license_inactive', $revoked );
+		$data    = $this->assertSignedEnvelope( 'POST', '/updates/check', $revoked, $site['secret'] );
+		$this->assertTrue( $data['update_available'] );
+		$this->assertFalse( $data['license_active'] );
+		$this->assertSame( 'license_revoked', $data['reason'] );
+		$this->assertSame( '2.0.0', $data['version'] );
+		$this->assertSame( '', $data['package_url'] );
+		$this->assertSame( '', $data['package'] );
+		$this->assertArrayNotHasKey( 'sha256', $data );
+		$this->assertArrayNotHasKey( 'download_expires_at', $data );
 
 		$this->assertSame( 0, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables['download_tokens']}" ) );
 		$this->flag_spec_gaps();

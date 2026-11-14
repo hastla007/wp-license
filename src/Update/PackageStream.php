@@ -15,15 +15,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Turns a local release into a short-lived, single-use download URL on this site.
+ * Turns a local release into a short-lived download URL on this site.
  *
  * Flow for updates: the registry hands UpdateService a stable placeholder URL
- * (release_url()). After UpdateService has consumed its own download grant it
+ * (release_url()). When a client redeems its download grant, UpdateService
  * applies `wplc_resolve_update_package_url`; resolve() then issues a stream
- * token and returns the streaming route, which serves the file through PHP.
+ * token and returns the streaming route, which serves the file through PHP
+ * (or hands it to the web server, see `wplc_package_offload_header`).
+ *
+ * A token is meant for one download. Because download managers, scanning
+ * proxies and some browsers fetch a URL twice (HEAD, then GET, or GET twice),
+ * HEAD never uses the token up and a used token stays valid for a short reuse
+ * window (B-19).
  */
 final class PackageStream {
 	const TTL = 300;
+	const DEFAULT_REUSE_SECONDS = 120;
 	const SOURCE_UPDATE = 'update';
 	const SOURCE_CUSTOMER = 'customer';
 	const REST_NAMESPACE = 'wplc/v1';
@@ -51,9 +58,10 @@ final class PackageStream {
 			self::REST_NAMESPACE,
 			'/packages/(?P<token>[a-f0-9]{64})',
 			array(
+				// HEAD is answered by the same callback (WordPress maps it to GET).
 				'methods' => 'GET',
 				'callback' => array( self::class, 'serve' ),
-				// The unguessable single-use token is the credential.
+				// The unguessable short-lived token is the credential.
 				'permission_callback' => '__return_true',
 			)
 		);
@@ -109,6 +117,65 @@ final class PackageStream {
 	}
 
 	/**
+	 * Release ID of a placeholder URL on this site, or 0 for any other URL.
+	 *
+	 * @param string $url URL from a download grant.
+	 * @return int
+	 */
+	public static function placeholder_release_id( string $url ): int {
+		$release_id = self::parse_release_url( $url );
+
+		return $release_id > 0 && self::is_home_url( $url ) ? $release_id : 0;
+	}
+
+	/**
+	 * Seconds a used download token keeps working (B-19).
+	 *
+	 * Covers a second fetch of the same URL by the same client. 0 restores strict single use.
+	 *
+	 * @return int
+	 */
+	public static function reuse_seconds(): int {
+		/**
+		 * Filters how long a download token stays valid after its first use.
+		 *
+		 * @param int $seconds Default 120, at most 600; 0 for strict single use.
+		 */
+		$seconds = (int) apply_filters( 'wplc_download_reuse_seconds', self::DEFAULT_REUSE_SECONDS );
+
+		return max( 0, min( 600, $seconds ) );
+	}
+
+	/**
+	 * Keep a token response out of page caches, CDNs and browsers.
+	 *
+	 * @return void
+	 */
+	public static function send_no_cache_headers(): void {
+		self::forbid_page_cache();
+		nocache_headers();
+		if ( ! headers_sent() ) {
+			header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0, private' );
+			header( 'Referrer-Policy: no-referrer' );
+			header( 'X-Robots-Tag: noindex, nofollow' );
+		}
+	}
+
+	/**
+	 * Tell page-cache plugins not to store the current response.
+	 *
+	 * DONOTCACHEPAGE is the constant W3 Total Cache, WP Super Cache, WP Rocket,
+	 * LiteSpeed Cache and others look for.
+	 *
+	 * @return void
+	 */
+	public static function forbid_page_cache(): void {
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- shared convention of the caching plugins.
+		}
+	}
+
+	/**
 	 * Resolve the placeholder of a local release to a single-use streaming URL.
 	 *
 	 * @param mixed $url Package URL from the consumed download grant.
@@ -119,8 +186,8 @@ final class PackageStream {
 		if ( ! is_string( $url ) ) {
 			return $url;
 		}
-		$release_id = self::parse_release_url( $url );
-		if ( $release_id <= 0 || ! self::is_home_url( $url ) ) {
+		$release_id = self::placeholder_release_id( $url );
+		if ( $release_id <= 0 ) {
 			return $url;
 		}
 		$release = ReleaseRegistry::get( $release_id );
@@ -144,6 +211,8 @@ final class PackageStream {
 	public static function issue( array $release, int $license_id, string $source ): string {
 		global $wpdb;
 
+		// Stream links must never be cached, wherever they are created.
+		self::forbid_page_cache();
 		if ( $license_id <= 0
 			|| ReleaseRegistry::STATUS_PUBLISHED !== (string) ( $release['status'] ?? '' )
 			|| ReleaseRegistry::STORAGE_LOCAL !== (string) ( $release['storage'] ?? '' )
@@ -180,7 +249,11 @@ final class PackageStream {
 	}
 
 	/**
-	 * Consume a stream grant and send the package.
+	 * Check a stream grant and send the package.
+	 *
+	 * HEAD answers with the headers of the download and leaves the grant
+	 * untouched. The first GET marks the grant as used with one conditional
+	 * UPDATE; further GETs succeed during the reuse window only.
 	 *
 	 * @param \WP_REST_Request $request REST request.
 	 * @return \WP_Error|void Exits after streaming.
@@ -188,23 +261,31 @@ final class PackageStream {
 	public static function serve( \WP_REST_Request $request ) {
 		global $wpdb;
 
+		self::send_no_cache_headers();
 		$not_found = new \WP_Error( 'package_not_found', __( 'This download link is invalid or has expired.', 'wp-license' ), array( 'status' => 404 ) );
 		$token = strtolower( (string) $request->get_param( 'token' ) );
-		if ( ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) {
+		if ( ! preg_match( '/^[a-f0-9]{64}$/D', $token ) ) {
 			return $not_found;
 		}
 		$tables = Schema::table_names();
 		$token_hash = hash( 'sha256', $token );
 		$now = gmdate( 'Y-m-d H:i:s' );
+		$reuse_cutoff = gmdate( 'Y-m-d H:i:s', time() - self::reuse_seconds() );
 		$grant = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT s.release_id, l.status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end FROM {$tables['package_streams']} s INNER JOIN {$tables['licenses']} l ON l.id = s.license_id WHERE s.token_hash = %s AND s.consumed_at IS NULL AND s.expires_at > %s LIMIT 1",
+				"SELECT s.release_id, s.source, s.consumed_at, l.status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end FROM {$tables['package_streams']} s INNER JOIN {$tables['licenses']} l ON l.id = s.license_id WHERE s.token_hash = %s AND ( ( s.consumed_at IS NULL AND s.expires_at > %s ) OR s.consumed_at > %s ) LIMIT 1",
 				$token_hash,
-				$now
+				$now,
+				$reuse_cutoff
 			),
 			ARRAY_A
 		);
-		if ( ! is_array( $grant ) || ! LicenseLifecycle::has_access( $grant ) ) {
+		if ( ! is_array( $grant ) ) {
+			return $not_found;
+		}
+		// Updates need a license with access; the account download also serves the versions an ended license paid for.
+		$allowed = self::SOURCE_CUSTOMER === $grant['source'] ? CustomerDownload::license_may_download( $grant ) : LicenseLifecycle::has_access( $grant );
+		if ( ! $allowed ) {
 			return $not_found;
 		}
 		$release = ReleaseRegistry::get( (int) $grant['release_id'] );
@@ -220,21 +301,120 @@ final class PackageStream {
 			return $not_found;
 		}
 
-		// Atomic single use: only one concurrent request can flip consumed_at.
-		$consumed = $wpdb->query(
-			$wpdb->prepare(
-				"UPDATE {$tables['package_streams']} SET consumed_at = %s WHERE token_hash = %s AND consumed_at IS NULL AND expires_at > %s",
-				$now,
-				$token_hash,
-				$now
-			)
-		);
-		if ( 1 !== (int) $consumed ) {
-			return $not_found;
+		$is_head = 'HEAD' === strtoupper( (string) $request->get_method() );
+		if ( ! $is_head && null === $grant['consumed_at'] ) {
+			// Atomic first use: only one concurrent request can flip consumed_at.
+			$consumed = $wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$tables['package_streams']} SET consumed_at = %s WHERE token_hash = %s AND consumed_at IS NULL AND expires_at > %s",
+					$now,
+					$token_hash,
+					$now
+				)
+			);
+			// A lost race is a second fetch: allowed inside the reuse window only.
+			if ( 1 !== (int) $consumed && 0 === self::reuse_seconds() ) {
+				return $not_found;
+			}
 		}
 
-		self::send_file( $path, (int) $size, self::download_name( $release ) );
+		self::send_file(
+			$path,
+			(int) $size,
+			self::download_name( $release ),
+			LocalPackageStorage::content_md5( (string) $release['package_url'] ),
+			$is_head ? null : self::parse_range( (string) $request->get_header( 'range' ), (int) $size ),
+			$is_head,
+			$release
+		);
 		exit;
+	}
+
+	/**
+	 * Parse a single byte range. Pure helper.
+	 *
+	 * Lets a client resume an interrupted download while its token is still
+	 * valid (A-111). Multiple ranges and anything malformed are ignored, which
+	 * HTTP allows: the whole file is sent instead.
+	 *
+	 * @param string $header Value of the Range request header.
+	 * @param int    $size File size in bytes.
+	 * @return array{0:int,1:int}|null First and last byte, or null to send everything.
+	 */
+	public static function parse_range( string $header, int $size ): ?array {
+		if ( $size <= 0 || ! preg_match( '/^\s*bytes=(\d*)-(\d*)\s*$/D', $header, $match ) || ( '' === $match[1] && '' === $match[2] ) ) {
+			return null;
+		}
+		if ( '' === $match[1] ) {
+			// Suffix range: the last N bytes.
+			$length = (int) $match[2];
+			if ( $length <= 0 ) {
+				return null;
+			}
+			$start = max( 0, $size - $length );
+			$end = $size - 1;
+		} else {
+			$start = (int) $match[1];
+			$end = '' === $match[2] ? $size - 1 : min( (int) $match[2], $size - 1 );
+		}
+		if ( $start > $end || $start >= $size || ( 0 === $start && $end === $size - 1 ) ) {
+			return null;
+		}
+
+		return array( $start, $end );
+	}
+
+	/**
+	 * Status and headers of a package response. Pure helper.
+	 *
+	 * @param int                     $size File size in bytes.
+	 * @param string                  $download_name Safe download file name.
+	 * @param string                  $content_md5 Base64 MD5 of the whole file, or an empty string.
+	 * @param array{0:int,1:int}|null $range First and last byte of a partial response.
+	 * @return array{status:int,headers:array<string,string>}
+	 */
+	public static function response_headers( int $size, string $download_name, string $content_md5, ?array $range ): array {
+		$headers = array(
+			'Content-Type' => 'application/zip',
+			'Content-Disposition' => 'attachment; filename="' . $download_name . '"',
+			'Accept-Ranges' => 'bytes',
+			'X-Content-Type-Options' => 'nosniff',
+			'Cache-Control' => 'no-store',
+			'X-Robots-Tag' => 'noindex, nofollow',
+		);
+		if ( null !== $range ) {
+			$headers['Content-Range'] = 'bytes ' . $range[0] . '-' . $range[1] . '/' . $size;
+			$headers['Content-Length'] = (string) ( $range[1] - $range[0] + 1 );
+
+			return array(
+				'status' => 206,
+				'headers' => $headers,
+			);
+		}
+		$headers['Content-Length'] = (string) $size;
+		if ( '' !== $content_md5 ) {
+			// Checked by WordPress' download_url() and by many download tools (B-52).
+			$headers['Content-MD5'] = $content_md5;
+		}
+
+		return array(
+			'status' => 200,
+			'headers' => $headers,
+		);
+	}
+
+	/**
+	 * Validate a web-server offload header. Pure helper.
+	 *
+	 * @param mixed $header Header line from the `wplc_package_offload_header` filter.
+	 * @return string The header line, or an empty string when it is not an accepted offload header.
+	 */
+	public static function sanitize_offload_header( $header ): string {
+		if ( ! is_string( $header ) || ! preg_match( '/^(X-Accel-Redirect|X-Sendfile|X-LiteSpeed-Location): [^\r\n]{1,1000}$/D', $header ) ) {
+			return '';
+		}
+
+		return $header;
 	}
 
 	/**
@@ -328,31 +508,82 @@ final class PackageStream {
 	/**
 	 * Send headers and file contents.
 	 *
-	 * @param string $path Absolute file path.
-	 * @param int    $size File size in bytes.
-	 * @param string $download_name Safe download file name.
+	 * @param string                  $path Absolute file path.
+	 * @param int                     $size File size in bytes.
+	 * @param string                  $download_name Safe download file name.
+	 * @param string                  $content_md5 Base64 MD5 of the file, or an empty string.
+	 * @param array{0:int,1:int}|null $range Requested byte range.
+	 * @param bool                    $headers_only Whether this is a HEAD request.
+	 * @param array<string,mixed>     $release Release row.
 	 * @return void
 	 */
-	private static function send_file( string $path, int $size, string $download_name ): void {
+	private static function send_file( string $path, int $size, string $download_name, string $content_md5, ?array $range, bool $headers_only, array $release ): void {
+		/**
+		 * Filters a header that hands the file to the web server instead of PHP (B-25).
+		 *
+		 * Return one complete header line, for example
+		 * "X-Accel-Redirect: /wplc-protected/" . basename( $path ) for nginx or
+		 * "X-Sendfile: " . $path for Apache mod_xsendfile. The PHP worker is then
+		 * free as soon as the headers are sent, and the web server handles ranges.
+		 *
+		 * @param string              $header Default: empty, PHP streams the file.
+		 * @param string              $path Absolute path of the package.
+		 * @param array<string,mixed> $release Release row.
+		 */
+		$offload = $headers_only ? '' : self::sanitize_offload_header( apply_filters( 'wplc_package_offload_header', '', $path, $release ) );
+		$response = self::response_headers( $size, $download_name, $content_md5, '' === $offload ? $range : null );
+
+		// First: tests stop here, and nothing below can be half-sent with a wrong status.
+		status_header( $response['status'] );
 		if ( function_exists( 'set_time_limit' ) ) {
 			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged
 		}
 		// Compression would invalidate Content-Length.
 		@ini_set( 'zlib.output_compression', 'Off' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.IniSet.Risky
-		while ( ob_get_level() > 0 ) {
-			ob_end_clean();
+		// Count once: a buffer that cannot be removed must not turn this into an endless loop (B-104).
+		$levels = ob_get_level();
+		for ( $i = 0; $i < $levels; $i++ ) {
+			if ( ! @ob_end_clean() ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				break;
+			}
 		}
 		if ( function_exists( 'header_remove' ) ) {
 			header_remove( 'Content-Encoding' );
 			header_remove( 'Link' );
 		}
-		status_header( 200 );
-		header( 'Content-Type: application/zip' );
-		header( 'Content-Length: ' . $size );
-		header( 'Content-Disposition: attachment; filename="' . $download_name . '"' );
-		header( 'X-Content-Type-Options: nosniff' );
-		header( 'Cache-Control: no-store' );
-		header( 'X-Robots-Tag: noindex, nofollow' );
-		readfile( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
+		foreach ( $response['headers'] as $name => $value ) {
+			if ( '' !== $offload && 'Content-Length' === $name ) {
+				// The web server sets the length of what it sends.
+				continue;
+			}
+			header( $name . ': ' . $value );
+		}
+		if ( $headers_only ) {
+			return;
+		}
+		if ( '' !== $offload ) {
+			header( $offload );
+			return;
+		}
+		if ( null === $range ) {
+			readfile( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
+			return;
+		}
+		$handle = fopen( $path, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		if ( false === $handle ) {
+			return;
+		}
+		fseek( $handle, $range[0] );
+		$remaining = $range[1] - $range[0] + 1;
+		while ( $remaining > 0 && ! feof( $handle ) ) {
+			$chunk = fread( $handle, (int) min( 1048576, $remaining ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
+			if ( false === $chunk || '' === $chunk ) {
+				break;
+			}
+			echo $chunk; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- binary package data.
+			$remaining -= strlen( $chunk );
+			flush();
+		}
+		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 	}
 }
