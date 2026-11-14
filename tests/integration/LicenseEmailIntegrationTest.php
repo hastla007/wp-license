@@ -537,7 +537,8 @@ final class LicenseEmailIntegrationTest extends WPLC_Portal_TestCase {
 		foreach ( array( 'issued', 'expiry_reminder', 'renewal_notice', 'payment_failed', 'payment_method_missing', 'expired', 'renewed', 'cancelled', 'suspended', 'revoked' ) as $key ) {
 			$email = $this->email_object( $key );
 			// What WooCommerce does before the filter: a dummy order as the object.
-			$email->set_object( new WC_Order() );
+			// WC_Email::set_object() exists from WooCommerce 9.6 on; the property is public in every version.
+			$email->object = new WC_Order();
 			$email = apply_filters( 'woocommerce_prepare_email_for_preview', $email );
 
 			$html = $email->get_content_html();
