@@ -43,6 +43,7 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - The Stripe webhook rejected ordinary shop payments, which could lead Stripe to disable the endpoint.
 - The 14-day grace period after a failed renewal had no effect.
 - The activation limit counted all customers behind a proxy or CDN as one address.
+- Licenses for a variation of a variable product mapped only on the parent product renewed at the lowest variation price. A license now stores the regular price of the bought variation and renews at it (database schema 13).
 
 ### Security
 

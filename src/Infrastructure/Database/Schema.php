@@ -23,8 +23,10 @@ final class Schema {
 	 *     WordPress refuses to write a value longer than the column).
 	 * 12: reminder_log adopted from ReminderLog, which created it on first use
 	 *     (same name, columns and keys; the old version option is removed).
+	 * 13: licenses.renewal_product_id, the purchased WooCommerce product or
+	 *     variation whose regular price renews the license (T-132).
 	 */
-	public const VERSION = '12';
+	public const VERSION = '13';
 
 	/**
 	 * Option in which ReminderLog recorded its self-installed table (up to schema 11).
@@ -53,6 +55,7 @@ final class Schema {
 	private static $steps = array(
 		'10' => array( self::class, 'step_10_autoload_schema_version' ),
 		'12' => array( self::class, 'step_12_adopt_reminder_log' ),
+		'13' => array( self::class, 'step_13_renewal_product_column' ),
 	);
 
 	/**
@@ -258,6 +261,7 @@ final class Schema {
 				renewal_amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				renewal_currency_decimals tinyint(3) unsigned NOT NULL DEFAULT 2,
 				renewal_currency char(3) NOT NULL DEFAULT 'EUR',
+				renewal_product_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				cancel_at_period_end tinyint(1) NOT NULL DEFAULT 0,
 				revoked_at datetime DEFAULT NULL,
 				billing_interval varchar(10) NOT NULL DEFAULT 'year',
@@ -562,6 +566,31 @@ final class Schema {
 		delete_option( self::LEGACY_REMINDER_LOG_VERSION_OPTION );
 
 		return true;
+	}
+
+	/**
+	 * Schema 13: confirm that dbDelta added licenses.renewal_product_id.
+	 *
+	 * dbDelta reports no errors, so a column it could not add would only show
+	 * up as failing license inserts. Existing licenses keep the value 0: their
+	 * renewal price is resolved through the source order item at renewal time
+	 * (see RenewalOrder::price()). The stored renewal amounts are not changed.
+	 *
+	 * @return bool
+	 */
+	private static function step_13_renewal_product_column(): bool {
+		global $wpdb;
+
+		$tables = self::table_names();
+		$exists = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+				$tables['licenses'],
+				'renewal_product_id'
+			)
+		);
+
+		return 1 === (int) $exists;
 	}
 
 	/**

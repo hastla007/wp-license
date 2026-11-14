@@ -35,6 +35,19 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( Schema::maybe_upgrade() );
 		$this->assertSame( Schema::VERSION, (string) get_option( 'wplc_schema_version' ) );
 
+		// Schema 13 (T-132): the purchased product of a license.
+		$tables = Schema::table_names();
+		$this->assertSame(
+			'1',
+			(string) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+					$tables['licenses'],
+					'renewal_product_id'
+				)
+			)
+		);
+
 		foreach ( Schema::table_names() as $table_name ) {
 			$table_exists = $wpdb->get_var(
 				$wpdb->prepare(
