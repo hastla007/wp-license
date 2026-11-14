@@ -1718,9 +1718,6 @@ msgstr "Partnergruppen"
 msgid "Product and category rates"
 msgstr "Produkt- und Kategoriesätze"
 
-#: src/Catalog/EntitlementCatalog.php:43
-msgid "Bonuses"
-msgstr "Boni"
 
 #: src/Catalog/EntitlementCatalog.php:44
 msgid "Recurring commissions"
@@ -1784,9 +1781,6 @@ msgstr "Massenimport und -export"
 msgid "Reports"
 msgstr "Berichte"
 
-#: src/Catalog/EntitlementCatalog.php:61
-msgid "Central license overview"
-msgstr "Zentrale Lizenzübersicht"
 
 #: src/Catalog/EntitlementCatalog.php:62
 #: src/Catalog/EntitlementCatalog.php:79
@@ -1829,9 +1823,6 @@ msgstr "Kasse vor Ort (POS)"
 msgid "Offline check-in"
 msgstr "Offline-Check-in"
 
-#: src/Catalog/EntitlementCatalog.php:75
-msgid "Team assignment"
-msgstr "Teamzuweisung"
 
 #: src/Catalog/EntitlementCatalog.php:76
 msgid "Advanced reports"
@@ -1841,9 +1832,6 @@ msgstr "Erweiterte Berichte"
 msgid "API and webhooks"
 msgstr "API und Webhooks"
 
-#: src/Catalog/EntitlementCatalog.php:78
-msgid "Client license management"
-msgstr "Lizenzverwaltung für Kunden"
 
 #: src/Catalog/EntitlementCatalog.php:103
 msgid "Affiliate Captain"
@@ -2592,3 +2580,113 @@ msgstr "Die Zahlungsart Stripe ist in WooCommerce nicht aktiviert."
 #: src/Compatibility/Requirements.php:355
 msgid "Saved payment methods are switched off in the Stripe settings, so there is no card to renew with."
 msgstr "Gespeicherte Zahlungsarten sind in den Stripe-Einstellungen abgeschaltet; es gibt daher keine Karte für die Verlängerung."
+
+#: src/Account/SiteOverview.php:177
+#: src/Account/SiteOverview.php:414
+msgid "Please sign in to view your sites."
+msgstr "Bitte melden Sie sich an, um Ihre Websites anzuzeigen."
+
+#: src/Account/SiteOverview.php:184
+msgid "Your sites"
+msgstr "Ihre Websites"
+
+#: src/Account/SiteOverview.php:186
+msgid "No site is activated with your licenses yet. Enter the license key in the plugin on your site to activate it."
+msgstr "Mit Ihren Lizenzen ist noch keine Website aktiviert. Geben Sie den Lizenzschlüssel im Plugin auf Ihrer Website ein, um sie zu aktivieren."
+
+#. translators: 1: number of sites, 2: number of live sites, 3: number of sites that need attention, 4: number of sites with an update.
+#: src/Account/SiteOverview.php:200
+msgid "Sites: %1$d (live: %2$d). Need attention: %3$d. Update available: %4$d."
+msgstr "Websites: %1$d (live: %2$d). Handlungsbedarf: %3$d. Update verfügbar: %4$d."
+
+#. translators: %d: maximum number of activations shown.
+#: src/Account/SiteOverview.php:210
+msgid "Only the first %d activations are shown. The CSV export contains the same selection."
+msgstr "Es werden nur die ersten %d Aktivierungen angezeigt. Der CSV-Export enthält dieselbe Auswahl."
+
+#: src/Account/SiteOverview.php:224
+msgid "No site matches the selection."
+msgstr "Keine Website entspricht der Auswahl."
+
+#: src/Account/SiteOverview.php:258
+msgid "Last contact"
+msgstr "Letzter Kontakt"
+
+#: src/Account/SiteOverview.php:260
+#: src/Account/SiteOverview.php:320
+msgid "Needs attention"
+msgstr "Handlungsbedarf"
+
+#. translators: %s: version number.
+#: src/Account/SiteOverview.php:287
+msgid "Update: %s"
+msgstr "Update: %s"
+
+#: src/Account/SiteOverview.php:290
+msgid "never"
+msgstr "nie"
+
+#. translators: %s: date.
+#: src/Account/SiteOverview.php:293
+msgid "until %s"
+msgstr "bis %s"
+
+#: src/Account/SiteOverview.php:302
+msgid "Nothing to do"
+msgstr "Nichts zu tun"
+
+#: src/Account/SiteOverview.php:319
+msgid "All sites"
+msgstr "Alle Websites"
+
+#: src/Account/SiteOverview.php:321
+msgid "Update available"
+msgstr "Update verfügbar"
+
+#: src/Account/SiteOverview.php:324
+msgid "Site address contains"
+msgstr "Adresse der Website enthält"
+
+#: src/Account/SiteOverview.php:326
+msgid "Show"
+msgstr "Anzeigen"
+
+#: src/Account/SiteOverview.php:331
+msgid "Apply"
+msgstr "Übernehmen"
+
+#: src/Account/SiteOverview.php:333
+msgid "Download as CSV"
+msgstr "Als CSV herunterladen"
+
+#: src/Account/SiteOverview.php:376
+msgid "Sites pages"
+msgstr "Seiten der Websites"
+
+#: src/Account/SiteOverview.php:438
+msgid "Latest version"
+msgstr "Neueste Version"
+
+#. translators: %s: license status, e.g. "Expired".
+#: src/Account/SiteOverview.php:719
+msgid "License is not active (%s): no updates, premium features off."
+msgstr "Lizenz nicht aktiv (%s): keine Updates, Premium-Funktionen aus."
+
+#: src/Account/SiteOverview.php:721
+msgid "Renewal payment is overdue."
+msgstr "Die Zahlung für die Verlängerung ist überfällig."
+
+#. translators: %s: date.
+#: src/Account/SiteOverview.php:724
+msgid "License ends on %s and does not renew."
+msgstr "Die Lizenz endet am %s und verlängert sich nicht."
+
+#. translators: %s: version number.
+#: src/Account/SiteOverview.php:727
+msgid "Version %s is available."
+msgstr "Version %s ist verfügbar."
+
+#. translators: %d: number of days.
+#: src/Account/SiteOverview.php:730
+msgid "No contact for more than %d days."
+msgstr "Seit mehr als %d Tagen kein Kontakt."
