@@ -36,6 +36,34 @@ final class ResponseSignatureTest extends TestCase {
 		$this->assertSame( '0c2d2070b327f0013c71659e1df3984135c26866fcc91771373f05eaa5bf5c1e', $envelope['payload_signature'] );
 	}
 
+	/**
+	 * B-179: data that cannot be encoded must not be answered with a signature over an empty string.
+	 *
+	 * @return array<string,array{0:array<string,mixed>}>
+	 */
+	public function data_unencodable(): array {
+		return array(
+			'INF'          => array( array( 'limit' => INF ) ),
+			'NAN'          => array( array( 'limit' => NAN ) ),
+			'nested INF'   => array( array( 'entitlements' => array( 'limits.codes' => 1e999 ) ) ),
+			'invalid UTF8' => array( array( 'site' => "caf\xE9" ) ),
+		);
+	}
+
+	/**
+	 * @dataProvider data_unencodable
+	 *
+	 * @param array<string,mixed> $data Data.
+	 */
+	public function test_unencodable_data_is_never_signed( array $data ): void {
+		$envelope = Response::envelope( $data, self::SECRET, self::NONCE );
+
+		$this->assertSame( '', $envelope['payload'] );
+		$this->assertSame( '', $envelope['signature'], 'No HMAC over the empty string.' );
+		$this->assertSame( '', $envelope['payload_signature'] );
+		$this->assertNotSame( hash_hmac( 'sha256', '', self::SECRET ), $envelope['signature'] );
+	}
+
 	public function test_client_accepts_a_server_envelope_and_returns_the_signed_data(): void {
 		$envelope = Response::envelope( self::data(), self::SECRET, self::NONCE );
 

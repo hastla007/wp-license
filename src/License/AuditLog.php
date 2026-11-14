@@ -80,7 +80,9 @@ final class AuditLog {
 	 * @return mixed
 	 */
 	private static function redact_value( $value ) {
-		$sensitive = '/(?:license.?key|secret|token|password|authorization|email|phone|address|site.?url)/i';
+		// The site URL of an activation is kept (A-77): support needs it to
+		// follow address changes, and it is shown next to the activation anyway.
+		$sensitive = '/(?:license.?key|secret|token|password|authorization|email|phone|address)/i';
 
 		if ( is_object( $value ) ) {
 			$value = get_object_vars( $value );

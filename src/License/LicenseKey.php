@@ -61,13 +61,78 @@ final class LicenseKey {
 	}
 
 	/**
-	 * Hash a normalized license key for database verification.
+	 * Normalize a license key as typed or pasted by a customer (B-173).
 	 *
-	 * @param string $key License key.
+	 * Typographic dashes become "-", letters become upper case and everything
+	 * outside `[A-Z0-9-]` is removed: line breaks, (non-breaking and
+	 * zero-width) spaces, quotes or a trailing dot from an e-mail.
+	 *
+	 * @param string $key License key as entered.
+	 * @return string
+	 */
+	public static function normalize( string $key ): string {
+		$key = strtr(
+			$key,
+			array(
+				"\u{2010}" => '-',
+				"\u{2011}" => '-',
+				"\u{2012}" => '-',
+				"\u{2013}" => '-',
+				"\u{2014}" => '-',
+				"\u{2015}" => '-',
+				"\u{2212}" => '-',
+				"\u{FE58}" => '-',
+				"\u{FE63}" => '-',
+				"\u{FF0D}" => '-',
+			)
+		);
+
+		return (string) preg_replace( '/[^A-Z0-9-]/', '', strtoupper( $key ) );
+	}
+
+	/**
+	 * Hash a license key for database verification.
+	 *
+	 * @param string $key License key (normalized here).
 	 * @return string
 	 */
 	public static function hash( string $key ): string {
-		return hash( 'sha256', strtoupper( trim( $key ) ) );
+		return hash( 'sha256', self::normalize( $key ) );
+	}
+
+	/**
+	 * Check how many stored license keys can still be derived with the configured secrets (B-64).
+	 *
+	 * After a salt change or a wrong secret in wp-config.php the displayed
+	 * keys no longer match the stored verifiers. Diagnostics can show
+	 * "verified of checked".
+	 *
+	 * @param int $limit Number of most recent licenses to check.
+	 * @return array{checked:int,verified:int}
+	 */
+	public static function verification_sample( int $limit = 50 ): array {
+		global $wpdb;
+
+		$tables = \WPLC\Infrastructure\Database\Schema::table_names();
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names().
+				"SELECT license_uuid,license_key_hash,license_key_secret_id FROM {$tables['licenses']} ORDER BY id DESC LIMIT %d",
+				max( 1, min( 500, $limit ) )
+			),
+			ARRAY_A
+		);
+		$verified = 0;
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			if ( self::matches_hash( (string) $row['license_uuid'], (string) $row['license_key_secret_id'], (string) $row['license_key_hash'] ) ) {
+				++$verified;
+			}
+		}
+
+		return array(
+			'checked' => is_array( $rows ) ? count( $rows ) : 0,
+			'verified' => $verified,
+		);
 	}
 
 	/**

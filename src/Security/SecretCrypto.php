@@ -123,6 +123,15 @@ final class SecretCrypto {
 	}
 
 	/**
+	 * ID of the key that new values are encrypted with.
+	 *
+	 * @return string
+	 */
+	public static function active_key_id(): string {
+		return self::current_key_id( self::configured_keys() );
+	}
+
+	/**
 	 * Whether installation credentials are encrypted with the WordPress
 	 * secure_auth salt because no dedicated key is configured in wp-config.php.
 	 *
