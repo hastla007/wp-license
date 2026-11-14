@@ -1,11 +1,11 @@
 # WP License Captain — To-do-Liste
 
-Stand: 14.11.2026, Branch `claude/zen-babbage-7q4nac` (21 Aufgaben abgeschlossen, siehe Abschnitt 6 „Abgeschlossen am 14.11.2026“). Dies ist die einzige Aufgabenliste des Lizenzservers. Die Aufgaben der drei Produkt-Plugins (Kern-Plugin und Premium-Add-on) stehen in deren eigenen `TODO.md`.
+Stand: 14.11.2026, Branch `claude/zen-babbage-7q4nac` (22 Aufgaben abgeschlossen, siehe Abschnitt 6 „Abgeschlossen am 14.11.2026“). Dies ist die einzige Aufgabenliste des Lizenzservers. Die Aufgaben der drei Produkt-Plugins (Kern-Plugin und Premium-Add-on) stehen in deren eigenen `TODO.md`.
 
 **Regeln**
 
 - Ein Haken bedeutet: umgesetzt **und** belegt. Der Beleg steht dabei.
-- Belegarten: *Unit* (PHPUnit ohne WordPress), *Integration* (WordPress + WooCommerce + MySQL, 4 Kombinationen in CI, 186 Tests), *E2E* (Durchlauf in einer echten WordPress/WooCommerce-Installation, `tests/e2e/`, 684 Prüfungen, seit 14.11. auch als CI-Job), *Quelltext* (gegen den Quellcode von WooCommerce oder des Stripe-Plugins gelesen, nicht ausgeführt).
+- Belegarten: *Unit* (PHPUnit ohne WordPress), *Integration* (WordPress + WooCommerce + MySQL, 5 Kombinationen in CI inkl. Multisite, 194 Tests), *E2E* (Durchlauf in einer echten WordPress/WooCommerce-Installation, `tests/e2e/`, 684 Prüfungen, seit 14.11. auch als CI-Job), *Quelltext* (gegen den Quellcode von WooCommerce oder des Stripe-Plugins gelesen, nicht ausgeführt).
 - Was nur per *Quelltext* belegt ist, gilt als offen, bis es im Browser oder gegen Stripe gelaufen ist.
 - Kritikalität: **[KRITISCH]** blockiert den ersten echten Verkauf, **[WICHTIG]** blockiert den öffentlichen Launch, **[OPTIMIERUNG]** kann danach folgen.
 - Nummern bleiben stabil; erledigte Nummern stehen in Abschnitt 6.
@@ -32,7 +32,6 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 
 ### Fehler und Lücken im Code
 
-- [ ] **T-61 [WICHTIG]** Multisite: Mindestverhalten umgesetzt (`docs/MULTISITE.md`), auf einem Netzwerk nie ausgeführt.
 
 ### Tests und Betrieb
 
@@ -70,7 +69,7 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 
 ### Abgeschlossen am 14.11.2026
 
-Belege: *Unit* 504 Tests, *Integration* 186 Tests (HPOS und klassische Bestellspeicherung, MariaDB 10.11, WordPress 7.1.4, WooCommerce 11.2.2), *E2E* 684 Prüfungen, blockierendes PHPCS ohne neue Befunde, PHPStan Stufe 5 ohne neue Befunde. Alle 12 CI-Jobs auf GitHub grün (PR #40, Commit 92dcb5c).
+Belege: *Unit* 504 Tests, *Integration* 194 Tests (HPOS und klassische Bestellspeicherung, MariaDB 10.11, WordPress 7.1.4, WooCommerce 11.2.2), *E2E* 684 Prüfungen, blockierendes PHPCS ohne neue Befunde, PHPStan Stufe 5 ohne neue Befunde. Alle 12 CI-Jobs auf GitHub grün (PR #40, Commit 92dcb5c).
 
 - [x] **T-132** Verlängerungspreis der gekauften Variante wird an der Lizenz gespeichert (`renewal_product_id`, Migration 13). Automatische Verlängerung belastet den zugestimmten Betrag; manuelle Verlängerung nutzt den aktuellen regulären Preis der gekauften Variante. *Integration, E2E (79,00 statt 59,00).* Offen bleibt nur die Frage, ob Altlizenzen nachkorrigiert werden; vor dem ersten Verkauf gegenstandslos.
 - [x] **T-134** `LicenseClient` prüft die Ed25519-Signatur gegen fest hinterlegte öffentliche Schlüssel (mehrere während einer Rotation), auch für den Offline-Cache (`check_entitlements_envelope()`, `verify_cached_envelope()`). *Unit: gefälschte Antwort mit gültigem HMAC wird abgelehnt.* Die Add-ons müssen den Schlüssel einbauen (T-131).
@@ -86,6 +85,7 @@ Belege: *Unit* 504 Tests, *Integration* 186 Tests (HPOS und klassische Bestellsp
 - [x] **T-144** `wplc_reminder_log` im Schema (Migration 12). *Unit, Integration, E2E (Upgrade).*
 - [x] **T-145** API-Spezifikation deklariert 409, 429 und 503; die drei unvollständigen Integrationstests prüfen jetzt hart. *Integration.*
 - [x] **T-146** `SiteUrl`: nicht kanonische IPv4-Schreibweisen abgelehnt, Pfade normalisiert, Umlaut-Domains auch ohne `intl` (gegen `idn_to_ascii` über alle BMP-Zeichen geprüft); bestehende Aktivierungen werden weiter erkannt. *Unit, Integration.*
+- [x] **T-61** Multisite auf einem echten Netzwerk geprüft (Netzwerk- und Einzelaktivierung, Tabellen pro Site, Lizenz einer Site bei einer anderen unbekannt, Löschen einer Site entfernt ihre Tabellen). Drei Fehler behoben: Netzwerk-Deaktivierung und Deinstallation räumten nur eine Site auf; Tabellen gelöschter Sites blieben ohne WooCommerce auf der Hauptsite liegen. Neue CI-Zelle für Multisite. *Integration (8 Tests, beide Speicherarten), WP-CLI auf einem Netzwerk.* Grenzen in `docs/MULTISITE.md`.
 - [x] **T-155** Der Stripe-Webhook `payment_intent.payment_failed` klärt ein unklares Zahlungsergebnis als Ablehnung, wenn Versuchsnummer (neue Metadaten `wplc_attempt`), Verlängerung und Betrag passen; ältere Versuche und Ereignisse ohne Versuchsnummer ändern nichts. Offene Prüffälle aus unklarem Ergebnis werden ebenso aufgelöst. *Unit, Integration (7 Tests), E2E.* Der Stripe-Status `requires_payment_method` nach einer Ablehnung ist noch gegen ein echtes Ereignis zu bestätigen (T-12).
 - [x] **T-154, T-137** Adminseite „Zu prüfende Verlängerungen“ mit Zähler im Menü: unklares Zahlungsergebnis, bezahlt aber Lizenz während der Zahlung geändert, verspätete oder nicht anwendbare manuelle Zahlung. Aktionen „Verlängerung buchen“, „Als nicht bezahlt markieren“, „Ohne Buchung abschließen“, jeweils mit Pflichtbegründung, Sperre und Audit-Eintrag; Doppelklick ändert nichts. Solange ein Fall offen ist, läuft die Lizenz höchstens 30 Tage länger nicht ab (Zugang endet trotzdem mit der Kulanzzeit). Schema 14. *Unit, Integration (11 Tests), E2E.* Bekannte Lücke: Eine gesperrte Lizenz mit abgelaufenem Zeitraum lässt sich nicht reaktivieren, ihr Fall nur schließen.
 - [x] **T-22** Echte Parallelität gegen MariaDB: neuer E2E-Ablauf `11-concurrency` mit 8 Server-Prozessen und Startschranke (Nonce-Replay, Site-Limit, Einmal-Download, Statuswechsel während einer Abbuchung, doppelt laufende Verlängerung, mehrfach bezahlte manuelle Verlängerung, parallele Bestell-Hooks; je 28 Runden). Vier Fehler gefunden und behoben: (1) Lizenz während der Abbuchung gesperrt/erstattet/abgelaufen → Verlängerung bezahlt, Lizenz nicht verlängert; jetzt `review_required` mit Alarm. (2) Kündigung während der Abbuchung ging verloren. (3) Statuswechsel ohne Sperre; jetzt eine Sperre pro Lizenz, Reihenfolge Verlängerung → Lizenz. (4) Parallele Bestell-Hooks erzeugten Datenbankfehler und unvollständige Lizenzlisten. *E2E, Integration (6 Regressionstests).* Nicht abgedeckt: parallele Stripe-Webhooks (T-12).
