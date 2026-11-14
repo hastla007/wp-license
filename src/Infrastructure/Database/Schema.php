@@ -21,8 +21,15 @@ final class Schema {
 	 *
 	 * 11: renewals.status widened to 30 characters ("manual_action_required" has 22;
 	 *     WordPress refuses to write a value longer than the column).
+	 * 12: reminder_log adopted from ReminderLog, which created it on first use
+	 *     (same name, columns and keys; the old version option is removed).
 	 */
-	public const VERSION = '11';
+	public const VERSION = '12';
+
+	/**
+	 * Option in which ReminderLog recorded its self-installed table (up to schema 11).
+	 */
+	public const LEGACY_REMINDER_LOG_VERSION_OPTION = 'wplc_reminder_log_version';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -45,6 +52,7 @@ final class Schema {
 	 */
 	private static $steps = array(
 		'10' => array( self::class, 'step_10_autoload_schema_version' ),
+		'12' => array( self::class, 'step_12_adopt_reminder_log' ),
 	);
 
 	/**
@@ -417,6 +425,18 @@ final class Schema {
 				KEY license_source_created (license_id,source,created_at),
 				KEY stream_expiry (expires_at)
 			) {$charset_collate};",
+			// Created by ReminderLog itself up to schema 11 with exactly this layout,
+			// so dbDelta leaves an existing table and its rows unchanged.
+			"CREATE TABLE {$tables['reminder_log']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				license_id bigint(20) unsigned NOT NULL,
+				reminder_type varchar(40) NOT NULL,
+				period_end datetime NOT NULL,
+				sent_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY license_reminder (license_id,reminder_type,period_end),
+				KEY sent_at (sent_at)
+			) {$charset_collate};",
 		);
 
 		foreach ( $sql as $statement ) {
@@ -490,6 +510,7 @@ final class Schema {
 			'audit_log'    => $prefix . 'audit_log',
 			'releases'     => $prefix . 'releases',
 			'package_streams' => $prefix . 'package_streams',
+			'reminder_log' => $prefix . 'reminder_log',
 		);
 	}
 
@@ -525,6 +546,21 @@ final class Schema {
 		}
 
 		// Not fatal when the flag could not be changed: the value is rewritten with autoload right after.
+		return true;
+	}
+
+	/**
+	 * Schema 12: the reminder log belongs to the schema.
+	 *
+	 * dbDelta has already created the table or found the one ReminderLog
+	 * installed earlier (identical layout, rows are kept). Only the separate
+	 * version option of the old installer is left to remove.
+	 *
+	 * @return bool
+	 */
+	private static function step_12_adopt_reminder_log(): bool {
+		delete_option( self::LEGACY_REMINDER_LOG_VERSION_OPTION );
+
 		return true;
 	}
 

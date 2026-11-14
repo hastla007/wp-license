@@ -10,6 +10,7 @@
  *                                               amount, currency, charge_date, grace_until, account_url, pay_url.
  * @var string               $email_heading      Email heading.
  * @var string               $additional_content Additional content from the email settings.
+ * @var string               $sender_note        Sender note from the license settings; empty for none.
  * @var WC_Email             $email              Email object.
  */
 
@@ -67,5 +68,12 @@ wc_get_template(
 if ( ! empty( $additional_content ) ) {
 	echo wp_kses_post( wpautop( wptexturize( $additional_content ) ) );
 }
+
+wc_get_template(
+	'emails/wplc-sender-note.php',
+	array( 'sender_note' => isset( $sender_note ) ? (string) $sender_note : '' ),
+	'wp-license/',
+	WPLC_PATH . 'templates/'
+);
 
 do_action( 'woocommerce_email_footer', $email );

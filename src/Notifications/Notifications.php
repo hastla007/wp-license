@@ -275,7 +275,7 @@ final class Notifications {
 		if ( $window < 1 ) {
 			return;
 		}
-		if ( ! ReminderLog::maybe_install() ) {
+		if ( ! ReminderLog::is_available() ) {
 			self::log( 'error', 'Reminder log table is not available; no reminders were sent.' );
 			return;
 		}

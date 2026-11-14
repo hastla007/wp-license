@@ -89,7 +89,7 @@ Conventions:
 
 - Extend `WPLC_Integration_TestCase` (`tests/integration/helpers/IntegrationTestCase.php`). It provides WooCommerce fixtures, license/activation seeding, signed REST requests and `run_admin_post()`.
 - Handlers that end with a redirect or a bare status header followed by `exit` are tested with `halt_instead_of_exit()`, which turns `wp_redirect()` and `status_header()` into a `WPLC_Test_Halt` exception.
-- A test that exposes a defect in `src/` asserts the correct behavior and calls `markTestIncomplete( 'BUG: …' )` while the defect exists. It turns green without changes once the defect is fixed. `SPEC GAP: …` marks a response the code returns but `docs/openapi-v1.json` does not declare. Incomplete tests do not fail the job; `vendor/bin/phpunit -c phpunit.integration.xml -v` lists them.
+- A test that exposes a defect in `src/` asserts the correct behavior and calls `markTestIncomplete( 'BUG: …' )` while the defect exists. It turns green without changes once the defect is fixed. A response the code returns but `docs/openapi-v1.json` does not declare fails the REST conformance tests (`SPEC GAP: …`). Incomplete tests do not fail the job; `vendor/bin/phpunit -c phpunit.integration.xml -v` lists them.
 - Not covered: real parallel requests (two database connections), a live Stripe account, the WooCommerce Stripe gateway plugin (its amount helper is replaced by `helpers/StripeHelperStub.php`), and the "webhook secret not configured" branch (the constant cannot be undefined inside one PHP process).
 
 ## PHPCS

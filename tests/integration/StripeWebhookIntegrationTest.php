@@ -182,9 +182,7 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertCount( 1, $this->announced );
 
 		$spec = json_decode( (string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/openapi-v1.json' ), true );
-		if ( ! isset( $spec['paths']['/webhooks/stripe']['post']['responses']['409'] ) ) {
-			$this->markTestIncomplete( 'SPEC GAP: docs/openapi-v1.json does not declare the 409 (wplc_stripe_event_conflict) response of POST /webhooks/stripe.' );
-		}
+		$this->assertArrayHasKey( '409', $spec['paths']['/webhooks/stripe']['post']['responses'], 'docs/openapi-v1.json must declare the 409 (wplc_stripe_event_conflict) response of POST /webhooks/stripe.' );
 	}
 
 	/**
