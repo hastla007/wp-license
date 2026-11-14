@@ -1,0 +1,19 @@
+{
+    "data": {
+        "activation_id": 4711,
+        "installation_id": "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b",
+        "license_status": "expired",
+        "paid_until": "2027-11-01 00:00:00",
+        "site_limit": 5,
+        "site_count": 1,
+        "environment": "production",
+        "entitlements": [],
+        "server_time": "2026-11-01 00:00:00",
+        "cache_expires_at": "2026-11-15 00:00:00"
+    },
+    "signature": "029fac9a55db90244ec12b12f1c3a6fec51b1b9121516719c56af878c9589005",
+    "payload": "{\"data\":{\"activation_id\":4711,\"installation_id\":\"6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b\",\"license_status\":\"expired\",\"paid_until\":\"2027-11-01 00:00:00\",\"site_limit\":5,\"site_count\":1,\"environment\":\"production\",\"entitlements\":[],\"server_time\":\"2026-11-01 00:00:00\",\"cache_expires_at\":\"2026-11-15 00:00:00\"},\"nonce\":\"fixture-nonce-0123456789abcdef\"}",
+    "payload_signature": "fc6e6cbe53a6471befa8d8fa633b3c3a8f816f50f0857a5cb1126a8e9b89ad00",
+    "signature_ed25519": "jcN6ZvQhgJM6KxBn//Lc19fE3V5lEdggOa4P16lFRkY5CZPRtKFkNGVKeYopHUjWc8IrR/1vMYIAHzNefzkrCw==",
+    "key_id": "10ba682c8ad13513"
+}

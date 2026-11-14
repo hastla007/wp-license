@@ -1,0 +1,22 @@
+{
+    "data": {
+        "activation_id": 4711,
+        "installation_id": "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b",
+        "license_status": "active",
+        "paid_until": "2027-11-01 00:00:00",
+        "site_limit": 5,
+        "site_count": 1,
+        "environment": "production",
+        "entitlements": {
+            "other.pdf_templates": true,
+            "otherstarter.reports": true
+        },
+        "server_time": "2026-11-01 00:00:00",
+        "cache_expires_at": "2026-11-15 00:00:00"
+    },
+    "signature": "4032c45266ed699152dcd7301a9a7e4a80eb576b943a284a12f1616cbc28dec0",
+    "payload": "{\"data\":{\"activation_id\":4711,\"installation_id\":\"6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b\",\"license_status\":\"active\",\"paid_until\":\"2027-11-01 00:00:00\",\"site_limit\":5,\"site_count\":1,\"environment\":\"production\",\"entitlements\":{\"other.pdf_templates\":true,\"otherstarter.reports\":true},\"server_time\":\"2026-11-01 00:00:00\",\"cache_expires_at\":\"2026-11-15 00:00:00\"},\"nonce\":\"fixture-nonce-0123456789abcdef\"}",
+    "payload_signature": "dfb8273492295720d67498643e80ea21a135e4a591520fcdad25c40829d2cbe2",
+    "signature_ed25519": "FBtZ5AMC1OOmuF23M43p7lUvMAFGw0dzwZEKw1h3pFwDyvQlHK89WSUcU0k4iqwQCFSRdyCCDGBxrYsGKym5BA==",
+    "key_id": "10ba682c8ad13513"
+}

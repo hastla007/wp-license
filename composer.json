@@ -32,7 +32,11 @@
   },
   "scripts": {
     "lint": "bash bin/lint.sh",
-    "test": "phpunit",
+    "test": [
+      "phpunit",
+      "@test:starter"
+    ],
+    "test:starter": "phpunit -c examples/premium-addon-starter/phpunit.xml.dist",
     "test:integration": "phpunit -c phpunit.integration.xml",
     "phpcs": "phpcs",
     "phpcs:blocking": "@php bin/phpcs-blocking.php",
@@ -42,7 +46,8 @@
   },
   "scripts-descriptions": {
     "lint": "Check the syntax of every PHP file with the running PHP version.",
-    "test": "Unit tests (no WordPress).",
+    "test": "Unit tests (no WordPress), then the premium add-on starter tests.",
+    "test:starter": "Unit tests of examples/premium-addon-starter, incl. sync checks of its vendored client and fixtures against this server.",
     "test:integration": "WordPress + WooCommerce integration tests; needs bin/install-test-env.sh first.",
     "phpcs": "Full coding standard report (advisory).",
     "phpcs:blocking": "Security and PHP-compatibility sniffs against phpcs-baseline.json (blocking).",

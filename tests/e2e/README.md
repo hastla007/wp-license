@@ -114,6 +114,7 @@ talking real HTTP; request signatures, nonces, cookies, redirects and file strea
 | `09-privacy.php` | Exporter and eraser through the WordPress privacy AJAX endpoints |
 | `10-deactivate-uninstall.php` | Deactivation and uninstall clear scheduled work and keep data; overdue renewal after re-activation |
 | `11-concurrency.php` | Truly parallel requests against MySQL/MariaDB (see below): nonce replay, site limit, one-time download token and stream, state changes during a renewal charge, lifecycle races, renewal double run, manual renewal paid twice, paid-order hooks |
+| `12-addon-starter.php` | `examples/premium-addon-starter`: add-on generated with `bin/init-addon.php` (product key `voucher-captain`, pinned to the e2e server's Ed25519 key, WooCommerce as stand-in core plugin) and installed; purchase, activation through the settings form (nonce, capability), entitlements from the signed cache, daily refresh, outage (cache kept, rejected after 14 days [time simulated]), tampered cache, suspension, update detection without a user, a package with a wrong checksum refused by `Plugin_Upgrader`, the verified update installed, uninstall releasing the activation. A re-run with `WPLC_E2E_KEEP_DB=1` releases the next free 1.3.x version |
 
 ### Concurrency (flow 11, T-22)
 
