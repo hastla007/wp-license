@@ -24,6 +24,7 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - `WPLC_PACKAGE_STORAGE_DIR` puts uploaded ZIP files outside the web root.
 - Product-plugin client: pinned Ed25519 server keys and helpers for a verified offline cache.
 - End-to-end test run as a GitHub Actions job.
+- Admin page "Renewals to review" for renewals whose payment may have been taken without extending the license (unknown result, license changed during the charge, late manual payment), with book / mark as not paid / close actions.
 
 ### Changed
 
@@ -43,6 +44,8 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - Site URLs: non-canonical IPv4 spellings are rejected, paths are normalized, internationalized domains work without the `intl` extension.
 - The customer account shows the product name instead of the internal plan key.
 - The "overdue renewals" alert counts only renewals that are really stuck.
+- Classic checkout shows the automatic-renewal opt-in only while a payment method that can renew is selected.
+- License emails show the bought variation instead of the internal plan key.
 
 ### Fixed
 
