@@ -139,7 +139,8 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'stripe', $rows[0]['source'] );
 		$this->assertSame( 'evt_renewal_1', $rows[0]['source_event_id'] );
 		$this->assertSame( 'payment_intent.succeeded', $rows[0]['event_type'] );
-		$this->assertSame( hash( 'sha256', $body ), $rows[0]['payload_hash'] );
+		// A-113: the hash covers what is stored, not the raw body.
+		$this->assertSame( hash( 'sha256', $rows[0]['payload_json'] ), $rows[0]['payload_hash'] );
 		$this->assertNull( $rows[0]['processed_at'] );
 		$this->assertSame(
 			array(
@@ -486,5 +487,309 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 
 		$this->assertSame( 'processed', $this->inbox_row( $inbox_id )['outcome'] );
 		$this->assertSame( $fixture['period_end'], $this->license( $fixture['license_id'] )['paid_until'] );
+	}
+
+	// ------------------------------------------------------------------
+	// A-113, B-29, B-148, B-59, B-60 (verified against constructed events, not against Stripe).
+	// ------------------------------------------------------------------
+
+	/**
+	 * POST a body signed with a given secret.
+	 */
+	private function post_signed( string $body, string $secret ): WP_REST_Response {
+		$timestamp = time();
+
+		return $this->post_webhook( $body, 't=' . $timestamp . ',v1=' . hash_hmac( 'sha256', $timestamp . '.' . $body, $secret ) );
+	}
+
+	/** A-113: the same event delivered again with a slightly different body is a duplicate, not a conflict. */
+	public function test_a113_redelivery_with_a_different_raw_body_is_a_duplicate(): void {
+		$metadata = $this->renewal_metadata();
+		$this->assertSame( 200, $this->post_webhook( $this->event( 'evt_a113', 'payment_intent.succeeded', array( 'metadata' => $metadata ) ) )->get_status() );
+
+		// Another API version: a new field and a changed one that is not stored.
+		$again = $this->post_webhook( $this->event( 'evt_a113', 'payment_intent.succeeded', array( 'metadata' => $metadata, 'receipt_email' => 'other@example.test', 'new_field' => 'x' ) ) );
+
+		$this->assertSame( 200, $again->get_status() );
+		$this->assertSame( array( 'received' => true, 'duplicate' => true ), $again->get_data() );
+		$this->assertCount( 1, $this->inbox() );
+		$this->assertCount( 1, $this->announced );
+	}
+
+	/** A-113: a row stored before the change (hash of the raw body) still recognises its redelivery. */
+	public function test_a113_row_with_a_raw_body_hash_accepts_the_identical_redelivery(): void {
+		global $wpdb;
+		$body = $this->event( 'evt_a113_old', 'payment_intent.succeeded', array( 'metadata' => $this->renewal_metadata() ) );
+		$this->assertSame( 200, $this->post_webhook( $body )->get_status() );
+		$wpdb->update( $this->tables()['event_inbox'], array( 'payload_hash' => hash( 'sha256', $body ) ), array( 'source_event_id' => 'evt_a113_old' ) );
+
+		$this->assertSame( array( 'received' => true, 'duplicate' => true ), $this->post_webhook( $body )->get_data() );
+	}
+
+	/** B-29: a renewal event of another site sharing the Stripe account is acknowledged and ignored. */
+	public function test_b29_event_of_another_site_is_acknowledged_and_not_stored(): void {
+		$foreign = array_merge( $this->renewal_metadata(), array( 'wplc_site' => 'ffffffffffffffff' ) );
+		$own     = array_merge( $this->renewal_metadata(), array( 'wplc_site' => \WPLC\Gateway\StripeRecurringAdapter::site_id() ) );
+
+		$response = $this->post_webhook( $this->event( 'evt_other_site', 'payment_intent.succeeded', array( 'metadata' => $foreign ) ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( array( 'received' => true, 'ignored' => true, 'reason' => 'other_site' ), $response->get_data() );
+		$this->assertCount( 0, $this->inbox() );
+
+		$this->assertSame( array( 'received' => true, 'reconciliation' => 'pending' ), $this->post_webhook( $this->event( 'evt_own_site', 'payment_intent.succeeded', array( 'metadata' => $own ) ) )->get_data() );
+		$this->assertCount( 1, $this->inbox() );
+	}
+
+	/** B-29: two sites never get the same identifier, and the identifier is stable. */
+	public function test_b29_site_identifier_depends_on_home_url_and_blog(): void {
+		$first = \WPLC\Gateway\StripeRecurringAdapter::site_id();
+		$this->assertMatchesRegularExpression( '/^[a-f0-9]{16}$/', $first );
+		$this->assertSame( $first, \WPLC\Gateway\StripeRecurringAdapter::site_id() );
+
+		update_option( 'home', 'https://staging.example.test' );
+
+		$this->assertNotSame( $first, \WPLC\Gateway\StripeRecurringAdapter::site_id() );
+	}
+
+	/** B-148: a test-mode event never reaches the inbox of a shop whose gateway runs live. */
+	public function test_b148_test_event_is_ignored_while_the_gateway_runs_live(): void {
+		add_filter(
+			'wplc_stripe_mode',
+			static function () {
+				return 'live';
+			}
+		);
+		$body = (string) wp_json_encode( array_merge( json_decode( $this->event( 'evt_testmode', 'payment_intent.succeeded', array( 'metadata' => $this->renewal_metadata() ) ), true ), array( 'livemode' => false ) ) );
+
+		$response = $this->post_webhook( $body );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'test_event_in_live_mode', $response->get_data()['reason'] );
+		$this->assertCount( 0, $this->inbox() );
+
+		// A live event is real money in every gateway mode.
+		$live = (string) wp_json_encode( array_merge( json_decode( $this->event( 'evt_livemode', 'payment_intent.succeeded', array( 'metadata' => $this->renewal_metadata() ) ), true ), array( 'livemode' => true ) ) );
+		$this->assertSame( array( 'received' => true, 'reconciliation' => 'pending' ), $this->post_webhook( $live )->get_data() );
+	}
+
+	/** B-148: with a secret per mode, an event must be signed with the secret of its own mode. */
+	public function test_b148_separate_secrets_for_test_and_live(): void {
+		add_filter(
+			'wplc_stripe_webhook_secrets',
+			static function () {
+				return array( 'live' => 'whsec_live_only', 'test' => 'whsec_test_only' );
+			}
+		);
+		$make = function ( string $id, bool $livemode ): string {
+			return (string) wp_json_encode( array_merge( json_decode( $this->event( $id, 'payment_intent.succeeded', array( 'metadata' => $this->renewal_metadata() ) ), true ), array( 'livemode' => $livemode ) ) );
+		};
+
+		$this->assertSame( 200, $this->post_signed( $make( 'evt_live_ok', true ), 'whsec_live_only' )->get_status() );
+		$this->assertSame( 200, $this->post_signed( $make( 'evt_test_ok', false ), 'whsec_test_only' )->get_status() );
+		$this->assertApiError( 400, 'wplc_stripe_event_mode_mismatch', $this->post_signed( $make( 'evt_live_with_test_secret', true ), 'whsec_test_only' ) );
+		$this->assertApiError( 400, 'wplc_stripe_event_mode_mismatch', $this->post_signed( $make( 'evt_test_with_live_secret', false ), 'whsec_live_only' ) );
+		$this->assertApiError( 400, 'wplc_stripe_signature_invalid', $this->post_signed( $make( 'evt_old_secret', true ), WPLC_STRIPE_WEBHOOK_SECRET ) );
+		$this->assertCount( 2, $this->inbox() );
+	}
+
+	/** B-29: a site without a secret of its own accepts nothing. */
+	public function test_b29_site_without_a_secret_is_unconfigured(): void {
+		add_filter(
+			'wplc_stripe_webhook_secrets',
+			static function () {
+				return array( 'live' => '', 'test' => '' );
+			}
+		);
+
+		$this->assertApiError( 503, 'wplc_stripe_webhook_unconfigured', $this->post_webhook( $this->event( 'evt_unconfigured', 'payment_intent.succeeded' ) ) );
+	}
+
+	/** B-148, A-72: only a correctly signed event moves the heartbeat; a rejected one is recorded separately. */
+	public function test_b148_heartbeat_after_a_valid_signature(): void {
+		delete_option( \WPLC\Admin\Diagnostics::LAST_RUN_OPTION );
+		delete_transient( 'wplc_hb_stripe_webhook_rejected' );
+		$body = $this->event( 'evt_heartbeat', 'charge.refunded' );
+
+		$this->post_webhook( $body, 't=' . time() . ',v1=' . str_repeat( '0', 64 ) );
+
+		$this->assertSame( 0, \WPLC\Admin\Diagnostics::last_run( 'stripe_webhook' ) );
+		$this->assertGreaterThan( 0, \WPLC\Admin\Diagnostics::last_run( 'stripe_webhook_rejected' ) );
+
+		$this->post_webhook( $body );
+
+		$this->assertGreaterThan( 0, \WPLC\Admin\Diagnostics::last_run( 'stripe_webhook' ), 'Also for an event type that is not stored.' );
+	}
+
+	/** B-148: error messages are fixed English text; the code is the contract. */
+	public function test_b148_error_messages_are_not_translated(): void {
+		add_filter(
+			'gettext',
+			static function ( $translation, $text, $domain ) {
+				return 'wp-license' === $domain ? 'TRANSLATED' : $translation;
+			},
+			10,
+			3
+		);
+
+		$response = $this->post_webhook( $this->event( 'evt_bad_sig', 'payment_intent.succeeded' ), 't=1,v1=' . str_repeat( '0', 64 ) );
+
+		$this->assertSame( 'The Stripe webhook signature is invalid or expired.', $response->get_data()['message'] );
+	}
+
+	/** B-148: payment_intent.canceled is stored and ends as an observed failure. */
+	public function test_b148_canceled_payment_intent_is_observed_and_changes_nothing(): void {
+		if ( ! class_exists( 'WC_Stripe_Helper' ) ) {
+			require_once __DIR__ . '/helpers/StripeHelperStub.php';
+		}
+		$fixture  = $this->renewal_fixture();
+		$response = $this->post_webhook( $this->event( 'evt_canceled', 'payment_intent.canceled', array( 'status' => 'canceled', 'amount_received' => 0, 'metadata' => $this->renewal_metadata( $fixture['renewal_id'], $fixture['license_id'], $fixture['order_id'] ) ) ) );
+		$this->assertSame( array( 'received' => true, 'reconciliation' => 'pending' ), $response->get_data() );
+		$rows = $this->inbox();
+
+		RenewalProcessor::process_stripe_event( (int) $rows[0]['id'] );
+
+		$this->assertSame( 'failure_observed', $this->inbox_row( (int) $rows[0]['id'] )['outcome'] );
+		$this->assertSame( $fixture['paid_until'], $this->license( $fixture['license_id'] )['paid_until'] );
+		$this->assertFalse( wc_get_order( $fixture['order_id'] )->is_paid() );
+	}
+
+	/**
+	 * A paid renewal order whose payment Stripe knows as pi_paid_1 / ch_paid_1.
+	 *
+	 * @return array{license_id:int,renewal_id:int,order_id:int,paid_until:string,period_end:string}
+	 */
+	private function paid_fixture(): array {
+		if ( ! class_exists( 'WC_Stripe_Helper' ) ) {
+			require_once __DIR__ . '/helpers/StripeHelperStub.php';
+		}
+		$fixture  = $this->renewal_fixture();
+		$metadata = $this->renewal_metadata( $fixture['renewal_id'], $fixture['license_id'], $fixture['order_id'] );
+		$response = $this->post_webhook( $this->event( 'evt_paid_fixture', 'payment_intent.succeeded', array( 'id' => 'pi_paid_1', 'latest_charge' => 'ch_paid_1', 'metadata' => $metadata ) ) );
+		$this->assertSame( 200, $response->get_status() );
+		$rows = $this->inbox();
+		RenewalProcessor::process_stripe_event( (int) end( $rows )['id'] );
+		$this->assertSame( 'processed', $this->inbox_row( (int) end( $rows )['id'] )['outcome'], 'Fixture: the renewal was not booked.' );
+
+		return $fixture;
+	}
+
+	/** B-60: a renewal booked by the webhook has the charge as transaction ID and the gateway's metas. */
+	public function test_b60_webhook_booking_uses_the_charge_as_transaction_id(): void {
+		$fixture = $this->paid_fixture();
+		$order   = wc_get_order( $fixture['order_id'] );
+
+		$this->assertSame( 'ch_paid_1', $order->get_transaction_id() );
+		$this->assertSame( 'pi_paid_1', $order->get_meta( '_stripe_intent_id', true ) );
+		$this->assertSame( 'yes', $order->get_meta( '_stripe_charge_captured', true ) );
+		$this->assertSame( 'pi_paid_1', $order->get_meta( '_wplc_payment_intent_id', true ) );
+		$this->assertSame( 'ch_paid_1', json_decode( (string) $this->inbox()[0]['payload_json'], true )['charge_id'] );
+	}
+
+	/** B-59: a second successful PaymentIntent for a paid order is a double payment, not "already reconciled". */
+	public function test_b59_second_successful_payment_intent_goes_to_manual_review_with_an_alert(): void {
+		$fixture  = $this->paid_fixture();
+		$metadata = $this->renewal_metadata( $fixture['renewal_id'], $fixture['license_id'], $fixture['order_id'] );
+		$alerts   = array();
+		add_action(
+			'wplc/renewal_needs_review',
+			static function ( $order_id, $renewal_id, $problem ) use ( &$alerts ) {
+				$alerts[] = array( (int) $order_id, (int) $renewal_id, (string) $problem );
+			},
+			10,
+			3
+		);
+		$this->post_webhook( $this->event( 'evt_second_payment', 'payment_intent.succeeded', array( 'id' => 'pi_second_2', 'latest_charge' => 'ch_second_2', 'metadata' => $metadata ) ) );
+		$rows     = $this->inbox();
+		$inbox_id = (int) end( $rows )['id'];
+
+		RenewalProcessor::process_stripe_event( $inbox_id );
+
+		$this->assertSame( 'manual_review', $this->inbox_row( $inbox_id )['outcome'] );
+		$this->assertCount( 1, $alerts );
+		$this->assertSame( $fixture['order_id'], $alerts[0][0] );
+		$this->assertStringContainsString( 'pi_second_2', $alerts[0][2] );
+		$order = wc_get_order( $fixture['order_id'] );
+		$this->assertSame( 'ch_paid_1', $order->get_transaction_id(), 'The first payment stays on the order.' );
+		$this->assertSame( 'pi_paid_1', $order->get_meta( '_wplc_payment_intent_id', true ) );
+		$this->assertSame( 'pi_second_2', $order->get_meta( '_wplc_duplicate_payment_intent_id', true ) );
+		$this->assertSame( $fixture['period_end'], $this->license( $fixture['license_id'] )['paid_until'], 'The period is extended once.' );
+		global $wpdb;
+		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$this->tables()['audit_log']} WHERE action = %s AND object_id = %d", 'renewal_double_payment', $fixture['renewal_id'] ) ) );
+
+		// The same PaymentIntent reported again (another event ID) stays harmless.
+		$this->post_webhook( $this->event( 'evt_same_payment_again', 'payment_intent.succeeded', array( 'id' => 'pi_paid_1', 'latest_charge' => 'ch_paid_1', 'metadata' => $metadata ) ) );
+		$rows = $this->inbox();
+		RenewalProcessor::process_stripe_event( (int) end( $rows )['id'] );
+		$this->assertSame( 'already_reconciled', $this->inbox_row( (int) end( $rows )['id'] )['outcome'] );
+	}
+
+	/** B-148: a won dispute is announced and noted; the license is not reactivated automatically. */
+	public function test_b148_won_dispute_fires_an_action_and_keeps_the_suspension(): void {
+		$fixture = $this->paid_fixture();
+		$this->post_webhook( $this->event( 'evt_dispute_created', 'charge.dispute.created', array( 'id' => 'dp_1', 'payment_intent' => 'pi_paid_1', 'charge' => 'ch_paid_1', 'reason' => 'fraudulent', 'status' => 'needs_response' ) ) );
+		$rows = $this->inbox();
+		RenewalProcessor::process_stripe_event( (int) end( $rows )['id'] );
+		$this->assertSame( 'suspended', $this->license( $fixture['license_id'] )['status'], 'Fixture: the dispute did not suspend the license.' );
+		$won = array();
+		add_action(
+			'wplc/dispute_won',
+			static function ( $license_id, $order_id, $dispute_id ) use ( &$won ) {
+				$won[] = array( (int) $license_id, (int) $order_id, (string) $dispute_id );
+			},
+			10,
+			3
+		);
+
+		$response = $this->post_webhook( $this->event( 'evt_dispute_closed', 'charge.dispute.closed', array( 'id' => 'dp_1', 'payment_intent' => 'pi_paid_1', 'charge' => 'ch_paid_1', 'reason' => 'fraudulent', 'status' => 'won' ) ) );
+		$this->assertSame( array( 'received' => true, 'reconciliation' => 'pending' ), $response->get_data() );
+		$rows     = $this->inbox();
+		$inbox_id = (int) end( $rows )['id'];
+		RenewalProcessor::process_stripe_event( $inbox_id );
+
+		$this->assertSame( 'processed', $this->inbox_row( $inbox_id )['outcome'] );
+		$this->assertSame( array( array( $fixture['license_id'], $fixture['order_id'], 'dp_1' ) ), $won );
+		$this->assertSame( 'suspended', $this->license( $fixture['license_id'] )['status'], 'Reactivation stays a decision of the shop.' );
+	}
+
+	/** B-148: a lost dispute, returned funds and an early fraud warning are recorded and change no license. */
+	public function test_b148_lost_dispute_funds_reinstated_and_fraud_warning_only_alert(): void {
+		$fixture = $this->paid_fixture();
+		$fired   = array();
+		foreach ( array( 'wplc/dispute_closed', 'wplc/dispute_funds_reinstated', 'wplc/stripe_early_fraud_warning', 'wplc/dispute_won' ) as $hook ) {
+			add_action(
+				$hook,
+				static function () use ( &$fired, $hook ) {
+					$fired[] = $hook;
+				}
+			);
+		}
+		$events = array(
+			array( 'evt_efw', 'radar.early_fraud_warning.created', array( 'id' => 'issfr_1', 'charge' => 'ch_paid_1', 'payment_intent' => 'pi_paid_1', 'fraud_type' => 'card_never_received', 'actionable' => true ) ),
+			array( 'evt_lost', 'charge.dispute.closed', array( 'id' => 'dp_2', 'payment_intent' => 'pi_paid_1', 'charge' => 'ch_paid_1', 'status' => 'lost' ) ),
+			array( 'evt_reinstated', 'charge.dispute.funds_reinstated', array( 'id' => 'dp_2', 'payment_intent' => 'pi_paid_1', 'charge' => 'ch_paid_1', 'status' => 'won' ) ),
+		);
+		foreach ( $events as $event ) {
+			$this->assertSame( array( 'received' => true, 'reconciliation' => 'pending' ), $this->post_webhook( $this->event( $event[0], $event[1], $event[2] ) )->get_data(), $event[1] );
+			$rows = $this->inbox();
+			RenewalProcessor::process_stripe_event( (int) end( $rows )['id'] );
+			$this->assertSame( 'processed', $this->inbox_row( (int) end( $rows )['id'] )['outcome'], $event[1] );
+		}
+
+		$this->assertSame( array( 'wplc/stripe_early_fraud_warning', 'wplc/dispute_closed', 'wplc/dispute_funds_reinstated' ), $fired );
+		$license = $this->license( $fixture['license_id'] );
+		$this->assertSame( 'active', $license['status'] );
+		$this->assertSame( $fixture['period_end'], $license['paid_until'] );
+		$stored = json_decode( (string) $this->inbox()[1]['payload_json'], true );
+		$this->assertSame( array( 'warning_id', 'payment_intent_id', 'charge_id', 'fraud_type', 'order_id' ), array_keys( $stored ), 'Only the minimized payload is stored.' );
+	}
+
+	/** B-148: follow-up events of payments that are not ours are acknowledged and dropped. */
+	public function test_b148_dispute_followups_of_unrelated_payments_are_ignored(): void {
+		foreach ( array( 'charge.dispute.closed', 'charge.dispute.funds_reinstated', 'radar.early_fraud_warning.created' ) as $index => $type ) {
+			$response = $this->post_webhook( $this->event( 'evt_unrelated_' . $index, $type, array( 'id' => 'dp_x', 'payment_intent' => 'pi_unknown', 'charge' => 'ch_unknown' ) ) );
+			$this->assertSame( array( 'received' => true, 'ignored' => true ), $response->get_data(), $type );
+		}
+		$this->assertCount( 0, $this->inbox() );
 	}
 }

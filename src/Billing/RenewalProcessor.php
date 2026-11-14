@@ -7,7 +7,10 @@
 
 namespace WPLC\Billing;
 
+use WPLC\Gateway\PaymentReference;
 use WPLC\Gateway\Registry;
+use WPLC\Gateway\StripeEventHandler;
+use WPLC\Gateway\StripeRecurringAdapter;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
 use WPLC\License\LicenseLifecycle;
@@ -262,21 +265,19 @@ final class RenewalProcessor {
 			return;
 		}
 
-		$token_id = absint( $license['payment_token_id'] );
-		$customer_id = (int) $license['customer_id'];
 		$adapter = Registry::get( (string) $license['payment_gateway_id'] );
 		if ( ! $adapter ) {
 			// A-15: the gateway integration is gone (plugin deactivated). Not a declined card.
 			self::defer_attempt( $renewal, 'renewal_gateway_unavailable', self::BLOCKED_RETRY_SECONDS );
 			return;
 		}
-		$token = class_exists( 'WC_Payment_Tokens' ) ? \WC_Payment_Tokens::get( $token_id ) : false;
-		if (
-			! $token
-			|| (int) $token->get_user_id() !== $customer_id
-			|| ! $adapter->supports_saved_token( $token_id, $customer_id )
-		) {
-			self::fail_attempt( $renewal, $license, new \WP_Error( 'renewal_method_unavailable', __( 'A verified automatic renewal payment method is unavailable.', 'wp-license' ) ) );
+		// B-57, B-78: by token ID or by the gateway's payment method reference, in the mode of the purchase.
+		// A missing payment method is the shop's problem to solve with the customer, not a declined card.
+		$token_id = PaymentReference::resolve_token( $adapter, $license );
+		if ( is_wp_error( $token_id ) ) {
+			$reason = PaymentReference::reason( $token_id );
+			PaymentReference::report_unresolved( $license, $renewal_id, $token_id, (string) ( $renewal['last_error'] ?? '' ) !== $reason );
+			self::defer_attempt( $renewal, $reason, self::BLOCKED_RETRY_SECONDS );
 			return;
 		}
 
@@ -336,9 +337,19 @@ final class RenewalProcessor {
 				self::book_paid_order( $renewal, $license, $order, 'renewal_paid', __( 'The customer paid the renewal order while the automatic charge failed', 'wp-license' ) );
 				return;
 			}
+			$error_data = $error->get_error_data();
+			$wait = is_array( $error_data ) ? absint( $error_data['wait'] ?? 0 ) : 0;
+			if ( $wait && self::RESULT_UNKNOWN !== $error->get_error_code() ) {
+				// B-59, B-63: nothing failed, the adapter asks to look again later (the customer is paying
+				// the order, the payment is still being processed, the gateway limits requests).
+				self::update_renewal( $renewal_id, array( 'status' => $renewal['status'] ) );
+				self::defer_attempt( $renewal, (string) $error->get_error_code(), $wait, false );
+				return;
+			}
 			if ( in_array( $error->get_error_code(), self::SHOP_SIDE_ERRORS, true ) ) {
 				self::update_renewal( $renewal_id, array( 'status' => $renewal['status'] ) );
-				self::defer_attempt( $renewal, (string) $error->get_error_code(), self::BLOCKED_RETRY_SECONDS );
+				// A-16: the adapter names the cause in `reason`; the renewal row keeps it.
+				self::defer_attempt( $renewal, is_array( $error_data ) && ! empty( $error_data['reason'] ) ? (string) $error_data['reason'] : (string) $error->get_error_code(), self::BLOCKED_RETRY_SECONDS );
 				return;
 			}
 			$definite = self::RESULT_UNKNOWN !== $error->get_error_code();
@@ -824,6 +835,11 @@ final class RenewalProcessor {
 			self::process_dispute_event( $inbox_id, $payload );
 			return;
 		}
+		if ( is_array( $payload ) && StripeEventHandler::handles( (string) $event['event_type'] ) ) {
+			// B-148: dispute follow-ups and fraud warnings never change a license.
+			self::finish_stripe_event( $inbox_id, StripeEventHandler::handle( (string) $event['event_type'], $payload ) );
+			return;
+		}
 		if ( ! is_array( $payload ) || empty( $payload['renewal_id'] ) ) {
 			self::finish_stripe_event( $inbox_id, 'invalid_payload' );
 			return;
@@ -891,8 +907,28 @@ final class RenewalProcessor {
 			return;
 		}
 
-		// The event is verified and linked to our order: remember its PaymentIntent for disputes and support.
 		$intent_id = sanitize_text_field( (string) ( $payload['payment_intent_id'] ?? '' ) );
+		$paid_by = (string) $order->get_meta( '_stripe_intent_id', true );
+		if ( 'payment_intent.succeeded' === $event['event_type'] && $order->is_paid() && 0 === strpos( $paid_by, 'pi_' ) && $paid_by !== $intent_id ) {
+			// B-59: the order was paid by another PaymentIntent (the customer on the pay page) and this
+			// one succeeded as well. Two payments for one period: never "already reconciled".
+			$problem = sprintf(
+				/* translators: 1: PaymentIntent of this event, 2: PaymentIntent that paid the order. */
+				__( 'Stripe reports a second successful payment %1$s for a renewal order that was paid by %2$s. One of the two payments must be refunded.', 'wp-license' ),
+				$intent_id,
+				$paid_by
+			);
+			$order->update_meta_data( '_wplc_duplicate_payment_intent_id', $intent_id );
+			$order->save();
+			$order->add_order_note( 'WP License Captain: ' . $problem );
+			self::finish_stripe_event( $inbox_id, 'manual_review' );
+			AuditLog::record( 'renewal_double_payment', 'renewal', (int) $renewal['id'], $problem, null, array( 'order_id' => (int) $order->get_id() ) );
+			/** This action is documented in src/Billing/RenewalOrder.php */
+			do_action( 'wplc/renewal_needs_review', (int) $order->get_id(), (int) $renewal['id'], $problem );
+			return;
+		}
+
+		// The event is verified and linked to our order: remember its PaymentIntent for disputes and support.
 		if ( 0 === strpos( $intent_id, 'pi_' ) && (string) $order->get_meta( RenewalOrder::META_PAYMENT_INTENT, true ) !== $intent_id ) {
 			$order->update_meta_data( RenewalOrder::META_PAYMENT_INTENT, $intent_id );
 			$order->save();
@@ -937,7 +973,10 @@ final class RenewalProcessor {
 			}
 			$booked = self::finish_paid( $renewal, $license, $order, 'renewal_reconciled', __( 'Verified Stripe PaymentIntent success reconciled', 'wp-license' ) );
 			if ( ! $order->is_paid() ) {
-				$order->payment_complete( $intent_id );
+				// B-60: the charge is the transaction ID, and the gateway's own metas make refunds work.
+				$charge_id = sanitize_text_field( (string) ( $payload['charge_id'] ?? '' ) );
+				StripeRecurringAdapter::store_gateway_meta( $order, $intent_id, $charge_id );
+				$order->payment_complete( '' !== $charge_id ? $charge_id : $intent_id );
 			}
 			self::finish_stripe_event( $inbox_id, $booked ? 'processed' : 'manual_review' );
 			return;
