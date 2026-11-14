@@ -7,28 +7,18 @@
 
 namespace WPLC\Notifications;
 
+use WPLC\Infrastructure\Database\Schema;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * Owns the {prefix}wplc_reminder_log table.
+ * Reads and writes the {prefix}wplc_reminder_log table.
  *
- * The table is self-installed because the notification package may not change
- * the central schema. It can be adopted by the schema class later: keep the
- * table name, the columns and the unique key, then drop the installer here.
+ * The table is part of the versioned schema (Schema, since version 12).
  */
 final class ReminderLog {
-
-	/**
-	 * Table layout version.
-	 */
-	public const VERSION = '1';
-
-	/**
-	 * Option that stores the installed table version.
-	 */
-	public const VERSION_OPTION = 'wplc_reminder_log_version';
 
 	/**
 	 * A reminder was claimed by this call and must be sent now.
@@ -46,68 +36,21 @@ final class ReminderLog {
 	public const FAILED = -1;
 
 	/**
-	 * Whether the table was verified during this request.
-	 *
-	 * @var bool
-	 */
-	private static $ready = false;
-
-	/**
 	 * Fully prefixed table name.
 	 *
 	 * @return string
 	 */
 	public static function table_name(): string {
-		global $wpdb;
-		return $wpdb->prefix . 'wplc_reminder_log';
+		return Schema::table_names()['reminder_log'];
 	}
 
 	/**
-	 * Create the table when it is missing or outdated.
+	 * Whether the table can be used: the schema is current or was just migrated.
 	 *
-	 * @return bool True when the table is available.
+	 * @return bool
 	 */
-	public static function maybe_install(): bool {
-		global $wpdb;
-
-		if ( self::$ready ) {
-			return true;
-		}
-		if ( version_compare( (string) get_option( self::VERSION_OPTION, '0' ), self::VERSION, '>=' ) ) {
-			self::$ready = true;
-			return true;
-		}
-
-		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-
-		$table           = self::table_name();
-		$charset_collate = $wpdb->get_charset_collate();
-		\dbDelta(
-			"CREATE TABLE {$table} (
-				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-				license_id bigint(20) unsigned NOT NULL,
-				reminder_type varchar(40) NOT NULL,
-				period_end datetime NOT NULL,
-				sent_at datetime NOT NULL,
-				PRIMARY KEY  (id),
-				UNIQUE KEY license_reminder (license_id,reminder_type,period_end),
-				KEY sent_at (sent_at)
-			) {$charset_collate};"
-		);
-
-		$exists = $wpdb->get_var(
-			$wpdb->prepare(
-				'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
-				$table
-			)
-		);
-		if ( 1 !== (int) $exists ) {
-			return false;
-		}
-
-		update_option( self::VERSION_OPTION, self::VERSION, false );
-		self::$ready = true;
-		return true;
+	public static function is_available(): bool {
+		return Schema::maybe_upgrade();
 	}
 
 	/**
@@ -121,7 +64,7 @@ final class ReminderLog {
 	public static function claim( int $license_id, string $reminder_type, string $period_end ): int {
 		global $wpdb;
 
-		if ( $license_id <= 0 || '' === $reminder_type || ! self::valid_datetime( $period_end ) || ! self::maybe_install() ) {
+		if ( $license_id <= 0 || '' === $reminder_type || ! self::valid_datetime( $period_end ) || ! self::is_available() ) {
 			return self::FAILED;
 		}
 

@@ -175,13 +175,12 @@ final class Retention {
 				return self::delete_activations( $tables, $cutoff );
 
 			case 'reminder_log':
-				if ( version_compare( (string) get_option( ReminderLog::VERSION_OPTION, '0' ), '1', '<' ) ) {
+				if ( ! ReminderLog::is_available() ) {
 					return 0;
 				}
-				$table  = ReminderLog::table_name();
 				$result = $wpdb->query(
 					$wpdb->prepare(
-						"DELETE FROM {$table} WHERE sent_at < %s ORDER BY sent_at ASC LIMIT %d",
+						"DELETE FROM {$tables['reminder_log']} WHERE sent_at < %s ORDER BY sent_at ASC LIMIT %d",
 						$cutoff,
 						self::BATCH_SIZE
 					)

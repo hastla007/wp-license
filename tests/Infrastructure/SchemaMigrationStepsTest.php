@@ -128,11 +128,52 @@ final class SchemaMigrationStepsTest extends TestCase {
 	public function test_table_names_are_stable_per_site_prefix(): void {
 		$tables = Schema::table_names_for_prefix( 'wp_2_' );
 		$this->assertSame(
-			array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams' ),
+			array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'reminder_log' ),
 			array_keys( $tables )
 		);
 		$this->assertSame( 'wp_2_wplc_licenses', $tables['licenses'] );
 		$this->assertSame( 'wp_2_wplc_releases', $tables['releases'] );
 		$this->assertSame( 'wp_2_wplc_package_streams', $tables['package_streams'] );
+		// Same name ReminderLog used for its self-installed table up to schema 11.
+		$this->assertSame( 'wp_2_wplc_reminder_log', $tables['reminder_log'] );
+	}
+
+	public function test_upgrade_from_schema_11_adopts_the_reminder_log(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$property->setAccessible( true );
+		$steps = $property->getValue();
+
+		$this->assertArrayHasKey( '12', $steps );
+		$this->assertSame( 'step_12_adopt_reminder_log', $steps['12'][1] );
+		$this->assertContains( '12', Schema::pending_step_versions( '11', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( 'wplc_reminder_log_version', Schema::LEGACY_REMINDER_LOG_VERSION_OPTION );
+	}
+
+	public function test_every_table_has_a_create_statement(): void {
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		foreach ( array_keys( Schema::table_names_for_prefix( 'wp_' ) ) as $key ) {
+			$this->assertStringContainsString( "CREATE TABLE {\$tables['" . $key . "']} (", $source, 'No CREATE TABLE for ' . $key );
+		}
+	}
+
+	public function test_reminder_log_layout_matches_the_former_self_installed_table(): void {
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		$this->assertSame( 1, preg_match( "/CREATE TABLE \\{\\\$tables\\['reminder_log'\\]\\} \\((.*?)\\) \\{\\\$charset_collate\\};/s", $source, $match ) );
+		$lines = array_values( array_filter( array_map( 'trim', explode( "\n", $match[1] ) ) ) );
+
+		// dbDelta must find nothing to change on installs where ReminderLog created the table.
+		$this->assertSame(
+			array(
+				'id bigint(20) unsigned NOT NULL AUTO_INCREMENT,',
+				'license_id bigint(20) unsigned NOT NULL,',
+				'reminder_type varchar(40) NOT NULL,',
+				'period_end datetime NOT NULL,',
+				'sent_at datetime NOT NULL,',
+				'PRIMARY KEY  (id),',
+				'UNIQUE KEY license_reminder (license_id,reminder_type,period_end),',
+				'KEY sent_at (sent_at)',
+			),
+			$lines
+		);
 	}
 }
