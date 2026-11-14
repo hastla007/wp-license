@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: WP License Captain 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-11-13T21:35:54+00:00\n"
-"PO-Revision-Date: 2026-11-14 17:07+0000\n"
+"PO-Revision-Date: 2026-11-14 22:59+0000\n"
 "Last-Translator: \n"
 "Language-Team: German\n"
 "Language: de_DE\n"
@@ -1552,23 +1552,23 @@ msgstr "Die Signatur des Stripe-Webhooks ist ungültig oder abgelaufen."
 msgid "The Stripe webhook event is malformed."
 msgstr "Das Stripe-Webhook-Ereignis ist fehlerhaft aufgebaut."
 
-#: src/Api/V1/StripeWebhook.php:82
+#: src/Api/V1/StripeWebhook.php:86
 msgid "The Stripe event is missing required renewal metadata."
 msgstr "Dem Stripe-Ereignis fehlen erforderliche Metadaten zur Verlängerung."
 
-#: src/Api/V1/StripeWebhook.php:85
+#: src/Api/V1/StripeWebhook.php:89
 msgid "The successful Stripe event has an unexpected payment status."
 msgstr "Das erfolgreiche Stripe-Ereignis hat einen unerwarteten Zahlungsstatus."
 
-#: src/Api/V1/StripeWebhook.php:90
+#: src/Api/V1/StripeWebhook.php:94
 msgid "The Stripe event could not be stored."
 msgstr "Das Stripe-Ereignis konnte nicht gespeichert werden."
 
-#: src/Api/V1/StripeWebhook.php:108
+#: src/Api/V1/StripeWebhook.php:112
 msgid "The Stripe event could not be recorded."
 msgstr "Das Stripe-Ereignis konnte nicht erfasst werden."
 
-#: src/Api/V1/StripeWebhook.php:119
+#: src/Api/V1/StripeWebhook.php:123
 msgid "The Stripe event identifier was already used for a different payload."
 msgstr "Die Kennung des Stripe-Ereignisses wurde bereits für einen anderen Inhalt verwendet."
 
@@ -1633,7 +1633,7 @@ msgid "Your license key and site activations are available in your account under
 msgstr "Ihren Lizenzschlüssel und Ihre Website-Aktivierungen finden Sie in Ihrem Konto unter „Lizenzen“:"
 
 #: src/Billing/RenewalOrder.php:42
-#: src/License/AuditReason.php:252
+#: src/License/AuditReason.php:254
 msgid "WooCommerce order services are unavailable."
 msgstr "Die Bestellfunktionen von WooCommerce sind nicht verfügbar."
 
@@ -1642,27 +1642,27 @@ msgid "The saved renewal order does not match this license renewal."
 msgstr "Die gespeicherte Verlängerungsbestellung passt nicht zu dieser Lizenzverlängerung."
 
 #: src/Billing/RenewalOrder.php:63
-#: src/License/AuditReason.php:247
+#: src/License/AuditReason.php:249
 msgid "Multiple WooCommerce orders reference this license renewal; manual review is required."
 msgstr "Mehrere WooCommerce-Bestellungen verweisen auf diese Lizenzverlängerung; eine manuelle Prüfung ist erforderlich."
 
 #: src/Billing/RenewalOrder.php:67
-#: src/License/AuditReason.php:248
+#: src/License/AuditReason.php:250
 msgid "An existing WooCommerce order conflicts with this license renewal."
 msgstr "Eine vorhandene WooCommerce-Bestellung steht im Konflikt mit dieser Lizenzverlängerung."
 
 #: src/Billing/RenewalOrder.php:71
-#: src/License/AuditReason.php:249
+#: src/License/AuditReason.php:251
 msgid "The existing renewal order could not be linked."
 msgstr "Die vorhandene Verlängerungsbestellung konnte nicht verknüpft werden."
 
 #: src/Billing/RenewalOrder.php:86
-#: src/License/AuditReason.php:250
+#: src/License/AuditReason.php:252
 msgid "The source product is no longer available for renewal."
 msgstr "Das ursprüngliche Produkt ist für eine Verlängerung nicht mehr verfügbar."
 
 #: src/Billing/RenewalOrder.php:89
-#: src/License/AuditReason.php:251
+#: src/License/AuditReason.php:253
 msgid "This license has no renewal price."
 msgstr "Für diese Lizenz gibt es keinen Verlängerungspreis."
 
@@ -1675,22 +1675,22 @@ msgid "The renewal order was created but could not be linked. A retry will attem
 msgstr "Die Verlängerungsbestellung wurde angelegt, konnte aber nicht verknüpft werden. Bei einem erneuten Versuch wird dies nachgeholt."
 
 #: src/Billing/RenewalOrder.php:194
-#: src/License/AuditReason.php:246
+#: src/License/AuditReason.php:248
 msgid "Existing renewal orders could not be checked safely."
 msgstr "Vorhandene Verlängerungsbestellungen konnten nicht zuverlässig geprüft werden."
 
 #: src/Billing/RenewalProcessor.php:179
-#: src/License/AuditReason.php:244
+#: src/License/AuditReason.php:246
 msgid "A verified automatic renewal payment method is unavailable."
 msgstr "Eine bestätigte Zahlungsart für die automatische Verlängerung ist nicht verfügbar."
 
 #: src/Billing/RenewalProcessor.php:198
-#: src/License/AuditReason.php:245
+#: src/License/AuditReason.php:247
 msgid "The renewal order is waiting for a payment started by the customer."
 msgstr "Die Verlängerungsbestellung wartet auf eine vom Kunden gestartete Zahlung."
 
 #: src/Billing/RenewalProcessor.php:212
-#: src/License/AuditReason.php:243
+#: src/License/AuditReason.php:245
 msgid "The payment gateway did not confirm the renewal."
 msgstr "Das Zahlungs-Gateway hat die Verlängerung nicht bestätigt."
 
@@ -1698,7 +1698,7 @@ msgstr "Das Zahlungs-Gateway hat die Verlängerung nicht bestätigt."
 msgid "This renewal requires customer authentication. Automatic retries have been stopped."
 msgstr "Diese Verlängerung erfordert eine Authentifizierung durch den Kunden. Automatische Wiederholungsversuche wurden gestoppt."
 
-#: src/Billing/RenewalProcessor.php:1090
+#: src/Billing/RenewalProcessor.php:1129
 msgid "The renewal attempt did not finish and its result is unknown."
 msgstr "Der Verlängerungsversuch wurde nicht abgeschlossen, sein Ergebnis ist unbekannt."
 
@@ -1977,44 +1977,44 @@ msgstr "Die Signatur der Antwort des Lizenzservers konnte nicht geprüft werden.
 msgid "This product installation has not been activated."
 msgstr "Diese Produktinstallation wurde noch nicht aktiviert."
 
-#: src/Gateway/StripeRecurringAdapter.php:97
-#: src/License/AuditReason.php:256
+#: src/Gateway/StripeRecurringAdapter.php:105
+#: src/License/AuditReason.php:258
 msgid "The renewal order could not be verified."
 msgstr "Die Verlängerungsbestellung konnte nicht geprüft werden."
 
-#: src/Gateway/StripeRecurringAdapter.php:101
-#: src/License/AuditReason.php:257
+#: src/Gateway/StripeRecurringAdapter.php:109
+#: src/License/AuditReason.php:259
 msgid "A saved Stripe card is unavailable for this customer."
 msgstr "Für diesen Kunden ist keine gespeicherte Stripe-Karte verfügbar."
 
-#: src/Gateway/StripeRecurringAdapter.php:112
-#: src/License/AuditReason.php:258
+#: src/Gateway/StripeRecurringAdapter.php:120
+#: src/License/AuditReason.php:260
 msgid "The renewal amount is not valid for Stripe."
 msgstr "Der Verlängerungsbetrag ist für Stripe nicht gültig."
 
-#: src/Gateway/StripeRecurringAdapter.php:138
-#: src/License/AuditReason.php:254
+#: src/Gateway/StripeRecurringAdapter.php:147
+#: src/License/AuditReason.php:256
 msgid "Stripe did not return a definite result for the renewal payment."
 msgstr "Stripe hat für die Verlängerungszahlung kein eindeutiges Ergebnis zurückgegeben."
 
-#: src/Gateway/StripeRecurringAdapter.php:155
-#: src/Gateway/StripeRecurringAdapter.php:169
-#: src/License/AuditReason.php:255
+#: src/Gateway/StripeRecurringAdapter.php:164
+#: src/Gateway/StripeRecurringAdapter.php:178
+#: src/License/AuditReason.php:257
 msgid "The customer must authenticate this payment method before renewal can continue."
 msgstr "Der Kunde muss diese Zahlungsart authentifizieren, bevor die Verlängerung fortgesetzt werden kann."
 
-#: src/Gateway/StripeRecurringAdapter.php:162
-#: src/License/AuditReason.php:259
+#: src/Gateway/StripeRecurringAdapter.php:171
+#: src/License/AuditReason.php:261
 msgid "Stripe declined the renewal payment."
 msgstr "Stripe hat die Verlängerungszahlung abgelehnt."
 
-#: src/Gateway/StripeRecurringAdapter.php:172
-#: src/License/AuditReason.php:260
+#: src/Gateway/StripeRecurringAdapter.php:181
+#: src/License/AuditReason.php:262
 msgid "Stripe did not confirm the renewal payment as succeeded."
 msgstr "Stripe hat die Verlängerungszahlung nicht als erfolgreich bestätigt."
 
-#: src/Gateway/StripeRecurringAdapter.php:176
-#: src/License/AuditReason.php:261
+#: src/Gateway/StripeRecurringAdapter.php:185
+#: src/License/AuditReason.php:263
 msgid "Stripe did not return a transaction reference."
 msgstr "Stripe hat keine Transaktionsreferenz zurückgegeben."
 
@@ -2711,16 +2711,16 @@ msgstr "Regel anzeigen und erneut prüfen"
 msgid "The automatic payment for this renewal is still being confirmed. Please check back later."
 msgstr "Die automatische Zahlung für diese Verlängerung wird noch bestätigt. Bitte schauen Sie später wieder vorbei."
 
-#: src/Billing/RenewalProcessor.php:388
+#: src/Billing/RenewalProcessor.php:389
 msgid "The payment gateway did not return a definite result for this renewal payment; the payment may have been taken. The renewal is checked again with the same idempotency key and is not charged a second time. The customer was not told that the payment failed."
 msgstr "Das Zahlungs-Gateway hat für diese Verlängerungszahlung kein eindeutiges Ergebnis geliefert; die Zahlung kann erfolgt sein. Die Verlängerung wird mit demselben Idempotenzschlüssel erneut geprüft und kein zweites Mal belastet. Der Kunde wurde nicht über eine fehlgeschlagene Zahlung informiert."
 
-#: src/Billing/RenewalProcessor.php:512
+#: src/Billing/RenewalProcessor.php:513
 msgid "The result of the automatic renewal payment is still unknown and automatic attempts have stopped. Check the payment in the payment gateway: if it was taken, set this order to Processing or Completed to book the renewal; if it was not, set it to Failed to resume the automatic retries."
 msgstr "Das Ergebnis der automatischen Verlängerungszahlung ist weiterhin unklar, und die automatischen Versuche wurden beendet. Prüfen Sie die Zahlung im Zahlungs-Gateway: Wurde sie eingezogen, setzen Sie diese Bestellung auf „In Bearbeitung“ oder „Abgeschlossen“, um die Verlängerung zu buchen. Wurde sie nicht eingezogen, setzen Sie sie auf „Fehlgeschlagen“, damit die automatischen Wiederholungen weiterlaufen."
 
-#: src/Billing/RenewalProcessor.php:684
-#: src/License/AuditReason.php:253
+#: src/Billing/RenewalProcessor.php:685
+#: src/License/AuditReason.php:255
 msgid "The renewal order was set to failed after its payment result was checked."
 msgstr "Die Verlängerungsbestellung wurde nach Prüfung des Zahlungsergebnisses auf „Fehlgeschlagen“ gesetzt."
 
@@ -2729,192 +2729,192 @@ msgid "The license server response is not signed by the expected license server.
 msgstr "Die Antwort ist nicht vom erwarteten Lizenzserver signiert."
 
 #. translators: 1: shop name, 2: WooCommerce order number.
-#: src/Gateway/StripeRecurringAdapter.php:202
+#: src/Gateway/StripeRecurringAdapter.php:211
 #, php-format
 msgid "%1$s: license renewal, order #%2$d"
 msgstr "%1$s: Lizenzverlängerung, Bestellung #%2$d"
 
 #. translators: 1: shop name, 2: product name, 3: WooCommerce order number.
-#: src/Gateway/StripeRecurringAdapter.php:205
+#: src/Gateway/StripeRecurringAdapter.php:214
 #, php-format
 msgid "%1$s: renewal of %2$s, order #%3$d"
 msgstr "%1$s: Verlängerung von %2$s, Bestellung #%3$d"
 
-#: src/License/AuditReason.php:177
+#: src/License/AuditReason.php:178
 msgid "Product installation activated."
 msgstr "Produktinstallation aktiviert."
 
-#: src/License/AuditReason.php:178
+#: src/License/AuditReason.php:179
 msgid "Replaced by a new installation of the same site."
 msgstr "Durch eine neue Installation derselben Website ersetzt."
 
-#: src/License/AuditReason.php:179
+#: src/License/AuditReason.php:180
 msgid "Deactivated by the installation owner."
 msgstr "Von der Installation selbst deaktiviert."
 
-#: src/License/AuditReason.php:180
+#: src/License/AuditReason.php:181
 msgid "Deactivated by the license owner."
 msgstr "Vom Lizenzinhaber deaktiviert."
 
-#: src/License/AuditReason.php:181
+#: src/License/AuditReason.php:182
 msgid "Staging site deactivated together with its live site."
 msgstr "Staging-Website zusammen mit ihrer Live-Website deaktiviert."
 
-#: src/License/AuditReason.php:183
+#: src/License/AuditReason.php:184
 msgid "The order unit of this license was refunded."
 msgstr "Die Bestelleinheit dieser Lizenz wurde erstattet."
 
-#: src/License/AuditReason.php:184
+#: src/License/AuditReason.php:185
 msgid "The order was refunded in full."
 msgstr "Die Bestellung wurde vollständig erstattet."
 
 #. translators: %d: WooCommerce order number.
-#: src/License/AuditReason.php:186
+#: src/License/AuditReason.php:187
 #, php-format
 msgid "Renewal order #%d was refunded in full."
 msgstr "Die Verlängerungsbestellung #%d wurde vollständig erstattet."
 
 #. translators: 1: WooCommerce order number, 2: refunded amount, 3: currency code.
-#: src/License/AuditReason.php:188
+#: src/License/AuditReason.php:189
 #, php-format
 msgid "Renewal order #%1$d was partially refunded (%2$s %3$s); the license term is unchanged."
 msgstr "Die Verlängerungsbestellung #%1$d wurde teilweise erstattet (%2$s %3$s); die Laufzeit der Lizenz bleibt unverändert."
 
 #. translators: %d: WooCommerce order number.
-#: src/License/AuditReason.php:190
+#: src/License/AuditReason.php:191
 #, php-format
 msgid "Renewed from WooCommerce order #%d."
 msgstr "Verlängert durch die WooCommerce-Bestellung #%d."
 
 #. translators: %d: WooCommerce order number.
-#: src/License/AuditReason.php:192
+#: src/License/AuditReason.php:193
 #, php-format
 msgid "Manually renewed from WooCommerce order #%d."
 msgstr "Manuell verlängert durch die WooCommerce-Bestellung #%d."
 
-#: src/License/AuditReason.php:193
+#: src/License/AuditReason.php:194
 msgid "The grace period of the automatic renewal ended."
 msgstr "Die Kulanzzeit der automatischen Verlängerung ist abgelaufen."
 
-#: src/License/AuditReason.php:194
+#: src/License/AuditReason.php:195
 msgid "The paid period ended."
 msgstr "Der bezahlte Zeitraum ist abgelaufen."
 
-#: src/License/AuditReason.php:195
+#: src/License/AuditReason.php:196
 msgid "The customer requested the cancellation."
 msgstr "Der Kunde hat die Kündigung beantragt."
 
-#: src/License/AuditReason.php:196
+#: src/License/AuditReason.php:197
 msgid "The cancellation was withdrawn."
 msgstr "Die Kündigung wurde zurückgenommen."
 
-#: src/License/AuditReason.php:198
+#: src/License/AuditReason.php:199
 msgid "License key ID corrected after matching the stored verifier."
 msgstr "Schlüssel-ID der Lizenz nach Abgleich mit dem gespeicherten Prüfwert korrigiert."
 
-#: src/License/AuditReason.php:199
+#: src/License/AuditReason.php:200
 msgid "Installation secret encrypted with the configured current key."
 msgstr "Installationsgeheimnis mit dem konfigurierten aktuellen Schlüssel verschlüsselt."
 
-#: src/License/AuditReason.php:200
+#: src/License/AuditReason.php:201
 msgid "Response signing key rotated."
 msgstr "Signaturschlüssel für Antworten rotiert."
 
-#: src/License/AuditReason.php:202
+#: src/License/AuditReason.php:203
 msgid "The customer started a manual renewal."
 msgstr "Der Kunde hat eine manuelle Verlängerung gestartet."
 
-#: src/License/AuditReason.php:203
+#: src/License/AuditReason.php:204
 msgid "The customer paid a manual renewal order."
 msgstr "Der Kunde hat eine manuelle Verlängerungsbestellung bezahlt."
 
-#: src/License/AuditReason.php:204
+#: src/License/AuditReason.php:205
 msgid "The license period changed after the renewal order was created."
 msgstr "Der Lizenzzeitraum hat sich nach dem Anlegen der Verlängerungsbestellung geändert."
 
-#: src/License/AuditReason.php:205
+#: src/License/AuditReason.php:206
 msgid "The license status or renewal window did not allow a manual renewal."
 msgstr "Lizenzstatus oder Verlängerungszeitraum ließen keine manuelle Verlängerung zu."
 
-#: src/License/AuditReason.php:206
+#: src/License/AuditReason.php:207
 msgid "The paid order line did not match the renewal price."
 msgstr "Die bezahlte Bestellposition passte nicht zum Verlängerungspreis."
 
-#: src/License/AuditReason.php:220
+#: src/License/AuditReason.php:221
 msgid "The renewal order was already paid."
 msgstr "Die Verlängerungsbestellung war bereits bezahlt."
 
-#: src/License/AuditReason.php:221
+#: src/License/AuditReason.php:222
 msgid "The payment gateway confirmed the renewal."
 msgstr "Das Zahlungs-Gateway hat die Verlängerung bestätigt."
 
-#: src/License/AuditReason.php:222
+#: src/License/AuditReason.php:223
 msgid "A verified successful Stripe payment was booked."
 msgstr "Eine geprüfte erfolgreiche Stripe-Zahlung wurde gebucht."
 
-#: src/License/AuditReason.php:223
+#: src/License/AuditReason.php:225
 msgid "The customer paid the renewal order."
 msgstr "Der Kunde hat die Verlängerungsbestellung bezahlt."
 
-#: src/License/AuditReason.php:224
+#: src/License/AuditReason.php:226
 msgid "A stuck renewal had a paid order."
 msgstr "Zu einer hängenden Verlängerung gab es eine bezahlte Bestellung."
 
-#: src/License/AuditReason.php:225
+#: src/License/AuditReason.php:227
 msgid "The renewal order was set to failed: the payment was not taken."
 msgstr "Die Verlängerungsbestellung wurde auf „Fehlgeschlagen“ gesetzt: Die Zahlung wurde nicht eingezogen."
 
 #. translators: 1: Stripe dispute ID, 2: dispute reason reported by Stripe (a code such as "fraudulent").
-#: src/License/AuditReason.php:227
+#: src/License/AuditReason.php:229
 #, php-format
 msgid "Stripe dispute %1$s (reason: %2$s)."
 msgstr "Stripe-Zahlungsstreit %1$s (Grund: %2$s)."
 
-#: src/License/AuditReason.php:228
+#: src/License/AuditReason.php:230
 msgid "The Stripe event metadata did not match its renewal order."
 msgstr "Die Metadaten des Stripe-Ereignisses passten nicht zu seiner Verlängerungsbestellung."
 
-#: src/License/AuditReason.php:229
+#: src/License/AuditReason.php:231
 msgid "A payment event arrived for a cancelled, expired, refunded, revoked or suspended record."
 msgstr "Ein Zahlungsereignis ging für einen gekündigten, abgelaufenen, erstatteten, widerrufenen oder gesperrten Datensatz ein."
 
-#: src/License/AuditReason.php:230
+#: src/License/AuditReason.php:232
 msgid "The Stripe amount or currency did not match the WooCommerce renewal order."
 msgstr "Betrag oder Währung bei Stripe passten nicht zur WooCommerce-Verlängerungsbestellung."
 
-#: src/License/AuditReason.php:231
+#: src/License/AuditReason.php:233
 msgid "The metadata of the paid renewal order did not match its license."
 msgstr "Die Metadaten der bezahlten Verlängerungsbestellung passten nicht zu ihrer Lizenz."
 
-#: src/License/AuditReason.php:232
+#: src/License/AuditReason.php:234
 msgid "The renewal status did not allow a customer payment recovery."
 msgstr "Der Verlängerungsstatus ließ keine Nachzahlung durch den Kunden zu."
 
-#: src/License/AuditReason.php:233
+#: src/License/AuditReason.php:235
 msgid "The paid recovery order did not match the stored renewal amount."
 msgstr "Die bezahlte Nachzahlungsbestellung passte nicht zum gespeicherten Verlängerungsbetrag."
 
-#: src/License/AuditReason.php:236
+#: src/License/AuditReason.php:238
 msgid "The license of this renewal no longer exists."
 msgstr "Die Lizenz dieser Verlängerung existiert nicht mehr."
 
-#: src/License/AuditReason.php:237
+#: src/License/AuditReason.php:239
 msgid "The license can no longer be renewed."
 msgstr "Die Lizenz kann nicht mehr verlängert werden."
 
-#: src/License/AuditReason.php:238
+#: src/License/AuditReason.php:240
 msgid "The renewal was cancelled."
 msgstr "Die Verlängerung wurde storniert."
 
-#: src/License/AuditReason.php:239
+#: src/License/AuditReason.php:241
 msgid "The renewal order no longer exists."
 msgstr "Die Verlängerungsbestellung existiert nicht mehr."
 
-#: src/License/AuditReason.php:240
+#: src/License/AuditReason.php:242
 msgid "The renewal order was closed."
 msgstr "Die Verlängerungsbestellung wurde geschlossen."
 
-#: src/License/AuditReason.php:241
+#: src/License/AuditReason.php:243
 msgid "The payment result stayed unknown for too long."
 msgstr "Das Zahlungsergebnis blieb zu lange unklar."
 
@@ -2965,12 +2965,12 @@ msgid "Inside the web root; the HTTP self-check could not reach the site. Verify
 msgstr "Innerhalb des Webroots; der HTTP-Selbsttest konnte die Website nicht erreichen. Prüfen Sie die deny-Regel von Hand."
 
 #. translators: %s: license status, e.g. suspended.
-#: src/Billing/RenewalProcessor.php:552
+#: src/Billing/RenewalProcessor.php:553
 #, php-format
 msgid "WP License Captain: this renewal was paid, but the license could not be extended because its status changed to \"%s\" while the payment was running. Refund the payment, or reactivate the license and extend its term by hand."
 msgstr "WP License Captain: Diese Verlängerung wurde bezahlt, die Lizenz konnte aber nicht verlängert werden, weil sich ihr Status während der Zahlung auf „%s“ geändert hat. Erstatten Sie die Zahlung, oder reaktivieren Sie die Lizenz und verlängern Sie ihre Laufzeit von Hand."
 
-#: src/License/AuditReason.php:235
+#: src/License/AuditReason.php:237
 msgid "The renewal was paid, but the license status changed while the payment was running, so the license was not extended."
 msgstr "Die Verlängerung wurde bezahlt, aber der Lizenzstatus hat sich während der Zahlung geändert; die Lizenz wurde deshalb nicht verlängert."
 
@@ -3144,7 +3144,7 @@ msgstr "Ohne Buchung abschließen"
 msgid "Close this review without extending the license?"
 msgstr "Diese Prüfung abschließen, ohne die Lizenz zu verlängern?"
 
-#: src/Billing/RenewalProcessor.php:973
+#: src/Billing/RenewalProcessor.php:1012
 msgid "WP License Captain: this renewal order was paid after its review had been closed. The renewal was not booked; it is back in the review list."
 msgstr "WP License Captain: Diese Verlängerungsbestellung wurde bezahlt, nachdem ihre Prüfung abgeschlossen war. Die Verlängerung wurde nicht gebucht; sie steht wieder in der Prüfliste."
 
@@ -3168,38 +3168,46 @@ msgstr "WP License Captain: Verlängerung nach Prüfung gebucht; Lizenz #%1$d l�
 msgid "WP License Captain: payment confirmed during the renewal review."
 msgstr "WP License Captain: Zahlung während der Prüfung der Verlängerung bestätigt."
 
-#: src/License/AuditReason.php:207
+#: src/License/AuditReason.php:208
 msgid "The license could not be extended when the paid manual renewal was booked."
 msgstr "Die Lizenz konnte beim Buchen der bezahlten manuellen Verlängerung nicht verlängert werden."
 
 #. translators: %s: reason entered by the administrator.
-#: src/License/AuditReason.php:210
+#: src/License/AuditReason.php:211
 #, php-format
 msgid "Renewal booked by an administrator after review: %s"
 msgstr "Verlängerung nach Prüfung durch einen Administrator gebucht: %s"
 
 #. translators: %s: reason entered by the administrator.
-#: src/License/AuditReason.php:212
+#: src/License/AuditReason.php:213
 #, php-format
 msgid "Marked as not paid by an administrator after review: %s"
 msgstr "Nach Prüfung durch einen Administrator als nicht bezahlt markiert: %s"
 
 #. translators: %s: reason entered by the administrator.
-#: src/License/AuditReason.php:214
+#: src/License/AuditReason.php:215
 #, php-format
 msgid "Review closed without booking the renewal: %s"
 msgstr "Prüfung ohne Buchung der Verlängerung abgeschlossen: %s"
 
 #. translators: 1: WooCommerce order number, 2: reason entered by the administrator.
-#: src/License/AuditReason.php:216
+#: src/License/AuditReason.php:217
 #, php-format
 msgid "Renewed by an administrator after reviewing order #%1$d: %2$s"
 msgstr "Nach Prüfung der Bestellung #%1$d durch einen Administrator verlängert: %2$s"
 
-#: src/License/AuditReason.php:217
+#: src/License/AuditReason.php:218
 msgid "The license was changed while the payment result was still unknown."
 msgstr "Die Lizenz wurde geändert, während das Zahlungsergebnis noch unklar war."
 
-#: src/License/AuditReason.php:218
+#: src/License/AuditReason.php:219
 msgid "The renewal order was paid after its review had been closed without booking."
 msgstr "Die Verlängerungsbestellung wurde bezahlt, nachdem ihre Prüfung ohne Buchung abgeschlossen war."
+
+#: src/Billing/RenewalProcessor.php:931
+msgid "WP License Captain: Stripe reported that the renewal payment of this attempt failed; recorded as a decline."
+msgstr "WP License Captain: Stripe hat gemeldet, dass die Verlängerungszahlung dieses Versuchs fehlgeschlagen ist; als Ablehnung erfasst."
+
+#: src/License/AuditReason.php:224
+msgid "A verified failed Stripe payment of the attempt with unknown result was recorded as a decline."
+msgstr "Eine geprüfte fehlgeschlagene Stripe-Zahlung des Versuchs mit unklarem Ergebnis wurde als Ablehnung erfasst."
