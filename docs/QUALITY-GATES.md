@@ -16,8 +16,9 @@ No `composer.lock` is committed: the dependencies are development tools only and
 | PHPCS security + compatibility | `quality.yml` / `phpcs` | yes (new findings) | Escaping, nonces, input sanitization, prepared SQL, PHP 7.4 compatibility |
 | PHPCS coding standard | `quality.yml` / `phpcs` | no (report only) | WordPress-Extra and WordPress-Docs style |
 | PHPStan level 5 | `quality.yml` / `phpstan` | yes (new errors) | Undefined methods/variables, wrong argument counts and types in `src/` and `wp-license.php` |
+| Plugin ZIP | `package.yml` / `zip` | yes | `bin/build-zip.sh` (the release build) on PHP 7.4: versions agree, ZIP contents, class map covers `src/` |
 
-`wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (7.4)` … `unit (8.3)`, `phpcs`, `phpstan`) as required checks.
+`wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (7.4)` … `unit (8.3)`, `phpcs`, `phpstan`, `zip`) as required checks.
 
 ## Syntax and unit tests
 

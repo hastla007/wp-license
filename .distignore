@@ -1,9 +1,9 @@
 # Files and folders that are NOT part of the distributed plugin ZIP.
 #
-# The release build (.github/workflows/release.yml) works with an allow-list:
-# it copies wp-license.php, uninstall.php, readme.txt, src/, vendor/ (installed
-# with --no-dev) and, when present, languages/, assets/ and templates/ into a top-level
-# wp-license/ folder. This file documents the resulting exclusions in the
+# The release build (bin/build-zip.sh, run by .github/workflows/release.yml and
+# package.yml) works with an allow-list: it copies wp-license.php, uninstall.php,
+# readme.txt, src/ and, when present, languages/, assets/ and templates/ into a
+# top-level wp-license/ folder and generates vendor/ (runtime only) there. This file documents the resulting exclusions in the
 # format `wp dist-archive` understands, so both ways of building agree.
 
 # Version control, CI and editor files
@@ -17,6 +17,7 @@
 .DS_Store
 
 # Development only
+/bin
 /tests
 /docs
 /tools
@@ -30,6 +31,11 @@
 /phpunit.integration.xml
 /composer.json
 /composer.lock
+/phpcs.xml.dist
+/phpcs.blocking.xml
+/phpcs-baseline.json
+/phpstan.neon.dist
+/phpstan-baseline.neon
 /package.json
 /package-lock.json
 /README.md

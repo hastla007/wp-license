@@ -101,7 +101,7 @@ talking real HTTP; request signatures, nonces, cookies, redirects and file strea
 
 | File | Covers |
 | --- | --- |
-| `01-activation.php` | Activation hook, fallback autoloader, 13 tables, schema option, repeatable migration, cron/Action Scheduler, REST routes, every admin screen over HTTP |
+| `01-activation.php` | Activation hook, fallback autoloader, 14 tables, schema option, repeatable migration, cron/Action Scheduler, REST routes, every admin screen over HTTP |
 | `02-catalog.php` | Product editor POST (simple product, variations via admin-ajax, whole variable product, parent-level mapping), price changes, invalid input, CSV export/import round trip |
 | `03-purchase.php` | Forced registration, checkout, quantity 2 → 2 licenses + entitlements, repeated hooks, "license issued" email (no full key by default), My Account |
 | `04-client-server.php` | `LicenseClient`: activate, signed entitlement check, both response signatures, replay/expiry/tamper checks, site limit, staging, development, deactivation cascade, replacing a site, customer deactivation |
