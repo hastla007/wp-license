@@ -366,6 +366,8 @@ final class LicenseIssuer {
 		$key        = $stored['key'];
 
 		if ( $renewal_enabled ) {
+			// B-57: the gateway's own customer and payment method references and the mode of the purchase.
+			\WPLC\Gateway\PaymentReference::store( $license_id, $gateway_id, $token_id, $customer_id );
 			self::store_consent_evidence( $license_id, $order, $plan, $customer_id, $consent );
 			RenewalScheduler::schedule_next( $license_id );
 		}

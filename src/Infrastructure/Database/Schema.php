@@ -29,8 +29,10 @@ final class Schema {
 	 * 18: {prefix}wplc_reminder_log is part of the schema (it used to install itself);
 	 *     indexes for retention and diagnostics (activations.status_deactivated,
 	 *     event_inbox.outcome_processed).
+	 * 20: licenses.gateway_customer_ref, gateway_method_ref, gateway_mode (payment reference of
+	 *     the gateway at purchase, B-57). Nullable columns only, added by dbDelta; no data step.
 	 */
-	public const VERSION = '18';
+	public const VERSION = '20';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -606,6 +608,9 @@ final class Schema {
 				renewal_enabled tinyint(1) NOT NULL DEFAULT 0,
 				payment_gateway_id varchar(100) NOT NULL DEFAULT '',
 				payment_token_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				gateway_customer_ref varchar(100) DEFAULT NULL,
+				gateway_method_ref varchar(100) DEFAULT NULL,
+				gateway_mode varchar(10) DEFAULT NULL,
 				renewal_amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				renewal_currency_decimals tinyint(3) unsigned NOT NULL DEFAULT 2,
 				renewal_currency char(3) NOT NULL DEFAULT 'EUR',
