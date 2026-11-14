@@ -11,7 +11,7 @@ Configure two distinct random secrets in `wp-config.php` before issuing producti
 
 Without these constants the plugin keeps working, but derives license keys from `wp_salt( 'auth' )` (key ID `legacy`) and encrypts installation credentials with `wp_salt( 'secure_auth' )` (key ID `wp-salt`). Issuance is deliberately not blocked, because existing shops would stop working. The consequence: when the salts change (security plugin, host migration, "log out all users"), the shop can no longer display issued license keys, and no stored installation credential can be decrypted, so every activated site fails authentication and has to be activated again. Stored license-key hashes stay valid, so a customer who still has the key can re-activate.
 
-While a fallback is active, shop managers (`manage_woocommerce`) see a non-dismissible error notice on WooCommerce, license, and plugin screens with a copy-ready `wp-config.php` block. It contains placeholders only. `LicenseKey::uses_fallback_secret()` and `SecretCrypto::uses_fallback_key()` expose the state to diagnostics.
+While a fallback is active, everyone who works on licenses sees a non-dismissible error notice on WooCommerce, license, and plugin screens. Administrators (`manage_options`) get a copy-ready `wp-config.php` block in it; shop managers and support roles are told to pass the message on to an administrator. It contains placeholders only. `LicenseKey::uses_fallback_secret()` and `SecretCrypto::uses_fallback_key()` expose the state to diagnostics.
 
 Moving an existing shop off the fallback without invalidating anything:
 

@@ -44,6 +44,10 @@ Counters (`Diagnostics::metrics()`):
 | `paid_without_extension` | Licenses whose latest paid renewal ends after the license does | 1 |
 | `failed_scheduled_actions` | Failed Action Scheduler actions in group `wplc` (at most 500 counted; `-1` without Action Scheduler) | 1 |
 | `unmapped_license_products` | Products ticked as license product without an active plan | 1 |
+| `payment_review_renewals` | Renewals whose payment result could not be resolved (`payment_review`) | 1 |
+| `orders_with_issuance_problem` | Paid orders the issuer could not turn into licenses (at most 200 counted) | 1 |
+| `failed_jobs` | Background jobs that threw in the last 24 hours (option `wplc_job_failures`) | 1 |
+| `release_problems` | Published releases that cannot be delivered (missing package, untrusted host, exposed directory) | 1 |
 | `expired_download_grants` | Unused update download grants past their expiry | none |
 
 `paid_without_extension` also counts a license whose term an administrator shortened after a paid renewal; check the audit log of the license before acting.
@@ -85,9 +89,13 @@ add_action( 'wplc/health_alert', function ( $metric, $value, $threshold ) {
 
 The alerts are emitted as the last task of the daily run, after the work they report on. A receiver that throws an exception is logged (WooCommerce log source `wp-license`) and does not stop the remaining alerts or the heartbeat.
 
+Besides the daily thresholds, events that need a person are passed on to the same hook at once, with value and threshold 1: `renewal_blocked` (a charge was postponed for a shop-side reason, for example `renewal_notice_not_sent`, `renewal_gateway_unavailable` or `renewal_payment_method_missing`), `renewal_needs_review`, `license_needs_review`, `renewal_lock_unavailable` and `response_signing_key_unavailable`.
+
+Audit actions worth watching: `renewal_blocked`, `renewal_waiting`, `renewal_disabled` (automatic renewal switched off: customer deleted the card, account deleted, privacy erasure, refund), `payment_token_detached` and `payment_method_relinked` (gateway re-created its token rows), `renewal_order_voided` (paid renewal order cancelled by the gateway after a refund at Stripe), `billing_paused` / `billing_resumed`.
+
 Notes on reading the values:
 
-- `overdue_renewals` also counts a `failed` renewal that has no retry left and is waiting for the end of its grace period, so it can stay above zero for several days per affected license.
+- A `failed` renewal that has no retry left carries the end of its grace period as retry time, so it is only counted in `overdue_renewals` from that moment until the grace-end job has run.
 - `pending_webhooks` above zero for more than a few minutes means the background queue is not running.
 - The check runs once a day. For faster detection, monitor the scheduled actions below directly.
 

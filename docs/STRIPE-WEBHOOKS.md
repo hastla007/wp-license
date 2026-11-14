@@ -135,5 +135,5 @@ The WooCommerce Stripe gateway resolves `payment_intent.*` events to an order th
 
 - Nothing here was verified with events sent by Stripe.
 - Events locked out by a running charge are retried through WP-Cron after 30 seconds, also when Action Scheduler is in use.
-- The settings and diagnostics screens still look only at `WPLC_STRIPE_WEBHOOK_SECRET`; a site configured through `WPLC_STRIPE_WEBHOOK_SECRETS` or the test secret alone is shown as "not set" there. `StripeWebhook::is_configured()` gives the correct answer.
+- The settings and diagnostics screens use `StripeWebhook::is_configured()`, so a site configured through `WPLC_STRIPE_WEBHOOK_SECRETS` or with the test secret alone is shown correctly; diagnostics also list the last valid event per mode and the last rejected request.
 - The mode of the last event is recorded as a heartbeat (`stripe_webhook_live`, `stripe_webhook_test`) but not shown on the diagnostics page yet.
