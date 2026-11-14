@@ -7,6 +7,8 @@
 
 namespace WPLC\Gateway;
 
+use WPLC\Billing\RenewalProcessor;
+use WPLC\Billing\RenewalScheduler;
 use WPLC\Compatibility\Requirements;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -27,6 +29,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * switches the adapter off when the gateway is missing, too old or has lost one of them.
  */
 final class StripeRecurringAdapter implements RecurringGatewayAdapter {
+
+	/**
+	 * Order meta: attempt counter whose PaymentIntent request carries the
+	 * `wplc_attempt` metadata. Written before the request is sent.
+	 */
+	public const META_ATTEMPT_MARKED = '_wplc_stripe_attempt_marked';
 
 	/**
 	 * Register adapter and payment-token lookup.
@@ -122,11 +130,12 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 			'payment_method_types' => array( 'card' ),
 			'off_session' => 'true',
 			'confirm' => 'true',
-			'description' => sprintf( 'WP License Captain renewal order #%d', $order->get_id() ),
-			'metadata' => array(
-				'order_id' => (string) $order->get_id(),
-				'wplc_renewal_id' => (string) $order->get_meta( '_wplc_renewal_id', true ),
-				'wplc_license_id' => (string) $order->get_meta( '_wplc_renewal_for_license', true ),
+			'description' => self::payment_description( $order ),
+			'metadata' => self::request_metadata(
+				(int) $order->get_id(),
+				(int) $order->get_meta( '_wplc_renewal_id', true ),
+				(int) $order->get_meta( '_wplc_renewal_for_license', true ),
+				$this->attempt_marker( $order, $idempotency_key )
 			),
 		);
 		$idempotency_filter = static function ( $current, $body ) use ( $idempotency_key ) {
@@ -176,6 +185,112 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter {
 			return new \WP_Error( 'stripe_transaction_missing', __( 'Stripe did not return a transaction reference.', 'wp-license' ) );
 		}
 		return array( 'success' => true, 'transaction_id' => sanitize_text_field( $transaction_id ) );
+	}
+
+	/**
+	 * Payment description Stripe shows on the customer's receipt and statement.
+	 *
+	 * Written in the shop's language: the charge usually runs in a cron job,
+	 * and a run triggered from the admin must not use the administrator's language.
+	 *
+	 * @param \WC_Order $order Renewal order.
+	 * @return string
+	 */
+	private static function payment_description( $order ): string {
+		$product = '';
+		foreach ( $order->get_items( 'line_item' ) as $item ) {
+			$product = (string) $item->get_name();
+			break;
+		}
+		$site = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+
+		$switched = function_exists( 'switch_to_locale' ) && switch_to_locale( get_locale() );
+		try {
+			if ( '' === $product ) {
+				/* translators: 1: shop name, 2: WooCommerce order number. */
+				$description = sprintf( __( '%1$s: license renewal, order #%2$d', 'wp-license' ), $site, $order->get_id() );
+			} else {
+				/* translators: 1: shop name, 2: product name, 3: WooCommerce order number. */
+				$description = sprintf( __( '%1$s: renewal of %2$s, order #%3$d', 'wp-license' ), $site, $product, $order->get_id() );
+			}
+		} finally {
+			if ( $switched ) {
+				restore_previous_locale();
+			}
+		}
+
+		// Stripe accepts up to 1000 characters.
+		return function_exists( 'mb_substr' ) ? mb_substr( $description, 0, 1000 ) : substr( $description, 0, 1000 );
+	}
+
+	/**
+	 * PaymentIntent metadata of a renewal charge. Pure.
+	 *
+	 * `wplc_attempt` is the attempt counter of the idempotency key
+	 * (`{renewal key}:{attempt}`, 0 for the first attempt). It lets the
+	 * `payment_intent.payment_failed` webhook tell the attempt whose result is
+	 * unknown from an older, already recorded one.
+	 *
+	 * @param int      $order_id Renewal order ID.
+	 * @param int      $renewal_id Renewal ID.
+	 * @param int      $license_id License ID.
+	 * @param int|null $attempt Attempt counter, null to send no marker.
+	 * @return array<string,string>
+	 */
+	public static function request_metadata( int $order_id, int $renewal_id, int $license_id, ?int $attempt ): array {
+		$metadata = array(
+			'order_id' => (string) $order_id,
+			'wplc_renewal_id' => (string) $renewal_id,
+			'wplc_license_id' => (string) $license_id,
+		);
+		if ( null !== $attempt ) {
+			$metadata['wplc_attempt'] = (string) $attempt;
+		}
+
+		return $metadata;
+	}
+
+	/**
+	 * Whether the request of this attempt may carry the attempt marker. Pure.
+	 *
+	 * Stripe rejects a repeated idempotency key whose parameters changed. A
+	 * request of this attempt that was sent before the marker existed (result
+	 * unknown, no marker recorded for the attempt) is therefore repeated
+	 * without it.
+	 *
+	 * @param string $unknown_since_meta Order meta RenewalProcessor::META_RESULT_UNKNOWN_SINCE.
+	 * @param string $marked_meta Order meta META_ATTEMPT_MARKED.
+	 * @param int    $attempt Attempt counter of this request.
+	 * @return bool
+	 */
+	public static function attempt_marker_allowed( string $unknown_since_meta, string $marked_meta, int $attempt ): bool {
+		$sent_before = 0 < RenewalProcessor::unknown_since_from_meta( $unknown_since_meta, $attempt );
+
+		return ! $sent_before || (string) $attempt === $marked_meta;
+	}
+
+	/**
+	 * Attempt marker for this request, recorded on the order before it is sent.
+	 *
+	 * @param \WC_Order $order Renewal order.
+	 * @param string    $idempotency_key Gateway idempotency key.
+	 * @return int|null
+	 */
+	private function attempt_marker( $order, string $idempotency_key ): ?int {
+		$attempt = RenewalScheduler::attempt_from_idempotency_key( $idempotency_key );
+		if ( null === $attempt ) {
+			return null;
+		}
+		$marked = (string) $order->get_meta( self::META_ATTEMPT_MARKED, true );
+		if ( ! self::attempt_marker_allowed( (string) $order->get_meta( RenewalProcessor::META_RESULT_UNKNOWN_SINCE, true ), $marked, $attempt ) ) {
+			return null;
+		}
+		if ( (string) $attempt !== $marked ) {
+			$order->update_meta_data( self::META_ATTEMPT_MARKED, (string) $attempt );
+			$order->save();
+		}
+
+		return $attempt;
 	}
 
 	/**

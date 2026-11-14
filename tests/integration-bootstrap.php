@@ -83,6 +83,7 @@ tests_add_filter(
 		echo 'WordPress ' . esc_html( $GLOBALS['wp_version'] )
 			. ', WooCommerce ' . esc_html( WC()->version )
 			. ', order storage: ' . ( $wplc_hpos ? 'HPOS' : 'legacy posts' )
+			. ( is_multisite() ? ', multisite' : '' )
 			. ', PHP ' . esc_html( PHP_VERSION ) . PHP_EOL;
 	}
 );

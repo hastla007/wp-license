@@ -49,6 +49,40 @@ final class RecurringConsent {
 		// raises a deprecation notice when hooked; the supported minimum is 9.6.0.
 		add_filter( 'wc_stripe_force_save_payment_method', array( self::class, 'force_save_payment_method' ), 10, 2 );
 		add_action( 'woocommerce_email_after_order_table', array( self::class, 'render_email_hint' ), 10, 3 );
+		add_action( 'wp_enqueue_scripts', array( self::class, 'enqueue_checkout_script' ) );
+	}
+
+	/**
+	 * Classic checkout: show the opt-in only while a payment method that can renew is selected.
+	 *
+	 * Without JavaScript the box stays visible; the server still records an opt-in with another payment method as
+	 * unsupported (save_consent()).
+	 *
+	 * @return void
+	 */
+	public static function enqueue_checkout_script(): void {
+		if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) {
+			return;
+		}
+		wp_enqueue_script( 'wplc-checkout', plugins_url( 'assets/js/wplc-checkout.js', WPLC_FILE ), array( 'jquery' ), WPLC_VERSION, true );
+	}
+
+	/**
+	 * IDs of the available payment methods that can renew automatically.
+	 *
+	 * @return string[]
+	 */
+	private static function renewal_gateway_ids(): array {
+		if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways() ) {
+			return array();
+		}
+		$ids = array();
+		foreach ( array_keys( WC()->payment_gateways()->get_available_payment_gateways() ) as $gateway_id ) {
+			if ( Registry::supports_checkout( (string) $gateway_id ) ) {
+				$ids[] = (string) $gateway_id;
+			}
+		}
+		return $ids;
 	}
 
 	/**
@@ -61,6 +95,7 @@ final class RecurringConsent {
 			return;
 		}
 
+		echo '<div class="wplc-recurring-consent" data-wplc-gateways="' . esc_attr( implode( ' ', self::renewal_gateway_ids() ) ) . '">';
 		woocommerce_form_field(
 			'wplc_recurring_consent',
 			array(
@@ -71,6 +106,7 @@ final class RecurringConsent {
 			),
 			''
 		);
+		echo '</div>';
 	}
 
 	/**
@@ -258,15 +294,7 @@ final class RecurringConsent {
 	 * @return bool
 	 */
 	private static function any_renewal_gateway_available(): bool {
-		if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways() ) {
-			return false;
-		}
-		foreach ( array_keys( WC()->payment_gateways()->get_available_payment_gateways() ) as $gateway_id ) {
-			if ( Registry::supports_checkout( (string) $gateway_id ) ) {
-				return true;
-			}
-		}
-		return false;
+		return array() !== self::renewal_gateway_ids();
 	}
 
 	/**

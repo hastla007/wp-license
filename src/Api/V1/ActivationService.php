@@ -10,6 +10,7 @@ namespace WPLC\Api\V1;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\ActivationManager;
 use WPLC\License\AuditLog;
+use WPLC\License\AuditReason;
 use WPLC\License\LicenseKey;
 use WPLC\License\LicenseLifecycle;
 use WPLC\Security\SecretCrypto;
@@ -22,10 +23,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Handles first-time activation and signed deactivation requests.
  */
 final class ActivationService {
-	/** @var int Anonymous activation attempts per client address and minute. */
+	/** @var int Failed anonymous activation attempts per client address and minute. */
 	private const ATTEMPTS_PER_IP = 30;
 
-	/** @var int Activation attempts per license-key prefix and minute. */
+	/** @var int Failed activation attempts per license-key prefix and minute. */
 	private const ATTEMPTS_PER_KEY = 20;
 
 	/** @var int Length of the normalized key prefix (`WPLC-` plus eight characters). */
@@ -48,27 +49,23 @@ final class ActivationService {
 		$environment = sanitize_key( (string) ( $request->get_param( 'environment' ) ?: 'production' ) );
 		$parent_uuid = strtolower( sanitize_text_field( (string) $request->get_param( 'staging_parent_installation_id' ) ) );
 
-		$activation_attempts = self::activation_attempt_count();
-		if ( false === $activation_attempts ) {
-			return new \WP_Error( 'rate_limit_store_unavailable', __( 'Activation rate limiting is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
+		// T-142: only failed attempts count, per client address and per key
+		// prefix (one key cannot be hammered from many addresses). A valid key
+		// is not blocked by other people's failures; see ActivationRateLimit.
+		$limiters   = self::attempt_limiters( $license_key );
+		$rate_state = ActivationRateLimit::check( $limiters );
+		if ( ActivationRateLimit::UNAVAILABLE === $rate_state ) {
+			return self::rate_limit_unavailable();
 		}
-		if ( $activation_attempts > self::ATTEMPTS_PER_IP ) {
-			return new \WP_Error( 'rate_limited', __( 'Too many activation attempts. Try again later.', 'wp-license' ), array( 'status' => 429 ) );
-		}
-		// Second bucket per key prefix: one key cannot be hammered from many addresses.
-		$key_attempts = self::key_attempt_count( $license_key );
-		if ( false === $key_attempts ) {
-			return new \WP_Error( 'rate_limit_store_unavailable', __( 'Activation rate limiting is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
-		}
-		if ( $key_attempts > self::ATTEMPTS_PER_KEY ) {
-			return new \WP_Error( 'rate_limited', __( 'Too many activation attempts. Try again later.', 'wp-license' ), array( 'status' => 429 ) );
+		if ( ActivationRateLimit::BLOCKED === $rate_state ) {
+			return self::rate_limited();
 		}
 		if ( '' === $license_key || '' === $product_key || ! wp_is_uuid( $installation_uuid ) || strlen( $secret ) < 32 || strlen( $secret ) > 128 || '' === $site_url || ! in_array( $environment, array( 'production', 'staging', 'development' ), true ) ) {
-			return new \WP_Error( 'invalid_activation', __( 'Required activation fields are missing or invalid.', 'wp-license' ), array( 'status' => 400 ) );
+			return self::failed_attempt( $limiters, $rate_state, new \WP_Error( 'invalid_activation', __( 'Required activation fields are missing or invalid.', 'wp-license' ), array( 'status' => 400 ) ) );
 		}
 
 		if ( 'development' === $environment && ! self::is_local_development_url( $site_url ) ) {
-			return new \WP_Error( 'development_site_invalid', __( 'Development activations must use a recognized local site URL.', 'wp-license' ), array( 'status' => 400 ) );
+			return self::failed_attempt( $limiters, $rate_state, new \WP_Error( 'development_site_invalid', __( 'Development activations must use a recognized local site URL.', 'wp-license' ), array( 'status' => 400 ) ) );
 		}
 
 		$tables = Schema::table_names();
@@ -81,7 +78,7 @@ final class ActivationService {
 		);
 
 		if ( ! is_array( $license ) ) {
-			return new \WP_Error( 'invalid_key', __( 'The license key was not recognized.', 'wp-license' ), array( 'status' => 401 ) );
+			return self::failed_attempt( $limiters, $rate_state, new \WP_Error( 'invalid_key', __( 'The license key was not recognized.', 'wp-license' ), array( 'status' => 401 ) ) );
 		}
 		if ( $license['product_key'] !== $product_key ) {
 			return new \WP_Error( 'product_mismatch', __( 'This license belongs to a different product.', 'wp-license' ), array( 'status' => 403 ) );
@@ -200,14 +197,17 @@ final class ActivationService {
 			// The same site activating with a new installation ID (lost options,
 			// database restore) replaces its previous activation instead of
 			// occupying a second slot. The caller proved possession of the key.
+			// Rows stored before the T-146 normalization rules may hold the older
+			// spelling of the same URL; they are matched as well.
+			$site_urls = SiteUrl::identity_candidates( (string) $request->get_param( 'site_url' ) );
+			if ( ! in_array( $site_url, $site_urls, true ) ) {
+				$site_urls[] = $site_url;
+			}
+			$url_marks = implode( ',', array_fill( 0, count( $site_urls ), '%s' ) );
 			$replaced = $wpdb->get_col(
-				$wpdb->prepare(
-					"SELECT id FROM {$tables['activations']} WHERE license_id = %d AND environment = %s AND site_url = %s AND status = %s AND installation_uuid <> %s",
-					(int) $license['id'],
-					$environment,
-					$site_url,
-					'active',
-					$installation_uuid
+				$wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- the values are passed as one array.
+					"SELECT id FROM {$tables['activations']} WHERE license_id = %d AND environment = %s AND site_url IN ({$url_marks}) AND status = %s AND installation_uuid <> %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Only generated placeholders are interpolated.
+					array_merge( array( (int) $license['id'], $environment ), $site_urls, array( 'active', $installation_uuid ) )
 				)
 			);
 			if ( '' !== $wpdb->last_error ) {
@@ -215,7 +215,7 @@ final class ActivationService {
 			}
 			foreach ( is_array( $replaced ) ? $replaced : array() as $replaced_id ) {
 				// A replaced live site takes its staging child with it.
-				if ( ! ActivationManager::deactivate_while_locked( (int) $replaced_id, 'Replaced by a new installation of the same site', 0, 'site_replaced' ) ) {
+				if ( ! ActivationManager::deactivate_while_locked( (int) $replaced_id, AuditReason::INSTALLATION_REPLACED, 0, 'site_replaced' ) ) {
 					return new \WP_Error( 'activation_failed', __( 'The previous activation of this site could not be replaced. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
 				}
 			}
@@ -291,7 +291,7 @@ final class ActivationService {
 				'site_activated',
 				'activation',
 				$activation_id,
-				'Product installation activated',
+				AuditReason::INSTALLATION_ACTIVATED,
 				null,
 				array( 'license_id' => (int) $license['id'], 'site_url' => $site_url, 'environment' => $environment )
 			);
@@ -326,7 +326,7 @@ final class ActivationService {
 		}
 
 		try {
-			if ( ! ActivationManager::deactivate_while_locked( (int) $activation['id'], 'Deactivated by the installation owner' ) ) {
+			if ( ! ActivationManager::deactivate_while_locked( (int) $activation['id'], AuditReason::DEACTIVATED_BY_INSTALLATION ) ) {
 				return new \WP_Error( 'deactivation_failed', __( 'The installation could not be deactivated.', 'wp-license' ), array( 'status' => 409 ) );
 			}
 
@@ -475,36 +475,66 @@ final class ActivationService {
 	}
 
 	/**
-	 * Atomically count anonymous activation attempts by client address.
+	 * Failure limiters of one activation attempt.
 	 *
 	 * The address comes from ClientIp (REMOTE_ADDR, or a configured trusted
 	 * proxy header). IPv6 clients share one bucket per /64. A request without a
 	 * resolvable address lands in a shared bucket instead of failing for
-	 * everyone.
+	 * everyone. The key prefix limiter is added when a key was sent.
 	 *
-	 * @return int|false Current attempt count, or false when the store is unavailable.
+	 * @param string $license_key Normalized (trimmed, uppercase) license key.
+	 * @return array<string,int> Limiter hash => failures allowed per minute.
 	 */
-	private static function activation_attempt_count() {
+	private static function attempt_limiters( string $license_key ): array {
 		$bucket = ClientIp::rate_limit_bucket( ClientIp::current() );
 		if ( '' === $bucket ) {
 			$bucket = 'unknown';
 		}
 
-		return Authenticator::increment_rate_limit( hash( 'sha256', 'activation-ip:' . $bucket ) );
+		$limiters = array( hash( 'sha256', 'activation-ip:' . $bucket ) => self::ATTEMPTS_PER_IP );
+		if ( '' !== $license_key ) {
+			$limiters[ self::key_limiter_hash( $license_key ) ] = self::ATTEMPTS_PER_KEY;
+		}
+
+		return $limiters;
 	}
 
 	/**
-	 * Atomically count activation attempts for one license-key prefix.
+	 * Count a failed attempt and choose its answer.
 	 *
-	 * @param string $license_key Normalized (trimmed, uppercase) license key.
-	 * @return int|false Current attempt count (zero without a key), or false when the store is unavailable.
+	 * While a limiter is throttled every failure is answered 429, so a guesser
+	 * past the limit learns nothing from the error code (only a valid key gets
+	 * through, which ActivationRateLimit bounds).
+	 *
+	 * @param array<string,int> $limiters   Limiters of the attempt.
+	 * @param string            $rate_state ActivationRateLimit::check() result.
+	 * @param \WP_Error         $error      Answer below the limit.
+	 * @return \WP_Error
 	 */
-	private static function key_attempt_count( string $license_key ) {
-		if ( '' === $license_key ) {
-			return 0;
+	private static function failed_attempt( array $limiters, string $rate_state, \WP_Error $error ): \WP_Error {
+		if ( ! ActivationRateLimit::record_failure( $limiters ) ) {
+			return self::rate_limit_unavailable();
 		}
 
-		return Authenticator::increment_rate_limit( self::key_limiter_hash( $license_key ) );
+		return ActivationRateLimit::THROTTLED === $rate_state ? self::rate_limited() : $error;
+	}
+
+	/**
+	 * 429 answer of the activation limiter.
+	 *
+	 * @return \WP_Error
+	 */
+	private static function rate_limited(): \WP_Error {
+		return new \WP_Error( 'rate_limited', __( 'Too many activation attempts. Try again later.', 'wp-license' ), array( 'status' => 429 ) );
+	}
+
+	/**
+	 * 503 answer when the limiter store fails (fail closed).
+	 *
+	 * @return \WP_Error
+	 */
+	private static function rate_limit_unavailable(): \WP_Error {
+		return new \WP_Error( 'rate_limit_store_unavailable', __( 'Activation rate limiting is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
 	}
 
 	/**

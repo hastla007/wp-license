@@ -1,6 +1,7 @@
 <?php
 use PHPUnit\Framework\TestCase;
 use WPLC\License\ActivationManager;
+use WPLC\License\AuditReason;
 
 if ( ! defined( 'ARRAY_A' ) ) {
 	define( 'ARRAY_A', 'ARRAY_A' );
@@ -133,7 +134,7 @@ final class ActivationManagerTest extends TestCase {
 	public function test_deactivates_the_activation_and_only_its_own_active_staging_children(): void {
 		$db = $GLOBALS['wpdb'];
 
-		$this->assertTrue( ActivationManager::deactivate( 1, 'Deactivated by license owner', 42 ) );
+		$this->assertTrue( ActivationManager::deactivate( 1, AuditReason::DEACTIVATED_BY_OWNER, 42 ) );
 
 		$this->assertSame( 'deactivated', $db->activations[1]['status'] );
 		$this->assertNotNull( $db->activations[1]['deactivated_at'] );
@@ -147,11 +148,11 @@ final class ActivationManagerTest extends TestCase {
 	public function test_writes_one_audit_entry_per_deactivated_activation(): void {
 		$db = $GLOBALS['wpdb'];
 
-		ActivationManager::deactivate( 1, 'Deactivated by license owner', 42 );
+		ActivationManager::deactivate( 1, AuditReason::DEACTIVATED_BY_OWNER, 42 );
 
 		$this->assertCount( 2, $db->audit );
 		$this->assertSame( array( 'site_deactivated', 'activation', 1, 42 ), array( $db->audit[0]['action'], $db->audit[0]['object_type'], $db->audit[0]['object_id'], $db->audit[0]['actor_user_id'] ) );
-		$this->assertSame( 'Deactivated by license owner', $db->audit[0]['reason'] );
+		$this->assertSame( AuditReason::DEACTIVATED_BY_OWNER, $db->audit[0]['reason'] );
 		$this->assertSame( array( 'site_deactivated', 2, 42 ), array( $db->audit[1]['action'], $db->audit[1]['object_id'], $db->audit[1]['actor_user_id'] ) );
 		$this->assertSame( 1, json_decode( $db->audit[1]['after_json'], true )['parent_activation_id'] );
 		$this->assertStringNotContainsString( 'shop.example', $db->audit[0]['before_json'], 'Site URLs are redacted by the audit log.' );
@@ -160,7 +161,7 @@ final class ActivationManagerTest extends TestCase {
 	public function test_custom_audit_action_applies_to_the_requested_activation_only(): void {
 		$db = $GLOBALS['wpdb'];
 
-		$this->assertTrue( ActivationManager::deactivate( 1, 'Replaced by a new installation of the same site', 0, 'site_replaced' ) );
+		$this->assertTrue( ActivationManager::deactivate( 1, AuditReason::INSTALLATION_REPLACED, 0, 'site_replaced' ) );
 
 		$this->assertSame( 'site_replaced', $db->audit[0]['action'] );
 		$this->assertSame( 'site_deactivated', $db->audit[1]['action'] );

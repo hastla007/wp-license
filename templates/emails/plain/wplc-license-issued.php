@@ -11,6 +11,7 @@
  * @var string               $license_key        Full key; empty unless the shop owner enabled it for this email.
  * @var string               $email_heading      Email heading.
  * @var string               $additional_content Additional content from the email settings.
+ * @var string               $sender_note        Sender note from the license settings; empty for none.
  * @var WC_Email             $email              Email object.
  */
 
@@ -62,6 +63,13 @@ echo "\n";
 if ( ! empty( $additional_content ) ) {
 	echo esc_html( wp_strip_all_tags( wptexturize( $additional_content ) ) ) . "\n\n";
 }
+
+wc_get_template(
+	'emails/plain/wplc-sender-note.php',
+	array( 'sender_note' => isset( $sender_note ) ? (string) $sender_note : '' ),
+	'wp-license/',
+	WPLC_PATH . 'templates/'
+);
 
 echo "----------------------------------------\n\n";
 

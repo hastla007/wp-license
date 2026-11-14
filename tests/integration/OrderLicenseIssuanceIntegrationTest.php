@@ -7,6 +7,7 @@
  * @package WPLC
  */
 
+use WPLC\Billing\RenewalOrder;
 use WPLC\Catalog\Catalog;
 use WPLC\License\LicenseIssuer;
 use WPLC\License\LicenseKey;
@@ -237,6 +238,76 @@ final class OrderLicenseIssuanceIntegrationTest extends WPLC_Integration_TestCas
 		}
 		$this->assertCount( 1, $licenses );
 		$this->assertSame( 'parent-level', $licenses[0]['plan_key'] );
+	}
+
+	public function test_parent_mapped_variation_renews_at_the_purchased_variation_price(): void {
+		// T-132: the parent plan holds the lowest variation price (59.00); the customer buys the 79.00 variation.
+		list( $parent, $variations ) = $this->create_variable_product( array( '59.00', '79.00' ) );
+		global $wpdb;
+		$tables = $this->tables();
+		$now    = gmdate( 'Y-m-d H:i:s' );
+		$wpdb->insert(
+			$tables['plans'],
+			array(
+				'product_key'              => 'test-product',
+				'plan_key'                 => 'parent-level',
+				'woocommerce_product_id'   => $parent->get_id(),
+				'woocommerce_variation_id' => 0,
+				'billing_interval'         => 'year',
+				'price_minor'              => 5900,
+				'price_decimals'           => 2,
+				'currency'                 => get_woocommerce_currency(),
+				'entitlements_json'        => '{"sites.live_limit":1}',
+				'active'                   => 1,
+				'created_at'               => $now,
+				'updated_at'               => $now,
+			)
+		);
+		$variation = wc_get_product( $variations[1]->get_id() );
+		$variation->set_sale_price( '49.00' );
+		$variation->save();
+
+		$order    = $this->create_paid_order( array( array( wc_get_product( $variation->get_id() ), 1 ) ), self::factory()->user->create() );
+		$licenses = $this->licenses_for_order( $order->get_id() );
+
+		$this->assertCount( 1, $licenses );
+		$license = $licenses[0];
+		$this->assertSame( 7900, (int) $license['renewal_amount_minor'], 'The regular price of the bought variation is stored, not the plan price and not the sale price.' );
+		$this->assertSame( $variation->get_id(), (int) $license['renewal_product_id'] );
+
+		// Automatic and manual renewal both use the variation price.
+		$this->assertSame( 7900, RenewalOrder::price( $license, false )['amount_minor'] );
+		$this->assertSame( 7900, RenewalOrder::price( $license, true )['amount_minor'] );
+
+		// A later regular-price change applies to manual renewals only; the consented automatic amount stays.
+		$variation = wc_get_product( $variation->get_id() );
+		$variation->set_regular_price( '89.00' );
+		$variation->save();
+		$this->assertSame( 8900, RenewalOrder::price( $license, true )['amount_minor'] );
+		$this->assertSame( 7900, RenewalOrder::price( $license, false )['amount_minor'] );
+
+		// A deleted variation falls back to the stored price, never to the lowest price of the plan.
+		$variation->delete( true );
+		$this->assertSame( 7900, RenewalOrder::price( $license, true )['amount_minor'] );
+	}
+
+	public function test_legacy_license_without_recorded_product_renews_at_the_source_variation_price(): void {
+		list( $parent, $variations ) = $this->create_variable_product( array( '59.00', '79.00' ) );
+		$order = $this->create_paid_order( array( array( wc_get_product( $variations[1]->get_id() ), 1 ) ), self::factory()->user->create() );
+		$item  = $this->first_item( $order );
+		$seed  = $this->seed_license(
+			array(
+				'renewal_amount_minor' => 5900,
+				'renewal_currency'     => get_woocommerce_currency(),
+				'renewal_product_id'   => 0,
+				'source_order_id'      => $order->get_id(),
+				'source_order_item_id' => $item->get_id(),
+			)
+		);
+		$license = $this->license( $seed['id'] );
+
+		$this->assertSame( 7900, RenewalOrder::price( $license, true )['amount_minor'], 'Manual renewal resolves the variation through the source order line.' );
+		$this->assertSame( 5900, RenewalOrder::price( $license, false )['amount_minor'], 'The consented automatic amount of an existing license is not raised.' );
 	}
 
 	public function test_guest_order_issues_a_license_without_an_owner(): void {

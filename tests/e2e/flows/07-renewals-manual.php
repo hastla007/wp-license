@@ -193,6 +193,59 @@ $late_order->payment_complete( 'e2e-late' );
 $late_license = e2e_license( $late_id );
 e2e_ok( 'revoked' === $late_license['status'] && 'yes' === wc_get_order( $late_order->get_id() )->get_meta( '_wplc_renewal_review', true ), '[status edited in the e2e DB] payment for a license revoked in the meantime does not reactivate it; the order is flagged for manual review' );
 
+// --- T-154/T-137: rejected payments are listed under "Renewals to review" and resolved there. ---
+$revoked_case = e2e_rows( 'renewals', "license_id = {$late_id}" );
+e2e_ok( 1 === count( $revoked_case ) && 'review_required' === $revoked_case[0]['status'] && 'manual_renewal_not_allowed' === $revoked_case[0]['review_reason'] && '' !== (string) $revoked_case[0]['review_at'], 'the rejected payment opens a review case with reason and start', $revoked_case );
+$revoked_rid   = (int) $revoked_case[0]['id'];
+$admin_cookies = e2e_login( (int) e2e_get( 'admin_id' ) );
+$review_url    = admin_url( 'admin.php?page=wplc-renewal-review' );
+$review_page   = e2e_http( 'GET', $review_url, array( 'cookies' => $admin_cookies ) );
+e2e_ok(
+	200 === $review_page['code'] && false !== strpos( $review_page['body'], 'id="wplc-review-' . $revoked_rid . '"' ) && false !== strpos( $review_page['body'], 'Order #' . $late_order->get_id() ) && false !== strpos( $review_page['body'], 'The license status or renewal window did not allow a manual renewal.' ) && false === strpos( $review_page['body'], 'Fatal error' ),
+	'the review screen lists the case with its order and the translated reason',
+	$review_page['code']
+);
+e2e_ok( (bool) preg_match( '/Renewals to review <span class="awaiting-mod count-\d+"><span class="pending-count">\d+<\/span>/', $review_page['body'] ), 'the submenu shows a count badge' );
+e2e_ok( null === e2e_form( $review_page['body'], array( 'name="renewal_id" value="' . $revoked_rid . '"', 'value="not_paid"' ) ), 'a paid manual renewal offers no "mark as not paid"' );
+$book_form = e2e_form( $review_page['body'], array( 'name="renewal_id" value="' . $revoked_rid . '"', 'value="book"' ) );
+$refused   = e2e_submit( (array) $book_form, $admin_cookies, array( 'reason' => 'Customer paid' ) );
+e2e_ok( 302 === $refused['code'] && false !== strpos( $refused['location'], 'wplc_notice=review_license_status' ) && 'revoked' === e2e_license( $late_id )['status'], 'booking is refused for a revoked license; the license stays revoked', $refused['location'] );
+$detail = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-licenses&license=' . $late_id ), array( 'cookies' => $admin_cookies ) );
+e2e_ok( false !== strpos( $detail['body'], 'A renewal of this license needs review.' ) && false !== strpos( $detail['body'], 'page=wplc-renewal-review#wplc-review-' . $revoked_rid ), 'the license screen warns about the open review and links to it' );
+$close_form = e2e_form( $review_page['body'], array( 'name="renewal_id" value="' . $revoked_rid . '"', 'value="close"' ) );
+$closed     = e2e_submit( (array) $close_form, $admin_cookies, array( 'reason' => 'Refunded the transfer in WooCommerce' ) );
+e2e_ok( 302 === $closed['code'] && false !== strpos( $closed['location'], 'wplc_notice=review_closed' ) && 'closed' === e2e_renewal( $revoked_rid )['status'], '"Close without booking" closes the case', $closed['location'] );
+e2e_ok( in_array( 'renewal_review_closed', e2e_audit_actions( 'renewal', $revoked_rid ), true ), 'closing is audited' );
+
+// A late bank transfer for an expired license: listed, then booked from the review screen.
+$transfer_id = (int) e2e_order_licenses( (int) e2e_checkout( $erin_id, array( $simple_id => 1 ), 'bacs', false )->get_id() )[0]['id'];
+e2e_move_paid_until( $transfer_id, $utc( time() + 5 * DAY_IN_SECONDS ) );
+$transfer_order = \WPLC\Billing\ManualRenewal::start( $transfer_id, $erin_id );
+e2e_ok( $transfer_order instanceof WC_Order, 'renewal order started inside the window (paid by bank transfer later)' );
+$long_ago = $utc( time() - 40 * DAY_IN_SECONDS );
+$wpdb->query( $wpdb->prepare( "UPDATE {$t['licenses']} SET status = 'expired', paid_until = %s WHERE id = %d", $long_ago, $transfer_id ) );
+$wpdb->query( $wpdb->prepare( "UPDATE {$t['renewals']} SET period_start = %s WHERE license_id = %d", $long_ago, $transfer_id ) );
+$transfer_order->payment_complete( 'e2e-transfer-40-days-late' );
+$transfer_case = e2e_rows( 'renewals', "license_id = {$transfer_id}" );
+e2e_ok( 'expired' === e2e_license( $transfer_id )['status'] && 'review_required' === $transfer_case[0]['status'], '[time simulated: transfer arrives 40 days after the end] the license stays expired and the payment is listed for review', $transfer_case );
+$transfer_rid = (int) $transfer_case[0]['id'];
+wplc_e2e_clear_mails();
+$review_page = e2e_http( 'GET', $review_url, array( 'cookies' => $admin_cookies ) );
+$book_form   = e2e_form( $review_page['body'], array( 'name="renewal_id" value="' . $transfer_rid . '"', 'value="book"' ) );
+e2e_ok( is_array( $book_form ), 'the late transfer can be booked from the review screen' );
+$booked_at = time();
+$booked    = e2e_submit( (array) $book_form, $admin_cookies, array( 'reason' => 'Bank transfer received late' ) );
+$license   = e2e_license( $transfer_id );
+e2e_ok( 302 === $booked['code'] && false !== strpos( $booked['location'], 'wplc_notice=review_booked' ), '"Book renewal" succeeds', $booked['location'] );
+e2e_ok( 'active' === $license['status'] && abs( strtotime( $license['paid_until'] . ' UTC' ) - \WPLC\Billing\RenewalScheduler::period_end( $booked_at, 'year' ) ) <= 60, 'the expired license is reactivated for one year from the booking', $license );
+$again = e2e_submit( (array) $book_form, $admin_cookies, array( 'reason' => 'Bank transfer received late' ) );
+e2e_ok( false !== strpos( $again['location'], 'wplc_notice=review_not_open' ) && $license['paid_until'] === e2e_license( $transfer_id )['paid_until'], 'a second submission (double click) changes nothing', $again['location'] );
+e2e_eq( 1, count( e2e_mails_with_subject( 'license is renewed until' ) ), 'the customer gets exactly one "renewed" email' );
+$detail = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-licenses&license=' . $transfer_id ), array( 'cookies' => $admin_cookies ) );
+e2e_ok( false === strpos( $detail['body'], 'A renewal of this license needs review.' ) && in_array( 'renewal_booked_after_review', e2e_audit_actions( 'license', $transfer_id ), true ), 'after booking the license screen shows no open review; the booking is in the license audit log' );
+$review_page = e2e_http( 'GET', $review_url, array( 'cookies' => $admin_cookies ) );
+e2e_ok( false === strpos( $review_page['body'], 'id="wplc-review-' . $transfer_rid . '"' ) && false === strpos( $review_page['body'], 'id="wplc-review-' . $revoked_rid . '"' ), 'resolved cases are no longer listed' );
+
 e2e_login( 0 );
 e2e_set( 'erin_id', $erin_id );
 e2e_set( 'erin_license_id', $license_id );

@@ -60,4 +60,39 @@ final class ApiContractTest extends TestCase {
 		$this->assertArrayHasKey( 'InstallationHmac', $contract['components']['securitySchemes'] );
 		$this->assertArrayHasKey( 'StripeSignature', $contract['components']['securitySchemes'] );
 	}
+
+	/**
+	 * Responses each operation can return according to src/Api/V1 (T-145).
+	 *
+	 * Signed routes share Authenticator::authenticate(): 401 (headers, timestamp,
+	 * installation, signature), 409 request_replayed, 429 rate_limited and 503
+	 * replay_store_unavailable / rate_limit_store_unavailable.
+	 */
+	public function test_contract_declares_every_status_the_routes_return(): void {
+		$contract = json_decode(
+			(string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/openapi-v1.json' ),
+			true,
+			512,
+			JSON_THROW_ON_ERROR
+		);
+
+		$expected = array(
+			// 400 invalid input, 401 invalid_key, 403 product_mismatch/expired, 409 conflicts and site_limit,
+			// 429 rate_limited, 500 activation_failed/server_configuration, 503 retry_later and limiter store.
+			'post /activations' => array( 200, 400, 401, 403, 409, 429, 500, 503 ),
+			// 403 activation_mismatch, 409 also deactivation_failed, 503 also retry_later (license lock).
+			'delete /activations/{activation_id}' => array( 200, 401, 403, 409, 429, 503 ),
+			// 404 license_not_found.
+			'post /entitlements/check' => array( 200, 401, 404, 409, 429, 503 ),
+			// 400 missing product_key/current_version, 403 license_inactive, 503 also package configuration/grant.
+			'post /updates/check' => array( 200, 400, 401, 403, 409, 429, 503 ),
+			'post /webhooks/stripe' => array( 200, 400, 409, 500, 503 ),
+		);
+
+		foreach ( $expected as $operation => $statuses ) {
+			list( $method, $path ) = explode( ' ', $operation, 2 );
+			$declared = array_map( 'intval', array_keys( $contract['paths'][ $path ][ $method ]['responses'] ) );
+			$this->assertSame( $statuses, $declared, $operation );
+		}
+	}
 }

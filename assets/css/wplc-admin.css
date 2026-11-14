@@ -40,7 +40,8 @@
 	font-size: 11px;
 }
 
-.wplc-license-detail .wplc-inline-form {
+.wplc-license-detail .wplc-inline-form,
+.wplc-renewal-review .wplc-inline-form {
 	display: inline-flex;
 	flex-wrap: wrap;
 	gap: 4px;
@@ -55,3 +56,14 @@
 .wplc-license-detail table.widefat th[scope="row"] {
 	width: 220px;
 }
+
+/* License list: room for e-mail addresses and product names; short columns stay narrow. */
+.wp-list-table.wplc-licenses .column-license { width: 13%; }
+.wp-list-table.wplc-licenses .column-customer { width: 18%; }
+.wp-list-table.wplc-licenses .column-customer a { overflow-wrap: anywhere; word-break: normal; }
+.wp-list-table.wplc-licenses .column-product { width: 20%; }
+.wp-list-table.wplc-licenses .column-status { width: 10%; overflow-wrap: normal; word-break: normal; hyphens: auto; }
+.wp-list-table.wplc-licenses .column-sites,
+.wp-list-table.wplc-licenses .column-renewal { width: 8%; }
+.wp-list-table.wplc-licenses .column-paid_until,
+.wp-list-table.wplc-licenses .column-created { width: 11%; }

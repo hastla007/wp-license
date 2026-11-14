@@ -32,19 +32,52 @@ define( 'WPLC_INSTALLATION_ENCRYPTION_KEY_ID', '2026-11' );
 1. `legacy` and `wp-salt` must be literal copies of the current values: the key constant immediately followed by the salt constant, with nothing in between (this is what `wp_salt()` returns when both are defined in `wp-config.php`). Paste the strings; do not reference `AUTH_KEY . AUTH_SALT`, or a later salt change breaks the entry again. If the salts are not defined in `wp-config.php`, WordPress keeps them in the options `auth_key`/`auth_salt` and `secure_auth_key`/`secure_auth_salt`; read them with `wp eval 'echo wp_salt( "auth" );'` on the server and never paste the output into tickets or chats.
 2. Place the block above the line that loads `wp-settings.php` and deploy it to every application node.
 3. Check that a customer account still shows an existing license key and that an activated site still passes its entitlement check.
-4. Run `wp wplc rotate-installation-secrets` (dry run), then with `--apply`, so stored credentials move to the new encryption key. Keep `wp-salt` in the ring until a dry run reports nothing left.
+4. Run `wp wplc rotate-installation-secrets` (dry run), then with `--apply`, so stored credentials and the stored response signing key move to the new encryption key. Keep `wp-salt` in the ring until a dry run reports `needing rotation: 0` **and** `Response signing key: already current` (or `from WPLC_RESPONSE_SIGNING_KEY`).
 5. Existing licenses keep the key ID `legacy`; keep that entry for as long as such licenses exist.
 
 A brand-new shop without issued licenses only needs one new random entry per ring.
 
 Use at least 32 random bytes per secret. Do not reuse WordPress salts, commit secrets, or expose them in logs, diagnostics, exports, support tickets, or CI. Keep encrypted backups in an access-controlled secrets manager and deploy the same active key ring on every application node.
 
-The implementation can read current and previous key IDs and re-encrypt installation credentials lazily after authenticated use. It also provides bounded WP-CLI tools:
+The implementation can read current and previous key IDs and re-encrypt installation credentials (and the stored response signing key) lazily after authenticated use. It also provides bounded WP-CLI tools:
 
-- `wp wplc rotate-installation-secrets` defaults to a dry run; use `--apply` only after backup and validation.
-- `wp wplc recover-license-key-ids --to=<key-id>` defaults to a dry run and changes a row only when the existing license verifier matches a key derived by that key ID.
+- `wp wplc rotate-installation-secrets` defaults to a dry run; use `--apply` only after backup and validation. It processes at most `--max-rows` activations per run (default 5000); continue with `--after-id=<last ID>` from the previous output. Every run also checks the stored response signing key and a prepared next signing key, which are encrypted with the same key ring.
+- `wp wplc recover-license-key-ids --to=<key-id>` defaults to a dry run and changes a row only when the existing license verifier matches a key derived by that key ID. The key ID must be configured in the ring. Continue a bounded run with `--after-id=<last ID>` (exactly the printed value; a larger value skips rows). Each change is audited as `license_key_id_recovered`.
 
-These tools have unit coverage, but operators must still rehearse them against a restored copy of real data. Do not remove an old key until recovery, restore, and client authentication have been verified.
+### Rotation runbook (rehearsed, T-86)
+
+The license-key ring and the encryption ring rotate independently. What each key protects decides when it may leave the ring:
+
+| Ring | What breaks without the old entry | When the old entry may go |
+|---|---|---|
+| `WPLC_LICENSE_KEY_SECRETS` | Customers no longer see license keys derived with it ("Currently unavailable"). Activation with a key the customer already has keeps working: the server looks keys up by their stored hash, not by deriving them. | Never while licenses with that key ID exist; existing licenses are **not** migrated to the new ID (the key would change). |
+| `WPLC_INSTALLATION_ENCRYPTION_KEYS` | Activations still encrypted with it fail with `401 installation_secret_invalid`, and a response signing key encrypted with it cannot be decrypted: responses lose the Ed25519 signature and every client that pins the public key rejects the server, including new activations (whose rows are still created and use up a site slot). | After `wp wplc rotate-installation-secrets` reports `needing rotation: 0` and `Response signing key: already current`, **and** no backup that you might restore still needs it (see restore below). |
+
+1. **Back up** the database (`mysqldump --single-transaction`) and the current key constants (secrets manager). Record row counts and a checksum of the `license_key_secret_id`/`license_key_hash` and `installation_secret_encrypted` columns to compare after a restore.
+2. **Add** a new entry to both rings and make it current (`WPLC_LICENSE_KEY_ID`, `WPLC_INSTALLATION_ENCRYPTION_KEY_ID`); deploy to every node at once. New licenses get the new key ID immediately; existing keys and installations keep working.
+3. **Check** that an existing license key is still shown in the customer account, that an installation still passes its entitlement check, and that `wp wplc recover-license-key-ids --to=<old-id>` reports `unmatched: 0`.
+4. **Rotate** `wp wplc rotate-installation-secrets`, then `--apply` (repeat with `--after-id` until done), then a dry run again until it reports nothing left (see the table).
+5. **Retire** the old encryption entry only when the table allows it. Keep the old license-key entry.
+6. A **typo in the current key ID** (`WPLC_LICENSE_KEY_ID` naming no ring entry) stops license issuance: paid orders get no license, the manual license form fails, and WooCommerce → Status → Logs (source `wp-license`) records `License not issued: the current license key ID ... has no secret`. Fix `wp-config.php`, then issue the missing licenses (for example as manual licenses from the license admin).
+
+**Recovering a wrong key ID.** If an entry was renamed in the ring (same secret, new ID) or `license_key_secret_id` was changed by hand, customers see "Currently unavailable" instead of their key (the account only shows a key that reproduces the stored verifier). Configure the secret under the ID you want to keep, run `wp wplc recover-license-key-ids --to=<that-id>` (dry run: `recoverable` must equal the number of affected rows, `unmatched` should be 0), then with `--apply`. If the secret itself was removed, `--to` cannot match anything (`unmatched`, nothing modified): put the original secret back first; there is no other way to show those keys again.
+
+**Recovering a removed encryption key.** Put the removed entry back into `WPLC_INSTALLATION_ENCRYPTION_KEYS` (keep the new one current), run `wp wplc rotate-installation-secrets --apply`, check `Response signing key: already current`, then retire it again. Do not run `wp wplc signing-key --rotate` to "repair" an undecryptable signing key: it would replace the key that clients pin (the command refuses this case). Activations created while signatures were missing exist on the server although the client reported an error; release them in the admin if they block a site slot.
+
+**Restoring a backup.** A restored database needs the key ring that was in use when the backup was taken: rows in it are still encrypted with the old encryption key and reference the old license-key IDs. Restoring a pre-rotation backup with only the new encryption key makes every installation fail with `installation_secret_invalid` and the response signature disappear. Keep retired keys in the secrets manager for as long as backups that use them are kept, and deploy them together with the restored database. A restore also brings back the response signing key of that time: clients that pin only a newer public key reject the server, and activations made after the backup are gone (those sites have to activate again).
+
+### Rotating the response signing key
+
+Product builds pin the server's Ed25519 public key (`LicenseClient` accepts several). Rotate without breaking installed clients:
+
+1. `wp wplc signing-key --prepare` creates the next key without using it and prints `next_public_key` / `next_key_id` (repeated calls keep the same prepared key).
+2. Release every product with both public keys pinned (current and next); wait until the installed base has updated.
+3. `wp wplc signing-key --rotate` switches to the prepared key (audit `response_signing_key_rotated` with the old and new key IDs). Clients pinning both keys keep working; clients pinning only the old key fail with `wplc_server_signature_invalid` until updated.
+4. Remove the old public key from product builds only after no backup with the old signing key can be restored.
+
+With `WPLC_RESPONSE_SIGNING_KEY` in `wp-config.php` the commands cannot rotate; generate a new seed (`php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'`), derive its public key on the server (`php -r '$s = sodium_crypto_sign_seed_keypair(base64_decode($argv[1])); echo base64_encode(sodium_crypto_sign_publickey($s)), PHP_EOL;' <seed>` — run it where the shell history is not kept), ship it pinned next to the current key, then replace the constant.
+
+These tools have unit coverage and were rehearsed on a database copy with backup and restore (docs/LAUNCH-EVIDENCE.md, T-86); operators must still rehearse them against a restored copy of their real data. Do not remove an old key until recovery, restore, and client authentication have been verified.
 
 ## Request security and database controls
 
@@ -52,11 +85,18 @@ Version 1 product requests are signed over method, REST route, timestamp, nonce,
 
 ### Activation rate limits and client addresses
 
-Unauthenticated activation attempts are limited to 30 per minute per client address (IPv6 per /64) and 20 per minute per license-key prefix (first 13 characters, hashed), so one key cannot be tried from many addresses. A request without a resolvable address is counted in a shared `unknown` bucket rather than rejected. A failing limit store still fails closed with 503.
+Unauthenticated activation attempts are limited by **failed** attempts: 30 per minute per client address (IPv6 per /64) and 20 per minute per license-key prefix (first 13 characters, hashed), so one key cannot be tried from many addresses. A failure is an unknown key or a request rejected before the key lookup (missing fields, invalid development URL). Successful activations and answers about a recognized key (wrong product, expired) do not count. A request without a resolvable address is counted in a shared `unknown` bucket rather than rejected. A failing limit store still fails closed with 503.
+
+Once an address or prefix has reached its failure limit within the current minute it is throttled (T-142):
+
+- Every unknown key and every malformed request is answered `429 rate_limited`, the same answer as for a fully blocked client, so the error code tells a guesser nothing new.
+- The key is still looked up (one indexed hash comparison). A recognized key proceeds, so customers behind a shared address (office NAT, agency server, CDN without proxy configuration) are no longer locked out by someone else's typos or guessing. Before T-142 every attempt counted before the key check and a valid key was blocked together with the guesser.
+- Letting valid keys through is an oracle. It is bounded: requests made while throttled are counted in a second bucket with the same limit, and past it every request gets 429 without a key lookup. One address can therefore receive at most 60 key-dependent answers per minute (30 failures plus 30 throttled requests), one prefix at most 40. Against a 64-hex-character HMAC part of the key this is no practical guessing rate.
+- A valid key is still blocked when its address (or its prefix) keeps sending past the throttled ceiling within the same minute; deliberate flooding from a shared address can delay activations by up to a minute, accidental failures cannot.
 
 The address is `REMOTE_ADDR` unless `WPLC_TRUSTED_PROXY_HEADER` names a forwarding header (`HTTP_CF_CONNECTING_IP`, `HTTP_X_FORWARDED_FOR`, ...). The header is honored only if the direct peer is listed in `WPLC_TRUSTED_PROXIES` (IPs or CIDR ranges). Leaving `WPLC_TRUSTED_PROXIES` undefined trusts the header from any peer; do that only when the origin accepts connections from the proxy alone, otherwise an attacker sets the header and evades the per-address limit (the per-key limit still applies). Behind a CDN without this configuration all customers share one bucket and a single client can block activations for everyone. Keep the proxy list current with the provider's published ranges. Details: `docs/API-V1.md`.
 
-Known trade-off: the key prefix is shown in the customer account and in the admin, so someone who knows a customer's prefix can hold that one key at its limit and delay its activations; other keys are unaffected.
+Known trade-off: the key prefix is shown in the customer account and in the admin, so someone who knows a customer's prefix can push that one key past its throttled ceiling (40 requests per minute) and delay its activations; failed guesses below that no longer block the valid key, and other keys are unaffected.
 
 ### Response signatures
 
@@ -68,11 +108,22 @@ All deactivations (REST, customer account, admin) go through `ActivationManager:
 
 Update download grants are stored as hashes, consumed atomically, and checked again against current license state before redirect. Restrict package hosts to HTTPS allowlisted hosts. Keep package URLs and grant records only for the documented operational retention period.
 
+### Private package directory
+
+Uploaded release ZIPs are paid content. By default they live in `wp-content/uploads/wplc-packages/`, protected by `.htaccess`/`web.config` (Apache, IIS) and by 128-bit random file names. nginx ignores `.htaccess`, so on nginx the file name is the only barrier unless you act:
+
+1. **Preferred:** move the directory outside the web root with `define( 'WPLC_PACKAGE_STORAGE_DIR', '/var/lib/wplc-packages' );` in `wp-config.php` (absolute, writable by the PHP user, mode `0750`, included in backups). An invalid or web-reachable value is ignored and reported, never silently used.
+2. **Otherwise:** add `location ^~ /wp-content/uploads/wplc-packages/ { deny all; }` to the nginx `server` block, adapted to the real uploads path (multisite: `/wp-content/uploads/sites/{id}/wplc-packages/`) and placed before regex locations.
+3. **Verify:** **WooCommerce → License diagnostics → Package storage** must show "Outside the web root" or "refused to deliver a test file". The self-check fetches a canary file over HTTP, caches the answer for 12 hours and runs only on the diagnostics and releases pages; press **Check again** after every web server change. "Publicly readable" also raises an error notice on **License releases**. "Could not reach the site" (loopback blocked) means: verify by hand with `curl -I https://shop.example/wp-content/uploads/wplc-packages/index.html`, which must return `403`.
+
+If the self-check ever reported "Publicly readable" in production, treat the stored packages as potentially downloaded: consider rotating them (withdraw and publish new versions) and review web server access logs for requests to the directory.
+
 Renewal execution uses a per-renewal MySQL advisory lock and the provider adapter must pass an idempotency key through to the gateway. This cannot by itself resolve an ambiguous provider timeout: reconcile provider state before retrying a charge.
 
 ## Deployment and recovery checklist
 
 - Use HTTPS for the license API and package delivery.
+- Keep uploaded packages outside the web root (`WPLC_PACKAGE_STORAGE_DIR`) or deny the directory on nginx, and confirm the package storage self-check on the diagnostics page.
 - Restrict database, `wp-config.php`, CI, and secret-manager access.
 - Back up database and package metadata before schema, key, or release changes.
 - Restore a recent backup to an isolated staging copy and verify schema, license verifiers, activation authentication, renewal links, and package records.

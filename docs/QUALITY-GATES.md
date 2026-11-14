@@ -12,12 +12,13 @@ No `composer.lock` is committed: the dependencies are development tools only and
 | PHP syntax | `phpunit.yml` / `unit (X)` | yes | Every PHP file parses on PHP 7.4, 8.1, 8.2 and 8.3 |
 | Unit tests | `phpunit.yml` / `unit (X)` | yes | Pure logic without WordPress, on PHP 7.4, 8.1, 8.2 and 8.3 |
 | Site URL rules without intl | `phpunit.yml` / `unit (X)` | yes | `SiteUrl::normalize()` behaves as documented when `idn_to_ascii()` is unavailable |
-| Integration tests | `phpunit.yml` / `integration (…)` (4 cells), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
+| Integration tests | `phpunit.yml` / `integration (…)` (5 cells), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
 | PHPCS security + compatibility | `quality.yml` / `phpcs` | yes (new findings) | Escaping, nonces, input sanitization, prepared SQL, PHP 7.4 compatibility |
 | PHPCS coding standard | `quality.yml` / `phpcs` | no (report only) | WordPress-Extra and WordPress-Docs style |
 | PHPStan level 5 | `quality.yml` / `phpstan` | yes (new errors) | Undefined methods/variables, wrong argument counts and types in `src/` and `wp-license.php` |
+| Plugin ZIP | `package.yml` / `zip` | yes | `bin/build-zip.sh` (the release build) on PHP 7.4: versions agree, ZIP contents, class map covers `src/` |
 
-`wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (7.4)` … `unit (8.3)`, `phpcs`, `phpstan`) as required checks.
+`wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (7.4)` … `unit (8.3)`, `phpcs`, `phpstan`, `zip`) as required checks.
 
 ## Syntax and unit tests
 
@@ -29,12 +30,9 @@ php -d disable_functions=idn_to_ascii vendor/bin/phpunit --filter SiteUrl
 
 Unit tests load `tests/bootstrap.php`, which only defines constants. They must not need WordPress.
 
-`tests/Api/SiteUrlNormalizationTest.php` pins down the URL identity rules (T-87). Rows named `SURPRISING …` document current behavior that is probably unintended; change them only together with `src/Api/V1/SiteUrl.php`:
+`tests/Api/SiteUrlNormalizationTest.php` pins down the URL identity rules (T-87, T-146; documented in [API-V1.md](API-V1.md#site_url-rules)). With intl it also checks, code point by code point, that the built-in IDN fallback never produces a different result than `idn_to_ascii()`. Rows named `SURPRISING …` document remaining behavior that is probably unintended; change them only together with `src/Api/V1/SiteUrl.php`:
 
-- `straße.de` becomes `strasse.de` (UTS #46 transitional mapping), which is a different domain than the one browsers resolve.
-- Without the PHP intl extension every non-ASCII host is rejected; with it, it is converted to Punycode.
-- Paths are compared byte for byte: case, `//`, `/./`, `/../` and percent-encoding are not normalized, spaces and raw UTF-8 are accepted, and there is no length limit although the database column holds 255 characters.
-- IPv6 literals are lower-cased but not compressed; non-canonical IPv4 spellings (`192.168.001.010`, `0x7f.1`, `2130706433`, `999.1.1.1`) are accepted as host names.
+- Path case and percent-encoding are not normalized; spaces and raw UTF-8 in the path are accepted.
 - An empty port (`https://example.com:`) is accepted, a leading dot in the host is dropped, a NUL byte in the path becomes `_`.
 - `https://example.com/?` and `https://example.com/#` are rejected on PHP 8 but accepted on PHP 7.4, because `parse_url()` reports empty components only since PHP 8.0.
 
@@ -68,6 +66,7 @@ Environment variables:
 | `WP_CORE_DIR` | `/tmp/wordpress` | WordPress core; WooCommerce is expected in `wp-content/plugins/woocommerce` |
 | `WPLC_WC_DIR` | derived from `WP_CORE_DIR` | Another WooCommerce directory (must be a release build with `vendor/`) |
 | `WPLC_TEST_HPOS` | `1` | `1` = HPOS, `0` = legacy order storage |
+| `WP_MULTISITE` | `0` | `1` installs WordPress as a multisite network (read by the WordPress test library); `MultisiteIntegrationTest.php` only runs then |
 | `WPLC_EXPECT_WP_VERSION`, `WPLC_EXPECT_WC_VERSION` | unset | When set, the environment test asserts these versions |
 
 What the suites cover:
@@ -76,6 +75,7 @@ What the suites cover:
 |---|---|
 | `00EnvironmentIntegrationTest.php` | Plugin booted behind WooCommerce, order storage mode, permanent tables |
 | `00SchemaMigrationIntegrationTest.php` | Schema creation and repeatability |
+| `MultisiteIntegrationTest.php` | Network only (`WP_MULTISITE=1`): tables, schema version, licenses, REST answers, lock names and cron events per site; network/site activation and deactivation, site deletion, uninstall (docs/MULTISITE.md) |
 | `OrderLicenseIssuanceIntegrationTest.php` | T-81: paid order → one license per unit, duplicate hooks, unmapped products, variations, guest orders, renewal orders |
 | `OrderRefundIntegrationTest.php` | T-81: partial refunds by quantity, full refunds with and without line items, amount-only refunds |
 | `AuthorizationIntegrationTest.php` | T-23: foreign customer, missing/invalid nonce and missing capability for every `admin_post_wplc_*` handler |
@@ -89,7 +89,7 @@ Conventions:
 
 - Extend `WPLC_Integration_TestCase` (`tests/integration/helpers/IntegrationTestCase.php`). It provides WooCommerce fixtures, license/activation seeding, signed REST requests and `run_admin_post()`.
 - Handlers that end with a redirect or a bare status header followed by `exit` are tested with `halt_instead_of_exit()`, which turns `wp_redirect()` and `status_header()` into a `WPLC_Test_Halt` exception.
-- A test that exposes a defect in `src/` asserts the correct behavior and calls `markTestIncomplete( 'BUG: …' )` while the defect exists. It turns green without changes once the defect is fixed. `SPEC GAP: …` marks a response the code returns but `docs/openapi-v1.json` does not declare. Incomplete tests do not fail the job; `vendor/bin/phpunit -c phpunit.integration.xml -v` lists them.
+- A test that exposes a defect in `src/` asserts the correct behavior and calls `markTestIncomplete( 'BUG: …' )` while the defect exists. It turns green without changes once the defect is fixed. A response the code returns but `docs/openapi-v1.json` does not declare fails the REST conformance tests (`SPEC GAP: …`). Incomplete tests do not fail the job; `vendor/bin/phpunit -c phpunit.integration.xml -v` lists them.
 - Not covered: real parallel requests (two database connections), a live Stripe account, the WooCommerce Stripe gateway plugin (its amount helper is replaced by `helpers/StripeHelperStub.php`), and the "webhook secret not configured" branch (the constant cannot be undefined inside one PHP process).
 
 ## PHPCS

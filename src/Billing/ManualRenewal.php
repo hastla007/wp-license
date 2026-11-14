@@ -10,6 +10,7 @@ namespace WPLC\Billing;
 use WPLC\Account\CustomerPortal;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
+use WPLC\License\AuditReason;
 use WPLC\License\LicenseLifecycle;
 use WPLC\License\LicenseStateMachine;
 
@@ -59,7 +60,8 @@ final class ManualRenewal {
 			)
 		);
 
-		return 'paid' !== $status;
+		// Nor while an automatic charge for it may have gone through (result unknown).
+		return ! in_array( $status, array( 'paid', RenewalProcessor::STATUS_RECONCILING, RenewalProcessor::STATUS_REVIEW ), true );
 	}
 
 	/**
@@ -175,11 +177,19 @@ final class ManualRenewal {
 			if ( 'processing' === $renewal['status'] ) {
 				return new \WP_Error( 'manual_renewal_busy', __( 'A renewal for this license is being processed. Please try again in a few minutes.', 'wp-license' ) );
 			}
+			if ( in_array( $renewal['status'], array( RenewalProcessor::STATUS_RECONCILING, RenewalProcessor::STATUS_REVIEW ), true ) ) {
+				// The automatic charge may have gone through; asking for a second payment could charge twice.
+				return new \WP_Error( 'manual_renewal_pending', __( 'The automatic payment for this renewal is still being confirmed. Please check back later.', 'wp-license' ) );
+			}
 
 			$order = RenewalOrder::get_or_create( $renewal, $license, true );
 			if ( is_wp_error( $order ) ) {
 				AuditLog::record( 'manual_renewal_order_failed', 'renewal', $renewal_id, $order->get_error_code(), null, null, $customer_id );
 				return $order;
+			}
+			if ( $order->is_paid() && '' !== (string) $order->get_meta( RenewalReview::META_CLOSED, true ) ) {
+				// An administrator closed the review of this paid order without booking it.
+				return $not_available;
 			}
 			if ( $order->is_paid() ) {
 				// Paid but not booked yet (missed hook): book it now instead of asking for money again.
@@ -194,7 +204,7 @@ final class ManualRenewal {
 				'manual_renewal_started',
 				'renewal',
 				$renewal_id,
-				'Customer started a manual renewal',
+				AuditReason::MANUAL_RENEWAL_STARTED,
 				null,
 				array( 'order_id' => (int) $order->get_id(), 'license_id' => $license_id ),
 				$customer_id
@@ -228,11 +238,11 @@ final class ManualRenewal {
 
 		$problem = '';
 		if ( (string) $renewal['period_start'] !== (string) $license['paid_until'] ) {
-			$problem = 'The license period changed after the renewal order was created';
+			$problem = AuditReason::MANUAL_PERIOD_CHANGED;
 		} elseif ( ! LicenseStateMachine::can_apply_manual_renewal( (string) $license['status'], $paid_until, $paid_at ) ) {
-			$problem = 'The license status or renewal window did not allow a manual renewal';
+			$problem = AuditReason::MANUAL_RENEWAL_NOT_ALLOWED;
 		} elseif ( ! RenewalOrder::net_matches( $order ) ) {
-			$problem = 'The paid order line did not match the renewal price';
+			$problem = AuditReason::MANUAL_PRICE_MISMATCH;
 		}
 		if ( '' !== $problem ) {
 			self::reject( $order, $renewal_id, $problem );
@@ -266,7 +276,7 @@ final class ManualRenewal {
 				array( '%s', '%s', '%s' ),
 				array( '%d' )
 			);
-			self::reject( $order, $renewal_id, 'The license could not be extended' );
+			self::reject( $order, $renewal_id, AuditReason::MANUAL_LICENSE_NOT_EXTENDED );
 			return false;
 		}
 
@@ -283,7 +293,7 @@ final class ManualRenewal {
 			'manual_renewal_paid',
 			'renewal',
 			$renewal_id,
-			'Customer paid a manual renewal order',
+			AuditReason::MANUAL_RENEWAL_PAID,
 			array( 'status' => $renewal['status'], 'period_end' => $renewal['period_end'] ),
 			array( 'status' => 'paid', 'period_end' => $new_paid_until, 'order_id' => $order_id )
 		);
@@ -294,12 +304,17 @@ final class ManualRenewal {
 	/**
 	 * Record a paid order that could not renew its license, for manual review.
 	 *
+	 * The renewal row becomes a review case (T-137): it is listed on the
+	 * review screen, where the administrator books the renewal or closes the
+	 * case after a refund. The license is not changed.
+	 *
 	 * @param \WC_Order $order Order.
 	 * @param int       $renewal_id Renewal ID.
-	 * @param string    $problem Internal reason.
+	 * @param string    $problem Reason code (AuditReason).
 	 * @return void
 	 */
 	private static function reject( $order, int $renewal_id, string $problem ): void {
+		RenewalReview::open( $renewal_id, $problem, (int) $order->get_id() );
 		// One note per order is enough when hooks fire repeatedly.
 		if ( 'yes' !== $order->get_meta( '_wplc_renewal_review', true ) ) {
 			$order->update_meta_data( '_wplc_renewal_review', 'yes' );

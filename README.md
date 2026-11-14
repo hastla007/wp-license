@@ -2,7 +2,7 @@
 
 WooCommerce plugin that turns a shop into a license server for premium WordPress plugins: it sells licenses, tracks site activations, tells product plugins which features a customer has paid for, renews licenses and delivers updates.
 
-> **Status: preview. Not ready to sell with.** The code passes its unit tests and lint, but no purchase, renewal, webhook or update has been run through a real shop or a Stripe test account yet. Read "implemented" below as "implemented, not yet verified in a shop". Open work: [docs/TODO.md](docs/TODO.md). Release gates: [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
+> **Status: preview. Not ready to sell with.** Unit and integration tests pass in CI, and an end-to-end harness (`tests/e2e/`) runs purchases, manual and automatic renewals (with a test payment adapter), updates and the admin and account pages in a real WordPress/WooCommerce installation. Not verified yet: anything against Stripe (test mode), the screens in a browser (JavaScript, block checkout, emails in a mail client), the product add-ons talking to the server, and concurrent requests. Open work: [docs/TODO.md](docs/TODO.md). Release gates: [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
 ## Features
 

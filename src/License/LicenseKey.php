@@ -61,6 +61,32 @@ final class LicenseKey {
 	}
 
 	/**
+	 * Displayable key of a stored license, only when it reproduces the stored verifier.
+	 *
+	 * A wrong license_key_secret_id (an operator mistake, a manual SQL change) or a renamed key-ring entry would
+	 * otherwise derive a different, invalid key and show it to the customer as theirs.
+	 *
+	 * @param string $uuid License UUID.
+	 * @param string $key_id Persisted secret key ID.
+	 * @param string $stored_hash Stored SHA-256 verifier.
+	 * @return string Empty string when the key cannot be reproduced (see `wp wplc recover-license-key-ids`).
+	 */
+	public static function verified_for_license( string $uuid, string $key_id, string $stored_hash ): string {
+		return self::matches_hash( $uuid, $key_id, $stored_hash ) ? self::for_uuid( $uuid, $key_id ) : '';
+	}
+
+	/**
+	 * Whether a key ID is configured in the license-key ring.
+	 *
+	 * @param string $key_id Key ID.
+	 * @return bool
+	 */
+	public static function is_configured( string $key_id ): bool {
+		$keys = self::configured_keys();
+		return isset( $keys[ $key_id ] ) && '' !== $keys[ $key_id ];
+	}
+
+	/**
 	 * Hash a normalized license key for database verification.
 	 *
 	 * @param string $key License key.

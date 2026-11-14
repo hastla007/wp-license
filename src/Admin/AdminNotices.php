@@ -57,6 +57,16 @@ final class AdminNotices {
 			'create_invalid_date'     => array( 'error', __( 'The end date is not a valid date in the future.', 'wp-license' ) ),
 			'create_failed'           => array( 'error', __( 'The license could not be created. Check the license key configuration and the database, then try again.', 'wp-license' ) ),
 			'license_not_found'       => array( 'error', __( 'The license was not found.', 'wp-license' ) ),
+			// Renewal review (T-154, T-137).
+			'review_booked'             => array( 'success', __( 'The renewal was booked and the license extended.', 'wp-license' ) ),
+			'review_marked_not_paid'    => array( 'success', __( 'The renewal was recorded as not paid. The license is past due and automatic retries continue.', 'wp-license' ) ),
+			'review_closed'             => array( 'success', __( 'The review was closed without extending the license. Make any refund in the WooCommerce order.', 'wp-license' ) ),
+			'review_missing_reason'     => array( 'error', __( 'A reason is required for this action.', 'wp-license' ) ),
+			'review_not_open'           => array( 'error', __( 'This renewal no longer needs review. It may already have been resolved.', 'wp-license' ) ),
+			'review_busy'               => array( 'error', __( 'This renewal is being processed right now. Try again in a minute.', 'wp-license' ) ),
+			'review_action_not_allowed' => array( 'error', __( 'This action is not available for this renewal.', 'wp-license' ) ),
+			'review_license_status'     => array( 'error', __( 'The license is suspended or revoked and cannot be extended. Reactivate it first, or close the review and refund the payment.', 'wp-license' ) ),
+			'review_book_failed'        => array( 'error', __( 'The renewal could not be booked. Check the license status and try again.', 'wp-license' ) ),
 		);
 	}
 

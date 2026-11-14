@@ -8,6 +8,7 @@
 namespace WPLC\Admin;
 
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\AuditLog;
 use WPLC\License\LicenseLifecycle;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -40,6 +41,100 @@ final class Settings {
 		add_filter( 'option_page_capability_' . self::OPTION, array( self::class, 'capability' ) );
 		add_filter( 'wplc_update_package_hosts', array( self::class, 'filter_package_hosts' ) );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
+		add_action( 'add_option_' . self::OPTION, array( self::class, 'audit_added' ), 10, 2 );
+		add_action( 'update_option_' . self::OPTION, array( self::class, 'audit_updated' ), 10, 2 );
+	}
+
+	/**
+	 * Settings whose values are written to the audit log. Other keys are
+	 * recorded by name only (the sender note is free text shown to customers).
+	 */
+	private const AUDITED_VALUES = array( 'package_hosts', 'reminder_days' );
+
+	/**
+	 * Audit the first save of the option.
+	 *
+	 * @param string $option Option name.
+	 * @param mixed  $value  Stored value.
+	 * @return void
+	 */
+	public static function audit_added( $option, $value ): void {
+		self::audit_change( self::defaults(), $value );
+	}
+
+	/**
+	 * Audit a change of the option. WordPress fires this only when the value changed.
+	 *
+	 * @param mixed $old_value Previous value.
+	 * @param mixed $value     New value.
+	 * @return void
+	 */
+	public static function audit_updated( $old_value, $value ): void {
+		self::audit_change( $old_value, $value );
+	}
+
+	/**
+	 * Write one `settings_updated` audit entry (object type `settings`, ID 0).
+	 *
+	 * @param mixed $old_value Previous value.
+	 * @param mixed $value     New value.
+	 * @return void
+	 */
+	private static function audit_change( $old_value, $value ): void {
+		$diff = self::settings_diff( is_array( $old_value ) ? $old_value : array(), is_array( $value ) ? $value : array() );
+		if ( ! $diff['changed'] ) {
+			return;
+		}
+		AuditLog::record(
+			'settings_updated',
+			'settings',
+			0,
+			'Changed: ' . implode( ', ', $diff['changed'] ),
+			$diff['before'],
+			$diff['after'],
+			function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0
+		);
+	}
+
+	/**
+	 * Compare two settings arrays for the audit log.
+	 *
+	 * Missing keys count as their default. Values are included only for
+	 * AUDITED_VALUES; any other changed key appears in `changed` only.
+	 *
+	 * @param array<string,mixed> $old Previous settings.
+	 * @param array<string,mixed> $new New settings.
+	 * @return array{changed:string[],before:array<string,mixed>,after:array<string,mixed>}
+	 */
+	public static function settings_diff( array $old, array $new ): array {
+		$defaults = self::defaults();
+		$old      = array_merge( $defaults, $old );
+		$new      = array_merge( $defaults, $new );
+		$keys     = array_unique( array_merge( array_keys( $old ), array_keys( $new ) ) );
+		sort( $keys );
+
+		$changed = array();
+		$before  = array();
+		$after   = array();
+		foreach ( $keys as $key ) {
+			$key       = (string) $key;
+			$old_value = $old[ $key ] ?? null;
+			$new_value = $new[ $key ] ?? null;
+			if ( $old_value === $new_value ) {
+				continue;
+			}
+			$changed[] = $key;
+			if ( in_array( $key, self::AUDITED_VALUES, true ) ) {
+				$before[ $key ] = $old_value;
+				$after[ $key ]  = $new_value;
+			}
+		}
+
+		return array(
+			'changed' => $changed,
+			'before'  => $before,
+			'after'   => $after,
+		);
 	}
 
 	/**

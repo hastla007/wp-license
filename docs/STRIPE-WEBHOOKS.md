@@ -24,7 +24,7 @@ This endpoint is separate from the webhook of the WooCommerce Stripe gateway; bo
 ## What the receiver does
 
 - Verifies the `Stripe-Signature` header (HMAC-SHA256 over `{timestamp}.{body}`, 300 seconds tolerance). The body may be at most 1 MiB.
-- Stores a minimized payload in the event inbox table: PaymentIntent ID, payment status, amount, currency, renewal/license/order IDs from the metadata, plus a SHA-256 of the raw body. For disputes: dispute ID, PaymentIntent ID, charge ID, reason, order ID. No customer or card data is stored.
+- Stores a minimized payload in the event inbox table: PaymentIntent ID, payment status, received and requested amount, currency, renewal/license/order IDs and the attempt counter (`wplc_attempt`, null when absent or not a plain number) from the metadata, plus a SHA-256 of the raw body. For disputes: dispute ID, PaymentIntent ID, charge ID, reason, order ID. No customer or card data is stored.
 - Queues the event for reconciliation (`wplc_process_stripe_webhook`) and answers immediately.
 
 ## Responses
@@ -54,14 +54,28 @@ Runs asynchronously (Action Scheduler group `wplc`, WP-Cron as fallback) under t
 | `pending_reconciliation` | Stored, not processed yet |
 | `processed` | Success event booked: renewal `paid`, license extended, order completed. Or: dispute handled, license suspended |
 | `already_reconciled` | The renewal was already paid; nothing changed |
+| `decline_reconciled` | Failure event of the attempt whose result was unknown: recorded as a decline (see below) |
 | `failure_observed` | Failure event recorded. It does not schedule retries; the charge attempt itself does |
 | `ignored` | Dispute for an order without licenses |
 | `invalid_payload` | Stored payload unusable |
 | `manual_review` | See below |
 
-Before a success event extends a license, all of these must match: renewal ↔ license ↔ order IDs, order metas, payment method `stripe` on license and order, amount received = order total, currency of event, order and license, and the order's pre-tax line = stored net renewal price.
+Before a success event extends a license, all of these must match: renewal ↔ license ↔ order IDs, order metas, payment method `stripe` on license and order, amount received = order total, currency of event, order and license, and the order's pre-tax line = stored net renewal price. A failure event is checked the same way, with the requested amount (`amount`) instead of the received one; events stored before T-155 have no requested amount and skip that comparison.
 
 The PaymentIntent ID is saved on the order (`_wplc_payment_intent_id`) so later disputes can be resolved to the order.
+
+A success event also resolves a renewal whose charge attempt ended with an unknown result (renewal status `reconciling` or `review_required`, see [RENEWALS.md](RENEWALS.md)): it is booked like any other success, and the queued reconciliation check then finds the renewal paid and sends nothing. Success events need no attempt marker.
+
+A failure event resolves such a renewal as a definite decline (T-155) when, in addition to the checks above:
+
+- the PaymentIntent metadata carries `wplc_attempt` equal to the renewal's current `attempt_count` (the adapter sends it since T-155; it is the suffix of the idempotency key `{renewal key}:{attempt}`),
+- the renewal is `reconciling` or `review_required`, and the order still records the unknown result of that attempt (`_wplc_result_unknown_since` = `{attempt}|…`),
+- the event status is `requires_payment_method`,
+- the order is unpaid, still needs payment and is not a manual renewal.
+
+It then takes the same path as a decline found by a reconciliation check, under the per-renewal lock (lock order renewal → license): audit `renewal_result_resolved` (reason `stripe_decline_reconciled`), attempt counted, license `past_due` with the usual email, retries with a new key, order set to Failed with a note. An open review case is closed this way. Outcome `decline_reconciled`.
+
+Otherwise a failure event ends as `failure_observed` and changes nothing, in particular when it belongs to an older attempt (already counted), carries no `wplc_attempt` (PaymentIntent created before T-155), or the renewal is in any other status. A later delivery of the same failure finds the attempt already counted and also ends as `failure_observed`. A failure event of an older attempt does not overwrite the stored PaymentIntent ID of the order.
 
 ### Disputes
 
@@ -73,7 +87,7 @@ An event ends as `manual_review` and extends nothing when:
 
 - the IDs in the event do not match renewal, license and order (audit `stripe_webhook_mismatch`),
 - the renewal is `cancelled`, `expired` or `refunded`, or the license is `revoked` or `suspended` (audit `stripe_webhook_manual_review`). Money may have been taken for a license that no longer runs: check in Stripe and refund or extend by hand,
-- amount or currency differ from the order (audit `stripe_webhook_amount_mismatch`),
+- amount or currency differ from the order (audit `stripe_webhook_amount_mismatch`); for failure events the requested amount is compared,
 - the WooCommerce Stripe gateway is not loaded, so the amount cannot be compared,
 - a success event carries a status other than `succeeded`.
 
@@ -81,5 +95,5 @@ An event ends as `manual_review` and extends nothing when:
 
 ## Known gaps
 
-- `payment_intent.payment_failed` events are compared against the order total like success events. Their received amount is 0, so they are expected to end as `manual_review` with an amount-mismatch audit entry instead of `failure_observed`. To be confirmed with a real event.
+- The failure path is tested with signed events built after Stripe's documented PaymentIntent object (`status` `requires_payment_method`, `amount`, `amount_received` 0), not yet with a real Stripe event.
 - Events locked out by a running charge are retried through WP-Cron after 30 seconds, also when Action Scheduler is in use.

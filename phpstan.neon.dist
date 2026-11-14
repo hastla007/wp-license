@@ -29,6 +29,7 @@ parameters:
 		- WPLC_LICENSE_KEY_SECRET
 		- WPLC_LICENSE_KEY_SECRETS
 		- WPLC_STRIPE_WEBHOOK_SECRET
+		- WPLC_RESPONSE_SIGNING_KEY
 		- WP_CLI
 	# Baseline entries that no longer match are reported by "composer phpstan:baseline" (regenerate),
 	# not by CI: several branches change src/ in parallel and must not break each other by fixing errors.

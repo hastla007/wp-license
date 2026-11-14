@@ -35,6 +35,97 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( Schema::maybe_upgrade() );
 		$this->assertSame( Schema::VERSION, (string) get_option( 'wplc_schema_version' ) );
 
+		// Schema 13 (T-132): the purchased product of a license.
+		$tables = Schema::table_names();
+		$this->assertSame(
+			'1',
+			(string) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+					$tables['licenses'],
+					'renewal_product_id'
+				)
+			)
+		);
+
+		// Schema 14 (T-154, T-137): reason and start of a review case.
+		foreach ( array( 'review_reason', 'review_at' ) as $column ) {
+			$this->assertSame(
+				'1',
+				(string) $wpdb->get_var(
+					$wpdb->prepare(
+						'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+						$tables['renewals'],
+						$column
+					)
+				),
+				'Missing renewals column ' . $column
+			);
+		}
+		$this->assertTrue( Schema::run_registered_step( '14' ), 'Step 14 is repeatable.' );
+
+		// Step 14 backfills cases that existed before the columns.
+		$now  = gmdate( 'Y-m-d H:i:s' );
+		$then = gmdate( 'Y-m-d H:i:s', time() - 3 * DAY_IN_SECONDS );
+		$ids  = array();
+		foreach ( array( 'review' => 'review_required', 'rejected' => 'manual', 'paid' => 'paid' ) as $name => $status ) {
+			$wpdb->insert(
+				$tables['renewals'],
+				array(
+					'license_id'      => 999000,
+					'period_start'    => $now,
+					'period_end'      => $now,
+					'idempotency_key' => hash( 'sha256', 'schema14-' . $name . wp_rand() ),
+					'status'          => $status,
+					'created_at'      => $now,
+					'updated_at'      => $now,
+				)
+			);
+			$ids[ $name ] = (int) $wpdb->insert_id;
+		}
+		$audit = array(
+			array( 'renewal_review_required', $ids['review'], 'result_unknown_timeout' ),
+			array( 'manual_renewal_rejected', $ids['rejected'], 'manual_renewal_not_allowed' ),
+			array( 'manual_renewal_rejected', $ids['paid'], 'manual_period_changed' ),
+		);
+		foreach ( $audit as $entry ) {
+			$wpdb->insert( $tables['audit_log'], array( 'actor_user_id' => 0, 'action' => $entry[0], 'object_type' => 'renewal', 'object_id' => $entry[1], 'reason' => $entry[2], 'created_at' => $then ) );
+		}
+		$this->assertTrue( Schema::run_registered_step( '14' ) );
+		$row = static function ( int $id ) use ( $wpdb, $tables ) {
+			return $wpdb->get_row( $wpdb->prepare( "SELECT status, review_reason, review_at FROM {$tables['renewals']} WHERE id = %d", $id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		};
+		$this->assertSame( array( 'status' => 'review_required', 'review_reason' => 'result_unknown_timeout', 'review_at' => $then ), $row( $ids['review'] ) );
+		$this->assertSame( array( 'status' => 'review_required', 'review_reason' => 'manual_renewal_not_allowed', 'review_at' => $then ), $row( $ids['rejected'] ), 'A rejected manual payment becomes a case.' );
+		$this->assertSame( array( 'status' => 'paid', 'review_reason' => '', 'review_at' => null ), $row( $ids['paid'] ), 'A period paid since then stays as it is.' );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['renewals']} WHERE license_id = %d", 999000 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+
+		// Schema 15 (T-89): indexes for the license list, the account page and diagnostics.
+		$indexes = array(
+			'licenses'    => array( 'customer_created', 'status_created', 'product_created', 'product_plan', 'created_at', 'paid_until', 'key_prefix' ),
+			'event_inbox' => array( 'outcome_processed' ),
+		);
+		foreach ( $indexes as $table => $names ) {
+			foreach ( $names as $name ) {
+				$this->assertSame(
+					'1',
+					(string) $wpdb->get_var(
+						$wpdb->prepare(
+							'SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s AND index_name = %s',
+							$tables[ $table ],
+							$name
+						)
+					),
+					'Missing index ' . $table . '.' . $name
+				);
+			}
+		}
+		$this->assertTrue( Schema::run_registered_step( '15' ), 'Step 15 finds every index.' );
+		$wpdb->query( "ALTER TABLE {$tables['licenses']} DROP INDEX key_prefix" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name from Schema.
+		$this->assertFalse( Schema::run_registered_step( '15' ), 'Step 15 reports a missing index.' );
+		$this->assertTrue( Schema::migrate(), 'dbDelta adds the index again.' );
+		$this->assertTrue( Schema::run_registered_step( '15' ) );
+
 		foreach ( Schema::table_names() as $table_name ) {
 			$table_exists = $wpdb->get_var(
 				$wpdb->prepare(

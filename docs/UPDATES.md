@@ -45,6 +45,23 @@ Publishing checks the package first: an uploaded file must exist and match its c
 
 Every change is written to the audit log (`release_created`, `release_updated`, `release_published`, `release_withdrawn`, `release_deleted`).
 
+### Where uploaded ZIPs are stored
+
+Uploaded packages go to `wp-content/uploads/wplc-packages/` by default. Apache and IIS honour the generated `.htaccess` and `web.config`; **nginx does not**, so on nginx only the random file name protects a ZIP. For production, keep the directory outside the web root:
+
+```php
+// wp-config.php, above the line that loads wp-settings.php.
+define( 'WPLC_PACKAGE_STORAGE_DIR', '/var/lib/wplc-packages' ); // Absolute, writable by PHP, outside the web root.
+```
+
+The constant is validated (absolute, no `.`/`..`, not inside `ABSPATH`, `wp-content`, uploads or the document root); an invalid value is ignored and reported on the releases and diagnostics pages. If the directory has to stay below uploads, add a deny rule adapted to the real path:
+
+```nginx
+location ^~ /wp-content/uploads/wplc-packages/ { deny all; }
+```
+
+While the directory is web-reachable, the plugin checks with a cached HTTP request to a canary file whether the web server delivers it, and shows an error notice on **License releases** when it does. Details, multisite and migration: [UPDATE-STORAGE.md](UPDATE-STORAGE.md#local-private-storage).
+
 ### Overriding the registry
 
 The registry feeds `wplc_update_packages` at priority 5. A filter on the default priority still wins:
@@ -70,7 +87,7 @@ The button posts to `admin-post.php?action=wplc_download_package`. The handler c
 
 ## Building this plugin's own release
 
-Pushing a tag `v1.2.3` runs `.github/workflows/release.yml`: it fails unless the tag equals both the `Version:` header and `WPLC_VERSION` in `wp-license.php`, installs runtime dependencies with `composer install --no-dev --optimize-autoloader`, builds `wp-license-captain-1.2.3.zip` with a single top-level `wp-license/` folder, writes `wp-license-captain-1.2.3.zip.sha256`, and attaches both to the GitHub release and the workflow run. `.distignore` lists what is left out. Tags are the immutable unit: never move a tag, release a new version instead.
+Pushing a tag `v1.2.3` runs `.github/workflows/release.yml`: the unit tests on PHP 7.4 first, then `bin/build-zip.sh 1.2.3`, which fails unless the tag equals the `Version:` header, `WPLC_VERSION` and the `Stable tag` in `readme.txt`, copies an allow-list of runtime files into a single top-level `wp-license/` folder, generates `vendor/autoload.php` (an optimized class map; while `composer.json` has no runtime packages this needs no network, otherwise `composer install --no-dev`), syntax-checks every file on PHP 7.4, builds `wp-license-captain-1.2.3.zip` plus `wp-license-captain-1.2.3.zip.sha256` and verifies the contents (required files, compiled translations, no tests/docs/tools/bin/dotfiles/Composer or PHPUnit files). Both files are attached to the GitHub release (marked as pre-release for tags like `v1.2.3-rc.1`) and to the workflow run. The `Package` workflow (`.github/workflows/package.yml`) runs the same script on every pull request and keeps the ZIP for 7 days, so the build is exercised before a tag exists; run `bin/build-zip.sh` locally for the same result in `dist/`. `.distignore` lists what is left out. Tags are the immutable unit: never move a tag, release a new version instead.
 
 ## Product client integration status
 

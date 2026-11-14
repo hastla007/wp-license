@@ -11,20 +11,39 @@ A release package is stored in one of two ways. In both cases the client never l
 
 ## Local private storage
 
-Uploaded ZIPs are stored in `wp-content/uploads/wplc-packages/` (per site on multisite).
+Uploaded ZIPs are stored in `wp-content/uploads/wplc-packages/` (per site on multisite) unless a directory outside the web root is configured. **Recommended for production:** set `WPLC_PACKAGE_STORAGE_DIR` (see [Outside the web root](#outside-the-web-root-recommended)).
 
-- The directory gets a deny-all `.htaccess`, a `web.config` and an empty `index.html`.
-- **nginx ignores `.htaccess`.** Every file name therefore ends in 32 random hexadecimal characters (`{product}-{version}-{random}.zip`), and that name is never shown in the admin, written to the audit log or sent to a client. Still add a deny rule, or move the directory out of the web root:
+- The directory gets a deny-all `.htaccess`, a `web.config`, an empty `index.html` and an `index.php`.
+- **nginx ignores `.htaccess`.** Every file name therefore ends in 32 random hexadecimal characters (`{product}-{version}-{random}.zip`), and that name is never shown in the admin, written to the audit log or sent to a client. That is the last line of defence, not the only one: move the directory out of the web root, or add a deny rule (see [nginx](#nginx)).
+- **Self-check.** While the directory lies inside the web root, the plugin writes a short-lived canary file into it and requests that file over HTTP (3 s timeout). The result is cached for 12 hours (1 hour when the site could not be reached) and is only computed when **WooCommerce → License diagnostics** or **License releases** is opened, never on front-end requests. If the web server delivers the canary, the releases page shows an error notice and the diagnostics page shows the matching nginx rule; **Check again** drops the cached result. Disable the probe with `add_filter( 'wplc_package_storage_probe', '__return_false' );` (for example when loopback requests are blocked).
 
-  ```nginx
-  location ^~ /wp-content/uploads/wplc-packages/ { deny all; }
-  ```
+### Outside the web root (recommended)
 
-  ```php
-  add_filter( 'wplc_package_storage_dir', function () {
-  	return '/var/lib/wplc-packages'; // Outside the web root, writable by PHP.
-  } );
-  ```
+Define the directory in `wp-config.php`, above the line that loads `wp-settings.php`:
+
+```php
+define( 'WPLC_PACKAGE_STORAGE_DIR', '/var/lib/wplc-packages' );
+```
+
+```sh
+sudo install -d -m 0750 -o www-data -g www-data /var/lib/wplc-packages
+```
+
+- The path must be absolute, must not contain `.` or `..` segments and must not lie inside `ABSPATH`, `WP_CONTENT_DIR`, the uploads directory or the document root (symlinks are resolved). An invalid value is **ignored**: the default directory stays in use and both admin pages show an error, so a typo never sends packages to an unexpected place.
+- PHP must be able to create and write the directory; the diagnostics page shows **Writable**. With `open_basedir`, add the directory to it.
+- Moving an existing directory: copy the files (including the random file names) to the new place, then set the constant. Releases store only the file name, so nothing else changes.
+- On multisite the constant applies to every site; give each site its own directory with the filter instead (`get_current_blog_id()`).
+- The `wplc_package_storage_dir` filter still runs last and can override the constant. Its value is used as returned (not validated), but the self-check still applies.
+
+### nginx
+
+When the directory stays below `uploads`, add a deny rule to the `server` block **before** the generic PHP and static-file locations. Adapt the path to your uploads URL (multisite: `/wp-content/uploads/sites/{id}/wplc-packages/`, or one rule for `/wp-content/uploads/sites/`); the diagnostics page prints the rule for the current site.
+
+```nginx
+location ^~ /wp-content/uploads/wplc-packages/ { deny all; }
+```
+
+`^~` makes nginx stop at this prefix, so a later regex location (for example `location ~* \.(zip|php)$`) cannot serve the files. A regex form such as `location ~* ^/wp-content/uploads/wplc-packages/ { deny all; }` works only if it comes before those locations. Reload nginx, then press **Check again** on the diagnostics page: the result must read "refused to deliver a test file". You can also check by hand: `curl -I https://shop.example/wp-content/uploads/wplc-packages/index.html` must return `403`.
 
 - Uploads must be a real `.zip` (extension, ZIP signature, readable archive) of at most 50 MB (`wplc_package_max_upload_bytes`; PHP's `upload_max_filesize` and `post_max_size` apply as well). The SHA-256 is computed from the stored file and checked again when the release is published.
 - Include the directory in backups. A release whose file is missing cannot be published or downloaded.

@@ -1,0 +1,7 @@
+{
+    "code": "product_mismatch",
+    "message": "This license belongs to a different product.",
+    "data": {
+        "status": 403
+    }
+}

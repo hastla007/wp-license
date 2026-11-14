@@ -268,18 +268,22 @@ $license = e2e_license( $l_recover );
 e2e_eq( 'expired', $license['status'], '[time simulated: 16 days later] a cancelled past_due license ends up expired (daily job or grace job)' );
 
 // =====================================================================================
-// F. Outcome unknown (timeout): the attempt is repeated with the SAME key and does not count.
+// F. Outcome unknown (timeout): not a decline. The renewal waits in `reconciling`, the license
+//    stays active without a "payment failed" email, and the check sends the SAME key (T-136).
 // =====================================================================================
 update_option( 'wplc_e2e_fake_mode', 'unknown' );
 update_option( 'wplc_e2e_fake_charges', array(), false );
 $renewal_id_m = e2e_move_paid_until( $l_manual, $utc( time() - 3 * HOUR_IN_SECONDS ) );
+wplc_e2e_clear_mails();
 e2e_run_action( 'wplc_process_renewal', array( $renewal_id_m ) );
 $unknown = e2e_renewal( $renewal_id_m );
-e2e_ok( 'failed' === $unknown['status'] && '0' === $unknown['attempt_count'] && abs( strtotime( $unknown['retry_at'] . ' UTC' ) - ( time() + HOUR_IN_SECONDS ) ) < 120, 'unknown outcome (timeout): attempt not counted, retry within the hour', $unknown );
+e2e_ok( 'reconciling' === $unknown['status'] && '0' === $unknown['attempt_count'] && abs( strtotime( $unknown['retry_at'] . ' UTC' ) - ( time() + HOUR_IN_SECONDS ) ) < 120, 'unknown outcome (timeout): renewal reconciling, attempt not counted, check within the hour', $unknown );
 e2e_ok( 'failed' !== wc_get_order( (int) $unknown['renewal_order_id'] )->get_status(), 'unknown outcome: the order is not marked failed', wc_get_order( (int) $unknown['renewal_order_id'] )->get_status() );
+e2e_eq( 'active', e2e_license( $l_manual )['status'], 'unknown outcome: the license stays active (not past_due)' );
+e2e_eq( 0, count( e2e_mails_with_subject( 'renewal payment for' ) ), 'unknown outcome: no "payment failed" email' );
 e2e_run_action( 'wplc_process_renewal', array( $renewal_id_m ) );
 $keys = array_column( e2e_charges(), 'key' );
-e2e_ok( 2 === count( $keys ) && $keys[0] === $keys[1], 'the repeated attempt sends the same idempotency key', $keys );
+e2e_ok( 2 === count( $keys ) && $keys[0] === $keys[1], 'the reconciliation check sends the same idempotency key', $keys );
 
 
 update_option( 'wplc_e2e_fake_mode', 'success' );

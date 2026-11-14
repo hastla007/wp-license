@@ -8,3 +8,19 @@ define( 'WPLC_INSTALLATION_ENCRYPTION_KEYS', array( 'test-2026' => 'test-current
 define( 'WPLC_INSTALLATION_ENCRYPTION_KEY_ID', 'test-2026' );
 
 require dirname( __DIR__ ) . '/vendor/autoload.php';
+
+// Load WPLC classes from this checkout even when vendor/ is shared (a symlink
+// from a git worktree points the Composer autoloader at another checkout).
+spl_autoload_register(
+	static function ( string $class ): void {
+		if ( 0 !== strpos( $class, 'WPLC\\' ) ) {
+			return;
+		}
+		$file = dirname( __DIR__ ) . '/src/' . str_replace( '\\', '/', substr( $class, 5 ) ) . '.php';
+		if ( is_file( $file ) ) {
+			require $file;
+		}
+	},
+	true,
+	true
+);

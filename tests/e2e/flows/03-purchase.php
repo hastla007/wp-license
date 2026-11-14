@@ -203,8 +203,14 @@ $pass_order         = e2e_create_order( $bob_id, array( (int) $pass_variation_id
 $pass_licenses      = e2e_order_licenses( $pass_order->get_id() );
 e2e_ok( 1 === count( $pass_licenses ) && 'pass-captain' === $pass_licenses[0]['product_key'], 'buying a variation of a parent-mapped variable product issues a license with the parent plan' );
 if ( $pass_licenses ) {
-	// Reported, not asserted (pricing rule of parent-level mappings is a product decision):
-	e2e_note( 'parent-mapped variation bought for ' . $pass_order->get_total() . ' → stored renewal price ' . \WPLC\Billing\Money::to_decimal( (int) $pass_licenses[0]['renewal_amount_minor'], 2 ) . ' (the parent plan holds the lowest variation price)' );
+	// T-132: the license renews at the regular price of the bought variation (79.00), not at the
+	// lowest variation price the parent plan holds (59.00).
+	e2e_eq(
+		array( '7900', (string) (int) $pass_variation_ids[0] ),
+		array( (string) $pass_licenses[0]['renewal_amount_minor'], (string) $pass_licenses[0]['renewal_product_id'] ),
+		'parent-mapped variation bought for ' . $pass_order->get_total() . ' stores the variation price and the variation as renewal product'
+	);
+	e2e_eq( 7900, \WPLC\Billing\RenewalOrder::price( $pass_licenses[0], true )['amount_minor'], 'manual renewal of the parent-mapped variation is priced at 79.00' );
 }
 
 // --- The plugin emails are registered with WooCommerce and their settings form renders. ---

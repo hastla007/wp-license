@@ -4,12 +4,13 @@
 
 These are the combinations the integration suite runs against in CI (`.github/workflows/phpunit.yml`, job `integration`). Nothing outside this table is tested.
 
-| WordPress | WooCommerce | PHP | Order storage |
-|---|---|---|---|
-| 6.5 (latest 6.5.x) | 9.4.3 | 7.4 | HPOS |
-| 6.5 (latest 6.5.x) | 9.4.3 | 7.4 | legacy posts |
-| latest stable | 11.2.2 | 8.3 | HPOS |
-| latest stable | 11.2.2 | 8.3 | legacy posts |
+| WordPress | WooCommerce | PHP | Order storage | Installation |
+|---|---|---|---|---|
+| 6.5 (latest 6.5.x) | 9.4.3 | 7.4 | HPOS | single site |
+| 6.5 (latest 6.5.x) | 9.4.3 | 7.4 | legacy posts | single site |
+| latest stable | 11.2.2 | 8.3 | HPOS | single site |
+| latest stable | 11.2.2 | 8.3 | legacy posts | single site |
+| latest stable | 11.2.2 | 8.3 | HPOS | multisite (subdirectory network) |
 
 - WordPress 6.5 and PHP 7.4 are the minimums declared in `wp-license.php`.
 - WooCommerce 9.4.3 declares WordPress 6.5 as its own minimum and is the oldest WooCommerce version the plugin is tested with; the pinned recent version (11.2.2) declares WordPress 7.0, which is why it is paired with the latest WordPress. The plugin header does not declare a WooCommerce minimum yet; until it does, treat 9.4 as the minimum.
@@ -18,7 +19,9 @@ These are the combinations the integration suite runs against in CI (`.github/wo
 - Unit tests and the syntax check additionally run on PHP 7.4, 8.1, 8.2 and 8.3 without WordPress.
 - The plugin declares HPOS compatibility and declares the block-based checkout as incompatible (`wp-license.php`); the block checkout is not tested.
 
-Not part of the matrix and therefore unverified: multisite, MariaDB, PHP 8.4 and newer, WooCommerce versions between 9.4 and the pinned recent version, the WooCommerce Stripe gateway plugin, and a live Stripe account.
+- Multisite: the multisite cell runs the whole suite on a network plus `MultisiteIntegrationTest.php`; behavior and limits are in [MULTISITE.md](MULTISITE.md).
+
+Not part of the matrix and therefore unverified: multisite with WordPress 6.5 or legacy order storage (the latter passed locally), subdomain networks, MariaDB, PHP 8.4 and newer, WooCommerce versions between 9.4 and the pinned recent version, the WooCommerce Stripe gateway plugin, and a live Stripe account.
 
 How to run a cell locally: see [QUALITY-GATES.md](QUALITY-GATES.md#integration-tests).
 

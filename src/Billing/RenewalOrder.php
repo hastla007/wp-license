@@ -7,6 +7,7 @@
 
 namespace WPLC\Billing;
 
+use WPLC\Catalog\Catalog;
 use WPLC\Infrastructure\Database\Schema;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -33,7 +34,7 @@ final class RenewalOrder {
 	 *
 	 * @param array<string,mixed> $renewal Renewal row.
 	 * @param array<string,mixed> $license License row.
-	 * @param bool                $manual Customer-initiated renewal (any payment method, current catalog price).
+	 * @param bool                $manual Customer-initiated renewal (any payment method, current regular price of the purchased product).
 	 * @return \WC_Order|\WP_Error
 	 */
 	public static function get_or_create( array $renewal, array $license, bool $manual ) {
@@ -232,8 +233,10 @@ final class RenewalOrder {
 	/**
 	 * Price of the renewal in minor units.
 	 *
-	 * Manual renewals use the current catalog price of the plan. Automatic
-	 * renewals charge the amount stored on the license at purchase.
+	 * Automatic renewals charge the amount stored on the license at purchase
+	 * (the regular price of the purchased product or variation). Manual
+	 * renewals use the current regular price of that product or variation; see
+	 * choose_price() for the fallbacks.
 	 *
 	 * @param array<string,mixed> $license License row.
 	 * @param bool                $manual Manual renewal.
@@ -252,20 +255,93 @@ final class RenewalOrder {
 			ARRAY_A
 		);
 		$plan = is_array( $plan ) ? $plan : null;
+		$current = null;
+		if ( $manual ) {
+			$purchased = self::purchased_product( $license );
+			$current = $purchased ? Catalog::product_regular_price( $purchased ) : null;
+		}
+
+		$price = self::choose_price( $license, $plan, $current, $manual );
+		$price['plan'] = $plan;
+
+		return $price;
+	}
+
+	/**
+	 * Pick the renewal amount. Pure helper.
+	 *
+	 * - Automatic: the amount stored on the license. The customer agreed to
+	 *   off-session charges of that amount, so a later price change in the
+	 *   shop never raises it silently.
+	 * - Manual: the current regular price of the purchased product or
+	 *   variation, because the customer sees the price on the pay page before
+	 *   paying. When that product no longer exists or has no price:
+	 *   - licenses that recorded their product (renewal_product_id) use the
+	 *     stored amount, which is the price of that product at purchase;
+	 *   - older licenses without a recorded product use the plan price, as
+	 *     before, and the stored amount when the plan has no price.
+	 *
+	 * @param array<string,mixed>                                       $license License row.
+	 * @param array<string,mixed>|null                                  $plan Active plan of the license.
+	 * @param array{amount_minor:int,decimals:int,currency:string}|null $current Current regular price of the purchased product.
+	 * @param bool                                                      $manual Manual renewal.
+	 * @return array{amount_minor:int,decimals:int,currency:string}
+	 */
+	public static function choose_price( array $license, ?array $plan, ?array $current, bool $manual ): array {
 		$fallback_decimals = function_exists( 'wc_get_price_decimals' ) ? (int) wc_get_price_decimals() : 2;
-		$price = array(
+		$stored = array(
 			'amount_minor' => (int) $license['renewal_amount_minor'],
 			'decimals' => max( 0, min( 6, (int) ( $license['renewal_currency_decimals'] ?? $fallback_decimals ) ) ),
 			'currency' => strtoupper( (string) $license['renewal_currency'] ),
-			'plan' => $plan,
 		);
-		if ( $manual && $plan && (int) $plan['price_minor'] > 0 ) {
-			$price['amount_minor'] = (int) $plan['price_minor'];
-			$price['decimals'] = max( 0, min( 6, (int) $plan['price_decimals'] ) );
-			$price['currency'] = strtoupper( (string) $plan['currency'] );
+		if ( ! $manual ) {
+			return $stored;
+		}
+		if ( is_array( $current ) && (int) $current['amount_minor'] > 0 ) {
+			return array(
+				'amount_minor' => (int) $current['amount_minor'],
+				'decimals' => max( 0, min( 6, (int) $current['decimals'] ) ),
+				'currency' => strtoupper( (string) $current['currency'] ),
+			);
+		}
+		$recorded_product = (int) ( $license['renewal_product_id'] ?? 0 ) > 0;
+		if ( ! $recorded_product && $plan && (int) $plan['price_minor'] > 0 ) {
+			return array(
+				'amount_minor' => (int) $plan['price_minor'],
+				'decimals' => max( 0, min( 6, (int) $plan['price_decimals'] ) ),
+				'currency' => strtoupper( (string) $plan['currency'] ),
+			);
 		}
 
-		return $price;
+		return $stored;
+	}
+
+	/**
+	 * The product or variation the license was bought as.
+	 *
+	 * Licenses issued since schema 13 record it in renewal_product_id; older
+	 * ones (and licenses whose recorded product is gone) are resolved through
+	 * their source order item.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return \WC_Product|false
+	 */
+	private static function purchased_product( array $license ) {
+		$product_id = (int) ( $license['renewal_product_id'] ?? 0 );
+		if ( $product_id > 0 ) {
+			$product = function_exists( 'wc_get_product' ) ? wc_get_product( $product_id ) : false;
+			// A recorded product that no longer exists is not replaced by the
+			// source line: that line points to the same deleted product.
+			return $product ? $product : false;
+		}
+		if ( empty( $license['source_order_id'] ) || ! function_exists( 'wc_get_order' ) ) {
+			return false;
+		}
+		$source_order = wc_get_order( (int) $license['source_order_id'] );
+		$source_item = $source_order ? $source_order->get_item( (int) $license['source_order_item_id'] ) : false;
+		$product = $source_item && is_callable( array( $source_item, 'get_product' ) ) ? $source_item->get_product() : false;
+
+		return $product ? $product : false;
 	}
 
 	/**
@@ -276,9 +352,7 @@ final class RenewalOrder {
 	 * @return \WC_Product|false
 	 */
 	private static function product( array $license, ?array $plan ) {
-		$source_order = wc_get_order( (int) $license['source_order_id'] );
-		$source_item = $source_order ? $source_order->get_item( (int) $license['source_order_item_id'] ) : false;
-		$product = $source_item && is_callable( array( $source_item, 'get_product' ) ) ? $source_item->get_product() : false;
+		$product = self::purchased_product( $license );
 		if ( ! $product && $plan && function_exists( 'wc_get_product' ) ) {
 			$plan_product_id = (int) $plan['woocommerce_variation_id'] ? (int) $plan['woocommerce_variation_id'] : (int) $plan['woocommerce_product_id'];
 			$product = wc_get_product( $plan_product_id );

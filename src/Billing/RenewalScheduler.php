@@ -96,6 +96,20 @@ final class RenewalScheduler {
 	}
 
 	/**
+	 * Attempt counter encoded in a key built by attempt_idempotency_key(). Pure.
+	 *
+	 * @param string $attempt_key Gateway idempotency key `{renewal key}:{attempt}`.
+	 * @return int|null Null when the key has no attempt suffix.
+	 */
+	public static function attempt_from_idempotency_key( string $attempt_key ): ?int {
+		if ( ! preg_match( '/^.+:(\d{1,9})$/', $attempt_key, $parts ) ) {
+			return null;
+		}
+
+		return (int) $parts[1];
+	}
+
+	/**
 	 * Find or create the renewal row for the period that starts at paid_until.
 	 *
 	 * @param array<string,mixed> $license License row.
@@ -123,7 +137,7 @@ final class RenewalScheduler {
 
 		$automatic = 'manual' !== $initial_status;
 		$now = gmdate( 'Y-m-d H:i:s' );
-		$inserted = $wpdb->insert(
+		$inserted = Schema::insert_unique(
 			$tables['renewals'],
 			array(
 				'license_id' => $license_id,
@@ -139,14 +153,14 @@ final class RenewalScheduler {
 			),
 			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' )
 		);
-		if ( false === $inserted || ! $wpdb->insert_id ) {
+		if ( ! $inserted ) {
 			// A concurrent request may have inserted the same unique key.
 			return (int) $wpdb->get_var(
 				$wpdb->prepare( "SELECT id FROM {$tables['renewals']} WHERE idempotency_key = %s LIMIT 1", $idempotency_key )
 			);
 		}
 
-		return (int) $wpdb->insert_id;
+		return $inserted;
 	}
 
 	/**

@@ -44,7 +44,7 @@ final class RecoverLicenseKeyIdsCommand {
 	 * : Persist verified key-ID corrections. Without this flag the command is a dry run.
 	 *
 	 * [--after-id=<number>]
-	 * : Start after this license ID. Default 0.
+	 * : Start after this license ID (pass the "last ID" of the previous run). Default 0.
 	 *
 	 * [--max-rows=<number>]
 	 * : Maximum rows to inspect. Default 5000.
@@ -64,6 +64,9 @@ final class RecoverLicenseKeyIdsCommand {
 		$target_key_id = isset( $assoc_args['to'] ) ? sanitize_text_field( (string) $assoc_args['to'] ) : '';
 		if ( '' === $target_key_id || ! preg_match( '/^[a-zA-Z0-9._-]{1,32}$/', $target_key_id ) ) {
 			\WP_CLI::error( 'Provide a valid configured key ID with --to=<key-id>.' );
+		}
+		if ( ! LicenseKey::is_configured( $target_key_id ) ) {
+			\WP_CLI::error( sprintf( 'Key ID "%s" is not configured in WPLC_LICENSE_KEY_SECRETS (or WPLC_LICENSE_KEY_SECRET as "legacy"). Add the secret under that ID first.', $target_key_id ) );
 		}
 		$apply = isset( $assoc_args['apply'] );
 		$last_id = isset( $assoc_args['after-id'] ) ? absint( $assoc_args['after-id'] ) : 0;
@@ -128,7 +131,7 @@ final class RecoverLicenseKeyIdsCommand {
 					'license_key_id_recovered',
 					'license',
 					$last_id,
-					'License key ID corrected after matching the stored verifier',
+					\WPLC\License\AuditReason::LICENSE_KEY_ID_RECOVERED,
 					array( 'key_id' => $current_key_id ),
 					array( 'key_id' => $target_key_id )
 				);

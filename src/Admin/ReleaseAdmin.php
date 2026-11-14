@@ -8,6 +8,7 @@
 namespace WPLC\Admin;
 
 use WPLC\Update\LocalPackageStorage;
+use WPLC\Update\PackageStorageCheck;
 use WPLC\Update\ReleaseRegistry;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -67,6 +68,7 @@ final class ReleaseAdmin {
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'License releases', 'wp-license' ) . '</h1>';
 		self::render_notice();
+		self::render_storage_notice();
 		echo '<p>' . esc_html__( 'Licensed installations receive the highest published version of a product as an update, and customers can download it from their account. Version, package and checksum are frozen once a release is published: withdraw it and publish a new version to correct a package.', 'wp-license' ) . '</p>';
 
 		if ( ! $releases ) {
@@ -411,6 +413,27 @@ final class ReleaseAdmin {
 		delete_transient( $key );
 		$class = ! empty( $notice['success'] ) ? 'notice-success' : 'notice-error';
 		echo '<div class="notice ' . esc_attr( $class ) . ' is-dismissible"><p>' . esc_html( (string) $notice['message'] ) . '</p></div>';
+	}
+
+	/**
+	 * Warn when the package directory is misconfigured or publicly readable.
+	 *
+	 * The HTTP probe result is cached (see PackageStorageCheck), so this
+	 * costs one transient read on most page views.
+	 *
+	 * @return void
+	 */
+	private static function render_storage_notice(): void {
+		$status = PackageStorageCheck::status();
+		$diagnostics = admin_url( 'admin.php?page=wplc-diagnostics' );
+		if ( '' !== $status['constant_error'] ) {
+			echo '<div class="notice notice-error"><p>' . esc_html( LocalPackageStorage::dir_error_message( $status['constant_error'] ) ) . ' ' . esc_html__( 'The constant is ignored and the default directory is used.', 'wp-license' ) . '</p></div>';
+		}
+		if ( PackageStorageCheck::RESULT_EXPOSED === $status['probe'] ) {
+			echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Uploaded release packages are publicly readable.', 'wp-license' ) . '</strong> ';
+			echo esc_html__( 'The web server delivered a test file from the private package directory, so it ignores the generated .htaccess (for example nginx). Only the random file names protect the ZIPs. Move the directory outside the web root with WPLC_PACKAGE_STORAGE_DIR or add a deny rule.', 'wp-license' ) . ' ';
+			echo '<a href="' . esc_url( $diagnostics ) . '">' . esc_html__( 'Show the rule and check again', 'wp-license' ) . '</a></p></div>';
+		}
 	}
 
 	/**

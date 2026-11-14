@@ -37,16 +37,23 @@ final class SigningKeyCommand {
 	 * ## OPTIONS
 	 *
 	 * [--field=<field>]
-	 * : Print only "public_key" or "key_id".
+	 * : Print only "public_key", "key_id", "source", "next_public_key" or "next_key_id".
+	 *
+	 * [--prepare]
+	 * : Create the next stored key without using it and print its public key (next_public_key). Ship product
+	 * releases that pin the current and the next public key, then run --rotate. Repeated calls keep the same
+	 * prepared key. Not possible while the key comes from the constant.
 	 *
 	 * [--rotate]
-	 * : Create a new stored key. Clients pinned to the old public key reject the server until they are updated –
-	 * rotate only together with a product release. Not possible while the key comes from the constant.
+	 * : Switch to the prepared next key (or, without one, to a new key). Clients that do not pin the new public
+	 * key reject the server until they are updated. Not possible while the key comes from the constant.
 	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp wplc signing-key
 	 *     wp wplc signing-key --field=public_key
+	 *     wp wplc signing-key --prepare --field=next_public_key
+	 *     wp wplc signing-key --rotate
 	 *
 	 * @param array<int,string>   $args       Positional arguments.
 	 * @param array<string,mixed> $assoc_args Options.
@@ -56,23 +63,37 @@ final class SigningKeyCommand {
 		if ( ! ResponseSigner::available() ) {
 			\WP_CLI::error( 'Ed25519 (sodium) is not available on this server.' );
 		}
+		if ( ! empty( $assoc_args['prepare'] ) && ! empty( $assoc_args['rotate'] ) ) {
+			\WP_CLI::error( 'Use --prepare and --rotate in separate steps, with a product release in between.' );
+		}
+		if ( ! empty( $assoc_args['prepare'] ) && null === ResponseSigner::prepare_next() ) {
+			\WP_CLI::error( 'The key comes from WPLC_RESPONSE_SIGNING_KEY, or the prepared key could not be stored or decrypted.' );
+		}
 		if ( ! empty( $assoc_args['rotate'] ) ) {
 			$old = ResponseSigner::public_key();
+			if ( '' === $old && '' !== (string) get_option( ResponseSigner::OPTION, '' ) ) {
+				\WP_CLI::error( 'The stored signing key cannot be decrypted. Restore the previous encryption key in WPLC_INSTALLATION_ENCRYPTION_KEYS instead of replacing the key that clients pin.' );
+			}
 			ResponseSigner::reset();
 			if ( null === ResponseSigner::rotate() ) {
-				\WP_CLI::error( 'The key comes from WPLC_RESPONSE_SIGNING_KEY or could not be stored; rotate it in wp-config.php.' );
+				\WP_CLI::error( 'The key comes from WPLC_RESPONSE_SIGNING_KEY, or the new key could not be stored (or the prepared key cannot be decrypted); rotate a constant in wp-config.php.' );
 			}
-			AuditLog::record( 'response_signing_key_rotated', 'system', 0, 'Response signing key rotated', array( 'key_id' => ResponseSigner::key_id_of( $old ) ), array( 'key_id' => ResponseSigner::key_id_of( ResponseSigner::public_key() ) ) );
+			AuditLog::record( 'response_signing_key_rotated', 'system', 0, \WPLC\License\AuditReason::SIGNING_KEY_ROTATED, array( 'key_id' => ResponseSigner::key_id_of( $old ) ), array( 'key_id' => ResponseSigner::key_id_of( ResponseSigner::public_key() ) ) );
 		}
 		$public = ResponseSigner::public_key();
 		if ( '' === $public ) {
-			\WP_CLI::error( 'No response signing key could be created.' );
+			\WP_CLI::error( '' !== (string) get_option( ResponseSigner::OPTION, '' ) ? 'The stored signing key cannot be decrypted with WPLC_INSTALLATION_ENCRYPTION_KEYS; responses carry no Ed25519 signature. Restore the previous encryption key.' : 'No response signing key could be created.' );
 		}
 		$fields = array(
 			'public_key' => $public,
 			'key_id'     => ResponseSigner::key_id_of( $public ),
-			'source'     => defined( 'WPLC_RESPONSE_SIGNING_KEY' ) && '' !== (string) WPLC_RESPONSE_SIGNING_KEY ? 'constant' : 'option',
+			'source'     => ResponseSigner::uses_constant() ? 'constant' : 'option',
 		);
+		$next = ResponseSigner::next_secret_key();
+		if ( null !== $next ) {
+			$fields['next_public_key'] = ResponseSigner::public_key_of( $next );
+			$fields['next_key_id']     = ResponseSigner::key_id_of( $fields['next_public_key'] );
+		}
 		$field = isset( $assoc_args['field'] ) ? (string) $assoc_args['field'] : '';
 		if ( '' !== $field ) {
 			if ( ! isset( $fields[ $field ] ) ) {

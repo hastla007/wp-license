@@ -275,7 +275,7 @@ final class Notifications {
 		if ( $window < 1 ) {
 			return;
 		}
-		if ( ! ReminderLog::maybe_install() ) {
+		if ( ! ReminderLog::is_available() ) {
 			self::log( 'error', 'Reminder log table is not available; no reminders were sent.' );
 			return;
 		}
@@ -405,6 +405,28 @@ final class Notifications {
 	}
 
 	/**
+	 * Name of the bought product or variation, shown as the plan; never the internal plan key.
+	 *
+	 * Empty when it adds nothing to the product name, so the email leaves the row out.
+	 *
+	 * @param array<string,mixed> $license      License row.
+	 * @param string              $product_name Display name of the catalog product.
+	 * @return string
+	 */
+	public static function plan_label( array $license, string $product_name ): string {
+		$product_id = (int) ( $license['renewal_product_id'] ?? 0 );
+		if ( $product_id <= 0 || ! function_exists( 'wc_get_product' ) ) {
+			return '';
+		}
+		$product = wc_get_product( $product_id );
+		if ( ! $product instanceof \WC_Product ) {
+			return '';
+		}
+		$name = trim( wp_strip_all_tags( (string) $product->get_name() ) );
+		return $name === trim( $product_name ) ? '' : $name;
+	}
+
+	/**
 	 * Build the display values shared by the templates and placeholders.
 	 *
 	 * Must be called after the customer's locale was switched in, because it
@@ -444,9 +466,11 @@ final class Notifications {
 			? (string) wc_get_account_endpoint_url( 'wplc-licenses' )
 			: (string) home_url( '/' );
 
+		$product_name = self::product_name( (string) ( $license['product_key'] ?? '' ) );
+
 		return array(
-			'product' => self::product_name( (string) ( $license['product_key'] ?? '' ) ),
-			'plan' => (string) ( $license['plan_key'] ?? '' ),
+			'product' => $product_name,
+			'plan' => self::plan_label( $license, $product_name ),
 			'key_prefix' => (string) ( $license['key_prefix'] ?? '' ),
 			'valid_until' => false === $paid_until ? __( 'No expiry', 'wp-license' ) : self::format_date( (int) $paid_until ),
 			'days_left' => isset( $context['days_left'] ) ? (string) max( 0, (int) $context['days_left'] ) : '',

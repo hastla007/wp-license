@@ -118,6 +118,43 @@ final class Catalog {
 	}
 
 	/**
+	 * Current regular price of one purchasable product or variation.
+	 *
+	 * Used as the renewal price of a license: the regular price, never a running
+	 * sale price. A variable parent product has no price of its own (WooCommerce
+	 * reports the lowest variation price for it), so it yields null, as do
+	 * products without a positive price.
+	 *
+	 * @param mixed $product WooCommerce product or variation.
+	 * @return array{amount_minor:int,decimals:int,currency:string}|null Amount in minor units of the shop currency.
+	 */
+	public static function product_regular_price( $product ): ?array {
+		if ( ! is_object( $product ) || ! is_callable( array( $product, 'get_price' ) ) ) {
+			return null;
+		}
+		if ( is_callable( array( $product, 'is_type' ) ) && $product->is_type( array( 'variable', 'grouped' ) ) ) {
+			return null;
+		}
+
+		$price = is_callable( array( $product, 'get_regular_price' ) ) ? (string) $product->get_regular_price( 'edit' ) : '';
+		if ( '' === $price ) {
+			$price = (string) $product->get_price( 'edit' );
+		}
+		$decimals = function_exists( 'wc_get_price_decimals' ) ? max( 0, min( 6, (int) wc_get_price_decimals() ) ) : 2;
+		$minor    = Money::to_minor_units( $price, $decimals );
+		if ( false === $minor || $minor <= 0 ) {
+			return null;
+		}
+		$currency = function_exists( 'get_woocommerce_currency' ) ? (string) get_woocommerce_currency() : 'EUR';
+
+		return array(
+			'amount_minor' => $minor,
+			'decimals' => $decimals,
+			'currency' => strtoupper( sanitize_text_field( $currency ) ),
+		);
+	}
+
+	/**
 	 * Find the active mapping for an order item's product.
 	 *
 	 * @param int $product_id Parent product ID.
