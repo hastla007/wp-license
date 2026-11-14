@@ -150,6 +150,8 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 				'renewal_id'        => 11,
 				'license_id'        => 22,
 				'order_id'          => 33,
+				'amount'            => 0,
+				'attempt'           => null,
 			),
 			json_decode( $rows[0]['payload_json'], true )
 		);
@@ -273,12 +275,14 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	public function test_failed_payment_event_is_stored_for_reconciliation(): void {
-		$body = $this->event( 'evt_failed', 'payment_intent.payment_failed', array( 'status' => 'requires_payment_method', 'amount_received' => 0, 'amount' => 4900, 'metadata' => $this->renewal_metadata() ) );
+		$body = $this->event( 'evt_failed', 'payment_intent.payment_failed', array( 'status' => 'requires_payment_method', 'amount_received' => 0, 'amount' => 4900, 'metadata' => $this->renewal_metadata() + array( 'wplc_attempt' => '2' ) ) );
 
 		$this->assertSame( 200, $this->post_webhook( $body )->get_status() );
 		$rows = $this->inbox();
 		$this->assertCount( 1, $rows );
 		$this->assertSame( 'payment_intent.payment_failed', $rows[0]['event_type'] );
+		$this->assertSame( 4900, json_decode( $rows[0]['payload_json'], true )['amount'] );
+		$this->assertSame( 2, json_decode( $rows[0]['payload_json'], true )['attempt'], 'T-155: the attempt marker is kept for reconciliation.' );
 		$this->assertSame( 'requires_payment_method', json_decode( $rows[0]['payload_json'], true )['payment_status'] );
 	}
 

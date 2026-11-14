@@ -51,6 +51,7 @@ final class AuditReason {
 	public const RENEWAL_ALREADY_PAID           = 'renewal_already_paid';
 	public const RENEWAL_CONFIRMED_BY_ADAPTER   = 'renewal_confirmed_by_adapter';
 	public const STRIPE_SUCCESS_RECONCILED      = 'stripe_success_reconciled';
+	public const STRIPE_DECLINE_RECONCILED      = 'stripe_decline_reconciled';
 	public const CUSTOMER_PAID_RENEWAL          = 'customer_paid_renewal';
 	public const STUCK_RENEWAL_PAID             = 'stuck_renewal_paid';
 	public const PAYMENT_NOT_TAKEN              = 'payment_not_taken';
@@ -220,6 +221,7 @@ final class AuditReason {
 			self::RENEWAL_ALREADY_PAID           => array( __( 'The renewal order was already paid.', 'wp-license' ), array() ),
 			self::RENEWAL_CONFIRMED_BY_ADAPTER   => array( __( 'The payment gateway confirmed the renewal.', 'wp-license' ), array() ),
 			self::STRIPE_SUCCESS_RECONCILED      => array( __( 'A verified successful Stripe payment was booked.', 'wp-license' ), array() ),
+			self::STRIPE_DECLINE_RECONCILED      => array( __( 'A verified failed Stripe payment of the attempt with unknown result was recorded as a decline.', 'wp-license' ), array() ),
 			self::CUSTOMER_PAID_RENEWAL          => array( __( 'The customer paid the renewal order.', 'wp-license' ), array() ),
 			self::STUCK_RENEWAL_PAID             => array( __( 'A stuck renewal had a paid order.', 'wp-license' ), array() ),
 			self::PAYMENT_NOT_TAKEN              => array( __( 'The renewal order was set to failed: the payment was not taken.', 'wp-license' ), array() ),

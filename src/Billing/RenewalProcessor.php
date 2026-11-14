@@ -362,7 +362,8 @@ final class RenewalProcessor {
 	 * email) and no new key is ever used. A check is queued every hour; it sends
 	 * the same key, so the gateway replays the first result or, if the first
 	 * request never arrived, makes the one and only charge. A Stripe success
-	 * webhook or a paid order ends the wait earlier. When the result is still
+	 * webhook, a Stripe failure webhook of this attempt or a paid order ends the
+	 * wait earlier. When the result is still
 	 * unknown RESULT_UNKNOWN_WINDOW after the first request, or at the end of the
 	 * grace period, the renewal goes to review and nothing is charged again.
 	 *
@@ -866,8 +867,12 @@ final class RenewalProcessor {
 		}
 
 		// The event is verified and linked to our order: remember its PaymentIntent for disputes and support.
+		// A failure of an older attempt must not replace the PaymentIntent of the current one.
 		$intent_id = sanitize_text_field( (string) ( $payload['payment_intent_id'] ?? '' ) );
-		if ( 0 === strpos( $intent_id, 'pi_' ) && $intent_id !== (string) $order->get_meta( RenewalOrder::META_PAYMENT_INTENT, true ) ) {
+		$failure = 'payment_intent.payment_failed' === $event['event_type'];
+		$current_attempt = isset( $payload['attempt'] ) && is_int( $payload['attempt'] ) && $payload['attempt'] === (int) $renewal['attempt_count'];
+		$stored_intent = (string) $order->get_meta( RenewalOrder::META_PAYMENT_INTENT, true );
+		if ( 0 === strpos( $intent_id, 'pi_' ) && $intent_id !== $stored_intent && ( ! $failure || $current_attempt || '' === $stored_intent ) ) {
 			$order->update_meta_data( RenewalOrder::META_PAYMENT_INTENT, $intent_id );
 			$order->save();
 		}
@@ -888,8 +893,10 @@ final class RenewalProcessor {
 		if (
 			! is_int( $expected_amount )
 			|| $expected_amount <= 0
-			// A failed payment has received nothing; only a success must match the order total.
+			// A failed payment has received nothing: a success must match the order total with the
+			// received amount, a failure with the requested one (stored since T-155).
 			|| ( 'payment_intent.succeeded' === $event['event_type'] && $expected_amount !== absint( $payload['amount_received'] ?? 0 ) )
+			|| ( $failure && isset( $payload['amount'] ) && $expected_amount !== absint( $payload['amount'] ) )
 			|| strtolower( (string) $order->get_currency() ) !== strtolower( (string) ( $payload['currency'] ?? '' ) )
 			|| strtolower( (string) $license['renewal_currency'] ) !== strtolower( (string) $order->get_currency() )
 			|| ! RenewalOrder::net_matches( $order )
@@ -917,8 +924,40 @@ final class RenewalProcessor {
 			return;
 		}
 
+		if ( $current_attempt && self::stripe_failure_resolves( $renewal, $order, $payload ) ) {
+			// Lock order: the caller holds the renewal lock; fail_attempt() takes the license lock.
+			self::resolve_as_declined_locked( $renewal, $license, AuditReason::STRIPE_DECLINE_RECONCILED );
+			// After the renewal left reconciling/review, so handle_failed_order() queues nothing.
+			$order->update_status( 'failed', __( 'WP License Captain: Stripe reported that the renewal payment of this attempt failed; recorded as a decline.', 'wp-license' ) );
+			self::finish_stripe_event( $inbox_id, 'decline_reconciled' );
+			return;
+		}
+
 		// Synchronous adapter results already own retry scheduling. The webhook is an idempotent audit/reconciliation signal.
 		self::finish_stripe_event( $inbox_id, 'failure_observed' );
+	}
+
+	/**
+	 * Whether a verified failure event of the current attempt resolves an unknown result.
+	 *
+	 * Only a renewal waiting for the result of exactly this attempt (status
+	 * `reconciling`, or `review_required` whose order still records the unknown
+	 * result of this attempt) with an unpaid, failable automatic order. The
+	 * caller has matched IDs, amount and currency and the attempt counter.
+	 *
+	 * @param array<string,mixed> $renewal Renewal row.
+	 * @param \WC_Order           $order Renewal order.
+	 * @param array<string,mixed> $payload Minimized event payload.
+	 * @return bool
+	 */
+	private static function stripe_failure_resolves( array $renewal, $order, array $payload ): bool {
+		return in_array( (string) $renewal['status'], array( self::STATUS_RECONCILING, self::STATUS_REVIEW ), true )
+			// Stripe moves a PaymentIntent back to requires_payment_method when the payment fails.
+			&& 'requires_payment_method' === (string) ( $payload['payment_status'] ?? '' )
+			&& ! $order->is_paid()
+			&& $order->needs_payment()
+			&& ! RenewalOrder::is_manual( $order )
+			&& 0 < self::unknown_since_from_meta( (string) $order->get_meta( self::META_RESULT_UNKNOWN_SINCE, true ), (int) $renewal['attempt_count'] );
 	}
 
 	/**

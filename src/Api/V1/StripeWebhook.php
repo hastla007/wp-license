@@ -73,6 +73,10 @@ final class StripeWebhook {
 				'renewal_id' => absint( $metadata['wplc_renewal_id'] ?? 0 ),
 				'license_id' => absint( $metadata['wplc_license_id'] ?? 0 ),
 				'order_id' => absint( $metadata['order_id'] ?? 0 ),
+				// Requested amount; a failed payment has received nothing.
+				'amount' => absint( $object['amount'] ?? 0 ),
+				// Attempt counter of the charge (`wplc_attempt`); null for PaymentIntents created without it.
+				'attempt' => self::attempt_from_metadata( $metadata ),
 			);
 			if ( 0 === $payload['renewal_id'] && 0 === $payload['license_id'] ) {
 				// Ordinary shop payments carry no WPLC metadata. Acknowledge them so Stripe does not retry or disable the endpoint.
@@ -124,6 +128,21 @@ final class StripeWebhook {
 		$inbox_id = (int) $wpdb->insert_id;
 		do_action( 'wplc/stripe_webhook_received', $inbox_id, $type, $payload );
 		return new \WP_REST_Response( array( 'received' => true, 'reconciliation' => 'pending' ), 200 );
+	}
+
+	/**
+	 * Attempt counter from the PaymentIntent metadata `wplc_attempt`.
+	 *
+	 * @param array<mixed> $metadata PaymentIntent metadata.
+	 * @return int|null Null when missing or not a plain non-negative integer.
+	 */
+	private static function attempt_from_metadata( array $metadata ): ?int {
+		$attempt = $metadata['wplc_attempt'] ?? null;
+		if ( ! is_string( $attempt ) || ! preg_match( '/^\d{1,9}$/', $attempt ) ) {
+			return null;
+		}
+
+		return (int) $attempt;
 	}
 
 	/**
