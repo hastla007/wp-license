@@ -7,7 +7,9 @@
 
 namespace WPLC\Admin;
 
+use WPLC\Compatibility\Requirements;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\AuditLog;
 use WPLC\License\LicenseLifecycle;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -40,6 +42,8 @@ final class Settings {
 		add_filter( 'option_page_capability_' . self::OPTION, array( self::class, 'capability' ) );
 		add_filter( 'wplc_update_package_hosts', array( self::class, 'filter_package_hosts' ) );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
+		add_action( 'update_option_' . self::OPTION, array( self::class, 'audit_update' ), 10, 2 );
+		add_action( 'add_option_' . self::OPTION, array( self::class, 'audit_add' ), 10, 2 );
 	}
 
 	/**
@@ -89,7 +93,96 @@ final class Settings {
 	 * @return string
 	 */
 	public static function capability(): string {
-		return 'manage_woocommerce';
+		return Capabilities::cap( 'manage_settings' );
+	}
+
+	/**
+	 * Whether the current user may change the trusted package hosts.
+	 *
+	 * The hosts decide from where update packages reach customer sites, so by
+	 * default only administrators may change them (B-49).
+	 *
+	 * @return bool
+	 */
+	public static function can_manage_package_hosts(): bool {
+		return Capabilities::can( 'manage_package_hosts' );
+	}
+
+	/**
+	 * Fingerprint of a host list; the form sends back the one it was rendered with.
+	 *
+	 * @param mixed $hosts Stored host list.
+	 * @return string
+	 */
+	public static function hosts_fingerprint( $hosts ): string {
+		$hosts = is_array( $hosts ) ? array_values( array_filter( $hosts, 'is_string' ) ) : array();
+
+		return substr( hash( 'sha256', implode( "\n", $hosts ) ), 0, 20 );
+	}
+
+	/**
+	 * Whether the value being sanitized comes from the settings form (options.php).
+	 *
+	 * @return bool
+	 */
+	private static function is_form_submission(): bool {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- options.php verified the nonce before the option is sanitized.
+		return isset( $_POST['option_page'] ) && self::OPTION === sanitize_key( wp_unslash( $_POST['option_page'] ) );
+	}
+
+	/**
+	 * Report a problem on the settings screen.
+	 *
+	 * @param string $code    Error code.
+	 * @param string $message Translated message.
+	 * @return void
+	 */
+	private static function settings_error( string $code, string $message ): void {
+		if ( function_exists( 'add_settings_error' ) ) {
+			add_settings_error( self::OPTION, $code, $message, 'error' );
+		}
+	}
+
+	/**
+	 * Audit a changed settings option.
+	 *
+	 * @param mixed $old_value Previous value.
+	 * @param mixed $value     New value.
+	 * @return void
+	 */
+	public static function audit_update( $old_value, $value ): void {
+		$defaults = self::defaults();
+		$before   = array_merge( $defaults, is_array( $old_value ) ? array_intersect_key( $old_value, $defaults ) : array() );
+		$after    = array_merge( $defaults, is_array( $value ) ? array_intersect_key( $value, $defaults ) : array() );
+		if ( $before === $after ) {
+			return;
+		}
+		$changed = array();
+		foreach ( $after as $key => $new ) {
+			if ( $before[ $key ] !== $new ) {
+				$changed[] = $key;
+			}
+		}
+		AuditLog::record(
+			'settings_changed',
+			'settings',
+			0,
+			implode( ', ', $changed ),
+			array_intersect_key( $before, array_flip( $changed ) ),
+			array_intersect_key( $after, array_flip( $changed ) ),
+			function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0
+		);
+	}
+
+	/**
+	 * Audit the first save of the settings option.
+	 *
+	 * @param mixed $option Option name.
+	 * @param mixed $value  Stored value.
+	 * @return void
+	 */
+	public static function audit_add( $option, $value ): void {
+		self::audit_update( self::defaults(), $value );
 	}
 
 	/**
@@ -99,13 +192,14 @@ final class Settings {
 	 */
 	public static function register_menu(): void {
 		add_submenu_page(
-			'woocommerce',
+			Capabilities::menu_parent(),
 			__( 'License settings', 'wp-license' ),
 			__( 'License settings', 'wp-license' ),
 			self::capability(),
 			self::PAGE,
 			array( self::class, 'render' )
 		);
+		LicenseAdmin::connect_page( self::PAGE, __( 'License settings', 'wp-license' ) );
 	}
 
 	/**
@@ -156,43 +250,76 @@ final class Settings {
 	/**
 	 * Sanitize the submitted settings.
 	 *
+	 * The result is the stored option with the submitted keys applied: a key that
+	 * is missing from the input keeps its stored value, so a partial write or an
+	 * old form cannot wipe other settings (B-134). The trusted package hosts are
+	 * only changed from the form when the user may change them and the form was
+	 * rendered with the list that is stored now; an old browser tab can therefore
+	 * not bring back a host that was removed in the meantime.
+	 *
 	 * @param mixed $input Raw option value.
 	 * @return array<string,mixed>
 	 */
 	public static function sanitize( $input ): array {
-		$input = is_array( $input ) ? $input : array();
+		$input    = is_array( $input ) ? $input : array();
+		$defaults = self::defaults();
+		$stored   = function_exists( 'get_option' ) ? get_option( self::OPTION, array() ) : array();
+		$current  = array_merge( $defaults, is_array( $stored ) ? array_intersect_key( $stored, $defaults ) : array() );
 
-		$raw_hosts = $input['package_hosts'] ?? '';
-		if ( is_array( $raw_hosts ) ) {
-			// Already sanitized (WordPress may run the callback twice when the option is first added).
-			$raw_hosts = implode( "\n", array_filter( $raw_hosts, 'is_string' ) );
-		}
-		$hosts = self::parse_hosts( is_string( $raw_hosts ) ? $raw_hosts : '' );
-		if ( $hosts['invalid'] && function_exists( 'add_settings_error' ) ) {
-			add_settings_error(
-				self::OPTION,
-				'wplc_invalid_hosts',
-				sprintf(
-					/* translators: %d: number of rejected lines. */
-					_n(
-						'%d package host line was not a valid host name and was ignored. Enter host names only, without https:// or a path.',
-						'%d package host lines were not valid host names and were ignored. Enter host names only, without https:// or a path.',
-						count( $hosts['invalid'] ),
-						'wp-license'
-					),
-					count( $hosts['invalid'] )
-				),
-				'error'
-			);
+		$current_hosts = is_array( $current['package_hosts'] ) ? array_values( array_filter( $current['package_hosts'], 'is_string' ) ) : array();
+		$hosts_out     = $current_hosts;
+		if ( array_key_exists( 'package_hosts', $input ) ) {
+			$raw_hosts = $input['package_hosts'];
+			if ( is_array( $raw_hosts ) ) {
+				// Already sanitized (WordPress may run the callback twice when the option is first added).
+				$raw_hosts = implode( "\n", array_filter( $raw_hosts, 'is_string' ) );
+			}
+			$hosts = self::parse_hosts( is_string( $raw_hosts ) ? $raw_hosts : '' );
+			if ( $hosts['invalid'] ) {
+				self::settings_error(
+					'wplc_invalid_hosts',
+					sprintf(
+						/* translators: %d: number of rejected lines. */
+						_n(
+							'%d package host line was not a valid host name and was ignored. Enter host names only, without https:// or a path.',
+							'%d package host lines were not valid host names and were ignored. Enter host names only, without https:// or a path.',
+							count( $hosts['invalid'] ),
+							'wp-license'
+						),
+						count( $hosts['invalid'] )
+					)
+				);
+			}
+
+			if ( $hosts['valid'] !== $current_hosts ) {
+				$seen = isset( $input['package_hosts_seen'] ) && is_string( $input['package_hosts_seen'] ) ? $input['package_hosts_seen'] : '';
+				if ( ! self::is_form_submission() ) {
+					// WP-CLI, tests and other code: no browser tab can be stale.
+					$hosts_out = $hosts['valid'];
+				} elseif ( ! self::can_manage_package_hosts() ) {
+					self::settings_error( 'wplc_hosts_forbidden', __( 'The trusted package hosts were not changed: only an administrator may change them.', 'wp-license' ) );
+				} elseif ( ! hash_equals( self::hosts_fingerprint( $current_hosts ), $seen ) ) {
+					self::settings_error( 'wplc_hosts_stale', __( 'The trusted package hosts were not changed: someone else changed them after you opened this page. Check the list below and save again.', 'wp-license' ) );
+				} else {
+					$hosts_out = $hosts['valid'];
+				}
+			}
 		}
 
-		$raw_days = isset( $input['reminder_days'] ) && is_string( $input['reminder_days'] ) ? $input['reminder_days'] : '';
-		$raw_note = isset( $input['sender_note'] ) && is_string( $input['sender_note'] ) ? $input['sender_note'] : '';
-		$note     = function_exists( 'sanitize_textarea_field' ) ? sanitize_textarea_field( $raw_note ) : trim( strip_tags( $raw_note ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
+		$days = self::sanitize_reminder_days( is_string( $current['reminder_days'] ) ? $current['reminder_days'] : '' );
+		if ( array_key_exists( 'reminder_days', $input ) ) {
+			$days = self::sanitize_reminder_days( is_string( $input['reminder_days'] ) ? $input['reminder_days'] : '' );
+		}
+
+		$raw_note = is_string( $current['sender_note'] ) ? $current['sender_note'] : '';
+		if ( array_key_exists( 'sender_note', $input ) ) {
+			$raw_note = is_string( $input['sender_note'] ) ? $input['sender_note'] : '';
+		}
+		$note = function_exists( 'sanitize_textarea_field' ) ? sanitize_textarea_field( $raw_note ) : trim( strip_tags( $raw_note ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
 
 		return array(
-			'package_hosts' => $hosts['valid'],
-			'reminder_days' => self::sanitize_reminder_days( $raw_days ),
+			'package_hosts' => $hosts_out,
+			'reminder_days' => $days,
 			'sender_note'   => function_exists( 'mb_substr' ) ? mb_substr( $note, 0, 500 ) : substr( $note, 0, 500 ),
 		);
 	}
@@ -396,6 +523,28 @@ final class Settings {
 			'state' => $crypto_fallback ? 'warning' : 'ok',
 		);
 
+		$sample = Diagnostics::key_sample();
+		if ( $sample['checked'] > 0 ) {
+			$rows[] = array(
+				'label' => __( 'License keys verifiable with the current secret', 'wp-license' ),
+				/* translators: 1: number of verifiable keys, 2: number of checked keys. */
+				'value' => sprintf( __( '%1$d of the %2$d most recent keys', 'wp-license' ), $sample['verified'], $sample['checked'] ),
+				'state' => $sample['verified'] === $sample['checked'] ? 'ok' : 'warning',
+				'help'  => $sample['verified'] === $sample['checked'] ? '' : __( 'Some customers see "not available" instead of their key. The secret or the salts were changed. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS, or run "wp wplc recover-license-key-ids".', 'wp-license' ),
+			);
+		}
+
+		// A-52: say why automatic renewal is unavailable.
+		$stripe = Requirements::stripe_adapter_status();
+		$rows[] = array(
+			'label' => __( 'Automatic renewal (Stripe)', 'wp-license' ),
+			'value' => $stripe['ok']
+				? ( '' !== $stripe['reason'] ? $stripe['reason'] : __( 'Available. Customers can opt in at checkout.', 'wp-license' ) )
+				/* translators: %s: reason, a full sentence. */
+				: sprintf( __( 'Switched off. %s Customers are not offered automatic renewal and renew manually in their account.', 'wp-license' ), $stripe['reason'] ),
+			'state' => $stripe['ok'] ? 'ok' : 'warning',
+		);
+
 		$scheduler = function_exists( 'as_schedule_single_action' );
 		$rows[]    = array(
 			'label' => __( 'Action Scheduler', 'wp-license' ),
@@ -467,7 +616,14 @@ final class Settings {
 	 */
 	public static function render_package_hosts_field(): void {
 		$hosts = self::get( 'package_hosts' );
-		$hosts = is_array( $hosts ) ? array_filter( $hosts, 'is_string' ) : array();
+		$hosts = is_array( $hosts ) ? array_values( array_filter( $hosts, 'is_string' ) ) : array();
+		if ( ! self::can_manage_package_hosts() ) {
+			// Not part of the form: the stored list is kept when the field is missing.
+			echo '<textarea id="wplc_package_hosts" rows="4" cols="50" class="large-text code" readonly aria-describedby="wplc_package_hosts_help">' . esc_textarea( implode( "\n", $hosts ) ) . '</textarea>';
+			echo '<p class="description" id="wplc_package_hosts_help">' . esc_html__( 'Only an administrator may change the trusted package hosts, because update packages for all customer sites are delivered from them.', 'wp-license' ) . '</p>';
+			return;
+		}
+		echo '<input type="hidden" name="' . esc_attr( self::OPTION ) . '[package_hosts_seen]" value="' . esc_attr( self::hosts_fingerprint( $hosts ) ) . '">';
 		echo '<textarea id="wplc_package_hosts" name="' . esc_attr( self::OPTION ) . '[package_hosts]" rows="4" cols="50" class="large-text code" aria-describedby="wplc_package_hosts_help">' . esc_textarea( implode( "\n", $hosts ) ) . '</textarea>';
 		echo '<p class="description" id="wplc_package_hosts_help">';
 		echo esc_html(
