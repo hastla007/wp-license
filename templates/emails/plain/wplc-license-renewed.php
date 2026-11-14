@@ -7,7 +7,9 @@
  * @package WPLC
  *
  * @var array<string,string> $view               Display values: product, plan, key_prefix, valid_until, days_left,
- *                                               amount, currency, charge_date, grace_until, account_url, pay_url.
+ *                                               amount (including tax), amount_includes_tax, currency, interval,
+ *                                               charge_date, grace_until, account_url, pay_url, can_renew_now,
+ *                                               renew_from, cancelled_at, status, support_email.
  * @var string               $email_heading      Email heading.
  * @var string               $additional_content Additional content from the email settings.
  * @var WC_Email             $email              Email object.
@@ -16,7 +18,7 @@
 defined( 'ABSPATH' ) || exit;
 
 $view = array_merge(
-	array_fill_keys( array( 'product', 'plan', 'key_prefix', 'valid_until', 'days_left', 'amount', 'currency', 'charge_date', 'grace_until', 'account_url', 'pay_url' ), '' ),
+	array_fill_keys( array( 'product', 'plan', 'key_prefix', 'valid_until', 'days_left', 'amount', 'amount_includes_tax', 'currency', 'interval', 'charge_date', 'grace_until', 'account_url', 'pay_url', 'can_renew_now', 'renew_from', 'cancelled_at', 'status', 'support_email' ), '' ),
 	isset( $view ) && is_array( $view ) ? $view : array()
 );
 
@@ -37,12 +39,14 @@ $rows       = array(
 $button_url   = $view['account_url'];
 $button_label = __( 'View license in your account', 'wp-license' );
 
+// Plain text is not HTML: escaping would turn an apostrophe into an entity that the mailer then drops.
+// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped
 echo "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n";
-echo esc_html( wp_strip_all_tags( $email_heading ) ) . "\n";
+echo wp_strip_all_tags( $email_heading ) . "\n";
 echo "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n\n";
 
 foreach ( $paragraphs as $paragraph ) {
-	echo esc_html( wp_strip_all_tags( $paragraph ) ) . "\n\n";
+	echo wp_strip_all_tags( $paragraph ) . "\n\n";
 }
 
 wc_get_template(
@@ -59,9 +63,10 @@ wc_get_template(
 echo "\n";
 
 if ( ! empty( $additional_content ) ) {
-	echo esc_html( wp_strip_all_tags( wptexturize( $additional_content ) ) ) . "\n\n";
+	echo wp_strip_all_tags( wptexturize( $additional_content ) ) . "\n\n";
 }
 
 echo "----------------------------------------\n\n";
 
 echo wp_kses_post( apply_filters( 'woocommerce_email_footer_text', get_option( 'woocommerce_email_footer_text' ) ) );
+// phpcs:enable

@@ -17,13 +17,16 @@ $rows         = isset( $rows ) && is_array( $rows ) ? $rows : array();
 $button_url   = isset( $button_url ) ? (string) $button_url : '';
 $button_label = isset( $button_label ) ? (string) $button_label : '';
 
+// Plain text is not HTML: escaping would turn an apostrophe into an entity that the mailer then drops.
+// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped
 foreach ( $rows as $label => $value ) {
 	if ( '' === (string) $value ) {
 		continue;
 	}
-	echo esc_html( wp_strip_all_tags( (string) $label . ': ' . (string) $value ) ) . "\n";
+	echo wp_strip_all_tags( (string) $label . ': ' . (string) $value ) . "\n";
 }
 
 if ( '' !== $button_url && '' !== $button_label ) {
-	echo "\n" . esc_html( wp_strip_all_tags( $button_label ) ) . ': ' . esc_url_raw( $button_url ) . "\n";
+	echo "\n" . wp_strip_all_tags( $button_label ) . ': ' . esc_url_raw( $button_url ) . "\n";
 }
+// phpcs:enable

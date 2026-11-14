@@ -1,19 +1,43 @@
 /* WP License Captain: product editor entitlement checklist and license screens. */
+/* Logical properties: the label column sits on the right in right-to-left languages. */
 #woocommerce-product-data .wplc-entitlements {
 	padding: 5px 20px 5px 162px;
+	padding-inline: 162px 20px;
 	margin: 9px 0;
 	border: 0;
 }
 
+/* Variations have no label column: reset both sides, not only the left one. */
 #woocommerce-product-data .woocommerce_variation .wplc-entitlements {
 	padding-left: 0;
+	padding-right: 0;
+	padding-inline: 0;
 }
 
 #woocommerce-product-data .wplc-entitlements legend {
 	float: left;
+	float: inline-start;
 	width: 150px;
 	margin-left: -150px;
+	margin-inline: -150px 0;
 	padding: 0;
+}
+
+.rtl #woocommerce-product-data .wplc-entitlements legend {
+	float: right;
+	float: inline-start;
+	margin-left: 0;
+	margin-right: -150px;
+	margin-inline: -150px 0;
+}
+
+.rtl #woocommerce-product-data .wplc-entitlements {
+	padding: 5px 162px 5px 20px;
+	padding-inline: 162px 20px;
+}
+
+.rtl #woocommerce-product-data .woocommerce_variation .wplc-entitlements {
+	padding-inline: 0;
 }
 
 #woocommerce-product-data .woocommerce_variation .wplc-entitlements legend {
@@ -54,4 +78,53 @@
 
 .wplc-license-detail table.widefat th[scope="row"] {
 	width: 220px;
+}
+
+/* Narrow screens: WooCommerce stacks label and field, so the checklist gives up its label column too. */
+@media (max-width: 500px) {
+	#woocommerce-product-data .wplc-entitlements,
+	.rtl #woocommerce-product-data .wplc-entitlements {
+		padding: 5px 12px;
+		padding-inline: 12px;
+	}
+
+	#woocommerce-product-data .wplc-entitlements legend,
+	.rtl #woocommerce-product-data .wplc-entitlements legend {
+		float: none;
+		width: auto;
+		margin: 0 0 4px;
+		font-weight: 600;
+	}
+
+	#woocommerce-product-data .wplc-entitlements ul {
+		columns: auto;
+	}
+}
+
+/* Detail tables and the status table of the settings page scroll inside themselves instead of widening the page. */
+@media (max-width: 782px) {
+	.wplc-license-detail table.widefat,
+	.woocommerce_page_wplc-settings table.widefat {
+		display: block;
+		max-width: 100%;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.wplc-license-detail table.widefat th[scope="row"] {
+		width: auto;
+	}
+
+	.wplc-license-detail .wplc-inline-form {
+		display: flex;
+		margin-right: 0;
+		margin-inline-end: 0;
+	}
+
+	.wplc-license-detail .wplc-inline-form input[type="text"],
+	.wplc-license-detail .wplc-inline-form input[type="date"],
+	#wplc-webhook-url {
+		max-width: 100%;
+		min-width: 0;
+	}
 }

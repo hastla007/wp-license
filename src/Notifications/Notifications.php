@@ -7,9 +7,11 @@
 
 namespace WPLC\Notifications;
 
-use WPLC\Billing\Money;
+use WPLC\Compatibility\Requirements;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\LicenseKey;
 use WPLC\License\LicenseLifecycle;
+use WPLC\License\LicenseStateMachine;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -35,7 +37,22 @@ final class Notifications {
 		'payment_failed' => 'PaymentFailedEmail',
 		'expired' => 'LicenseExpiredEmail',
 		'renewed' => 'LicenseRenewedEmail',
+		'cancelled' => 'CancellationConfirmedEmail',
+		'suspended' => 'LicenseSuspendedEmail',
+		'revoked' => 'LicenseRevokedEmail',
 	);
+
+	/**
+	 * Delays in seconds before a refused event email is tried again.
+	 *
+	 * @var int[]
+	 */
+	private const RETRY_DELAYS = array( 900, 7200, 43200 );
+
+	/**
+	 * Action Scheduler hook that retries a refused event email.
+	 */
+	public const RETRY_HOOK = 'wplc_retry_license_email';
 
 	/**
 	 * Licenses read per query by the reminder job.
@@ -53,7 +70,8 @@ final class Notifications {
 	private const TIME_BUDGET = 20;
 
 	/**
-	 * Option holding the license ID a continued reminder run resumes after.
+	 * Option holding the position a continued reminder run resumes after:
+	 * array( 'day' => UTC date of the run, 'id' => last handled license ID ).
 	 */
 	private const CURSOR_OPTION = 'wplc_reminder_cursor';
 
@@ -74,6 +92,14 @@ final class Notifications {
 		add_action( 'wplc/license_status_changed', array( self::class, 'on_status_changed' ), 20, 4 );
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'send_due_reminders' ), 20 );
 		add_action( self::CONTINUE_HOOK, array( self::class, 'send_due_reminders' ) );
+		add_action( 'wplc/cancellation_scheduled', array( self::class, 'on_cancellation_scheduled' ), 20, 2 );
+		add_action( self::RETRY_HOOK, array( self::class, 'retry_email' ), 10, 5 );
+		// Fired by the admin package; these always go out, whatever was sent before.
+		add_action( 'wplc/license_key_reissued', array( self::class, 'on_key_resend' ), 20, 3 );
+		add_action( 'wplc/license_key_resend_requested', array( self::class, 'on_key_resend' ), 20, 3 );
+		add_action( 'woocommerce_email_after_order_table', array( self::class, 'render_order_renewal_terms' ), 20, 3 );
+		add_filter( 'woocommerce_prepare_email_for_preview', array( self::class, 'prepare_preview' ) );
+		PurchaseLocale::register_hooks();
 	}
 
 	/**
@@ -159,6 +185,34 @@ final class Notifications {
 	}
 
 	/**
+	 * Send the license email again: after a key was re-issued, or when support
+	 * asks for it. Not bound to the send-once marker of the first email.
+	 *
+	 * @param mixed $license_id License ID.
+	 * @param mixed $key        Plaintext license key (never logged or stored).
+	 * @param mixed $actor      Acting user; unused.
+	 * @return void
+	 */
+	public static function on_key_resend( $license_id = 0, $key = '', $actor = 0 ): void {
+		unset( $actor );
+		try {
+			$license = self::get_license( (int) $license_id );
+			if ( ! $license || empty( $license['customer_id'] ) ) {
+				return;
+			}
+			$context = array(
+				'license_key' => is_string( $key ) ? $key : '',
+				'order_id' => (int) ( $license['source_order_id'] ?? 0 ),
+			);
+			if ( ! self::deliver( 'issued', $license, $context ) ) {
+				self::schedule_retry( 'issued', (int) $license['id'], '', array(), 0 );
+			}
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'License key email failed: ' . $error->getMessage(), (int) $license_id );
+		}
+	}
+
+	/**
 	 * Send the email that belongs to a status transition or renewal.
 	 *
 	 * @param mixed $license_id License ID.
@@ -178,7 +232,7 @@ final class Notifications {
 				return;
 			}
 			$period = ! empty( $license['paid_until'] ) ? (string) $license['paid_until'] : (string) $license['starts_at'];
-			self::send_once( $email_key, $email_key, $license, $period, array() );
+			self::send_once( $email_key, self::marker( $email_key ), $license, $period, array() );
 		} catch ( \Throwable $error ) {
 			self::log( 'error', 'License status email failed: ' . $error->getMessage(), (int) $license_id );
 		}
@@ -202,7 +256,69 @@ final class Notifications {
 		if ( 'expired' === $new_status && 'expired' !== $old_status ) {
 			return 'expired';
 		}
+		if ( in_array( $new_status, array( 'suspended', 'revoked' ), true ) && $new_status !== $old_status ) {
+			return $new_status;
+		}
 		return '';
+	}
+
+	/**
+	 * Marker under which an event email is recorded in the reminder log.
+	 *
+	 * A license can be suspended, reactivated and suspended again within one
+	 * paid period, so these two markers carry the day: one email per day.
+	 *
+	 * @param string $email_key Short email key.
+	 * @return string
+	 */
+	private static function marker( string $email_key ): string {
+		return in_array( $email_key, array( 'suspended', 'revoked' ), true ) ? $email_key . '_' . gmdate( 'Ymd' ) : $email_key;
+	}
+
+	/**
+	 * Confirm a cancellation of the automatic renewal by email (text form).
+	 *
+	 * Fired by the customer account and the public cancellation page through
+	 * `do_action( 'wplc/cancellation_scheduled', $license_id, $cancelled_at )`.
+	 * Sent at most once per license and request.
+	 *
+	 * @param mixed $license_id   License ID.
+	 * @param mixed $cancelled_at Unix timestamp at which the cancellation was received; now when empty.
+	 * @return void
+	 */
+	public static function on_cancellation_scheduled( $license_id = 0, $cancelled_at = 0 ): void {
+		static $confirmed = array();
+
+		try {
+			$license_id = (int) $license_id;
+			$license    = self::get_license( $license_id );
+			if ( ! $license || empty( $license['cancel_at_period_end'] ) || isset( $confirmed[ $license_id ] ) ) {
+				return;
+			}
+			$confirmed[ $license_id ] = true;
+			$context                  = array( 'cancelled_at' => (int) $cancelled_at > 0 ? (int) $cancelled_at : time() );
+			if ( ! self::deliver( 'cancelled', $license, $context ) ) {
+				self::schedule_retry( 'cancelled', $license_id, '', $context, 0 );
+			}
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'Cancellation confirmation email failed: ' . $error->getMessage(), (int) $license_id );
+		}
+	}
+
+	/**
+	 * Whether the advance notice of the upcoming automatic charge was sent
+	 * (accepted by the mailer) for the current period of a license.
+	 *
+	 * For the renewal processor, which may refuse to charge without it.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return bool
+	 */
+	public static function renewal_notice_sent( array $license ): bool {
+		if ( empty( $license['id'] ) || empty( $license['paid_until'] ) ) {
+			return false;
+		}
+		return ReminderLog::was_sent( (int) $license['id'], ReminderSchedule::TYPE_RENEWAL_NOTICE, (string) $license['paid_until'] );
 	}
 
 	/**
@@ -282,16 +398,20 @@ final class Notifications {
 
 		$tables   = Schema::table_names();
 		$now      = time();
-		$cursor   = max( 0, (int) get_option( self::CURSOR_OPTION, 0 ) );
+		$today    = gmdate( 'Y-m-d', $now );
+		$cursor   = self::read_cursor( get_option( self::CURSOR_OPTION, 0 ), $today );
+		$timezone = function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
 		$finished = false;
+		$over     = false;
 
-		for ( $batch = 0; $batch < self::MAX_BATCHES; ++$batch ) {
+		for ( $batch = 0; $batch < self::MAX_BATCHES && ! $over; ++$batch ) {
+			// Two extra days: lead days are counted in site-timezone calendar days.
 			$licenses = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT * FROM {$tables['licenses']} WHERE status = %s AND customer_id > 0 AND paid_until IS NOT NULL AND paid_until > %s AND paid_until <= %s AND id > %d ORDER BY id ASC LIMIT %d",
 					'active',
 					gmdate( 'Y-m-d H:i:s', $now ),
-					gmdate( 'Y-m-d H:i:s', $now + ( $window + 1 ) * 86400 ),
+					gmdate( 'Y-m-d H:i:s', $now + ( $window + 2 ) * 86400 ),
 					$cursor,
 					self::BATCH_SIZE
 				),
@@ -303,8 +423,13 @@ final class Notifications {
 			}
 
 			foreach ( $licenses as $license ) {
+				// Checked before every email: one slow mail server must not take the cron run down.
+				if ( self::budget_used( $now, time() ) ) {
+					$over = true;
+					break;
+				}
 				$cursor = (int) $license['id'];
-				$due    = ReminderSchedule::due_reminder( $license, $now, $lead_days, $notice_days );
+				$due    = ReminderSchedule::due_reminder( $license, $now, $lead_days, $notice_days, $timezone );
 				if ( null === $due ) {
 					continue;
 				}
@@ -325,11 +450,8 @@ final class Notifications {
 				}
 			}
 
-			if ( count( $licenses ) < self::BATCH_SIZE ) {
+			if ( ! $over && count( $licenses ) < self::BATCH_SIZE ) {
 				$finished = true;
-				break;
-			}
-			if ( time() - $now >= self::TIME_BUDGET ) {
 				break;
 			}
 		}
@@ -339,31 +461,83 @@ final class Notifications {
 			return;
 		}
 
-		update_option( self::CURSOR_OPTION, $cursor, false );
-		if ( ! wp_next_scheduled( self::CONTINUE_HOOK ) ) {
+		update_option(
+			self::CURSOR_OPTION,
+			array(
+				'day' => $today,
+				'id' => $cursor,
+			),
+			false
+		);
+		if ( 0 === Requirements::schedule_single_action( time() + 5 * 60, self::CONTINUE_HOOK ) && ! function_exists( 'as_schedule_single_action' ) && ! wp_next_scheduled( self::CONTINUE_HOOK ) ) {
+			// Without Action Scheduler (never the case with WooCommerce active) WP-Cron continues the run.
 			wp_schedule_single_event( time() + 5 * 60, self::CONTINUE_HOOK );
 		}
 	}
 
 	/**
+	 * License ID a continued run resumes after.
+	 *
+	 * A cursor of an earlier day is discarded: it belongs to a run that never
+	 * finished, and resuming after it would skip the licenses before it today.
+	 *
+	 * @param mixed  $stored Stored option value.
+	 * @param string $today  UTC date of the current run, 'Y-m-d'.
+	 * @return int Zero to start from the beginning.
+	 */
+	public static function read_cursor( $stored, string $today ): int {
+		if ( ! is_array( $stored ) || ! isset( $stored['day'], $stored['id'] ) || (string) $stored['day'] !== $today ) {
+			return 0;
+		}
+		return max( 0, (int) $stored['id'] );
+	}
+
+	/**
+	 * Whether a reminder run has used up its time budget.
+	 *
+	 * @param int $started Unix timestamp at which the run started.
+	 * @param int $now     Current Unix timestamp.
+	 * @return bool
+	 */
+	public static function budget_used( int $started, int $now ): bool {
+		/**
+		 * Filter the seconds a reminder run may take before it continues in a later run.
+		 *
+		 * @param int $seconds Time budget.
+		 */
+		$budget = (int) apply_filters( 'wplc_reminder_time_budget', self::TIME_BUDGET );
+
+		return $now - $started >= max( 1, $budget );
+	}
+
+	/**
 	 * Claim a notification and send it when this call won the claim.
+	 *
+	 * The claim only becomes a permanent "sent" entry after the mailer accepted
+	 * the message. A refused message releases the claim: reminders are picked up
+	 * by the next daily run, event emails are retried by a scheduled action.
 	 *
 	 * @param string              $email_key  Short email key.
 	 * @param string              $marker     Marker stored in the reminder log.
 	 * @param array<string,mixed> $license    License row.
 	 * @param string              $period_end Period the notification belongs to (UTC datetime).
 	 * @param array<string,mixed> $context    Extra data for the email.
-	 * @param bool                $strict     True: never send when the claim cannot be stored.
+	 * @param bool                $strict     True: never send when the claim cannot be stored (reminders).
+	 * @param int                 $attempt    Number of retries already made for an event email.
 	 * @return bool True when the email was handed to the mailer.
 	 */
-	private static function send_once( string $email_key, string $marker, array $license, string $period_end, array $context, bool $strict = false ): bool {
+	private static function send_once( string $email_key, string $marker, array $license, string $period_end, array $context, bool $strict = false, int $attempt = 0 ): bool {
 		$license_id = (int) ( $license['id'] ?? 0 );
 		if ( $license_id <= 0 || empty( $license['customer_id'] ) ) {
 			return false;
 		}
 
 		$email = self::email( $email_key );
-		if ( null === $email || ! $email->is_enabled() ) {
+		if ( null === $email ) {
+			return false;
+		}
+		if ( ! $email->is_enabled() ) {
+			self::log( 'info', 'The "' . $marker . '" email is switched off under WooCommerce > Settings > Emails; nothing was sent.', $license_id );
 			return false;
 		}
 
@@ -380,11 +554,159 @@ final class Notifications {
 			self::log( 'warning', 'Could not record the "' . $marker . '" notification; sending without duplicate protection.', $license_id );
 		}
 
-		$sent = (bool) $email->trigger( $license, $context );
+		$sent = false;
+		try {
+			$sent = (bool) $email->trigger( $license, $context );
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'The "' . $marker . '" email could not be built: ' . $error->getMessage(), $license_id );
+		}
+
+		if ( ReminderLog::CLAIMED === $claim ) {
+			// Only an accepted message counts as sent; a refused one is tried again.
+			if ( $sent ) {
+				ReminderLog::confirm( $license_id, $marker, $period_end );
+			} else {
+				ReminderLog::release( $license_id, $marker, $period_end );
+			}
+		}
 		if ( ! $sent ) {
 			self::log( 'warning', 'The "' . $marker . '" email was not accepted by the mailer.', $license_id );
+			if ( ! $strict ) {
+				self::schedule_retry( $email_key, $license_id, $period_end, $context, $attempt );
+			}
 		}
 		return $sent;
+	}
+
+	/**
+	 * Send an email without duplicate protection.
+	 *
+	 * @param string              $email_key Short email key.
+	 * @param array<string,mixed> $license   License row.
+	 * @param array<string,mixed> $context   Extra data for the email.
+	 * @return bool True when the email was handed to the mailer, or is switched off.
+	 */
+	private static function deliver( string $email_key, array $license, array $context ): bool {
+		$license_id = (int) ( $license['id'] ?? 0 );
+		$email      = self::email( $email_key );
+		if ( null === $email || $license_id <= 0 ) {
+			return true;
+		}
+		if ( ! $email->is_enabled() ) {
+			self::log( 'info', 'The "' . $email_key . '" email is switched off under WooCommerce > Settings > Emails; nothing was sent.', $license_id );
+			return true;
+		}
+
+		$sent = false;
+		try {
+			$sent = (bool) $email->trigger( $license, $context );
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'The "' . $email_key . '" email could not be built: ' . $error->getMessage(), $license_id );
+		}
+		if ( ! $sent ) {
+			self::log( 'warning', 'The "' . $email_key . '" email was not accepted by the mailer.', $license_id );
+		}
+		return $sent;
+	}
+
+	/**
+	 * Queue another attempt for an event email the mailer refused.
+	 *
+	 * The plaintext license key is never stored with the action; the retry
+	 * derives it again.
+	 *
+	 * @param string              $email_key  Short email key.
+	 * @param int                 $license_id License ID.
+	 * @param string              $period_end Period of the notification, empty for emails without duplicate protection.
+	 * @param array<string,mixed> $context    Extra data for the email.
+	 * @param int                 $attempt    Retries already made.
+	 * @return void
+	 */
+	private static function schedule_retry( string $email_key, int $license_id, string $period_end, array $context, int $attempt ): void {
+		if ( ! isset( self::RETRY_DELAYS[ $attempt ] ) ) {
+			self::log( 'error', 'The "' . $email_key . '" email was refused ' . ( $attempt + 1 ) . ' times and is given up.', $license_id );
+			return;
+		}
+		$safe = array();
+		foreach ( $context as $name => $value ) {
+			if ( 'license_key' !== $name && ( is_int( $value ) || is_bool( $value ) ) ) {
+				$safe[ (string) $name ] = (int) $value;
+			}
+		}
+		Requirements::schedule_single_action(
+			time() + self::RETRY_DELAYS[ $attempt ],
+			self::RETRY_HOOK,
+			array( $email_key, $license_id, $period_end, $attempt + 1, $safe )
+		);
+	}
+
+	/**
+	 * Scheduled action: try an event email again.
+	 *
+	 * Nothing is sent when the license has moved on and the email no longer applies.
+	 *
+	 * @param mixed $email_key  Short email key.
+	 * @param mixed $license_id License ID.
+	 * @param mixed $period_end Period of the notification, empty for emails without duplicate protection.
+	 * @param mixed $attempt    Number of this retry, starting at 1.
+	 * @param mixed $context    Extra data for the email.
+	 * @return void
+	 */
+	public static function retry_email( $email_key = '', $license_id = 0, $period_end = '', $attempt = 1, $context = array() ): void {
+		try {
+			$email_key = (string) $email_key;
+			$attempt   = max( 1, (int) $attempt );
+			$context   = is_array( $context ) ? $context : array();
+			$license   = self::get_license( (int) $license_id );
+			if ( ! $license || ! isset( self::EMAILS[ $email_key ] ) || ! self::still_applies( $email_key, $license, (string) $period_end ) ) {
+				return;
+			}
+
+			if ( 'issued' === $email_key ) {
+				$key_id                 = (string) ( $license['license_key_secret_id'] ?? 'legacy' );
+				$verified               = LicenseKey::matches_hash( (string) $license['license_uuid'], $key_id, (string) $license['license_key_hash'] );
+				$context['license_key'] = $verified ? LicenseKey::for_uuid( (string) $license['license_uuid'], $key_id ) : '';
+				$context['order_id']    = (int) ( $license['source_order_id'] ?? 0 );
+			}
+
+			// Without a period the email has no send-once marker (cancellation confirmation, key resend).
+			if ( '' === (string) $period_end ) {
+				if ( ! self::deliver( $email_key, $license, $context ) ) {
+					self::schedule_retry( $email_key, (int) $license['id'], '', $context, $attempt );
+				}
+				return;
+			}
+			self::send_once( $email_key, self::marker( $email_key ), $license, (string) $period_end, $context, false, $attempt );
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'Retry of a license email failed: ' . $error->getMessage(), (int) $license_id );
+		}
+	}
+
+	/**
+	 * Whether a delayed event email still describes the license.
+	 *
+	 * @param string              $email_key  Short email key.
+	 * @param array<string,mixed> $license    Current license row.
+	 * @param string              $period_end Period the email was first triggered for.
+	 * @return bool
+	 */
+	public static function still_applies( string $email_key, array $license, string $period_end ): bool {
+		$status = (string) ( $license['status'] ?? '' );
+		switch ( $email_key ) {
+			case 'issued':
+				return in_array( $status, array( 'active', 'past_due' ), true );
+			case 'payment_failed':
+				return 'past_due' === $status;
+			case 'expired':
+			case 'suspended':
+			case 'revoked':
+				return $email_key === $status;
+			case 'renewed':
+				return 'active' === $status && (string) ( $license['paid_until'] ?? '' ) === $period_end;
+			case 'cancelled':
+				return ! empty( $license['cancel_at_period_end'] ) && in_array( $status, array( 'active', 'past_due' ), true );
+		}
+		return false;
 	}
 
 	/**
@@ -417,47 +739,224 @@ final class Notifications {
 	public static function view( array $license, array $context = array() ): array {
 		$paid_until = empty( $license['paid_until'] ) ? false : strtotime( (string) $license['paid_until'] . ' UTC' );
 		$due_at     = isset( $context['due_at'] ) ? (int) $context['due_at'] : 0;
-		if ( $due_at <= 0 && ! empty( $license['next_payment_at'] ) ) {
-			$due_at = (int) strtotime( (string) $license['next_payment_at'] . ' UTC' );
-		}
-		if ( $due_at <= 0 && false !== $paid_until ) {
-			$due_at = (int) $paid_until;
+		if ( $due_at <= 0 ) {
+			$due_at = RenewalTerms::charge_timestamp( $license );
 		}
 
-		$amount_html = '';
-		$amount      = '';
-		$minor       = (int) ( $license['renewal_amount_minor'] ?? 0 );
-		$currency    = strtoupper( (string) ( $license['renewal_currency'] ?? '' ) );
-		if ( $minor > 0 && function_exists( 'wc_price' ) ) {
-			$decimals    = (int) ( $license['renewal_currency_decimals'] ?? 2 );
-			$amount_html = (string) wc_price(
-				Money::to_decimal( $minor, $decimals ),
-				array(
-					'currency' => $currency,
-					'decimals' => $decimals,
-				)
-			);
-			$amount      = Placeholders::plain( $amount_html );
-		}
+		// The customer is charged the amount including tax, so that is the amount the emails name.
+		$gross = RenewalTerms::gross( $license );
 
 		$account_url = function_exists( 'wc_get_account_endpoint_url' )
 			? (string) wc_get_account_endpoint_url( 'wplc-licenses' )
 			: (string) home_url( '/' );
 
+		// "Renew now" exists in the account from this moment on; earlier emails must not promise it.
+		$renew_from = false === $paid_until ? 0 : (int) $paid_until - LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS * 86400;
+
 		return array(
 			'product' => self::product_name( (string) ( $license['product_key'] ?? '' ) ),
-			'plan' => (string) ( $license['plan_key'] ?? '' ),
+			'plan' => self::plan_label( (string) ( $license['plan_key'] ?? '' ), $license ),
 			'key_prefix' => (string) ( $license['key_prefix'] ?? '' ),
 			'valid_until' => false === $paid_until ? __( 'No expiry', 'wp-license' ) : self::format_date( (int) $paid_until ),
 			'days_left' => isset( $context['days_left'] ) ? (string) max( 0, (int) $context['days_left'] ) : '',
-			'amount' => $amount,
-			'amount_html' => $amount_html,
-			'currency' => $currency,
+			'amount' => RenewalTerms::amount_text( $gross ),
+			'amount_html' => RenewalTerms::price_html( $gross ),
+			'amount_includes_tax' => ! empty( $gross['includes_tax'] ) ? '1' : '',
+			'currency' => (string) $gross['currency'],
+			'interval' => RenewalTerms::interval_label( (string) ( $license['billing_interval'] ?? 'year' ) ),
 			'charge_date' => $due_at > 0 ? self::format_date( $due_at ) : '',
 			'grace_until' => false === $paid_until ? '' : self::format_date( (int) $paid_until + LicenseLifecycle::GRACE_DAYS * 86400 ),
 			'account_url' => $account_url,
 			'pay_url' => self::pay_url( $license ),
+			'can_renew_now' => $renew_from > 0 && time() >= $renew_from ? '1' : '',
+			'renew_from' => $renew_from > 0 ? self::format_date( $renew_from ) : '',
+			'cancelled_at' => ! empty( $context['cancelled_at'] ) ? self::format_date( (int) $context['cancelled_at'], true ) : '',
+			'status' => (string) ( $license['status'] ?? '' ),
+			'support_email' => self::support_email(),
 		);
+	}
+
+	/**
+	 * Sample values for the email preview of WooCommerce.
+	 *
+	 * @param string $status License status the sample describes.
+	 * @return array<string,string>
+	 */
+	public static function sample_view( string $status = 'active' ): array {
+		$now   = time();
+		$price = function_exists( 'wc_price' ) ? (string) wc_price( 49 ) : '49.00';
+
+		return array(
+			'product' => __( 'Sample product', 'wp-license' ),
+			'plan' => __( 'Sample plan', 'wp-license' ),
+			'key_prefix' => 'WPLC-1A2B3C4D',
+			'valid_until' => self::format_date( $now + 30 * 86400 ),
+			'days_left' => '7',
+			'amount' => Placeholders::plain( $price ),
+			'amount_html' => $price,
+			'amount_includes_tax' => '',
+			'currency' => function_exists( 'get_woocommerce_currency' ) ? (string) get_woocommerce_currency() : '',
+			'interval' => RenewalTerms::interval_label( 'year' ),
+			'charge_date' => self::format_date( $now + 30 * 86400 ),
+			'grace_until' => self::format_date( $now + ( 30 + LicenseLifecycle::GRACE_DAYS ) * 86400 ),
+			'account_url' => function_exists( 'wc_get_account_endpoint_url' ) ? (string) wc_get_account_endpoint_url( 'wplc-licenses' ) : (string) home_url( '/' ),
+			'pay_url' => '',
+			'can_renew_now' => '1',
+			'renew_from' => self::format_date( $now ),
+			'cancelled_at' => self::format_date( $now, true ),
+			'status' => $status,
+			'support_email' => self::support_email(),
+		);
+	}
+
+	/**
+	 * Fill a license email with sample data for the WooCommerce email preview.
+	 *
+	 * @param mixed $email Email object prepared by WooCommerce.
+	 * @return mixed
+	 */
+	public static function prepare_preview( $email ) {
+		try {
+			if ( $email instanceof Emails\LicenseEmail ) {
+				$email->set_preview_data();
+			}
+		} catch ( \Throwable $error ) {
+			self::log( 'warning', 'Could not prepare the email preview: ' . $error->getMessage() );
+		}
+		return $email;
+	}
+
+	/**
+	 * Print the terms of the automatic renewal below the order table of the
+	 * customer's order emails.
+	 *
+	 * @param mixed $order         Order.
+	 * @param mixed $sent_to_admin Whether the email goes to the admin.
+	 * @param mixed $plain_text    Whether the email is plain text.
+	 * @return void
+	 */
+	public static function render_order_renewal_terms( $order, $sent_to_admin = false, $plain_text = false ): void {
+		try {
+			if ( $sent_to_admin || ! $order instanceof \WC_Order || ! function_exists( 'wc_get_template' ) ) {
+				return;
+			}
+			$license_ids = LicenseLifecycle::license_ids_for_order( (int) $order->get_id() );
+			$printed     = false;
+			foreach ( $license_ids as $license_id ) {
+				$license = self::get_license( (int) $license_id );
+				$rows    = $license && in_array( (string) $license['status'], array( 'active', 'past_due' ), true ) ? RenewalTerms::rows( $license ) : array();
+				if ( ! $rows ) {
+					continue;
+				}
+				$printed = true;
+				wc_get_template(
+					( $plain_text ? 'emails/plain/' : 'emails/' ) . 'wplc-renewal-terms.php',
+					array(
+						'product' => self::product_name( (string) $license['product_key'] ),
+						'key_prefix' => (string) $license['key_prefix'],
+						'renewal_terms' => $rows,
+						'cancel_text' => RenewalTerms::cancel_text(),
+					),
+					'wp-license/',
+					WPLC_PATH . 'templates/'
+				);
+			}
+			if ( ! $printed && ! $license_ids && $order->get_meta( '_wplc_recurring_consent_at', true ) && ! $order->get_meta( '_wplc_renewal_for_license', true ) ) {
+				// The license is created with the payment; its email lists date, amount and interval.
+				$text = __( 'You chose automatic renewal for your license. The email with your license lists the renewal date, the amount including tax and the interval.', 'wp-license' ) . ' ' . RenewalTerms::cancel_text();
+				echo $plain_text ? "\n" . esc_html( $text ) . "\n" : '<p>' . esc_html( $text ) . '</p>';
+			}
+		} catch ( \Throwable $error ) {
+			self::log( 'warning', 'Could not print the renewal terms in an order email: ' . $error->getMessage() );
+		}
+	}
+
+	/**
+	 * Three steps from the purchase to the working add-on.
+	 *
+	 * @param array<string,mixed> $license License row, for the filter.
+	 * @return string[]
+	 */
+	public static function install_steps( array $license = array() ): array {
+		$steps = array(
+			__( 'Download the plugin ZIP file in your account under "Licenses".', 'wp-license' ),
+			__( 'In the WordPress dashboard of your site, go to Plugins > Add New > Upload Plugin, choose the ZIP file, then install and activate it.', 'wp-license' ),
+			__( 'Open the license settings of the plugin, enter your license key and activate the license for the site.', 'wp-license' ),
+		);
+
+		/**
+		 * Filter the installation steps shown in the account and in the license email.
+		 *
+		 * @param string[]            $steps   Plain-text steps.
+		 * @param array<string,mixed> $license License row, may be empty.
+		 */
+		$filtered = apply_filters( 'wplc_install_steps', $steps, $license );
+
+		return is_array( $filtered ) ? array_values( array_filter( array_map( 'strval', $filtered ), 'strlen' ) ) : $steps;
+	}
+
+	/**
+	 * Documentation link of a product, when the shop provides one.
+	 *
+	 * @param string $product_key Product key.
+	 * @return string URL or an empty string.
+	 */
+	public static function docs_url( string $product_key ): string {
+		/**
+		 * Filter the documentation URL shown with the installation steps.
+		 *
+		 * @param string $url         URL, empty for none.
+		 * @param string $product_key Product key.
+		 */
+		$url = apply_filters( 'wplc_product_docs_url', '', $product_key );
+
+		return is_string( $url ) ? esc_url_raw( $url ) : '';
+	}
+
+	/**
+	 * Customer-facing name of a plan.
+	 *
+	 * The catalog has no display name for plans, so the internal key is made
+	 * readable ("single-site" becomes "Single Site") and can be filtered.
+	 *
+	 * @param string              $plan_key Plan key.
+	 * @param array<string,mixed> $license  License row.
+	 * @return string
+	 */
+	public static function plan_label( string $plan_key, array $license = array() ): string {
+		$label = ucwords( trim( (string) preg_replace( '/[-_.]+/', ' ', $plan_key ) ) );
+
+		/**
+		 * Filter the plan name shown to customers.
+		 *
+		 * @param string              $label    Readable plan name.
+		 * @param string              $plan_key Internal plan key.
+		 * @param array<string,mixed> $license  License row.
+		 */
+		$filtered = apply_filters( 'wplc_plan_label', $label, $plan_key, $license );
+
+		return is_string( $filtered ) && '' !== $filtered ? $filtered : $label;
+	}
+
+	/**
+	 * Address customers can reply to: the sender address of the shop emails.
+	 *
+	 * @return string
+	 */
+	public static function support_email(): string {
+		$address = (string) get_option( 'woocommerce_email_from_address', '' );
+		if ( ! is_email( $address ) ) {
+			$address = (string) get_option( 'admin_email', '' );
+		}
+
+		/**
+		 * Filter the support contact named in license emails.
+		 *
+		 * @param string $address Email address.
+		 */
+		$filtered = apply_filters( 'wplc_support_email', $address );
+
+		return is_string( $filtered ) && is_email( $filtered ) ? $filtered : '';
 	}
 
 	/**
@@ -502,7 +1001,7 @@ final class Notifications {
 	 * @param string $product_key Product key.
 	 * @return string
 	 */
-	private static function product_name( string $product_key ): string {
+	public static function product_name( string $product_key ): string {
 		global $wpdb;
 
 		if ( '' === $product_key ) {
@@ -517,16 +1016,25 @@ final class Notifications {
 	}
 
 	/**
-	 * Format a timestamp as a date in the site's date format and timezone.
+	 * Format a timestamp in the site's date format and timezone.
 	 *
-	 * @param int $timestamp Unix timestamp.
+	 * @param int  $timestamp Unix timestamp.
+	 * @param bool $with_time Whether to append the time and the timezone.
 	 * @return string
 	 */
-	private static function format_date( int $timestamp ): string {
+	public static function format_date( int $timestamp, bool $with_time = false ): string {
 		$format = (string) get_option( 'date_format', 'Y-m-d' );
-		$date   = function_exists( 'wp_date' ) ? wp_date( '' === $format ? 'Y-m-d' : $format, $timestamp ) : false;
+		$format = '' === $format ? 'Y-m-d' : $format;
+		if ( $with_time ) {
+			$time    = (string) get_option( 'time_format', 'H:i' );
+			$format .= ' ' . ( '' === $time ? 'H:i' : $time ) . ' (T)';
+		}
+		$date = function_exists( 'wp_date' ) ? wp_date( $format, $timestamp ) : false;
+		if ( is_string( $date ) && '' !== $date ) {
+			return $date;
+		}
 
-		return is_string( $date ) && '' !== $date ? $date : gmdate( 'Y-m-d', $timestamp );
+		return $with_time ? gmdate( 'Y-m-d H:i', $timestamp ) . ' (UTC)' : gmdate( 'Y-m-d', $timestamp );
 	}
 
 	/**
@@ -535,7 +1043,7 @@ final class Notifications {
 	 * @param int $license_id License ID.
 	 * @return array<string,mixed>|null
 	 */
-	private static function get_license( int $license_id ): ?array {
+	public static function get_license( int $license_id ): ?array {
 		global $wpdb;
 
 		if ( $license_id <= 0 ) {
@@ -563,6 +1071,8 @@ final class Notifications {
 			if ( ! function_exists( 'wc_get_logger' ) ) {
 				return;
 			}
+			// Mailer errors can quote the recipient; addresses do not belong in a log file.
+			$message = (string) preg_replace( '/[^\s<>"\'(),;:]+@[^\s<>"\'(),;:]+/', '[email]', $message );
 			$context = array( 'source' => 'wp-license' );
 			if ( $license_id > 0 ) {
 				$context['license_id'] = $license_id;
