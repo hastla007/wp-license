@@ -1,11 +1,11 @@
 # WP License Captain — To-do-Liste
 
-Stand: 14.11.2026, Branch `claude/zen-babbage-7q4nac` (24 Aufgaben abgeschlossen, siehe Abschnitt 6 „Abgeschlossen am 14.11.2026“). Dies ist die einzige Aufgabenliste des Lizenzservers. Die Aufgaben der drei Produkt-Plugins (Kern-Plugin und Premium-Add-on) stehen in deren eigenen `TODO.md`.
+Stand: 14.11.2026, Branch `claude/zen-babbage-7q4nac` (25 Aufgaben abgeschlossen, siehe Abschnitt 6 „Abgeschlossen am 14.11.2026“). Dies ist die einzige Aufgabenliste des Lizenzservers. Die Aufgaben der drei Produkt-Plugins (Kern-Plugin und Premium-Add-on) stehen in deren eigenen `TODO.md`.
 
 **Regeln**
 
 - Ein Haken bedeutet: umgesetzt **und** belegt. Der Beleg steht dabei.
-- Belegarten: *Unit* (PHPUnit ohne WordPress), *Integration* (WordPress + WooCommerce + MySQL, 5 Kombinationen in CI inkl. Multisite, 194 Tests), *E2E* (Durchlauf in einer echten WordPress/WooCommerce-Installation, `tests/e2e/`, 684 Prüfungen, seit 14.11. auch als CI-Job), *Quelltext* (gegen den Quellcode von WooCommerce oder des Stripe-Plugins gelesen, nicht ausgeführt).
+- Belegarten: *Unit* (PHPUnit ohne WordPress), *Integration* (WordPress + WooCommerce + MySQL, 5 Kombinationen in CI inkl. Multisite, 196 Tests), *E2E* (Durchlauf in einer echten WordPress/WooCommerce-Installation, `tests/e2e/`, 728 Prüfungen, seit 14.11. auch als CI-Job), *Quelltext* (gegen den Quellcode von WooCommerce oder des Stripe-Plugins gelesen, nicht ausgeführt).
 - Was nur per *Quelltext* belegt ist, gilt als offen, bis es im Browser oder gegen Stripe gelaufen ist.
 - Kritikalität: **[KRITISCH]** blockiert den ersten echten Verkauf, **[WICHTIG]** blockiert den öffentlichen Launch, **[OPTIMIERUNG]** kann danach folgen.
 - Nummern bleiben stabil; erledigte Nummern stehen in Abschnitt 6.
@@ -21,7 +21,7 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
   - T-133: Im Modus „Checkout Sessions / Adaptive Pricing“ des Stripe-Plugins speichert der Filter die Karte möglicherweise nicht.
   - Anleitung mit Testkarten, Hilfsbefehlen und Ergebnisprotokoll: `docs/STRIPE-TEST-PLAN.md` (neun Fälle, etwa 30 bis 45 Minuten).
 - [ ] **T-130 [KRITISCH] Browser-Abnahme.** Noch niemand hat das Plugin auf dem Bildschirm gesehen. Prüfen: Block-Checkout mit Opt-in (T-14, nur *Quelltext*), klassischer Checkout, Produkteditor mit Rechte-Auswahl und Varianten (JavaScript ungeprüft), Kundenkonto mit Kopieren-Button und Bestätigungen, Adminliste, Detailseite, Einstellungen, Releases, die deutschen Texte, die sechs E-Mails in einem Mailprogramm. *Vorbereitet am 14.11.:* Screenshots aller Seiten und Mails auf Englisch und Deutsch mit Chromium; dabei drei Fehler gefunden und behoben (Opt-in bei Überweisung sichtbar, interner Tarifschlüssel in Mails, Umbrüche in der Lizenzliste). Nicht prüfbar waren Block-Checkout und WooCommerce-Oberflächen (Testumgebung ohne gebaute WooCommerce-Skripte) und die deutschen Texte von WordPress und WooCommerce selbst. Offen bleibt die Abnahme durch einen Menschen.
-- [ ] **T-131 [KRITISCH] Produkt-Add-ons.** Kein Produkt-Plugin spricht bisher mit dem Server. Die Aufgaben stehen in den `TODO.md` von `wp-couponmaster`, `wp-passmaster` und `wpaffiliatemaster` (Abschnitt „Premium-Add-on“, B1 bis B11). Ersetzt die früheren T-40 und T-41. Jedes Add-on muss den öffentlichen Signaturschlüssel des Servers an `LicenseClient` übergeben (T-134, `docs/CLIENT-INTEGRATION.md`).
+- [ ] **T-131 [KRITISCH] Produkt-Add-ons.** Kein Produkt-Plugin spricht bisher mit dem Server. Die Aufgaben stehen in den `TODO.md` von `wp-couponmaster`, `wp-passmaster` und `wpaffiliatemaster` (Abschnitt „Premium-Add-on“, B1 bis B11). Ersetzt die früheren T-40 und T-41. Jedes Add-on muss den öffentlichen Signaturschlüssel des Servers an `LicenseClient` übergeben (T-134, `docs/CLIENT-INTEGRATION.md`). *Vorbereitet am 14.11.:* Vorlage `examples/premium-addon-starter/` deckt B1 und B3 bis B11 ab (Lizenzseite, Rechte fail-closed, signierter Offline-Cache 14 Tage, Updater mit SHA-256-Prüfung, Deinstallation, Datenschutz, Tests, Release-Build); `bin/init-addon.php` erzeugt daraus ein Produkt-Add-on. Im E2E-Lauf gegen den echten Server geprüft (44 Prüfungen). Offen: die drei Add-on-Repositories anlegen (T-159) und die Produktschlüssel festlegen (T-158).
 
 ## 2. Kritisch: vor dem ersten echten Verkauf
 
@@ -36,7 +36,6 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 ### Tests und Betrieb
 
 - [ ] **T-148 [WICHTIG]** Zweimal schlug ein einzelner Integrationstest lokal einmalig fehl, als zwei Testläufe denselben Datenbankserver nutzten. Die serverweiten Sperrnamen sind inzwischen pro Site eindeutig; beobachten, ob es in CI wieder auftritt. Am 14.11. traten ähnliche Zufallsfehler nur auf, solange parallele Testläufe versehentlich dieselbe Datenbank nutzten; mit getrennten Datenbanken waren alle Läufe stabil.
-- [ ] **T-89 [WICHTIG]** Lasttest mit realistischen Mengen; Abfragepläne der Listen prüfen.
 - [ ] **T-91 [WICHTIG]** Monitoring anschließen: Empfänger für `wplc/health_alert`, Überwachung von Action Scheduler, Webhooks und Paket-Host (`docs/MONITORING.md`).
 - [ ] **T-31 [WICHTIG]** Externer Paketspeicher (S3 oder GCS) ist nur dokumentiert. Bei Bedarf anbinden und abnehmen.
 - [ ] **T-93 [WICHTIG]** Rechtliche Prüfung: Kündigungsbutton, Hinweispflichten bei automatischer Verlängerung, Widerruf bei digitalen Inhalten, Umsatzsteuer und Rechnungen für Verlängerungen, Datenschutzhinweise.
@@ -57,6 +56,8 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 
 ## 5. Entscheidungen
 
+- [ ] **T-158** Produktschlüssel festlegen, bevor das erste Add-on gebaut wird. Server-Katalog, API-Doku und E2E nutzen `voucher-captain`, `pass-captain`, `affiliate-captain`; die TODOs der Kern-Plugins schlagen `voucher`, `pass`, `affiliate` vor; `docs/PRODUCT-COMPATIBILITY.md` nennt `wp-pass-captain`. Empfehlung: `voucher-captain`, `pass-captain`, `affiliate-captain`.
+- [ ] **T-159** Grundlage der Add-ons: die Vorlage `examples/premium-addon-starter/` oder das in der TODO von `wpaffiliatemaster` beschriebene Monorepo `captain-pro` mit eigener Bibliothek. Danach die Repositories anlegen.
 - [ ] **T-121** Eigenbau-Verlängerung behalten oder WooCommerce Subscriptions einsetzen. Nach T-12 entscheiden.
 - [ ] **T-152** Behält eine bezahlte Bestellung, die ohne Erstattung storniert wird, ihre Lizenz? Heute ja.
 - [ ] **T-153** Bleiben Entwicklungs-Aktivierungen auf lokalen Hosts unbegrenzt? Heute ja.
@@ -67,7 +68,7 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 
 ### Abgeschlossen am 14.11.2026
 
-Belege: *Unit* 508 Tests, *Integration* 194 Tests (HPOS und klassische Bestellspeicherung, MariaDB 10.11, WordPress 7.1.4, WooCommerce 11.2.2), *E2E* 684 Prüfungen, blockierendes PHPCS ohne neue Befunde, PHPStan Stufe 5 ohne neue Befunde. Alle 12 CI-Jobs auf GitHub grün (PR #40, Commit 92dcb5c).
+Belege: *Unit* 509 Tests (+48 Add-on-Vorlage), *Integration* 196 Tests (HPOS und klassische Bestellspeicherung, MariaDB 10.11, WordPress 7.1.4, WooCommerce 11.2.2), *E2E* 728 Prüfungen, blockierendes PHPCS ohne neue Befunde, PHPStan Stufe 5 ohne neue Befunde. Alle 12 CI-Jobs auf GitHub grün (PR #40, Commit 92dcb5c).
 
 - [x] **T-132** Verlängerungspreis der gekauften Variante wird an der Lizenz gespeichert (`renewal_product_id`, Migration 13). Automatische Verlängerung belastet den zugestimmten Betrag; manuelle Verlängerung nutzt den aktuellen regulären Preis der gekauften Variante. *Integration, E2E (79,00 statt 59,00).* Offen bleibt nur die Frage, ob Altlizenzen nachkorrigiert werden; vor dem ersten Verkauf gegenstandslos.
 - [x] **T-134** `LicenseClient` prüft die Ed25519-Signatur gegen fest hinterlegte öffentliche Schlüssel (mehrere während einer Rotation), auch für den Offline-Cache (`check_entitlements_envelope()`, `verify_cached_envelope()`). *Unit: gefälschte Antwort mit gültigem HMAC wird abgelehnt.* Die Add-ons müssen den Schlüssel einbauen (T-131).
@@ -83,6 +84,7 @@ Belege: *Unit* 508 Tests, *Integration* 194 Tests (HPOS und klassische Bestellsp
 - [x] **T-144** `wplc_reminder_log` im Schema (Migration 12). *Unit, Integration, E2E (Upgrade).*
 - [x] **T-145** API-Spezifikation deklariert 409, 429 und 503; die drei unvollständigen Integrationstests prüfen jetzt hart. *Integration.*
 - [x] **T-146** `SiteUrl`: nicht kanonische IPv4-Schreibweisen abgelehnt, Pfade normalisiert, Umlaut-Domains auch ohne `intl` (gegen `idn_to_ascii` über alle BMP-Zeichen geprüft); bestehende Aktivierungen werden weiter erkannt. *Unit, Integration.*
+- [x] **T-89** Lasttest mit 50 000 Lizenzen, 119 000 Aktivierungen, 150 000 Audit-Einträgen u. a.: Schema 15 mit neuen Indizes, Lizenzliste, Suche, Kundenkonto und Datenbereinigung umgeschrieben (z. B. letzte Listenseite 89 → 19 ms, Suche nach Schlüsselpräfix 71 → 13 ms). REST-Pfade waren bereits reine Schlüsselzugriffe. Werkzeuge in `tests/load/`, Bericht in `docs/PERFORMANCE.md`.
 - [x] **T-86** Schlüsselrotation an einer Datenbankkopie geprobt (Backup, Rotation beider Schlüsselringe, `rotate-installation-secrets`, Signaturschlüssel, simulierte Fehler, Wiederherstellung). Zwei Fehler behoben: (1) Das Ausmustern des alten Verschlüsselungsschlüssels nach Anleitung schaltete unbemerkt die Ed25519-Signatur ab, alle Clients mit fest hinterlegtem Schlüssel wurden abgewiesen; der Signaturschlüssel wird jetzt mitrotiert, `signing-key --prepare` erzeugt den nächsten Schlüssel vorab. (2) Nach manueller Änderung der Key-ID zeigte das Kundenkonto einen falschen Schlüssel. Ablauf in `docs/SECURITY-OPERATIONS.md`, Nachweis in `docs/LAUNCH-EVIDENCE.md`. Wichtig: Eine wiederhergestellte Datenbank braucht den Schlüsselring vom Zeitpunkt des Backups.
 - [x] **T-95** Release-Build lokal aus `git archive` nachgestellt und das ZIP auf einer leeren WordPress-Installation installiert (Aktivierung ohne Hinweise, 14 Tabellen, alle Adminseiten, Deinstallation). Build in `bin/build-zip.sh`, neuer CI-Job `package.yml` baut das ZIP in jedem PR; `release.yml` prüft auch den Stable tag und testet vor dem Build. Nicht gelaufen: echter Tag-Push mit Release-Upload.
 - [x] **T-61** Multisite auf einem echten Netzwerk geprüft (Netzwerk- und Einzelaktivierung, Tabellen pro Site, Lizenz einer Site bei einer anderen unbekannt, Löschen einer Site entfernt ihre Tabellen). Drei Fehler behoben: Netzwerk-Deaktivierung und Deinstallation räumten nur eine Site auf; Tabellen gelöschter Sites blieben ohne WooCommerce auf der Hauptsite liegen. Neue CI-Zelle für Multisite. *Integration (8 Tests, beide Speicherarten), WP-CLI auf einem Netzwerk.* Grenzen in `docs/MULTISITE.md`.

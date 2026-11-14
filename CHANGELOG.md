@@ -24,6 +24,9 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - `WPLC_PACKAGE_STORAGE_DIR` puts uploaded ZIP files outside the web root.
 - Product-plugin client: pinned Ed25519 server keys and helpers for a verified offline cache.
 - End-to-end test run as a GitHub Actions job.
+- Premium add-on starter (`examples/premium-addon-starter/`) for the product add-ons, tested end to end against the server.
+- Load-test tooling (`tests/load/`) and indexes for large shops (database schema 15).
+- Multisite integration tests and a CI cell for networks; release ZIP built on every pull request.
 - Admin page "Renewals to review" for renewals whose payment may have been taken without extending the license (unknown result, license changed during the charge, late manual payment), with book / mark as not paid / close actions.
 
 ### Changed
