@@ -3,7 +3,7 @@
   "info": {
     "title": "WP License Captain REST API",
     "version": "1.0.0",
-    "description": "Versioned v1 contract for license activation, entitlement checks, Stripe webhook receipt, and premium updates."
+    "description": "Versioned v1 contract for license activation, entitlement checks, Stripe webhook receipt, and premium updates. All date-time values are UTC in the form \"YYYY-MM-DD HH:MM:SS\". Every response of this API, including errors, is sent with Cache-Control: no-store. Error messages are stable English texts and are not translated: clients decide by the error code (schema ErrorCode), never by the message."
   },
   "servers": [
     {
@@ -45,11 +45,30 @@
         },
         "responses": {
           "200": {
-            "description": "Activation created or idempotently retrieved.",
+            "description": "Activation created or idempotently retrieved. data is an EntitlementData object. A staging request on a host that is unrelated to its live site is counted as a live site: environment in the signed data is then \"production\".",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SignedEnvelope"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/SignedEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/EntitlementData"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -69,10 +88,14 @@
           "429": {
             "$ref": "#/components/responses/ApiError"
           },
+          "500": {
+            "$ref": "#/components/responses/ApiError"
+          },
           "503": {
             "$ref": "#/components/responses/ApiError"
           }
-        }
+        },
+        "description": "Not HMAC-authenticated; possession of the license key authorizes it. Error codes: 400 invalid_activation (data.fields lists the rejected fields), development_site_invalid, staging_parent_required, rest_missing_callback_param, rest_invalid_param; 401 invalid_key; 403 product_mismatch, license_expired, license_suspended, license_revoked, license_inactive (data.license_status); 409 site_limit (data.site_limit, data.site_count), staging_limit, development_limit (data.development_limit, data.development_count), staging_parent_invalid, staging_site_invalid, installation_conflict, activation_deactivated, activation_conflict; 429 rate_limited; 500 activation_failed, server_configuration; 503 retry_later, rate_limit_store_unavailable."
       }
     },
     "/activations/{activation_id}": {
@@ -100,14 +123,36 @@
         ],
         "responses": {
           "200": {
-            "description": "Activation was deactivated.",
+            "description": "Activation was deactivated, or had already been deactivated (idempotent). data is a DeactivationData object.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SignedEnvelope"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/SignedEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/DeactivationData"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
           },
           "401": {
             "$ref": "#/components/responses/ApiError"
@@ -117,6 +162,23 @@
           },
           "409": {
             "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "description": "Error codes: 401 invalid_request_signature, request_expired, activation_not_found, installation_secret_invalid; 403 activation_mismatch; 409 site_mismatch (the site_url in the body is not the activated site; nothing was deactivated), deactivation_failed, request_replayed; 429 rate_limited; 503 retry_later, rate_limit_store_unavailable, replay_store_unavailable.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeactivationRequest"
+              }
+            }
           }
         }
       }
@@ -145,14 +207,36 @@
         },
         "responses": {
           "200": {
-            "description": "Signed current entitlement snapshot.",
+            "description": "Signed current entitlement snapshot (EntitlementData). An installation whose activation was released also gets 200: activation_status and license_status are then \"deactivated\", access is false and entitlements is empty.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SignedEnvelope"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/SignedEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/EntitlementData"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
           },
           "401": {
             "$ref": "#/components/responses/ApiError"
@@ -160,10 +244,17 @@
           "404": {
             "$ref": "#/components/responses/ApiError"
           },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
           "429": {
             "$ref": "#/components/responses/ApiError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ApiError"
           }
-        }
+        },
+        "description": "Error codes: 400 rest_invalid_param; 401 invalid_request_signature, request_expired, activation_not_found, installation_secret_invalid; 404 license_not_found; 409 request_replayed; 429 rate_limited; 503 rate_limit_store_unavailable, replay_store_unavailable."
       }
     },
     "/updates/check": {
@@ -190,14 +281,36 @@
         },
         "responses": {
           "200": {
-            "description": "Signed update metadata or signed no-update result.",
+            "description": "Signed update metadata or signed no-update result (UpdateCheckData).",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SignedEnvelope"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/SignedEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UpdateCheckData"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
           },
           "401": {
             "$ref": "#/components/responses/ApiError"
@@ -205,10 +318,17 @@
           "403": {
             "$ref": "#/components/responses/ApiError"
           },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
           "503": {
             "$ref": "#/components/responses/ApiError"
           }
-        }
+        },
+        "description": "Missing or non-string product_key/current_version are rejected with 400 rest_missing_callback_param or rest_invalid_param before the request is authenticated. Error codes: 401 invalid_request_signature, request_expired, activation_not_found, installation_secret_invalid; 403 license_inactive (no access, or the license belongs to another product), activation_deactivated (data.signed carries a SignedEnvelope with DeactivatedData); 409 request_replayed; 429 rate_limited; 503 package_configuration_invalid, download_token_error, rate_limit_store_unavailable, replay_store_unavailable."
       }
     },
     "/updates/download/{token}": {
@@ -253,7 +373,7 @@
             }
           },
           "404": {
-            "description": "Grant is invalid, expired, consumed, or no longer entitled."
+            "description": "Grant is invalid, expired, consumed, or no longer entitled, or the package host is no longer trusted. Sent without a body. A path that is not 64 lower-case hex characters does not match the route and is answered by WordPress with the JSON error rest_no_route (404)."
           }
         }
       }
@@ -344,7 +464,7 @@
             "description": "The package ZIP (application/zip). Sent with Cache-Control: no-store."
           },
           "404": {
-            "description": "Unknown, expired or already used token."
+            "description": "Unknown, expired or already used token (no body); a malformed token does not match the route (JSON error rest_no_route)."
           }
         }
       }
@@ -377,25 +497,30 @@
         "properties": {
           "license_key": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "Case-insensitive. Everything outside A-Z, 0-9 and \"-\" is ignored and typographic dashes count as \"-\", so a key pasted with line breaks or spaces is accepted."
           },
           "product_key": {
             "type": "string",
-            "pattern": "^[a-z0-9_-]+$"
+            "pattern": "^[a-z0-9_-]{1,100}$"
           },
           "installation_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "UUID generated by the client; compared in lower case."
           },
           "installation_secret": {
             "type": "string",
             "minLength": 32,
             "maxLength": 128,
-            "writeOnly": true
+            "pattern": "^[A-Za-z0-9._~+/=-]{32,128}$",
+            "writeOnly": true,
+            "description": "Random secret generated by the client. Validated, never rewritten: any other character is rejected with 400 invalid_activation."
           },
           "site_url": {
             "type": "string",
-            "format": "uri"
+            "format": "uri",
+            "description": "http or https URL of the site without credentials, query string or fragment; no whitespace or control characters; at most 255 bytes after normalization."
           },
           "environment": {
             "type": "string",
@@ -404,20 +529,24 @@
               "staging",
               "development"
             ],
-            "default": "production"
+            "default": "production",
+            "description": "Exact, lower-case value. Anything else is rejected with 400 invalid_activation instead of being treated as production."
           },
           "staging_parent_installation_id": {
             "type": "string",
             "format": "uuid"
           },
           "product_version": {
-            "type": "string"
+            "type": "string",
+            "description": "Stored up to 30 characters; longer values are cut."
           },
           "wp_version": {
-            "type": "string"
+            "type": "string",
+            "description": "Stored up to 30 characters; longer values are cut."
           },
           "php_version": {
-            "type": "string"
+            "type": "string",
+            "description": "Stored up to 30 characters; longer values are cut."
           }
         }
       },
@@ -425,13 +554,21 @@
         "type": "object",
         "properties": {
           "product_version": {
-            "type": "string"
+            "type": "string",
+            "description": "Stored up to 30 characters; longer values are cut. Omitted or empty values keep the stored one."
           },
           "wp_version": {
-            "type": "string"
+            "type": "string",
+            "description": "Stored up to 30 characters; longer values are cut. Omitted or empty values keep the stored one."
           },
           "php_version": {
-            "type": "string"
+            "type": "string",
+            "description": "Stored up to 30 characters; longer values are cut. Omitted or empty values keep the stored one."
+          },
+          "site_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Current address of the site. When sent, the signed data contains site_match."
           }
         }
       },
@@ -462,12 +599,12 @@
         "properties": {
           "data": {
             "type": "object",
-            "description": "Kept for clients that predate payload; current clients must read the data member of the verified payload instead. Response-specific payload. Entitlement responses include activation_id, installation_id, license_status, paid_until, site_limit, site_count, environment, entitlements, server_time and cache_expires_at."
+            "description": "Kept for clients that predate payload; current clients must read the data member of the verified payload instead. Response-specific payload, see EntitlementData, DeactivationData, DeactivatedData and UpdateCheckData. Entitlement responses include activation_id, installation_id, activation_status, product_key, license_status, access, paid_until, access_until, grace_until, site_limit, site_count, environment, staging_parent_id, entitlements, server_time and cache_expires_at."
           },
           "signature": {
             "type": "string",
             "pattern": "^[a-f0-9]{64}$",
-            "description": "Legacy: HMAC-SHA-256 over JSON_UNESCAPED_SLASHES encoding of data using the installation secret. Verifiable only by re-encoding data identically; superseded by payload_signature."
+            "description": "Legacy: HMAC-SHA-256 over JSON_UNESCAPED_SLASHES encoding of data using the installation secret. Not bound to a request; superseded by payload_signature. Still sent for old client copies; new clients must not accept it in place of payload_signature."
           },
           "payload": {
             "type": "string",
@@ -480,7 +617,11 @@
           },
           "signature_ed25519": {
             "type": "string",
-            "description": "Base64 Ed25519 signature of the server over \"wplc-response-v1\\n{installation UUID, lower case}\\n{JSON of data}\". Present when the server has a signing key. Clients that pin the server's public key must reject responses and cached snapshots without a valid signature."
+            "description": "Legacy: base64 Ed25519 signature of the server over \"wplc-response-v1\\n{installation UUID, lower case}\\n{JSON of data}\". Not bound to a request; superseded by payload_signature_ed25519. Present when the server has a signing key."
+          },
+          "payload_signature_ed25519": {
+            "type": "string",
+            "description": "Base64 Ed25519 signature of the server over \"wplc-response-v2\\n{installation UUID, lower case}\\n{payload}\", where payload is the payload member exactly as transmitted. Covers the request nonce. Present when the server has a signing key. Clients that pin the server's public key must reject responses and cached snapshots without a valid signature."
           },
           "key_id": {
             "type": "string",
@@ -497,25 +638,336 @@
         ],
         "properties": {
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "One of ErrorCode for the license routes. The contract: clients decide by this value."
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "English, for logs. Not translated and not part of the contract; do not show it to end users unfiltered."
           },
           "data": {
             "type": "object",
             "properties": {
               "status": {
                 "type": "integer"
+              },
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "invalid_activation: names of the rejected request fields."
+              },
+              "license_status": {
+                "type": "string",
+                "description": "license_expired, license_suspended, license_revoked, license_inactive."
+              },
+              "site_limit": {
+                "type": "integer",
+                "description": "site_limit."
+              },
+              "site_count": {
+                "type": "integer",
+                "description": "site_limit."
+              },
+              "development_limit": {
+                "type": "integer",
+                "description": "development_limit."
+              },
+              "development_count": {
+                "type": "integer",
+                "description": "development_limit."
+              },
+              "retry_after": {
+                "type": "integer",
+                "description": "Seconds; rate_limited and retry_later. Also sent as Retry-After header."
+              },
+              "server_time": {
+                "type": "integer",
+                "description": "request_expired: Unix time of the server, to detect a wrong client clock."
+              },
+              "signed": {
+                "$ref": "#/components/schemas/SignedEnvelope"
               }
             }
           }
         }
+      },
+      "DeactivationRequest": {
+        "type": "object",
+        "properties": {
+          "site_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Address of the site that asks. When sent, it must be the activated site (ignoring scheme, a leading \"www.\" and path case); otherwise 409 site_mismatch. Clients should always send it so a copy of the site cannot end the activation of the original."
+          }
+        }
+      },
+      "LicenseStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "past_due",
+          "expired",
+          "suspended",
+          "revoked",
+          "pending",
+          "deactivated"
+        ],
+        "description": "active: paid and usable. past_due: an automatic renewal failed or is pending; access (and grace_until) tell whether the grace period still runs. expired: the paid period and any grace period are over. suspended: blocked by the shop (for example a payment dispute); may become active again. revoked: ended for good (refund). pending: not issued completely yet. deactivated: not a state of the license but of this installation: its activation was released; the client must stop and may activate again with a new installation ID."
+      },
+      "ActivationStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "deactivated"
+        ]
+      },
+      "Environment": {
+        "type": "string",
+        "enum": [
+          "production",
+          "staging",
+          "development"
+        ]
+      },
+      "EntitlementData": {
+        "type": "object",
+        "required": [
+          "activation_id",
+          "installation_id",
+          "activation_status",
+          "license_status",
+          "access",
+          "entitlements",
+          "server_time",
+          "cache_expires_at"
+        ],
+        "properties": {
+          "activation_id": {
+            "type": "integer"
+          },
+          "installation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "activation_status": {
+            "$ref": "#/components/schemas/ActivationStatus"
+          },
+          "product_key": {
+            "type": "string",
+            "description": "Product the license was sold for. A client must reject data for another product."
+          },
+          "license_status": {
+            "$ref": "#/components/schemas/LicenseStatus"
+          },
+          "access": {
+            "type": "boolean",
+            "description": "Whether the license grants its rights right now. The only field a client needs to decide whether premium features run."
+          },
+          "paid_until": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+            "description": "End of the paid period, UTC; null for a license without an end."
+          },
+          "access_until": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+            "description": "UTC time at which access ends if nothing changes: paid_until, or grace_until when a grace period applies. null without access or for a license without an end."
+          },
+          "grace_until": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+            "description": "End of the renewal grace period, UTC, when one applies to this license (automatic renewal or past_due); else null. The license is inside its grace period when server_time is not before paid_until and access is true."
+          },
+          "site_limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "site_count": {
+            "type": "integer",
+            "description": "Active live (production) activations of the license."
+          },
+          "environment": {
+            "$ref": "#/components/schemas/Environment"
+          },
+          "staging_parent_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "activation_id of the live site a staging activation belongs to."
+          },
+          "entitlements": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Feature rights by key; empty without access."
+          },
+          "site_match": {
+            "type": "boolean",
+            "description": "Only when the request carried site_url: whether it is the activated site (ignoring scheme, a leading \"www.\" and path case)."
+          },
+          "deactivated_at": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+            "description": "Only for a deactivated installation."
+          },
+          "server_time": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+            "description": "UTC."
+          },
+          "cache_expires_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+            "description": "UTC. Until then the client may rely on this snapshot without reaching the server: server_time plus 14 days, but never later than access_until. After it the client must treat the license as without access until a new signed answer arrives."
+          }
+        }
+      },
+      "DeactivatedData": {
+        "description": "EntitlementData of an installation whose activation was released: activation_status and license_status are \"deactivated\", access is false, entitlements is empty.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EntitlementData"
+          }
+        ]
+      },
+      "DeactivationData": {
+        "type": "object",
+        "required": [
+          "activation_id",
+          "status"
+        ],
+        "properties": {
+          "activation_id": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "deactivated"
+            ]
+          }
+        }
+      },
+      "UpdateCheckData": {
+        "type": "object",
+        "required": [
+          "update_available"
+        ],
+        "properties": {
+          "update_available": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "package_unavailable"
+            ],
+            "description": "Only with update_available false: no release is published for the product."
+          },
+          "current_version": {
+            "type": "string",
+            "description": "Only with update_available false: the version the client reported, which is the newest."
+          },
+          "product_key": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "package_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "One-use download URL (GET /updates/download/{token})."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA-256 of the ZIP; the client must verify it before installing."
+          },
+          "requires_php": {
+            "type": "string"
+          },
+          "requires_wp": {
+            "type": "string"
+          },
+          "tested_wp": {
+            "type": "string"
+          },
+          "release_notes": {
+            "type": "string",
+            "description": "HTML, filtered with wp_kses_post."
+          },
+          "download_expires_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+            "description": "UTC; ten minutes after the check."
+          }
+        }
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "invalid_activation",
+          "development_site_invalid",
+          "staging_parent_required",
+          "rest_missing_callback_param",
+          "rest_invalid_param",
+          "invalid_key",
+          "invalid_request_signature",
+          "request_expired",
+          "activation_not_found",
+          "installation_secret_invalid",
+          "product_mismatch",
+          "license_expired",
+          "license_suspended",
+          "license_revoked",
+          "license_inactive",
+          "activation_mismatch",
+          "activation_deactivated",
+          "license_not_found",
+          "site_limit",
+          "staging_limit",
+          "development_limit",
+          "staging_parent_invalid",
+          "staging_site_invalid",
+          "installation_conflict",
+          "activation_conflict",
+          "site_mismatch",
+          "deactivation_failed",
+          "request_replayed",
+          "rate_limited",
+          "activation_failed",
+          "server_configuration",
+          "response_encoding_failed",
+          "retry_later",
+          "rate_limit_store_unavailable",
+          "replay_store_unavailable",
+          "package_configuration_invalid",
+          "download_token_error"
+        ],
+        "description": "Stable error codes of the license routes; the meaning of each code is listed in docs/API-V1.md. WordPress may add codes of its own (rest_no_route, rest_invalid_json)."
       }
     },
     "responses": {
       "ApiError": {
-        "description": "WordPress REST API error response.",
+        "description": "WordPress REST API error response. Sent with Cache-Control: no-store; 429 and 503 carry Retry-After.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            }
+          },
+          "Retry-After": {
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Only with 429 and 503."
+          }
+        },
         "content": {
           "application/json": {
             "schema": {

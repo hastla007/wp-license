@@ -34,6 +34,11 @@ final class RecoverLicenseKeyIdsCommand {
 	 * Verify license keys and optionally remap rows to a matching configured key ID.
 	 *
 	 * No plaintext key is printed. The stored key hash is never rewritten.
+	 * All rows are inspected unless --max-rows limits the run. The command
+	 * ends with exit code 1 while rows are left that could not be verified,
+	 * were not inspected, or (in a dry run) still wait for --apply.
+	 *
+	 * On a multisite network run the command once per site with --url=<site>.
 	 *
 	 * ## OPTIONS
 	 *
@@ -47,7 +52,7 @@ final class RecoverLicenseKeyIdsCommand {
 	 * : Start after this license ID. Default 0.
 	 *
 	 * [--max-rows=<number>]
-	 * : Maximum rows to inspect. Default 5000.
+	 * : Maximum rows to inspect. Default 0: all rows.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -67,7 +72,7 @@ final class RecoverLicenseKeyIdsCommand {
 		}
 		$apply = isset( $assoc_args['apply'] );
 		$last_id = isset( $assoc_args['after-id'] ) ? absint( $assoc_args['after-id'] ) : 0;
-		$max_rows = isset( $assoc_args['max-rows'] ) ? max( 1, absint( $assoc_args['max-rows'] ) ) : 5000;
+		$max_rows = isset( $assoc_args['max-rows'] ) ? absint( $assoc_args['max-rows'] ) : 0;
 		$tables = Schema::table_names();
 		$inspected = 0;
 		$verified = 0;
@@ -75,8 +80,8 @@ final class RecoverLicenseKeyIdsCommand {
 		$unmatched = 0;
 		$stale = 0;
 
-		while ( $inspected < $max_rows ) {
-			$limit = min( 250, $max_rows - $inspected );
+		while ( 0 === $max_rows || $inspected < $max_rows ) {
+			$limit = 0 === $max_rows ? 250 : min( 250, $max_rows - $inspected );
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT id,license_uuid,license_key_hash,license_key_secret_id FROM {$tables['licenses']} WHERE id > %d ORDER BY id ASC LIMIT %d",
@@ -138,6 +143,17 @@ final class RecoverLicenseKeyIdsCommand {
 		\WP_CLI::log( sprintf( 'Mode: %s; inspected: %d; already verified: %d; recoverable: %d; unmatched: %d; changed concurrently: %d; last ID: %d', $apply ? 'apply' : 'dry-run', $inspected, $verified, $recovered, $unmatched, $stale, $last_id ) );
 		if ( $unmatched > 0 ) {
 			\WP_CLI::warning( 'Unmatched rows were not modified. Check the configured key ring and recovery target.' );
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names().
+		$not_inspected = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['licenses']} WHERE id > %d", $last_id ) );
+		if ( $not_inspected > 0 ) {
+			\WP_CLI::warning( sprintf( '%d rows after ID %d were not inspected (--max-rows). Continue with --after-id=%d.', $not_inspected, $last_id, $last_id ) );
+		}
+		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
+			\WP_CLI::log( 'Multisite: this run covered only the tables of the current site. Repeat it for every site with --url=<site>.' );
+		}
+		if ( $unmatched + $stale + $not_inspected + ( $apply ? 0 : $recovered ) > 0 ) {
+			\WP_CLI::halt( 1 );
 		}
 	}
 }

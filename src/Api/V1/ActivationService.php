@@ -20,16 +20,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Handles first-time activation and signed deactivation requests.
+ *
+ * Error messages are stable English texts and are not translated; clients
+ * decide by the error `code` (B-23). The codes are listed in docs/API-V1.md.
  */
 final class ActivationService {
-	/** @var int Anonymous activation attempts per client address and minute. */
-	private const ATTEMPTS_PER_IP = 30;
+	/** @var int Failed anonymous activation attempts per client address and minute. */
+	public const ATTEMPTS_PER_IP = 30;
 
 	/** @var int Activation attempts per license-key prefix and minute. */
-	private const ATTEMPTS_PER_KEY = 20;
+	public const ATTEMPTS_PER_KEY = 20;
 
 	/** @var int Length of the normalized key prefix (`WPLC-` plus eight characters). */
 	private const KEY_PREFIX_LENGTH = 13;
+
+	/** @var int Development activations every license may hold, whatever its live-site limit. */
+	public const DEVELOPMENT_SITES_MIN = 5;
+
+	/** @var string Characters and length of an installation secret (B-75). */
+	public const SECRET_PATTERN = '/^[A-Za-z0-9._~+\/=-]{32,128}$/';
+
+	/** @var string[] Accepted values of `environment`. */
+	public const ENVIRONMENTS = array( 'production', 'staging', 'development' );
 
 	/**
 	 * Activate one WordPress installation.
@@ -40,35 +52,49 @@ final class ActivationService {
 	public static function activate( \WP_REST_Request $request ) {
 		global $wpdb;
 
-		$license_key = strtoupper( trim( sanitize_text_field( (string) $request->get_param( 'license_key' ) ) ) );
-		$product_key = sanitize_key( (string) $request->get_param( 'product_key' ) );
-		$installation_uuid = strtolower( sanitize_text_field( (string) $request->get_param( 'installation_id' ) ) );
-		$secret = sanitize_text_field( (string) $request->get_param( 'installation_secret' ) );
-		$site_url = self::normalize_site_url( (string) $request->get_param( 'site_url' ) );
-		$environment = sanitize_key( (string) ( $request->get_param( 'environment' ) ?: 'production' ) );
-		$parent_uuid = strtolower( sanitize_text_field( (string) $request->get_param( 'staging_parent_installation_id' ) ) );
+		$license_key = LicenseKey::normalize( self::string_param( $request, 'license_key' ) );
+		$product_key = strtolower( trim( self::string_param( $request, 'product_key' ) ) );
+		$installation_uuid = strtolower( trim( self::string_param( $request, 'installation_id' ) ) );
+		// Validated, never rewritten: a sanitized secret would differ from the one the client keeps (B-75).
+		$secret = self::string_param( $request, 'installation_secret' );
+		$site_url = SiteUrl::normalize( self::string_param( $request, 'site_url' ) );
+		$environment = self::string_param( $request, 'environment' );
+		$environment = '' === $environment ? 'production' : $environment;
+		$parent_uuid = strtolower( trim( self::string_param( $request, 'staging_parent_installation_id' ) ) );
 
-		$activation_attempts = self::activation_attempt_count();
-		if ( false === $activation_attempts ) {
-			return new \WP_Error( 'rate_limit_store_unavailable', __( 'Activation rate limiting is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
+		$invalid = array();
+		if ( '' === $license_key ) {
+			$invalid[] = 'license_key';
 		}
-		if ( $activation_attempts > self::ATTEMPTS_PER_IP ) {
-			return new \WP_Error( 'rate_limited', __( 'Too many activation attempts. Try again later.', 'wp-license' ), array( 'status' => 429 ) );
+		if ( ! preg_match( '/^[a-z0-9_-]{1,100}$/', $product_key ) ) {
+			$invalid[] = 'product_key';
 		}
-		// Second bucket per key prefix: one key cannot be hammered from many addresses.
-		$key_attempts = self::key_attempt_count( $license_key );
+		if ( ! wp_is_uuid( $installation_uuid ) ) {
+			$invalid[] = 'installation_id';
+		}
+		if ( ! preg_match( self::SECRET_PATTERN, $secret ) ) {
+			$invalid[] = 'installation_secret';
+		}
+		if ( '' === $site_url ) {
+			$invalid[] = 'site_url';
+		}
+		// Exact match: "Production" or "pro duction" must not silently become a live activation (B-72).
+		if ( ! in_array( $environment, self::ENVIRONMENTS, true ) ) {
+			$invalid[] = 'environment';
+		}
+		if ( $invalid ) {
+			return self::anonymous_failure(
+				new \WP_Error( 'invalid_activation', 'Required activation fields are missing or invalid.', array( 'status' => 400, 'fields' => $invalid ) )
+			);
+		}
+
+		// One key cannot be hammered from many addresses.
+		$key_attempts = Authenticator::increment_rate_limit( self::key_limiter_hash( $license_key ) );
 		if ( false === $key_attempts ) {
-			return new \WP_Error( 'rate_limit_store_unavailable', __( 'Activation rate limiting is temporarily unavailable.', 'wp-license' ), array( 'status' => 503 ) );
+			return new \WP_Error( 'rate_limit_store_unavailable', 'Activation rate limiting is temporarily unavailable.', array( 'status' => 503 ) );
 		}
 		if ( $key_attempts > self::ATTEMPTS_PER_KEY ) {
-			return new \WP_Error( 'rate_limited', __( 'Too many activation attempts. Try again later.', 'wp-license' ), array( 'status' => 429 ) );
-		}
-		if ( '' === $license_key || '' === $product_key || ! wp_is_uuid( $installation_uuid ) || strlen( $secret ) < 32 || strlen( $secret ) > 128 || '' === $site_url || ! in_array( $environment, array( 'production', 'staging', 'development' ), true ) ) {
-			return new \WP_Error( 'invalid_activation', __( 'Required activation fields are missing or invalid.', 'wp-license' ), array( 'status' => 400 ) );
-		}
-
-		if ( 'development' === $environment && ! self::is_local_development_url( $site_url ) ) {
-			return new \WP_Error( 'development_site_invalid', __( 'Development activations must use a recognized local site URL.', 'wp-license' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'rate_limited', 'Too many activation attempts. Try again later.', array( 'status' => 429, 'retry_after' => 60 ) );
 		}
 
 		$tables = Schema::table_names();
@@ -81,225 +107,290 @@ final class ActivationService {
 		);
 
 		if ( ! is_array( $license ) ) {
-			return new \WP_Error( 'invalid_key', __( 'The license key was not recognized.', 'wp-license' ), array( 'status' => 401 ) );
+			// Only failed attempts count against the client address, so one
+			// guessing client does not lock out the valid keys of everybody
+			// behind the same address (T-142).
+			return self::anonymous_failure( new \WP_Error( 'invalid_key', 'The license key was not recognized.', array( 'status' => 401 ) ) );
 		}
 		if ( $license['product_key'] !== $product_key ) {
-			return new \WP_Error( 'product_mismatch', __( 'This license belongs to a different product.', 'wp-license' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'product_mismatch', 'This license belongs to a different product.', array( 'status' => 403 ) );
 		}
 		if ( ! LicenseLifecycle::has_access( $license ) ) {
-			return new \WP_Error( 'expired', __( 'This license is not currently active.', 'wp-license' ), array( 'status' => 403 ) );
+			return self::license_status_error( $license );
 		}
 
-		$staging_parent_id = null;
-		if ( 'staging' === $environment ) {
-			if ( ! wp_is_uuid( $parent_uuid ) ) {
-				return new \WP_Error( 'staging_parent_required', __( 'A staging activation must be linked to a live activation.', 'wp-license' ), array( 'status' => 400 ) );
-			}
-			$parent = $wpdb->get_row(
-				$wpdb->prepare(
-					"SELECT id FROM {$tables['activations']} WHERE installation_uuid = %s AND license_id = %d AND environment = %s AND status = %s LIMIT 1",
-					$parent_uuid,
-					(int) $license['id'],
-					'production',
-					'active'
-				),
-				ARRAY_A
-			);
-			if ( ! is_array( $parent ) ) {
-				return new \WP_Error( 'staging_parent_invalid', __( 'The staging site must link to an active live site on this license.', 'wp-license' ), array( 'status' => 409 ) );
-			}
-			$staging_parent_id = (int) $parent['id'];
+		if ( 'development' === $environment && ! self::is_local_development_url( $site_url ) ) {
+			return new \WP_Error( 'development_site_invalid', 'Development activations must use a recognized local site URL.', array( 'status' => 400 ) );
+		}
+		if ( 'staging' === $environment && ! wp_is_uuid( $parent_uuid ) ) {
+			return new \WP_Error( 'staging_parent_required', 'A staging activation must be linked to a live activation.', array( 'status' => 400 ) );
 		}
 
-		$existing = $wpdb->get_row(
-			$wpdb->prepare(
-				"SELECT * FROM {$tables['activations']} WHERE installation_uuid = %s LIMIT 1",
-				$installation_uuid
-			),
-			ARRAY_A
-		);
-		if ( is_array( $existing ) ) {
-			if (
-				(int) $existing['license_id'] !== (int) $license['id']
-				|| $existing['environment'] !== $environment
-				|| (int) $existing['staging_parent_id'] !== (int) $staging_parent_id
-				|| ! hash_equals( (string) $existing['installation_secret_hash'], hash( 'sha256', $secret ) )
-			) {
-				return new \WP_Error( 'installation_conflict', __( 'This installation ID is already assigned to another credential.', 'wp-license' ), array( 'status' => 409 ) );
-			}
-			if ( 'active' !== $existing['status'] ) {
-				return new \WP_Error( 'activation_deactivated', __( 'This installation was deactivated. Generate a new installation ID to activate again.', 'wp-license' ), array( 'status' => 409 ) );
-			}
-
-			$wpdb->update(
-				$tables['activations'],
-				array( 'site_url' => $site_url, 'last_seen_at' => gmdate( 'Y-m-d H:i:s' ) ),
-				array( 'id' => (int) $existing['id'] ),
-				array( '%s', '%s' ),
-				array( '%d' )
-			);
-
-			return self::signed_entitlement_response( (int) $license['id'], (int) $existing['id'], $installation_uuid, $secret );
-		}
-
-		$limit = self::site_limit( (int) $license['id'], $license );
-		$lock_name = ActivationManager::lock_name( (int) $license['id'] );
+		$license_id = (int) $license['id'];
+		$lock_name = ActivationManager::lock_name( $license_id );
+		ActivationManager::use_primary_database();
 		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
 		if ( '1' !== (string) $locked ) {
-			return new \WP_Error( 'retry_later', __( 'The license is being updated. Retry shortly.', 'wp-license' ), array( 'status' => 503 ) );
+			return new \WP_Error( 'retry_later', 'The license is being updated. Retry shortly.', array( 'status' => 503, 'retry_after' => 5 ) );
 		}
 
 		try {
-			// Recheck under the per-license lock to make retries idempotent and
-			// to prevent a staging activation racing with parent deactivation.
-			if ( 'staging' === $environment ) {
-				$parent = $wpdb->get_row(
-					$wpdb->prepare(
-						"SELECT id FROM {$tables['activations']} WHERE id = %d AND license_id = %d AND environment = %s AND status = %s LIMIT 1",
-						$staging_parent_id,
-						(int) $license['id'],
-						'production',
-						'active'
-					),
-					ARRAY_A
-				);
-				if ( ! is_array( $parent ) ) {
-					return new \WP_Error( 'staging_parent_invalid', __( 'The staging site must link to an active live site on this license.', 'wp-license' ), array( 'status' => 409 ) );
-				}
-			}
-
-			$existing = $wpdb->get_row(
-				$wpdb->prepare( "SELECT * FROM {$tables['activations']} WHERE installation_uuid = %s LIMIT 1", $installation_uuid ),
-				ARRAY_A
-			);
-			if ( is_array( $existing ) ) {
-				if (
-					(int) $existing['license_id'] !== (int) $license['id']
-					|| $existing['environment'] !== $environment
-					|| (int) $existing['staging_parent_id'] !== (int) $staging_parent_id
-					|| ! hash_equals( (string) $existing['installation_secret_hash'], hash( 'sha256', $secret ) )
-				) {
-					return new \WP_Error( 'installation_conflict', __( 'This installation ID is already assigned to another credential.', 'wp-license' ), array( 'status' => 409 ) );
-				}
-				if ( 'active' !== $existing['status'] ) {
-					return new \WP_Error( 'activation_deactivated', __( 'This installation was deactivated. Generate a new installation ID to activate again.', 'wp-license' ), array( 'status' => 409 ) );
-				}
-				$updated = $wpdb->update(
-					$tables['activations'],
-					array( 'site_url' => $site_url, 'last_seen_at' => gmdate( 'Y-m-d H:i:s' ) ),
-					array( 'id' => (int) $existing['id'], 'status' => 'active' ),
-					array( '%s', '%s' ),
-					array( '%d', '%s' )
-				);
-				if ( false === $updated ) {
-					return new \WP_Error( 'activation_failed', __( 'The activation could not be updated. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
-				}
-				return self::signed_entitlement_response( (int) $license['id'], (int) $existing['id'], $installation_uuid, $secret );
-			}
-
-			// The same site activating with a new installation ID (lost options,
-			// database restore) replaces its previous activation instead of
-			// occupying a second slot. The caller proved possession of the key.
-			$replaced = $wpdb->get_col(
-				$wpdb->prepare(
-					"SELECT id FROM {$tables['activations']} WHERE license_id = %d AND environment = %s AND site_url = %s AND status = %s AND installation_uuid <> %s",
-					(int) $license['id'],
-					$environment,
-					$site_url,
-					'active',
-					$installation_uuid
-				)
-			);
-			if ( '' !== $wpdb->last_error ) {
-				return new \WP_Error( 'activation_failed', __( 'Existing activations of this site could not be verified.', 'wp-license' ), array( 'status' => 500 ) );
-			}
-			foreach ( is_array( $replaced ) ? $replaced : array() as $replaced_id ) {
-				// A replaced live site takes its staging child with it.
-				if ( ! ActivationManager::deactivate_while_locked( (int) $replaced_id, 'Replaced by a new installation of the same site', 0, 'site_replaced' ) ) {
-					return new \WP_Error( 'activation_failed', __( 'The previous activation of this site could not be replaced. Retry the request.', 'wp-license' ), array( 'status' => 500 ) );
-				}
-			}
-
-			if ( 'production' === $environment ) {
-				$count_result = $wpdb->get_var(
-					$wpdb->prepare(
-						"SELECT COUNT(*) FROM {$tables['activations']} WHERE license_id = %d AND status = %s AND environment = %s",
-						(int) $license['id'],
-						'active',
-						'production'
-					)
-				);
-				if ( null === $count_result || '' !== $wpdb->last_error ) {
-					return new \WP_Error( 'activation_failed', __( 'The current live-site count could not be verified.', 'wp-license' ), array( 'status' => 500 ) );
-				}
-				$count = (int) $count_result;
-				if ( $count >= $limit ) {
-					return new \WP_Error( 'site_limit', __( 'The license has no remaining live site activations.', 'wp-license' ), array( 'status' => 409, 'site_limit' => $limit, 'site_count' => $count ) );
-				}
-			} elseif ( 'staging' === $environment ) {
-				$count_result = $wpdb->get_var(
-					$wpdb->prepare(
-						"SELECT COUNT(*) FROM {$tables['activations']} WHERE license_id = %d AND staging_parent_id = %d AND status = %s AND environment = %s",
-						(int) $license['id'],
-						(int) $staging_parent_id,
-						'active',
-						'staging'
-					)
-				);
-				if ( null === $count_result || '' !== $wpdb->last_error ) {
-					return new \WP_Error( 'activation_failed', __( 'The current staging-site count could not be verified.', 'wp-license' ), array( 'status' => 500 ) );
-				}
-				$count = (int) $count_result;
-				if ( $count >= 1 ) {
-					return new \WP_Error( 'staging_limit', __( 'This live site already has its included staging activation.', 'wp-license' ), array( 'status' => 409 ) );
-				}
-			}
-
-			$encrypted_secret = SecretCrypto::encrypt( $secret );
-			if ( false === $encrypted_secret ) {
-				return new \WP_Error( 'server_configuration', __( 'The license server could not securely store the installation credential.', 'wp-license' ), array( 'status' => 500 ) );
-			}
-
-			$now = gmdate( 'Y-m-d H:i:s' );
-			$inserted = $wpdb->insert(
-				$tables['activations'],
+			return self::activate_locked(
+				$request,
+				$license,
 				array(
-					'license_id' => (int) $license['id'],
 					'installation_uuid' => $installation_uuid,
-					'installation_secret_hash' => hash( 'sha256', $secret ),
-					'installation_secret_encrypted' => $encrypted_secret,
+					'secret' => $secret,
 					'site_url' => $site_url,
 					'environment' => $environment,
-					'staging_parent_id' => $staging_parent_id,
-					'product_version' => sanitize_text_field( (string) $request->get_param( 'product_version' ) ),
-					'wp_version' => sanitize_text_field( (string) $request->get_param( 'wp_version' ) ),
-					'php_version' => sanitize_text_field( (string) $request->get_param( 'php_version' ) ),
-					'status' => 'active',
-					'activated_at' => $now,
-					'last_seen_at' => $now,
-					'deactivated_at' => null,
-				),
-				array( '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+					'parent_uuid' => $parent_uuid,
+				)
 			);
-
-			if ( false === $inserted ) {
-				return new \WP_Error( 'activation_conflict', __( 'The installation could not be activated. Retry the request.', 'wp-license' ), array( 'status' => 409 ) );
-			}
-
-			$activation_id = (int) $wpdb->insert_id;
-			AuditLog::record(
-				'site_activated',
-				'activation',
-				$activation_id,
-				'Product installation activated',
-				null,
-				array( 'license_id' => (int) $license['id'], 'site_url' => $site_url, 'environment' => $environment )
-			);
-
-			return self::signed_entitlement_response( (int) $license['id'], $activation_id, $installation_uuid, $secret );
 		} finally {
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
 		}
+	}
+
+	/**
+	 * Create or refresh the activation while the per-license lock is held.
+	 *
+	 * @param \WP_REST_Request     $request Request.
+	 * @param array<string,mixed>  $license License row.
+	 * @param array<string,string> $input   Validated input: installation_uuid, secret, site_url, environment, parent_uuid.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private static function activate_locked( \WP_REST_Request $request, array $license, array $input ) {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$license_id = (int) $license['id'];
+		$installation_uuid = $input['installation_uuid'];
+		$secret = $input['secret'];
+		$site_url = $input['site_url'];
+		$environment = $input['environment'];
+
+		$active = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id,installation_uuid,site_url,environment,staging_parent_id FROM {$tables['activations']} WHERE license_id = %d AND status = %s ORDER BY id ASC",
+				$license_id,
+				'active'
+			),
+			ARRAY_A
+		);
+		if ( ! is_array( $active ) || '' !== $wpdb->last_error ) {
+			return new \WP_Error( 'activation_failed', 'The current activations of this license could not be verified.', array( 'status' => 500 ) );
+		}
+
+		// A staging site is licensed through one active live site of the same license.
+		$parent = null;
+		if ( 'staging' === $environment ) {
+			foreach ( $active as $row ) {
+				if ( 'production' === $row['environment'] && $row['installation_uuid'] === $input['parent_uuid'] ) {
+					$parent = $row;
+				}
+			}
+			if ( null === $parent ) {
+				return new \WP_Error( 'staging_parent_invalid', 'The staging site must link to an active live site on this license.', array( 'status' => 409 ) );
+			}
+		}
+		$staging_allowed = null === $parent || SiteUrl::is_staging_of( $site_url, (string) $parent['site_url'] );
+
+		$existing = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$tables['activations']} WHERE installation_uuid = %s LIMIT 1", $installation_uuid ),
+			ARRAY_A
+		);
+		if ( is_array( $existing ) ) {
+			return self::refresh_existing( $request, $license, $existing, $input, $parent, $staging_allowed );
+		}
+
+		// A "staging" site on a host that is neither related to its live
+		// site nor a known staging host is a second live site (B-157).
+		$requested_environment = $environment;
+		if ( ! $staging_allowed ) {
+			$environment = 'production';
+			$parent = null;
+		}
+		$staging_parent_id = null === $parent ? null : (int) $parent['id'];
+
+		// The same site activating with a new installation ID (lost options,
+		// database restore) replaces its previous activation instead of
+		// occupying a second slot. The caller proved possession of the key.
+		// Not for development: `localhost:8888` is a different machine for
+		// every developer (B-160).
+		$site_key = SiteUrl::comparison_key( $site_url );
+		$replaced = array();
+		$counts = array(
+			'production' => 0,
+			'staging' => 0,
+			'development' => 0,
+		);
+		foreach ( $active as $row ) {
+			$same_site = 'development' !== $environment
+				&& $row['environment'] === $environment
+				&& SiteUrl::comparison_key( (string) $row['site_url'] ) === $site_key;
+			if ( $same_site ) {
+				$replaced[] = (int) $row['id'];
+				continue;
+			}
+			if ( 'staging' === $row['environment'] ) {
+				$counts['staging'] += (int) $row['staging_parent_id'] === (int) $staging_parent_id ? 1 : 0;
+			} elseif ( isset( $counts[ $row['environment'] ] ) ) {
+				++$counts[ $row['environment'] ];
+			}
+		}
+
+		// Limits are checked before anything is replaced: a site that may not
+		// activate must keep the activation it has (B-168).
+		$limit = self::site_limit( $license_id, $license );
+		if ( 'production' === $environment && $counts['production'] >= $limit ) {
+			return new \WP_Error(
+				'site_limit',
+				'The license has no remaining live site activations.',
+				array( 'status' => 409, 'site_limit' => $limit, 'site_count' => $counts['production'], 'environment' => $environment, 'requested_environment' => $requested_environment )
+			);
+		}
+		if ( 'staging' === $environment && $counts['staging'] >= 1 ) {
+			return new \WP_Error( 'staging_limit', 'This live site already has its included staging activation.', array( 'status' => 409 ) );
+		}
+		if ( 'development' === $environment ) {
+			$development_limit = self::development_site_limit( $license, $limit );
+			if ( $counts['development'] >= $development_limit ) {
+				return new \WP_Error(
+					'development_limit',
+					'The license has no remaining development site activations. Deactivate a development site that is no longer used.',
+					array( 'status' => 409, 'development_limit' => $development_limit, 'development_count' => $counts['development'] )
+				);
+			}
+		}
+
+		$encrypted_secret = SecretCrypto::encrypt( $secret );
+		if ( false === $encrypted_secret ) {
+			return new \WP_Error( 'server_configuration', 'The license server could not securely store the installation credential.', array( 'status' => 500 ) );
+		}
+
+		// The new row is written first; only then the replaced activation
+		// ends. A failing insert leaves the site with its old activation (A-06).
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$inserted = $wpdb->insert(
+			$tables['activations'],
+			array(
+				'license_id' => $license_id,
+				'installation_uuid' => $installation_uuid,
+				'installation_secret_hash' => hash( 'sha256', $secret ),
+				'installation_secret_encrypted' => $encrypted_secret,
+				'site_url' => $site_url,
+				'environment' => $environment,
+				'staging_parent_id' => $staging_parent_id,
+				'product_version' => EntitlementService::version_param( $request, 'product_version' ),
+				'wp_version' => EntitlementService::version_param( $request, 'wp_version' ),
+				'php_version' => EntitlementService::version_param( $request, 'php_version' ),
+				'status' => 'active',
+				'activated_at' => $now,
+				'last_seen_at' => $now,
+				'deactivated_at' => null,
+			),
+			array( '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+		);
+
+		if ( false === $inserted ) {
+			if ( false !== stripos( (string) $wpdb->last_error, 'duplicate' ) ) {
+				return new \WP_Error( 'activation_conflict', 'The installation could not be activated. Retry the request.', array( 'status' => 409 ) );
+			}
+			return new \WP_Error( 'activation_failed', 'The activation could not be stored. Retry the request.', array( 'status' => 500 ) );
+		}
+
+		$activation_id = (int) $wpdb->insert_id;
+		foreach ( $replaced as $replaced_id ) {
+			// The staging copy of a replaced live site moves to the new activation (B-167).
+			$reparent_to = 'production' === $environment ? $activation_id : 0;
+			if ( ! ActivationManager::deactivate_while_locked( $replaced_id, 'Replaced by a new installation of the same site', 0, 'site_replaced', $reparent_to ) ) {
+				$wpdb->delete( $tables['activations'], array( 'id' => $activation_id ), array( '%d' ) );
+				return new \WP_Error( 'activation_failed', 'The previous activation of this site could not be replaced. Retry the request.', array( 'status' => 500 ) );
+			}
+		}
+
+		$after = array( 'license_id' => $license_id, 'site_url' => $site_url, 'environment' => $environment );
+		if ( $requested_environment !== $environment ) {
+			$after['requested_environment'] = $requested_environment;
+		}
+		AuditLog::record(
+			'site_activated',
+			'activation',
+			$activation_id,
+			$requested_environment !== $environment ? 'Product installation activated; the staging host is not related to the live site and counts as a live site' : 'Product installation activated',
+			null,
+			$after
+		);
+
+		return self::signed_entitlement_response( $license_id, $activation_id, $installation_uuid, $secret );
+	}
+
+	/**
+	 * Answer a repeated activation of a known installation ID.
+	 *
+	 * @param \WP_REST_Request         $request         Request.
+	 * @param array<string,mixed>      $license         License row.
+	 * @param array<string,mixed>      $existing        Activation row with this installation ID.
+	 * @param array<string,string>     $input           Validated input.
+	 * @param array<string,mixed>|null $parent          Live activation named by a staging request.
+	 * @param bool                     $staging_allowed Whether the host is acceptable for a staging site.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private static function refresh_existing( \WP_REST_Request $request, array $license, array $existing, array $input, ?array $parent, bool $staging_allowed ) {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$environment = $input['environment'];
+		$conflict = (int) $existing['license_id'] !== (int) $license['id']
+			|| ! hash_equals( (string) $existing['installation_secret_hash'], hash( 'sha256', $input['secret'] ) );
+		if ( ! $conflict ) {
+			if ( $existing['environment'] === $environment ) {
+				$conflict = (int) $existing['staging_parent_id'] !== ( null === $parent ? 0 : (int) $parent['id'] );
+			} else {
+				// A staging request that was counted as a live site keeps answering for that live activation.
+				$conflict = ! ( 'staging' === $environment && 'production' === $existing['environment'] && ! $staging_allowed );
+			}
+		}
+		if ( $conflict ) {
+			return new \WP_Error( 'installation_conflict', 'This installation ID is already assigned to another credential.', array( 'status' => 409 ) );
+		}
+		if ( 'active' !== $existing['status'] ) {
+			return new \WP_Error( 'activation_deactivated', 'This installation was deactivated. Generate a new installation ID to activate again.', array( 'status' => 409 ) );
+		}
+		if ( 'staging' === $existing['environment'] && ! $staging_allowed && (string) $existing['site_url'] !== $input['site_url'] ) {
+			return new \WP_Error( 'staging_site_invalid', 'A staging activation cannot move to a host that is unrelated to its live site.', array( 'status' => 409 ) );
+		}
+
+		$changes = array( 'site_url' => $input['site_url'], 'last_seen_at' => gmdate( 'Y-m-d H:i:s' ) );
+		foreach ( array( 'product_version', 'wp_version', 'php_version' ) as $version_field ) {
+			$reported = EntitlementService::version_param( $request, $version_field );
+			if ( '' !== $reported ) {
+				$changes[ $version_field ] = $reported;
+			}
+		}
+		$updated = $wpdb->update(
+			$tables['activations'],
+			$changes,
+			array( 'id' => (int) $existing['id'], 'status' => 'active' ),
+			array_fill( 0, count( $changes ), '%s' ),
+			array( '%d', '%s' )
+		);
+		if ( false === $updated ) {
+			return new \WP_Error( 'activation_failed', 'The activation could not be updated. Retry the request.', array( 'status' => 500 ) );
+		}
+		if ( (string) $existing['site_url'] !== $input['site_url'] ) {
+			// The address of an installation is part of its history (A-77).
+			AuditLog::record(
+				'site_url_changed',
+				'activation',
+				(int) $existing['id'],
+				'Site address changed by a repeated activation',
+				array( 'license_id' => (int) $license['id'], 'site_url' => (string) $existing['site_url'] ),
+				array( 'site_url' => $input['site_url'] )
+			);
+		}
+
+		return self::signed_entitlement_response( (int) $license['id'], (int) $existing['id'], $input['installation_uuid'], $input['secret'] );
 	}
 
 	/**
@@ -311,32 +402,52 @@ final class ActivationService {
 	public static function deactivate( \WP_REST_Request $request ) {
 		global $wpdb;
 
-		$activation = Authenticator::authenticate( $request );
+		$activation = Authenticator::authenticate( $request, true );
 		if ( is_wp_error( $activation ) ) {
 			return $activation;
 		}
 		if ( (int) $activation['id'] !== absint( $request->get_param( 'activation_id' ) ) ) {
-			return new \WP_Error( 'activation_mismatch', __( 'The authenticated installation does not match this activation.', 'wp-license' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'activation_mismatch', 'The authenticated installation does not match this activation.', array( 'status' => 403 ) );
+		}
+
+		$confirmation = Response::signed(
+			array( 'activation_id' => (int) $activation['id'], 'status' => 'deactivated' ),
+			(string) $activation['installation_secret'],
+			200,
+			(string) $activation['request_nonce'],
+			(string) $activation['installation_uuid']
+		);
+		if ( 'active' !== (string) $activation['status'] ) {
+			// Already released (customer account, admin, replacement): the
+			// client gets the same signed confirmation and can drop its
+			// local credentials.
+			return $confirmation;
+		}
+
+		// A copy of the site (staging clone with the copied credentials) must
+		// not end the activation of the original: when the client states its
+		// address, it has to be the activated one (B-69).
+		$reported_url = $request->get_param( 'site_url' );
+		if ( is_string( $reported_url ) && '' !== $reported_url ) {
+			$reported_key = SiteUrl::comparison_key( $reported_url );
+			if ( '' === $reported_key || SiteUrl::comparison_key( (string) $activation['site_url'] ) !== $reported_key ) {
+				return new \WP_Error( 'site_mismatch', 'This activation belongs to another site address and was not deactivated.', array( 'status' => 409 ) );
+			}
 		}
 
 		$lock_name = ActivationManager::lock_name( (int) $activation['license_id'] );
+		ActivationManager::use_primary_database();
 		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
 		if ( '1' !== (string) $locked ) {
-			return new \WP_Error( 'retry_later', __( 'The license is being updated. Retry shortly.', 'wp-license' ), array( 'status' => 503 ) );
+			return new \WP_Error( 'retry_later', 'The license is being updated. Retry shortly.', array( 'status' => 503, 'retry_after' => 5 ) );
 		}
 
 		try {
 			if ( ! ActivationManager::deactivate_while_locked( (int) $activation['id'], 'Deactivated by the installation owner' ) ) {
-				return new \WP_Error( 'deactivation_failed', __( 'The installation could not be deactivated.', 'wp-license' ), array( 'status' => 409 ) );
+				return new \WP_Error( 'deactivation_failed', 'The installation could not be deactivated.', array( 'status' => 409 ) );
 			}
 
-			return Response::signed(
-				array( 'activation_id' => (int) $activation['id'], 'status' => 'deactivated' ),
-				(string) $activation['installation_secret'],
-				200,
-				(string) $activation['request_nonce'],
-				(string) $activation['installation_uuid']
-			);
+			return $confirmation;
 		} finally {
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
 		}
@@ -349,9 +460,9 @@ final class ActivationService {
 	 * @param int $activation_id Activation ID.
 	 * @param string $installation_uuid Installation UUID.
 	 * @param string $secret Installation secret.
-	 * @return \WP_REST_Response
+	 * @return \WP_REST_Response|\WP_Error
 	 */
-	private static function signed_entitlement_response( int $license_id, int $activation_id, string $installation_uuid, string $secret ): \WP_REST_Response {
+	private static function signed_entitlement_response( int $license_id, int $activation_id, string $installation_uuid, string $secret ) {
 		global $wpdb;
 
 		$tables = Schema::table_names();
@@ -359,67 +470,49 @@ final class ActivationService {
 			$wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ),
 			ARRAY_A
 		);
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT entitlement_key,value_json FROM {$tables['entitlements']} WHERE license_id = %d AND status = %s AND (ends_at IS NULL OR ends_at > %s)",
-				$license_id,
-				'active',
-				is_array( $license ) ? LicenseLifecycle::entitlement_cutoff( $license ) : gmdate( 'Y-m-d H:i:s' )
-			),
-			ARRAY_A
-		);
-
-		$entitlements = array();
-		foreach ( $rows as $row ) {
-			$entitlements[ $row['entitlement_key'] ] = json_decode( $row['value_json'], true );
-		}
-
-		$paid_until = $license['paid_until'] ?? null;
 		$activation = $wpdb->get_row(
-			$wpdb->prepare( "SELECT environment,staging_parent_id FROM {$tables['activations']} WHERE id = %d LIMIT 1", $activation_id ),
+			$wpdb->prepare( "SELECT id,installation_uuid,environment,staging_parent_id FROM {$tables['activations']} WHERE id = %d LIMIT 1", $activation_id ),
 			ARRAY_A
 		);
-		$site_count = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$tables['activations']} WHERE license_id = %d AND status = %s AND environment = %s",
-				$license_id,
-				'active',
-				'production'
-			)
-		);
-		$data = array(
-			'activation_id' => $activation_id,
-			'installation_id' => $installation_uuid,
-			'license_status' => (string) $license['status'],
-			'paid_until' => $paid_until,
-			'site_limit' => self::site_limit( $license_id, $license ),
-			'site_count' => $site_count,
-			'environment' => is_array( $activation ) ? (string) $activation['environment'] : 'production',
-			'staging_parent_id' => is_array( $activation ) && $activation['staging_parent_id'] ? (int) $activation['staging_parent_id'] : null,
-			'entitlements' => $entitlements,
-			'server_time' => gmdate( 'Y-m-d H:i:s' ),
-			'cache_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * DAY_IN_SECONDS ),
-		);
+		if ( ! is_array( $license ) || ! is_array( $activation ) ) {
+			return new \WP_Error( 'activation_failed', 'The activation could not be read back. Retry the request.', array( 'status' => 500 ) );
+		}
 
 		// Activation is not HMAC-authenticated; the installation ID the client
 		// just generated takes the place of the request nonce.
-		return Response::signed( $data, $secret, 200, $installation_uuid, $installation_uuid );
+		return Response::signed( EntitlementService::snapshot( $license, $activation ), $secret, 200, $installation_uuid, $installation_uuid );
 	}
 
 	/**
-	 * Restrict non-counting development activations to local development hosts.
+	 * Distinct refusal for a license that grants no access (B-72).
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return \WP_Error
+	 */
+	private static function license_status_error( array $license ): \WP_Error {
+		$status = (string) $license['status'];
+		$data = array( 'status' => 403, 'license_status' => in_array( $status, array( 'active', 'past_due' ), true ) ? 'expired' : $status );
+		if ( 'suspended' === $status ) {
+			return new \WP_Error( 'license_suspended', 'This license is suspended.', $data );
+		}
+		if ( 'revoked' === $status ) {
+			return new \WP_Error( 'license_revoked', 'This license was revoked.', $data );
+		}
+		if ( in_array( $status, array( 'active', 'past_due', 'expired' ), true ) ) {
+			return new \WP_Error( 'license_expired', 'This license has expired.', $data );
+		}
+
+		return new \WP_Error( 'license_inactive', 'This license is not active.', $data );
+	}
+
+	/**
+	 * Restrict development activations to local development hosts.
 	 *
 	 * @param string $site_url Normalized site URL.
 	 * @return bool
 	 */
 	private static function is_local_development_url( string $site_url ): bool {
-		$host = strtolower( (string) wp_parse_url( $site_url, PHP_URL_HOST ) );
-		// wp_parse_url() keeps the brackets of an IPv6 literal.
-		$host = trim( rtrim( $host, '.' ), '[]' );
-		$allowed = in_array( $host, array( 'localhost', '127.0.0.1', '::1' ), true )
-			|| '.localhost' === substr( $host, -10 )
-			|| '.test' === substr( $host, -5 )
-			|| '.local' === substr( $host, -6 );
+		$allowed = SiteUrl::is_local_host( SiteUrl::host( $site_url ) );
 
 		/**
 		 * Allow a shop owner to explicitly approve a custom development hostname.
@@ -428,6 +521,30 @@ final class ActivationService {
 		 * @param string $site_url Normalized site URL.
 		 */
 		return (bool) apply_filters( 'wplc_is_local_development_url', $allowed, $site_url );
+	}
+
+	/**
+	 * Number of development activations a license may hold at the same time (A-33).
+	 *
+	 * Development sites do not use a live slot, and their host is only
+	 * checked by its name, so they are capped: twice the live-site limit,
+	 * at least DEVELOPMENT_SITES_MIN.
+	 *
+	 * @param array<string,mixed> $license    License row.
+	 * @param int                 $site_limit Live-site limit of the license.
+	 * @return int
+	 */
+	public static function development_site_limit( array $license, int $site_limit ): int {
+		$limit = max( self::DEVELOPMENT_SITES_MIN, 2 * $site_limit );
+
+		/**
+		 * Filter the number of development activations per license. Zero forbids them.
+		 *
+		 * @param int                 $limit      Default: twice the live-site limit, at least five.
+		 * @param array<string,mixed> $license    License row.
+		 * @param int                 $site_limit Live-site limit.
+		 */
+		return max( 0, (int) apply_filters( 'wplc_development_site_limit', $limit, $license, $site_limit ) );
 	}
 
 	/**
@@ -450,7 +567,9 @@ final class ActivationService {
 			)
 		);
 		if ( null !== $value ) {
-			return max( 1, absint( json_decode( (string) $value, true ) ) );
+			$decoded = json_decode( (string) $value, true );
+
+			return max( 1, is_numeric( $decoded ) && is_finite( (float) $decoded ) ? absint( $decoded ) : 0 );
 		}
 
 		$limit = $wpdb->get_var(
@@ -465,55 +584,53 @@ final class ActivationService {
 	}
 
 	/**
-	 * Normalize a URL to a stable site origin/path.
+	 * Read a request parameter as a string; arrays and objects count as missing.
 	 *
-	 * @param string $url Input URL.
+	 * @param \WP_REST_Request $request Request.
+	 * @param string           $name    Parameter name.
 	 * @return string
 	 */
-	private static function normalize_site_url( string $url ): string {
-		return SiteUrl::normalize( $url );
+	private static function string_param( \WP_REST_Request $request, string $name ): string {
+		$value = $request->get_param( $name );
+
+		return is_string( $value ) ? $value : '';
 	}
 
 	/**
-	 * Atomically count anonymous activation attempts by client address.
+	 * Count a failed anonymous attempt against the client address.
 	 *
 	 * The address comes from ClientIp (REMOTE_ADDR, or a configured trusted
 	 * proxy header). IPv6 clients share one bucket per /64. A request without a
 	 * resolvable address lands in a shared bucket instead of failing for
 	 * everyone.
 	 *
-	 * @return int|false Current attempt count, or false when the store is unavailable.
+	 * @param \WP_Error $error The error of this attempt.
+	 * @return \WP_Error The same error, or `rate_limited` once the address used up its attempts.
 	 */
-	private static function activation_attempt_count() {
+	private static function anonymous_failure( \WP_Error $error ): \WP_Error {
 		$bucket = ClientIp::rate_limit_bucket( ClientIp::current() );
 		if ( '' === $bucket ) {
 			$bucket = 'unknown';
 		}
 
-		return Authenticator::increment_rate_limit( hash( 'sha256', 'activation-ip:' . $bucket ) );
-	}
-
-	/**
-	 * Atomically count activation attempts for one license-key prefix.
-	 *
-	 * @param string $license_key Normalized (trimmed, uppercase) license key.
-	 * @return int|false Current attempt count (zero without a key), or false when the store is unavailable.
-	 */
-	private static function key_attempt_count( string $license_key ) {
-		if ( '' === $license_key ) {
-			return 0;
+		$attempts = Authenticator::increment_rate_limit( Authenticator::limiter_hash( 'activation-ip', $bucket ) );
+		if ( false === $attempts ) {
+			return new \WP_Error( 'rate_limit_store_unavailable', 'Activation rate limiting is temporarily unavailable.', array( 'status' => 503 ) );
+		}
+		if ( $attempts > self::ATTEMPTS_PER_IP ) {
+			return new \WP_Error( 'rate_limited', 'Too many activation attempts. Try again later.', array( 'status' => 429, 'retry_after' => 60 ) );
 		}
 
-		return Authenticator::increment_rate_limit( self::key_limiter_hash( $license_key ) );
+		return $error;
 	}
 
 	/**
 	 * Limiter key for a license-key prefix; never stores key material.
 	 *
 	 * @param string $license_key License key.
-	 * @return string SHA-256 limiter hash.
+	 * @return string Limiter hash.
 	 */
 	public static function key_limiter_hash( string $license_key ): string {
-		return hash( 'sha256', 'activation-key:' . substr( strtoupper( trim( $license_key ) ), 0, self::KEY_PREFIX_LENGTH ) );
+		return Authenticator::limiter_hash( 'activation-key', substr( LicenseKey::normalize( $license_key ), 0, self::KEY_PREFIX_LENGTH ) );
 	}
 }

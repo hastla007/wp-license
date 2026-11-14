@@ -51,6 +51,7 @@ final class ActivationManager {
 		}
 
 		$lock_name = self::lock_name( (int) $license_id );
+		self::use_primary_database();
 		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $lock_name ) );
 		if ( '1' !== (string) $locked ) {
 			return false;
@@ -73,9 +74,10 @@ final class ActivationManager {
 	 * @param string $reason Human-readable reason.
 	 * @param int    $actor_user_id Acting user, or zero.
 	 * @param string $audit_action Audit action of the requested activation.
+	 * @param int    $reparent_to Activation that takes over the active staging children (B-167); zero deactivates them.
 	 * @return bool
 	 */
-	public static function deactivate_while_locked( int $activation_id, string $reason, int $actor_user_id = 0, string $audit_action = 'site_deactivated' ): bool {
+	public static function deactivate_while_locked( int $activation_id, string $reason, int $actor_user_id = 0, string $audit_action = 'site_deactivated', int $reparent_to = 0 ): bool {
 		global $wpdb;
 
 		$tables = Schema::table_names();
@@ -120,6 +122,29 @@ final class ActivationManager {
 			ARRAY_A
 		);
 		foreach ( is_array( $children ) ? $children : array() as $child ) {
+			if ( $reparent_to > 0 ) {
+				// The live site activated again with a new installation ID: its
+				// staging copy stays licensed through the new activation.
+				$moved = $wpdb->update(
+					$tables['activations'],
+					array( 'staging_parent_id' => $reparent_to ),
+					array( 'id' => (int) $child['id'], 'status' => 'active', 'staging_parent_id' => $activation_id ),
+					array( '%d' ),
+					array( '%d', '%s', '%d' )
+				);
+				if ( 1 === $moved ) {
+					AuditLog::record(
+						'staging_reparented',
+						'activation',
+						(int) $child['id'],
+						'Staging site linked to the new activation of its live site',
+						array( 'parent_activation_id' => $activation_id, 'license_id' => (int) $activation['license_id'] ),
+						array( 'parent_activation_id' => $reparent_to ),
+						$actor_user_id
+					);
+				}
+				continue;
+			}
 			if ( ! self::compare_and_set( (int) $child['id'] ) ) {
 				continue;
 			}
@@ -150,6 +175,47 @@ final class ActivationManager {
 	 */
 	public static function lock_name( int $license_id ): string {
 		return 'wplc_' . substr( hash( 'sha256', \WPLC\Infrastructure\Database\Schema::lock_scope() . '|license:' . $license_id ), 0, 48 );
+	}
+
+	/**
+	 * Send the following queries of this request to the primary database (B-24).
+	 *
+	 * With read/write splitting (HyperDB, LudicrousDB) GET_LOCK() and the
+	 * counting SELECTs could otherwise run on different servers, which makes
+	 * the site limit bypassable. A no-op for the stock wpdb.
+	 *
+	 * @return void
+	 */
+	public static function use_primary_database(): void {
+		global $wpdb;
+
+		if ( is_object( $wpdb ) && method_exists( $wpdb, 'send_reads_to_master' ) ) {
+			$wpdb->send_reads_to_master();
+		}
+	}
+
+	/**
+	 * Check that the database server grants named locks (B-165).
+	 *
+	 * Activation, deactivation and renewals depend on GET_LOCK(). When the
+	 * server refuses it (proxy in transaction mode, missing privilege), every
+	 * activation answers 503 `retry_later`. The diagnostics page and the
+	 * activation routine can call this and warn.
+	 *
+	 * @return bool True when a lock could be taken and released.
+	 */
+	public static function lock_self_test(): bool {
+		global $wpdb;
+
+		self::use_primary_database();
+		$lock_name = 'wplc_' . substr( hash( 'sha256', Schema::lock_scope() . '|self-test:' . wp_generate_uuid4() ), 0, 48 );
+		$locked = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', $lock_name ) );
+		if ( '1' !== (string) $locked ) {
+			return false;
+		}
+		$released = $wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+
+		return '1' === (string) $released;
 	}
 
 	/**

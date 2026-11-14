@@ -53,11 +53,54 @@ final class ApiContractTest extends TestCase {
 		);
 		$this->assertSame(
 			// The Ed25519 fields are optional: they need a signing key and an installation.
-			array_values( array_diff( array_keys( $envelope['properties'] ), array( 'signature_ed25519', 'key_id' ) ) ),
+			array_values( array_diff( array_keys( $envelope['properties'] ), array( 'signature_ed25519', 'payload_signature_ed25519', 'key_id' ) ) ),
 			array_keys( \WPLC\Api\V1\Response::envelope( array( 'status' => 'ok' ), 'contract-test-secret', 'contract-test-nonce' ) ),
 			'The server envelope and the published schema must list the same fields.'
 		);
 		$this->assertArrayHasKey( 'InstallationHmac', $contract['components']['securitySchemes'] );
 		$this->assertArrayHasKey( 'StripeSignature', $contract['components']['securitySchemes'] );
+	}
+
+	/** B-72: the published error codes are exactly the codes the server knows, each with one status. */
+	public function test_contract_lists_the_error_codes_and_status_values_of_the_server(): void {
+		$contract = json_decode(
+			(string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/openapi-v1.json' ),
+			true,
+			512,
+			JSON_THROW_ON_ERROR
+		);
+		$schemas  = $contract['components']['schemas'];
+
+		$this->assertSame( array_keys( \WPLC\Api\V1\ApiLog::CODES ), $schemas['ErrorCode']['enum'] );
+		$this->assertSame( array( 'active', 'past_due', 'expired', 'suspended', 'revoked', 'pending', 'deactivated' ), $schemas['LicenseStatus']['enum'] );
+		$this->assertSame( array( 'active', 'deactivated' ), $schemas['ActivationStatus']['enum'] );
+		$this->assertSame( \WPLC\Api\V1\ActivationService::ENVIRONMENTS, $schemas['Environment']['enum'] );
+		// B-75: the secret pattern of the contract is the one the server validates with.
+		$this->assertSame(
+			'/' . str_replace( '/', '\\/', $schemas['ActivationRequest']['properties']['installation_secret']['pattern'] ) . '/',
+			\WPLC\Api\V1\ActivationService::SECRET_PATTERN
+		);
+
+		// The Markdown reference documents every code.
+		$markdown = (string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/API-V1.md' );
+		foreach ( \WPLC\Api\V1\ApiLog::CODES as $code => $status ) {
+			$this->assertMatchesRegularExpression( '/\| `' . preg_quote( $code, '/' ) . '` \| ' . $status . ' \|/', $markdown, 'docs/API-V1.md must list ' . $code . ' with status ' . $status );
+		}
+	}
+
+	/** T-145: every signed route declares the answers shared by all authenticated requests. */
+	public function test_signed_routes_declare_replay_rate_limit_and_unavailable_responses(): void {
+		$contract = json_decode(
+			(string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/openapi-v1.json' ),
+			true,
+			512,
+			JSON_THROW_ON_ERROR
+		);
+		foreach ( array( array( '/activations/{activation_id}', 'delete' ), array( '/entitlements/check', 'post' ), array( '/updates/check', 'post' ) ) as $operation ) {
+			$responses = $contract['paths'][ $operation[0] ][ $operation[1] ]['responses'];
+			foreach ( array( '401', '409', '429', '503' ) as $status ) {
+				$this->assertSame( '#/components/responses/ApiError', $responses[ $status ]['$ref'] ?? '', $operation[0] . ' must declare ' . $status );
+			}
+		}
 	}
 }

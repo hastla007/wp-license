@@ -138,6 +138,11 @@ final class ClientIp {
 		if ( '' === $subnet ) {
 			return false;
 		}
+		// normalize() turns ::ffff:a.b.c.d into a.b.c.d; the prefix length of
+		// an IPv4-mapped range counts from the start of the IPv6 form (B-180).
+		if ( null !== $bits && false !== strpos( $range, ':' ) && false === strpos( $subnet, ':' ) ) {
+			$bits = max( 0, $bits - 96 );
+		}
 		$ip_packed = inet_pton( $ip );
 		$subnet_packed = inet_pton( $subnet );
 		if ( false === $ip_packed || false === $subnet_packed || strlen( $ip_packed ) !== strlen( $subnet_packed ) ) {

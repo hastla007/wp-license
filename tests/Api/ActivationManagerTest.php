@@ -96,6 +96,14 @@ final class WPLC_Activation_Manager_Test_Db {
 	}
 }
 
+/**
+ * Base for database doubles with extra methods of drop-in database classes.
+ */
+class WPLC_Activation_Manager_Test_Db_Base {
+	/** @var string */
+	public $prefix = 'wp_';
+}
+
 final class ActivationManagerTest extends TestCase {
 	/** @var mixed */
 	private $previous_wpdb;
@@ -154,7 +162,54 @@ final class ActivationManagerTest extends TestCase {
 		$this->assertSame( 'Deactivated by license owner', $db->audit[0]['reason'] );
 		$this->assertSame( array( 'site_deactivated', 2, 42 ), array( $db->audit[1]['action'], $db->audit[1]['object_id'], $db->audit[1]['actor_user_id'] ) );
 		$this->assertSame( 1, json_decode( $db->audit[1]['after_json'], true )['parent_activation_id'] );
-		$this->assertStringNotContainsString( 'shop.example', $db->audit[0]['before_json'], 'Site URLs are redacted by the audit log.' );
+		// A-77: the site address stays readable in the audit log.
+		$this->assertSame( 'https://shop.example', json_decode( $db->audit[0]['before_json'], true )['site_url'] );
+		$this->assertSame( 'https://staging.shop.example', json_decode( $db->audit[1]['before_json'], true )['site_url'] );
+	}
+
+	/** B-24: with a read/write splitting database class the lock and the reads go to the primary. */
+	public function test_reads_are_sent_to_the_primary_before_the_lock_is_taken(): void {
+		$db = new class() extends WPLC_Activation_Manager_Test_Db_Base {
+			/** @var string[] */
+			public $calls = array();
+
+			public function send_reads_to_master() {
+				$this->calls[] = 'primary';
+			}
+
+			public function get_var( $query ) {
+				$this->calls[] = false !== strpos( $query, 'GET_LOCK' ) ? 'lock' : 'query';
+				return '1';
+			}
+
+			public function prepare( $query, ...$args ) {
+				return $query;
+			}
+		};
+		$GLOBALS['wpdb'] = $db;
+
+		ActivationManager::use_primary_database();
+		$db->get_var( 'SELECT GET_LOCK' );
+		$this->assertSame( array( 'primary', 'lock' ), $db->calls );
+
+		// The stock wpdb has no such method: nothing happens.
+		$GLOBALS['wpdb'] = new WPLC_Activation_Manager_Test_Db();
+		ActivationManager::use_primary_database();
+		$this->assertSame( array(), $GLOBALS['wpdb']->locks );
+	}
+
+	/** B-167: a replaced live site hands its staging copy to the new activation. */
+	public function test_replacement_moves_the_staging_child_to_the_new_activation(): void {
+		$db = $GLOBALS['wpdb'];
+
+		$this->assertTrue( ActivationManager::deactivate_while_locked( 1, 'Replaced by a new installation of the same site', 0, 'site_replaced', 4 ) );
+
+		$this->assertSame( 'deactivated', $db->activations[1]['status'] );
+		$this->assertSame( 'active', $db->activations[2]['status'], 'The staging child must stay active.' );
+		$this->assertSame( 4, $db->activations[2]['staging_parent_id'] );
+		$this->assertSame( 1, $db->activations[3]['staging_parent_id'], 'A deactivated child is not moved.' );
+		$this->assertSame( array( 'site_replaced', 'staging_reparented' ), array( $db->audit[0]['action'], $db->audit[1]['action'] ) );
+		$this->assertSame( 4, json_decode( $db->audit[1]['after_json'], true )['parent_activation_id'] );
 	}
 
 	public function test_custom_audit_action_applies_to_the_requested_activation_only(): void {
