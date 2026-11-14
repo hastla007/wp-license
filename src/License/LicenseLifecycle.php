@@ -297,7 +297,7 @@ final class LicenseLifecycle {
 		global $wpdb;
 
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
-		if ( ! $order || ! is_callable( array( $order, 'get_meta' ) ) ) {
+		if ( ! $order ) {
 			return;
 		}
 		$license_id = absint( $order->get_meta( '_wplc_renewal_for_license', true ) );
@@ -539,7 +539,7 @@ final class LicenseLifecycle {
 		$tables = Schema::table_names();
 		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM %i WHERE source_order_id = %d", $tables['licenses'], $order_id ) ) );
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
-		$renewed = $order && is_callable( array( $order, 'get_meta' ) ) ? absint( $order->get_meta( '_wplc_renewal_for_license', true ) ) : 0;
+		$renewed = $order ? absint( $order->get_meta( '_wplc_renewal_for_license', true ) ) : 0;
 		if ( $renewed && self::get_license( $renewed ) ) {
 			$ids[] = $renewed;
 		}

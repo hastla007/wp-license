@@ -1000,9 +1000,14 @@ final class Notifications {
 		 * @param string[]            $steps   Plain-text steps.
 		 * @param array<string,mixed> $license License row, may be empty.
 		 */
-		$filtered = apply_filters( 'wplc_install_steps', $steps, $license );
+		$filtered = array();
+		foreach ( (array) apply_filters( 'wplc_install_steps', $steps, $license ) as $step ) {
+			if ( is_scalar( $step ) && '' !== (string) $step ) {
+				$filtered[] = (string) $step;
+			}
+		}
 
-		return is_array( $filtered ) ? array_values( array_filter( array_map( 'strval', $filtered ), 'strlen' ) ) : $steps;
+		return $filtered;
 	}
 
 	/**
@@ -1018,9 +1023,9 @@ final class Notifications {
 		 * @param string $url         URL, empty for none.
 		 * @param string $product_key Product key.
 		 */
-		$url = apply_filters( 'wplc_product_docs_url', '', $product_key );
+		$url = (string) apply_filters( 'wplc_product_docs_url', '', $product_key );
 
-		return is_string( $url ) ? esc_url_raw( $url ) : '';
+		return esc_url_raw( $url );
 	}
 
 	/**
@@ -1043,9 +1048,9 @@ final class Notifications {
 		 * @param string              $plan_key Internal plan key.
 		 * @param array<string,mixed> $license  License row.
 		 */
-		$filtered = apply_filters( 'wplc_plan_label', $label, $plan_key, $license );
+		$filtered = (string) apply_filters( 'wplc_plan_label', $label, $plan_key, $license );
 
-		return is_string( $filtered ) && '' !== $filtered ? $filtered : $label;
+		return '' !== $filtered ? $filtered : $label;
 	}
 
 	/**
@@ -1064,9 +1069,9 @@ final class Notifications {
 		 *
 		 * @param string $address Email address.
 		 */
-		$filtered = apply_filters( 'wplc_support_email', $address );
+		$filtered = (string) apply_filters( 'wplc_support_email', $address );
 
-		return is_string( $filtered ) && is_email( $filtered ) ? $filtered : '';
+		return is_email( $filtered ) ? $filtered : '';
 	}
 
 	/**

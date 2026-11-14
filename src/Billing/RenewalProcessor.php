@@ -575,8 +575,8 @@ final class RenewalProcessor {
 		 *
 		 * @param int[] $days Days after the period start, ascending. Default 1, 3 and 7.
 		 */
-		$days = apply_filters( 'wplc_renewal_retry_days', array( 1, 3, 7 ) );
-		$days = is_array( $days ) ? array_values( array_filter( array_map( 'absint', $days ) ) ) : array( 1, 3, 7 );
+		$days = (array) apply_filters( 'wplc_renewal_retry_days', array( 1, 3, 7 ) );
+		$days = array_values( array_filter( array_map( 'absint', $days ) ) );
 		sort( $days );
 
 		return $days;

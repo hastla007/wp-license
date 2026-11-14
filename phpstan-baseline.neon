@@ -241,12 +241,6 @@ parameters:
 			path: src/Gateway/StripeRecurringAdapter.php
 
 		-
-			message: '#^Call to static method request\(\) on an unknown class WC_Stripe_API\.$#'
-			identifier: class.notFound
-			count: 1
-			path: src/Gateway/StripeRecurringAdapter.php
-
-		-
 			message: '#^Instanceof between WC_Order and WC_Order will always evaluate to true\.$#'
 			identifier: instanceof.alwaysTrue
 			count: 2

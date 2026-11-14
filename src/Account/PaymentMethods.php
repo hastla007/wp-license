@@ -80,9 +80,6 @@ final class PaymentMethods {
 		$usable = array();
 		foreach ( $adapters as $gateway_id => $adapter ) {
 			foreach ( \WC_Payment_Tokens::get_customer_tokens( $user_id, (string) $gateway_id ) as $token ) {
-				if ( ! $token instanceof \WC_Payment_Token ) {
-					continue;
-				}
 				$token_id = (int) $token->get_id();
 				if ( (int) $token->get_user_id() === $user_id && $adapter->supports_saved_token( $token_id, $user_id ) ) {
 					$usable[ $token_id ] = $token;
@@ -238,7 +235,7 @@ final class PaymentMethods {
 	 * @return string
 	 */
 	public static function token_label( $token ): string {
-		$label = is_callable( array( $token, 'get_display_name' ) ) ? wp_strip_all_tags( (string) $token->get_display_name() ) : '';
+		$label = wp_strip_all_tags( (string) $token->get_display_name() );
 		if ( '' === trim( $label ) ) {
 			/* translators: %d: number of the saved payment method. */
 			$label = sprintf( __( 'Saved payment method #%d', 'wp-license' ), (int) $token->get_id() );
@@ -418,10 +415,7 @@ final class PaymentMethods {
 			$user_id
 		);
 
-		$scheduler = '\\WPLC\\Billing\\RenewalScheduler';
-		if ( class_exists( $scheduler ) && is_callable( array( $scheduler, 'schedule_next' ) ) ) {
-			call_user_func( array( $scheduler, 'schedule_next' ), $license_id );
-		}
+		\WPLC\Billing\RenewalScheduler::schedule_next( $license_id );
 
 		return true;
 	}

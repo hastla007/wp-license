@@ -160,7 +160,7 @@ final class Plugin {
 		}
 		// A cursor left behind by an unfinished reminder run would skip licenses after reactivation.
 		delete_option( 'wplc_reminder_cursor' );
-		if ( function_exists( 'as_unschedule_all_actions' ) && ( ! is_callable( array( '\\ActionScheduler', 'is_initialized' ) ) || \ActionScheduler::is_initialized() ) ) {
+		if ( function_exists( 'as_unschedule_all_actions' ) && \ActionScheduler::is_initialized() ) {
 			foreach ( self::QUEUED_HOOKS as $hook ) {
 				as_unschedule_all_actions( $hook, array(), 'wplc' );
 				as_unschedule_all_actions( $hook );

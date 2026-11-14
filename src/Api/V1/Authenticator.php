@@ -301,6 +301,15 @@ final class Authenticator {
 	}
 
 	/**
+	 * Hourly job (`wplc_cleanup_security_rows`): the cleanup as an action callback without a return value.
+	 *
+	 * @return void
+	 */
+	public static function run_cleanup(): void {
+		self::cleanup_security_rows();
+	}
+
+	/**
 	 * Remove expired replay and rate-limit records.
 	 *
 	 * Deletes in batches until nothing is left or the time budget is used,

@@ -332,12 +332,9 @@ final class CustomerDownload {
 	private static function form_url(): string {
 		// The page the license list is rendered on (account endpoint or a page with the shortcode),
 		// so a refused download shows its message where the customer clicked.
-		$portal = '\\WPLC\\Account\\CustomerPortal';
-		if ( class_exists( $portal ) && is_callable( array( $portal, 'form_url' ) ) ) {
-			$url = (string) call_user_func( array( $portal, 'form_url' ) );
-			if ( '' !== $url ) {
-				return $url;
-			}
+		$url = \WPLC\Account\CustomerPortal::form_url();
+		if ( '' !== $url ) {
+			return $url;
 		}
 		$url = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'myaccount' ) : '';
 

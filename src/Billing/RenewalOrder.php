@@ -243,7 +243,7 @@ final class RenewalOrder {
 		if ( $is_new ) {
 			// B-187: the downloads were granted with the first purchase.
 			$data_store = $order->get_data_store();
-			if ( $data_store && is_callable( array( $data_store, 'set_download_permissions_granted' ) ) ) {
+			if ( is_callable( array( $data_store, 'set_download_permissions_granted' ) ) ) {
 				$data_store->set_download_permissions_granted( $order, true );
 			}
 			if ( ! self::link( (int) $renewal['id'], (int) $order->get_id() ) ) {
@@ -312,7 +312,7 @@ final class RenewalOrder {
 	 * Writes an order note and an audit entry and fires `wplc/renewal_needs_review`,
 	 * so a payment that was accepted but not booked never stays invisible.
 	 *
-	 * @param \WC_Order $order Order.
+	 * @param mixed     $order Order (WC_Order); anything else is ignored, callers pass the result of wc_get_order().
 	 * @param int       $renewal_id Renewal ID, zero when unknown.
 	 * @param string    $problem Reason for the audit log.
 	 * @param string    $audit_action Audit action.
@@ -741,12 +741,12 @@ final class RenewalOrder {
 	 * @return void
 	 */
 	private static function set_payment_method( $order, string $gateway_id ): void {
-		$gateways = function_exists( 'WC' ) && WC()->payment_gateways() ? WC()->payment_gateways()->payment_gateways() : array();
-		if ( isset( $gateways[ $gateway_id ] ) && is_object( $gateways[ $gateway_id ] ) ) {
-			$order->set_payment_method( $gateways[ $gateway_id ] );
-			return;
-		}
+		$gateways = function_exists( 'WC' ) ? WC()->payment_gateways()->payment_gateways() : array();
 		$order->set_payment_method( $gateway_id );
+		if ( isset( $gateways[ $gateway_id ] ) && $gateways[ $gateway_id ] instanceof \WC_Payment_Gateway ) {
+			// What WC_Order::set_payment_method() does with a gateway object at checkout.
+			$order->set_payment_method_title( (string) $gateways[ $gateway_id ]->get_title() );
+		}
 	}
 
 	/**

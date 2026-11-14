@@ -37,6 +37,13 @@ abstract class LicenseEmail extends \WC_Email {
 	protected $wplc_view = array();
 
 	/**
+	 * License row the current email is about (WC_Email::$object is declared for objects).
+	 *
+	 * @var array<string,mixed>
+	 */
+	protected $wplc_license = array();
+
+	/**
 	 * Extra data handed over by the trigger.
 	 *
 	 * @var array<string,mixed>
@@ -88,7 +95,8 @@ abstract class LicenseEmail extends \WC_Email {
 		$switched = '' !== $locale && function_exists( 'switch_to_locale' ) ? (bool) switch_to_locale( $locale ) : false;
 
 		try {
-			$this->object       = $license;
+			$this->object       = (object) $license;
+			$this->wplc_license = $license;
 			$this->recipient    = $address;
 			$this->wplc_context = $context;
 			$this->wplc_view    = Notifications::view( $license, $context );
@@ -107,6 +115,7 @@ abstract class LicenseEmail extends \WC_Email {
 			$this->wplc_view    = array();
 			$this->wplc_terms   = array();
 			$this->object       = false;
+			$this->wplc_license = array();
 			if ( $switched && function_exists( 'restore_previous_locale' ) ) {
 				restore_previous_locale();
 			}
@@ -142,7 +151,9 @@ abstract class LicenseEmail extends \WC_Email {
 		 */
 		$address = apply_filters( 'wplc_license_email_recipient', $address, $license );
 
-		return is_string( $address ) && is_email( $address ) ? $address : '';
+		$address = (string) $address;
+
+		return is_email( $address ) ? $address : '';
 	}
 
 	/**
@@ -183,8 +194,8 @@ abstract class LicenseEmail extends \WC_Email {
 			'license_key' => '',
 			'renewal_terms' => $this->wplc_terms,
 			'cancel_text' => RenewalTerms::cancel_text(),
-			'install_steps' => Notifications::install_steps( is_array( $this->object ) ? $this->object : array() ),
-			'docs_url' => is_array( $this->object ) ? Notifications::docs_url( (string) ( $this->object['product_key'] ?? '' ) ) : '',
+			'install_steps' => Notifications::install_steps( $this->wplc_license ),
+			'docs_url' => $this->wplc_license ? Notifications::docs_url( (string) ( $this->wplc_license['product_key'] ?? '' ) ) : '',
 			'email_heading' => $this->get_heading(),
 			'additional_content' => $this->content_with_sender_note(),
 			'sent_to_admin' => false,

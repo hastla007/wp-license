@@ -323,7 +323,7 @@ final class PublicCancellation {
 			$addresses[] = strtolower( LicenseEmail::recipient_for( $license ) );
 		}
 
-		return in_array( $email, array_filter( $addresses, 'strlen' ), true );
+		return '' !== $email && in_array( $email, $addresses, true );
 	}
 
 	/**

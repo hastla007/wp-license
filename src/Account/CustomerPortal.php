@@ -167,9 +167,8 @@ final class CustomerPortal {
 			add_filter( 'woocommerce_get_query_vars', array( self::class, 'add_query_var' ) );
 		}
 		$mask  = EP_PAGES;
-		$query = function_exists( 'WC' ) && is_object( WC() ) && isset( WC()->query ) ? WC()->query : null;
-		if ( is_object( $query ) && is_callable( array( $query, 'get_endpoints_mask' ) ) ) {
-			$mask = (int) $query->get_endpoints_mask();
+		if ( function_exists( 'WC' ) ) {
+			$mask = (int) WC()->query->get_endpoints_mask();
 		}
 		add_rewrite_endpoint( self::endpoint_slug(), $mask );
 	}
@@ -278,7 +277,7 @@ final class CustomerPortal {
 	 * @return void
 	 */
 	public static function send_no_cache(): void {
-		if ( class_exists( '\\WC_Cache_Helper' ) && is_callable( array( '\\WC_Cache_Helper', 'set_nocache_constants' ) ) ) {
+		if ( class_exists( '\\WC_Cache_Helper' ) ) {
 			\WC_Cache_Helper::set_nocache_constants();
 		}
 		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
@@ -583,9 +582,10 @@ final class CustomerPortal {
 		 * @param array<string,mixed> $view    Display values handed to templates/myaccount/wplc-license.php.
 		 * @param array<string,mixed> $license License row.
 		 */
-		$filtered = apply_filters( 'wplc_account_license_view', $view, $license );
+		$filtered = (array) apply_filters( 'wplc_account_license_view', $view, $license );
 
-		return is_array( $filtered ) ? array_merge( $view, $filtered ) : $view;
+		// Keys a filter removed fall back to the built-in values; the template relies on all of them.
+		return array_merge( $view, $filtered );
 	}
 
 	/**
@@ -595,11 +595,7 @@ final class CustomerPortal {
 	 * @return bool
 	 */
 	private static function can_renew( array $license ): bool {
-		$manual_renewal = '\\WPLC\\Billing\\ManualRenewal';
-
-		return class_exists( $manual_renewal )
-			&& is_callable( array( $manual_renewal, 'can_renew' ) )
-			&& (bool) call_user_func( array( $manual_renewal, 'can_renew' ), $license );
+		return \WPLC\Billing\ManualRenewal::can_renew( $license );
 	}
 
 	/**
@@ -612,9 +608,7 @@ final class CustomerPortal {
 		static $cache = array();
 
 		if ( ! isset( $cache[ $product_key ] ) ) {
-			$registry              = '\\WPLC\\Update\\ReleaseRegistry';
-			$cache[ $product_key ] = class_exists( $registry ) && is_callable( array( $registry, 'latest_published' ) )
-				&& null !== call_user_func( array( $registry, 'latest_published' ), $product_key );
+			$cache[ $product_key ] = null !== \WPLC\Update\ReleaseRegistry::latest_published( $product_key );
 		}
 		return $cache[ $product_key ];
 	}
@@ -1305,10 +1299,7 @@ final class CustomerPortal {
 	 * @return void
 	 */
 	private static function render_download_form( array $license ): void {
-		$download = '\\WPLC\\Update\\CustomerDownload';
-		if ( class_exists( $download ) && is_callable( array( $download, 'render_button' ) ) ) {
-			call_user_func( array( $download, 'render_button' ), $license );
-		}
+		\WPLC\Update\CustomerDownload::render_button( $license );
 	}
 
 	/**
@@ -1325,9 +1316,8 @@ final class CustomerPortal {
 			return;
 		}
 
-		$consent  = '\\WPLC\\Billing\\RecurringConsent';
 		$licensed = (bool) LicenseLifecycle::license_ids_for_order( (int) $order->get_id() );
-		$pending  = ! $licensed && class_exists( $consent ) && is_callable( array( $consent, 'order_contains_license' ) ) && call_user_func( array( $consent, 'order_contains_license' ), $order );
+		$pending  = ! $licensed && \WPLC\Billing\RecurringConsent::order_contains_license( $order );
 		if ( ! $licensed && ! $pending ) {
 			return;
 		}

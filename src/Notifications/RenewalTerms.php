@@ -157,10 +157,7 @@ final class RenewalTerms {
 		 * @param array<string,mixed> $result  Keys: minor, tax_minor, decimals, currency, includes_tax.
 		 * @param array<string,mixed> $license License row.
 		 */
-		$filtered = apply_filters( 'wplc_renewal_display_amount', $result, $license );
-		if ( ! is_array( $filtered ) ) {
-			return $result;
-		}
+		$filtered = (array) apply_filters( 'wplc_renewal_display_amount', $result, $license );
 
 		return array(
 			'minor'        => max( 0, (int) ( $filtered['minor'] ?? $result['minor'] ) ),
@@ -184,7 +181,7 @@ final class RenewalTerms {
 		$decimals = (int) ( $gross['decimals'] ?? 2 );
 
 		return (string) wc_price(
-			Money::to_decimal( (int) $gross['minor'], $decimals ),
+			(float) Money::to_decimal( (int) $gross['minor'], $decimals ),
 			array(
 				'currency' => (string) ( $gross['currency'] ?? '' ),
 				'decimals' => $decimals,
@@ -266,7 +263,12 @@ final class RenewalTerms {
 			__( 'Interval', 'wp-license' )     => self::interval_label( (string) ( $license['billing_interval'] ?? 'year' ) ),
 		);
 
-		return array_filter( $rows, 'strlen' );
+		return array_filter(
+			$rows,
+			static function ( string $value ): bool {
+				return '' !== $value;
+			}
+		);
 	}
 
 	/**

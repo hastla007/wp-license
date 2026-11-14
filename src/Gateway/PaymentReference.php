@@ -47,7 +47,7 @@ final class PaymentReference {
 			return false;
 		}
 		$reference = $adapter->token_reference( $token_id, $customer_id );
-		if ( '' === (string) ( $reference['method_ref'] ?? '' ) ) {
+		if ( '' === $reference['method_ref'] ) {
 			return false;
 		}
 		$tables = Schema::table_names();
@@ -55,7 +55,7 @@ final class PaymentReference {
 		return false !== $wpdb->update(
 			$tables['licenses'],
 			array(
-				'gateway_customer_ref' => substr( sanitize_text_field( (string) ( $reference['customer_ref'] ?? '' ) ), 0, 100 ),
+				'gateway_customer_ref' => substr( sanitize_text_field( $reference['customer_ref'] ), 0, 100 ),
 				'gateway_method_ref' => substr( sanitize_text_field( (string) $reference['method_ref'] ), 0, 100 ),
 				'gateway_mode' => self::normalize_mode( $adapter->current_mode() ),
 			),
@@ -196,7 +196,7 @@ final class PaymentReference {
 				AuditLog::record( 'payment_method_relinked', 'license', $license_id, 'payment_token_recreated', array( 'payment_token_id' => $token_id ), array( 'payment_token_id' => $resolved ) );
 			} else {
 				$reference = $adapter->token_reference( $resolved, $customer_id );
-				if ( '' !== (string) ( $reference['method_ref'] ?? '' ) && ( $reference['method_ref'] !== $method_ref || ( '' === $stored_mode && '' !== $current_mode ) ) ) {
+				if ( '' !== $reference['method_ref'] && ( $reference['method_ref'] !== $method_ref || ( '' === $stored_mode && '' !== $current_mode ) ) ) {
 					// Bought before the references existed, or moved to another card in the account.
 					self::store( $license_id, $adapter->gateway_id(), $resolved, $customer_id );
 				}
