@@ -376,4 +376,36 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 1, $this->count_rows( 'audit_log', "action = 'source_order_removed' AND object_id = " . (int) $license['id'] ) );
 		$this->assertNotFalse( has_action( 'deleted_user', array( Orphans::class, 'on_user_deleted' ) ) );
 	}
+
+	// Wave 2: consent evidence of ended licenses is deleted after its period, that of licenses in force never;
+	// a deleted account is removed from the evidence.
+	public function test_consent_evidence_follows_retention_and_account_deletion(): void {
+		global $wpdb;
+		$tables   = $this->tables();
+		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
+		$ended    = $this->seed_license( array( 'status' => 'expired', 'customer_id' => $customer ) );
+		$running  = $this->seed_license( array( 'status' => 'active', 'customer_id' => $customer ) );
+		$old      = gmdate( 'Y-m-d H:i:s', time() - 3700 * DAY_IN_SECONDS );
+		$recent   = gmdate( 'Y-m-d H:i:s', time() - 100 * DAY_IN_SECONDS );
+		$insert   = static function ( int $license_id, string $consent_at ) use ( $wpdb, $tables, $customer ): int {
+			$wpdb->insert( $tables['consents'], array( 'license_id' => $license_id, 'customer_id' => $customer, 'consent_at' => $consent_at, 'consent_text' => 'I agree', 'created_at' => $consent_at ) );
+			return (int) $wpdb->insert_id;
+		};
+		$ended_old      = $insert( $ended['id'], $old );
+		$ended_recent   = $insert( $ended['id'], $recent );
+		$running_old    = $insert( $running['id'], $old );
+		$orphan_old     = $insert( 99999999, $old );
+
+		$processed = Retention::run();
+
+		$this->assertSame( 2, $processed['consents'] );
+		$this->assertSame( 0, $this->count_rows( 'consents', 'id IN (' . $ended_old . ',' . $orphan_old . ')' ) );
+		$this->assertSame( 2, $this->count_rows( 'consents', 'id IN (' . $ended_recent . ',' . $running_old . ')' ) );
+		$this->assertArrayNotHasKey( 'consents', Retention::run(), 'Nothing left for the rule.' );
+
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user( $customer );
+		$this->assertSame( 0, $this->count_rows( 'consents', 'customer_id = ' . $customer ) );
+		$this->assertSame( 2, $this->count_rows( 'consents', 'id IN (' . $ended_recent . ',' . $running_old . ')' ), 'The evidence itself stays.' );
+	}
 }

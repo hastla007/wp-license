@@ -21,7 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class LocalPackageStorage {
 	const DIRECTORY = 'wplc-packages';
 	const DEFAULT_MAX_BYTES = 52428800; // 50 MB.
-	// The product part follows ReleaseRegistry::PRODUCT_KEY_PATTERN minus leading/trailing hyphens (B-174).
+	// The product part follows Catalog::LEGACY_PRODUCT_KEY_PATTERN (every key Catalog::accepts_product_key()
+	// can accept, including existing keys with underscores) minus leading/trailing hyphens (B-174).
 	const KEY_PATTERN = '/^[a-z0-9_][a-z0-9_-]{0,99}-[A-Za-z0-9][A-Za-z0-9.-]{0,39}-[a-f0-9]{32}\.zip$/D';
 	/** Top-level folder of a package: the WordPress plugin directory. */
 	const SLUG_PATTERN = '/^[A-Za-z0-9_][A-Za-z0-9._-]{0,99}$/D';

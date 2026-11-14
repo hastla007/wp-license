@@ -102,6 +102,7 @@ final class PersonalDataCompletenessIntegrationTest extends WPLC_Integration_Tes
 			$wpdb->insert( $tables['audit_log'], array( 'actor_user_id' => 0, 'action' => 'renewal_succeeded_' . $who, 'object_type' => 'license', 'object_id' => $license['id'], 'reason' => 'note for ' . $who, 'created_at' => $now ) );
 			$wpdb->insert( $tables['audit_log'], array( 'actor_user_id' => 0, 'action' => 'site_activated_' . $who, 'object_type' => 'activation', 'object_id' => $site['id'], 'reason' => '', 'created_at' => $now ) );
 			$wpdb->insert( $tables['reminder_log'], array( 'license_id' => $license['id'], 'reminder_type' => 'renewal_notice_' . $who, 'period_end' => '2027-05-01 10:00:00', 'sent_at' => $now ) );
+			$wpdb->insert( $tables['consents'], array( 'license_id' => $license['id'], 'order_id' => 'mine' === $who ? $order->get_id() : 0, 'customer_id' => 'mine' === $who ? $customer : $stranger, 'consent_at' => '2026-05-01 10:00:00', 'source' => 'checkout', 'locale' => 'de_DE', 'text_hash' => hash( 'sha256', 'text ' . $who ), 'consent_text' => 'I agree to the yearly renewal (' . $who . ')', 'amount_minor' => 4900, 'currency_decimals' => 2, 'currency' => 'EUR', 'billing_interval' => 'year', 'created_at' => $now ) );
 			$wpdb->insert( $tables['download_tokens'], array( 'license_id' => $license['id'], 'token_hash' => hash( 'sha256', 'tok-' . $who ), 'package_url' => 'https://secret-host.example.test/' . $who . '.zip', 'expires_at' => $now, 'consumed_at' => $now, 'created_at' => $now ) );
 			$wpdb->insert( $tables['package_streams'], array( 'token_hash' => hash( 'sha256', 'stream-' . $who ), 'release_id' => 0, 'license_id' => $license['id'], 'source' => 'account', 'expires_at' => $now, 'created_at' => $now ) );
 			$out[ $who ] = array(
@@ -154,6 +155,14 @@ final class PersonalDataCompletenessIntegrationTest extends WPLC_Integration_Tes
 
 		$downloads = $this->group( $items, 'wp-license-captain-downloads' );
 		$this->assertCount( 2, $downloads );
+
+		// Wave 2: the consent evidence (table consents) is exported with its text and terms.
+		$consents = $this->group( $items, 'wp-license-captain-consents' );
+		$this->assertCount( 1, $consents );
+		$this->assertSame( 'I agree to the yearly renewal (mine)', $consents[0]['Text you agreed to'] );
+		$this->assertSame( '2026-05-01 10:00:00', $consents[0]['Consent given at (UTC)'] );
+		$this->assertSame( '49.00 EUR', $consents[0]['Renewal amount'] );
+		$this->assertSame( 'checkout', $consents[0]['Given through'] );
 
 		// Nothing of another customer, no secrets, no token values, no package locations.
 		$this->assertStringNotContainsString( 'stranger', $json );
@@ -266,6 +275,9 @@ final class PersonalDataCompletenessIntegrationTest extends WPLC_Integration_Tes
 		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['audit_log']} WHERE action = %s AND object_id = %d", 'license_erased', $mine ) ) );
 		// The stranger's rows survive.
 		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['reminder_log']} WHERE license_id = %d", $fixture['theirs']['license']['id'] ) ) );
+		// Wave 2: the consent evidence stays, without the person; the stranger's keeps its owner.
+		$this->assertSame( '0', (string) $wpdb->get_var( $wpdb->prepare( "SELECT customer_id FROM {$tables['consents']} WHERE license_id = %d", $mine ) ) );
+		$this->assertSame( (string) $fixture['stranger'], (string) $wpdb->get_var( $wpdb->prepare( "SELECT customer_id FROM {$tables['consents']} WHERE license_id = %d", $fixture['theirs']['license']['id'] ) ) );
 
 		// Nothing is left to export for the person except the history entry they triggered.
 		$export = $this->export_all( self::EMAIL );

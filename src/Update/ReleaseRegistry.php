@@ -39,8 +39,13 @@ final class ReleaseRegistry {
 	 * tools/create-release-manifest.php must accept the same versions.
 	 */
 	const VERSION_PATTERN = '/^[0-9]+\.[0-9]+\.[0-9]+(?:-(?:alpha|beta|rc)[0-9]+)?$/D';
-	/** Everything sanitize_key() can produce for a catalog product key (B-174). */
-	const PRODUCT_KEY_PATTERN = '/^[a-z0-9_-]{1,100}$/D';
+	/**
+	 * Product keys that can be looked up (B-174): the catalog's former, wider form, so
+	 * releases of products with an underscore in the key stay reachable. New keys of that
+	 * form cannot appear: the catalog only stores Catalog::PRODUCT_KEY_PATTERN, and a
+	 * release needs an existing product (see Catalog::accepts_product_key()).
+	 */
+	const PRODUCT_KEY_PATTERN = \WPLC\Catalog\Catalog::LEGACY_PRODUCT_KEY_PATTERN;
 	const PLATFORM_VERSION_PATTERN = '/^[0-9]+(?:\.[0-9]+){0,2}$/D';
 	/** Column width of requires_php, requires_wp, tested_wp and requires_core (A-112). */
 	const PLATFORM_VERSION_MAX_LENGTH = 20;
@@ -533,6 +538,8 @@ final class ReleaseRegistry {
 			'release_notes' => trim( (string) ( $input['release_notes'] ?? '' ) ),
 		);
 
+		// Form only (pure). A release also needs an existing product (create(): unknown_product),
+		// so a key of the former form is accepted exactly when Catalog::accepts_product_key() says so.
 		if ( ! preg_match( self::PRODUCT_KEY_PATTERN, $data['product_key'] ) ) {
 			$errors[] = 'invalid_product_key';
 		}

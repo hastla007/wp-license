@@ -39,6 +39,9 @@ final class Retention {
 	 * - reminder_log:              notification log rows.
 	 * - anonymize_licenses:        days after the end of a license at which the owner, the payment
 	 *                              token reference and the installations are removed. Off by default.
+	 * - consents:                  evidence of the consent to automatic renewal, by consent date, once
+	 *                              its license has ended or no longer exists. Ten years by default:
+	 *                              the evidence belongs to charges that are kept as long as invoices.
 	 */
 	public const DEFAULT_DAYS = array(
 		'audit_log' => 730,
@@ -49,6 +52,7 @@ final class Retention {
 		'ended_license_activations' => 30,
 		'reminder_log' => 730,
 		'anonymize_licenses' => 0,
+		'consents' => 3650,
 	);
 
 	/**
@@ -371,6 +375,19 @@ final class Retention {
 			case 'anonymize_licenses':
 				return self::anonymize_licenses( $tables, $cutoff );
 
+			case 'consents':
+				$result = $wpdb->query(
+					$wpdb->prepare(
+						"DELETE FROM {$tables['consents']} WHERE id IN ( SELECT id FROM ( SELECT c.id FROM {$tables['consents']} c LEFT JOIN {$tables['licenses']} l ON l.id = c.license_id WHERE c.consent_at < %s AND ( l.id IS NULL OR l.status IN (%s,%s,%s) ) ORDER BY c.id ASC LIMIT %d ) batch )",
+						$cutoff,
+						self::TERMINAL_STATES[0],
+						self::TERMINAL_STATES[1],
+						self::TERMINAL_STATES[2],
+						self::BATCH_SIZE
+					)
+				);
+				return self::affected( $result, $rule );
+
 			case 'reminder_log':
 				$result = $wpdb->query(
 					$wpdb->prepare(
@@ -516,6 +533,7 @@ final class Retention {
 			if ( false === $updated ) {
 				continue;
 			}
+			$wpdb->query( $wpdb->prepare( "UPDATE {$tables['consents']} SET customer_id = 0 WHERE license_id = %d AND customer_id > 0", $license_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE n FROM {$tables['request_nonces']} n INNER JOIN {$tables['activations']} a ON a.id = n.activation_id WHERE a.license_id = %d", $license_id ) );
 			$removed = $wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['activations']} WHERE license_id = %d", $license_id ) );
 			if ( false === $removed ) {

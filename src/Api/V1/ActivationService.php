@@ -66,7 +66,7 @@ final class ActivationService {
 		if ( '' === $license_key ) {
 			$invalid[] = 'license_key';
 		}
-		if ( ! preg_match( '/^[a-z0-9_-]{1,100}$/', $product_key ) ) {
+		if ( ! preg_match( \WPLC\Catalog\Catalog::LEGACY_PRODUCT_KEY_PATTERN, $product_key ) ) {
 			$invalid[] = 'product_key';
 		}
 		if ( ! wp_is_uuid( $installation_uuid ) ) {

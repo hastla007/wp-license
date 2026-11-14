@@ -101,6 +101,8 @@ final class Orphans {
 		}
 
 		$wpdb->query( $wpdb->prepare( "UPDATE {$tables['audit_log']} SET actor_user_id = 0 WHERE actor_user_id = %d", $user_id ) );
+		// The consent evidence (B-37) stays with the license, without the account.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$tables['consents']} SET customer_id = 0 WHERE customer_id = %d", $user_id ) );
 		// phpcs:enable
 	}
 

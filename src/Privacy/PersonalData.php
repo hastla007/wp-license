@@ -54,7 +54,7 @@ final class PersonalData {
 	 *
 	 * @var string[]
 	 */
-	private const EXPORT_PHASES = array( 'activations', 'renewals', 'history', 'emails', 'downloads', 'streams' );
+	private const EXPORT_PHASES = array( 'activations', 'renewals', 'consents', 'history', 'emails', 'downloads', 'streams' );
 
 	/**
 	 * Register WordPress privacy hooks.
@@ -342,6 +342,14 @@ final class PersonalData {
 				$order  = 'r.id';
 				break;
 
+			case 'consents':
+				// Evidence of the consent to automatic renewal (B-37): what the customer agreed to, when and how.
+				$select = 'c.id,c.order_id,c.consent_at,c.source,c.locale,c.consent_text,c.amount_minor,c.currency_decimals,c.currency,c.billing_interval,l.key_prefix';
+				$from   = "FROM {$tables['consents']} c LEFT JOIN {$tables['licenses']} l ON l.id = c.license_id WHERE ( c.customer_id = %d OR l.customer_id = %d )";
+				$args   = array( $user_id, $user_id );
+				$order  = 'c.id';
+				break;
+
 			case 'history':
 				$select = 'h.id,h.action,h.object_type,h.reason,h.created_at';
 				$from   = "FROM {$tables['audit_log']} h WHERE ( h.actor_user_id = %d OR ( h.object_type = 'license' AND h.object_id IN ( {$owned} ) ) OR ( h.object_type = 'activation' AND h.object_id IN ( SELECT oa.id FROM {$tables['activations']} oa INNER JOIN {$tables['licenses']} ol2 ON ol2.id = oa.license_id WHERE ol2.customer_id = %d ) ) )";
@@ -444,6 +452,27 @@ final class PersonalData {
 							array( 'name' => __( 'Event', 'wp-license' ), 'value' => (string) $row['action'] ),
 							array( 'name' => __( 'Concerns', 'wp-license' ), 'value' => (string) $row['object_type'] ),
 							array( 'name' => __( 'Note', 'wp-license' ), 'value' => (string) $row['reason'] ),
+						),
+					);
+					break;
+
+				case 'consents':
+					$items[] = array(
+						'group_id' => 'wp-license-captain-consents',
+						'group_label' => __( 'WP License Captain consents to automatic renewal', 'wp-license' ),
+						'item_id' => 'consent-' . (int) $row['id'],
+						'data' => array(
+							array( 'name' => __( 'License reference', 'wp-license' ), 'value' => (string) $row['key_prefix'] ),
+							array( 'name' => __( 'Order', 'wp-license' ), 'value' => (int) $row['order_id'] > 0 ? (string) (int) $row['order_id'] : '' ),
+							array( 'name' => __( 'Consent given at (UTC)', 'wp-license' ), 'value' => (string) $row['consent_at'] ),
+							array( 'name' => __( 'Given through', 'wp-license' ), 'value' => (string) $row['source'] ),
+							array( 'name' => __( 'Language', 'wp-license' ), 'value' => (string) $row['locale'] ),
+							array( 'name' => __( 'Text you agreed to', 'wp-license' ), 'value' => (string) $row['consent_text'] ),
+							array(
+								'name'  => __( 'Renewal amount', 'wp-license' ),
+								'value' => \WPLC\Billing\Money::to_decimal( (int) $row['amount_minor'], max( 0, min( 6, (int) $row['currency_decimals'] ) ) ) . ' ' . (string) $row['currency'],
+							),
+							array( 'name' => __( 'Billing interval', 'wp-license' ), 'value' => (string) $row['billing_interval'] ),
 						),
 					);
 					break;
@@ -746,6 +775,8 @@ final class PersonalData {
 			$wpdb->prepare( "DELETE n FROM {$tables['request_nonces']} n INNER JOIN {$tables['activations']} a ON a.id = n.activation_id WHERE a.license_id = %d", $license_id ),
 			$wpdb->prepare( "DELETE FROM {$tables['activations']} WHERE license_id = %d", $license_id ),
 			$wpdb->prepare( "DELETE FROM {$tables['reminder_log']} WHERE license_id = %d", $license_id ),
+			// The consent evidence stays as proof for the charges that were made, without the person.
+			$wpdb->prepare( "UPDATE {$tables['consents']} SET customer_id = 0 WHERE license_id = %d", $license_id ),
 			$wpdb->prepare( "DELETE FROM {$tables['download_tokens']} WHERE license_id = %d", $license_id ),
 			$wpdb->prepare( "DELETE FROM {$tables['package_streams']} WHERE license_id = %d", $license_id ),
 		);
@@ -758,7 +789,7 @@ final class PersonalData {
 			}
 		}
 
-		AuditLog::record( 'license_erased', 'license', $license_id, 'Privacy erasure request: license detached from the account, installations, email log and download records deleted.', null, null, $actor );
+		AuditLog::record( 'license_erased', 'license', $license_id, 'Privacy erasure request: license detached from the account, installations, email log and download records deleted, consent evidence detached from the account.', null, null, $actor );
 
 		return $complete;
 	}
