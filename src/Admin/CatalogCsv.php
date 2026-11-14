@@ -8,6 +8,7 @@
 namespace WPLC\Admin;
 
 use WPLC\Catalog\Catalog;
+use WPLC\License\AuditLog;
 use WPLC\Infrastructure\Database\Schema;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -102,29 +103,37 @@ final class CatalogCsv {
 	public static function import(): void {
 		self::authorize();
 		$file = $_FILES['catalog_csv'] ?? null;
+		$file_name = is_array( $file ) && isset( $file['name'] ) && is_string( $file['name'] ) ? sanitize_file_name( $file['name'] ) : '';
 		if ( ! is_array( $file ) || UPLOAD_ERR_OK !== (int) ( $file['error'] ?? UPLOAD_ERR_NO_FILE ) || empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
+			self::audit_import( 'upload_failed', $file_name, 0, 0, 1, array() );
 			self::redirect_with_result( 0, 1 );
 		}
 		if ( filesize( $file['tmp_name'] ) > 2097152 ) {
+			self::audit_import( 'file_too_large', $file_name, 0, 0, 1, array() );
 			self::redirect_with_result( 0, 1 );
 		}
 		$handle = fopen( $file['tmp_name'], 'r' );
 		if ( ! $handle ) {
+			self::audit_import( 'unreadable', $file_name, 0, 0, 1, array() );
 			self::redirect_with_result( 0, 1 );
 		}
 		$headers = fgetcsv( $handle );
 		if ( self::headers() !== $headers ) {
 			fclose( $handle );
+			self::audit_import( 'invalid_header', $file_name, 0, 0, 1, array() );
 			self::redirect_with_result( 0, 1 );
 		}
 
 		$imported = 0;
 		$failed = 0;
 		$rows = 0;
+		$outcome = 'completed';
+		$targets = array();
 		while ( false !== ( $values = fgetcsv( $handle ) ) ) {
 			++$rows;
 			if ( $rows > self::MAX_ROWS ) {
 				++$failed;
+				$outcome = 'row_limit_reached';
 				break;
 			}
 			if ( count( $values ) !== count( self::headers() ) ) {
@@ -137,9 +146,59 @@ final class CatalogCsv {
 				continue;
 			}
 			++$imported;
+			$targets[] = absint( $data['variation_id'] ) ?: absint( $data['product_id'] );
 		}
 		fclose( $handle );
+		self::audit_import( $outcome, $file_name, min( $rows, self::MAX_ROWS ), $imported, $failed, $targets );
 		self::redirect_with_result( $imported, $failed );
+	}
+
+	/**
+	 * Write one `catalog_csv_imported` audit entry (object type `catalog`, ID 0).
+	 *
+	 * @param string $outcome   completed, row_limit_reached, upload_failed, file_too_large, unreadable or invalid_header.
+	 * @param string $file_name Sanitized name of the uploaded file.
+	 * @param int    $rows      Data rows read (header excluded).
+	 * @param int    $imported  Rows applied.
+	 * @param int    $failed    Rows skipped or invalid (1 for a rejected file).
+	 * @param int[]  $targets   Product or variation IDs whose mapping was written.
+	 * @return void
+	 */
+	private static function audit_import( string $outcome, string $file_name, int $rows, int $imported, int $failed, array $targets ): void {
+		AuditLog::record(
+			'catalog_csv_imported',
+			'catalog',
+			0,
+			sprintf( 'CSV import %s: %d imported, %d skipped or invalid', $outcome, $imported, $failed ),
+			null,
+			self::import_summary( $outcome, $file_name, $rows, $imported, $failed, $targets ),
+			(int) get_current_user_id()
+		);
+	}
+
+	/**
+	 * Summary of one import for the audit log; at most 200 product IDs are listed.
+	 *
+	 * @param string $outcome   Outcome code.
+	 * @param string $file_name Sanitized file name.
+	 * @param int    $rows      Data rows read.
+	 * @param int    $imported  Rows applied.
+	 * @param int    $failed    Rows skipped or invalid.
+	 * @param int[]  $targets   Product or variation IDs written.
+	 * @return array<string,mixed>
+	 */
+	public static function import_summary( string $outcome, string $file_name, int $rows, int $imported, int $failed, array $targets ): array {
+		$targets = array_values( array_unique( array_map( 'intval', $targets ) ) );
+
+		return array(
+			'outcome' => $outcome,
+			'file' => substr( $file_name, 0, 100 ),
+			'rows' => $rows,
+			'imported' => $imported,
+			'failed' => $failed,
+			'product_ids' => array_slice( $targets, 0, 200 ),
+			'product_ids_truncated' => count( $targets ) > 200,
+		);
 	}
 
 	private static function import_row( array $row ): bool {

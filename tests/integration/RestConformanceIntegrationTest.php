@@ -204,6 +204,38 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'https://moved.example.com', $this->activation( (int) $first_data['activation_id'] )['site_url'] );
 	}
 
+	public function test_new_installation_replaces_an_activation_stored_with_the_legacy_url_spelling(): void {
+		global $wpdb;
+		$tables  = $this->tables();
+		$license = $this->seed_license( array(), array( 'sites.live_limit' => 1 ) );
+		$first   = $this->activate_via_api( $license['key'], array( 'site_url' => 'https://legacy.example.com/a/b' ) );
+		$first_id = (int) $first['response']->get_data()['data']['activation_id'];
+		// Before T-146 the duplicate slash was stored verbatim.
+		$wpdb->update( $tables['activations'], array( 'site_url' => 'https://legacy.example.com/a//b' ), array( 'id' => $first_id ) );
+
+		$second = $this->activate_via_api( $license['key'], array( 'site_url' => 'https://legacy.example.com/a//b/' ) );
+		$data   = $this->assertSignedEnvelope( 'POST', '/activations', $second['response'], $second['secret'] );
+
+		$this->assertNotSame( 'active', $this->activation( $first_id )['status'], 'The legacy row must be replaced, not counted.' );
+		$this->assertSame( 'https://legacy.example.com/a/b', $this->activation( (int) $data['activation_id'] )['site_url'] );
+		$this->assertSame( 1, $data['site_count'] );
+	}
+
+	public function test_activation_normalizes_paths_and_rejects_non_canonical_ipv4_hosts(): void {
+		$license = $this->seed_license();
+		$result  = $this->activate_via_api( $license['key'], array( 'site_url' => 'https://Shop.Example.com//a/./b/../store/' ) );
+		$data    = $this->assertSignedEnvelope( 'POST', '/activations', $result['response'], $result['secret'] );
+		$this->assertSame( 'https://shop.example.com/a/store', $this->activation( (int) $data['activation_id'] )['site_url'] );
+
+		$this->assertContractError(
+			'POST',
+			'/activations',
+			400,
+			'invalid_activation',
+			$this->activate_via_api( $license['key'], array( 'site_url' => 'http://0x7f.1' ) )['response']
+		);
+	}
+
 	public function test_site_limit_is_enforced_with_409_site_limit(): void {
 		$license = $this->seed_license( array(), array( 'sites.live_limit' => 2 ) );
 

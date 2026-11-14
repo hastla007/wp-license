@@ -16,10 +16,17 @@ Source: `src/Admin/*`, `src/License/LicenseLifecycle.php`, `src/License/Activati
 | Add license manually | Licenses → Add license manually | `manage_woocommerce` | yes | `license_issued_manually` |
 | Create, import, publish, withdraw, delete releases | License releases | `manage_woocommerce` | only for withdraw | `release_created`, `release_updated`, `release_deleted`, and one entry per status change |
 | Read diagnostics | License diagnostics | `manage_woocommerce` | – | – (read only) |
-| Change settings | License settings | `manage_woocommerce` | – | not audited |
-| Export / import catalog CSV | License catalog CSV | `manage_woocommerce` (import also `edit_post` on each product) | – | not audited |
+| Change settings | License settings | `manage_woocommerce` | – | `settings_updated` |
+| Export / import catalog CSV | License catalog CSV | `manage_woocommerce` (import also `edit_post` on each product) | – | import: `catalog_csv_imported`; export: not audited |
 
-Every action that changes a license, an activation or a release writes an audit entry with the acting user, the reason and the values before and after. Settings changes and catalog imports are not written to the audit log.
+Every action that changes a license, an activation or a release writes an audit entry with the acting user, the reason and the values before and after.
+
+Settings changes and catalog imports are system-level entries (object ID 0), shown on no admin screen; read them from the table `{prefix}wplc_audit_log`:
+
+- `settings_updated` (object type `settings`): one entry per saved change, with the acting user and the changed keys in the reason. Before/after values are stored for `package_hosts` and `reminder_days` only; a changed `sender_note` is listed by name. Secrets are not settings (they live in `wp-config.php` constants), so none can appear here.
+- `catalog_csv_imported` (object type `catalog`): one entry per import attempt, also for a rejected file, with the acting user and `outcome` (`completed`, `row_limit_reached`, `upload_failed`, `file_too_large`, `unreadable`, `invalid_header`), the sanitized file name, rows read, rows imported, rows skipped or invalid, and up to 200 product or variation IDs whose mapping was written.
+
+Both follow the normal audit retention (730 days by default).
 
 A rejected action returns to the screen with an explanation; only a missing capability or an invalid nonce ends in an error page.
 
