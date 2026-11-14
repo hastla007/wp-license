@@ -355,6 +355,7 @@ final class PersonalData {
 		$messages = array();
 		if ( $retained > 0 ) {
 			$messages[] = sprintf(
+				/* translators: %d: number of licenses. */
 				_n(
 					'%d active or pending license was retained to preserve service or purchase processing.',
 					'%d active or pending licenses were retained to preserve service or purchase processing.',
@@ -369,6 +370,7 @@ final class PersonalData {
 		}
 		if ( $removed > 0 ) {
 			$messages[] = sprintf(
+				/* translators: %d: number of licenses. */
 				_n(
 					'%d terminal license was detached from the account; WooCommerce order records were preserved.',
 					'%d terminal licenses were detached from the account; WooCommerce order records were preserved.',

@@ -288,6 +288,32 @@ final class CustomerPortal {
 	}
 
 	/**
+	 * Heading of a license: the name of the product the customer bought.
+	 *
+	 * The plan key is an internal identifier and is never shown to customers.
+	 * The WooCommerce product (for a variation, its name with the chosen plan)
+	 * is what the customer recognizes from the shop and the order.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param string              $product_name Catalog product name, used when the shop product is gone.
+	 * @return string
+	 */
+	private static function license_title( array $license, string $product_name ): string {
+		$product_id = (int) ( $license['renewal_product_id'] ?? 0 );
+		if ( $product_id > 0 && function_exists( 'wc_get_product' ) ) {
+			$product = wc_get_product( $product_id );
+			if ( $product && is_callable( array( $product, 'get_name' ) ) ) {
+				$title = trim( wp_strip_all_tags( (string) $product->get_name() ) );
+				if ( '' !== $title ) {
+					return $title;
+				}
+			}
+		}
+
+		return $product_name;
+	}
+
+	/**
 	 * Render one license.
 	 *
 	 * @param array<string,mixed> $license License row.
@@ -317,7 +343,7 @@ final class CustomerPortal {
 		$key_id = 'wplc-key-' . $license_id;
 
 		echo '<section class="wplc-license" aria-labelledby="wplc-license-title-' . esc_attr( (string) $license_id ) . '">';
-		echo '<h3 id="wplc-license-title-' . esc_attr( (string) $license_id ) . '">' . esc_html( $name . ' — ' . (string) $license['plan_key'] ) . '</h3>';
+		echo '<h3 id="wplc-license-title-' . esc_attr( (string) $license_id ) . '">' . esc_html( self::license_title( $license, $name ) ) . '</h3>';
 		echo '<p><strong>' . esc_html__( 'Status:', 'wp-license' ) . '</strong> ' . esc_html( Format::license_status_label( $status ) ) . '</p>';
 
 		if ( '' !== $key ) {

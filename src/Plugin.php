@@ -49,6 +49,10 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function activate(): void {
+		// Activation runs after plugins_loaded, so on_plugins_loaded() has not loaded
+		// the translations yet; the messages below must not appear in English.
+		self::load_textdomain();
+
 		if ( version_compare( PHP_VERSION, '7.4', '<' ) ) {
 			wp_die( esc_html__( 'WP License Captain requires PHP 7.4 or later.', 'wp-license' ) );
 		}
@@ -61,6 +65,24 @@ final class Plugin {
 		LicenseLifecycle::schedule_daily_event();
 		CustomerPortal::register_endpoint();
 		flush_rewrite_rules();
+	}
+
+	/**
+	 * Load the plugin translations.
+	 *
+	 * Safe to call more than once: WordPress keeps the loaded domain.
+	 *
+	 * @return void
+	 */
+	public static function load_textdomain(): void {
+		if ( is_textdomain_loaded( 'wp-license' ) ) {
+			return;
+		}
+		load_plugin_textdomain(
+			'wp-license',
+			false,
+			dirname( plugin_basename( WPLC_FILE ) ) . '/languages'
+		);
 	}
 
 	/**
@@ -89,11 +111,7 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function on_plugins_loaded(): void {
-		load_plugin_textdomain(
-			'wp-license',
-			false,
-			dirname( plugin_basename( WPLC_FILE ) ) . '/languages'
-		);
+		self::load_textdomain();
 
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			add_action( 'admin_notices', array( self::class, 'render_woocommerce_notice' ) );
