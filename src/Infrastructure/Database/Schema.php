@@ -21,8 +21,11 @@ final class Schema {
 	 *
 	 * 11: renewals.status widened to 30 characters ("manual_action_required" has 22;
 	 *     WordPress refuses to write a value longer than the column).
+	 * 12: renewals.last_error and renewals.last_attempt_at (reason and time of the last
+	 *     attempt), licenses.renewal_amount_includes_tax (NULL = unknown). Columns only,
+	 *     added by dbDelta; no data step.
 	 */
-	public const VERSION = '11';
+	public const VERSION = '12';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -250,6 +253,7 @@ final class Schema {
 				renewal_amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				renewal_currency_decimals tinyint(3) unsigned NOT NULL DEFAULT 2,
 				renewal_currency char(3) NOT NULL DEFAULT 'EUR',
+				renewal_amount_includes_tax tinyint(1) DEFAULT NULL,
 				cancel_at_period_end tinyint(1) NOT NULL DEFAULT 0,
 				revoked_at datetime DEFAULT NULL,
 				billing_interval varchar(10) NOT NULL DEFAULT 'year',
@@ -315,6 +319,8 @@ final class Schema {
 				retry_at datetime DEFAULT NULL,
 				grace_ends_at datetime DEFAULT NULL,
 				attempt_count smallint(5) unsigned NOT NULL DEFAULT 0,
+				last_error varchar(100) NOT NULL DEFAULT '',
+				last_attempt_at datetime DEFAULT NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),

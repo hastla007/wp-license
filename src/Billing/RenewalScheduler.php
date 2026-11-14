@@ -29,10 +29,14 @@ final class RenewalScheduler {
 
 		$tables = Schema::table_names();
 		$license = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], $license_id ),
 			ARRAY_A
 		);
 		if ( ! is_array( $license ) || empty( $license['renewal_enabled'] ) || empty( $license['paid_until'] ) ) {
+			return 0;
+		}
+		// B-02: a cancelled license gets no further period. Withdrawing the cancellation calls this again.
+		if ( ! empty( $license['cancel_at_period_end'] ) || in_array( (string) $license['status'], array( 'revoked', 'expired' ), true ) ) {
 			return 0;
 		}
 
@@ -46,19 +50,24 @@ final class RenewalScheduler {
 			return 0;
 		}
 		// A row first created by an unpaid manual renewal becomes an automatic one. So does a row
-		// that was cancelled while the customer's cancellation was pending and is wanted again
-		// after the cancellation was withdrawn (the license is renewal-enabled, checked above).
+		// that was cancelled while the customer's cancellation or a suspension was pending and is
+		// wanted again (the license is renewal-enabled and not cancelled, checked above).
 		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['renewals']} SET status = %s, retry_at = period_start, updated_at = %s WHERE id = %d AND status IN (%s, %s)",
+				"UPDATE %i SET status = %s, retry_at = period_start, last_error = %s, updated_at = %s WHERE id = %d AND status IN (%s, %s)",
+				$tables['renewals'],
 				'scheduled',
+				'',
 				gmdate( 'Y-m-d H:i:s' ),
 				$renewal_id,
 				'manual',
 				'cancelled'
 			)
 		);
-		self::enqueue( $renewal_id, $start_timestamp );
+		$status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM %i WHERE id = %d LIMIT 1", $tables['renewals'], $renewal_id ) );
+		if ( 'scheduled' === $status ) {
+			self::enqueue( $renewal_id, $start_timestamp );
+		}
 
 		return $renewal_id;
 	}
@@ -115,7 +124,7 @@ final class RenewalScheduler {
 		$tables = Schema::table_names();
 		$idempotency_key = self::idempotency_key( $license_id, $period_start );
 		$existing = (int) $wpdb->get_var(
-			$wpdb->prepare( "SELECT id FROM {$tables['renewals']} WHERE idempotency_key = %s LIMIT 1", $idempotency_key )
+			$wpdb->prepare( "SELECT id FROM %i WHERE idempotency_key = %s LIMIT 1", $tables['renewals'], $idempotency_key )
 		);
 		if ( $existing ) {
 			return $existing;
@@ -128,7 +137,7 @@ final class RenewalScheduler {
 			array(
 				'license_id' => $license_id,
 				'period_start' => $period_start,
-				'period_end' => gmdate( 'Y-m-d H:i:s', self::period_end( $start_timestamp, (string) $license['billing_interval'] ) ),
+				'period_end' => gmdate( 'Y-m-d H:i:s', self::period_end( $start_timestamp, (string) $license['billing_interval'], self::anchor_day( $license ) ) ),
 				'idempotency_key' => $idempotency_key,
 				'status' => $automatic ? 'scheduled' : 'manual',
 				'retry_at' => $automatic ? $period_start : null,
@@ -142,7 +151,7 @@ final class RenewalScheduler {
 		if ( false === $inserted || ! $wpdb->insert_id ) {
 			// A concurrent request may have inserted the same unique key.
 			return (int) $wpdb->get_var(
-				$wpdb->prepare( "SELECT id FROM {$tables['renewals']} WHERE idempotency_key = %s LIMIT 1", $idempotency_key )
+				$wpdb->prepare( "SELECT id FROM %i WHERE idempotency_key = %s LIMIT 1", $tables['renewals'], $idempotency_key )
 			);
 		}
 
@@ -166,17 +175,38 @@ final class RenewalScheduler {
 	}
 
 	/**
+	 * Day of month the license was started on, the anchor of its billing day.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return int 1-31, or zero when unknown.
+	 */
+	public static function anchor_day( array $license ): int {
+		$starts_at = empty( $license['starts_at'] ) ? false : strtotime( (string) $license['starts_at'] . ' UTC' );
+
+		return $starts_at ? (int) gmdate( 'j', $starts_at ) : 0;
+	}
+
+	/**
 	 * Advance a period without end-of-month overflow.
 	 *
 	 * Single source of the period math for automatic and manual renewals.
 	 *
-	 * @param int $timestamp UTC timestamp.
+	 * A-115: a period that starts on the last day of a short month only because
+	 * an earlier period was clamped (31 Jan -> 28 Feb) returns to the anchor day
+	 * (-> 31 Mar) instead of staying on the 28th for good. The anchor is only
+	 * used in that case, so a date set by an administrator is never shortened.
+	 *
+	 * @param int    $timestamp UTC timestamp.
 	 * @param string $interval Billing interval ('month'; anything else is a year).
+	 * @param int    $anchor_day Day of month of the original billing day, zero for none.
 	 * @return int
 	 */
-	public static function period_end( int $timestamp, string $interval ): int {
+	public static function period_end( int $timestamp, string $interval, int $anchor_day = 0 ): int {
 		$date = ( new \DateTimeImmutable( '@' . $timestamp ) )->setTimezone( new \DateTimeZone( 'UTC' ) );
 		$day = (int) $date->format( 'j' );
+		if ( $anchor_day > $day && $anchor_day <= 31 && (int) $date->format( 't' ) === $day ) {
+			$day = $anchor_day;
+		}
 		$months = 'month' === $interval ? 1 : 12;
 		$first = $date->modify( 'first day of this month' )->modify( '+' . $months . ' months' );
 
