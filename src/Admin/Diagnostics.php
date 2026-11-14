@@ -8,6 +8,7 @@
 namespace WPLC\Admin;
 
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\LicenseLifecycle;
 use WPLC\Update\LocalPackageStorage;
 use WPLC\Update\PackageStorageCheck;
 
@@ -91,10 +92,117 @@ final class Diagnostics {
 		return array(
 			'pending_webhooks' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['event_inbox']} WHERE source = %s AND outcome = %s", 'stripe', 'pending_reconciliation' ) ),
 			'manual_review_webhooks' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['event_inbox']} WHERE source = %s AND outcome = %s AND processed_at >= %s", 'stripe', 'manual_review', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) ),
-			'overdue_renewals' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status IN (%s,%s,%s) AND (retry_at <= %s OR (retry_at IS NULL AND period_start <= %s))", 'scheduled', 'failed', 'reconciling', $now, $now ) ),
+			'overdue_renewals' => self::count_stuck_renewals( $tables['renewals'], time() ),
 			'review_required_renewals' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status = %s", 'review_required' ) ),
 			'expired_download_grants' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['download_tokens']} WHERE consumed_at IS NULL AND expires_at <= %s", $now ) ),
 		);
+	}
+
+	/**
+	 * Seconds a queued renewal job may lag before the renewal counts as stuck.
+	 *
+	 * Matches the daily requeue sweep (RenewalProcessor::requeue_overdue_renewals()),
+	 * which only picks up rows whose retry time is more than an hour ago.
+	 */
+	public const STUCK_RENEWAL_TOLERANCE = 3600;
+
+	/**
+	 * Count renewals that are really stuck (metric `overdue_renewals`).
+	 *
+	 * Same rules as is_stuck_renewal(); keep the two in step.
+	 *
+	 * @param string $table Renewals table name.
+	 * @param int    $now Current Unix time.
+	 * @return int
+	 */
+	private static function count_stuck_renewals( string $table, int $now ): int {
+		global $wpdb;
+
+		$cutoff = gmdate( 'Y-m-d H:i:s', $now - self::STUCK_RENEWAL_TOLERANCE );
+		// Rows without grace_ends_at: the grace period ends GRACE_DAYS after period_start.
+		$period_start_cutoff = gmdate( 'Y-m-d H:i:s', $now - self::STUCK_RENEWAL_TOLERANCE - LicenseLifecycle::GRACE_DAYS * 86400 );
+
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE"
+				. ' ( status IN (%s,%s,%s) AND retry_at IS NOT NULL AND retry_at <= %s )'
+				. ' OR ( status = %s AND updated_at <= %s )'
+				. ' OR ( status IN (%s,%s,%s) AND retry_at IS NULL AND ( grace_ends_at <= %s OR ( grace_ends_at IS NULL AND period_start <= %s ) ) )',
+				'scheduled',
+				'failed',
+				'reconciling',
+				$cutoff,
+				'processing',
+				$cutoff,
+				'scheduled',
+				'failed',
+				'manual_action_required',
+				$cutoff,
+				$period_start_cutoff
+			)
+		);
+	}
+
+	/**
+	 * Whether a renewal row is stuck rather than in a known waiting state.
+	 *
+	 * Stuck means one of:
+	 * - `scheduled`, `failed` or `reconciling` with a retry time more than the
+	 *   tolerance ago: the queued attempt or hourly check should have run;
+	 * - `processing` for longer than the tolerance: the stuck check (after
+	 *   20 minutes) should have resolved it;
+	 * - `scheduled`, `failed` or `manual_action_required` without a retry time
+	 *   whose grace period ended more than the tolerance ago: the grace-end job
+	 *   should have expired the license, which closes the row.
+	 *
+	 * Not stuck: a retry or check in the future or within the tolerance, a
+	 * `failed` renewal without retries left that waits for the end of its grace
+	 * period, `manual_action_required` before the grace end, `manual`, and
+	 * `review_required` (own metric `review_required_renewals`).
+	 *
+	 * @param array<string,mixed> $renewal Renewal row (status, retry_at, updated_at, grace_ends_at, period_start).
+	 * @param int                 $now Current Unix time.
+	 * @return bool
+	 */
+	public static function is_stuck_renewal( array $renewal, int $now ): bool {
+		$cutoff = $now - self::STUCK_RENEWAL_TOLERANCE;
+		$status = (string) ( $renewal['status'] ?? '' );
+		$retry_at = self::row_time( $renewal, 'retry_at' );
+
+		if ( null !== $retry_at && in_array( $status, array( 'scheduled', 'failed', 'reconciling' ), true ) ) {
+			return $retry_at <= $cutoff;
+		}
+		if ( 'processing' === $status ) {
+			$updated_at = self::row_time( $renewal, 'updated_at' );
+			return null !== $updated_at && $updated_at <= $cutoff;
+		}
+		if ( null === $retry_at && in_array( $status, array( 'scheduled', 'failed', 'manual_action_required' ), true ) ) {
+			$grace_end = self::row_time( $renewal, 'grace_ends_at' );
+			if ( null === $grace_end ) {
+				$period_start = self::row_time( $renewal, 'period_start' );
+				$grace_end = null === $period_start ? null : $period_start + LicenseLifecycle::GRACE_DAYS * 86400;
+			}
+			return null !== $grace_end && $grace_end <= $cutoff;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Read a UTC datetime column of a row as Unix time.
+	 *
+	 * @param array<string,mixed> $row Row.
+	 * @param string              $key Column.
+	 * @return int|null Null when empty or unparseable.
+	 */
+	private static function row_time( array $row, string $key ): ?int {
+		$value = $row[ $key ] ?? null;
+		if ( null === $value || '' === $value ) {
+			return null;
+		}
+		$timestamp = strtotime( (string) $value . ' UTC' );
+
+		return false === $timestamp ? null : $timestamp;
 	}
 
 	/**
@@ -181,7 +289,7 @@ final class Diagnostics {
 			__( 'Update package provider', 'wp-license' ) => has_filter( 'wplc_update_packages' ) ? __( 'Registered', 'wp-license' ) : __( 'Not registered', 'wp-license' ),
 			__( 'Pending Stripe events', 'wp-license' ) => $metrics['pending_webhooks'],
 			__( 'Stripe events needing review', 'wp-license' ) => $metrics['manual_review_webhooks'],
-			__( 'Overdue renewal attempts', 'wp-license' ) => $metrics['overdue_renewals'],
+			__( 'Stuck renewals (job not run, grace period over)', 'wp-license' ) => $metrics['overdue_renewals'],
 			__( 'Renewals with unknown payment result needing review', 'wp-license' ) => $metrics['review_required_renewals'],
 			__( 'Unused expired download grants', 'wp-license' ) => $metrics['expired_download_grants'],
 		);
