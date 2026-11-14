@@ -182,6 +182,30 @@ final class Authenticator {
 	}
 
 	/**
+	 * Read a per-minute request bucket without counting.
+	 *
+	 * @param string $limiter_hash SHA-256 limiter key.
+	 * @return int|false Current hit count (0 without a row), or false on database failure.
+	 */
+	public static function current_rate_limit( string $limiter_hash ) {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$hits   = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT hits FROM {$tables['request_limits']} WHERE limiter_hash = %s AND bucket_start = %s LIMIT 1",
+				$limiter_hash,
+				gmdate( 'Y-m-d H:i:00' )
+			)
+		);
+		if ( null === $hits ) {
+			return empty( $wpdb->last_error ) ? 0 : false;
+		}
+
+		return is_numeric( $hits ) ? (int) $hits : false;
+	}
+
+	/**
 	 * Remove expired replay and rate-limit records in bounded batches.
 	 *
 	 * @return void

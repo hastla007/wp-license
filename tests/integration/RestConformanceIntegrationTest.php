@@ -474,10 +474,38 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$unknown = \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() );
 		$this->assertContractError( 'POST', '/activations', 429, 'rate_limited', $this->activate_via_api( $unknown )['response'] );
 
-		// A valid key is locked out as well: the limiter runs before the key lookup.
-		$license = $this->seed_license();
+		// T-142: a valid key is not locked out by other failures from the same address ...
+		$license = $this->seed_license( array(), array( 'sites.live_limit' => 5 ) );
+		$this->assertSame( 200, $this->activate_via_api( $license['key'] )['response']->get_status() );
+
+		// ... but the throttled address gets only 30 answers per minute that look at
+		// the key at all (31st invalid + valid above + 28 more); then everything is 429.
+		for ( $attempt = 1; $attempt <= 28; $attempt++ ) {
+			$unknown = \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() );
+			$this->assertSame( 429, $this->activate_via_api( $unknown )['response']->get_status(), 'Throttled attempt ' . $attempt );
+		}
 		$this->assertSame( 429, $this->activate_via_api( $license['key'] )['response']->get_status() );
 		$this->assert_no_spec_gaps();
+	}
+
+	public function test_successful_activations_do_not_count_towards_the_address_limit(): void {
+		// T-142: an agency activating many sites from one server is not throttled.
+		$license = $this->seed_license( array(), array( 'sites.live_limit' => 40 ) );
+		for ( $attempt = 1; $attempt <= 35; $attempt++ ) {
+			$this->assertSame( 200, $this->activate_via_api( $license['key'] )['response']->get_status(), 'Activation ' . $attempt );
+		}
+	}
+
+	public function test_failures_on_a_known_key_prefix_do_not_lock_out_the_valid_key(): void {
+		// Someone who knows a customer's key prefix guesses the rest.
+		$license = $this->seed_license();
+		$guess   = substr( $license['key'], 0, 13 ) . substr( \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() ), 13 );
+		for ( $attempt = 1; $attempt <= 20; $attempt++ ) {
+			$this->assertSame( 401, $this->activate_via_api( $guess )['response']->get_status(), 'Attempt ' . $attempt );
+		}
+		$this->assertSame( 429, $this->activate_via_api( $guess )['response']->get_status() );
+
+		$this->assertSame( 200, $this->activate_via_api( $license['key'] )['response']->get_status() );
 	}
 
 	public function test_activation_attempts_are_rate_limited_per_key(): void {

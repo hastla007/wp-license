@@ -134,6 +134,21 @@ final class UpdateService {
 			status_header( 404 );
 			exit;
 		}
+		// T-142: resolve and validate the target before the grant is consumed, so
+		// a storage hook returning a URL that is not allowed leaves the grant
+		// usable once the hook is fixed. The resolved URL is handed out only
+		// after the atomic consume below; a request that loses that race
+		// discards it (a stream token issued by PackageStream::resolve() then
+		// simply expires unused).
+		$download_url = apply_filters(
+			'wplc_resolve_update_package_url',
+			(string) $grant['package_url'],
+			(int) $grant['license_id']
+		);
+		if ( ! is_string( $download_url ) || ! self::trusted_package_url( $download_url ) ) {
+			status_header( 404 );
+			exit;
+		}
 		$consumed = $wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$tables['download_tokens']} SET consumed_at = %s, package_url = '' WHERE token_hash = %s AND consumed_at IS NULL AND expires_at > %s",
@@ -143,15 +158,6 @@ final class UpdateService {
 			)
 		);
 		if ( 1 !== (int) $consumed ) {
-			status_header( 404 );
-			exit;
-		}
-		$download_url = apply_filters(
-			'wplc_resolve_update_package_url',
-			(string) $grant['package_url'],
-			(int) $grant['license_id']
-		);
-		if ( ! is_string( $download_url ) || ! self::trusted_package_url( $download_url ) ) {
 			status_header( 404 );
 			exit;
 		}
