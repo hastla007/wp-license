@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: WP License Captain 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-11-13T21:35:54+00:00\n"
-"PO-Revision-Date: 2026-11-14 23:53+0000\n"
+"PO-Revision-Date: 2026-11-14 23:55+0000\n"
 "Last-Translator: \n"
 "Language-Team: German\n"
 "Language: de_DE\n"
@@ -81,6 +81,7 @@ msgid "Valid through:"
 msgstr "Gültig bis:"
 
 #: src/Account/CustomerPortal.php:357
+#: src/Account/SiteOverview.php:293
 #: src/Notifications/Notifications.php:475
 msgid "No expiry"
 msgstr "Kein Ablaufdatum"
@@ -94,6 +95,7 @@ msgid "Renewal:"
 msgstr "Verlängerung:"
 
 #: src/Account/CustomerPortal.php:384
+#: src/Account/SiteOverview.php:131
 msgid "Sites"
 msgstr "Websites"
 
@@ -103,12 +105,14 @@ msgstr "Es sind keine Websites aktiviert."
 
 #: src/Account/CustomerPortal.php:389
 #: src/Account/CustomerPortal.php:392
+#: src/Account/SiteOverview.php:254
 #: src/Admin/LicenseDetail.php:269
 msgid "Site"
 msgstr "Website"
 
 #: src/Account/CustomerPortal.php:389
 #: src/Account/CustomerPortal.php:393
+#: src/Account/SiteOverview.php:256
 #: src/Admin/LicenseDetail.php:269
 msgid "Environment"
 msgstr "Umgebung"
@@ -121,6 +125,7 @@ msgstr "Aktiviert"
 
 #: src/Account/CustomerPortal.php:389
 #: src/Account/CustomerPortal.php:395
+#: src/Account/SiteOverview.php:261
 #: src/Admin/LicenseDetail.php:200
 #: src/Admin/ReleaseAdmin.php:98
 #: src/Admin/RenewalReviewAdmin.php:148
@@ -152,16 +157,19 @@ msgid "License pages"
 msgstr "Lizenzseiten"
 
 #: src/Account/CustomerPortal.php:449
+#: src/Account/SiteOverview.php:378
 msgid "Previous"
 msgstr "Zurück"
 
 #. translators: 1: current page, 2: number of pages.
 #: src/Account/CustomerPortal.php:454
+#: src/Account/SiteOverview.php:381
 #, php-format
 msgid "Page %1$d of %2$d"
 msgstr "Seite %1$d von %2$d"
 
 #: src/Account/CustomerPortal.php:456
+#: src/Account/SiteOverview.php:383
 msgid "Next"
 msgstr "Weiter"
 
@@ -215,16 +223,19 @@ msgstr "Sie sind nicht berechtigt, diese Lizenz zu ändern."
 
 #. translators: %s: site URL.
 #: src/Account/CustomerPortal.php:712
+#: src/Account/SiteOverview.php:346
 #, php-format
 msgid "Deactivate %s? The site loses updates and premium features until it is activated again."
 msgstr "%s deaktivieren? Die Website erhält keine Updates und Premium-Funktionen mehr, bis sie erneut aktiviert wird."
 
 #: src/Account/CustomerPortal.php:717
+#: src/Account/SiteOverview.php:351
 msgid "Deactivate"
 msgstr "Deaktivieren"
 
 #. translators: %s: site URL.
 #: src/Account/CustomerPortal.php:719
+#: src/Account/SiteOverview.php:353
 #, php-format
 msgid "site %s"
 msgstr "Website %s"
@@ -619,6 +630,7 @@ msgstr "Suchen Sie nach Schlüsselpräfix, Produkt, Tarif, Kunden-ID, E-Mail-Adr
 msgid "You do not have permission to change licenses."
 msgstr "Sie sind nicht berechtigt, Lizenzen zu ändern."
 
+#: src/Account/SiteOverview.php:259
 #: src/Admin/LicenseDetail.php:50
 #: src/Admin/LicenseDetail.php:405
 #: src/Admin/LicenseListTable.php:82
@@ -653,6 +665,7 @@ msgstr "Keine (manuell hinzugefügt)"
 msgid "Customer"
 msgstr "Kunde"
 
+#: src/Account/SiteOverview.php:255
 #: src/Admin/LicenseDetail.php:159
 #: src/Admin/ReleaseAdmin.php:333
 #: src/Privacy/PersonalData.php:127
@@ -1095,6 +1108,7 @@ msgstr "Lizenzierte Installationen erhalten die höchste veröffentlichte Versio
 msgid "No releases yet."
 msgstr "Noch keine Releases vorhanden."
 
+#: src/Account/SiteOverview.php:257
 #: src/Admin/ReleaseAdmin.php:92
 #: src/Admin/ReleaseAdmin.php:339
 msgid "Version"
@@ -1731,14 +1745,10 @@ msgid "Product and category rates"
 msgstr "Produkt- und Kategoriesätze"
 
 #: src/Catalog/EntitlementCatalog.php:43
-msgid "Bonuses"
-msgstr "Boni"
-
-#: src/Catalog/EntitlementCatalog.php:44
 msgid "Recurring commissions"
 msgstr "Wiederkehrende Provisionen"
 
-#: src/Catalog/EntitlementCatalog.php:45
+#: src/Catalog/EntitlementCatalog.php:44
 msgid "Extended API"
 msgstr "Erweiterte API"
 
@@ -1755,8 +1765,8 @@ msgid "Multiple programs"
 msgstr "Mehrere Programme"
 
 #: src/Catalog/EntitlementCatalog.php:49
-#: src/Catalog/EntitlementCatalog.php:63
-#: src/Catalog/EntitlementCatalog.php:80
+#: src/Catalog/EntitlementCatalog.php:62
+#: src/Catalog/EntitlementCatalog.php:77
 msgid "Priority support"
 msgstr "Priorisierter Support"
 
@@ -1797,75 +1807,63 @@ msgid "Reports"
 msgstr "Berichte"
 
 #: src/Catalog/EntitlementCatalog.php:61
-msgid "Central license overview"
-msgstr "Zentrale Lizenzübersicht"
-
-#: src/Catalog/EntitlementCatalog.php:62
-#: src/Catalog/EntitlementCatalog.php:79
+#: src/Catalog/EntitlementCatalog.php:76
 msgid "White label"
 msgstr "White Label"
 
-#: src/Catalog/EntitlementCatalog.php:66
+#: src/Catalog/EntitlementCatalog.php:65
 msgid "WooCommerce sales"
 msgstr "WooCommerce-Verkäufe"
 
-#: src/Catalog/EntitlementCatalog.php:67
+#: src/Catalog/EntitlementCatalog.php:66
 msgid "Membership passes"
 msgstr "Mitgliedspässe"
 
-#: src/Catalog/EntitlementCatalog.php:68
+#: src/Catalog/EntitlementCatalog.php:67
 msgid "Campaign codes"
 msgstr "Kampagnencodes"
 
-#: src/Catalog/EntitlementCatalog.php:69
+#: src/Catalog/EntitlementCatalog.php:68
 msgid "Waitlist"
 msgstr "Warteliste"
 
-#: src/Catalog/EntitlementCatalog.php:70
+#: src/Catalog/EntitlementCatalog.php:69
 msgid "CSV export"
 msgstr "CSV-Export"
 
-#: src/Catalog/EntitlementCatalog.php:71
+#: src/Catalog/EntitlementCatalog.php:70
 msgid "Seating"
 msgstr "Sitzplätze"
 
-#: src/Catalog/EntitlementCatalog.php:72
+#: src/Catalog/EntitlementCatalog.php:71
 msgid "Service slots"
 msgstr "Service-Zeitfenster"
 
-#: src/Catalog/EntitlementCatalog.php:73
+#: src/Catalog/EntitlementCatalog.php:72
 msgid "Point of sale"
 msgstr "Kasse vor Ort (POS)"
 
-#: src/Catalog/EntitlementCatalog.php:74
+#: src/Catalog/EntitlementCatalog.php:73
 msgid "Offline check-in"
 msgstr "Offline-Check-in"
 
-#: src/Catalog/EntitlementCatalog.php:75
-msgid "Team assignment"
-msgstr "Teamzuweisung"
-
-#: src/Catalog/EntitlementCatalog.php:76
+#: src/Catalog/EntitlementCatalog.php:74
 msgid "Advanced reports"
 msgstr "Erweiterte Berichte"
 
-#: src/Catalog/EntitlementCatalog.php:77
+#: src/Catalog/EntitlementCatalog.php:75
 msgid "API and webhooks"
 msgstr "API und Webhooks"
 
-#: src/Catalog/EntitlementCatalog.php:78
-msgid "Client license management"
-msgstr "Lizenzverwaltung für Kunden"
-
-#: src/Catalog/EntitlementCatalog.php:103
+#: src/Catalog/EntitlementCatalog.php:100
 msgid "Affiliate Captain"
 msgstr "Affiliate Captain"
 
-#: src/Catalog/EntitlementCatalog.php:104
+#: src/Catalog/EntitlementCatalog.php:101
 msgid "Voucher Captain"
 msgstr "Voucher Captain"
 
-#: src/Catalog/EntitlementCatalog.php:105
+#: src/Catalog/EntitlementCatalog.php:102
 msgid "WP Pass Captain"
 msgstr "WP Pass Captain"
 
@@ -2127,15 +2125,15 @@ msgstr "Wird 7 Tage vor der Abbuchung für eine Lizenz mit automatischer Verlän
 msgid "Your {product} license renews on {charge_date}"
 msgstr "Ihre Lizenz für {product} verlängert sich am {charge_date}"
 
-#: src/Plugin.php:57
+#: src/Plugin.php:58
 msgid "WP License Captain requires PHP 7.4 or later."
 msgstr "WP License Captain erfordert PHP 7.4 oder höher."
 
-#: src/Plugin.php:61
+#: src/Plugin.php:62
 msgid "Please activate WooCommerce before activating WP License Captain."
 msgstr "Bitte aktivieren Sie WooCommerce, bevor Sie WP License Captain aktivieren."
 
-#: src/Plugin.php:214
+#: src/Plugin.php:217
 msgid "WP License Captain requires WooCommerce to be installed and active."
 msgstr "WP License Captain setzt voraus, dass WooCommerce installiert und aktiviert ist."
 
@@ -3211,3 +3209,125 @@ msgstr "Eine geprüfte fehlgeschlagene Stripe-Zahlung des Versuchs mit unklarem 
 #: src/Catalog/ProductEditor.php:140
 msgid "Stable product identifier. Must match the key of the premium add-on: voucher-captain, pass-captain or affiliate-captain."
 msgstr "Feste Produktkennung. Muss dem Schlüssel des Premium-Add-ons entsprechen: voucher-captain, pass-captain oder affiliate-captain."
+
+#: src/Account/SiteOverview.php:177
+#: src/Account/SiteOverview.php:414
+msgid "Please sign in to view your sites."
+msgstr "Bitte melden Sie sich an, um Ihre Websites anzuzeigen."
+
+#: src/Account/SiteOverview.php:184
+msgid "Your sites"
+msgstr "Ihre Websites"
+
+#: src/Account/SiteOverview.php:186
+msgid "No site is activated with your licenses yet. Enter the license key in the plugin on your site to activate it."
+msgstr "Mit Ihren Lizenzen ist noch keine Website aktiviert. Geben Sie den Lizenzschlüssel im Plugin auf Ihrer Website ein, um sie zu aktivieren."
+
+#. translators: 1: number of sites, 2: number of live sites, 3: number of sites that need attention, 4: number of sites with an update.
+#: src/Account/SiteOverview.php:200
+#, php-format
+msgid "Sites: %1$d (live: %2$d). Need attention: %3$d. Update available: %4$d."
+msgstr "Websites: %1$d (live: %2$d). Handlungsbedarf: %3$d. Update verfügbar: %4$d."
+
+#. translators: %d: maximum number of activations shown.
+#: src/Account/SiteOverview.php:210
+#, php-format
+msgid "Only the first %d activations are shown. The CSV export contains the same selection."
+msgstr "Es werden nur die ersten %d Aktivierungen angezeigt. Der CSV-Export enthält dieselbe Auswahl."
+
+#: src/Account/SiteOverview.php:224
+msgid "No site matches the selection."
+msgstr "Keine Website entspricht der Auswahl."
+
+#: src/Account/SiteOverview.php:258
+msgid "Last contact"
+msgstr "Letzter Kontakt"
+
+#: src/Account/SiteOverview.php:260
+#: src/Account/SiteOverview.php:320
+msgid "Needs attention"
+msgstr "Handlungsbedarf"
+
+#. translators: %s: version number.
+#: src/Account/SiteOverview.php:287
+#, php-format
+msgid "Update: %s"
+msgstr "Update: %s"
+
+#: src/Account/SiteOverview.php:290
+msgid "never"
+msgstr "nie"
+
+#. translators: %s: date.
+#: src/Account/SiteOverview.php:293
+#, php-format
+msgid "until %s"
+msgstr "bis %s"
+
+#: src/Account/SiteOverview.php:302
+msgid "Nothing to do"
+msgstr "Nichts zu tun"
+
+#: src/Account/SiteOverview.php:319
+msgid "All sites"
+msgstr "Alle Websites"
+
+#: src/Account/SiteOverview.php:321
+msgid "Update available"
+msgstr "Update verfügbar"
+
+#: src/Account/SiteOverview.php:324
+msgid "Site address contains"
+msgstr "Adresse der Website enthält"
+
+#: src/Account/SiteOverview.php:326
+msgid "Show"
+msgstr "Anzeigen"
+
+#: src/Account/SiteOverview.php:331
+msgid "Apply"
+msgstr "Übernehmen"
+
+#: src/Account/SiteOverview.php:333
+msgid "Download as CSV"
+msgstr "Als CSV herunterladen"
+
+#: src/Account/SiteOverview.php:376
+msgid "Sites pages"
+msgstr "Seiten der Websites"
+
+#: src/Account/SiteOverview.php:438
+msgid "Latest version"
+msgstr "Neueste Version"
+
+#. translators: %s: license status, e.g. "Expired".
+#: src/Account/SiteOverview.php:722
+#, php-format
+msgid "License is not active (%s): no updates, premium features off."
+msgstr "Lizenz nicht aktiv (%s): keine Updates, Premium-Funktionen aus."
+
+#: src/Account/SiteOverview.php:724
+msgid "Renewal payment is overdue."
+msgstr "Die Zahlung für die Verlängerung ist überfällig."
+
+#. translators: %s: date.
+#: src/Account/SiteOverview.php:727
+#, php-format
+msgid "License ends on %s and does not renew."
+msgstr "Die Lizenz endet am %s und verlängert sich nicht."
+
+#. translators: %s: version number.
+#: src/Account/SiteOverview.php:730
+#, php-format
+msgid "Version %s is available."
+msgstr "Version %s ist verfügbar."
+
+#. translators: %d: number of days.
+#: src/Account/SiteOverview.php:733
+#, php-format
+msgid "No contact for more than %d days."
+msgstr "Seit mehr als %d Tagen kein Kontakt."
+
+#: src/Catalog/EntitlementCatalog.php:45
+msgid "Automated payouts"
+msgstr "Automatische Auszahlungen"

@@ -16,6 +16,7 @@ use WPLC\License\LicenseIssuer;
 use WPLC\License\LicenseLifecycle;
 use WPLC\Api\V1\Routes;
 use WPLC\Account\CustomerPortal;
+use WPLC\Account\SiteOverview;
 use WPLC\Admin\LicenseAdmin;
 use WPLC\Admin\Diagnostics;
 use WPLC\Admin\CatalogCsv;
@@ -64,6 +65,7 @@ final class Plugin {
 		Schema::migrate();
 		LicenseLifecycle::schedule_daily_event();
 		CustomerPortal::register_endpoint();
+		SiteOverview::register_endpoint();
 		flush_rewrite_rules();
 	}
 
@@ -178,6 +180,7 @@ final class Plugin {
 		LicenseLifecycle::register_hooks();
 		Routes::register_hooks();
 		CustomerPortal::register_hooks();
+		SiteOverview::register_hooks();
 		LicenseAdmin::register_hooks();
 		CatalogCsv::register_hooks();
 		Diagnostics::register_hooks();
