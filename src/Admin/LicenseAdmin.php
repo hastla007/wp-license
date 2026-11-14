@@ -41,6 +41,7 @@ final class LicenseAdmin {
 		add_action( 'admin_post_wplc_admin_release_activation', array( self::class, 'handle_release_activation' ) );
 		add_action( 'admin_post_wplc_admin_extend_license', array( self::class, 'handle_extend' ) );
 		add_action( 'admin_post_wplc_admin_add_license', array( self::class, 'handle_add_license' ) );
+		add_action( 'admin_post_wplc_admin_license_search', array( self::class, 'handle_search' ) );
 		AdminNotices::register_hooks();
 		Settings::register_hooks();
 	}
@@ -181,28 +182,106 @@ final class LicenseAdmin {
 		echo '<div class="wrap">';
 		echo '<h1 class="wp-heading-inline">' . esc_html__( 'Licenses', 'wp-license' ) . '</h1> ';
 		echo '<a href="' . esc_url( self::add_url() ) . '" class="page-title-action">' . esc_html__( 'Add license manually', 'wp-license' ) . '</a>';
-		if ( '' !== $filters['search'] ) {
+		$search = $filters['search'];
+		if ( null !== $search ) {
 			echo '<span class="subtitle">';
 			echo esc_html(
-				LicenseSearch::TYPE_LICENSE_KEY === LicenseSearch::classify( $filters['search'] )['type']
+				LicenseSearch::TYPE_LICENSE_KEY_HASH === $search['type']
 					? __( 'Search results for the pasted license key', 'wp-license' )
 					/* translators: %s: search term. */
-					: sprintf( __( 'Search results for: %s', 'wp-license' ), $filters['search'] )
+					: sprintf( __( 'Search results for: %s', 'wp-license' ), $search['label'] )
 			);
 			echo '</span>';
 		}
 		echo '<hr class="wp-header-end">';
+		if ( $filters['search_expired'] ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'This search has expired. Search again to see the results.', 'wp-license' ) . '</p></div>';
+		}
+
+		// The search is POSTed (T-141): the term must not appear in URLs, sort and
+		// page links, browser history or access logs. The handler redirects back
+		// with an opaque token only.
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="wplc-license-search">';
+		echo '<input type="hidden" name="action" value="wplc_admin_license_search">';
+		wp_nonce_field( 'wplc_admin_license_search' );
+		foreach ( array( 'status', 'product' ) as $field ) {
+			if ( '' !== $filters[ $field ] ) {
+				echo '<input type="hidden" name="' . esc_attr( $field ) . '" value="' . esc_attr( $filters[ $field ] ) . '">';
+			}
+		}
+		self::render_order_fields( $filters );
+		$label = __( 'Search licenses', 'wp-license' );
+		echo '<p class="search-box">';
+		echo '<label class="screen-reader-text" for="wplc-license-search-input">' . esc_html( $label ) . ':</label>';
+		// A pasted key is never echoed back; other terms are shown in the page body only.
+		$value = null !== $search && LicenseSearch::TYPE_LICENSE_KEY_HASH !== $search['type'] ? $search['label'] : '';
+		echo '<input type="search" id="wplc-license-search-input" name="s" value="' . esc_attr( $value ) . '" autocomplete="off">';
+		submit_button( $label, '', '', false, array( 'id' => 'search-submit' ) );
+		echo '</p>';
+		echo '<p class="description">' . esc_html__( 'Search by key prefix, product, plan, customer ID, customer email, #license ID, or paste a complete license key.', 'wp-license' ) . '</p>';
+		echo '</form>';
 
 		echo '<form method="get">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '">';
+		if ( '' !== $filters['search_token'] ) {
+			echo '<input type="hidden" name="' . esc_attr( LicenseSearchStore::QUERY_ARG ) . '" value="' . esc_attr( $filters['search_token'] ) . '">';
+		}
+		self::render_order_fields( $filters );
+		$table->display();
+		echo '</form></div>';
+	}
+
+	/**
+	 * Hidden fields keeping a non-default sort order.
+	 *
+	 * @param array{orderby:string,order:string} $filters Current filters.
+	 * @return void
+	 */
+	private static function render_order_fields( array $filters ): void {
 		if ( 'created' !== $filters['orderby'] || 'desc' !== $filters['order'] ) {
 			echo '<input type="hidden" name="orderby" value="' . esc_attr( $filters['orderby'] ) . '">';
 			echo '<input type="hidden" name="order" value="' . esc_attr( $filters['order'] ) . '">';
 		}
-		$table->search_box( __( 'Search licenses', 'wp-license' ), 'wplc-license' );
-		echo '<p class="description">' . esc_html__( 'Search by key prefix, product, plan, customer ID, customer email, #license ID, or paste a complete license key.', 'wp-license' ) . '</p>';
-		$table->display();
-		echo '</form></div>';
+	}
+
+	/**
+	 * Store a POSTed search term and redirect to the list with an opaque token (T-141).
+	 *
+	 * @return void
+	 */
+	public static function handle_search(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view licenses.', 'wp-license' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wplc_admin_license_search' );
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Each field is sanitized in search_redirect_url().
+		wp_safe_redirect( self::search_redirect_url( get_current_user_id(), wp_unslash( $_POST ) ) );
+		exit;
+	}
+
+	/**
+	 * Build the list URL after a search: filters and sort order plus the token, never the term.
+	 *
+	 * @param int                 $user_id Current user ID.
+	 * @param array<string,mixed> $post    Unslashed POST fields.
+	 * @return string
+	 */
+	public static function search_redirect_url( int $user_id, array $post ): string {
+		$args = array( 'page' => self::PAGE );
+		foreach ( array( 'status', 'product', 'orderby', 'order' ) as $field ) {
+			$value = isset( $post[ $field ] ) && is_string( $post[ $field ] ) ? sanitize_key( $post[ $field ] ) : '';
+			if ( '' !== $value ) {
+				$args[ $field ] = $value;
+			}
+		}
+		$term  = isset( $post['s'] ) && is_string( $post['s'] ) ? sanitize_text_field( $post['s'] ) : '';
+		$token = LicenseSearchStore::save( $user_id, $term );
+		if ( '' !== $token ) {
+			$args[ LicenseSearchStore::QUERY_ARG ] = $token;
+		}
+
+		return add_query_arg( $args, admin_url( 'admin.php' ) );
 	}
 
 	/**

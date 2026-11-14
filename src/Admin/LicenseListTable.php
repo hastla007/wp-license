@@ -8,7 +8,6 @@
 namespace WPLC\Admin;
 
 use WPLC\Infrastructure\Database\Schema;
-use WPLC\License\LicenseKey;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -95,16 +94,22 @@ final class LicenseListTable extends \WP_List_Table {
 	/**
 	 * Current filter values from the request.
 	 *
-	 * @return array{search:string,status:string,product:string,orderby:string,order:string}
+	 * The search term itself is never read from the URL (T-141): the URL only
+	 * carries an opaque token that LicenseSearchStore resolves for the current
+	 * user. A legacy "s" query argument is ignored.
+	 *
+	 * @return array{search:array{type:string,value:string,label:string}|null,search_token:string,search_expired:bool,status:string,product:string,orderby:string,order:string}
 	 */
 	public static function request_filters(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list filters.
-		$search  = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+		$token   = isset( $_GET[ LicenseSearchStore::QUERY_ARG ] ) ? sanitize_key( wp_unslash( $_GET[ LicenseSearchStore::QUERY_ARG ] ) ) : '';
 		$status  = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
 		$product = isset( $_GET['product'] ) ? sanitize_key( wp_unslash( $_GET['product'] ) ) : '';
 		$orderby = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : '';
 		$order   = isset( $_GET['order'] ) ? sanitize_key( wp_unslash( $_GET['order'] ) ) : '';
 		// phpcs:enable
+
+		$search = '' !== $token ? LicenseSearchStore::load( get_current_user_id(), $token ) : null;
 
 		if ( ! isset( Format::license_status_labels()[ $status ] ) ) {
 			$status = '';
@@ -115,11 +120,13 @@ final class LicenseListTable extends \WP_List_Table {
 		}
 
 		return array(
-			'search'  => $search,
-			'status'  => $status,
-			'product' => $product,
-			'orderby' => $orderby,
-			'order'   => 'asc' === $order ? 'asc' : 'desc',
+			'search'         => $search,
+			'search_token'   => null !== $search ? $token : '',
+			'search_expired' => '' !== $token && null === $search,
+			'status'         => $status,
+			'product'        => $product,
+			'orderby'        => $orderby,
+			'order'          => 'asc' === $order ? 'asc' : 'desc',
 		);
 	}
 
@@ -189,24 +196,26 @@ final class LicenseListTable extends \WP_List_Table {
 	}
 
 	/**
-	 * Translate a search term into a WHERE fragment.
+	 * Translate search criteria into a WHERE fragment.
 	 *
-	 * @param string $term Raw search term.
+	 * @param array{type:string,value:string,label:string}|null $search Criteria from LicenseSearch::criteria().
 	 * @return array{sql:string,params:array<int,mixed>}|null Null when there is nothing to search for.
 	 */
-	private static function search_condition( string $term ): ?array {
+	private static function search_condition( ?array $search ): ?array {
 		global $wpdb;
 
-		$search = LicenseSearch::classify( $term );
+		if ( null === $search ) {
+			return null;
+		}
 		switch ( $search['type'] ) {
 			case LicenseSearch::TYPE_NONE:
 				return null;
 
-			case LicenseSearch::TYPE_LICENSE_KEY:
+			case LicenseSearch::TYPE_LICENSE_KEY_HASH:
 				// Keys are never stored; a pasted key is compared by its hash.
 				return array(
 					'sql'    => 'license_key_hash = %s',
-					'params' => array( LicenseKey::hash( $search['value'] ) ),
+					'params' => array( $search['value'] ),
 				);
 
 			case LicenseSearch::TYPE_LICENSE_ID:
