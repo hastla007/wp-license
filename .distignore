@@ -21,6 +21,7 @@
 /tests
 /docs
 /tools
+/examples
 /build
 /dist
 /coverage

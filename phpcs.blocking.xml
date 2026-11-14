@@ -8,6 +8,7 @@
 	<file>tools</file>
 	<file>bin</file>
 	<file>tests</file>
+	<file>examples</file>
 
 	<exclude-pattern>*/vendor/*</exclude-pattern>
 

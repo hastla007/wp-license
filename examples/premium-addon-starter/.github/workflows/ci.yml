@@ -1,0 +1,57 @@
+# CI of a product add-on created from the starter (B10, B11). Not run inside the license server repository.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # First entry = the add-on's minimum PHP ("Requires PHP"): 8.1 Voucher, 8.2 Pass, 7.4 Affiliate.
+        php: ['7.4', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - name: License server checkout (sync checks of client and fixtures)
+        uses: actions/checkout@v4
+        with:
+          repository: hastla007/wp-license
+          path: .wp-license
+          token: ${{ secrets.WP_LICENSE_READ_TOKEN }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium, zip
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Syntax
+        run: find . -name '*.php' -not -path './vendor/*' -not -path './.wp-license/*' -print0 | xargs -0 -n1 php -l
+      - name: Unit tests (incl. server sync)
+        run: WPLC_SERVER_DIR=.wp-license vendor/bin/phpunit
+      - name: Vendored client up to date
+        run: WPLC_SERVER_DIR=.wp-license php bin/vendor-client.php --check
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: zip
+      - name: Tag must equal the Version header
+        run: |
+          version="$(sed -n 's/^ \* Version: *//p' "$(grep -l 'Plugin Name:' ./*.php | head -1)")"
+          test "v${version}" = "${GITHUB_REF_NAME}"
+      - run: php bin/build-release.php --out=dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.zip
+            dist/*.sha256

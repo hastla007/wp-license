@@ -1,0 +1,26 @@
+{
+    "data": {
+        "activation_id": 4711,
+        "installation_id": "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b",
+        "license_status": "active",
+        "paid_until": "2027-11-01 00:00:00",
+        "site_limit": 5,
+        "site_count": 1,
+        "environment": "production",
+        "entitlements": {
+            "starter.pdf_templates": true,
+            "starter.reports": true,
+            "starter.disabled": false,
+            "starter.monthly_limit": 500,
+            "other.feature": true,
+            "starter.white_label": true
+        },
+        "server_time": "2026-11-01 00:00:00",
+        "cache_expires_at": "2026-11-15 00:00:00"
+    },
+    "signature": "13c17523c36f4bb8bc0d28ca43d5d44612d3f8672698a1acb59a06a3fbc2d5bc",
+    "payload": "{\"data\":{\"activation_id\":4711,\"installation_id\":\"6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b\",\"license_status\":\"active\",\"paid_until\":\"2027-11-01 00:00:00\",\"site_limit\":5,\"site_count\":1,\"environment\":\"production\",\"entitlements\":{\"starter.pdf_templates\":true,\"starter.reports\":true,\"starter.disabled\":false,\"starter.monthly_limit\":500,\"other.feature\":true,\"starter.white_label\":true},\"server_time\":\"2026-11-01 00:00:00\",\"cache_expires_at\":\"2026-11-15 00:00:00\"},\"nonce\":\"fixture-nonce-0123456789abcdef\"}",
+    "payload_signature": "6cd5ffca95ed760a7fda73e9670d510eb8397711b916222440daba35a49d422d",
+    "signature_ed25519": "jcN6ZvQhgJM6KxBn//Lc19fE3V5lEdggOa4P16lFRkY5CZPRtKFkNGVKeYopHUjWc8IrR/1vMYIAHzNefzkrCw==",
+    "key_id": "10ba682c8ad13513"
+}

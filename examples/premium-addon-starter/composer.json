@@ -1,0 +1,29 @@
+{
+  "name": "vendor/premium-addon-starter",
+  "description": "Premium add-on for a free core plugin, licensed and updated through WP License Captain.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "php": ">=7.4"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.6"
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "scripts": {
+    "test": "phpunit",
+    "client:vendor": "@php bin/vendor-client.php",
+    "client:check": "@php bin/vendor-client.php --check",
+    "fixtures": "@php tests/bin/generate-fixtures.php",
+    "release": "@php bin/build-release.php"
+  },
+  "scripts-descriptions": {
+    "test": "Unit tests with WordPress stubs. Set WPLC_SERVER_DIR to a wp-license checkout to also run the sync tests.",
+    "client:vendor": "Copy LicenseClient from the license server (WPLC_SERVER_DIR or --source=…) under this add-on's namespace.",
+    "client:check": "Fail when the vendored LicenseClient differs from the license server copy.",
+    "fixtures": "Regenerate the signed test fixtures with the license server's own code (needs WPLC_SERVER_DIR).",
+    "release": "Build dist/<slug>-<version>.zip and its .sha256 (optionally a release manifest)."
+  }
+}

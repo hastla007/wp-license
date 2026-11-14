@@ -2,13 +2,15 @@
 
 > **Where the client belongs.** The core plugin of each product is free, ungated and published on WordPress.org. It must not contain this client, any entitlement check, a custom updater or any call to the license server. Bundle `LicenseClient` only in the separate premium add-on plugin that is sold and delivered from the shop.
 
+> **Starting a premium add-on?** Use [`examples/premium-addon-starter/`](../examples/premium-addon-starter/README.md): a complete add-on skeleton with this client vendored under the add-on namespace (`bin/vendor-client.php`), a license settings page, a fail-closed entitlement helper on a signed 14-day offline cache, the updater with SHA-256 and size checks, uninstall cleanup, a privacy note, tests with server-generated signed fixtures, and `bin/init-addon.php` to create a product repository from it. Its tests run in this repository's `composer test`, and e2e flow 12 runs it against a real server.
+
 How a product plugin talks to the license server with `WPLC\Client\LicenseClient` (`src/Client/LicenseClient.php`). The class is implemented and unit-tested for request signing and response verification; the full flow against a running server is not yet verified in a shop. The endpoints are specified in [API-V1.md](API-V1.md).
 
 ## What the class does and does not do
 
 It does: activation, signed requests, verification of signed responses, entitlement check, update check, deactivation, storing the installation credentials.
 
-It does not: settings screen, caching of entitlements, feature gates, hooking into the WordPress updater, downloading or checking the ZIP. These belong to the product plugin.
+It does not: settings screen, caching of entitlements, feature gates, hooking into the WordPress updater, downloading or checking the ZIP. These belong to the product plugin; the premium add-on starter implements all of them.
 
 Copy the file into the product plugin under the product's own namespace. Its error messages use the text domain `wp-license`; change it to the product's text domain when vendoring, otherwise the messages stay English.
 
@@ -148,4 +150,4 @@ Entitlement keys are listed in [ENTITLEMENTS.md](ENTITLEMENTS.md).
 ## Known gaps
 
 - `check_entitlements()` sends only `product_version`. The server also stores `wp_version` and `php_version` from that request, so both are overwritten with empty values after the first check.
-- No product plugin uses this version of the class yet; see [CLIENT-REPOS.md](CLIENT-REPOS.md).
+- No product plugin uses this version of the class yet; see [CLIENT-REPOS.md](CLIENT-REPOS.md). The premium add-on starter does, and is exercised against a real server in e2e flow 12.

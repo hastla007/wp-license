@@ -1,0 +1,19 @@
+{
+    "data": {
+        "update_available": true,
+        "product_key": "starter-product",
+        "version": "9.9.9",
+        "package_url": "https://shop.example/wp-json/wplc/v1/updates/download/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "sha256": "8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85",
+        "requires_php": "7.4",
+        "requires_wp": "6.5",
+        "tested_wp": "6.8",
+        "release_notes": "<p>Fixes &amp; improvements.</p>",
+        "download_expires_at": "2026-11-01 00:10:00"
+    },
+    "signature": "c74fc56d52d068cc44ba8d1082f53441fafadb92260364835bbb82e48ea1ad36",
+    "payload": "{\"data\":{\"update_available\":true,\"product_key\":\"starter-product\",\"version\":\"9.9.9\",\"package_url\":\"https://shop.example/wp-json/wplc/v1/updates/download/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"sha256\":\"8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85\",\"requires_php\":\"7.4\",\"requires_wp\":\"6.5\",\"tested_wp\":\"6.8\",\"release_notes\":\"<p>Fixes &amp; improvements.</p>\",\"download_expires_at\":\"2026-11-01 00:10:00\"},\"nonce\":\"fixture-nonce-0123456789abcdef\"}",
+    "payload_signature": "f630f233f3731656351156bdd75ffca8605aa27efded4e3a8cad76bc8e1038da",
+    "signature_ed25519": "822ZfYxSLnXhXDwt1KWGinKVKCni4uY4kIEVQL3rsZJ+FS5F8LG8WAKTSXM6rlo8Mufy8zfDKngTXGbNoDCbBQ==",
+    "key_id": "10ba682c8ad13513"
+}
