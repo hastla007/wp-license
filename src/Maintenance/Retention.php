@@ -533,6 +533,7 @@ final class Retention {
 			if ( false === $updated ) {
 				continue;
 			}
+			\WPLC\Gateway\PaymentReference::clear( $license_id );
 			$wpdb->query( $wpdb->prepare( "UPDATE {$tables['consents']} SET customer_id = 0 WHERE license_id = %d AND customer_id > 0", $license_id ) );
 			$wpdb->query( $wpdb->prepare( "DELETE n FROM {$tables['request_nonces']} n INNER JOIN {$tables['activations']} a ON a.id = n.activation_id WHERE a.license_id = %d", $license_id ) );
 			$removed = $wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['activations']} WHERE license_id = %d", $license_id ) );

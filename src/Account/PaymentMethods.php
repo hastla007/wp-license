@@ -327,6 +327,9 @@ final class PaymentMethods {
 		if ( 1 !== (int) $updated ) {
 			return false;
 		}
+		// B-57: the license follows the gateway's reference of the new method, not only the token row.
+		\WPLC\Gateway\PaymentReference::clear( $license_id );
+		\WPLC\Gateway\PaymentReference::store( $license_id, (string) $tokens[ $token_id ]->get_gateway_id(), $token_id, $user_id );
 
 		AuditLog::record(
 			'payment_method_changed',
@@ -390,6 +393,8 @@ final class PaymentMethods {
 		if ( 1 !== (int) $updated ) {
 			return false;
 		}
+		\WPLC\Gateway\PaymentReference::clear( $license_id );
+		\WPLC\Gateway\PaymentReference::store( $license_id, (string) $tokens[ $token_id ]->get_gateway_id(), $token_id, $user_id );
 
 		// Evidence of what the customer agreed to: wording (hash), language, amount, interval, first charge.
 		$text  = self::consent_text( $license );

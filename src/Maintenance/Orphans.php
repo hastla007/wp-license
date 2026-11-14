@@ -115,11 +115,17 @@ final class Orphans {
 	 *
 	 * @param int $token_id Deleted token ID.
 	 * @return string 'customer' (My Account "delete payment method" request for this token),
-	 *                'privacy' (personal data erasure), 'user_deleted' or 'other'.
+	 *                'privacy' (personal data erasure), 'user_deleted', 'gateway_sync' or 'other'.
 	 */
 	public static function token_deletion_context( int $token_id ): string {
 		global $wp;
 
+		if ( doing_filter( 'woocommerce_get_customer_payment_tokens' ) ) {
+			// The gateway removes and re-creates its token rows while it lists the saved methods.
+			// StripeRecurringAdapter::keep_license_on_token_sync() (priority 1) has detached the
+			// licenses from the row; they are charged by their payment method reference.
+			return 'gateway_sync';
+		}
 		if ( doing_action( 'delete_user' ) || doing_action( 'deleted_user' ) || doing_action( 'wpmu_delete_user' ) ) {
 			return 'user_deleted';
 		}
@@ -165,9 +171,9 @@ final class Orphans {
 		 *
 		 * @param bool   $disable  Whether to switch automatic renewal off.
 		 * @param int    $token_id Deleted payment token ID.
-		 * @param string $context  'customer', 'privacy', 'user_deleted' or 'other'.
+		 * @param string $context  'customer', 'privacy', 'user_deleted', 'gateway_sync' or 'other'.
 		 */
-		if ( ! apply_filters( 'wplc_disable_renewal_on_token_deletion', 'other' !== $context, $token_id, $context ) ) {
+		if ( ! apply_filters( 'wplc_disable_renewal_on_token_deletion', in_array( $context, array( 'customer', 'privacy', 'user_deleted' ), true ), $token_id, $context ) ) {
 			return;
 		}
 		$tables = Schema::table_names();

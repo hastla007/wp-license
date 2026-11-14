@@ -769,6 +769,7 @@ final class PersonalData {
 		if ( ! $detached ) {
 			return false;
 		}
+		\WPLC\Gateway\PaymentReference::clear( $license_id );
 
 		$complete = true;
 		$queries  = array(

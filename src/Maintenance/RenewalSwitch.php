@@ -67,6 +67,8 @@ final class RenewalSwitch {
 		if ( ! $updated ) {
 			return false;
 		}
+		// The gateway's customer and payment method references go with the token reference.
+		\WPLC\Gateway\PaymentReference::clear( $license_id );
 
 		// phpcs:enable
 

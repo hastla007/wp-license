@@ -228,6 +228,10 @@ final class SupportActions {
 				(string) $license['status']
 			)
 		);
+		if ( 1 === (int) $updated ) {
+			// The gateway references identify the former owner at the payment provider.
+			\WPLC\Gateway\PaymentReference::clear( $license_id );
+		}
 		if ( 1 !== (int) $updated ) {
 			return self::RESULT_STALE;
 		}

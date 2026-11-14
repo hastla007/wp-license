@@ -940,14 +940,14 @@ final class StripeAdapterIntegrationTest extends WPLC_Renewal_TestCase {
 			'wplc_billing_paused',
 			static function ( $paused ) use ( &$calls ) {
 				++$calls;
-				// Not paused when the job starts (the filter runs twice there), paused when the adapter asks.
-				return $calls > 2 ? true : $paused;
+				// Not paused when the job starts (one pause check: SiteGuard::billing_paused()), paused when the adapter asks.
+				return $calls > 1 ? true : $paused;
 			}
 		);
 
 		RenewalProcessor::process( $f['renewal_id'] );
 
-		$this->assertSame( 3, $calls );
+		$this->assertSame( 2, $calls );
 		$this->assertSame( 0, $this->posts() );
 		$this->assertSame( array(), WC_Stripe_API::$retrieved );
 		$renewal = $this->renewal( $f['renewal_id'] );
