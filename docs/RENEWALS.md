@@ -48,6 +48,8 @@ The gateway receives `{renewal key}:{attempt_count}` (`RenewalScheduler::attempt
 - Retry after a recorded decline: new key, new charge request.
 - Check of an attempt whose result is unknown (crash, timeout): same key, Stripe replays the first result, the customer cannot be charged twice. A new key is never used before the outcome is known.
 
+The Stripe adapter also writes the attempt counter into the PaymentIntent metadata (`wplc_attempt`, next to `order_id`, `wplc_renewal_id` and `wplc_license_id`; T-155), so a `payment_intent.payment_failed` webhook can be matched to the attempt. Before the request it records the counter on the order (`_wplc_stripe_attempt_marked`). A repeated request of an attempt whose first request was sent before this change (unknown result recorded, no marker recorded for that attempt) is sent without `wplc_attempt`, because Stripe rejects a reused idempotency key with changed parameters.
+
 ### Retries
 
 After a definite failure the license becomes `past_due` (this sends the "payment failed" email) and the next attempt is scheduled at day 1, day 3 and day 7 after the period start. After the third retry fails, no further attempt is made and the license expires when the grace period ends. An unknown result is not a definite failure and starts none of this.
@@ -70,6 +72,7 @@ The outcome is resolved by the first of these:
 | The check gets a definite decline | Normal failure: order `failed`, attempt counted, license `past_due` + email, retries with a new key |
 | The check gets an unknown result again | Stays `reconciling`, next check one hour later; the window is not restarted |
 | Stripe `payment_intent.succeeded` webhook | Renewal `paid`, license extended (see [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md)) |
+| Stripe `payment_intent.payment_failed` webhook for this attempt (`wplc_attempt` = `attempt_count`, amount and currency match) | Normal failure, as for a decline found by a check (audit `renewal_result_resolved`, reason `stripe_decline_reconciled`) |
 | The renewal order is marked paid (e.g. by an administrator) | Booked through `reconcile_paid_renewal_order()` |
 | 12 hours after the first request (`RenewalProcessor::RESULT_UNKNOWN_WINDOW`), or the end of the grace period if earlier | Renewal `review_required`, nothing is sent again |
 
@@ -86,6 +89,8 @@ The case is listed under **WooCommerce → Renewals to review** (T-154; details 
 - **Close without booking** after a refund or another decision: renewal `closed`, license unchanged.
 
 Setting the renewal order to Processing/Completed or Failed by hand still works as before and has the same effect as the first two actions (without the administrator's reason in the audit entry).
+
+A Stripe `payment_intent.payment_failed` webhook for the attempt whose result was unknown also resolves an open case, like **Mark as not paid**: the attempt is recorded as a decline (audit `renewal_result_resolved`, reason `stripe_decline_reconciled`), the order becomes Failed with a note, the license `past_due` with the usual email, and the case leaves the list. This applies only to cases whose order still records the unknown result of that attempt (`_wplc_result_unknown_since`) and is unpaid and not a manual renewal; cases with a paid order (`license_changed_during_charge`, late manual payments) are never touched. Stripe reports the failure of a PaymentIntent as definite; the case existed only because that answer had not arrived.
 
 **Expiry is deferred** while a case is open: the daily job and the grace-end job do not expire the license, for at most 30 days after the case was opened (`LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS`). Access is not extended by this: it ends with the normal grace period (14 days after `paid_until`). After 30 days the license expires normally; the case stays listed and booking it reactivates the license.
 
@@ -212,7 +217,7 @@ The stored price is a catalog price: gross if the shop enters prices including t
 ## Known gaps
 
 - Not verified against Stripe: card saving at first purchase, off-session charge, 3-D Secure, declines, timeouts.
-- An unknown result is only resolved by re-sending the same request (idempotent replay), by the Stripe success webhook or by hand. The adapter contract has no read-only status lookup, and a `payment_intent.payment_failed` webhook does not resolve a `reconciling` renewal (it cannot be matched to the attempt safely).
+- An unknown result is only resolved by re-sending the same request (idempotent replay), by a Stripe webhook or by hand. The adapter contract has no read-only status lookup. A `payment_intent.payment_failed` webhook resolves it only for PaymentIntents that carry `wplc_attempt` (created after T-155); for older ones the hourly check or the review decides.
 - A paid manual renewal that is rejected is not refunded automatically; "Renewals to review" links to the order, the refund is made there.
 - A suspended license whose paid period has ended cannot be reactivated from the admin (reactivation needs a future `paid_until`, "Change term" is not offered for suspended licenses), so a review case for it can only be closed.
 - Partial refunds of renewal orders are ignored.

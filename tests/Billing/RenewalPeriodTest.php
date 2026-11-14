@@ -54,4 +54,14 @@ final class RenewalPeriodTest extends TestCase {
 		// Stripe accepts idempotency keys of up to 255 characters.
 		$this->assertLessThanOrEqual( 255, strlen( RenewalScheduler::attempt_idempotency_key( $renewal_key, 65535 ) ) );
 	}
+
+	public function test_attempt_counter_is_read_back_from_the_attempt_key(): void {
+		$renewal_key = RenewalScheduler::idempotency_key( 7, '2026-12-01 00:00:00' );
+
+		$this->assertSame( 0, RenewalScheduler::attempt_from_idempotency_key( RenewalScheduler::attempt_idempotency_key( $renewal_key, 0 ) ) );
+		$this->assertSame( 3, RenewalScheduler::attempt_from_idempotency_key( RenewalScheduler::attempt_idempotency_key( $renewal_key, 3 ) ) );
+		$this->assertNull( RenewalScheduler::attempt_from_idempotency_key( $renewal_key ) );
+		$this->assertNull( RenewalScheduler::attempt_from_idempotency_key( ':1' ) );
+		$this->assertNull( RenewalScheduler::attempt_from_idempotency_key( $renewal_key . ':x' ) );
+	}
 }

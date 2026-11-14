@@ -11,6 +11,7 @@
 
 use WPLC\Billing\ManualRenewal;
 use WPLC\Billing\RenewalProcessor;
+use WPLC\Billing\RenewalReview;
 use WPLC\Billing\RenewalScheduler;
 use WPLC\License\LicenseLifecycle;
 
@@ -480,5 +481,229 @@ final class RenewalResultUnknownIntegrationTest extends WPLC_Integration_TestCas
 		// The queued reconciliation check finds the renewal paid and sends nothing.
 		RenewalProcessor::process( $fixture['renewal_id'] );
 		$this->assertCount( 1, $this->adapter->keys );
+	}
+	// ------------------------------------------------------------------
+	// T-155: payment_intent.payment_failed with an attempt marker.
+	// ------------------------------------------------------------------
+
+	/**
+	 * POST a signed Stripe event for the renewal order and return its inbox ID.
+	 *
+	 * @param string              $event_id Event ID.
+	 * @param string              $type Event type.
+	 * @param array<string,mixed> $object PaymentIntent object.
+	 * @param bool                $expect_duplicate Whether the delivery is expected to be a duplicate.
+	 * @return int Inbox ID.
+	 */
+	private function post_stripe_event( string $event_id, string $type, array $object, bool $expect_duplicate = false ): int {
+		global $wpdb;
+		$body      = (string) wp_json_encode(
+			array(
+				'id'   => $event_id,
+				'type' => $type,
+				'data' => array( 'object' => $object ),
+			)
+		);
+		$timestamp = time();
+		$request   = new WP_REST_Request( 'POST', '/wplc/v1/webhooks/stripe' );
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_header( 'Stripe-Signature', 't=' . $timestamp . ',v1=' . hash_hmac( 'sha256', $timestamp . '.' . $body, WPLC_STRIPE_WEBHOOK_SECRET ) );
+		$request->set_body( $body );
+		$response = $this->dispatch( $request );
+		$this->assertSame( 200, $response->get_status(), (string) wp_json_encode( $response->get_data() ) );
+		$this->assertSame( $expect_duplicate, ! empty( $response->get_data()['duplicate'] ) );
+		$tables = $this->tables();
+
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$tables['event_inbox']} WHERE source_event_id = %s", $event_id ) );
+	}
+
+	/**
+	 * A payment_intent.payment_failed PaymentIntent for the renewal order.
+	 *
+	 * @param array<string,mixed> $fixture Fixture.
+	 * @param string|null         $attempt `wplc_attempt` metadata, null for none.
+	 * @param int                 $amount_delta Added to the order total.
+	 * @return array<string,mixed>
+	 */
+	private function failed_intent( array $fixture, ?string $attempt, int $amount_delta = 0 ): array {
+		$order    = wc_get_order( (int) $this->renewal( $fixture['renewal_id'] )['renewal_order_id'] );
+		$metadata = array(
+			'wplc_renewal_id' => (string) $fixture['renewal_id'],
+			'wplc_license_id' => (string) $fixture['license_id'],
+			'order_id'        => (string) $order->get_id(),
+		);
+		if ( null !== $attempt ) {
+			$metadata['wplc_attempt'] = $attempt;
+		}
+
+		return array(
+			'id'              => 'pi_t155_' . ( $attempt ?? 'none' ),
+			'status'          => 'requires_payment_method',
+			'amount'          => WC_Stripe_Helper::get_stripe_amount( $order->get_total(), $order->get_currency() ) + $amount_delta,
+			'amount_received' => 0,
+			'currency'        => strtolower( $order->get_currency() ),
+			'metadata'        => $metadata,
+		);
+	}
+
+	/**
+	 * Outcome of an inbox row.
+	 *
+	 * @param int $inbox_id Inbox ID.
+	 * @return string
+	 */
+	private function inbox_outcome( int $inbox_id ): string {
+		global $wpdb;
+		$tables = $this->tables();
+
+		return (string) $wpdb->get_var( $wpdb->prepare( "SELECT outcome FROM {$tables['event_inbox']} WHERE id = %d", $inbox_id ) );
+	}
+
+	/**
+	 * A Stripe renewal whose first attempt has an unknown result.
+	 *
+	 * @return array{license_id:int,renewal_id:int,customer:int,paid_until:string}
+	 */
+	private function stripe_fixture_with_unknown_result(): array {
+		if ( ! class_exists( 'WC_Stripe_Helper' ) ) {
+			require_once __DIR__ . '/helpers/StripeHelperStub.php';
+		}
+		$this->adapter->gateway = 'stripe';
+
+		return $this->fixture_with_unknown_result();
+	}
+
+	public function test_stripe_failure_webhook_for_the_attempt_resolves_a_reconciling_renewal_as_a_decline(): void {
+		$fixture  = $this->stripe_fixture_with_unknown_result();
+		$order_id = (int) $this->renewal( $fixture['renewal_id'] )['renewal_order_id'];
+		$intent   = $this->failed_intent( $fixture, '0' );
+
+		$inbox_id = $this->post_stripe_event( 'evt_t155_failed', 'payment_intent.payment_failed', $intent );
+		RenewalProcessor::process_stripe_event( $inbox_id );
+
+		$this->assertSame( 'decline_reconciled', $this->inbox_outcome( $inbox_id ) );
+		$renewal = $this->renewal( $fixture['renewal_id'] );
+		$this->assertSame( 'failed', $renewal['status'] );
+		$this->assertSame( '1', (string) $renewal['attempt_count'], 'The decline counts, so the next attempt gets a new key.' );
+		$this->assertNotNull( $renewal['retry_at'] );
+		$this->assertSame( 'past_due', $this->license( $fixture['license_id'] )['status'] );
+		$this->assertSame( $fixture['paid_until'], $this->license( $fixture['license_id'] )['paid_until'] );
+		$this->assertSame( 'failed', wc_get_order( $order_id )->get_status() );
+		$actions = $this->audit_actions( $fixture['renewal_id'] );
+		$this->assertContains( 'renewal_result_resolved', $actions );
+		$this->assertContains( 'renewal_failed', $actions );
+
+		// Duplicate delivery of the same event, and the same failure under a new event ID.
+		$this->post_stripe_event( 'evt_t155_failed', 'payment_intent.payment_failed', $intent, true );
+		$second = $this->post_stripe_event( 'evt_t155_failed_again', 'payment_intent.payment_failed', $intent );
+		RenewalProcessor::process_stripe_event( $inbox_id );
+		RenewalProcessor::process_stripe_event( $second );
+
+		$this->assertSame( 'failure_observed', $this->inbox_outcome( $second ), 'The attempt is already recorded; its event is now an older one.' );
+		$this->assertSame( '1', (string) $this->renewal( $fixture['renewal_id'] )['attempt_count'], 'A repeated event must not count the decline twice.' );
+		$this->assertCount( 1, array_keys( $this->audit_actions( $fixture['renewal_id'] ), 'renewal_failed', true ) );
+
+		// The next retry uses the key of the new attempt.
+		$this->adapter->results = array( 'success' );
+		RenewalProcessor::process( $fixture['renewal_id'] );
+		$this->assertSame(
+			array( ':0', ':1' ),
+			array_map(
+				static function ( $key ) {
+					return substr( $key, -2 );
+				},
+				$this->adapter->keys
+			)
+		);
+	}
+
+	public function test_stripe_failure_webhook_for_an_older_attempt_does_not_resolve_the_current_one(): void {
+		if ( ! class_exists( 'WC_Stripe_Helper' ) ) {
+			require_once __DIR__ . '/helpers/StripeHelperStub.php';
+		}
+		$this->adapter->gateway = 'stripe';
+		$fixture                = $this->fixture();
+		// Attempt 0 is declined; the retry (attempt 1) ends with an unknown result.
+		$this->adapter->results = array( 'decline', 'unknown' );
+		RenewalProcessor::process( $fixture['renewal_id'] );
+		RenewalProcessor::process( $fixture['renewal_id'] );
+		$renewal = $this->renewal( $fixture['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $renewal['status'] );
+		$this->assertSame( '1', (string) $renewal['attempt_count'] );
+		$order = wc_get_order( (int) $renewal['renewal_order_id'] );
+		$order->update_meta_data( '_wplc_payment_intent_id', 'pi_t155_current' );
+		$order->save();
+
+		$old    = $this->post_stripe_event( 'evt_t155_old_attempt', 'payment_intent.payment_failed', $this->failed_intent( $fixture, '0' ) );
+		$legacy = $this->post_stripe_event( 'evt_t155_no_marker', 'payment_intent.payment_failed', $this->failed_intent( $fixture, null ) );
+		RenewalProcessor::process_stripe_event( $old );
+		RenewalProcessor::process_stripe_event( $legacy );
+
+		$this->assertSame( 'failure_observed', $this->inbox_outcome( $old ) );
+		$this->assertSame( 'failure_observed', $this->inbox_outcome( $legacy ), 'A PaymentIntent without attempt marker cannot be matched to the attempt.' );
+		$renewal = $this->renewal( $fixture['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $renewal['status'] );
+		$this->assertSame( '1', (string) $renewal['attempt_count'] );
+		$this->assertSame( 'pi_t155_current', (string) wc_get_order( $order->get_id() )->get_meta( '_wplc_payment_intent_id', true ), 'An older attempt must not replace the current PaymentIntent.' );
+		$this->assertNotContains( 'renewal_result_resolved', $this->audit_actions( $fixture['renewal_id'] ) );
+	}
+
+	public function test_stripe_failure_webhook_with_a_different_amount_does_not_resolve(): void {
+		$fixture = $this->stripe_fixture_with_unknown_result();
+
+		$inbox_id = $this->post_stripe_event( 'evt_t155_amount', 'payment_intent.payment_failed', $this->failed_intent( $fixture, '0', 100 ) );
+		RenewalProcessor::process_stripe_event( $inbox_id );
+
+		$this->assertSame( 'manual_review', $this->inbox_outcome( $inbox_id ) );
+		$renewal = $this->renewal( $fixture['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $renewal['status'] );
+		$this->assertSame( '0', (string) $renewal['attempt_count'] );
+		$this->assertSame( 'active', $this->license( $fixture['license_id'] )['status'] );
+		$this->assertContains( 'stripe_webhook_amount_mismatch', $this->audit_actions( $fixture['renewal_id'] ) );
+	}
+
+	public function test_stripe_failure_webhook_resolves_a_review_case_of_the_attempt(): void {
+		$fixture = $this->stripe_fixture_with_unknown_result();
+		$this->age_unknown_result( $fixture['renewal_id'], RenewalProcessor::RESULT_UNKNOWN_WINDOW + 60 );
+		RenewalProcessor::process( $fixture['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_REVIEW, $this->renewal( $fixture['renewal_id'] )['status'] );
+		$open_before = RenewalReview::open_count();
+
+		$inbox_id = $this->post_stripe_event( 'evt_t155_review', 'payment_intent.payment_failed', $this->failed_intent( $fixture, '0' ) );
+		RenewalProcessor::process_stripe_event( $inbox_id );
+
+		$this->assertSame( 'decline_reconciled', $this->inbox_outcome( $inbox_id ) );
+		$renewal = $this->renewal( $fixture['renewal_id'] );
+		$this->assertSame( 'failed', $renewal['status'], 'The review case is closed by recording the decline.' );
+		$this->assertSame( '1', (string) $renewal['attempt_count'] );
+		$this->assertSame( $open_before - 1, RenewalReview::open_count() );
+		$this->assertSame( 'past_due', $this->license( $fixture['license_id'] )['status'] );
+		$this->assertContains( 'renewal_result_resolved', $this->audit_actions( $fixture['renewal_id'] ) );
+	}
+
+	public function test_stripe_success_webhook_with_attempt_marker_still_books(): void {
+		$fixture = $this->stripe_fixture_with_unknown_result();
+		$intent  = $this->failed_intent( $fixture, '0' );
+		$intent  = array_merge(
+			$intent,
+			array(
+				'status'          => 'succeeded',
+				'amount_received' => $intent['amount'],
+			)
+		);
+
+		$inbox_id = $this->post_stripe_event( 'evt_t155_success', 'payment_intent.succeeded', $intent );
+		RenewalProcessor::process_stripe_event( $inbox_id );
+
+		$this->assertSame( 'processed', $this->inbox_outcome( $inbox_id ) );
+		$renewal = $this->renewal( $fixture['renewal_id'] );
+		$this->assertSame( 'paid', $renewal['status'] );
+		$this->assertSame( $renewal['period_end'], $this->license( $fixture['license_id'] )['paid_until'] );
+
+		// A late failure event of the same attempt changes nothing.
+		$late = $this->post_stripe_event( 'evt_t155_late_failure', 'payment_intent.payment_failed', $this->failed_intent( $fixture, '0' ) );
+		RenewalProcessor::process_stripe_event( $late );
+		$this->assertSame( 'already_reconciled', $this->inbox_outcome( $late ) );
+		$this->assertSame( 'paid', $this->renewal( $fixture['renewal_id'] )['status'] );
 	}
 }

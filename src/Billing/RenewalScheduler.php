@@ -96,6 +96,20 @@ final class RenewalScheduler {
 	}
 
 	/**
+	 * Attempt counter encoded in a key built by attempt_idempotency_key(). Pure.
+	 *
+	 * @param string $attempt_key Gateway idempotency key `{renewal key}:{attempt}`.
+	 * @return int|null Null when the key has no attempt suffix.
+	 */
+	public static function attempt_from_idempotency_key( string $attempt_key ): ?int {
+		if ( ! preg_match( '/^.+:(\d{1,9})$/', $attempt_key, $parts ) ) {
+			return null;
+		}
+
+		return (int) $parts[1];
+	}
+
+	/**
 	 * Find or create the renewal row for the period that starts at paid_until.
 	 *
 	 * @param array<string,mixed> $license License row.
