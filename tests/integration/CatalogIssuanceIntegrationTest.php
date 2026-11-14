@@ -353,7 +353,8 @@ final class CatalogIssuanceIntegrationTest extends WPLC_Integration_TestCase {
 				array_filter(
 					$this->mails,
 					static function ( $mail ) {
-						return in_array( 'followup@example.test', (array) $mail['to'], true ) && false !== strpos( (string) $mail['message'], 'WPLC-' );
+						// License emails go to the billing address of the source order (A-137).
+						return (bool) preg_grep( '/^(followup|buyer-\d+)@example\.test$/', (array) $mail['to'] ) && false !== strpos( (string) $mail['message'], 'WPLC-' );
 					}
 				)
 			);
