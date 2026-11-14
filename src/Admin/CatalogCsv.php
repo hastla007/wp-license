@@ -44,6 +44,7 @@ final class CatalogCsv {
 		$failed = isset( $_GET['failed'] ) ? absint( $_GET['failed'] ) : null;
 		echo '<div class="wrap"><h1>' . esc_html__( 'License catalog CSV', 'wp-license' ) . '</h1>';
 		if ( null !== $imported && null !== $failed ) {
+			/* translators: 1: number of imported rows, 2: number of skipped or invalid rows. */
 			echo '<div class="notice notice-info"><p>' . esc_html( sprintf( __( 'Imported: %1$d. Skipped or invalid: %2$d.', 'wp-license' ), $imported, $failed ) ) . '</p></div>';
 		}
 		echo '<p>' . esc_html__( 'CSV contains product IDs, variation IDs, SKU, plan keys, billing interval, site limit, support level, and entitlements. It never contains license keys or customer data. Import matches both IDs and SKU to avoid applying another shop’s mapping accidentally.', 'wp-license' ) . '</p>';

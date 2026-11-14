@@ -9,6 +9,7 @@ namespace WPLC\Admin;
 
 use WPLC\Billing\Money;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\AuditReason;
 use WPLC\License\LicenseLifecycle;
 use WPLC\License\LicenseStateMachine;
 
@@ -111,7 +112,7 @@ final class LicenseDetail {
 
 		$status = Format::license_status_label( (string) $license['status'] );
 		if ( '' !== (string) $license['status_reason'] ) {
-			$status .= ' — ' . (string) $license['status_reason'];
+			$status .= ' — ' . AuditReason::label( (string) $license['status_reason'] );
 		}
 
 		$renewal = Format::renewal_mode_label( $license );
@@ -243,7 +244,7 @@ final class LicenseDetail {
 		}
 
 		echo '<table class="widefat striped"><thead><tr>';
-		foreach ( array( __( 'Site', 'wp-license' ), __( 'Environment', 'wp-license' ), __( 'Status', 'wp-license' ), __( 'Versions', 'wp-license' ), __( 'Activated', 'wp-license' ), __( 'Last seen', 'wp-license' ), __( 'Release', 'wp-license' ) ) as $heading ) {
+		foreach ( array( __( 'Site', 'wp-license' ), __( 'Environment', 'wp-license' ), __( 'Status', 'wp-license' ), __( 'Versions', 'wp-license' ), __( 'Activated', 'wp-license' ), __( 'Last seen', 'wp-license' ), _x( 'Release', 'verb: free the place of a site activation', 'wp-license' ) ) as $heading ) {
 			echo '<th scope="col">' . esc_html( $heading ) . '</th>';
 		}
 		echo '</tr></thead><tbody>';
@@ -272,7 +273,7 @@ final class LicenseDetail {
 				/* translators: %s: site URL. */
 				echo '<label class="screen-reader-text" for="' . esc_attr( $field_id ) . '">' . esc_html( sprintf( __( 'Reason for releasing %s', 'wp-license' ), (string) $activation['site_url'] ) ) . '</label>';
 				echo '<input type="text" id="' . esc_attr( $field_id ) . '" name="reason" required maxlength="255" placeholder="' . esc_attr__( 'Reason', 'wp-license' ) . '">';
-				echo '<button class="button" type="submit">' . esc_html__( 'Release', 'wp-license' ) . '</button></form>';
+				echo '<button class="button" type="submit">' . esc_html_x( 'Release', 'verb: free the place of a site activation', 'wp-license' ) . '</button></form>';
 			} else {
 				echo '—';
 			}
@@ -408,7 +409,7 @@ final class LicenseDetail {
 			echo '<td><code>' . esc_html( (string) $entry['action'] ) . '</code></td>';
 			echo '<td>' . esc_html( ( isset( $object_labels[ $type ] ) ? $object_labels[ $type ] : $type ) . ' #' . (int) $entry['object_id'] ) . '</td>';
 			echo '<td>' . esc_html( $actor_name ) . '</td>';
-			echo '<td>' . esc_html( (string) $entry['reason'] ) . '</td>';
+			echo '<td>' . esc_html( AuditReason::label( (string) $entry['reason'] ) ) . '</td>';
 			echo '<td>' . esc_html( self::change_summary( $entry['before_json'], $entry['after_json'] ) ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
@@ -538,13 +539,14 @@ final class LicenseDetail {
 		echo '<select id="wplc-add-plan" name="plan_id" required><option value="">' . esc_html__( 'Select a plan', 'wp-license' ) . '</option>';
 		foreach ( $plans as $plan ) {
 			$name = '' !== (string) $plan['display_name'] ? (string) $plan['display_name'] : (string) $plan['product_key'];
+			$live = (int) $plan['live_site_limit'];
 			$text = sprintf(
-				/* translators: 1: product name, 2: plan key, 3: billing interval, 4: number of live sites. */
-				__( '%1$s — %2$s (%3$s, %4$d live sites)', 'wp-license' ),
+				/* translators: 1: product name, 2: plan key, 3: billing interval ("monthly" or "yearly"), 4: number of live sites. */
+				_n( '%1$s — %2$s (%3$s, %4$d live site)', '%1$s — %2$s (%3$s, %4$d live sites)', $live, 'wp-license' ),
 				$name,
 				(string) $plan['plan_key'],
 				'month' === $plan['billing_interval'] ? __( 'monthly', 'wp-license' ) : __( 'yearly', 'wp-license' ),
-				(int) $plan['live_site_limit']
+				$live
 			);
 			echo '<option value="' . esc_attr( (string) (int) $plan['id'] ) . '">' . esc_html( $text ) . '</option>';
 		}

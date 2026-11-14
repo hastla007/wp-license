@@ -10,6 +10,7 @@ namespace WPLC\Billing;
 use WPLC\Gateway\Registry;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
+use WPLC\License\AuditReason;
 use WPLC\License\LicenseLifecycle;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -189,7 +190,7 @@ final class RenewalProcessor {
 		$renewal['renewal_order_id'] = (int) $order->get_id();
 		if ( $order->is_paid() ) {
 			// Paid by the customer or by an earlier attempt whose result was lost: book it, never charge again.
-			self::book_paid_order( $renewal, $license, $order, 'renewal_paid', 'Renewal order was already paid' );
+			self::book_paid_order( $renewal, $license, $order, 'renewal_paid', AuditReason::RENEWAL_ALREADY_PAID );
 			return;
 		}
 		if ( ! $order->needs_payment() ) {
@@ -219,7 +220,7 @@ final class RenewalProcessor {
 
 		$transaction_id = sanitize_text_field( (string) ( $result['transaction_id'] ?? '' ) );
 		$order->payment_complete( $transaction_id );
-		self::finish_paid( $renewal, $license, $order, 'renewal_paid', 'Renewal was confirmed by the payment adapter' );
+		self::finish_paid( $renewal, $license, $order, 'renewal_paid', AuditReason::RENEWAL_CONFIRMED_BY_ADAPTER );
 	}
 
 	/**
@@ -613,7 +614,7 @@ final class RenewalProcessor {
 				'renewal_result_resolved',
 				'renewal',
 				$renewal_id,
-				'Renewal order set to failed: the payment was not taken',
+				AuditReason::PAYMENT_NOT_TAKEN,
 				array( 'status' => (string) $renewal['status'] ),
 				array( 'outcome' => 'failed' )
 			);
@@ -763,10 +764,12 @@ final class RenewalProcessor {
 	 */
 	private static function process_dispute_event( int $inbox_id, array $payload ): void {
 		$order_id = absint( $payload['order_id'] ?? 0 );
-		$reason = sprintf(
-			'Stripe dispute %1$s (%2$s)',
-			sanitize_text_field( (string) ( $payload['dispute_id'] ?? '' ) ),
-			sanitize_key( (string) ( $payload['reason'] ?? 'unknown' ) )
+		$reason = AuditReason::encode(
+			AuditReason::STRIPE_DISPUTE,
+			array(
+				'dispute' => sanitize_text_field( (string) ( $payload['dispute_id'] ?? '' ) ),
+				'reason'  => sanitize_key( (string) ( $payload['reason'] ?? 'unknown' ) ),
+			)
 		);
 		$count = LicenseLifecycle::chargeback_for_order( $order_id, $reason );
 		AuditLog::record( 'chargeback_received', 'order', $order_id, $reason, null, array( 'licenses' => $count ) );
@@ -798,7 +801,7 @@ final class RenewalProcessor {
 			|| (int) $order->get_meta( '_wplc_renewal_for_license', true ) !== (int) $license['id']
 		) {
 			self::finish_stripe_event( $inbox_id, 'manual_review' );
-			AuditLog::record( 'stripe_webhook_mismatch', 'webhook', $inbox_id, 'Stripe event metadata did not match its renewal order' );
+			AuditLog::record( 'stripe_webhook_mismatch', 'webhook', $inbox_id, AuditReason::STRIPE_METADATA_MISMATCH );
 			return;
 		}
 
@@ -811,7 +814,7 @@ final class RenewalProcessor {
 
 		if ( in_array( $renewal['status'], array( 'cancelled', 'expired', 'refunded' ), true ) || in_array( $license['status'], array( 'revoked', 'suspended' ), true ) ) {
 			self::finish_stripe_event( $inbox_id, 'manual_review' );
-			AuditLog::record( 'stripe_webhook_manual_review', 'renewal', (int) $renewal['id'], 'Payment event arrived for a cancelled, expired, refunded, revoked or suspended record' );
+			AuditLog::record( 'stripe_webhook_manual_review', 'renewal', (int) $renewal['id'], AuditReason::STRIPE_EVENT_FOR_CLOSED_RECORD );
 			return;
 		}
 
@@ -832,7 +835,7 @@ final class RenewalProcessor {
 			|| ! RenewalOrder::net_matches( $order )
 		) {
 			self::finish_stripe_event( $inbox_id, 'manual_review' );
-			AuditLog::record( 'stripe_webhook_amount_mismatch', 'renewal', (int) $renewal['id'], 'Stripe amount or currency did not match the WooCommerce renewal order' );
+			AuditLog::record( 'stripe_webhook_amount_mismatch', 'renewal', (int) $renewal['id'], AuditReason::STRIPE_AMOUNT_MISMATCH );
 			return;
 		}
 
@@ -846,7 +849,7 @@ final class RenewalProcessor {
 				self::finish_stripe_event( $inbox_id, 'manual_review' );
 				return;
 			}
-			self::finish_paid( $renewal, $license, $order, 'renewal_reconciled', 'Verified Stripe PaymentIntent success reconciled' );
+			self::finish_paid( $renewal, $license, $order, 'renewal_reconciled', AuditReason::STRIPE_SUCCESS_RECONCILED );
 			if ( ! $order->is_paid() ) {
 				$order->payment_complete( $intent_id );
 			}
@@ -895,7 +898,7 @@ final class RenewalProcessor {
 				|| (int) $renewal['renewal_order_id'] !== $order_id
 				|| ! RenewalOrder::matches( $order, $renewal, $license )
 			) {
-				AuditLog::record( 'renewal_recovery_mismatch', 'order', $order_id, 'Paid renewal order metadata did not match its license' );
+				AuditLog::record( 'renewal_recovery_mismatch', 'order', $order_id, AuditReason::RECOVERY_METADATA_MISMATCH );
 				return;
 			}
 			if ( 'paid' === $renewal['status'] ) {
@@ -906,16 +909,16 @@ final class RenewalProcessor {
 				return;
 			}
 			if ( ! in_array( $renewal['status'], array( 'failed', 'manual_action_required', 'processing', self::STATUS_RECONCILING, self::STATUS_REVIEW ), true ) ) {
-				AuditLog::record( 'renewal_recovery_not_allowed', 'renewal', $renewal_id, 'Renewal status did not allow customer payment recovery' );
+				AuditLog::record( 'renewal_recovery_not_allowed', 'renewal', $renewal_id, AuditReason::RECOVERY_NOT_ALLOWED );
 				return;
 			}
 			// The order is ours (meta and renewal link) and paid in full, so its total is what was charged.
 			// Verify that its pre-tax line still is the net renewal price and that the currency is unchanged.
 			if ( ! RenewalOrder::net_matches( $order ) || strtoupper( (string) $license['renewal_currency'] ) !== strtoupper( (string) $order->get_currency() ) ) {
-				AuditLog::record( 'renewal_recovery_amount_mismatch', 'renewal', $renewal_id, 'Paid customer recovery order did not match the stored renewal amount' );
+				AuditLog::record( 'renewal_recovery_amount_mismatch', 'renewal', $renewal_id, AuditReason::RECOVERY_AMOUNT_MISMATCH );
 				return;
 			}
-			self::finish_paid( $renewal, $license, $order, 'renewal_customer_recovered', 'Customer paid the renewal order' );
+			self::finish_paid( $renewal, $license, $order, 'renewal_customer_recovered', AuditReason::CUSTOMER_PAID_RENEWAL );
 		} finally {
 			self::unlock( $renewal_id );
 		}
@@ -1008,7 +1011,7 @@ final class RenewalProcessor {
 			}
 			$order = function_exists( 'wc_get_order' ) ? wc_get_order( absint( $renewal['renewal_order_id'] ) ) : false;
 			if ( $order instanceof \WC_Order && RenewalOrder::matches( $order, $renewal, $license ) && $order->is_paid() ) {
-				self::book_paid_order( $renewal, $license, $order, 'renewal_stuck_recovered', 'Stuck renewal had a paid order' );
+				self::book_paid_order( $renewal, $license, $order, 'renewal_stuck_recovered', AuditReason::STUCK_RENEWAL_PAID );
 				return;
 			}
 			self::fail_attempt(

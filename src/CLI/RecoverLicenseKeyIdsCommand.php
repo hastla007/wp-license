@@ -128,7 +128,7 @@ final class RecoverLicenseKeyIdsCommand {
 					'license_key_id_recovered',
 					'license',
 					$last_id,
-					'License key ID corrected after matching the stored verifier',
+					\WPLC\License\AuditReason::LICENSE_KEY_ID_RECOVERED,
 					array( 'key_id' => $current_key_id ),
 					array( 'key_id' => $target_key_id )
 				);

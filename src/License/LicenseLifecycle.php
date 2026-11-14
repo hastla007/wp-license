@@ -88,7 +88,7 @@ final class LicenseLifecycle {
 				self::transition(
 					$license_id,
 					'revoked',
-					'Refunded order unit',
+					AuditReason::REFUNDED_ORDER_UNIT,
 					'order_refund'
 				);
 			}
@@ -174,7 +174,7 @@ final class LicenseLifecycle {
 			)
 		);
 		foreach ( $ids as $license_id ) {
-			self::transition( (int) $license_id, 'revoked', 'Order refunded in full', 'order_refund' );
+			self::transition( (int) $license_id, 'revoked', AuditReason::ORDER_REFUNDED, 'order_refund' );
 		}
 	}
 
@@ -317,7 +317,7 @@ final class LicenseLifecycle {
 			'renewal_refunded',
 			'license',
 			$license_id,
-			'Renewal order #' . $order_id . ' was refunded in full',
+			AuditReason::encode( AuditReason::RENEWAL_ORDER_REFUNDED, array( 'order' => $order_id ) ),
 			array( 'paid_until' => $license['paid_until'], 'renewal_enabled' => (int) $license['renewal_enabled'], 'renewal_id' => $renewal_id ),
 			array( 'paid_until' => $rolled_back ? $renewal['period_start'] : $license['paid_until'], 'renewal_enabled' => 0, 'rolled_back' => (bool) $rolled_back )
 		);
@@ -639,7 +639,7 @@ final class LicenseLifecycle {
 			'renewal_succeeded',
 			'license',
 			$license_id,
-			( $manual ? 'Manually renewed' : 'Renewed' ) . ' from WooCommerce order #' . absint( $order_id ),
+			AuditReason::encode( $manual ? AuditReason::RENEWED_MANUALLY_FROM_ORDER : AuditReason::RENEWED_FROM_ORDER, array( 'order' => absint( $order_id ) ) ),
 			array( 'status' => $old_status, 'paid_until' => $license['paid_until'] ),
 			array( 'status' => 'active', 'paid_until' => $paid_until, 'entitlements_updated' => false !== $entitlements_updated )
 		);
@@ -665,7 +665,7 @@ final class LicenseLifecycle {
 		self::transition(
 			$license_id,
 			'expired',
-			'Automatic renewal grace period ended',
+			AuditReason::GRACE_PERIOD_ENDED,
 			'license_expired'
 		);
 	}
@@ -700,7 +700,7 @@ final class LicenseLifecycle {
 		);
 
 		foreach ( $ids as $license_id ) {
-			self::transition( (int) $license_id, 'expired', 'Paid period ended', 'license_expired' );
+			self::transition( (int) $license_id, 'expired', AuditReason::PAID_PERIOD_ENDED, 'license_expired' );
 		}
 
 		// Safety net for past-due licenses whose grace period is over but whose grace-end job
@@ -919,7 +919,7 @@ final class LicenseLifecycle {
 			'cancellation_withdrawn',
 			'license',
 			$license_id,
-			'Cancellation withdrawn',
+			AuditReason::CANCELLATION_WITHDRAWN,
 			array( 'status' => $license['status'], 'cancel_at_period_end' => 1 ),
 			array( 'status' => $license['status'], 'cancel_at_period_end' => 0 ),
 			$actor_user_id
