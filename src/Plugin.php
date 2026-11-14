@@ -61,6 +61,20 @@ final class Plugin {
 	private const CRON_HOOKS = array( 'wplc_daily_lifecycle', 'wplc_cleanup_security_rows', 'wplc_send_reminders' );
 
 	/**
+	 * Action Scheduler hooks that are withdrawn on deactivation: continuation runs and mail
+	 * retries. They would be used up without effect while the plugin is off, and a mail must
+	 * not be sent late after reactivation. Renewal, grace-end and Stripe jobs stay queued;
+	 * what is used up meanwhile is queued again by the daily run and the gap reconciliation.
+	 *
+	 * @var string[]
+	 */
+	private const QUEUED_HOOKS = array(
+		'wplc_send_reminders',
+		'wplc_retry_license_email',
+		'wplc_expire_due_licenses',
+	);
+
+	/**
 	 * Largest number of sites handled in one network-wide activation or deactivation.
 	 */
 	private const MAX_NETWORK_SITES = 200;
@@ -146,6 +160,12 @@ final class Plugin {
 		}
 		// A cursor left behind by an unfinished reminder run would skip licenses after reactivation.
 		delete_option( 'wplc_reminder_cursor' );
+		if ( function_exists( 'as_unschedule_all_actions' ) && ( ! is_callable( array( '\\ActionScheduler', 'is_initialized' ) ) || \ActionScheduler::is_initialized() ) ) {
+			foreach ( self::QUEUED_HOOKS as $hook ) {
+				as_unschedule_all_actions( $hook, array(), 'wplc' );
+				as_unschedule_all_actions( $hook );
+			}
+		}
 		if ( false === get_option( 'wplc_schema_version', false ) ) {
 			return;
 		}
@@ -210,6 +230,8 @@ final class Plugin {
 		RotateInstallationSecretsCommand::register();
 		RecoverLicenseKeyIdsCommand::register();
 		SigningKeyCommand::register();
+		\WPLC\CLI\ReleaseCommand::register();
+		\WPLC\CLI\Commands::register();
 		Schema::maybe_upgrade();
 		Schema::register_hooks();
 		ReleaseRegistry::register_hooks();
@@ -217,6 +239,7 @@ final class Plugin {
 		CustomerDownload::register_hooks();
 		ReleaseAdmin::register_hooks();
 		ProductEditor::register_hooks();
+		\WPLC\Catalog\TermDisplay::register_hooks();
 		LicenseIssuer::register_hooks();
 		LicenseLifecycle::register_hooks();
 		Routes::register_hooks();

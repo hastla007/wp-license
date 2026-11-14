@@ -572,15 +572,12 @@ final class ActivationService {
 			return max( 1, is_numeric( $decoded ) && is_finite( (float) $decoded ) ? absint( $decoded ) : 0 );
 		}
 
-		$limit = $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT live_site_limit FROM {$tables['plans']} WHERE product_key = %s AND plan_key = %s AND active = 1 ORDER BY id DESC LIMIT 1",
-				(string) $license['product_key'],
-				(string) $license['plan_key']
-			)
-		);
+		// A-03: product key and plan key do not identify one plan (a yearly and a monthly product
+		// may share them, and the highest ID is not the last saved plan). The plan is found
+		// through the product the license was bought with.
+		$plan = \WPLC\Billing\RenewalOrder::plan_for_license( $license );
 
-		return max( 1, absint( $limit ) );
+		return max( 1, is_array( $plan ) ? absint( $plan['live_site_limit'] ?? 0 ) : 0 );
 	}
 
 	/**

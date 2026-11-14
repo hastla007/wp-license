@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class TermDisplay {
 
 	/**
-	 * Register display hooks. Called from ProductEditor::register_hooks().
+	 * Register display hooks. Called from Plugin::on_plugins_loaded().
 	 *
 	 * @return void
 	 */

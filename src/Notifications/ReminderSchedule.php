@@ -126,8 +126,10 @@ final class ReminderSchedule {
 	 * - otherwise: the most urgent expiry lead day that has been reached. A missed
 	 *   cron day therefore does not lose a reminder, and a license that is first
 	 *   seen 5 days before expiry gets the 7-day reminder only;
-	 * - lead days longer than half the billing period are ignored, so a monthly
-	 *   license does not receive a "30 days left" email right after purchase.
+	 * - expiry lead days longer than half the billing period are ignored, so a monthly
+	 *   license does not receive a "30 days left" email right after purchase; the
+	 *   renewal notice is shortened to half the period instead, because a charge
+	 *   without announcement is not an option (B-41).
 	 *
 	 * @param array<string,mixed> $license     License row.
 	 * @param int                 $now         Unix timestamp.
@@ -154,7 +156,12 @@ final class ReminderSchedule {
 				$charge_at = $paid_until;
 			}
 			$days = self::days_until( $charge_at, $now, $timezone );
-			if ( $notice_days < 1 || $charge_at <= $now || $days > $notice_days || $notice_days * 2 > $term ) {
+			// B-41: a lead time longer than half the term is shortened, not dropped: the
+			// charge of a short term must be announced as well.
+			if ( $notice_days >= 1 ) {
+				$notice_days = max( 1, min( $notice_days, (int) floor( $term / 2 ) ) );
+			}
+			if ( $notice_days < 1 || $charge_at <= $now || $days > $notice_days ) {
 				return null;
 			}
 			return array(

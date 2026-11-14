@@ -55,6 +55,7 @@ final class Settings {
 		return array(
 			'package_hosts' => array(),
 			'reminder_days' => '30,7',
+			'renewal_notice_days' => 7,
 			'sender_note'   => '',
 		);
 	}
@@ -238,6 +239,14 @@ final class Settings {
 			array( 'label_for' => 'wplc_reminder_days' )
 		);
 		add_settings_field(
+			'wplc_renewal_notice_days',
+			__( 'Renewal notice lead days', 'wp-license' ),
+			array( self::class, 'render_renewal_notice_days_field' ),
+			self::PAGE,
+			'wplc_emails',
+			array( 'label_for' => 'wplc_renewal_notice_days' )
+		);
+		add_settings_field(
 			'wplc_sender_note',
 			__( 'Sender note', 'wp-license' ),
 			array( self::class, 'render_sender_note_field' ),
@@ -317,9 +326,16 @@ final class Settings {
 		}
 		$note = function_exists( 'sanitize_textarea_field' ) ? sanitize_textarea_field( $raw_note ) : trim( strip_tags( $raw_note ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
 
+		$notice_days = isset( $current['renewal_notice_days'] ) && is_numeric( $current['renewal_notice_days'] ) ? (int) $current['renewal_notice_days'] : 7;
+		if ( array_key_exists( 'renewal_notice_days', $input ) && is_scalar( $input['renewal_notice_days'] ) && ctype_digit( trim( (string) $input['renewal_notice_days'] ) ) ) {
+			$notice_days = (int) trim( (string) $input['renewal_notice_days'] );
+		}
+
 		return array(
 			'package_hosts' => $hosts_out,
 			'reminder_days' => $days,
+			// B-41: at least one day; the notice cannot be switched off here.
+			'renewal_notice_days' => max( 1, min( 60, $notice_days ) ),
 			'sender_note'   => function_exists( 'mb_substr' ) ? mb_substr( $note, 0, 500 ) : substr( $note, 0, 500 ),
 		);
 	}
@@ -644,6 +660,16 @@ final class Settings {
 	public static function render_reminder_days_field(): void {
 		echo '<input type="text" id="wplc_reminder_days" name="' . esc_attr( self::OPTION ) . '[reminder_days]" value="' . esc_attr( (string) self::get( 'reminder_days' ) ) . '" class="regular-text" pattern="[0-9 ,]*" aria-describedby="wplc_reminder_days_help">';
 		echo '<p class="description" id="wplc_reminder_days_help">' . esc_html__( 'Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7.', 'wp-license' ) . '</p>';
+	}
+
+	/**
+	 * Render the lead time of the automatic renewal notice (B-41).
+	 *
+	 * @return void
+	 */
+	public static function render_renewal_notice_days_field(): void {
+		echo '<input type="number" id="wplc_renewal_notice_days" name="' . esc_attr( self::OPTION ) . '[renewal_notice_days]" value="' . esc_attr( (string) (int) self::get( 'renewal_notice_days' ) ) . '" class="small-text" min="1" max="60" step="1" aria-describedby="wplc_renewal_notice_days_help">';
+		echo '<p class="description" id="wplc_renewal_notice_days_help">' . esc_html__( 'Days before an automatic charge on which the customer is told the date and the amount. Default: 7. A license is only charged after this email was accepted for sending; otherwise the charge is postponed and reported under Diagnostics.', 'wp-license' ) . '</p>';
 	}
 
 	/**

@@ -730,9 +730,10 @@ final class LicenseLifecycle {
 	 * @param int    $license_id License ID.
 	 * @param string $reason Cancellation reason.
 	 * @param int    $actor_user_id User ID or zero for system action.
+	 * @param int    $received_at Unix time at which the cancellation was received; zero for now.
 	 * @return bool
 	 */
-	public static function schedule_cancellation( int $license_id, string $reason = '', int $actor_user_id = 0 ): bool {
+	public static function schedule_cancellation( int $license_id, string $reason = '', int $actor_user_id = 0, int $received_at = 0 ): bool {
 		global $wpdb;
 
 		$license = self::get_license( $license_id );
@@ -786,6 +787,19 @@ final class LicenseLifecycle {
 			array( 'status' => $license['status'], 'cancel_at_period_end' => 1 ),
 			$actor_user_id
 		);
+
+		/**
+		 * Fires after the automatic renewal of a license was cancelled for the end of the paid
+		 * period, whoever asked for it (account, public cancellation page, administrator, CLI).
+		 * The notification package confirms the cancellation by email.
+		 *
+		 * @param int $license_id   License ID.
+		 * @param int $cancelled_at Unix timestamp at which the cancellation was received.
+		 */
+		if ( empty( $license['cancel_at_period_end'] ) ) {
+			// Only the cancellation itself, not a repeated request for an already cancelled license.
+			do_action( 'wplc/cancellation_scheduled', $license_id, $received_at > 0 ? $received_at : time() );
+		}
 
 		return true;
 	}
@@ -1141,6 +1155,11 @@ final class LicenseLifecycle {
 		if ( ! $license || self::has_access( $license ) ) {
 			return;
 		}
+		// B-14: the period ended during a processing gap; the daily run comes back to this
+		// license (safety net for past-due licenses) once the hold period is over.
+		if ( \WPLC\Maintenance\GapGuard::protects( isset( $license['paid_until'] ) ? (string) $license['paid_until'] : null ) ) {
+			return;
+		}
 
 		self::transition(
 			$license_id,
@@ -1224,6 +1243,11 @@ final class LicenseLifecycle {
 				$cursor = (int) $license_id;
 				$license = self::get_license( $cursor );
 				if ( ! $license || 'active' !== $license['status'] || self::has_access( $license ) ) {
+					continue;
+				}
+				// B-14: due while the plugin was off, billing was paused or the daily run stood still.
+				// The renewal and order catch-up get the hold period before the license may expire.
+				if ( \WPLC\Maintenance\GapGuard::protects( isset( $license['paid_until'] ) ? (string) $license['paid_until'] : null, $now ) ) {
 					continue;
 				}
 				self::transition( $cursor, 'expired', __( 'Paid period ended', 'wp-license' ), 'license_expired', 0, $license );

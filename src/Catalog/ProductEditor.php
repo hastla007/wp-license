@@ -61,7 +61,6 @@ final class ProductEditor {
 		add_action( 'untrashed_post', array( self::class, 'on_untrash' ) );
 		add_action( 'before_delete_post', array( self::class, 'on_delete' ) );
 
-		TermDisplay::register_hooks();
 	}
 
 	/**

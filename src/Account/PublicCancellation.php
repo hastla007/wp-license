@@ -223,13 +223,11 @@ final class PublicCancellation {
 		$cancelled = 0;
 		foreach ( self::find_licenses( $email, $reference ) as $license ) {
 			$license_id = (int) $license['id'];
-			if ( ! LicenseLifecycle::schedule_cancellation( $license_id, 'Cancelled through the public cancellation page', 0 ) ) {
+			// Fires `wplc/cancellation_scheduled` with the time of receipt (confirmation email).
+			if ( ! LicenseLifecycle::schedule_cancellation( $license_id, 'Cancelled through the public cancellation page', 0, $received_at ) ) {
 				continue;
 			}
 			++$cancelled;
-
-			/** This action is documented in src/Account/CustomerPortal.php */
-			do_action( 'wplc/cancellation_scheduled', $license_id, $received_at );
 		}
 
 		return $cancelled;

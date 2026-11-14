@@ -68,7 +68,20 @@ final class KeyConfigurationNotice {
 	 * @return bool
 	 */
 	public static function has_problem(): bool {
-		return self::is_fallback_active() || self::unverifiable_keys()['failed'] > 0;
+		return self::is_fallback_active() || self::unverifiable_keys()['failed'] > 0 || self::signing_key_unavailable();
+	}
+
+	/**
+	 * Whether API responses go out without the Ed25519 signature (B-18).
+	 *
+	 * "busy" is a moment (another request is creating the key) and not reported.
+	 *
+	 * @return bool
+	 */
+	public static function signing_key_unavailable(): bool {
+		$state = \WPLC\Security\ResponseSigner::status()['state'];
+
+		return 'ok' !== $state && 'busy' !== $state;
 	}
 
 	/**
@@ -85,11 +98,19 @@ final class KeyConfigurationNotice {
 		}
 		$fallback = self::is_fallback_active();
 		$keys     = self::unverifiable_keys();
-		if ( ! $fallback && 0 === $keys['failed'] ) {
+		$unsigned = self::signing_key_unavailable();
+		if ( ! $fallback && 0 === $keys['failed'] && ! $unsigned ) {
 			return;
 		}
 
 		echo '<div class="notice notice-error">';
+		if ( $unsigned ) {
+			echo '<p><strong>';
+			echo esc_html__( 'WP License Captain: the response signing key is not available.', 'wp-license' );
+			echo '</strong></p><p>';
+			echo esc_html__( 'API responses are sent without the Ed25519 signature. Add-ons that verify it treat the license server as unreachable and fall back to their cached license state. The reason is shown under WooCommerce → Licenses → Diagnostics, row "Response signing key".', 'wp-license' );
+			echo '</p>';
+		}
 		if ( $keys['failed'] > 0 ) {
 			echo '<p><strong>';
 			echo esc_html__( 'WP License Captain: issued license keys do not match the configured secret.', 'wp-license' );

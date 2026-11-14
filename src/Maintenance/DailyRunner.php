@@ -244,12 +244,26 @@ final class DailyRunner {
 	/**
 	 * Last failure per job for the diagnostics page.
 	 *
+	 * @param int $max_age Only failures of the last $max_age seconds; 0 for all kept ones.
 	 * @return array<string,array{time:int,message:string}>
 	 */
-	public static function failures(): array {
-		$failures = get_option( self::FAILURES_OPTION, array() );
+	public static function failures( int $max_age = 0 ): array {
+		$stored   = get_option( self::FAILURES_OPTION, array() );
+		$failures = array();
+		foreach ( is_array( $stored ) ? $stored : array() as $job => $failure ) {
+			if ( ! is_array( $failure ) || ! isset( $failure['time'], $failure['message'] ) ) {
+				continue;
+			}
+			if ( $max_age > 0 && time() - (int) $failure['time'] > $max_age ) {
+				continue;
+			}
+			$failures[ (string) $job ] = array(
+				'time'    => (int) $failure['time'],
+				'message' => (string) $failure['message'],
+			);
+		}
 
-		return is_array( $failures ) ? $failures : array();
+		return $failures;
 	}
 
 	/**

@@ -333,9 +333,9 @@ final class LicenseEmailIntegrationTest extends WPLC_Portal_TestCase {
 		do_action( 'wplc/cancellation_scheduled', $license['id'], $received );
 		$this->assertSame( array(), $this->mails() );
 
-		$this->assertTrue( LicenseLifecycle::schedule_cancellation( $license['id'], 'test', $this->customer ) );
-		do_action( 'wplc/cancellation_scheduled', $license['id'], $received );
-		// A second announcement in the same request (e.g. by the lifecycle itself) does not send twice.
+		// The lifecycle announces the cancellation itself, with the time of receipt it was given.
+		$this->assertTrue( LicenseLifecycle::schedule_cancellation( $license['id'], 'test', $this->customer, $received ) );
+		// A second announcement in the same request (e.g. by a caller of the lifecycle) does not send twice.
 		do_action( 'wplc/cancellation_scheduled', $license['id'], $received );
 
 		$mails = $this->mails();

@@ -67,7 +67,7 @@ final class SettingsTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( array( 'package_hosts', 'reminder_days', 'sender_note' ), array_keys( $clean ) );
+		$this->assertSame( array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'sender_note' ), array_keys( $clean ) );
 		$this->assertSame( array( 'cdn.example.org' ), $clean['package_hosts'] );
 		$this->assertSame( '14', $clean['reminder_days'] );
 		$this->assertStringNotContainsString( '<', $clean['sender_note'] );

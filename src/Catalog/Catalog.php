@@ -601,7 +601,11 @@ final class Catalog {
 	/**
 	 * Products and variations whose meta says "license product" but that have no
 	 * plan (after a copy that bypassed WooCommerce, for example by a translation
-	 * plugin). Customers who buy them get no license. For the diagnostics screen.
+	 * plugin). Customers who buy them get no license. For the diagnostics screen
+	 * (the one check behind the row and the health metric `unmapped_license_products`).
+	 *
+	 * A product counts as mapped when it has an active plan itself or through one
+	 * of its variations; a variation also through the plan of its parent.
 	 *
 	 * @param int $limit Maximum number of IDs.
 	 * @return array<int,int>
@@ -615,9 +619,9 @@ final class Catalog {
 			$wpdb->prepare(
 				"SELECT p.ID FROM {$wpdb->postmeta} pm
 				INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
-				LEFT JOIN {$tables['plans']} pl ON (
-					( p.post_type = 'product' AND pl.woocommerce_product_id = p.ID AND pl.woocommerce_variation_id = 0 )
-					OR ( p.post_type = 'product_variation' AND pl.woocommerce_variation_id = p.ID )
+				LEFT JOIN {$tables['plans']} pl ON pl.active = 1 AND (
+					( p.post_type = 'product' AND pl.woocommerce_product_id = p.ID )
+					OR ( p.post_type = 'product_variation' AND ( pl.woocommerce_variation_id = p.ID OR ( pl.woocommerce_product_id = p.post_parent AND pl.woocommerce_variation_id = 0 ) ) )
 				)
 				WHERE pm.meta_key = '_wplc_is_license_product' AND pm.meta_value = 'yes'
 					AND p.post_type IN ( 'product', 'product_variation' )

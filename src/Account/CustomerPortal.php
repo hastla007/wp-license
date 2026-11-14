@@ -1066,15 +1066,7 @@ final class CustomerPortal {
 		if ( ! LicenseLifecycle::schedule_cancellation( $license_id, 'Customer requested cancellation', get_current_user_id() ) ) {
 			return 'cancel_failed';
 		}
-
-		/**
-		 * Fires after a customer cancelled the automatic renewal of a license.
-		 * The notification package confirms the cancellation by email.
-		 *
-		 * @param int $license_id   License ID.
-		 * @param int $cancelled_at Unix timestamp at which the cancellation was received.
-		 */
-		do_action( 'wplc/cancellation_scheduled', $license_id, time() );
+		// LicenseLifecycle fired `wplc/cancellation_scheduled`; the notification package confirms by email.
 
 		return 'cancel_scheduled';
 	}
