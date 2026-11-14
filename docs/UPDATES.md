@@ -45,6 +45,23 @@ Publishing checks the package first: an uploaded file must exist and match its c
 
 Every change is written to the audit log (`release_created`, `release_updated`, `release_published`, `release_withdrawn`, `release_deleted`).
 
+### Where uploaded ZIPs are stored
+
+Uploaded packages go to `wp-content/uploads/wplc-packages/` by default. Apache and IIS honour the generated `.htaccess` and `web.config`; **nginx does not**, so on nginx only the random file name protects a ZIP. For production, keep the directory outside the web root:
+
+```php
+// wp-config.php, above the line that loads wp-settings.php.
+define( 'WPLC_PACKAGE_STORAGE_DIR', '/var/lib/wplc-packages' ); // Absolute, writable by PHP, outside the web root.
+```
+
+The constant is validated (absolute, no `.`/`..`, not inside `ABSPATH`, `wp-content`, uploads or the document root); an invalid value is ignored and reported on the releases and diagnostics pages. If the directory has to stay below uploads, add a deny rule adapted to the real path:
+
+```nginx
+location ^~ /wp-content/uploads/wplc-packages/ { deny all; }
+```
+
+While the directory is web-reachable, the plugin checks with a cached HTTP request to a canary file whether the web server delivers it, and shows an error notice on **License releases** when it does. Details, multisite and migration: [UPDATE-STORAGE.md](UPDATE-STORAGE.md#local-private-storage).
+
 ### Overriding the registry
 
 The registry feeds `wplc_update_packages` at priority 5. A filter on the default priority still wins:

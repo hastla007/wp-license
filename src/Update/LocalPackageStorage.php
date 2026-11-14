@@ -14,9 +14,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Keeps release ZIPs in a directory that is never linked or exposed.
  *
- * Protection is layered: Apache gets a deny-all .htaccess, every file name
- * carries 128 random bits (nginx ignores .htaccess), and the path is never
- * sent to a browser - packages are streamed by PackageStream only.
+ * Protection is layered: the directory can live outside the web root
+ * (WPLC_PACKAGE_STORAGE_DIR), Apache gets a deny-all .htaccess, every file
+ * name carries 128 random bits (nginx ignores .htaccess), PackageStorageCheck
+ * probes whether a web-reachable directory is publicly readable, and the path
+ * is never sent to a browser - packages are streamed by PackageStream only.
  */
 final class LocalPackageStorage {
 	const DIRECTORY = 'wplc-packages';
@@ -26,19 +28,227 @@ final class LocalPackageStorage {
 	/**
 	 * Absolute storage directory without trailing slash.
 	 *
+	 * Order: the WPLC_PACKAGE_STORAGE_DIR constant (when it passes
+	 * validate_custom_dir()), otherwise the uploads directory; the
+	 * wplc_package_storage_dir filter has the last word.
+	 *
 	 * @return string
 	 */
 	public static function base_dir(): string {
+		return self::resolve()['dir'];
+	}
+
+	/**
+	 * Resolve the storage directory and where it came from.
+	 *
+	 * @return array{dir:string,source:string,constant_error:string}
+	 */
+	public static function resolve(): array {
 		$uploads = wp_upload_dir( null, false );
 		$default = rtrim( (string) $uploads['basedir'], '/\\' ) . '/' . self::DIRECTORY;
+		$constant = defined( 'WPLC_PACKAGE_STORAGE_DIR' ) ? (string) constant( 'WPLC_PACKAGE_STORAGE_DIR' ) : null;
+		$resolved = self::resolve_dir( $constant, $default, null === $constant ? array() : self::web_reachable_roots() );
 		/**
 		 * Filters the private package directory, e.g. to move it outside the web root.
 		 *
+		 * Prefer the WPLC_PACKAGE_STORAGE_DIR constant in wp-config.php: it is
+		 * validated, while a filtered value is used as returned.
+		 *
 		 * @param string $directory Absolute directory path.
 		 */
-		$directory = apply_filters( 'wplc_package_storage_dir', $default );
+		$filtered = apply_filters( 'wplc_package_storage_dir', $resolved['dir'] );
+		if ( is_string( $filtered ) && '' !== trim( $filtered ) && rtrim( $filtered, '/\\' ) !== $resolved['dir'] ) {
+			$resolved['dir'] = rtrim( $filtered, '/\\' );
+			$resolved['source'] = 'filter';
+		}
 
-		return is_string( $directory ) && '' !== trim( $directory ) ? rtrim( $directory, '/\\' ) : $default;
+		return $resolved;
+	}
+
+	/**
+	 * Choose between the constant and the default directory. Pure helper.
+	 *
+	 * An invalid constant is ignored (the protected default stays in use) and
+	 * reported, so that a typo never sends packages to an unexpected place.
+	 *
+	 * @param string|null $constant Value of WPLC_PACKAGE_STORAGE_DIR, null when undefined.
+	 * @param string      $default_dir Default directory inside uploads.
+	 * @param string[]    $web_roots Directories that a web server may serve.
+	 * @return array{dir:string,source:string,constant_error:string}
+	 */
+	public static function resolve_dir( ?string $constant, string $default_dir, array $web_roots ): array {
+		$default_dir = rtrim( $default_dir, '/\\' );
+		if ( null === $constant ) {
+			return array(
+				'dir' => $default_dir,
+				'source' => 'default',
+				'constant_error' => '',
+			);
+		}
+		$error = self::validate_custom_dir( $constant, $web_roots );
+		if ( '' !== $error ) {
+			return array(
+				'dir' => $default_dir,
+				'source' => 'default',
+				'constant_error' => $error,
+			);
+		}
+
+		return array(
+			'dir' => self::normalize_path( trim( $constant ) ),
+			'source' => 'constant',
+			'constant_error' => '',
+		);
+	}
+
+	/**
+	 * Validate a configured storage directory. Pure helper.
+	 *
+	 * Writability is checked separately (ensure_dir() and the diagnostics),
+	 * because the directory may not exist yet.
+	 *
+	 * @param string   $dir Configured directory.
+	 * @param string[] $web_roots Directories that a web server may serve.
+	 * @return string Error code (relative, traversal, root, web_reachable), or '' when acceptable.
+	 */
+	public static function validate_custom_dir( string $dir, array $web_roots ): string {
+		$path = self::normalize_path( trim( $dir ) );
+		if ( '' === $path || ! preg_match( '#^(/|[A-Za-z]:/)#', $path ) ) {
+			return 'relative';
+		}
+		$segments = explode( '/', $path );
+		if ( in_array( '..', $segments, true ) || in_array( '.', $segments, true ) ) {
+			return 'traversal';
+		}
+		if ( preg_match( '#^(/|[A-Za-z]:/?)$#', $path ) ) {
+			return 'root';
+		}
+		if ( self::is_inside_any( $path, $web_roots ) ) {
+			return 'web_reachable';
+		}
+		$real = realpath( $path );
+		if ( false !== $real && self::is_inside_any( $real, $web_roots ) ) {
+			return 'web_reachable';
+		}
+
+		return '';
+	}
+
+	/**
+	 * Directories a web server is expected to serve: ABSPATH, wp-content,
+	 * uploads and the document root, each also as its resolved real path.
+	 *
+	 * @return string[]
+	 */
+	public static function web_reachable_roots(): array {
+		$roots = array();
+		if ( defined( 'ABSPATH' ) ) {
+			$roots[] = (string) ABSPATH;
+		}
+		if ( defined( 'WP_CONTENT_DIR' ) ) {
+			$roots[] = (string) WP_CONTENT_DIR;
+		}
+		$uploads = wp_upload_dir( null, false );
+		if ( ! empty( $uploads['basedir'] ) ) {
+			$roots[] = (string) $uploads['basedir'];
+		}
+		$document_root = isset( $_SERVER['DOCUMENT_ROOT'] ) ? (string) wp_unslash( $_SERVER['DOCUMENT_ROOT'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- compared as a path, never output.
+		if ( '' !== trim( $document_root ) ) {
+			$roots[] = $document_root;
+		}
+		foreach ( $roots as $root ) {
+			$real = realpath( $root );
+			if ( false !== $real ) {
+				$roots[] = $real;
+			}
+		}
+
+		return array_values( array_unique( array_filter( $roots, 'strlen' ) ) );
+	}
+
+	/**
+	 * Unify separators and drop duplicate and trailing slashes. Pure helper.
+	 *
+	 * @param string $path Path.
+	 * @return string
+	 */
+	public static function normalize_path( string $path ): string {
+		$path = (string) preg_replace( '#/{2,}#', '/', str_replace( '\\', '/', $path ) );
+
+		if ( '/' === $path || preg_match( '#^[A-Za-z]:/$#', $path ) ) {
+			return $path; // File system root.
+		}
+
+		return rtrim( $path, '/' );
+	}
+
+	/**
+	 * Whether a path is one of the bases or lies below one. Pure helper.
+	 *
+	 * @param string   $path Path.
+	 * @param string[] $bases Base directories.
+	 * @return bool
+	 */
+	public static function is_inside_any( string $path, array $bases ): bool {
+		$path = self::normalize_path( $path );
+		foreach ( $bases as $base ) {
+			$base = self::normalize_path( (string) $base );
+			if ( '' === $base ) {
+				continue;
+			}
+			if ( '/' === $base || $path === $base || 0 === strpos( $path, $base . '/' ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Public URL of a directory below a served base, or null. Pure helper.
+	 *
+	 * @param string               $dir Directory.
+	 * @param array<string,string> $url_map Served directory => its URL, most specific first.
+	 * @return string|null
+	 */
+	public static function public_url_for_dir( string $dir, array $url_map ): ?string {
+		$dir = self::normalize_path( $dir );
+		foreach ( $url_map as $base => $url ) {
+			$base = self::normalize_path( (string) $base );
+			if ( '' === $base || '' === $url ) {
+				continue;
+			}
+			if ( $dir === $base ) {
+				return rtrim( $url, '/' );
+			}
+			if ( 0 === strpos( $dir, $base . '/' ) ) {
+				$relative = substr( $dir, strlen( $base ) + 1 );
+				return rtrim( $url, '/' ) . '/' . implode( '/', array_map( 'rawurlencode', explode( '/', $relative ) ) );
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Explain a validate_custom_dir() error code.
+	 *
+	 * @param string $code Error code.
+	 * @return string
+	 */
+	public static function dir_error_message( string $code ): string {
+		switch ( $code ) {
+			case 'relative':
+				return __( 'WPLC_PACKAGE_STORAGE_DIR must be an absolute path.', 'wp-license' );
+			case 'traversal':
+				return __( 'WPLC_PACKAGE_STORAGE_DIR must not contain "." or ".." segments.', 'wp-license' );
+			case 'root':
+				return __( 'WPLC_PACKAGE_STORAGE_DIR must not be a file system root.', 'wp-license' );
+			case 'web_reachable':
+				return __( 'WPLC_PACKAGE_STORAGE_DIR lies inside the WordPress directory, wp-content, uploads or the document root. Choose a directory outside the web root.', 'wp-license' );
+			default:
+				return __( 'WPLC_PACKAGE_STORAGE_DIR is invalid.', 'wp-license' );
+		}
 	}
 
 	/**
@@ -65,6 +275,7 @@ final class LocalPackageStorage {
 		$files = array(
 			'.htaccess' => "# WP License Captain: private release packages.\n<IfModule mod_authz_core.c>\n\tRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\n\tOrder deny,allow\n\tDeny from all\n</IfModule>\n",
 			'index.html' => '',
+			'index.php' => "<?php\n// Silence is golden.\n",
 			'web.config' => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration><system.webServer><authorization><deny users=\"*\" /></authorization></system.webServer></configuration>\n",
 		);
 		foreach ( $files as $name => $content ) {
