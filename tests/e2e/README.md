@@ -121,21 +121,26 @@ executed through the Action Scheduler runner regardless of their scheduled date
   with the real hooks), WooCommerce settings screens.
 - Multisite, object caches, real web servers (Apache/nginx rules for the package directory).
 
-## Adding it to CI
+## CI
 
-Not wired into the workflows on purpose (they belong to the Tests/CI work). A job needs a
-MySQL/MariaDB service and then only:
+`.github/workflows/e2e.yml` runs the full driver on every pull request, on pushes to `main`
+and on demand (`workflow_dispatch`), as one job `e2e (WP latest, WC 11.2.2, PHP 8.3)`:
 
-```yaml
-- uses: shivammathur/setup-php@v2
-  with: { php-version: '8.3', extensions: mysqli, curl, zip, tools: composer }
-- run: tests/e2e/bin/run-e2e.sh
-  env:
-    WPLC_E2E_DB_HOST: 127.0.0.1
-    WPLC_E2E_DB_USER: root
-    WPLC_E2E_DB_PASS: root
-    WPLC_E2E_SITE: ${{ runner.temp }}/wplc-e2e-site
-```
+- `mysql:8.0` service (root/root on 127.0.0.1:3306, same as the integration job in `phpunit.yml`);
+- PHP 8.3 via `shivammathur/setup-php` with mysqli, curl, zip (plus intl, mbstring, openssl,
+  sodium like the other jobs), Composer only for the fallback sources;
+- `default-mysql-client` and `psmisc` (`fuser`) from apt;
+- no `composer install`: the driver copies the plugin without `vendor/` anyway, and downloads
+  WP-CLI, WordPress and WooCommerce itself into `WPLC_E2E_SITE=$RUNNER_TEMP/wplc-e2e-site`;
+- HTTPS as described above (no certificate, `https://shop.test` mapped to the local PHP server);
+- `tests/e2e/bin/run-e2e.sh` with all flows; the step has a 15-minute timeout, the job 20 minutes.
 
 On a CI runner wordpress.org is reachable, so the official WordPress and WooCommerce ZIPs
 are used and the workarounds for the source build do not apply.
+
+When the job fails, the artifact `e2e-logs` (kept 14 days) holds the console output
+(`e2e-output.log`), the per-assertion results (`.e2e-results.tsv`), the PHP server log
+(`.e2e-server.log`), `wp-content/debug.log` and, if present, the WordPress download error.
+
+The WooCommerce version (`WPLC_E2E_WC_VERSION` in the workflow) should follow the "current"
+cell of the integration matrix and the default in `run-e2e.sh`.
