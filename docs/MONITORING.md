@@ -8,20 +8,21 @@ WooCommerce → License diagnostics (`manage_woocommerce`), `src/Admin/Diagnosti
 
 - Versions: PHP, WordPress, WooCommerce, license schema, database.
 - HTTPS, OpenSSL, Action Scheduler, Stripe gateway class loaded, update package provider registered.
-- Four counters (`Diagnostics::metrics()`):
+- Five counters (`Diagnostics::metrics()`):
 
 | Metric key | Counts | Default alert threshold |
 | --- | --- | --- |
 | `pending_webhooks` | Stripe events stored but not reconciled yet | 1 |
 | `manual_review_webhooks` | Stripe events that ended as `manual_review` in the last 24 hours | 1 |
-| `overdue_renewals` | Renewals in `scheduled` or `failed` whose retry time (or, without one, period start) has passed | 1 |
+| `overdue_renewals` | Renewals in `scheduled`, `failed` or `reconciling` whose retry time (or, without one, period start) has passed | 1 |
+| `review_required_renewals` | Renewals in `review_required`: the payment result stayed unknown and an administrator must check the payment (see [RENEWALS.md](RENEWALS.md)) | 1 |
 | `expired_download_grants` | Unused update download grants past their expiry | none |
 
 WooCommerce → License settings additionally shows whether the Stripe webhook secret and the key constants are set, the schema version, the checkout type and the grace period.
 
 ## Alert hook
 
-Once a day (with `wplc_daily_lifecycle`) each metric is compared with its threshold. When the value is at or above it:
+Once a day (with `wplc_daily_lifecycle`) each metric is compared with its threshold. `review_required_renewals` is also checked right away when a renewal goes to review. When the value is at or above it:
 
 ```php
 do_action( 'wplc/health_alert', string $metric_key, int $value, int $threshold );
@@ -59,7 +60,8 @@ Single actions, WooCommerce → Status → Scheduled Actions, filter by group `w
 
 | Hook | Argument | Does |
 | --- | --- | --- |
-| `wplc_process_renewal` | renewal ID | Automatic charge attempt at `paid_until` and on retry days |
+| `wplc_process_renewal` | renewal ID | Automatic charge attempt at `paid_until` and on retry days; hourly check (same idempotency key) of a `reconciling` renewal |
+| `wplc_resolve_failed_renewal_order` | order ID | Records a renewal order an administrator set to Failed during reconciliation or review as a definite decline |
 | `wplc_reconcile_stuck_renewal` | renewal ID | Checks a renewal left in `processing` 20 minutes after the attempt started |
 | `wplc/renewal_grace_ended` | license ID | Expires the license at the end of the grace period |
 | `wplc_process_stripe_webhook` | inbox ID | Reconciles a received Stripe event |
@@ -70,7 +72,7 @@ Watch for failed actions and for pending actions whose scheduled time is in the 
 ## Logs
 
 - **WooCommerce log source `wp-license`** (WooCommerce → Status → Logs): email and reminder errors (`src/Notifications/Notifications.php`) and data retention runs (`src/Maintenance/Retention.php`).
-- **Audit log** (table `{prefix}wplc_audit_log`): changes to licenses, activations, renewals and releases, and rejected webhook events, with action, object, reason and before/after values. Visible per license on the license detail screen. Actions worth alerting on: `stripe_webhook_mismatch`, `stripe_webhook_manual_review`, `stripe_webhook_amount_mismatch`, `chargeback_received`, `renewal_result_unknown`, `renewal_recovery_mismatch`, `renewal_recovery_amount_mismatch`, `manual_renewal_rejected`.
+- **Audit log** (table `{prefix}wplc_audit_log`): changes to licenses, activations, renewals and releases, and rejected webhook events, with action, object, reason and before/after values. Visible per license on the license detail screen. Actions worth alerting on: `stripe_webhook_mismatch`, `stripe_webhook_manual_review`, `stripe_webhook_amount_mismatch`, `chargeback_received`, `renewal_result_unknown`, `renewal_review_required`, `renewal_recovery_mismatch`, `renewal_recovery_amount_mismatch`, `manual_renewal_rejected`.
 - **Event inbox** (table `{prefix}wplc_event_inbox`): received Stripe events with their outcome; see [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md).
 - **Orders:** renewal orders with the meta `_wplc_renewal_review = yes` are paid but were not applied to a license.
 

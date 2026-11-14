@@ -59,7 +59,8 @@ final class ManualRenewal {
 			)
 		);
 
-		return 'paid' !== $status;
+		// Nor while an automatic charge for it may have gone through (result unknown).
+		return ! in_array( $status, array( 'paid', RenewalProcessor::STATUS_RECONCILING, RenewalProcessor::STATUS_REVIEW ), true );
 	}
 
 	/**
@@ -174,6 +175,10 @@ final class ManualRenewal {
 			}
 			if ( 'processing' === $renewal['status'] ) {
 				return new \WP_Error( 'manual_renewal_busy', __( 'A renewal for this license is being processed. Please try again in a few minutes.', 'wp-license' ) );
+			}
+			if ( in_array( $renewal['status'], array( RenewalProcessor::STATUS_RECONCILING, RenewalProcessor::STATUS_REVIEW ), true ) ) {
+				// The automatic charge may have gone through; asking for a second payment could charge twice.
+				return new \WP_Error( 'manual_renewal_pending', __( 'The automatic payment for this renewal is still being confirmed. Please check back later.', 'wp-license' ) );
 			}
 
 			$order = RenewalOrder::get_or_create( $renewal, $license, true );

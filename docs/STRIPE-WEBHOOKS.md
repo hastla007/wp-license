@@ -63,6 +63,8 @@ Before a success event extends a license, all of these must match: renewal ↔ l
 
 The PaymentIntent ID is saved on the order (`_wplc_payment_intent_id`) so later disputes can be resolved to the order.
 
+A success event also resolves a renewal whose charge attempt ended with an unknown result (renewal status `reconciling` or `review_required`, see [RENEWALS.md](RENEWALS.md)): it is booked like any other success, and the queued reconciliation check then finds the renewal paid and sends nothing. A failure event does not resolve such a renewal; it ends as `failure_observed` and the renewal keeps waiting for its next check or for review.
+
 ### Disputes
 
 `charge.dispute.created` is resolved to an order by PaymentIntent ID (`_wplc_payment_intent_id`, `_stripe_intent_id`) or by transaction ID. Exactly one order must match. Every license paid by that order (first purchase or renewal) gets the action `wplc/chargeback`, which sets `active` and `past_due` licenses to `suspended`. An audit entry `chargeback_received` is written. Lifting the suspension is a manual decision on the license detail screen.
