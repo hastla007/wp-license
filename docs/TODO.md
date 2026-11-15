@@ -540,7 +540,9 @@ Die Linien `claude/zen-babbage-7q4nac` (Linie A, T-Nummern) und `claude/sharp-me
 
 ### Offen nach der Zusammenführung
 
-- [ ] **M-01 [WICHTIG]** (Entscheidung) Frist für ein unklares Zahlungsergebnis: 12 Stunden (jetzt) oder 20 Stunden (Linie B)? Stripe hält Idempotenzschlüssel 24 Stunden.
-- [ ] **M-02 [WICHTIG]** (Entscheidung) Soll das Wiederverwendungsfenster für Download-Links standardmäßig aus bleiben (T-108) oder wie in Linie B zwei Minuten betragen? Mit Fenster übersteht ein abgebrochener Download einen zweiten Versuch; ohne Fenster holt der Client eine neue Berechtigung per Update-Check.
+- [x] **M-01 [WICHTIG]** (Entscheidung) Frist für ein unklares Zahlungsergebnis: 12 Stunden (jetzt) oder 20 Stunden (Linie B)? Stripe hält Idempotenzschlüssel 24 Stunden.
+  - Entschieden am 15.11.2026: **12 Stunden.** Die erneute Prüfung mit demselben Idempotenzschlüssel muss sicher vor Ablauf der 24 Stunden laufen; WP-Cron kann auf Seiten mit wenig Besuchern Stunden zu spät kommen. 12 Stunden Puffer statt 4.
+- [x] **M-02 [WICHTIG]** (Entscheidung) Soll das Wiederverwendungsfenster für Download-Links standardmäßig aus bleiben (T-108) oder wie in Linie B zwei Minuten betragen? Mit Fenster übersteht ein abgebrochener Download einen zweiten Versuch; ohne Fenster holt der Client eine neue Berechtigung per Update-Check.
+  - Entschieden am 15.11.2026: **aus (einmalig, T-108).** Der Client holt in `upgrader_pre_download` vor jedem Download einen frischen Link (`check_update( true )`), ein zweiter Versuch braucht das Fenster also nicht. Bei Bedarf per Filter `wplc_download_reuse_seconds` einschaltbar.
 - [ ] **M-03 [WICHTIG]** (Übersetzung) Die neuen und geänderten Texte der Zusammenführung fehlen in `languages/`. Gehört zu B-198.
 - [ ] **M-04 [OPTIMIERUNG]** (Tests) PHPStan lief in dieser Umgebung nicht (Paket nicht installiert, kein Zugriff auf GitHub); der CI-Lauf muss es prüfen.
