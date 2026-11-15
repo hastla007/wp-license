@@ -31,6 +31,18 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The same pause gate (without swallowing errors, so Action Scheduler still
  * records failures) is put in front of the queued billing jobs and of the
  * customer mail listeners.
+ *
+ * Own request per job (P-30): a PHP time limit is no \Throwable, it ends the
+ * request and with it every job after the one that ran too long. When WP-Cron
+ * fires the daily hook and Action Scheduler is available, the run therefore
+ * only does its own bookkeeping and queues every hooked job as its own async
+ * action `wplc_daily_job` (argument: the job key), in priority order, the
+ * health alerts and the closing heartbeat last. Each action runs in its own
+ * queue request with its own time limit; one that dies is marked failed by
+ * Action Scheduler and the others still run. Jobs are still registered the
+ * same way, with add_action( 'wplc_daily_lifecycle', $callback, $priority );
+ * without Action Scheduler, and when the hook is fired directly (tests,
+ * WP-CLI), they run inline as before.
  */
 final class DailyRunner {
 
@@ -43,6 +55,16 @@ final class DailyRunner {
 	 * Hourly cleanup hook.
 	 */
 	public const HOURLY_HOOK = 'wplc_cleanup_security_rows';
+
+	/**
+	 * Action Scheduler hook that runs one job of the daily run (argument: job key).
+	 */
+	public const JOB_HOOK = 'wplc_daily_job';
+
+	/**
+	 * Job key of the action that writes the closing heartbeat of a split daily run.
+	 */
+	public const FINISH_JOB = 'daily_lifecycle_finish';
 
 	/**
 	 * Former option with the unix time of the last completed daily run.
@@ -105,6 +127,13 @@ final class DailyRunner {
 	private static $depth = 0;
 
 	/**
+	 * Whether this request queued the jobs of the daily run instead of running them.
+	 *
+	 * @var bool
+	 */
+	private static $dispatched = false;
+
+	/**
 	 * Register hooks.
 	 *
 	 * @return void
@@ -112,6 +141,7 @@ final class DailyRunner {
 	public static function register_hooks(): void {
 		add_action( self::HOOK, array( self::class, 'begin' ), PHP_INT_MIN );
 		add_action( self::HOOK, array( self::class, 'finish' ), PHP_INT_MAX );
+		add_action( self::JOB_HOOK, array( self::class, 'run_daily_job' ), 10, 1 );
 		add_action( self::HOURLY_HOOK, array( self::class, 'isolate_hourly' ), PHP_INT_MIN );
 		foreach ( array_keys( self::GATED_HOOKS ) as $hook ) {
 			add_action( $hook, array( self::class, 'gate_current_hook' ), PHP_INT_MIN, 0 );
@@ -124,8 +154,20 @@ final class DailyRunner {
 	 * @return void
 	 */
 	public static function begin(): void {
+		self::$dispatched = false;
 		try {
+			if ( self::should_split() ) {
+				self::$dispatched = self::dispatch_jobs();
+			}
+		} catch ( \Throwable $error ) {
+			self::record_failure( 'daily_lifecycle_dispatch', $error );
+		}
+		try {
+			// Without Action Scheduler (or for jobs that could not be queued) the jobs run in this request.
 			self::wrap_callbacks( self::HOOK, 'WPLC\\', true, true );
+			if ( ! self::$dispatched && function_exists( 'wc_set_time_limit' ) ) {
+				wc_set_time_limit( 0 );
+			}
 		} catch ( \Throwable $error ) {
 			self::record_failure( 'daily_lifecycle_isolation', $error );
 		}
@@ -153,11 +195,163 @@ final class DailyRunner {
 	 * @return void
 	 */
 	public static function finish(): void {
+		if ( self::$dispatched ) {
+			// The queued action FINISH_JOB writes the heartbeat once the queued jobs ran.
+			self::$dispatched = false;
+			return;
+		}
 		try {
 			Diagnostics::mark_daily_finished();
 		} catch ( \Throwable $error ) {
 			self::record_failure( 'daily_lifecycle_finish', $error );
 		}
+	}
+
+	/**
+	 * Whether the daily run is split into one queued action per job.
+	 *
+	 * @return bool
+	 */
+	private static function should_split(): bool {
+		$available = function_exists( 'as_enqueue_async_action' )
+			&& class_exists( '\\ActionScheduler' )
+			&& \ActionScheduler::is_initialized();
+		$split     = $available && function_exists( 'wp_doing_cron' ) && wp_doing_cron();
+
+		/**
+		 * Filter whether the daily run queues every job as its own Action Scheduler action.
+		 *
+		 * Default: true when Action Scheduler is available and WP-Cron fires the hook.
+		 * When the hook is fired directly (tests, `wp eval`) the jobs run inline.
+		 *
+		 * @param bool $split Whether to split the run.
+		 */
+		return $available && (bool) apply_filters( 'wplc_daily_run_split', $split );
+	}
+
+	/**
+	 * Queue every job of the daily hook as its own action and take it off this run.
+	 *
+	 * A job that cannot be queued (database error) stays on the hook and runs inline.
+	 *
+	 * @return bool True when the jobs were queued (and with them the closing heartbeat).
+	 */
+	private static function dispatch_jobs(): bool {
+		global $wp_filter;
+
+		$jobs = self::daily_jobs();
+		if ( ! $jobs ) {
+			return false;
+		}
+		foreach ( $jobs as $key => $job ) {
+			try {
+				\WPLC\Compatibility\Requirements::enqueue_async_action( self::JOB_HOOK, array( (string) $key ), 'wplc' );
+			} catch ( \Throwable $error ) {
+				self::record_failure( 'daily_lifecycle_dispatch', $error );
+				return false;
+			}
+			if ( isset( $wp_filter[ self::HOOK ] ) && is_object( $wp_filter[ self::HOOK ] ) ) {
+				remove_action( self::HOOK, $job['entry'], $job['priority'] );
+			}
+		}
+		try {
+			\WPLC\Compatibility\Requirements::enqueue_async_action( self::JOB_HOOK, array( self::FINISH_JOB ), 'wplc' );
+		} catch ( \Throwable $error ) {
+			self::record_failure( 'daily_lifecycle_dispatch', $error );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Run one queued job of the daily run (Action Scheduler callback of JOB_HOOK).
+	 *
+	 * The job is looked up among the callbacks hooked to the daily hook in this
+	 * request; a job that is no longer registered is skipped.
+	 *
+	 * @param mixed $key Job key from daily_jobs().
+	 * @return void
+	 */
+	public static function run_daily_job( $key ): void {
+		$key = is_string( $key ) ? $key : '';
+		if ( self::FINISH_JOB === $key ) {
+			self::finish_split_run();
+			return;
+		}
+		$jobs = self::daily_jobs();
+		if ( '' === $key || ! isset( $jobs[ $key ] ) ) {
+			return;
+		}
+		$callback = $jobs[ $key ]['callback'];
+		$name     = self::job_name( $callback );
+		if ( ! self::may_run( $name, $callback ) ) {
+			return;
+		}
+		if ( function_exists( 'wc_set_time_limit' ) ) {
+			wc_set_time_limit( 0 );
+		}
+		// The same arguments do_action( 'wplc_daily_lifecycle' ) passes: one empty string.
+		self::run_job( $name, $callback, array_slice( array( '' ), 0, max( 0, $jobs[ $key ]['accepted_args'] ) ) );
+	}
+
+	/**
+	 * Closing heartbeat of a split run.
+	 *
+	 * @return void
+	 */
+	private static function finish_split_run(): void {
+		try {
+			Diagnostics::mark_daily_finished();
+		} catch ( \Throwable $error ) {
+			self::record_failure( 'daily_lifecycle_finish', $error );
+		}
+	}
+
+	/**
+	 * The jobs hooked to the daily hook, keyed by a stable job key, in run order.
+	 *
+	 * The key is the job name ({@see job_name()}); a name that occurs more than once
+	 * (closures, two callbacks of one function) gets "#2", "#3" in priority order.
+	 * Health alerts come last. The callbacks of this class are not jobs.
+	 *
+	 * @return array<string,array{callback:callable,entry:mixed,priority:int,accepted_args:int}>
+	 */
+	public static function daily_jobs(): array {
+		global $wp_filter;
+
+		if ( ! isset( $wp_filter[ self::HOOK ] ) || ! is_object( $wp_filter[ self::HOOK ] ) || ! isset( $wp_filter[ self::HOOK ]->callbacks ) ) {
+			return array();
+		}
+		$snapshot = $wp_filter[ self::HOOK ]->callbacks;
+		ksort( $snapshot, SORT_NUMERIC );
+		$jobs   = array();
+		$alerts = array();
+		$seen   = array();
+		foreach ( $snapshot as $priority => $callbacks ) {
+			foreach ( (array) $callbacks as $entry ) {
+				$function = isset( $entry['function'] ) ? $entry['function'] : null;
+				$callback = $function instanceof IsolatedJob ? $function->callback() : $function;
+				if ( null === $callback || self::class === self::callback_class( $callback ) || ! is_callable( $callback ) ) {
+					continue;
+				}
+				$name          = self::job_name( $callback );
+				$seen[ $name ] = isset( $seen[ $name ] ) ? $seen[ $name ] + 1 : 1;
+				$key           = 1 === $seen[ $name ] ? $name : $name . '#' . $seen[ $name ];
+				$job           = array(
+					'callback'      => $callback,
+					'entry'         => $function,
+					'priority'      => (int) $priority,
+					'accepted_args' => isset( $entry['accepted_args'] ) ? (int) $entry['accepted_args'] : 1,
+				);
+				if ( self::is_alert_callback( $callback ) ) {
+					$alerts[ $key ] = $job;
+				} else {
+					$jobs[ $key ] = $job;
+				}
+			}
+		}
+
+		return $jobs + $alerts;
 	}
 
 	/**
@@ -321,9 +515,7 @@ final class DailyRunner {
 	public static function record_failure( string $job, \Throwable $error ): void {
 		$message = get_class( $error ) . ': ' . $error->getMessage() . ' (' . basename( $error->getFile() ) . ':' . $error->getLine() . ')';
 		try {
-			if ( function_exists( 'wc_get_logger' ) ) {
-				wc_get_logger()->error( 'Job "' . $job . '" failed and was skipped: ' . $message, array( 'source' => 'wp-license' ) );
-			}
+			\WPLC\Infrastructure\Log::write( 'error', 'Job "' . $job . '" failed and was skipped: ' . $message, array( 'job' => $job ) );
 			$failures         = self::failures();
 			$failures[ $job ] = array(
 				'time'    => time(),

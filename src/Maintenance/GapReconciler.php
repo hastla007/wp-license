@@ -35,6 +35,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Every entry point it calls is idempotent, so a repeated run changes nothing.
  * When it finds something, a {@see GapGuard} window is recorded.
+ *
+ * Paid orders are checked newest first, and a run that reaches its time budget
+ * leaves a cursor (option `wplc_gap_reconcile_cursor`): the next run checks the
+ * orders that arrived since, then continues below the last checked one instead
+ * of starting over (P-29). The two refund steps have their own budgets, so a
+ * full paid-order step does not starve them.
  */
 final class GapReconciler {
 
@@ -54,9 +60,27 @@ final class GapReconciler {
 	public const HANDLED_OPTION = 'wplc_gap_reconciled_orders';
 
 	/**
-	 * Seconds one run may take.
+	 * Option with the position of the paid-order pass: array{top:int,below:int}.
+	 *
+	 * `top` is the newest order ID seen by the last run, `below` the last order
+	 * checked when that run ran out of time (0 when it finished).
+	 */
+	public const CURSOR_OPTION = 'wplc_gap_reconcile_cursor';
+
+	/**
+	 * Seconds the paid-order step may take.
 	 */
 	private const TIME_BUDGET = 20;
+
+	/**
+	 * Seconds each of the two refund steps may take.
+	 */
+	private const REFUND_TIME_BUDGET = 10;
+
+	/**
+	 * Most paid order IDs one run reads (the newest ones of the look-back window).
+	 */
+	private const MAX_ORDER_IDS = 20000;
 
 	/**
 	 * Orders per query.
@@ -138,8 +162,9 @@ final class GapReconciler {
 		$deadline = microtime( true ) + self::TIME_BUDGET;
 
 		$summary = self::reconcile_paid_orders( $since, $now, $deadline, $summary );
-		$summary = self::reconcile_refunds( $since, $deadline, $summary );
-		$summary = self::reconcile_refunded_orders( $since, $deadline, $summary );
+		// Own budgets: a paid-order step that used up its time must not starve the refunds.
+		$summary = self::reconcile_refunds( $since, microtime( true ) + self::REFUND_TIME_BUDGET, $summary );
+		$summary = self::reconcile_refunded_orders( $since, microtime( true ) + self::REFUND_TIME_BUDGET, $summary );
 
 		if ( $summary['orders_issued'] || $summary['renewal_orders'] || $summary['refunds'] || $summary['full_refunds'] || ! $summary['complete'] ) {
 			self::log(
@@ -176,70 +201,78 @@ final class GapReconciler {
 		$handled = is_array( $handled ) ? $handled : array();
 		$changed = false;
 
-		for ( $page = 1; $page <= 200; ++$page ) {
-			$order_ids = wc_get_orders(
-				array(
-					'type'      => 'shop_order',
-					'status'    => $statuses,
-					'date_paid' => '>' . $since,
-					'limit'     => self::PAGE_SIZE,
-					'paged'     => $page,
-					'orderby'   => 'ID',
-					'order'     => 'ASC',
-					'return'    => 'ids',
-				)
-			);
-			if ( ! is_array( $order_ids ) || ! $order_ids ) {
+		$found = wc_get_orders(
+			array(
+				'type'      => 'shop_order',
+				'status'    => $statuses,
+				'date_paid' => '>' . $since,
+				'limit'     => self::MAX_ORDER_IDS,
+				'orderby'   => 'ID',
+				'order'     => 'DESC',
+				'return'    => 'ids',
+			)
+		);
+		$ids = array();
+		foreach ( is_array( $found ) ? $found : array() as $entry ) {
+			$id = self::order_id( $entry );
+			if ( $id > 0 ) {
+				$ids[ $id ] = $id;
+			}
+		}
+		$ids = array_values( $ids );
+		rsort( $ids, SORT_NUMERIC );
+
+		$cursor   = self::cursor();
+		$last     = 0;
+		$complete = true;
+		foreach ( self::paid_order_queue( $ids, $cursor['top'], $cursor['below'] ) as $order_id ) {
+			if ( microtime( true ) >= $deadline ) {
+				$complete            = false;
+				$summary['complete'] = false;
 				break;
 			}
+			$last  = $order_id;
+			$order = wc_get_order( $order_id );
+			if ( ! $order instanceof \WC_Order || ! $order->is_paid() ) {
+				continue;
+			}
+			++$summary['orders_checked'];
 
-			foreach ( $order_ids as $order_id ) {
-				if ( microtime( true ) >= $deadline ) {
-					$summary['complete'] = false;
-					break 2;
+			if ( $order->get_meta( '_wplc_renewal_for_license', true ) ) {
+				if ( ! isset( $handled[ $order_id ] ) && self::renewal_is_open( absint( $order->get_meta( '_wplc_renewal_id', true ) ) ) ) {
+					RenewalProcessor::handle_paid_order( $order_id );
+					$handled[ $order_id ] = $now;
+					$changed              = true;
+					++$summary['renewal_orders'];
+					AuditLog::record( 'gap_renewal_order_reconciled', 'order', $order_id, 'Paid renewal order found without a booked renewal; handed to the renewal processor.' );
 				}
-				$order_id = self::order_id( $order_id );
-				$order    = wc_get_order( $order_id );
-				if ( ! $order instanceof \WC_Order || ! $order->is_paid() ) {
-					continue;
-				}
-				++$summary['orders_checked'];
-
-				if ( $order->get_meta( '_wplc_renewal_for_license', true ) ) {
-					if ( ! isset( $handled[ $order_id ] ) && self::renewal_is_open( absint( $order->get_meta( '_wplc_renewal_id', true ) ) ) ) {
-						RenewalProcessor::handle_paid_order( $order_id );
-						$handled[ $order_id ] = $now;
-						$changed              = true;
-						++$summary['renewal_orders'];
-						AuditLog::record( 'gap_renewal_order_reconciled', 'order', $order_id, 'Paid renewal order found without a booked renewal; handed to the renewal processor.' );
-					}
-					continue;
-				}
-
-				$missing = self::missing_license_units( $order );
-				if ( $missing < 1 ) {
-					continue;
-				}
-				LicenseIssuer::maybe_issue_order( $order_id );
-				$still_missing = self::missing_license_units( $order );
-				if ( $still_missing < $missing ) {
-					++$summary['orders_issued'];
-					AuditLog::record(
-						'gap_order_reconciled',
-						'order',
-						$order_id,
-						'Paid order found without licenses; licenses were issued afterwards.',
-						array( 'missing_units' => $missing ),
-						array( 'missing_units' => $still_missing )
-					);
-					$paid = $order->get_date_paid();
-					GapGuard::record( $paid ? (int) $paid->getTimestamp() : $now, $now, 'reconciliation' );
-				}
+				continue;
 			}
 
-			if ( count( $order_ids ) < self::PAGE_SIZE ) {
-				break;
+			$missing = self::missing_license_units( $order );
+			if ( $missing < 1 ) {
+				continue;
 			}
+			LicenseIssuer::maybe_issue_order( $order_id );
+			$still_missing = self::missing_license_units( $order );
+			if ( $still_missing < $missing ) {
+				++$summary['orders_issued'];
+				AuditLog::record(
+					'gap_order_reconciled',
+					'order',
+					$order_id,
+					'Paid order found without licenses; licenses were issued afterwards.',
+					array( 'missing_units' => $missing ),
+					array( 'missing_units' => $still_missing )
+				);
+				$paid = $order->get_date_paid();
+				GapGuard::record( $paid ? (int) $paid->getTimestamp() : $now, $now, 'reconciliation' );
+			}
+		}
+
+		$next = self::next_cursor( $ids, $cursor['top'], $cursor['below'], $last, $complete );
+		if ( $next !== $cursor ) {
+			update_option( self::CURSOR_OPTION, $next, false );
 		}
 
 		if ( $changed ) {
@@ -255,13 +288,94 @@ final class GapReconciler {
 	}
 
 	/**
+	 * Stored position of the paid-order pass.
+	 *
+	 * @return array{top:int,below:int}
+	 */
+	private static function cursor(): array {
+		$stored = get_option( self::CURSOR_OPTION, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+
+		return array(
+			'top'   => isset( $stored['top'] ) ? max( 0, (int) $stored['top'] ) : 0,
+			'below' => isset( $stored['below'] ) ? max( 0, (int) $stored['below'] ) : 0,
+		);
+	}
+
+	/**
+	 * Order in which a run checks the paid orders.
+	 *
+	 * Pure. First the orders newer than the last run saw (`top`), newest first, so
+	 * a backlog never delays the orders where a gap is most likely. Then the pass
+	 * over the older ones: below the cursor when the last run ran out of time,
+	 * otherwise all of them again (an order paid late, e.g. by bank transfer, keeps
+	 * its old ID).
+	 *
+	 * @param int[] $ids_desc Paid order IDs of the look-back window, newest first.
+	 * @param int   $top      Newest order ID the last run saw.
+	 * @param int   $below    Last order ID checked by an unfinished run; 0 when it finished.
+	 * @return int[]
+	 */
+	public static function paid_order_queue( array $ids_desc, int $top, int $below ): array {
+		$new = array();
+		$old = array();
+		foreach ( $ids_desc as $id ) {
+			$id = (int) $id;
+			if ( $id > $top ) {
+				$new[] = $id;
+			} elseif ( $below < 1 || $id < $below ) {
+				$old[] = $id;
+			}
+		}
+
+		return array_merge( $new, $old );
+	}
+
+	/**
+	 * Position to store after a run.
+	 *
+	 * Pure. `top` becomes the newest order ID of this run; `below` the last checked
+	 * order when the run ran out of time (the next run continues under it, which
+	 * also covers new orders it did not reach), 0 when it went through. A run
+	 * that checked nothing keeps the old position.
+	 *
+	 * @param int[] $ids_desc Paid order IDs of this run, newest first.
+	 * @param int   $top      Stored top.
+	 * @param int   $below    Stored below.
+	 * @param int   $last     Last order ID this run checked; 0 for none.
+	 * @param bool  $complete Whether the run checked its whole queue.
+	 * @return array{top:int,below:int}
+	 */
+	public static function next_cursor( array $ids_desc, int $top, int $below, int $last, bool $complete ): array {
+		if ( ! $complete && $last < 1 ) {
+			return array(
+				'top'   => $top,
+				'below' => $below,
+			);
+		}
+
+		return array(
+			'top'   => $ids_desc ? max( $top, (int) max( $ids_desc ) ) : $top,
+			'below' => $complete ? 0 : $last,
+		);
+	}
+
+	/**
 	 * Number of license units an order should have but does not have.
+	 *
+	 * Always 0 for a plan upgrade order (PlanUpgrade::META_LICENSE): it upgrades an
+	 * existing license instead of issuing one.
 	 *
 	 * @param \WC_Order $order Paid order.
 	 * @return int
 	 */
 	public static function missing_license_units( \WC_Order $order ): int {
 		global $wpdb;
+
+		// A plan upgrade order changes an existing license; its mapped product line is no missing license.
+		if ( absint( $order->get_meta( \WPLC\Billing\PlanUpgrade::META_LICENSE, true ) ) > 0 || 'wplc_plan_upgrade' === (string) $order->get_created_via() ) {
+			return 0;
+		}
 
 		$expected = array();
 		foreach ( $order->get_items( 'line_item' ) as $item_id => $item ) {
@@ -502,12 +616,6 @@ final class GapReconciler {
 	 * @return void
 	 */
 	private static function log( string $message ): void {
-		try {
-			if ( function_exists( 'wc_get_logger' ) ) {
-				wc_get_logger()->info( $message, array( 'source' => 'wp-license' ) );
-			}
-		} catch ( \Throwable $error ) {
-			unset( $error );
-		}
+		\WPLC\Infrastructure\Log::write( 'info', $message, array( 'component' => 'gap_reconciler' ) );
 	}
 }

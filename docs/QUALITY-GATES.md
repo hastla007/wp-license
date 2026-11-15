@@ -102,7 +102,7 @@ vendor/bin/phpcs --standard=phpcs.blocking.xml   # the raw blocking findings, in
 
 - `phpcs.blocking.xml`: `WordPress.Security.*`, `WordPress.DB.PreparedSQL`, `WordPress.DB.PreparedSQLPlaceholders` for the plugin code, and `PHPCompatibilityWP` with `testVersion 7.4-` for plugin code and tests.
 - `phpcs.xml.dist`: the full standard with text domain `wp-license` and prefixes `wplc`/`WPLC`. PSR-4 file names and the `wplc/...` hook names are allowed.
-- PHP_CodeSniffer has no baseline, so `bin/phpcs-blocking.php` compares the number of findings per file and sniff with `phpcs-baseline.json`. More findings than recorded fail the job and all occurrences in that file are printed. The baseline holds the findings that were reviewed and judged false positives (mostly `{$tables[…]}` table names from `Schema::table_names()` inside `$wpdb->prepare()` strings).
+- PHP_CodeSniffer has no baseline, so `bin/phpcs-blocking.php` compares the findings with `phpcs-baseline.json`, per file, sniff and source line (the reported line, trimmed, whitespace collapsed). A finding whose line text is not recorded fails the job, even when another finding of the same sniff in that file was removed; a reviewed line that only moved stays accepted. For a statement spread over several lines the recorded text is the line PHPCS reports (often just `$wpdb->prepare(`), so the check is only as precise as that line. A baseline in the former count format is still compared by count until it is rewritten. The baseline holds the findings that were reviewed and judged false positives (mostly `{$tables[…]}` table names from `Schema::table_names()` inside `$wpdb->prepare()` strings).
 - A new finding must be fixed or carry a justified `// phpcs:ignore <Sniff> -- reason` comment. After a review that removes findings, run `composer phpcs:baseline` and commit the smaller baseline. Never update the baseline to make a new finding disappear.
 - Limitation: PHPCompatibility 9.3 knows PHP up to 7.4. Newer syntax (`match`, `?->`, named arguments, …) is caught by the syntax gate on PHP 7.4; newer functions are caught only if a unit or integration test on PHP 7.4 executes them.
 
@@ -117,4 +117,4 @@ Configuration: `phpstan.neon.dist` with `szepeviktor/phpstan-wordpress`, `php-st
 
 ## After merging branches
 
-Both baselines are counts per file. When several branches changed `src/`, run `composer phpcs:blocking` and `composer phpstan` on the merge result, review what is reported as new, and only then regenerate the baselines.
+The PHPStan baseline is a count per file; the PHPCS baseline lists source lines. When several branches changed `src/`, run `composer phpcs:blocking` and `composer phpstan` on the merge result, review what is reported as new, and only then regenerate the baselines.

@@ -259,7 +259,7 @@ final class ProductEditor {
 				'value' => $values['plan_key'],
 				'placeholder' => 'business',
 				'desc_tip' => true,
-				'description' => __( 'Identifier of the plan, for example single or agency. Lowercase letters, digits and hyphens only.', 'wp-license' ),
+				'description' => __( 'Identifier of this plan within the license product, for example single or agency; each plan (product or variation) of one license product needs its own. Licenses store it, so keep it unchanged once the plan is sold. Lowercase letters, digits and hyphens only.', 'wp-license' ),
 				'custom_attributes' => array(
 					'pattern' => '[a-z0-9][a-z0-9\-]{0,99}',
 					'maxlength' => '100',

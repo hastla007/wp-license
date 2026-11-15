@@ -7,6 +7,9 @@
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
  * WC requires at least: 8.9
+ * License: GPL-2.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * Update URI: https://github.com/hastla007/wp-license
  * Text Domain: wp-license
  * Domain Path: /languages
  *
@@ -43,6 +46,13 @@ if ( ! class_exists( '\\WPLC\\Plugin' ) ) {
 			}
 		}
 	);
+}
+
+if ( function_exists( 'is_multisite' ) && is_multisite() ) {
+	// As early as possible and independent of WooCommerce and plugins_loaded: a site deleted in
+	// this request takes its wplc_* tables with it (P-32). See docs/MULTISITE.md for the case in
+	// which the plugin is not loaded in the deleting request at all.
+	add_filter( 'wpmu_drop_tables', array( 'WPLC\\Infrastructure\\Database\\Schema', 'filter_wpmu_drop_tables' ), 10, 2 );
 }
 
 add_action(

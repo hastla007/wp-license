@@ -7,6 +7,9 @@
 
 use PHPUnit\Framework\TestCase;
 use WPLC\License\LicenseLifecycle;
+use WPLC\Maintenance\GapGuard;
+
+require_once dirname( __DIR__ ) . '/Admin/wp-function-stubs.php';
 
 final class LicenseAccessTest extends TestCase {
 
@@ -62,5 +65,49 @@ final class LicenseAccessTest extends TestCase {
 
 		$expired = $this->license( array( 'paid_until' => $this->ago( 3 ) ) );
 		$this->assertSame( gmdate( 'Y-m-d H:i:s', self::NOW ), LicenseLifecycle::entitlement_cutoff( $expired, self::NOW ) );
+	}
+
+	public function test_a135_grace_period_comes_from_one_filterable_place(): void {
+		$this->assertSame( LicenseLifecycle::GRACE_DAYS, LicenseLifecycle::grace_days() );
+		$this->assertSame( LicenseLifecycle::grace_days() + 1, GapGuard::default_hold_days() );
+		$this->assertSame( LicenseLifecycle::grace_days(), GapGuard::default_margin_days() );
+
+		$license = $this->license( array( 'paid_until' => $this->ago( 20 ), 'renewal_enabled' => 1 ) );
+		$this->assertFalse( LicenseLifecycle::has_access( $license, self::NOW ) );
+
+		$GLOBALS['wplc_test_filters']['wplc_renewal_grace_days'] = array(
+			static function () {
+				return 21;
+			},
+		);
+		try {
+			$this->assertSame( 21, LicenseLifecycle::grace_days() );
+			$this->assertSame( 22, GapGuard::default_hold_days() );
+			$this->assertTrue( LicenseLifecycle::has_access( $license, self::NOW ), 'A longer filtered grace period extends access.' );
+
+			$GLOBALS['wplc_test_filters']['wplc_renewal_grace_days'] = array(
+				static function () {
+					return 0;
+				},
+			);
+			$this->assertSame( 1, LicenseLifecycle::grace_days(), 'Clamped to at least one day.' );
+			$GLOBALS['wplc_test_filters']['wplc_renewal_grace_days'] = array(
+				static function () {
+					return 1000;
+				},
+			);
+			$this->assertSame( 90, LicenseLifecycle::grace_days(), 'Clamped to at most 90 days.' );
+		} finally {
+			unset( $GLOBALS['wplc_test_filters']['wplc_renewal_grace_days'] );
+		}
+	}
+
+	public function test_a135_retry_days_default_is_one_constant(): void {
+		$start = self::NOW;
+		$this->assertSame(
+			\WPLC\Billing\RenewalProcessor::next_retry_at( 2, $start, $start, \WPLC\Billing\RenewalProcessor::DEFAULT_RETRY_DAYS ),
+			\WPLC\Billing\RenewalProcessor::next_retry_at( 2, $start, $start )
+		);
+		$this->assertSame( array( 1, 3, 7 ), \WPLC\Billing\RenewalProcessor::DEFAULT_RETRY_DAYS );
 	}
 }

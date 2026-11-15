@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/OptionStore.php
- * (source sha256 33cd1984776597d6b0927fe5c6ade61438d27671cfc1753f296fd4171c531814). Do not edit: change the server copy and re-vendor.
+ * (source sha256 917793ae6ebdc8faa490d39344ed8f81a3aabf096bea4771a2e0ac25d8ec82e1). Do not edit: change the server copy and re-vendor.
  *
  * Storage of the license client: per-site options or network options.
  *
@@ -21,8 +21,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\OptionStore', false ) ) {
 	 *
 	 * With `$network = true` (multisite, one activation for the whole network)
 	 * the values live in the network options and the address of the installation
-	 * is `network_home_url()`. Otherwise every site keeps its own values and is
-	 * identified by `home_url()`.
+	 * is the address of the network (domain and path of the network, like
+	 * `network_home_url()`). Otherwise every site keeps its own values and is
+	 * identified by its stored `home` option.
+	 *
+	 * The address is read without the `home_url` / `network_home_url` filters:
+	 * multilingual plugins (one domain per language) and domain mapping plugins
+	 * change those per request, and the site must not count as a copy of itself.
 	 *
 	 * The class is not final so that tests can replace it with an in-memory
 	 * store; add-ons should not extend it.
@@ -32,7 +37,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\OptionStore', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.1';
+		const VERSION = '2.0.2';
 
 		/**
 		 * Whether values are stored for the whole network.
@@ -105,10 +110,31 @@ if ( ! class_exists( __NAMESPACE__ . '\\OptionStore', false ) ) {
 		/**
 		 * Address this installation is activated for.
 		 *
+		 * The unfiltered `home` option (per site) or the domain and path of the
+		 * network (network mode); see the class comment.
+		 *
 		 * @return string
 		 */
 		public function site_url(): string {
-			return $this->network ? network_home_url() : home_url();
+			if ( $this->network ) {
+				$network = function_exists( 'get_network' ) ? get_network() : null;
+				if ( ! is_object( $network ) || empty( $network->domain ) ) {
+					return network_home_url();
+				}
+				$url = 'https://' . $network->domain . ( '' === (string) $network->path ? '/' : (string) $network->path );
+
+				return function_exists( 'is_ssl' ) && ! is_ssl() ? 'http://' . substr( $url, 8 ) : $url;
+			}
+			$url = untrailingslashit( (string) get_option( 'home' ) );
+			if ( '' === $url ) {
+				return home_url();
+			}
+			if ( function_exists( 'is_ssl' ) && is_ssl() && 0 === stripos( $url, 'http://' ) ) {
+				// Same scheme rule as home_url(): an HTTPS request reports the HTTPS address.
+				$url = 'https://' . substr( $url, 7 );
+			}
+
+			return $url;
 		}
 	}
 }

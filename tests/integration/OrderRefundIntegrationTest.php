@@ -200,6 +200,35 @@ final class OrderRefundIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( array( 'suspended' ), $this->statuses( $order->get_id() ) );
 	}
 
+	/** P-45: a revocation that fails on a busy license lock is retried for the same license, not lost. */
+	public function test_p45_revocation_blocked_by_the_license_lock_is_retried(): void {
+		$order    = $this->paid_order( 3 );
+		$licenses = $this->licenses_for_order( $order->get_id() );
+		$target   = (int) $licenses[2]['id'];
+		$other    = mysqli_init();
+		$this->assertTrue( $other->real_connect( DB_HOST, DB_USER, DB_PASSWORD, DB_NAME ), 'A second database connection is needed.' );
+		$name = \WPLC\License\LicenseLifecycle::lock_name( $target );
+		$this->assertSame( '1', (string) $other->query( "SELECT GET_LOCK('" . $other->real_escape_string( $name ) . "', 0)" )->fetch_row()[0] );
+		add_filter( 'wplc_license_lock_timeout', '__return_zero' );
+
+		$refund = $this->refund_units( $order, 1 );
+
+		$this->assertSame( array( 'active', 'active', 'active' ), $this->statuses( $order->get_id() ), 'Fixture: the lock did not block the revocation.' );
+		$refund = wc_get_order( $refund->get_id() );
+		$this->assertSame( '', (string) $refund->get_meta( '_wplc_refund_processed', true ), 'A failed revocation is not marked done.' );
+		$this->assertSame( array( $target ), array_map( 'intval', (array) $refund->get_meta( \WPLC\License\LicenseLifecycle::META_REFUND_PENDING, true ) ) );
+		$this->assertTrue( (bool) ( as_next_scheduled_action( 'wplc_retry_refund_revocation', array( $order->get_id(), $refund->get_id() ), 'wplc' ) || wp_next_scheduled( 'wplc_retry_refund_revocation', array( $order->get_id(), $refund->get_id() ) ) ), 'A retry is queued.' );
+
+		$other->query( "SELECT RELEASE_LOCK('" . $other->real_escape_string( $name ) . "')" );
+		$other->close();
+		remove_filter( 'wplc_license_lock_timeout', '__return_zero' );
+		\WPLC\License\LicenseLifecycle::retry_refund_revocation( $order->get_id(), $refund->get_id() );
+		\WPLC\License\LicenseLifecycle::retry_refund_revocation( $order->get_id(), $refund->get_id() );
+
+		$this->assertSame( array( 'active', 'active', 'revoked' ), $this->statuses( $order->get_id() ), 'Exactly the refunded unit, also after a repeated retry.' );
+		$this->assertNotSame( '', (string) wc_get_order( $refund->get_id() )->get_meta( '_wplc_refund_processed', true ) );
+	}
+
 	/** B-36 / T-152: the shop can keep the old behavior through a filter. */
 	public function test_cancelling_a_paid_order_keeps_the_license_when_the_filter_says_so(): void {
 		add_filter( 'wplc_suspend_license_on_order_status', '__return_false' );
@@ -208,5 +237,37 @@ final class OrderRefundIntegrationTest extends WPLC_Integration_TestCase {
 		$order->update_status( 'cancelled' );
 
 		$this->assertSame( array( 'active' ), $this->statuses( $order->get_id() ) );
+	}
+
+	/** B-36: lowering the quantity of a paid line suspends the licenses above the new quantity. */
+	public function test_lowering_the_quantity_of_a_paid_line_suspends_the_extra_licenses(): void {
+		$order = $this->paid_order( 3 );
+		$item  = $this->first_item( $order );
+
+		// Saving the line unchanged (as a refund or a meta update does) keeps every license.
+		$item->save();
+		$this->assertSame( array( 'active', 'active', 'active' ), $this->statuses( $order->get_id() ) );
+
+		$item->set_quantity( 1 );
+		$item->save();
+
+		$this->assertSame( array( 'active', 'suspended', 'suspended' ), $this->statuses( $order->get_id() ) );
+		$notes = wp_list_pluck( wc_get_order_notes( array( 'order_id' => $order->get_id() ) ), 'content' );
+		$this->assertNotEmpty( preg_grep( '/suspended license/', $notes ), 'The order says which licenses were suspended.' );
+	}
+
+	/** B-36: removing a paid line suspends all its licenses; a filter keeps them. */
+	public function test_removing_a_paid_line_suspends_its_licenses_unless_filtered(): void {
+		$order = $this->paid_order( 2 );
+		$order->remove_item( $this->first_item( $order )->get_id() );
+		$order->save();
+
+		$this->assertSame( array( 'suspended', 'suspended' ), $this->statuses( $order->get_id() ) );
+
+		add_filter( 'wplc_suspend_license_on_order_item_change', '__return_false' );
+		$kept = $this->paid_order( 2 );
+		wc_delete_order_item( $this->first_item( $kept )->get_id() );
+
+		$this->assertSame( array( 'active', 'active' ), $this->statuses( $kept->get_id() ) );
 	}
 }

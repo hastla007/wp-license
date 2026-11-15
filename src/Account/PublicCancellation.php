@@ -7,7 +7,9 @@
 
 namespace WPLC\Account;
 
+use WPLC\Api\V1\Authenticator;
 use WPLC\Api\V1\ClientIp;
+use WPLC\Compatibility\Requirements;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\LicenseKey;
 use WPLC\License\LicenseLifecycle;
@@ -29,8 +31,19 @@ if ( ! defined( 'ABSPATH' ) ) {
  * was received and the end date.
  *
  * The page answers identically whether or not the details match a license,
- * so it cannot be used to find out who owns a license, and it is rate
- * limited per client address and per e-mail address.
+ * so it cannot be used to find out who owns a license. The confirmation
+ * e-mail is sent by a background job, so the response time does not tell a
+ * match either (P-37).
+ *
+ * Only the e-mail address of the current owner matches: the account address,
+ * the billing address of the source order while that order belongs to the
+ * owner, and the license e-mail recipient (P-08).
+ *
+ * Requests are rate limited with atomic counters in the request_limits table
+ * per client address and per reference. An e-mail address alone is never a
+ * limit for every reference: the per-address counter only applies to order
+ * numbers (which are easy to guess), so flooding a customer's address cannot
+ * block the license reference and key printed in their e-mails.
  *
  * Whether this page satisfies a legal cancellation-button requirement in a
  * given country is for the shop owner to check; the wording can be changed
@@ -44,9 +57,15 @@ final class PublicCancellation {
 	private const REVIEW_TTL = 3600;
 
 	/**
-	 * Cancellation requests per hour and client address, and per e-mail address.
+	 * Cancellation requests per hour and client address, per reference, and per
+	 * e-mail address for order-number references.
 	 */
 	public const DEFAULT_HOURLY_LIMIT = 5;
+
+	/**
+	 * Action Scheduler hook that sends the confirmation e-mail (P-37).
+	 */
+	public const CONFIRMATION_HOOK = 'wplc_public_cancel_confirmation';
 
 	/**
 	 * Outcome of the request handled in this page view, for the shortcode.
@@ -63,6 +82,7 @@ final class PublicCancellation {
 	public static function register_hooks(): void {
 		add_shortcode( 'wplc_cancel', array( self::class, 'shortcode' ) );
 		add_action( 'wp_loaded', array( self::class, 'handle_post' ), 20 );
+		add_action( self::CONFIRMATION_HOOK, array( self::class, 'send_confirmation' ), 10, 2 );
 	}
 
 	/**
@@ -155,7 +175,7 @@ final class PublicCancellation {
 			return $state;
 		}
 
-		if ( self::limited( $email ) ) {
+		if ( self::limited( $email, $reference ) ) {
 			$state['view'] = 'limited';
 			return $state;
 		}
@@ -168,42 +188,50 @@ final class PublicCancellation {
 	}
 
 	/**
-	 * Count this request and tell whether the client or the e-mail address is over the limit.
+	 * Whether a reference can only be an order number.
 	 *
-	 * @param string $email E-mail address.
+	 * @param string $reference Normalized reference.
 	 * @return bool
 	 */
-	private static function limited( string $email ): bool {
+	public static function is_order_number( string $reference ): bool {
+		return 1 === preg_match( '/^[0-9]{1,18}$/', $reference );
+	}
+
+	/**
+	 * Count this request and tell whether it is over a limit.
+	 *
+	 * Counters (atomic, hourly, keyed hashes only): the client address, the
+	 * reference, and for order-number references the e-mail address. A database
+	 * failure counts as over the limit.
+	 *
+	 * @param string $email     E-mail address.
+	 * @param string $reference Normalized reference.
+	 * @return bool
+	 */
+	private static function limited( string $email, string $reference ): bool {
 		/**
 		 * Filter how many public cancellation requests are accepted per hour,
-		 * counted per client address and per e-mail address.
+		 * counted per client address, per reference and (for order numbers) per
+		 * e-mail address.
 		 *
 		 * @param int $limit Requests per hour.
 		 */
 		$limit   = max( 1, (int) apply_filters( 'wplc_public_cancel_hourly_limit', self::DEFAULT_HOURLY_LIMIT ) );
 		$ip      = class_exists( ClientIp::class ) ? ClientIp::current() : '';
-		$buckets = array( 'e:' . strtolower( $email ) );
+		// "WPLC-1A2B3C4D" and "1A2B3C4D" are the same reference.
+		$buckets = array( 'public-cancel-ref' => (string) preg_replace( '/^WPLC-(?=[0-9A-F]{8}$)/', '', $reference ) );
 		if ( '' !== $ip ) {
-			$buckets[] = 'i:' . $ip;
+			$buckets['public-cancel-ip'] = $ip;
+		}
+		if ( self::is_order_number( $reference ) ) {
+			$buckets['public-cancel-order-email'] = strtolower( $email );
 		}
 
+		$hour = gmdate( 'Y-m-d H:00:00' );
 		$over = false;
-		foreach ( $buckets as $bucket ) {
-			// Keyed hash: neither the address nor the e-mail is stored in a readable form.
-			$key   = 'wplc_cancel_' . substr( hash_hmac( 'sha256', $bucket, wp_salt( 'nonce' ) ), 0, 40 );
-			$entry = get_transient( $key );
-			$entry = is_array( $entry ) && isset( $entry['count'], $entry['start'] ) && (int) $entry['start'] > time() - HOUR_IN_SECONDS
-				? array(
-					'count' => (int) $entry['count'],
-					'start' => (int) $entry['start'],
-				)
-				: array(
-					'count' => 0,
-					'start' => time(),
-				);
-			++$entry['count'];
-			set_transient( $key, $entry, max( 1, $entry['start'] + HOUR_IN_SECONDS - time() ) );
-			if ( $entry['count'] > $limit ) {
+		foreach ( $buckets as $scope => $value ) {
+			$hits = Authenticator::increment_bucket( Authenticator::limiter_hash( $scope, $value ), $hour );
+			if ( false === $hits || $hits > $limit ) {
 				$over = true;
 			}
 		}
@@ -212,7 +240,12 @@ final class PublicCancellation {
 	}
 
 	/**
-	 * Cancel every automatically renewing license that matches the details and confirm it by e-mail.
+	 * Cancel every automatically renewing license that matches the details and
+	 * queue the confirmation e-mail.
+	 *
+	 * The e-mail is sent by a background job (CONFIRMATION_HOOK) instead of the
+	 * synchronous listener of `wplc/cancellation_scheduled`, so a match does not
+	 * make the response slower than a miss.
 	 *
 	 * @param string $email       E-mail address the customer entered.
 	 * @param string $reference   Normalized reference.
@@ -223,14 +256,65 @@ final class PublicCancellation {
 		$cancelled = 0;
 		foreach ( self::find_licenses( $email, $reference ) as $license ) {
 			$license_id = (int) $license['id'];
-			// Fires `wplc/cancellation_scheduled` with the time of receipt (confirmation email).
-			if ( ! LicenseLifecycle::schedule_cancellation( $license_id, 'Cancelled through the public cancellation page', 0, $received_at ) ) {
+			if ( ! self::schedule_without_synchronous_email( $license_id, $received_at ) ) {
 				continue;
 			}
+			self::queue_confirmation( $license_id, $received_at );
 			++$cancelled;
 		}
 
 		return $cancelled;
+	}
+
+	/**
+	 * Schedule the cancellation while the synchronous confirmation listener is detached.
+	 *
+	 * @param int $license_id  License ID.
+	 * @param int $received_at Unix timestamp of the request.
+	 * @return bool
+	 */
+	private static function schedule_without_synchronous_email( int $license_id, int $received_at ): bool {
+		$listener = array( Notifications::class, 'on_cancellation_scheduled' );
+		$priority = has_action( 'wplc/cancellation_scheduled', $listener );
+		$async    = function_exists( 'as_schedule_single_action' );
+		if ( $async && false !== $priority ) {
+			remove_action( 'wplc/cancellation_scheduled', $listener, (int) $priority );
+		}
+		try {
+			// Fires `wplc/cancellation_scheduled` with the time of receipt for other listeners.
+			return LicenseLifecycle::schedule_cancellation( $license_id, 'Cancelled through the public cancellation page', 0, $received_at );
+		} finally {
+			if ( $async && false !== $priority ) {
+				add_action( 'wplc/cancellation_scheduled', $listener, (int) $priority, 2 );
+			}
+		}
+	}
+
+	/**
+	 * Queue the confirmation e-mail of one cancellation.
+	 *
+	 * @param int $license_id  License ID.
+	 * @param int $received_at Unix timestamp of the request.
+	 * @return void
+	 */
+	private static function queue_confirmation( int $license_id, int $received_at ): void {
+		if ( ! function_exists( 'as_schedule_single_action' ) ) {
+			// Without Action Scheduler the synchronous listener already sent it.
+			return;
+		}
+		// Zero means the same confirmation is already queued.
+		Requirements::schedule_single_action( time(), self::CONFIRMATION_HOOK, array( $license_id, $received_at ) );
+	}
+
+	/**
+	 * Background job: send the confirmation e-mail (retried by Notifications on failure).
+	 *
+	 * @param mixed $license_id  License ID.
+	 * @param mixed $received_at Unix timestamp of the request.
+	 * @return void
+	 */
+	public static function send_confirmation( $license_id = 0, $received_at = 0 ): void {
+		Notifications::on_cancellation_scheduled( absint( $license_id ), absint( $received_at ) );
 	}
 
 	/**
@@ -301,22 +385,27 @@ final class PublicCancellation {
 	}
 
 	/**
-	 * Whether an e-mail address is the account or billing address of a license.
+	 * Whether an e-mail address belongs to the current owner of a license.
+	 *
+	 * The billing address of the source order only counts while the order
+	 * belongs to the current owner: after an owner change the previous owner's
+	 * order still points at the license, but must not cancel it (P-08).
 	 *
 	 * @param string              $email   E-mail address.
 	 * @param array<string,mixed> $license License row.
 	 * @return bool
 	 */
-	private static function email_belongs_to( string $email, array $license ): bool {
+	public static function email_belongs_to( string $email, array $license ): bool {
 		$email     = strtolower( $email );
 		$addresses = array();
+		$owner     = (int) ( $license['customer_id'] ?? 0 );
 
-		$user = get_userdata( (int) ( $license['customer_id'] ?? 0 ) );
+		$user = $owner > 0 ? get_userdata( $owner ) : false;
 		if ( $user ) {
 			$addresses[] = strtolower( (string) $user->user_email );
 		}
 		$order = ! empty( $license['source_order_id'] ) && function_exists( 'wc_get_order' ) ? wc_get_order( (int) $license['source_order_id'] ) : false;
-		if ( $order instanceof \WC_Order ) {
+		if ( $order instanceof \WC_Order && (int) $order->get_customer_id() === $owner ) {
 			$addresses[] = strtolower( (string) $order->get_billing_email() );
 		}
 		if ( class_exists( LicenseEmail::class ) ) {

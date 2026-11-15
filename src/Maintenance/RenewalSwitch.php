@@ -7,6 +7,7 @@
 
 namespace WPLC\Maintenance;
 
+use WPLC\Billing\RenewalProcessor;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
 use WPLC\License\LicenseLifecycle;
@@ -37,17 +38,66 @@ final class RenewalSwitch {
 	 *
 	 * Compare-and-set: returns false and writes nothing when there is nothing to switch off.
 	 *
+	 * P-02: runs under the renewal lock of the current period (when it becomes
+	 * free in time and this request does not hold the license lock already) and
+	 * then the license lock, the lock order of the renewal processor. The
+	 * processor re-checks the license under the license lock right before it
+	 * charges, so a switch-off that is done is never followed by a charge; a
+	 * payment that was already in flight goes to review instead of being booked.
+	 *
 	 * @param int    $license_id    License ID.
 	 * @param string $reason        Audit reason (no personal data).
 	 * @param int    $actor_user_id Acting user, 0 for system events.
 	 * @return bool True when the license was changed.
 	 */
 	public static function off( int $license_id, string $reason, int $actor_user_id = 0 ): bool {
-		global $wpdb;
-
 		if ( $license_id < 1 ) {
 			return false;
 		}
+		$renewal_id = LicenseLifecycle::holds_license_lock( $license_id ) ? 0 : RenewalProcessor::lock_current_period( $license_id, LicenseLifecycle::RENEWAL_LOCK_WAIT );
+		try {
+			$result = LicenseLifecycle::run_locked(
+				$license_id,
+				static function () use ( $license_id, $reason, $actor_user_id ) {
+					return self::off_locked( $license_id, $reason, $actor_user_id ) ? 'changed' : 'unchanged';
+				}
+			);
+			if ( false === $result ) {
+				// The license lock was not free in time. The erasure or deletion must still take effect;
+				// the processor's re-check under the license lock covers a charge that starts meanwhile.
+				$result = self::off_locked( $license_id, $reason, $actor_user_id ) ? 'changed' : 'unchanged';
+			}
+		} finally {
+			if ( $renewal_id ) {
+				RenewalProcessor::unlock( $renewal_id );
+			}
+		}
+		if ( 'changed' !== $result ) {
+			return false;
+		}
+
+		/**
+		 * Fires after automatic renewal was switched off because its basis is gone.
+		 *
+		 * @param int    $license_id License ID.
+		 * @param string $reason     Reason.
+		 */
+		do_action( 'wplc/auto_renewal_disabled', $license_id, $reason );
+
+		return true;
+	}
+
+	/**
+	 * Body of off() while the locks are held.
+	 *
+	 * @param int    $license_id    License ID.
+	 * @param string $reason        Audit reason.
+	 * @param int    $actor_user_id Acting user.
+	 * @return bool True when the license was changed.
+	 */
+	private static function off_locked( int $license_id, string $reason, int $actor_user_id ): bool {
+		global $wpdb;
+
 		$tables = Schema::table_names();
 		$now    = gmdate( 'Y-m-d H:i:s' );
 
@@ -97,14 +147,6 @@ final class RenewalSwitch {
 			),
 			$actor_user_id
 		);
-
-		/**
-		 * Fires after automatic renewal was switched off because its basis is gone.
-		 *
-		 * @param int    $license_id License ID.
-		 * @param string $reason     Reason.
-		 */
-		do_action( 'wplc/auto_renewal_disabled', $license_id, $reason );
 
 		return true;
 	}

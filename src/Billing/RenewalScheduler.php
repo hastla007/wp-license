@@ -52,18 +52,29 @@ final class RenewalScheduler {
 		// A row first created by an unpaid manual renewal becomes an automatic one. So does a row
 		// that was cancelled while the customer's cancellation or a suspension was pending and is
 		// wanted again (the license is renewal-enabled and not cancelled, checked above).
-		$wpdb->query(
+		$previous = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM %i WHERE id = %d LIMIT 1", $tables['renewals'], $renewal_id ) );
+		$revived = in_array( $previous, array( 'manual', 'cancelled' ), true ) ? $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE %i SET status = %s, retry_at = period_start, last_error = %s, updated_at = %s WHERE id = %d AND status IN (%s, %s)",
+				"UPDATE %i SET status = %s, retry_at = period_start, last_error = %s, updated_at = %s WHERE id = %d AND status = %s",
 				$tables['renewals'],
 				'scheduled',
 				'',
 				gmdate( 'Y-m-d H:i:s' ),
 				$renewal_id,
-				'manual',
-				'cancelled'
+				$previous
 			)
-		);
+		) : 0;
+		if ( 1 === (int) $revived ) {
+			// A-73: the change back to an automatic renewal is audited like every other status change.
+			\WPLC\License\AuditLog::record(
+				'renewal_rescheduled',
+				'renewal',
+				$renewal_id,
+				__( 'The renewal is charged automatically again', 'wp-license' ),
+				array( 'status' => $previous ),
+				array( 'status' => 'scheduled' )
+			);
+		}
 		$status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM %i WHERE id = %d LIMIT 1", $tables['renewals'], $renewal_id ) );
 		if ( 'scheduled' === $status ) {
 			self::enqueue( $renewal_id, $start_timestamp );
@@ -155,7 +166,7 @@ final class RenewalScheduler {
 				'idempotency_key' => $idempotency_key,
 				'status' => $automatic ? 'scheduled' : 'manual',
 				'retry_at' => $automatic ? $period_start : null,
-				'grace_ends_at' => gmdate( 'Y-m-d H:i:s', $start_timestamp + \WPLC\License\LicenseLifecycle::GRACE_DAYS * DAY_IN_SECONDS ),
+				'grace_ends_at' => gmdate( 'Y-m-d H:i:s', $start_timestamp + \WPLC\License\LicenseLifecycle::grace_days() * DAY_IN_SECONDS ),
 				'attempt_count' => 0,
 				'created_at' => $now,
 				'updated_at' => $now,
@@ -210,6 +221,9 @@ final class RenewalScheduler {
 	 * (-> 31 Mar) instead of staying on the 28th for good. The anchor is only
 	 * used in that case, so a date set by an administrator is never shortened.
 	 *
+	 * B-178: a clamped period ends at 23:59:59 of the month's last day, so a
+	 * later start never gives an earlier end.
+	 *
 	 * @param int    $timestamp UTC timestamp.
 	 * @param string $interval Billing interval ('month'; anything else is a year).
 	 * @param int    $anchor_day Day of month of the original billing day, zero for none.
@@ -223,12 +237,16 @@ final class RenewalScheduler {
 		}
 		$months = 'month' === $interval ? 1 : 12;
 		$first = $date->modify( 'first day of this month' )->modify( '+' . $months . ' months' );
+		$last_day = (int) $first->format( 't' );
+		$end = $first->setDate( (int) $first->format( 'Y' ), (int) $first->format( 'n' ), min( $day, $last_day ) );
+		if ( $day > $last_day ) {
+			// B-178: a clamped period ends at the end of the month's last day. Keeping the time of
+			// day would let a later purchase end earlier (30 Jan 10:00 -> 28 Feb 10:00, while
+			// 28 Jan 23:00 -> 28 Feb 23:00); the end of the day keeps the rule monotonic.
+			return $end->setTime( 23, 59, 59 )->getTimestamp();
+		}
 
-		return $first->setDate(
-			(int) $first->format( 'Y' ),
-			(int) $first->format( 'n' ),
-			min( $day, (int) $first->format( 't' ) )
-		)->setTime(
+		return $end->setTime(
 			(int) $date->format( 'G' ),
 			(int) $date->format( 'i' ),
 			(int) $date->format( 's' )

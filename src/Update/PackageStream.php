@@ -554,6 +554,28 @@ final class PackageStream {
 	}
 
 	/**
+	 * Remove all output buffers before the package is streamed (B-104).
+	 *
+	 * The levels are counted once: a buffer that cannot be removed (started
+	 * without PHP_OUTPUT_HANDLER_REMOVABLE) stops the loop instead of turning it
+	 * into an endless one.
+	 *
+	 * @return int Number of buffers removed.
+	 */
+	public static function drop_output_buffers(): int {
+		$levels  = ob_get_level();
+		$removed = 0;
+		for ( $i = 0; $i < $levels; $i++ ) {
+			if ( ! @ob_end_clean() ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				break;
+			}
+			++$removed;
+		}
+
+		return $removed;
+	}
+
+	/**
 	 * Send headers and file contents.
 	 *
 	 * @param string                  $path Absolute file path.
@@ -588,13 +610,7 @@ final class PackageStream {
 		}
 		// Compression would invalidate Content-Length.
 		@ini_set( 'zlib.output_compression', 'Off' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.IniSet.Risky
-		// Count once: a buffer that cannot be removed must not turn this into an endless loop (B-104).
-		$levels = ob_get_level();
-		for ( $i = 0; $i < $levels; $i++ ) {
-			if ( ! @ob_end_clean() ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-				break;
-			}
-		}
+		self::drop_output_buffers();
 		if ( function_exists( 'header_remove' ) ) {
 			header_remove( 'Content-Encoding' );
 			header_remove( 'Link' );

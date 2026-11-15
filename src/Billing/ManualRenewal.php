@@ -92,7 +92,7 @@ final class ManualRenewal {
 	 *
 	 * B-185: one rule for every way of paying. While the license has not expired
 	 * and the payment arrives before the end of the grace period (paid_until +
-	 * LicenseLifecycle::GRACE_DAYS) the new period continues from the old due
+	 * LicenseLifecycle::grace_days()) the new period continues from the old due
 	 * date, exactly like an automatic renewal: the customer had access during
 	 * those days, so paying late gifts none. A payment for an expired license,
 	 * or after the grace period, starts the period at the payment time, because
@@ -107,7 +107,7 @@ final class ManualRenewal {
 	 */
 	public static function next_paid_until( string $paid_until, string $interval, int $paid_at, int $anchor_day = 0, bool $expired = false ): string {
 		$current = '' === $paid_until ? 0 : (int) strtotime( $paid_until . ' UTC' );
-		$from = $current && ! $expired && $paid_at <= $current + LicenseLifecycle::GRACE_DAYS * 86400 ? $current : max( $current, $paid_at );
+		$from = $current && ! $expired && $paid_at <= $current + LicenseLifecycle::grace_days() * 86400 ? $current : max( $current, $paid_at );
 
 		return gmdate( 'Y-m-d H:i:s', RenewalScheduler::period_end( $from, $interval, $anchor_day ) );
 	}

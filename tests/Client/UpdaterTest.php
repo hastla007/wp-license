@@ -128,12 +128,116 @@ final class UpdaterTest extends TestCase {
 		$this->assertSame( 'wplc_update_checksum', $this->download()->get_error_code() );
 	}
 
+	public function test_p21_per_site_activations_on_a_network_use_one_source_for_updates(): void {
+		$GLOBALS['wplc_test_sites'] = array( 1, 2, 3, 4, 5 );
+		$store                      = new WPLC_Test_Blog_Store();
+		$network                    = function () use ( $store ): LicenseManager {
+			return $this->kit->manager( array( 'update_uri' => 'https://license.example/test-addon', 'store' => $store ) );
+		};
+		$offer = function (): void {
+			$this->kit->server->queue[] = $this->kit->server->signed( array( 'update_available' => true, 'version' => '1.1.0', 'product_key' => 'test-addon', 'license_active' => true ) );
+		};
+		$asked_by = function (): string {
+			$last = end( $this->kit->server->requests );
+			return (string) $last['headers']['x-wplc-installation-id'];
+		};
+
+		// The add-on is licensed on site 5 only; the main site (1) is not activated.
+		switch_to_blog( 5 );
+		$this->assertInstanceOf( \WPLC\Client\LicenseStatus::class, $network()->activate( self::KEY ) );
+		$site5 = $network()->client()->installation_id();
+		restore_current_blog();
+		$this->assertSame( 1, get_current_blog_id() );
+		$this->assertFalse( $network()->client()->is_activated() );
+
+		// Network admin (main site): the update is found with the credentials of site 5 and cached for the network.
+		$offer();
+		$this->assertSame( '1.1.0', $network()->updater()->metadata()['version'] ?? null );
+		$this->assertSame( $site5, $asked_by() );
+		$this->assertSame( 5, $network()->updater()->source_site() );
+		$this->assertArrayHasKey( 'test_addon_update_meta', $GLOBALS['wplc_test_site_options'] );
+
+		// The cron of any other site sees the same answer (no flip-flop, no extra request).
+		$requests = count( $this->kit->server->requests );
+		foreach ( array( 2, 5, 3 ) as $site ) {
+			switch_to_blog( $site );
+			$this->assertSame( '1.1.0', $network()->updater()->metadata()['version'] ?? null, 'site ' . $site );
+			restore_current_blog();
+		}
+		$this->assertCount( $requests, $this->kit->server->requests );
+
+		// The download from the network admin uses site 5 as well.
+		$this->kit->server->queue[] = $this->kit->server->signed( array( 'update_available' => true, 'version' => '1.1.0', 'product_key' => 'test-addon', 'license_active' => true, 'package' => 'https://storage.example/p.zip', 'sha256' => hash( 'sha256', self::ZIP ) ) );
+		$this->kit->server->file( 'https://storage.example/p.zip', self::ZIP );
+		$updater       = $network()->updater();
+		$file          = $updater->filter_pre_download( false, $updater->placeholder() );
+		$this->files[] = $file;
+		$this->assertIsString( $file );
+		$this->assertSame( $site5, $asked_by() );
+		$this->assertSame( 1, get_current_blog_id(), 'The site is switched back.' );
+
+		// Once the main site is activated it is the source: stable, whatever site checks.
+		$this->assertInstanceOf( \WPLC\Client\LicenseStatus::class, $network()->activate( self::KEY ) );
+		$main = $network()->client()->installation_id();
+		$this->assertArrayNotHasKey( 'test_addon_update_meta', $GLOBALS['wplc_test_site_options'], 'The activation flushed the network cache.' );
+		switch_to_blog( 3 );
+		$offer();
+		$this->assertSame( '1.1.0', $network()->updater()->metadata()['version'] ?? null );
+		restore_current_blog();
+		$this->assertSame( $main, $asked_by() );
+
+		// No site activated: no request at all, the answer "not activated" is cached for the network.
+		$GLOBALS['wplc_test_sites'] = array( 2, 3 );
+		$GLOBALS['wplc_test_main_site'] = 2;
+		$network()->updater()->flush();
+		$requests = count( $this->kit->server->requests );
+		$this->assertSame( array( 'error' => 'wplc_not_activated' ), $network()->updater()->metadata() );
+		$this->assertCount( $requests, $this->kit->server->requests );
+		$this->assertSame( 'wplc_not_activated', $network()->updater()->filter_pre_download( false, $updater->placeholder() )->get_error_data() );
+		unset( $GLOBALS['wplc_test_sites'], $GLOBALS['wplc_test_main_site'], $GLOBALS['wplc_test_site_options'], $GLOBALS['wplc_test_blog'], $GLOBALS['wplc_test_blog_stack'] );
+	}
+
+	public function test_p48_the_cache_is_flushed_only_after_an_update_of_this_add_on(): void {
+		$updater = $this->manager->updater();
+		$this->kit->store->data['test_addon_update_meta'] = array( 'data' => array(), 'expires' => 1, 'version' => '1.0.0' );
+		$basename = $updater->basename();
+
+		$updater->after_upgrade( null, array( 'type' => 'theme', 'themes' => array( 'x' ) ) );
+		$updater->after_upgrade( null, array( 'type' => 'plugin', 'plugins' => array( 'other/other.php' ) ) );
+		$updater->after_upgrade( null, array( 'type' => 'translation' ) );
+		$this->assertArrayHasKey( 'test_addon_update_meta', $this->kit->store->data );
+
+		$updater->after_upgrade( null, array( 'type' => 'plugin', 'plugins' => array( 'other/other.php', $basename ) ) );
+		$this->assertArrayNotHasKey( 'test_addon_update_meta', $this->kit->store->data );
+	}
+
 	public function test_audit3_allowed_package_addresses(): void {
 		foreach ( array( 'https://storage.example/pkg.zip', 'HTTPS://Storage.example/x', 'http://localhost/pkg.zip', 'http://127.0.0.1:8080/pkg.zip', 'http://[::1]/pkg.zip', 'http://addon.localhost/pkg.zip' ) as $url ) {
 			$this->assertTrue( Updater::is_allowed_package_url( $url ), $url );
 		}
 		foreach ( array( 'http://storage.example/pkg.zip', 'ftp://storage.example/pkg.zip', 'https://user:pass@storage.example/pkg.zip', '//storage.example/pkg.zip', 'file:///etc/passwd', '' ) as $url ) {
 			$this->assertFalse( Updater::is_allowed_package_url( $url ), $url );
+		}
+	}
+
+	public function test_p48_update_uri_reads_the_plugin_file_at_most_once_per_request(): void {
+		$GLOBALS['wplc_test_file_reads']   = 0;
+		$GLOBALS['wplc_test_file_headers'] = array( 'Update URI' => 'https://license.example/test-addon' );
+		try {
+			// Configured: no file access at all.
+			$configured = $this->kit->manager( array( 'update_uri' => 'https://license.example/test-addon', 'plugin_file' => '/plugins/test-addon/test-addon.php' ) );
+			$this->assertSame( 'license.example', $configured->updater()->update_host() );
+			$configured->updater()->placeholder();
+			$this->assertSame( 0, $GLOBALS['wplc_test_file_reads'] );
+
+			// Not configured: the header is read once and then kept in memory.
+			$updater = $this->kit->manager( array( 'plugin_file' => '/plugins/test-addon/test-addon.php' ) )->updater();
+			$this->assertSame( 'https://license.example/test-addon', $updater->update_uri() );
+			$this->assertSame( 'license.example', $updater->update_host() );
+			$updater->placeholder();
+			$this->assertSame( 1, $GLOBALS['wplc_test_file_reads'] );
+		} finally {
+			unset( $GLOBALS['wplc_test_file_reads'], $GLOBALS['wplc_test_file_headers'] );
 		}
 	}
 }

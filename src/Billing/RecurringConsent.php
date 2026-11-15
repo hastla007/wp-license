@@ -138,9 +138,68 @@ final class RecurringConsent {
 				'required' => false,
 				'label' => self::label(),
 			),
-			''
+			self::checkbox_posted( 'wplc_recurring_consent' ) ? '1' : ''
 		);
 		echo '</div>';
+	}
+
+	/**
+	 * Whether a checkbox of the classic checkout is ticked in the current request.
+	 *
+	 * A-118: the boxes live in the payment section, which WooCommerce replaces on every
+	 * `update_order_review` request (address, shipping or payment method changed). That
+	 * request carries the whole form serialized in `post_data`; reading the box from there
+	 * renders it ticked again instead of silently unticking it. On the final submit the
+	 * field is a normal POST field.
+	 *
+	 * @param string $name Field name.
+	 * @return bool
+	 */
+	public static function checkbox_posted( string $name ): bool {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- read-only display state; WooCommerce verifies the nonce of the requests that change anything.
+		if ( ! empty( $_POST[ $name ] ) ) {
+			return true;
+		}
+		if ( ! isset( $_POST['post_data'] ) || ! is_string( $_POST['post_data'] ) ) {
+			return false;
+		}
+		$fields = array();
+		parse_str( wp_unslash( $_POST['post_data'] ), $fields ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only one key is compared with a constant below.
+		// phpcs:enable
+
+		return isset( $fields[ $name ] ) && is_scalar( $fields[ $name ] ) && '1' === (string) $fields[ $name ];
+	}
+
+	/**
+	 * Short name of the opt-in for order confirmation, emails and the account (B-114).
+	 *
+	 * The full wording stands next to the checkbox and is kept in the evidence;
+	 * confirmations only repeat what was chosen and when.
+	 *
+	 * @return string
+	 */
+	public static function short_label(): string {
+		return __( 'Automatic renewal', 'wp-license' );
+	}
+
+	/**
+	 * Customer confirmation of a granted opt-in, or an empty string.
+	 *
+	 * @param \WC_Order $order Order.
+	 * @return string
+	 */
+	public static function granted_text( $order ): string {
+		$at = $order instanceof \WC_Order ? (string) $order->get_meta( self::META_CONSENT_AT, true ) : '';
+		if ( '' === $at ) {
+			return '';
+		}
+
+		return sprintf(
+			/* translators: 1: "Automatic renewal", 2: date and time of the consent (UTC). */
+			__( '%1$s: you agreed on %2$s (UTC) that the renewal price shown for each license is charged to your saved payment method at the end of every term until you cancel. You can switch automatic renewal off in your account under "Licenses" at any time.', 'wp-license' ),
+			self::short_label(),
+			substr( $at, 0, 16 )
+		);
 	}
 
 	/**
@@ -328,9 +387,9 @@ final class RecurringConsent {
 	/**
 	 * Tell the customer where to find the license key, and that an opt-in was not possible.
 	 *
-	 * @param \WC_Order $order         Order.
-	 * @param bool      $sent_to_admin Whether the email goes to the admin.
-	 * @param bool      $plain_text    Whether the email is plain text.
+	 * @param mixed $order         Order (WC_Order).
+	 * @param bool  $sent_to_admin Whether the email goes to the admin.
+	 * @param bool  $plain_text    Whether the email is plain text.
 	 * @return void
 	 */
 	public static function render_email_hint( $order, $sent_to_admin = false, $plain_text = false ): void {
@@ -368,17 +427,24 @@ final class RecurringConsent {
 	}
 
 	/**
-	 * Order received page: say that the requested automatic renewal is not active.
+	 * Order received page: say whether the automatic renewal is on (B-114) or why a requested one is not active.
 	 *
 	 * @param mixed $order_id Order ID.
 	 * @return void
 	 */
 	public static function render_thankyou_hint( $order_id ): void {
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( absint( $order_id ) ) : null;
-		if ( ! $order instanceof \WC_Order || '' === (string) $order->get_meta( self::META_UNSUPPORTED, true ) ) {
+		if ( ! $order instanceof \WC_Order ) {
 			return;
 		}
-		echo '<p class="woocommerce-info wplc-renewal-unsupported">' . esc_html( self::unsupported_text() ) . '</p>';
+		if ( '' !== (string) $order->get_meta( self::META_UNSUPPORTED, true ) ) {
+			echo '<p class="woocommerce-info wplc-renewal-unsupported">' . esc_html( self::unsupported_text() ) . '</p>';
+			return;
+		}
+		$granted = self::granted_text( $order );
+		if ( '' !== $granted ) {
+			echo '<p class="wplc-renewal-granted">' . esc_html( $granted ) . '</p>';
+		}
 	}
 
 	/**

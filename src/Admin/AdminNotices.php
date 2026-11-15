@@ -51,6 +51,7 @@ final class AdminNotices {
 			'extend_failed'           => array( 'error', __( 'The license term was not changed. Check the license status and try again.', 'wp-license' ) ),
 			'extend_unavailable'      => array( 'error', __( 'Changing the term is not available in this installation.', 'wp-license' ) ),
 			'license_created'         => array( 'success', __( 'The license was created. The customer finds the key in their account.', 'wp-license' ) ),
+			'license_created_no_email' => array( 'success', __( 'The license was created without an email. The customer finds the key in their account; use "Send key email again" to send it later.', 'wp-license' ) ),
 			'create_missing_input'    => array( 'error', __( 'Customer, plan, end date and reason are required.', 'wp-license' ) ),
 			'create_unknown_customer' => array( 'error', __( 'No user account was found for this user ID or email address.', 'wp-license' ) ),
 			'create_unknown_plan'     => array( 'error', __( 'The selected plan is not an active plan in the catalog.', 'wp-license' ) ),
@@ -67,6 +68,7 @@ final class AdminNotices {
 			'review_action_not_allowed' => array( 'error', __( 'This action is not available for this renewal.', 'wp-license' ) ),
 			'review_license_status'     => array( 'error', __( 'The license is suspended or revoked and cannot be extended. Reactivate it first, or close the review and refund the payment.', 'wp-license' ) ),
 			'review_book_failed'        => array( 'error', __( 'The renewal could not be booked. Check the license status and try again.', 'wp-license' ) ),
+			'review_order_closed'       => array( 'error', __( 'The renewal order was refunded or cancelled. It cannot be booked or marked as not paid; close the review instead.', 'wp-license' ) ),
 			// License list bulk actions (T-102).
 			'bulk_done'                 => array( 'success', __( 'The bulk action was processed. The result for every license is shown below.', 'wp-license' ) ),
 			'bulk_already_done'         => array( 'error', __( 'This bulk action was already processed and was not run again. Its result is shown below. Reload the list to start a new one.', 'wp-license' ) ),
@@ -89,6 +91,8 @@ final class AdminNotices {
 			'key_resend_requested'    => array( 'success', __( 'The email with the license key was requested for the customer.', 'wp-license' ) ),
 			'key_resend_failed'       => array( 'error', __( 'The key email was not requested. A reason is required, the license needs a customer, and the key must be verifiable with the configured secret.', 'wp-license' ) ),
 			'owner_changed'           => array( 'success', __( 'The license now belongs to the new customer. Automatic renewal was switched off because the stored payment method belongs to the previous owner.', 'wp-license' ) ),
+			'owner_changed_new_key'   => array( 'success', __( 'The license now belongs to the new customer and has a new key; the previous key no longer works. Automatic renewal was switched off because the stored payment method belongs to the previous owner.', 'wp-license' ) ),
+			'owner_changed_key_kept'  => array( 'error', __( 'The license now belongs to the new customer, but no new key could be issued. The previous owner can still use the old key: issue a new key below.', 'wp-license' ) ),
 			'owner_missing_input'     => array( 'error', __( 'A license, the new customer and a reason are required.', 'wp-license' ) ),
 			'owner_unknown_customer'  => array( 'error', __( 'No user account was found for this user ID or email address.', 'wp-license' ) ),
 			'owner_stale'             => array( 'error', __( 'The owner was not changed: the license was changed after you opened the page. Check it and try again.', 'wp-license' ) ),
@@ -100,11 +104,24 @@ final class AdminNotices {
 			'restore_failed'          => array( 'error', __( 'The license was not restored. Check the license status and the end date.', 'wp-license' ) ),
 			'restore_forbidden'       => array( 'error', __( 'Restoring a revoked license needs an administrator.', 'wp-license' ) ),
 			/* translators: 1: number of extended licenses, 2: number of skipped licenses. */
-			'bulk_extended'           => array( 'success', __( 'Terms extended: %1$d. Skipped: %2$d (suspended, revoked, changed in the meantime or with a payment in progress).', 'wp-license' ) ),
+			'bulk_extended'           => array( 'success', __( 'Terms extended: %1$s. Skipped: %2$s (suspended, revoked, changed in the meantime or with a payment in progress).', 'wp-license' ) ),
 			'bulk_extend_missing_input' => array( 'error', __( 'Select at least one license and enter the number of days (1 to 3650) and a reason.', 'wp-license' ) ),
 			/* translators: 1: number of created licenses. */
-			'order_licenses_issued'   => array( 'success', __( 'Licenses created for the order: %1$d. If this is 0, the order already has all its licenses or contains no license product.', 'wp-license' ) ),
+			'order_licenses_issued'   => array( 'success', __( 'Licenses created for the order: %1$s. If this is 0, the order already has all its licenses or contains no license product.', 'wp-license' ) ),
 			'order_issue_failed'      => array( 'error', __( 'No licenses were issued. Enter the number of a paid order and a reason.', 'wp-license' ) ),
+			// A-21: automatic renewal on behalf of the customer.
+			'renewal_cancelled_by_admin'      => array( 'success', __( 'The automatic renewal was cancelled for the end of the paid period. The customer gets a confirmation email.', 'wp-license' ) ),
+			'renewal_already_cancelled'       => array( 'error', __( 'The automatic renewal of this license was already cancelled.', 'wp-license' ) ),
+			'renewal_cancel_failed'           => array( 'error', __( 'The automatic renewal was not cancelled. Only active or past-due licenses with automatic renewal can be cancelled.', 'wp-license' ) ),
+			'cancellation_withdrawn_by_admin' => array( 'success', __( 'The cancellation was withdrawn. The license renews automatically again.', 'wp-license' ) ),
+			'cancellation_not_pending'        => array( 'error', __( 'This license has no cancellation to withdraw.', 'wp-license' ) ),
+			'cancellation_withdraw_failed'    => array( 'error', __( 'The cancellation was not withdrawn. Once the paid period has ended, the customer renews in their account.', 'wp-license' ) ),
+			// A-11: amount of the next automatic renewals.
+			'renewal_amount_changed'          => array( 'success', __( 'The renewal amount was changed. It applies to the next automatic renewals; existing renewal orders keep their amount.', 'wp-license' ) ),
+			'renewal_amount_missing_input'    => array( 'error', __( 'A license, a valid amount above zero and a reason are required.', 'wp-license' ) ),
+			'renewal_amount_stale'            => array( 'error', __( 'The renewal amount was not changed: it changed after you opened the page. Reload and decide again.', 'wp-license' ) ),
+			'renewal_amount_increase_refused' => array( 'error', __( 'The renewal amount can only be lowered. The customer agreed to automatic charges of the current amount; a higher amount needs their consent.', 'wp-license' ) ),
+			'renewal_amount_failed'           => array( 'error', __( 'The renewal amount was not changed. It can be changed for active and past-due licenses only.', 'wp-license' ) ),
 		);
 	}
 
@@ -230,7 +247,8 @@ final class AdminNotices {
 		}
 
 		$class = 'success' === $message[0] ? 'notice-success' : 'notice-error';
-		$text  = false !== strpos( $message[1], '%1$d' ) ? sprintf( $message[1], $first, $second ) : $message[1];
+		// Counts are shown in the "Label: number" form, which needs no plural, with localized digits.
+		$text  = false !== strpos( $message[1], '%1$' ) ? sprintf( $message[1], number_format_i18n( $first ), number_format_i18n( $second ) ) : $message[1];
 		echo '<div class="notice ' . esc_attr( $class ) . ' is-dismissible"><p>' . esc_html( $text ) . '</p></div>';
 	}
 

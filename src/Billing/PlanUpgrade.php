@@ -40,11 +40,28 @@ final class PlanUpgrade {
 	public const META_CONSENT         = '_wplc_upgrade_recurring_consent_at';
 	public const META_STATE           = '_wplc_upgrade_state';
 	public const META_REVIEW_REASON   = '_wplc_upgrade_review_reason';
+	/** How META_FROM_AMOUNT is to be read: '1' gross, '0' net, '-' unknown (P-04). */
+	public const META_FROM_INCLUDES_TAX = '_wplc_upgrade_from_includes_tax';
+	/** How META_RENEWAL_MINOR is to be read: '1' gross, '0' net (the shop's price setting at the quote, P-04). */
+	public const META_RENEWAL_INCLUDES_TAX = '_wplc_upgrade_renewal_includes_tax';
+	/** Contract price of the current period credited in the quote (P-06). */
+	public const META_CREDIT_MINOR = '_wplc_upgrade_credit_minor';
+	/** Unix time of the quote (P-17). */
+	public const META_QUOTED_AT = '_wplc_upgrade_quoted_at';
 
-	public const STATE_APPLIED  = 'applied';
-	public const STATE_REVIEW   = 'review';
-	public const STATE_REVERTED = 'reverted';
-	public const STATE_REFUNDED = 'refunded';
+	public const STATE_APPLIED   = 'applied';
+	public const STATE_REVIEW    = 'review';
+	public const STATE_REVERTED  = 'reverted';
+	public const STATE_REFUNDED  = 'refunded';
+	public const STATE_CANCELLED = 'cancelled';
+
+	/**
+	 * Seconds an unpaid upgrade order stays payable after its quote (P-17).
+	 *
+	 * The prorated price falls every day; an older quote is re-priced by
+	 * clicking "Upgrade" again.
+	 */
+	public const QUOTE_TTL = 86400;
 
 	/**
 	 * Notice codes of the customer forms (CustomerPortal::notice_messages()).
@@ -68,6 +85,14 @@ final class PlanUpgrade {
 		add_action( 'woocommerce_order_fully_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
 		add_action( 'woocommerce_order_status_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
 		add_action( 'woocommerce_order_partially_refunded', array( self::class, 'handle_partial_refund' ), 20, 2 );
+		// P-17: a paid upgrade order that is cancelled or fails afterwards (bounced SEPA debit) undoes the upgrade.
+		add_action( 'woocommerce_order_status_cancelled', array( self::class, 'handle_cancelled_order' ), 20, 1 );
+		add_action( 'woocommerce_order_status_failed', array( self::class, 'handle_cancelled_order' ), 20, 1 );
+		add_action( 'wplc_revert_plan_upgrade', array( self::class, 'handle_cancelled_order' ) );
+		// P-17: an upgrade order whose quote no longer applies cannot be paid.
+		add_filter( 'woocommerce_order_needs_payment', array( self::class, 'filter_needs_payment' ), 20, 2 );
+		// P-17: daily sweep for lost hooks, registered like the other daily jobs.
+		add_action( 'wplc_daily_lifecycle', array( self::class, 'reconcile_orders' ) );
 		// The account template prints the plan change section next to the renewal (T-110).
 		add_action( 'wplc_account_license_renewal', array( self::class, 'render_account_section' ), 20, 1 );
 	}
@@ -112,13 +137,18 @@ final class PlanUpgrade {
 	/**
 	 * Price of an upgrade now.
 	 *
+	 * The credit for the rest of the period is the license's contract price
+	 * (PlanChange::contract_price(): what is paid for the current period),
+	 * not today's catalog price of the purchased product (P-06). Both prices
+	 * are read the way the shop enters prices today (gross or net).
+	 *
 	 * @param array<string,mixed> $license License row.
 	 * @param array<string,mixed> $target Target from PlanChange::targets().
 	 * @param int                 $now Unix timestamp.
-	 * @return array{amount_minor:int,decimals:int,currency:string,renewal_minor:int,paid_until:string}|null Null when the target is no upgrade or nothing is left to pay.
+	 * @return array{amount_minor:int,decimals:int,currency:string,renewal_minor:int,renewal_includes_tax:bool,credit_minor:int,paid_until:string}|null Null when the target is no upgrade or nothing is left to pay.
 	 */
 	public static function quote( array $license, array $target, int $now ): ?array {
-		$current = PlanChange::current_price( $license );
+		$current = PlanChange::contract_price( $license );
 		if ( ! $current || PlanChange::KIND_UPGRADE !== ( $target['kind'] ?? '' ) || empty( $license['paid_until'] ) ) {
 			return null;
 		}
@@ -133,6 +163,8 @@ final class PlanUpgrade {
 			'decimals' => (int) $target['price']['decimals'],
 			'currency' => (string) $target['price']['currency'],
 			'renewal_minor' => (int) $target['price']['amount_minor'],
+			'renewal_includes_tax' => PlanChange::shop_prices_include_tax(),
+			'credit_minor' => (int) $current['amount_minor'],
 			'paid_until' => (string) $license['paid_until'],
 		);
 	}
@@ -253,7 +285,8 @@ final class PlanUpgrade {
 					if ( 'on-hold' === $candidate->get_status() ) {
 						return new \WP_Error( 'upgrade_pending', __( 'An upgrade order for this license is already waiting for your payment to arrive.', 'wp-license' ) );
 					}
-					if ( ! $order && in_array( $candidate->get_status(), array( 'pending', 'failed' ), true ) && $candidate->needs_payment() ) {
+					// An open order is re-priced below, also one whose quote expired (not payable any more, P-17).
+					if ( ! $order && in_array( $candidate->get_status(), array( 'pending', 'failed' ), true ) && ! $candidate->is_paid() && '' === $state ) {
 						$order = $candidate;
 					}
 				}
@@ -285,6 +318,10 @@ final class PlanUpgrade {
 					self::META_TO_PRODUCT => (int) $target['product_id'],
 					self::META_PAID_UNTIL => $quote['paid_until'],
 					self::META_RENEWAL_MINOR => $quote['renewal_minor'],
+					self::META_RENEWAL_INCLUDES_TAX => $quote['renewal_includes_tax'] ? '1' : '0',
+					self::META_FROM_INCLUDES_TAX => self::flag_meta( PlanChange::stored_includes_tax( $license ) ),
+					self::META_CREDIT_MINOR => $quote['credit_minor'],
+					self::META_QUOTED_AT => time(),
 				);
 				foreach ( $metas as $key => $value ) {
 					$order->update_meta_data( $key, $value );
@@ -306,7 +343,9 @@ final class PlanUpgrade {
 						'plan_key' => (string) $target['plan']['plan_key'],
 						'order_id' => (int) $order->get_id(),
 						'amount_minor' => $quote['amount_minor'],
+						'credit_minor' => $quote['credit_minor'],
 						'renewal_amount_minor' => $quote['renewal_minor'],
+						'renewal_amount_includes_tax' => $quote['renewal_includes_tax'],
 						'recurring_consent' => ! empty( $license['renewal_enabled'] ),
 					),
 					$customer_id
@@ -324,13 +363,17 @@ final class PlanUpgrade {
 	/**
 	 * Apply a paid upgrade order. Idempotent under duplicate hooks.
 	 *
+	 * An order that was cancelled after payment (STATE_CANCELLED, upgrade
+	 * undone) and is then marked as paid again is applied again, with the
+	 * usual checks (problem()).
+	 *
 	 * @param mixed $order_id Order ID.
 	 * @return void
 	 */
 	public static function handle_paid_order( $order_id ): void {
 		$order_id = absint( $order_id );
 		$order    = $order_id && function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
-		if ( ! $order instanceof \WC_Order || ! self::is_upgrade_order( $order ) || ! $order->is_paid() || '' !== (string) $order->get_meta( self::META_STATE, true ) ) {
+		if ( ! $order instanceof \WC_Order || ! self::is_upgrade_order( $order ) || ! $order->is_paid() || ! in_array( (string) $order->get_meta( self::META_STATE, true ), array( '', self::STATE_CANCELLED ), true ) ) {
 			return;
 		}
 		$license_id = absint( $order->get_meta( self::META_LICENSE, true ) );
@@ -382,6 +425,8 @@ final class PlanUpgrade {
 				'amount_minor' => absint( $order->get_meta( self::META_RENEWAL_MINOR, true ) ),
 				'decimals' => (int) $license['renewal_currency_decimals'],
 				'currency' => (string) $license['renewal_currency'],
+				// P-04: the consented amount is a catalog price, read as the shop entered prices at the quote.
+				'includes_tax' => self::meta_flag( $order, self::META_RENEWAL_INCLUDES_TAX, PlanChange::shop_prices_include_tax() ),
 			);
 			if ( $amount['amount_minor'] <= 0 || ! PlanChange::switch_locked( $license, $target, $amount, $order_id, 'plan_upgraded', AuditReason::encode( AuditReason::PLAN_UPGRADED_FROM_ORDER, array( 'order' => $order_id ) ), 0 ) ) {
 				$problem = AuditReason::UPGRADE_NOT_APPLIED;
@@ -491,7 +536,10 @@ final class PlanUpgrade {
 		$result     = PlanChange::with_locks(
 			$license_id,
 			static function ( array $license, int $renewal_id ) use ( $order, $state ) {
-				return self::revert_locked( $order, $license, $renewal_id, $state );
+				$reverted = self::revert_locked( $order, $license, $renewal_id, $state );
+				self::record_refund( $order, (int) $license['id'], $reverted );
+
+				return $reverted ? true : 'done';
 			}
 		);
 		if ( false === $result ) {
@@ -505,15 +553,69 @@ final class PlanUpgrade {
 	}
 
 	/**
-	 * Body of handle_full_refund() under the locks.
+	 * Undo an applied upgrade whose paid order was cancelled or failed afterwards (P-17).
 	 *
-	 * @param \WC_Order           $order Refunded upgrade order.
+	 * A bounced SEPA debit or a cancellation by the shop means the upgrade was
+	 * not paid. Like a full refund, the previous plan is restored while the
+	 * upgraded period is still running and the plan was not changed since.
+	 * Otherwise (a renewal at the new plan was paid, or the plan changed again)
+	 * the plan stays and the license is reported for review
+	 * (`wplc/license_needs_review`); the license is not suspended, because the
+	 * customer has paid for the plan they had before.
+	 *
+	 * If the order is marked as paid again later, handle_paid_order() applies
+	 * it again.
+	 *
+	 * @param mixed $order_id Order ID.
+	 * @return void
+	 */
+	public static function handle_cancelled_order( $order_id ): void {
+		$order_id = absint( $order_id );
+		$order    = $order_id && function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+		if (
+			! $order instanceof \WC_Order
+			|| ! self::is_upgrade_order( $order )
+			|| $order->is_paid()
+			|| ! in_array( $order->get_status(), array( 'cancelled', 'failed' ), true )
+			|| self::STATE_APPLIED !== (string) $order->get_meta( self::META_STATE, true )
+		) {
+			// Nothing was applied: an unpaid order, or one in review (the plan never changed).
+			return;
+		}
+		$license_id = absint( $order->get_meta( self::META_LICENSE, true ) );
+		$result     = PlanChange::with_locks(
+			$license_id,
+			static function ( array $license, int $renewal_id ) use ( $order ) {
+				$reverted = self::revert_locked( $order, $license, $renewal_id, self::STATE_APPLIED );
+				self::record_cancellation( $order, (int) $license['id'], $reverted );
+
+				return $reverted ? true : 'done';
+			}
+		);
+		if ( false === $result ) {
+			if ( ! PlanChange::get_license( $license_id ) ) {
+				self::record_cancellation( $order, $license_id, false );
+				return;
+			}
+			// A lock was busy: try again shortly (the daily sweep also picks it up).
+			self::queue_job( 'wplc_revert_plan_upgrade', $order_id );
+			return;
+		}
+		if ( true === $result ) {
+			PlanChange::fire_changed( $license_id );
+		}
+	}
+
+	/**
+	 * Restore the plan an applied upgrade order replaced, if that is still safe. Caller holds the locks.
+	 *
+	 * @param \WC_Order           $order Refunded or cancelled upgrade order.
 	 * @param array<string,mixed> $license License row.
 	 * @param int                 $renewal_id Renewal of the next period, zero for none.
-	 * @param string              $state Upgrade state before the refund.
-	 * @return bool|string True when the plan was reverted, 'done' otherwise.
+	 * @param string              $state Upgrade state before the refund or cancellation.
+	 * @return bool True when the plan was reverted.
 	 */
-	private static function revert_locked( $order, array $license, int $renewal_id, string $state ) {
+	private static function revert_locked( $order, array $license, int $renewal_id, string $state ): bool {
 		$order_id = (int) $order->get_id();
 		$reverted = false;
 		if (
@@ -528,6 +630,9 @@ final class PlanUpgrade {
 					'amount_minor' => absint( $order->get_meta( self::META_FROM_AMOUNT, true ) ),
 					'decimals' => (int) $license['renewal_currency_decimals'],
 					'currency' => (string) $license['renewal_currency'],
+					// P-04: the old amount keeps its old flag. Orders created before the flag was
+					// recorded: the upgrade did not change the flag then, so the license still has it.
+					'includes_tax' => self::meta_flag( $order, self::META_FROM_INCLUDES_TAX, PlanChange::stored_includes_tax( $license ) ),
 				);
 				$reverted = PlanChange::switch_locked(
 					$license,
@@ -546,9 +651,38 @@ final class PlanUpgrade {
 				PlanChange::reprice_open_renewal_order( $changed, $renewal_id );
 			}
 		}
-		self::record_refund( $order, (int) $license['id'], $reverted );
 
-		return $reverted ? true : 'done';
+		return $reverted;
+	}
+
+	/**
+	 * Audit entry, order note, state and review notice of a cancelled or failed paid upgrade order.
+	 *
+	 * @param \WC_Order $order Order.
+	 * @param int       $license_id License ID.
+	 * @param bool      $reverted Whether the previous plan was restored.
+	 * @return void
+	 */
+	private static function record_cancellation( $order, int $license_id, bool $reverted ): void {
+		$reason = AuditReason::encode( AuditReason::PLAN_UPGRADE_CANCELLED, array( 'order' => (int) $order->get_id(), 'status' => (string) $order->get_status() ) );
+		self::set_state( $order, self::STATE_CANCELLED );
+		AuditLog::record(
+			'plan_upgrade_cancelled',
+			'license',
+			$license_id,
+			$reason,
+			array( 'state' => self::STATE_APPLIED ),
+			array( 'reverted' => $reverted, 'order_id' => (int) $order->get_id(), 'order_status' => (string) $order->get_status() )
+		);
+		$order->add_order_note(
+			$reverted
+				? __( 'WP License Captain: the plan upgrade was not paid (order cancelled or failed); the license is back on its previous plan.', 'wp-license' )
+				: __( 'WP License Captain: the plan upgrade was not paid (order cancelled or failed), but the license plan was not changed back (the upgraded period has ended or the plan changed since). Review the license.', 'wp-license' )
+		);
+		if ( ! $reverted && $license_id > 0 ) {
+			/** This action is documented in src/License/LicenseLifecycle.php */
+			do_action( 'wplc/license_needs_review', $license_id, AuditReason::label( $reason ) );
+		}
 	}
 
 	/**
@@ -722,13 +856,224 @@ final class PlanUpgrade {
 	 * @return void
 	 */
 	private static function queue_apply( int $order_id ): void {
+		self::queue_job( 'wplc_apply_plan_upgrade', $order_id );
+	}
+
+	/**
+	 * Queue a job for one upgrade order.
+	 *
+	 * @param string $hook Hook name.
+	 * @param int    $order_id Order ID.
+	 * @return void
+	 */
+	private static function queue_job( string $hook, int $order_id ): void {
 		if ( function_exists( 'as_enqueue_async_action' ) ) {
-			\WPLC\Compatibility\Requirements::enqueue_async_action( 'wplc_apply_plan_upgrade', array( $order_id ), 'wplc' );
+			\WPLC\Compatibility\Requirements::enqueue_async_action( $hook, array( $order_id ), 'wplc' );
 			return;
 		}
-		if ( ! wp_next_scheduled( 'wplc_apply_plan_upgrade', array( $order_id ) ) ) {
-			wp_schedule_single_event( time() + 30, 'wplc_apply_plan_upgrade', array( $order_id ) );
+		if ( ! wp_next_scheduled( $hook, array( $order_id ) ) ) {
+			wp_schedule_single_event( time() + 30, $hook, array( $order_id ) );
 		}
+	}
+
+	/**
+	 * Why an unpaid upgrade order may no longer be paid, or '' (P-17).
+	 *
+	 * The quote is fixed when the order is created; it no longer applies when
+	 * the license's period or plan changed, the license cannot be upgraded
+	 * right now, or the quote is older than QUOTE_TTL (the prorated price
+	 * falls every day). The customer clicks "Upgrade" again for a new quote.
+	 *
+	 * @param \WC_Order $order Upgrade order.
+	 * @param int       $now Unix timestamp.
+	 * @return string Reason code or ''.
+	 */
+	public static function open_order_problem( $order, int $now ): string {
+		$license = PlanChange::get_license( absint( $order->get_meta( self::META_LICENSE, true ) ) );
+		if ( ! $license || (int) $order->get_customer_id() !== (int) $license['customer_id'] || ! self::can_upgrade( $license ) ) {
+			return AuditReason::UPGRADE_LICENSE_NOT_ACTIVE;
+		}
+		if ( (string) $license['paid_until'] !== (string) $order->get_meta( self::META_PAID_UNTIL, true ) ) {
+			return AuditReason::UPGRADE_PERIOD_CHANGED;
+		}
+		if (
+			(string) $license['plan_key'] !== (string) $order->get_meta( self::META_FROM_PLAN, true )
+			|| (int) $license['renewal_product_id'] !== absint( $order->get_meta( self::META_FROM_PRODUCT, true ) )
+			|| (int) $license['plan_order_id'] !== absint( $order->get_meta( self::META_FROM_PLAN_ORDER, true ) )
+		) {
+			return AuditReason::UPGRADE_PLAN_CHANGED;
+		}
+		$quoted_at = absint( $order->get_meta( self::META_QUOTED_AT, true ) );
+		if ( ! $quoted_at ) {
+			// Orders created before the quote time was recorded.
+			$created   = $order->get_date_created();
+			$quoted_at = $created ? (int) $created->getTimestamp() : 0;
+		}
+		if ( $now - $quoted_at > self::QUOTE_TTL ) {
+			return AuditReason::UPGRADE_QUOTE_EXPIRED;
+		}
+
+		return '';
+	}
+
+	/**
+	 * Filter `woocommerce_order_needs_payment`: an upgrade order whose quote no longer applies cannot be paid (P-17).
+	 *
+	 * @param mixed $needs_payment Whether the order needs payment.
+	 * @param mixed $order Order.
+	 * @return mixed
+	 */
+	public static function filter_needs_payment( $needs_payment, $order = null ) {
+		if ( ! $needs_payment || ! self::is_upgrade_order( $order ) || '' !== (string) $order->get_meta( self::META_STATE, true ) ) {
+			return $needs_payment;
+		}
+
+		return '' === self::open_order_problem( $order, time() ) ? $needs_payment : false;
+	}
+
+	/**
+	 * Cancel the unpaid upgrade orders of a license whose quote no longer applies (P-17).
+	 *
+	 * Called after a renewal was booked (PlanChange::apply_pending_after_renewal())
+	 * and by the daily sweep. Orders waiting for an offline payment (on-hold)
+	 * are not cancelled; when that payment arrives, the order is checked and
+	 * goes to review if it no longer fits.
+	 *
+	 * @param int $license_id License ID.
+	 * @return int Number of cancelled orders.
+	 */
+	public static function close_stale_orders( int $license_id ): int {
+		$ids = $license_id > 0 ? RenewalOrder::find_ids_by_meta( self::META_LICENSE, (string) $license_id, 20 ) : array();
+		if ( is_wp_error( $ids ) || ! function_exists( 'wc_get_order' ) ) {
+			return 0;
+		}
+		$closed = 0;
+		foreach ( $ids as $id ) {
+			$order = wc_get_order( $id );
+			if ( $order instanceof \WC_Order && absint( $order->get_meta( self::META_LICENSE, true ) ) === $license_id && self::close_if_stale( $order ) ) {
+				++$closed;
+			}
+		}
+
+		return $closed;
+	}
+
+	/**
+	 * Cancel one unpaid (pending or failed) upgrade order whose quote no longer applies.
+	 *
+	 * @param \WC_Order $order Upgrade order.
+	 * @return bool True when the order was cancelled.
+	 */
+	private static function close_if_stale( $order ): bool {
+		if (
+			$order->is_paid()
+			|| ! in_array( $order->get_status(), array( 'pending', 'failed' ), true )
+			|| '' !== (string) $order->get_meta( self::META_STATE, true )
+			|| '' === self::open_order_problem( $order, time() )
+		) {
+			return false;
+		}
+		$order->update_status( 'cancelled', __( 'WP License Captain: the price of this plan upgrade no longer applies (the paid period or the plan of the license changed, or the offer expired). The customer can start the upgrade again from their account.', 'wp-license' ) );
+
+		return true;
+	}
+
+	/**
+	 * Daily sweep of upgrade orders (P-17).
+	 *
+	 * - Paid orders that were not applied (lost hook or job, plugin inactive
+	 *   during the payment) are applied now, or go to review.
+	 * - Applied orders that were cancelled or failed afterwards while their
+	 *   hook was lost are undone (handle_cancelled_order()).
+	 * - Unpaid orders whose quote no longer applies are cancelled.
+	 *
+	 * Looks at upgrade orders changed during the last 60 days.
+	 *
+	 * @return void
+	 */
+	public static function reconcile_orders(): void {
+		if ( RenewalProcessor::billing_paused() || ! function_exists( 'wc_get_orders' ) ) {
+			return;
+		}
+		LicenseLifecycle::run_guarded(
+			'reconcile_plan_upgrades',
+			static function () {
+				$deadline = microtime( true ) + 20;
+				$page     = 1;
+				do {
+					$ids = wc_get_orders(
+						array(
+							'limit' => 100,
+							'page' => $page,
+							'return' => 'ids',
+							'type' => 'shop_order',
+							'status' => array_keys( wc_get_order_statuses() ),
+							'created_via' => 'wplc_plan_upgrade',
+							'date_modified' => '>' . ( time() - 60 * DAY_IN_SECONDS ),
+							'orderby' => 'ID',
+							'order' => 'ASC',
+						)
+					);
+					$ids = is_array( $ids ) ? $ids : array();
+					foreach ( $ids as $id ) {
+						self::reconcile_order( absint( $id ) );
+					}
+					++$page;
+				} while ( count( $ids ) >= 100 && microtime( true ) < $deadline );
+			}
+		);
+	}
+
+	/**
+	 * Reconcile one upgrade order (see reconcile_orders()).
+	 *
+	 * @param int $order_id Order ID.
+	 * @return void
+	 */
+	public static function reconcile_order( int $order_id ): void {
+		$order = wc_get_order( $order_id );
+		if ( ! $order instanceof \WC_Order || ! self::is_upgrade_order( $order ) ) {
+			return;
+		}
+		$state = (string) $order->get_meta( self::META_STATE, true );
+		if ( $order->is_paid() ) {
+			if ( in_array( $state, array( '', self::STATE_CANCELLED ), true ) ) {
+				self::handle_paid_order( $order_id );
+			}
+			return;
+		}
+		if ( self::STATE_APPLIED === $state ) {
+			self::handle_cancelled_order( $order_id );
+			return;
+		}
+		self::close_if_stale( $order );
+	}
+
+	/**
+	 * Read a stored gross/net flag of an upgrade order.
+	 *
+	 * @param \WC_Order $order Order.
+	 * @param string    $key Meta key.
+	 * @param bool|null $missing Value for orders without the meta (created before it was recorded).
+	 * @return bool|null
+	 */
+	private static function meta_flag( $order, string $key, ?bool $missing ): ?bool {
+		if ( ! $order->meta_exists( $key ) ) {
+			return $missing;
+		}
+		$value = (string) $order->get_meta( $key, true );
+
+		return '1' === $value ? true : ( '0' === $value ? false : null );
+	}
+
+	/**
+	 * Stored form of a gross/net flag.
+	 *
+	 * @param bool|null $flag Flag.
+	 * @return string '1', '0' or '-' (unknown).
+	 */
+	private static function flag_meta( ?bool $flag ): string {
+		return null === $flag ? '-' : ( $flag ? '1' : '0' );
 	}
 
 	/**

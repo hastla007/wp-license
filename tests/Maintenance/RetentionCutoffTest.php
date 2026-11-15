@@ -9,6 +9,8 @@ use PHPUnit\Framework\TestCase;
 use WPLC\Maintenance\Retention;
 use WPLC\Privacy\PersonalData;
 
+require_once dirname( __DIR__ ) . '/Admin/wp-function-stubs.php';
+
 final class RetentionCutoffTest extends TestCase {
 
 	/**
@@ -112,5 +114,43 @@ final class RetentionCutoffTest extends TestCase {
 		$this->assertSame( 1, PersonalData::pages( 100, 100 ) );
 		$this->assertSame( 2, PersonalData::pages( 101, 100 ) );
 		$this->assertSame( 0, PersonalData::pages( -5, 100 ) );
+	}
+
+	// P-51: yesterday's API error counters (bucket yesterday 00:00 UTC) survive the hourly sweep all day.
+	public function test_rate_limit_sweep_keeps_yesterdays_daily_counter_until_the_end_of_today(): void {
+		$end_of_today      = gmmktime( 23, 59, 59, 3, 10, 2027 );
+		$yesterday_counter = '2027-03-09 00:00:00';
+
+		$this->assertLessThan( $yesterday_counter, Retention::request_limit_cutoff( $end_of_today ) );
+		$this->assertLessThan( $yesterday_counter, Retention::request_limit_cutoff( self::NOW ) );
+		// The counter of the day before yesterday goes once today has started.
+		$this->assertGreaterThan( '2027-03-08 00:00:00', Retention::request_limit_cutoff( gmmktime( 0, 0, 1, 3, 10, 2027 ) ) );
+		$this->assertSame( 2, Retention::REQUEST_LIMIT_RETENTION_DAYS );
+	}
+
+	public function test_b45_effective_days_show_which_rules_are_off(): void {
+		$days = Retention::effective_days( array( 'audit_log' => '90', 'event_inbox' => -1, 'reminder_log' => 'x', 'unknown' => 5 ) );
+
+		$this->assertSame( array_keys( Retention::DEFAULT_DAYS ), array_keys( $days ) );
+		$this->assertSame( 90, $days['audit_log'] );
+		$this->assertSame( 0, $days['event_inbox'], 'Negative values switch the rule off.' );
+		$this->assertSame( 0, $days['reminder_log'], 'Non-numeric values switch the rule off.' );
+		$this->assertSame( 0, $days['anonymize_licenses'], 'Anonymisation stays off unless the operator sets a period.' );
+		$this->assertSame( Retention::DEFAULT_DAYS['consents'], $days['consents'] );
+	}
+
+	public function test_b45_configured_days_apply_the_filter(): void {
+		$GLOBALS['wplc_test_filters']['wplc_retention_days'] = array(
+			static function ( $days ) {
+				$days['anonymize_licenses'] = 1095;
+				return $days;
+			},
+		);
+		try {
+			$this->assertSame( 1095, Retention::configured_days()['anonymize_licenses'] );
+		} finally {
+			unset( $GLOBALS['wplc_test_filters']['wplc_retention_days'] );
+		}
+		$this->assertSame( 0, Retention::configured_days()['anonymize_licenses'] );
 	}
 }

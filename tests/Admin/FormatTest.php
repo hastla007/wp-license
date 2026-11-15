@@ -89,4 +89,14 @@ final class FormatTest extends TestCase {
 		$this->assertNull( Format::utc_timestamp( 'tomorrow' ) );
 		$this->assertSame( '', Format::utc_to_local_date( null, new DateTimeZone( 'UTC' ) ) );
 	}
+
+	public function test_a122_audit_actions_have_readable_names(): void {
+		$this->assertSame( 'Term changed by support', Format::audit_action_label( 'admin_extend' ) );
+		$this->assertSame( 'Renewal amount changed by support', Format::audit_action_label( 'admin_renewal_amount_changed' ) );
+		// Codes without a label are made readable instead of shown raw.
+		$this->assertSame( 'Stripe webhook mismatch', Format::audit_action_label( 'stripe_webhook_mismatch' ) );
+		foreach ( Format::audit_action_labels() as $code => $label ) {
+			$this->assertStringNotContainsString( '_', $label, 'Raw code ' . $code . ' must not leak into the label.' );
+		}
+	}
 }

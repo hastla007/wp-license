@@ -2,8 +2,17 @@
 
 Reusable tools from the review of the plugin (task B-181). They look for defects the unit
 and integration suites cannot see: inputs nobody thought of, and several PHP processes
-working on the same license at the same time. They print what happened; a person reads the
-output. Nothing here runs in CI and nothing here is loaded by the plugin.
+working on the same license at the same time. Nothing here runs in CI yet and nothing here
+is loaded by the plugin, but every step reports its verdict through the exit code (B-196), so
+the runs can be added to CI:
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | every scenario passed (`PASS <name>` lines, then `all passed`) |
+| 1 | at least one scenario failed (`FAIL <name>: <reason>` lines; the summary names them) |
+| 2 | harness error: missing environment, setup or check could not run |
+
+`WPLC_STRESS_SCENARIOS="process_parallel manual_paid"` limits `run.sh race` to some scenarios.
 
 ```bash
 tests/stress/run.sh fuzz                 # pure classes, no WordPress, about 20 seconds
@@ -17,19 +26,23 @@ tests/stress/race/run.sh process_parallel 8   # one scenario
   100,000 random values each to `Money`, `SiteUrl`, `ClientIp`, `LicenseKey`, the state
   machine, `RenewalScheduler::period_end()`, `ReminderSchedule`, `SecretCrypto` and
   `ResponseSigner`, and compares against a reference calculation where one exists. The
-  section `==== FAILURES` must be read: every line is a property that did not hold.
-  Known and still open: two lines for `RenewalScheduler` (a later purchase at a month end can
-  end earlier, task B-178).
+  section `==== FAILURES` lists every property that did not hold. Areas with a known, still
+  open defect are marked `(known open: …)` and do not fail the run: two lines for
+  `RenewalScheduler` (a later purchase at a month end can end earlier, task B-178). Any other
+  area fails it. The list is `$known_open` at the end of `fuzz1.php`; remove an entry once its
+  task is done.
 - `fuzz2.php` needs the test site (it loads `race/boot.php`): REST envelope with odd data,
   release validation, package storage names, admin search classification, Stripe version
-  checks. It only prints results; exceptions from `src/` abort it.
+  checks. It only prints results; it fails when an exception from `src/` aborts it.
 
 ## race/
 
 `run.sh <scenario> [N]` builds a fixture (`setup.php`), starts N processes (`worker.php`)
 that wait for the same instant and then all do the same thing (or two opposing things), and
 prints one JSON line per process plus the charge requests the fake gateway
-(`qa-adapter.php`, slow on purpose) received. Unlike PHPUnit there is no transaction around
+(`qa-adapter.php`, slow on purpose) received. Then `check.php` reads the worker lines, the
+charge log and the database and checks the rule in the table below; it also fails a scenario
+when a worker gave no result line, answered HTTP 5xx or raised a PHP notice from `src/`. Unlike PHPUnit there is no transaction around
 the processes, so locks and compare-and-set updates are really exercised.
 
 | Scenario | What must hold |

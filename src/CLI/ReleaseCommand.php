@@ -104,8 +104,10 @@ final class ReleaseCommand {
 		}
 		\WP_CLI::success(
 			$result['published']
-				? sprintf( 'Release %d published.', $result['release_id'] )
-				: sprintf( 'Draft release %d created. Publish it with "wp wplc release publish %d --reason=...".', $result['release_id'], $result['release_id'] )
+				/* translators: %d: release ID. */
+				? sprintf( __( 'Release %d published.', 'wp-license' ), $result['release_id'] )
+				/* translators: %d: release ID. */
+				: sprintf( __( 'Draft release %1$d created. Publish it with "wp wplc release publish %1$d --reason=...".', 'wp-license' ), $result['release_id'] )
 		);
 	}
 
@@ -138,7 +140,8 @@ final class ReleaseCommand {
 		if ( '' !== $warning ) {
 			\WP_CLI::warning( $warning );
 		}
-		\WP_CLI::success( sprintf( 'Release %d published.', $release_id ) );
+		/* translators: %d: release ID. */
+		\WP_CLI::success( sprintf( __( 'Release %d published.', 'wp-license' ), $release_id ) );
 	}
 
 	/**
@@ -166,7 +169,8 @@ final class ReleaseCommand {
 		if ( is_wp_error( $result ) ) {
 			\WP_CLI::error( $result->get_error_message() );
 		}
-		\WP_CLI::success( sprintf( 'Release %d withdrawn.', $release_id ) );
+		/* translators: %d: release ID. */
+		\WP_CLI::success( sprintf( __( 'Release %d withdrawn.', 'wp-license' ), $release_id ) );
 	}
 
 	/**
@@ -178,13 +182,15 @@ final class ReleaseCommand {
 	public static function run_create( array $assoc_args ) {
 		$zip = (string) ( $assoc_args['zip'] ?? '' );
 		if ( '' === $zip || ! is_file( $zip ) || ! is_readable( $zip ) ) {
-			return new \WP_Error( 'zip_not_found', sprintf( 'The ZIP file "%s" does not exist or is not readable.', $zip ) );
+			/* translators: %s: path of the ZIP file. */
+			return new \WP_Error( 'zip_not_found', sprintf( __( 'The ZIP file "%s" does not exist or is not readable.', 'wp-license' ), $zip ) );
 		}
 		$notes = (string) ( $assoc_args['notes'] ?? '' );
 		$notes_file = (string) ( $assoc_args['notes-file'] ?? '' );
 		if ( '' !== $notes_file ) {
 			if ( ! is_file( $notes_file ) || ! is_readable( $notes_file ) ) {
-				return new \WP_Error( 'notes_not_found', sprintf( 'The notes file "%s" does not exist or is not readable.', $notes_file ) );
+				/* translators: %s: path of the release notes file. */
+				return new \WP_Error( 'notes_not_found', sprintf( __( 'The notes file "%s" does not exist or is not readable.', 'wp-license' ), $notes_file ) );
 			}
 			$notes = (string) file_get_contents( $notes_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local file named by the operator.
 		}

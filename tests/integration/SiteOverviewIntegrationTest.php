@@ -302,4 +302,51 @@ final class SiteOverviewIntegrationTest extends WPLC_Integration_TestCase {
 
 		$this->assertSame( 'active', $this->activation( $id )['status'] );
 	}
+
+	/**
+	 * P-39 (B-17): the deactivation form of the Sites page posts to the account
+	 * page itself (front-end handler), never to wp-admin/admin-post.php, and
+	 * returns to the same selection.
+	 */
+	public function test_p39_deactivate_form_uses_the_front_end_handler_and_returns_to_the_page(): void {
+		$ids = $this->seed_agency();
+		wp_set_current_user( $this->customer_a );
+		$id   = $ids['voucher_only'];
+		$html = $this->render_page( array( 'wplc_site' => 'kunde' ) );
+
+		$this->assertSame( 1, preg_match( '#<form method="post" action="([^"]+)"[^>]*>(?:(?!</form>).)*name="activation_id" value="' . $id . '"(?:(?!</form>).)*</form>#s', $html, $form ) );
+		$this->assertStringNotContainsString( 'admin-post.php', $form[0] );
+		$this->assertStringContainsString( SiteOverview::ENDPOINT, html_entity_decode( $form[1] ) );
+		$this->assertStringContainsString( 'name="' . \WPLC\Account\CustomerPortal::FORM_MARKER . '" value="1"', $form[0] );
+		$this->assertSame( 1, preg_match( '#name="wplc_return" value="([^"]+)"#', $form[0], $return ) );
+		$return_url = html_entity_decode( $return[1] );
+		$this->assertStringContainsString( 'wplc_site=kunde', $return_url, 'The customer returns to the same selection.' );
+
+		$this->halt_instead_of_exit();
+		$_POST                     = wp_slash(
+			array(
+				\WPLC\Account\CustomerPortal::FORM_MARKER => '1',
+				'action'                                  => 'wplc_deactivate_site',
+				'activation_id'                           => (string) $id,
+				'wplc_return'                             => $return_url,
+				'_wpnonce'                                => wp_create_nonce( 'wplc_deactivate_site_' . $id ),
+			)
+		);
+		$_REQUEST                  = $_POST;
+		$_SERVER['REQUEST_METHOD'] = 'POST';
+		$location                  = '';
+		try {
+			\WPLC\Account\CustomerPortal::handle_front_post();
+		} catch ( WPLC_Test_Halt $halt ) {
+			$location = $halt->location;
+		} finally {
+			$_SERVER['REQUEST_METHOD'] = 'GET';
+			$_POST                     = array();
+			$_REQUEST                  = array();
+		}
+
+		$this->assertSame( 'deactivated', $this->activation( $id )['status'] );
+		$this->assertStringContainsString( SiteOverview::ENDPOINT, $location );
+		$this->assertStringContainsString( 'wplc_site=kunde', $location );
+	}
 }

@@ -99,4 +99,49 @@ final class SchemaStructureTest extends TestCase {
 
 		$this->assertSame( 'wp_7_wplc_reminder_log', $tables['reminder_log'] );
 	}
+
+	// P-53: the daily structure check also compares the declared indexes.
+	public function test_index_names_are_read_from_the_create_statement(): void {
+		$statement = "CREATE TABLE wp_wplc_example (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			token bigint(20) unsigned NOT NULL DEFAULT 0,
+			uuid char(36) NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY uuid (uuid),
+			KEY payment_token (token),
+			INDEX `by_uuid_token` (uuid,token)
+		) DEFAULT CHARSET=utf8mb4;";
+
+		$this->assertSame( array( 'uuid', 'payment_token', 'by_uuid_token' ), Schema::expected_indexes( $statement ) );
+	}
+
+	public function test_a_missing_index_is_a_problem_and_names_compare_case_insensitively(): void {
+		$this->assertSame( array(), Schema::index_problems( 'wp_wplc_licenses', array( 'payment_token', 'created_at' ), array( 'PRIMARY', 'PAYMENT_TOKEN', 'created_at' ) ) );
+		$this->assertSame(
+			array( 'wp_wplc_licenses: index payment_token is missing' ),
+			Schema::index_problems( 'wp_wplc_licenses', array( 'payment_token', 'created_at' ), array( 'PRIMARY', 'created_at' ) )
+		);
+	}
+
+	// P-32: a deleted site's tables are recognized by the exact site prefix.
+	public function test_site_tables_are_matched_by_the_exact_prefix(): void {
+		$this->assertTrue( Schema::is_site_table( 'wp_2_wplc_licenses', 'wp_2_' ) );
+		$this->assertTrue( Schema::is_site_table( 'wp_2_wplc_old_feature', 'wp_2_' ) );
+		$this->assertFalse( Schema::is_site_table( 'wp_22_wplc_licenses', 'wp_2_' ) );
+		$this->assertFalse( Schema::is_site_table( 'wp_2_posts', 'wp_2_' ) );
+		$this->assertFalse( Schema::is_site_table( 'wp_2_wplc_licenses', '' ) );
+	}
+
+	public function test_orphaned_tables_belong_to_sites_that_no_longer_exist(): void {
+		$tables = array( 'wp_wplc_licenses', 'wp_2_wplc_licenses', 'wp_3_wplc_licenses', 'wp_3_wplc_audit_log', 'wp_3_posts', 'wp_12_wplc_renewals', 'other_4_wplc_licenses' );
+
+		$this->assertSame(
+			array(
+				3  => array( 'wp_3_wplc_licenses', 'wp_3_wplc_audit_log' ),
+				12 => array( 'wp_12_wplc_renewals' ),
+			),
+			Schema::orphans_from( $tables, 'wp_', array( 1, 2 ) )
+		);
+		$this->assertSame( array(), Schema::orphans_from( $tables, 'wp_', array( 1, 2, 3, 12 ) ) );
+	}
 }

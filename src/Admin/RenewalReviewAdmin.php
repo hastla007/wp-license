@@ -19,7 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Lists renewals in status `review_required` and runs the three resolutions.
  *
- * Every action needs `manage_woocommerce`, a per-renewal nonce and a reason;
+ * Every action needs `wplc_manage_licenses` (booking also `wplc_grant_licenses`,
+ * because it extends the license), a per-renewal nonce and a reason;
  * the work is done by RenewalReview under the per-renewal lock.
  */
 final class RenewalReviewAdmin {
@@ -30,6 +31,16 @@ final class RenewalReviewAdmin {
 	public const PAGE = 'wplc-renewal-review';
 
 	/**
+	 * Transient with the open case count for the menu badge (P-52).
+	 */
+	public const COUNT_TRANSIENT = 'wplc_review_menu_count';
+
+	/**
+	 * Seconds the menu badge count is cached. The review page itself always reads the database.
+	 */
+	private const COUNT_TTL = 60;
+
+	/**
 	 * Register menu, assets and the action handler.
 	 *
 	 * @return void
@@ -37,6 +48,9 @@ final class RenewalReviewAdmin {
 	public static function register_hooks(): void {
 		// After LicenseAdmin (priority 10), so the entry sits below "Licenses".
 		add_action( 'admin_menu', array( self::class, 'register_menu' ), 11 );
+		// The cached menu count must follow new and closed cases at once.
+		add_action( 'wplc/renewal_needs_review', array( self::class, 'flush_count' ) );
+		add_action( 'wplc/review_case_changed', array( self::class, 'flush_count' ) );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 		add_action( 'admin_post_wplc_admin_renewal_review', array( self::class, 'handle_action' ) );
 	}
@@ -67,20 +81,49 @@ final class RenewalReviewAdmin {
 	}
 
 	/**
+	 * Drop the cached menu count when a case opens or closes.
+	 *
+	 * @return void
+	 */
+	public static function flush_count(): void {
+		delete_transient( self::COUNT_TRANSIENT );
+	}
+
+	/**
+	 * Open review cases for the menu badge, cached briefly.
+	 *
+	 * The menu is built on every admin request; a badge that lags up to a minute
+	 * behind is fine, a COUNT query on every request is not needed.
+	 *
+	 * @return int
+	 */
+	public static function menu_count(): int {
+		$cached = get_transient( self::COUNT_TRANSIENT );
+		if ( is_numeric( $cached ) ) {
+			return max( 0, (int) $cached );
+		}
+		$count = RenewalReview::open_count();
+		set_transient( self::COUNT_TRANSIENT, (string) $count, self::COUNT_TTL );
+
+		return $count;
+	}
+
+	/**
 	 * Add the WooCommerce submenu page.
 	 *
 	 * @return void
 	 */
 	public static function register_menu(): void {
-		$count = current_user_can( 'manage_woocommerce' ) ? RenewalReview::open_count() : 0;
+		$count = Capabilities::can( 'manage_licenses' ) ? self::menu_count() : 0;
 		add_submenu_page(
-			'woocommerce',
+			Capabilities::menu_parent(),
 			__( 'Renewals to review', 'wp-license' ),
 			self::menu_title( __( 'Renewals to review', 'wp-license' ), $count ),
-			'manage_woocommerce',
+			Capabilities::cap( 'manage_licenses' ),
 			self::PAGE,
 			array( self::class, 'render' )
 		);
+		LicenseAdmin::connect_page( self::PAGE, __( 'Renewals to review', 'wp-license' ) );
 	}
 
 	/**
@@ -110,6 +153,7 @@ final class RenewalReviewAdmin {
 			RenewalReview::KIND_PAID_NOT_BOOKED => __( 'Automatic payment taken, license not extended', 'wp-license' ),
 			RenewalReview::KIND_MANUAL_PAYMENT  => __( 'Manual payment not applied', 'wp-license' ),
 			RenewalReview::KIND_NO_ORDER        => __( 'No paid or payable order', 'wp-license' ),
+			RenewalReview::KIND_ORDER_CLOSED    => __( 'Order refunded or cancelled', 'wp-license' ),
 		);
 
 		return $labels[ $kind ] ?? $kind;
@@ -121,9 +165,7 @@ final class RenewalReviewAdmin {
 	 * @return void
 	 */
 	public static function render(): void {
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_die( esc_html__( 'You do not have permission to view licenses.', 'wp-license' ), '', array( 'response' => 403 ) );
-		}
+		Capabilities::require_cap( 'manage_licenses', __( 'You do not have permission to change licenses.', 'wp-license' ) );
 
 		$cases = RenewalReview::open_cases();
 		echo '<div class="wrap wplc-renewal-review">';
@@ -136,8 +178,8 @@ final class RenewalReviewAdmin {
 		echo '<li>' . esc_html__( 'Mark as not paid (unknown result only): the payment was not taken. The order becomes Failed, the license past due, and automatic retries continue.', 'wp-license' ) . '</li>';
 		echo '<li>' . esc_html__( 'Close without booking: you refunded the payment in WooCommerce or decided otherwise. The license is not extended. No refund is made here.', 'wp-license' ) . '</li>';
 		echo '</ul>';
-		/* translators: %d: number of days. */
-		echo '<p class="description">' . esc_html( sprintf( __( 'While a review is open, the license does not expire, for at most %d days after the review started. Access to updates still ends with the grace period.', 'wp-license' ), LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS ) ) . '</p>';
+		/* translators: %s: number of days. */
+		echo '<p class="description">' . esc_html( sprintf( _n( 'While a review is open, the license does not expire, for at most %s day after the review started. Access to updates still ends with the grace period.', 'While a review is open, the license does not expire, for at most %s days after the review started. Access to updates still ends with the grace period.', LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS, 'wp-license' ), number_format_i18n( LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS ) ) ) . '</p>';
 
 		if ( ! $cases ) {
 			echo '<p><strong>' . esc_html__( 'No renewal needs review.', 'wp-license' ) . '</strong></p></div>';
@@ -154,8 +196,8 @@ final class RenewalReviewAdmin {
 		}
 		echo '</tbody></table>';
 		if ( count( $cases ) >= RenewalReview::LIST_LIMIT ) {
-			/* translators: %d: number of rows. */
-			echo '<p class="description">' . esc_html( sprintf( __( 'Only the oldest %d cases are shown.', 'wp-license' ), RenewalReview::LIST_LIMIT ) ) . '</p>';
+			/* translators: %s: number of rows. */
+			echo '<p class="description">' . esc_html( sprintf( _n( 'Only the oldest %s case is shown.', 'Only the oldest %s cases are shown.', RenewalReview::LIST_LIMIT, 'wp-license' ), number_format_i18n( RenewalReview::LIST_LIMIT ) ) ) . '</p>';
 		}
 		echo '</div>';
 	}
@@ -174,7 +216,7 @@ final class RenewalReviewAdmin {
 			'customer_id' => (int) $case['customer_id'],
 		);
 		$order      = RenewalReview::order_for( $case, $license );
-		$kind       = RenewalReview::kind( null !== $order, $order ? \WPLC\Billing\RenewalOrder::is_manual( $order ) : false, $order ? $order->is_paid() : false );
+		$kind       = RenewalReview::kind_for_order( $order );
 
 		if ( null === $license ) {
 			/* translators: %d: license ID. */
@@ -225,6 +267,9 @@ final class RenewalReviewAdmin {
 			RenewalReview::ACTION_CLOSE    => array( __( 'Close without booking', 'wp-license' ), __( 'Close this review without extending the license?', 'wp-license' ), '' ),
 		);
 		foreach ( RenewalReview::actions( $kind ) as $action ) {
+			if ( ! self::may_run( $action ) ) {
+				continue;
+			}
 			$button  = $buttons[ $action ];
 			$field_id = 'wplc-review-' . $renewal_id . '-' . $action;
 			echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-wplc-confirm="' . esc_attr( $button[1] ) . '">';
@@ -255,16 +300,34 @@ final class RenewalReviewAdmin {
 	 * @return void
 	 */
 	public static function handle_action(): void {
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_die( esc_html__( 'You do not have permission to change licenses.', 'wp-license' ), '', array( 'response' => 403 ) );
-		}
+		Capabilities::require_cap( 'manage_licenses', __( 'You do not have permission to change licenses.', 'wp-license' ) );
 		$renewal_id = isset( $_POST['renewal_id'] ) ? absint( $_POST['renewal_id'] ) : 0;
 		check_admin_referer( self::nonce_action( $renewal_id ) );
 
 		$action = isset( $_POST['review_action'] ) ? sanitize_key( wp_unslash( $_POST['review_action'] ) ) : '';
+		if ( ! self::may_run( $action ) ) {
+			wp_die( esc_html__( 'You do not have permission to extend licenses.', 'wp-license' ), '', array( 'response' => 403 ) );
+		}
 		$reason = isset( $_POST['reason'] ) ? trim( sanitize_textarea_field( wp_unslash( $_POST['reason'] ) ) ) : '';
 
 		AdminNotices::redirect_to( self::run_action( $renewal_id, $action, $reason, get_current_user_id() ), self::list_url() );
+	}
+
+	/**
+	 * Whether the current user may run a review action (P-07).
+	 *
+	 * Booking extends the license by one period, so it also needs the right to
+	 * grant license time; the other resolutions need `wplc_manage_licenses` only.
+	 *
+	 * @param string $action RenewalReview::ACTION_* constant.
+	 * @return bool
+	 */
+	public static function may_run( string $action ): bool {
+		if ( ! Capabilities::can( 'manage_licenses' ) ) {
+			return false;
+		}
+
+		return RenewalReview::ACTION_BOOK !== $action || Capabilities::can( 'grant_licenses' );
 	}
 
 	/**

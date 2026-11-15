@@ -27,13 +27,19 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 	 * - The download only follows `https://` addresses (plain `http://` only
 	 *   for localhost), also on every redirect, and stops at
 	 *   MAX_PACKAGE_BYTES (filter `{prefix}_license_max_package_bytes`).
+	 * - Multisite with one activation per site: WordPress keeps one update list
+	 *   for the whole network, so the update data is cached once for the network
+	 *   and always fetched with the credentials of the same site: the main site
+	 *   when it is activated, otherwise the activated site found last time, otherwise
+	 *   the activated site with the lowest ID. Updates do not depend on which
+	 *   site happens to run the check.
 	 */
 	final class Updater {
 
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.1';
+		const VERSION = '2.0.2';
 
 		/**
 		 * Seconds a successful check is cached.
@@ -63,6 +69,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		private $manager;
 
 		/**
+		 * `Update URI` header read from the plugin file, memoised for the request (null: not read yet).
+		 *
+		 * @var string|null
+		 */
+		private $header_update_uri = null;
+
+		/**
 		 * Constructor.
 		 *
 		 * @param LicenseManager $manager License manager of the add-on.
@@ -86,7 +99,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 			add_filter( 'plugins_api', array( $this, 'filter_plugin_information' ), 10, 3 );
 			add_filter( 'upgrader_pre_download', array( $this, 'filter_pre_download' ), 10, 3 );
 			add_filter( 'upgrader_source_selection', array( $this, 'filter_source_selection' ), 10, 4 );
-			add_action( 'upgrader_process_complete', array( $this, 'flush' ), 10, 0 );
+			add_action( 'upgrader_process_complete', array( $this, 'after_upgrade' ), 10, 2 );
 			add_action( 'in_plugin_update_message-' . $this->basename(), array( $this, 'render_update_message' ), 10, 0 );
 
 			return true;
@@ -115,13 +128,19 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		/**
 		 * Value of the `Update URI` header.
 		 *
+		 * The configured `update_uri` wins and costs no file access. Without it the
+		 * plugin file is read once per request and the result is kept in memory.
+		 *
 		 * @return string
 		 */
 		public function update_uri(): string {
 			$uri = (string) $this->manager->config( 'update_uri' );
 			if ( '' === $uri && '' !== (string) $this->manager->config( 'plugin_file' ) && function_exists( 'get_file_data' ) ) {
-				$headers = get_file_data( (string) $this->manager->config( 'plugin_file' ), array( 'UpdateURI' => 'Update URI' ), 'plugin' );
-				$uri     = (string) ( $headers['UpdateURI'] ?? '' );
+				if ( null === $this->header_update_uri ) {
+					$headers                 = get_file_data( (string) $this->manager->config( 'plugin_file' ), array( 'UpdateURI' => 'Update URI' ), 'plugin' );
+					$this->header_update_uri = (string) ( $headers['UpdateURI'] ?? '' );
+				}
+				$uri = $this->header_update_uri;
 			}
 
 			return trim( $uri );
@@ -154,12 +173,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		 * @return array<string,mixed> Signed data of `POST /updates/check`, or `array( 'error' => code )` after a failure.
 		 */
 		public function metadata( bool $fresh = false ): array {
-			$client = $this->manager->client();
-			if ( ! $client->is_activated() || ! $client->site_matches() ) {
+			$client  = $this->manager->client();
+			$network = $this->per_site_network();
+			if ( ! $network && ( ! $client->is_activated() || ! $client->site_matches() ) ) {
 				return array( 'error' => 'wplc_not_activated' );
 			}
 			$now    = $client->now();
-			$cached = $client->store()->get( $this->cache_option(), array() );
+			$cached = $this->cache_get();
 			if ( ! $fresh
 				&& is_array( $cached )
 				&& isset( $cached['data'], $cached['expires'], $cached['version'] )
@@ -170,8 +190,17 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 				return (array) $cached['data'];
 			}
 
-			$data = $client->check_update( false, $this->request_fields() );
-			if ( is_wp_error( $data ) ) {
+			$fields = $this->request_fields();
+			$data   = $this->as_source(
+				static function () use ( $client, $fields ) {
+					return $client->check_update( false, $fields );
+				}
+			);
+			if ( null === $data ) {
+				// Per-site activations on a network, and no site is activated.
+				$data = array( 'error' => 'wplc_not_activated' );
+				$ttl  = self::CACHE_FAILURE;
+			} elseif ( is_wp_error( $data ) ) {
 				$data = array( 'error' => (string) $data->get_error_code() );
 				$ttl  = self::CACHE_FAILURE;
 			} else {
@@ -179,8 +208,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 				unset( $data['package'], $data['package_url'], $data['download_expires_at'] );
 				$ttl = self::CACHE_SUCCESS;
 			}
-			$client->store()->set(
-				$this->cache_option(),
+			$this->cache_set(
 				array(
 					'data'    => $data,
 					'expires' => $now + $ttl,
@@ -197,7 +225,177 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		 * @return void
 		 */
 		public function flush(): void {
+			if ( $this->per_site_network() ) {
+				delete_site_option( $this->cache_option() );
+				delete_site_option( $this->source_option() );
+			}
 			$this->manager->client()->store()->delete( $this->cache_option() );
+		}
+
+		/**
+		 * Action `upgrader_process_complete`: forget the cached update data after an update of this add-on.
+		 *
+		 * Updates of other plugins, themes or translations leave the cache alone.
+		 *
+		 * @param mixed $upgrader   Upgrader.
+		 * @param mixed $hook_extra Context of the upgrade (`type`, `plugin` or `plugins`).
+		 * @return void
+		 */
+		public function after_upgrade( $upgrader = null, $hook_extra = array() ): void {
+			if ( ! is_array( $hook_extra ) || 'plugin' !== ( $hook_extra['type'] ?? '' ) ) {
+				return;
+			}
+			$plugins = isset( $hook_extra['plugins'] ) && is_array( $hook_extra['plugins'] ) ? $hook_extra['plugins'] : array();
+			if ( isset( $hook_extra['plugin'] ) ) {
+				$plugins[] = $hook_extra['plugin'];
+			}
+			if ( in_array( $this->basename(), $plugins, true ) ) {
+				$this->flush();
+			}
+		}
+
+		/**
+		 * Site whose credentials the update checks use on a network with per-site activations; 0 when no site is activated.
+		 *
+		 * Order: the main site, the site found last time, then the sites by ID.
+		 * Outside such a network: the current site when it is activated, else 0.
+		 *
+		 * @return int
+		 */
+		public function source_site(): int {
+			if ( ! $this->per_site_network() ) {
+				return $this->site_activated( 0 ) ? (int) get_current_blog_id() : 0;
+			}
+			$remembered = (int) get_site_option( $this->source_option(), 0 );
+			$tried      = array();
+			foreach ( array( (int) get_main_site_id(), $remembered ) as $site_id ) {
+				if ( $site_id > 0 && ! in_array( $site_id, $tried, true ) ) {
+					$tried[] = $site_id;
+					if ( $this->site_activated( $site_id ) ) {
+						return $this->remember_source( $site_id, $remembered );
+					}
+				}
+			}
+			$offset = 0;
+			do {
+				$sites = get_sites(
+					array(
+						'fields'                 => 'ids',
+						'number'                 => 100,
+						'offset'                 => $offset,
+						'orderby'                => 'id',
+						'order'                  => 'ASC',
+						'archived'               => 0,
+						'deleted'                => 0,
+						'spam'                   => 0,
+						'no_found_rows'          => true,
+						'update_site_meta_cache' => false,
+					)
+				);
+				foreach ( $sites as $site_id ) {
+					if ( ! in_array( (int) $site_id, $tried, true ) && $this->site_activated( (int) $site_id ) ) {
+						return $this->remember_source( (int) $site_id, $remembered );
+					}
+				}
+				$offset += 100;
+			} while ( count( $sites ) === 100 );
+			if ( 0 !== $remembered ) {
+				delete_site_option( $this->source_option() );
+			}
+
+			return 0;
+		}
+
+		/**
+		 * Run a request with the credentials of source_site().
+		 *
+		 * @param callable $request Request; called without arguments.
+		 * @return mixed Its result, or null when no site of the network is activated.
+		 */
+		private function as_source( callable $request ) {
+			if ( ! $this->per_site_network() ) {
+				return call_user_func( $request );
+			}
+			$site_id = $this->source_site();
+			if ( 0 === $site_id ) {
+				return null;
+			}
+			if ( (int) get_current_blog_id() === $site_id ) {
+				return call_user_func( $request );
+			}
+			switch_to_blog( $site_id );
+			try {
+				return call_user_func( $request );
+			} finally {
+				restore_current_blog();
+			}
+		}
+
+		/**
+		 * Whether a site (0: the current one) holds an activation made for its own address.
+		 *
+		 * @param int $site_id Site ID, 0 for the current site.
+		 * @return bool
+		 */
+		private function site_activated( int $site_id ): bool {
+			$client = $this->manager->client();
+			$switch = 0 !== $site_id && (int) get_current_blog_id() !== $site_id;
+			if ( $switch ) {
+				switch_to_blog( $site_id );
+			}
+			$activated = $client->is_activated() && $client->site_matches();
+			if ( $switch ) {
+				restore_current_blog();
+			}
+
+			return $activated;
+		}
+
+		/**
+		 * Remember the site the update checks use.
+		 *
+		 * @param int $site_id    Site found.
+		 * @param int $remembered Site stored so far.
+		 * @return int The site found.
+		 */
+		private function remember_source( int $site_id, int $remembered ): int {
+			if ( $site_id !== $remembered ) {
+				update_site_option( $this->source_option(), $site_id );
+			}
+
+			return $site_id;
+		}
+
+		/**
+		 * Whether this is a multisite network on which every site has its own activation.
+		 *
+		 * @return bool
+		 */
+		private function per_site_network(): bool {
+			return function_exists( 'is_multisite' ) && is_multisite() && ! $this->manager->config( 'network' );
+		}
+
+		/**
+		 * Read the cached update data (network option on a network with per-site activations).
+		 *
+		 * @return mixed
+		 */
+		private function cache_get() {
+			return $this->per_site_network() ? get_site_option( $this->cache_option(), array() ) : $this->manager->client()->store()->get( $this->cache_option(), array() );
+		}
+
+		/**
+		 * Store the update data.
+		 *
+		 * @param array<string,mixed> $value Data, expiry, version.
+		 * @return void
+		 */
+		private function cache_set( array $value ): void {
+			if ( $this->per_site_network() ) {
+				update_site_option( $this->cache_option(), $value );
+				return;
+			}
+			$this->manager->client()->store()->set( $this->cache_option(), $value );
 		}
 
 		/**
@@ -290,7 +488,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 				return $reply;
 			}
 			$messages = $this->manager->client()->messages();
-			$update   = $this->manager->client()->check_update( true, $this->request_fields() );
+			$client   = $this->manager->client();
+			$fields   = $this->request_fields();
+			$update   = $this->as_source(
+				static function () use ( $client, $fields ) {
+					return $client->check_update( true, $fields );
+				}
+			);
+			if ( null === $update ) {
+				return new \WP_Error( 'wplc_update_failed', sprintf( $messages->get( 'update.failed' ), $messages->error( 'wplc_not_activated' ) ), 'wplc_not_activated' );
+			}
 			if ( is_wp_error( $update ) ) {
 				return new \WP_Error( 'wplc_update_failed', sprintf( $messages->get( 'update.failed' ), $update->get_error_message() ), $update->get_error_code() );
 			}
@@ -490,8 +697,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		 */
 		public function render_update_message(): void {
 			$text = $this->update_hint();
-			if ( '' !== $text ) {
-				printf( '<br><strong>%s</strong> <a href="%s">%s</a>', esc_html( $text ), esc_url( $this->manager->settings_url() ), esc_html( $this->manager->client()->messages()->get( 'notice.open_settings' ) ) );
+			if ( '' === $text ) {
+				return;
+			}
+			$url = $this->manager->settings_url();
+			printf( '<br><strong>%s</strong>', esc_html( $text ) );
+			if ( '' !== $url ) {
+				printf( ' <a href="%s">%s</a>', esc_url( $url ), esc_html( $this->manager->client()->messages()->get( 'notice.open_settings' ) ) );
 			}
 		}
 
@@ -572,6 +784,15 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		 */
 		private function cache_option(): string {
 			return $this->manager->prefix() . '_update_meta';
+		}
+
+		/**
+		 * Name of the network option that remembers source_site().
+		 *
+		 * @return string
+		 */
+		private function source_option(): string {
+			return $this->manager->prefix() . '_update_site';
 		}
 	}
 }

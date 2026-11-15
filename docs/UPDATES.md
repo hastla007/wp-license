@@ -111,7 +111,7 @@ These feed the `update_plugins` transient and the "View details" window (`plugin
 - Every answer carries `Cache-Control: no-store, private` and `Referrer-Policy: no-referrer`, and `DONOTCACHEPAGE` is defined for page-cache plugins. Exclude `/wp-json/wplc/` from any CDN or page cache anyway.
 - The stream sends `Content-MD5` (base64; WordPress' `download_url()` verifies it) and supports a single `Range` (HTTP 206), so an interrupted download can be resumed while the token is valid.
 
-Grants older than seven days (`wplc_download_grant_retention_days`) are deleted daily in batches of 1,000 along the `expires_at` index. A used grant forgets its package location after the reuse window.
+An installation holds at most two unused grants per package: a further check with `download=true` replaces the oldest of them (its URL stops working). Whether an update is offered is decided against the higher of the sent `current_version` and the version the installation reported last, so `current_version: "0"` does not create grants for an installed version. Unused grants are deleted as soon as they expire, used grants after seven days (`wplc_download_grant_retention_days`); the purge runs hourly and daily in batches of 1,000 along the `expires_at` index until nothing is left or 20 seconds are used. A used grant forgets its package location after the reuse window.
 
 ## Release registry
 
@@ -191,7 +191,7 @@ Publishing, withdrawing and deleting ask for confirmation and need a **reason** 
 - `untrusted_package_host`: a published package URL is not on an allowed host (any more), typically after the shop moved to another domain. Update checks for that product answer 503 until the host is added under **License settings → Additional trusted package hosts** or the release is replaced.
 - `package_dir_exposed`: the package directory answers over HTTP (see [UPDATE-STORAGE.md](UPDATE-STORAGE.md)).
 
-A separate warning appears when a release with a package URL is published and no storage resolver is registered: every licensed customer then learns the permanent address.
+A separate warning appears when a release with a package URL is published and no storage resolver is registered: by default such a release is not delivered (A-32); with `wplc_require_package_resolver` returning `false` it is, and every licensed customer then learns the permanent address.
 
 ### Where uploaded ZIPs are stored
 
@@ -246,7 +246,7 @@ The form posts to the customer account URL (field `wplc_action=wplc_download_pac
 | `wplc_update_packages` | filter | Packages on offer (see above). |
 | `wplc_update_package_hosts` | filter | Allowed package hosts. The shop host is always kept. |
 | `wplc_resolve_update_package_url` | filter | Turn a stored package URL into the URL to deliver (pre-signed URL). Second argument: license ID, `0` when the server verifies a package at publish. |
-| `wplc_require_package_resolver` | filter | `true`: never redirect a client to an unchanged stored URL (default `false`). |
+| `wplc_require_package_resolver` | filter | `true` (default since A-32): never redirect a client to an unchanged stored URL; `false` delivers a `url` release at its permanent address. |
 | `wplc_verify_url_release_on_publish` | filter | `false`: do not download a URL package at publish. |
 | `wplc_update_check_issues_download` | filter | Default of the `download` request field. |
 | `wplc_download_reuse_seconds` | filter | Reuse window of download tokens. |

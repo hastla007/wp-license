@@ -340,6 +340,226 @@ final class PlanChangeIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'die', $denied['outcome'] );
 	}
 
+	/**
+	 * Taxes on with one 19 % rate in the base country.
+	 *
+	 * @param bool $inclusive Shop enters prices including tax.
+	 */
+	private function set_tax( bool $inclusive ): void {
+		global $wpdb;
+		update_option( 'woocommerce_calc_taxes', 'yes' );
+		update_option( 'woocommerce_prices_include_tax', $inclusive ? 'yes' : 'no' );
+		update_option( 'woocommerce_default_country', 'DE' );
+		$wpdb->query( "DELETE FROM {$wpdb->prefix}woocommerce_tax_rates" );
+		WC_Tax::_insert_tax_rate(
+			array(
+				'tax_rate_country' => 'DE',
+				'tax_rate' => '19',
+				'tax_rate_name' => 'VAT',
+				'tax_rate_priority' => 1,
+				'tax_rate_compound' => 0,
+				'tax_rate_shipping' => 1,
+				'tax_rate_order' => 1,
+				'tax_rate_class' => '',
+			)
+		);
+		WC_Cache_Helper::invalidate_cache_group( 'taxes' );
+		WC_Cache_Helper::get_transient_version( 'taxes', true );
+		wp_cache_flush();
+	}
+
+	private function set_price( string $plan, string $price ): void {
+		$product = wc_get_product( $this->product_id( $plan ) );
+		$product->set_regular_price( $price );
+		$product->save();
+	}
+
+	public function test_plan_change_records_how_the_new_renewal_amount_is_to_be_read(): void {
+		// P-04: bought while the shop entered net prices (flag 0), then the shop switched to gross prices.
+		$this->set_tax( false );
+		$license_id = $this->buy( 'solo' );
+		$this->assertSame( '0', (string) $this->license( $license_id )['renewal_amount_includes_tax'] );
+		$this->set_tax( true );
+
+		$order = $this->start_upgrade( $license_id );
+		$this->assertSame( '1', (string) $order->get_meta( PlanUpgrade::META_RENEWAL_INCLUDES_TAX ) );
+		$this->assertSame( '0', (string) $order->get_meta( PlanUpgrade::META_FROM_INCLUDES_TAX ) );
+		// The credit is the contract price 49.00 net, compared as gross like the target: 58.31.
+		$this->assertSame( '5831', (string) $order->get_meta( PlanUpgrade::META_CREDIT_MINOR ) );
+		$order->payment_complete( 'txn_upgrade' );
+
+		$license = $this->license( $license_id );
+		$this->assertSame( 'business', $license['plan_key'] );
+		$this->assertSame( 14900, (int) $license['renewal_amount_minor'] );
+		$this->assertSame( '1', (string) $license['renewal_amount_includes_tax'], '149.00 is a gross catalog price: never 149.00 + 19 % = 177.31.' );
+
+		// A full refund restores the old amount together with its old flag.
+		$order = wc_get_order( $order->get_id() );
+		wc_create_refund( array( 'order_id' => $order->get_id(), 'amount' => wc_format_decimal( (float) $order->get_total(), 2 ), 'reason' => 'Undo' ) );
+		$license = $this->license( $license_id );
+		$this->assertSame( 'solo', $license['plan_key'] );
+		$this->assertSame( 4900, (int) $license['renewal_amount_minor'] );
+		$this->assertSame( '0', (string) $license['renewal_amount_includes_tax'] );
+
+		// Administrator downgrade: the cheaper catalog price is taken over with the current (gross) flag.
+		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$this->assertSame( 'plan_changed', PlanChange::admin_change_now( $license_id, $this->product_id( 'starter' ), 'Customer asked', $admin ) );
+		$license = $this->license( $license_id );
+		$this->assertSame( 1900, (int) $license['renewal_amount_minor'] );
+		$this->assertSame( '1', (string) $license['renewal_amount_includes_tax'] );
+	}
+
+	public function test_admin_upgrade_without_consent_keeps_the_amount_and_its_flag(): void {
+		$this->set_tax( false );
+		$license_id = $this->buy( 'solo' );
+		$this->set_license( $license_id, array( 'renewal_enabled' => 1 ) );
+		$this->set_tax( true );
+		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+
+		$this->assertSame( 'plan_changed', PlanChange::admin_change_now( $license_id, $this->product_id( 'business' ), 'Goodwill', $admin ) );
+		$license = $this->license( $license_id );
+		$this->assertSame( 4900, (int) $license['renewal_amount_minor'] );
+		$this->assertSame( '0', (string) $license['renewal_amount_includes_tax'], 'The kept amount is still net.' );
+	}
+
+	public function test_upgrade_decision_and_credit_use_the_contract_price_not_todays_catalog_price(): void {
+		// P-06: bought for 49.00; the shop now sells Solo for 199.00, Business still costs 149.00.
+		$license_id = $this->buy( 'solo' );
+		$this->set_price( 'solo', '199.00' );
+		$license = $this->license( $license_id );
+		$targets = PlanChange::targets( $license );
+		$this->assertSame( PlanChange::KIND_UPGRADE, $targets[ $this->product_id( 'business' ) ]['kind'], 'Business is no free "downgrade" for a 49.00 contract.' );
+		$this->assertSame( 'plan_change_unavailable', PlanChange::schedule_pending( $license_id, $this->product_id( 'business' ), $this->customer, 'plan_downgrade_requested', false ) );
+		$quote = PlanUpgrade::quote( $license, $targets[ $this->product_id( 'business' ) ], time() );
+		$this->assertGreaterThanOrEqual( 9999, $quote['amount_minor'] );
+		$this->assertLessThanOrEqual( 10000, $quote['amount_minor'] );
+		$this->assertSame( 4900, $quote['credit_minor'] );
+
+		// Catalog price lowered to 19.00: the credit is still the 49.00 that was paid.
+		$this->set_price( 'solo', '19.00' );
+		$quote = PlanUpgrade::quote( $license, PlanChange::targets( $license )[ $this->product_id( 'business' ) ], time() );
+		$this->assertLessThanOrEqual( 10000, $quote['amount_minor'], 'Not 149.00 - 19.00.' );
+	}
+
+	public function test_contract_price_is_what_the_last_manual_renewal_paid(): void {
+		$license_id = $this->buy( 'solo' );
+		$this->set_license( $license_id, array( 'paid_until' => gmdate( 'Y-m-d H:i:s', time() + 5 * DAY_IN_SECONDS ) ) );
+		$this->set_price( 'solo', '79.00' );
+		$renewal = ManualRenewal::start( $license_id, $this->customer );
+		$this->assertInstanceOf( WC_Order::class, $renewal );
+		$this->assertSame( '79.00', wc_format_decimal( $renewal->get_total(), 2 ) );
+		$renewal->payment_complete( 'txn_renewal' );
+
+		$license = $this->license( $license_id );
+		$this->assertSame( 4900, (int) $license['renewal_amount_minor'], 'The stored amount is unchanged by a manual renewal.' );
+		$this->assertSame( 7900, PlanChange::contract_price( $license )['amount_minor'], 'This period was paid at 79.00.' );
+	}
+
+	public function test_open_upgrade_order_is_not_payable_once_its_quote_no_longer_applies(): void {
+		// P-17: quote older than a day.
+		$license_id = $this->buy( 'solo' );
+		$order      = $this->start_upgrade( $license_id );
+		$this->assertTrue( wc_get_order( $order->get_id() )->needs_payment() );
+		$order->update_meta_data( PlanUpgrade::META_QUOTED_AT, time() - 2 * DAY_IN_SECONDS );
+		$order->save();
+		$this->assertFalse( wc_get_order( $order->get_id() )->needs_payment() );
+
+		// "Upgrade" again re-prices the same order and it is payable again.
+		$again = $this->start_upgrade( $license_id );
+		$this->assertSame( $order->get_id(), $again->get_id() );
+		$this->assertTrue( wc_get_order( $order->get_id() )->needs_payment() );
+
+		// The period changed: not payable, and the daily sweep cancels the order.
+		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$this->assertTrue( LicenseLifecycle::admin_extend( $license_id, gmdate( 'Y-m-d 23:59:59', time() + 400 * DAY_IN_SECONDS ), 'Goodwill', $admin ) );
+		$this->assertFalse( wc_get_order( $order->get_id() )->needs_payment() );
+		PlanUpgrade::reconcile_orders();
+		$this->assertSame( 'cancelled', wc_get_order( $order->get_id() )->get_status() );
+		$this->assertSame( 'solo', $this->license( $license_id )['plan_key'] );
+	}
+
+	public function test_booking_a_renewal_cancels_upgrade_orders_of_the_previous_period(): void {
+		$license_id = $this->buy( 'solo' );
+		$this->set_license( $license_id, array( 'paid_until' => gmdate( 'Y-m-d H:i:s', time() + 5 * DAY_IN_SECONDS ) ) );
+		$upgrade = $this->start_upgrade( $license_id );
+		$renewal = ManualRenewal::start( $license_id, $this->customer );
+		$this->assertInstanceOf( WC_Order::class, $renewal );
+		$renewal->payment_complete( 'txn_renewal' );
+
+		$this->assertSame( 'cancelled', wc_get_order( $upgrade->get_id() )->get_status() );
+		$this->assertSame( 'solo', $this->license( $license_id )['plan_key'] );
+	}
+
+	public function test_paid_upgrade_that_fails_afterwards_reverts_the_plan_and_is_applied_again_when_paid(): void {
+		// P-17: bounced SEPA debit.
+		$license_id = $this->buy( 'solo' );
+		$order      = $this->start_upgrade( $license_id );
+		$order->payment_complete( 'txn_sepa' );
+		$this->assertSame( 'business', $this->license( $license_id )['plan_key'] );
+
+		wc_get_order( $order->get_id() )->update_status( 'failed', 'SEPA debit returned' );
+		$license = $this->license( $license_id );
+		$this->assertSame( 'solo', $license['plan_key'] );
+		$this->assertSame( 4900, (int) $license['renewal_amount_minor'] );
+		$this->assertSame( 0, (int) $license['plan_order_id'] );
+		$this->assertSame( 'active', $license['status'], 'The license keeps the plan that was paid for.' );
+		$this->assertSame( 1, $this->entitlements( $license_id )['sites.live_limit'][0] );
+		$this->assertSame( PlanUpgrade::STATE_CANCELLED, wc_get_order( $order->get_id() )->get_meta( PlanUpgrade::META_STATE ) );
+		$this->assertSame( 1, $this->audit_count( $license_id, 'plan_upgrade_cancelled' ) );
+		$this->assertSame( 1, $this->audit_count( $license_id, 'plan_upgrade_reverted' ) );
+
+		// Duplicate hook: nothing more happens.
+		PlanUpgrade::handle_cancelled_order( $order->get_id() );
+		$this->assertSame( 1, $this->audit_count( $license_id, 'plan_upgrade_cancelled' ) );
+
+		// The shop receives the money after all and marks the order as paid again.
+		wc_get_order( $order->get_id() )->update_status( 'processing', 'Paid by bank transfer' );
+		$this->assertSame( 'business', $this->license( $license_id )['plan_key'] );
+		$this->assertSame( PlanUpgrade::STATE_APPLIED, wc_get_order( $order->get_id() )->get_meta( PlanUpgrade::META_STATE ) );
+	}
+
+	public function test_cancelled_upgrade_that_cannot_be_reverted_is_reported_for_review(): void {
+		$license_id = $this->buy( 'solo' );
+		$order      = $this->start_upgrade( $license_id );
+		$order->payment_complete( 'txn_upgrade' );
+		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$this->assertTrue( LicenseLifecycle::admin_extend( $license_id, gmdate( 'Y-m-d 23:59:59', time() + 400 * DAY_IN_SECONDS ), 'Goodwill', $admin ) );
+		$reviews = did_action( 'wplc/license_needs_review' );
+
+		wc_get_order( $order->get_id() )->update_status( 'cancelled', 'Cancelled by the shop' );
+
+		$this->assertSame( 'business', $this->license( $license_id )['plan_key'] );
+		$this->assertSame( PlanUpgrade::STATE_CANCELLED, wc_get_order( $order->get_id() )->get_meta( PlanUpgrade::META_STATE ) );
+		$this->assertSame( $reviews + 1, did_action( 'wplc/license_needs_review' ) );
+		$this->assertSame( 0, $this->audit_count( $license_id, 'plan_upgrade_reverted' ) );
+	}
+
+	public function test_daily_sweep_applies_paid_upgrades_and_reverts_cancelled_ones_whose_hooks_were_lost(): void {
+		$license_id = $this->buy( 'solo' );
+		$order      = $this->start_upgrade( $license_id );
+		$hooks      = array( 'woocommerce_payment_complete', 'woocommerce_order_status_processing', 'woocommerce_order_status_completed' );
+		foreach ( $hooks as $hook ) {
+			remove_action( $hook, array( PlanUpgrade::class, 'handle_paid_order' ) );
+		}
+		$order->payment_complete( 'txn_lost_hook' );
+		foreach ( $hooks as $hook ) {
+			add_action( $hook, array( PlanUpgrade::class, 'handle_paid_order' ) );
+		}
+		$this->assertSame( 'solo', $this->license( $license_id )['plan_key'] );
+
+		PlanUpgrade::reconcile_orders();
+		$this->assertSame( 'business', $this->license( $license_id )['plan_key'] );
+
+		remove_action( 'woocommerce_order_status_cancelled', array( PlanUpgrade::class, 'handle_cancelled_order' ), 20 );
+		wc_get_order( $order->get_id() )->update_status( 'cancelled' );
+		add_action( 'woocommerce_order_status_cancelled', array( PlanUpgrade::class, 'handle_cancelled_order' ), 20, 1 );
+		$this->assertSame( 'business', $this->license( $license_id )['plan_key'] );
+
+		PlanUpgrade::reconcile_orders();
+		$this->assertSame( 'solo', $this->license( $license_id )['plan_key'] );
+		$this->assertSame( PlanUpgrade::STATE_CANCELLED, wc_get_order( $order->get_id() )->get_meta( PlanUpgrade::META_STATE ) );
+	}
+
 	public function test_account_page_offers_upgrade_and_downgrade_and_customer_forms_work(): void {
 		$license_id = $this->buy( 'solo' );
 		wp_set_current_user( $this->customer );

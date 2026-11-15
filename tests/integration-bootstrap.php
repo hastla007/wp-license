@@ -77,6 +77,14 @@ tests_add_filter(
 		$GLOBALS['wp_roles'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		wp_roles();
 
+		// Store the plugin as active, as WordPress does after activation: recurring events are only
+		// (re)scheduled while the database lists the plugin as active (Plugin::is_active_in_database()).
+		update_option( 'active_plugins', array_values( array_unique( array_merge( (array) get_option( 'active_plugins', array() ), array( plugin_basename( WPLC_FILE ) ) ) ) ) );
+		if ( is_multisite() ) {
+			// Network-activated, so every site created by a test counts as active too.
+			update_site_option( 'active_sitewide_plugins', array_merge( (array) get_site_option( 'active_sitewide_plugins', array() ), array( plugin_basename( WPLC_FILE ) => time() ) ) );
+		}
+
 		// Create the plugin tables as permanent tables before the per-test transactions start.
 		\WPLC\Infrastructure\Database\Schema::migrate();
 

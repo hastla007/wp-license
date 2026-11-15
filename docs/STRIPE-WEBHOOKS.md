@@ -52,7 +52,7 @@ Sites that share one Stripe account receive each other's events. Every renewal P
 ## What the receiver does
 
 - Verifies the `Stripe-Signature` header (HMAC-SHA256 over `{timestamp}.{body}`, 300 seconds tolerance). The body may be at most 1 MiB.
-- Records a heartbeat after every correctly signed request (`stripe_webhook`, plus `stripe_webhook_live` or `stripe_webhook_test`) and, at most once a minute, after a rejected signature (`stripe_webhook_rejected`); see `Diagnostics::last_run()`.
+- Records a heartbeat after every correctly signed request (`stripe_webhook`, plus `stripe_webhook_live` or `stripe_webhook_test`) and, at most once a minute, after a rejected signature (`stripe_webhook_rejected`); see `Diagnostics::last_run()`. Each of those once-a-minute records also counts towards the metric `rejected_webhook_minutes` (minutes with rejected requests in the last 24 hours, shown on the diagnostics page and alerted from 5 by default; A-72).
 - Stores a minimized payload in the event inbox table: PaymentIntent ID, payment status, received and requested amount, currency, renewal/license/order IDs and the attempt counter (`wplc_attempt`: the attempt idempotency key `{renewal key}:{attempt}` or, for older charges, the plain counter; null when absent) from the metadata, the charge ID when the event carries one, plus a SHA-256 of that stored payload. For disputes: dispute ID, PaymentIntent ID, charge ID, reason, order ID, dispute status. For early fraud warnings: warning ID, PaymentIntent ID, charge ID, fraud type, order ID. No customer or card data is stored.
 - Queues the event for reconciliation (`wplc_process_stripe_webhook`) and answers immediately.
 
@@ -126,7 +126,7 @@ The follow-up events are resolved the same way. None of them changes a license; 
 | `charge.dispute.closed`, status `won` | `dispute_won` | `wplc/dispute_won( $license_id, $order_id, $dispute_id )` per license. The license is **not** reactivated: whether the customer gets it back is the shop's decision |
 | `charge.dispute.closed`, other status (`lost`, `warning_closed`) | `dispute_closed` | `wplc/dispute_closed( $order_id, $license_ids, $dispute_id, $status )` |
 | `charge.dispute.funds_reinstated` | `dispute_funds_reinstated` | `wplc/dispute_funds_reinstated( $order_id, $license_ids, $dispute_id )` |
-| `radar.early_fraud_warning.created` | `stripe_early_fraud_warning` | `wplc/stripe_early_fraud_warning( $order_id, $license_ids, $warning_id, $fraud_type )`. Alert only; refunding now usually avoids the dispute |
+| `radar.early_fraud_warning.created` | `stripe_early_fraud_warning` (plus `renewal_disabled` per license) | Automatic renewal of the order's licenses is switched off through `RenewalSwitch::off()` (P-58), so the reported card is not charged again off-session; the licenses stay usable until the end of the paid period. Then `wplc/stripe_early_fraud_warning( $order_id, $license_ids, $warning_id, $fraud_type )`. Refunding now usually avoids the dispute |
 
 ## Manual-review outcomes
 

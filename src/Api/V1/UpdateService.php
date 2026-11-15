@@ -27,6 +27,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * useless. HEAD probes never use a grant up; a short reuse window can be allowed with the filter
  * `wplc_download_reuse_seconds` (B-19). A check with `download=false` creates no grant at all.
  *
+ * An installation holds at most MAX_OPEN_GRANTS unused grants per package: a further check with
+ * `download=true` replaces the oldest of them, so repeated checks cannot fill the table (P-11). Unused grants are deleted as soon as they expire.
+ *
  * The response fields are documented in docs/UPDATES.md ("Update check
  * response"); product clients are built against that list.
  */
@@ -34,8 +37,14 @@ final class UpdateService {
 	/** @var int Short-lived download grant lifetime. Clients ask for a fresh grant right before downloading. */
 	public const TOKEN_TTL = 300;
 
+	/** @var int Unused, unexpired grants one installation may hold for the same package (P-11). */
+	public const MAX_OPEN_GRANTS = 2;
+
 	/** @var int Rows per DELETE when old grants are purged. */
 	private const PURGE_BATCH = 1000;
+
+	/** @var int Seconds one purge run may take. */
+	private const PURGE_SECONDS = 20;
 
 	/**
 	 * Return the current update for one active product installation.
@@ -106,7 +115,7 @@ final class UpdateService {
 		}
 
 		$version = sanitize_text_field( (string) $package['version'] );
-		$is_newer = version_compare( $version, $current, '>' );
+		$is_newer = version_compare( $version, self::installed_version( $current, (string) ( $activation['product_version'] ?? '' ) ), '>' );
 		$payload = array_merge( $payload, self::metadata( $product_key, $package, $version ) );
 		$payload['update_available'] = $is_newer;
 		$payload['package_url'] = '';
@@ -138,23 +147,8 @@ final class UpdateService {
 		}
 
 		$token = bin2hex( random_bytes( 32 ) );
-		$token_hash = hash( 'sha256', $token );
 		$expires_at = gmdate( 'Y-m-d H:i:s', time() + self::TOKEN_TTL );
-		$now = gmdate( 'Y-m-d H:i:s' );
-		$inserted = $wpdb->insert(
-			$tables['download_tokens'],
-			array(
-				'license_id' => (int) $license['id'],
-				'activation_id' => (int) $activation['id'],
-				'token_hash' => $token_hash,
-				'package_url' => $url,
-				'expires_at' => $expires_at,
-				'consumed_at' => null,
-				'created_at' => $now,
-			),
-			array( '%d', '%d', '%s', '%s', '%s', '%s', '%s' )
-		);
-		if ( false === $inserted ) {
+		if ( ! self::store_grant( (int) $license['id'], (int) $activation['id'], $url, hash( 'sha256', $token ), $expires_at ) ) {
 			return new \WP_Error( 'download_token_error', 'A secure package download could not be prepared.', array( 'status' => 503 ) );
 		}
 		$payload['package_url'] = rest_url( 'wplc/v1/updates/download/' . $token );
@@ -184,7 +178,8 @@ final class UpdateService {
 		// The token is part of the URL: keep the response out of caches
 		// (DONOTCACHEPAGE, no-store) and the URL out of any Referer header.
 		PackageStream::send_no_cache_headers();
-		$token = strtolower( self::text_param( $request, 'token', 64 ) );
+		// The token is a path parameter of an unsigned route.
+		$token = strtolower( self::text_value( $request->get_param( 'token' ), 64 ) );
 		if ( ! preg_match( '/^[a-f0-9]{64}$/D', $token ) ) {
 			status_header( 404 );
 			exit;
@@ -310,28 +305,36 @@ final class UpdateService {
 	/**
 	 * Whether a client may be redirected to the resolved package URL (A-32).
 	 *
-	 * Without a resolver, a release with storage "url" redirects every licensed
-	 * client to its permanent address, which keeps working after the license
-	 * ended. With `wplc_require_package_resolver` returning true such a redirect
-	 * is refused: only a URL changed by `wplc_resolve_update_package_url`
+	 * A redirect to the unchanged stored address of a release with storage
+	 * "url" would tell every licensed client the permanent address, which
+	 * keeps working after the license ended. By default such a redirect is
+	 * refused: only a URL changed by `wplc_resolve_update_package_url`
 	 * (pre-signed, short-lived) or the local streaming route is delivered.
+	 * A shop that accepts the permanent address returns false from
+	 * `wplc_require_package_resolver`.
 	 *
 	 * @param string $resolved URL after `wplc_resolve_update_package_url`.
 	 * @param string $stored URL stored with the release or grant.
 	 * @return bool
 	 */
 	public static function may_redirect_to( string $resolved, string $stored ): bool {
+		return ! self::requires_package_resolver( $stored ) || $resolved !== $stored;
+	}
+
+	/**
+	 * Whether a package URL may only be delivered after a resolver changed it (A-32).
+	 *
+	 * @param string $stored Stored package URL ('' when asked in general, e.g. for the releases screen).
+	 * @return bool
+	 */
+	public static function requires_package_resolver( string $stored = '' ): bool {
 		/**
 		 * Filters whether packages may only be delivered through a resolver.
 		 *
-		 * @param bool   $required Default false.
-		 * @param string $stored Stored package URL.
+		 * @param bool   $required Default true since A-32 (was false): never redirect to an unchanged stored URL.
+		 * @param string $stored Stored package URL, or '' when asked in general.
 		 */
-		if ( ! apply_filters( 'wplc_require_package_resolver', false, $stored ) ) {
-			return true;
-		}
-
-		return $resolved !== $stored;
+		return (bool) apply_filters( 'wplc_require_package_resolver', true, $stored );
 	}
 
 	/**
@@ -359,10 +362,95 @@ final class UpdateService {
 	}
 
 	/**
-	 * Purge expired grants after a configurable retention period.
+	 * Store a download grant, reusing an unused one of the same installation and package (P-11).
 	 *
-	 * Deletes in batches along the (expires_at, consumed_at) index, so the job
-	 * neither scans the table nor holds one long lock (A-40).
+	 * Below MAX_OPEN_GRANTS a row is added. At the limit the oldest unused
+	 * grant (lowest ID) is replaced by the new one, so its URL stops working
+	 * and the number of rows stays the same. The replacement is a new row, so
+	 * the ID order stays the order of issue.
+	 *
+	 * @param int    $license_id    License ID.
+	 * @param int    $activation_id Activation ID.
+	 * @param string $package_url   Package URL of the grant.
+	 * @param string $token_hash    SHA-256 of the new grant value.
+	 * @param string $expires_at    UTC expiry.
+	 * @return bool False when the grant could not be stored.
+	 */
+	private static function store_grant( int $license_id, int $activation_id, string $package_url, string $token_hash, string $expires_at ): bool {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$open = $wpdb->get_results(
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names().
+				"SELECT id FROM {$tables['download_tokens']} WHERE license_id = %d AND activation_id = %d AND consumed_at IS NULL AND expires_at > %s AND package_url = %s ORDER BY id ASC LIMIT %d",
+				$license_id,
+				$activation_id,
+				$now,
+				$package_url,
+				self::MAX_OPEN_GRANTS
+			),
+			ARRAY_A
+		);
+		if ( is_array( $open ) && count( $open ) >= self::MAX_OPEN_GRANTS ) {
+			// Only still unused: a grant redeemed in the meantime stays as download history.
+			$wpdb->query(
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names().
+					"DELETE FROM {$tables['download_tokens']} WHERE id = %d AND consumed_at IS NULL",
+					(int) $open[0]['id']
+				)
+			);
+		}
+
+		return false !== $wpdb->insert(
+			$tables['download_tokens'],
+			array(
+				'license_id' => $license_id,
+				'activation_id' => $activation_id,
+				'token_hash' => $token_hash,
+				'package_url' => $package_url,
+				'expires_at' => $expires_at,
+				'consumed_at' => null,
+				'created_at' => $now,
+			),
+			array( '%d', '%d', '%s', '%s', '%s', '%s', '%s' )
+		);
+	}
+
+	/**
+	 * Version the update decision is based on (P-11).
+	 *
+	 * The higher of the version sent with the check and the one the
+	 * installation reported last (activation, entitlement check). A check
+	 * with `current_version: "0"` therefore does not turn every check into a
+	 * download grant for a version the installation already has. An explicit
+	 * older version is requested with `target_version`.
+	 *
+	 * @param string $current  Version sent with the update check.
+	 * @param string $reported Version stored on the activation.
+	 * @return string
+	 */
+	public static function installed_version( string $current, string $reported ): string {
+		$reported = trim( $reported );
+		if ( '' === $reported || ! preg_match( '/^\d/', $reported ) ) {
+			return $current;
+		}
+
+		return version_compare( $reported, $current, '>' ) ? $reported : $current;
+	}
+
+	/**
+	 * Purge expired grants.
+	 *
+	 * Unused grants are deleted as soon as they expire: they carry no history.
+	 * Used grants are kept for the retention period
+	 * (`wplc_download_grant_retention_days`, default 7) as download history.
+	 * Both deletes run in batches along the (expires_at, consumed_at) index
+	 * until nothing is left or the time budget is used, so the job keeps up
+	 * with any volume without holding one long lock (A-40, P-11). Runs hourly
+	 * and daily.
 	 *
 	 * @return void
 	 */
@@ -372,7 +460,9 @@ final class UpdateService {
 		$days = absint( apply_filters( 'wplc_download_grant_retention_days', 7 ) );
 		$days = max( 1, min( 3650, $days ) );
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
+		$now = gmdate( 'Y-m-d H:i:s' );
 		$tables = Schema::table_names();
+		$deadline = microtime( true ) + self::PURGE_SECONDS;
 
 		// Used grants only need their package location during the reuse window.
 		$wpdb->query(
@@ -383,18 +473,18 @@ final class UpdateService {
 				10 * self::PURGE_BATCH
 			)
 		);
-		// A grant is used before it expires, so expires_at alone decides its age.
-		for ( $i = 0; $i < 50; $i++ ) {
-			$deleted = $wpdb->query(
-				$wpdb->prepare(
-					"DELETE FROM {$tables['download_tokens']} WHERE expires_at < %s ORDER BY expires_at ASC LIMIT %d",
-					$cutoff,
-					self::PURGE_BATCH
-				)
-			);
-			if ( false === $deleted || (int) $deleted < self::PURGE_BATCH ) {
-				break;
-			}
+		$queries = array(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names().
+			$wpdb->prepare( "DELETE FROM {$tables['download_tokens']} WHERE expires_at < %s AND consumed_at IS NULL ORDER BY expires_at ASC LIMIT %d", $now, self::PURGE_BATCH ),
+			// A grant is used before it expires, so expires_at alone decides its age.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names().
+			$wpdb->prepare( "DELETE FROM {$tables['download_tokens']} WHERE expires_at < %s ORDER BY expires_at ASC LIMIT %d", $cutoff, self::PURGE_BATCH ),
+		);
+		foreach ( $queries as $query ) {
+			do {
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
+				$deleted = $wpdb->query( $query );
+			} while ( false !== $deleted && (int) $deleted >= self::PURGE_BATCH && microtime( true ) < $deadline );
 		}
 	}
 
@@ -527,7 +617,7 @@ final class UpdateService {
 	 * @return bool
 	 */
 	private static function wants_download( \WP_REST_Request $request ): bool {
-		$value = $request->get_param( 'download' );
+		$value = Authenticator::signed_param( $request, 'download' );
 		if ( null === $value || ! is_scalar( $value ) ) {
 			/**
 			 * Filters whether an update check without the `download` parameter creates a download grant.
@@ -544,7 +634,7 @@ final class UpdateService {
 	}
 
 	/**
-	 * Read a request parameter as one short line of text; arrays become an empty string.
+	 * Read a signed parameter (JSON body only, P-12) as one short line of text; arrays become an empty string.
 	 *
 	 * @param \WP_REST_Request $request REST request.
 	 * @param string           $name Parameter name.
@@ -552,7 +642,17 @@ final class UpdateService {
 	 * @return string
 	 */
 	private static function text_param( \WP_REST_Request $request, string $name, int $max_length ): string {
-		$value = $request->get_param( $name );
+		return self::text_value( Authenticator::signed_param( $request, $name ), $max_length );
+	}
+
+	/**
+	 * One short line of text from a raw parameter value; arrays become an empty string.
+	 *
+	 * @param mixed $value      Raw value.
+	 * @param int   $max_length Maximum length.
+	 * @return string
+	 */
+	private static function text_value( $value, int $max_length ): string {
 		if ( ! is_scalar( $value ) ) {
 			return '';
 		}

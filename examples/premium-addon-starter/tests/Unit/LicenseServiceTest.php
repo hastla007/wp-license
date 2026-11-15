@@ -153,4 +153,97 @@ final class LicenseServiceTest extends TestCase {
 		$this->assertSame( array( 'DELETE /wplc/v1/activations/{id}', 'POST /wplc/v1/activations', 'POST /wplc/v1/entitlements/check' ), $this->server->seen );
 		$this->assertNotSame( $first, $service->installation_id() );
 	}
+
+	// P-26: hardenings of client 2.0.1 / A-34 ported to the starter.
+
+	public function test_p26_a_copy_of_the_site_unlocks_nothing_and_sends_nothing(): void {
+		$service = Fixtures::service( Fixtures::time( 60 ) );
+		$service->activate( 'STARTER-KEY-0001' );
+		$this->assertTrue( $service->has( 'starter.pdf_templates' ) );
+
+		// The database is copied to a staging host: the stored home option now names another address.
+		$GLOBALS['wp_stub']['options']['home'] = 'https://staging.customer-copy.example';
+		$copy = Fixtures::service( Fixtures::time( 120 ) );
+		$this->assertFalse( $copy->site_matches() );
+		$this->assertFalse( $copy->has( 'starter.pdf_templates' ) );
+		$this->assertSame( 'site_changed', $copy->cache_problem() );
+		$this->server->seen = array();
+		$this->assertSame( 'wplc_site_changed', $copy->refresh()->get_error_code() );
+		$this->assertSame( array(), $this->server->seen, 'The copied credentials are never used.' );
+		$this->assertFalse( $copy->catch_up_due() );
+
+		// Back on the original address everything works again.
+		unset( $GLOBALS['wp_stub']['options']['home'] );
+		$this->assertTrue( Fixtures::service( Fixtures::time( 180 ) )->has( 'starter.pdf_templates' ) );
+	}
+
+	public function test_p26_a_signed_site_match_false_locks_the_cache(): void {
+		Fixtures::store_credentials();
+		$this->server->entitlements = array( 'starter.pdf_templates' => true );
+		$service                    = Fixtures::service( Fixtures::time( 60 ) );
+		$service->refresh();
+		$this->assertTrue( $service->has( 'starter.pdf_templates' ) );
+
+		// The server says (signed) that this activation now belongs to another address.
+		$handler                    = array( $this->server, 'handle' );
+		$server                     = $this->server;
+		$GLOBALS['wp_stub']['http'] = static function ( string $url, array $args ) use ( $handler, $server ) {
+			if ( false !== strpos( $url, '/entitlements/check' ) ) {
+				$keys         = $server->keys;
+				$headers      = (array) $args['headers'];
+				$data         = $server->entitlement_data( (string) $keys['installation_id'] );
+				$data['site_match'] = false;
+				return array( 'code' => 200, 'body' => (string) json_encode( $server->envelope( $data, (string) $keys['installation_secret'], (string) $headers['X-WPLC-Nonce'], (string) $keys['installation_id'] ) ) );
+			}
+			return $handler( $url, $args );
+		};
+		$this->assertIsArray( $service->refresh() );
+		$this->assertFalse( $service->has( 'starter.pdf_templates' ) );
+		$this->assertSame( 'site_changed', $service->cache_problem() );
+	}
+
+	public function test_p26_an_older_signed_answer_is_refused_and_cannot_be_restored(): void {
+		Fixtures::store_credentials();
+		$service = Fixtures::service( Fixtures::time( 5 * 86400 ) );
+		$service->refresh();
+		$old_active = get_option( Fixtures::STATE )['envelope'];
+
+		// Day 5: signed "revoked".
+		$this->server->status      = 'revoked';
+		$this->server->server_time = '2026-11-06 00:00:00';
+		$this->assertSame( 'revoked', $service->refresh()['license_status'] );
+		$this->assertFalse( $service->has( 'starter.pdf_templates' ) );
+
+		// Someone between site and server answers with a correctly signed but older "active" (new nonce, old time).
+		$this->server->status      = 'active';
+		$this->server->server_time = '2026-11-01 00:00:00';
+		$this->assertSame( 'wplc_response_stale', $service->refresh()->get_error_code() );
+		$this->assertFalse( $service->has( 'starter.pdf_templates' ) );
+
+		// The old "active" envelope written back into the option (backup) is void: older than the newest answer seen.
+		$state             = get_option( Fixtures::STATE );
+		$state['envelope'] = $old_active;
+		update_option( Fixtures::STATE, $state );
+		$restored = Fixtures::service( Fixtures::time( 5 * 86400 + 60 ) );
+		$this->assertFalse( $restored->has( 'starter.pdf_templates' ) );
+		$this->assertSame( 'stale', $restored->cache_problem() );
+	}
+
+	public function test_p26_catch_up_is_due_after_36_hours_and_hourly_after_a_failure(): void {
+		Fixtures::store_credentials();
+		$start = Fixtures::time( 60 );
+		Fixtures::service( $start )->refresh();
+
+		$this->assertFalse( Fixtures::service( $start + 35 * 3600 )->catch_up_due() );
+		$this->assertTrue( Fixtures::service( $start + 37 * 3600 )->catch_up_due() );
+
+		// After a failed attempt: again one hour later, not on every page view.
+		$this->server->errors['POST /wplc/v1/entitlements/check'] = array( 0, 'http_request_failed' );
+		Fixtures::service( $start + 37 * 3600 )->refresh();
+		$this->assertFalse( Fixtures::service( $start + 37 * 3600 + 600 )->catch_up_due() );
+		$this->assertTrue( Fixtures::service( $start + 38 * 3600 + 1 )->catch_up_due() );
+
+		// A clock turned back asks at once.
+		$this->assertTrue( Fixtures::service( $start - 3600 )->catch_up_due() );
+	}
 }

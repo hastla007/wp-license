@@ -93,7 +93,8 @@ final class RecoverLicenseKeyIdsCommand {
 			$limit = 0 === $max_rows ? 250 : min( 250, $max_rows - $inspected );
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT id,license_uuid,license_key_hash,license_key_secret_id FROM {$tables['licenses']} WHERE id > %d ORDER BY id ASC LIMIT %d",
+					'SELECT id,license_uuid,license_key_hash,license_key_secret_id FROM %i WHERE id > %d ORDER BY id ASC LIMIT %d',
+					$tables['licenses'],
 					$last_id,
 					$limit
 				),
@@ -125,11 +126,12 @@ final class RecoverLicenseKeyIdsCommand {
 
 				$updated = $wpdb->query(
 					$wpdb->prepare(
-						"UPDATE {$tables['licenses']} SET license_key_secret_id = %s WHERE id = %d AND license_key_secret_id = %s AND license_key_hash = %s",
+						'UPDATE %i SET license_key_secret_id = %s WHERE id = %d AND license_key_secret_id = %s AND license_key_hash = %s',
+						$tables['licenses'],
 						$target_key_id,
-					$last_id,
-					$current_key_id,
-					$hash
+						$last_id,
+						$current_key_id,
+						$hash
 					)
 				);
 				if ( 1 !== (int) $updated ) {
@@ -168,10 +170,11 @@ final class RecoverLicenseKeyIdsCommand {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names().
 		$not_inspected = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['licenses']} WHERE id > %d", $last_id ) );
 		if ( $not_inspected > 0 ) {
-			\WP_CLI::warning( sprintf( '%d rows after ID %d were not inspected (--max-rows). Continue with --after-id=%d.', $not_inspected, $last_id, $last_id ) );
+			/* translators: 1: number of rows not inspected, 2: last inspected ID (resume with --after-id). */
+			\WP_CLI::warning( sprintf( __( '%1$d rows after ID %2$d were not inspected (--max-rows). Continue with --after-id=%2$d.', 'wp-license' ), $not_inspected, $last_id ) );
 		}
 		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
-			\WP_CLI::log( 'Multisite: this run covered only the tables of the current site. Repeat it for every site with --url=<site>.' );
+			\WP_CLI::log( __( 'Multisite: this run covered only the tables of the current site. Repeat it for every site with --url=<site>.', 'wp-license' ) );
 		}
 		if ( $unmatched + $stale + $not_inspected + ( $apply ? 0 : $recovered ) > 0 ) {
 			\WP_CLI::halt( 1 );

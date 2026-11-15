@@ -26,6 +26,14 @@ Not part of the matrix and therefore unverified: multisite with WordPress 6.5 or
 
 How to run a cell locally: see [QUALITY-GATES.md](QUALITY-GATES.md#integration-tests).
 
+### WooCommerce Subscriptions
+
+WP License Captain renews licenses itself and does not integrate with WooCommerce Subscriptions (WCS). When WCS is active (P-20):
+
+- Renewal and resubscribe orders created by WCS (`wcs_order_contains_renewal()`, `wcs_order_contains_resubscribe()`) never issue a license, so a mapped subscription product no longer creates a new key every period.
+- The plugin screens and the product screens show a notice to users with `wplc_manage_catalog`; it lists license products that are subscription products (`subscription`, `variable-subscription`, `subscription_variation`, the first 200 license products are checked). Do not map subscription products to license plans: WCS would charge the subscription and the license renewal would be charged as well.
+- Mapping such products is refused: the product editor and the catalog CSV import report "WooCommerce Subscriptions products cannot be license products" (`Catalog::save_mapping()` fails with `subscription_product`; also for a variation of a variable subscription). Mappings created before this check keep issuing licenses on the first order; the notice lists them so they can be moved to a simple or variable product.
+
 ## Connected products: declared minimums
 
 Source is the `readme.txt` in each connected product repository (snapshot 2026-11-12). These are declared minimums, not test results of this repository.

@@ -45,7 +45,7 @@ final class LicenseCommand {
 	public function show( array $args, array $assoc_args ): void {
 		$details = self::details( (string) ( $args[0] ?? '' ) );
 		if ( null === $details ) {
-			\WP_CLI::error( 'License not found.' );
+			\WP_CLI::error( __( 'License not found.', 'wp-license' ) );
 		}
 		if ( 'json' === ( $assoc_args['format'] ?? 'text' ) ) {
 			\WP_CLI::line( (string) wp_json_encode( $details, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );

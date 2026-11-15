@@ -50,12 +50,24 @@ final class LicenseIssuer {
 	const PENDING_GRACE = 900;
 
 	/**
+	 * Visible order item meta (B-42): which licenses the line paid for. Shown on the order,
+	 * in emails and on invoices; the label is translated at display time (display_meta_key()).
+	 */
+	const ITEM_META_LICENSE = 'wplc_license';
+
+	/**
+	 * Visible order item meta (B-42): the first service period of the line, `Y-m-d – Y-m-d` (UTC).
+	 */
+	const ITEM_META_PERIOD = 'wplc_service_period';
+
+	/**
 	 * Register WooCommerce payment and paid-order hooks.
 	 *
 	 * @return void
 	 */
 	public static function register_hooks(): void {
 		add_action( 'woocommerce_payment_complete', array( self::class, 'maybe_issue_order' ), 20 );
+		add_filter( 'woocommerce_order_item_display_meta_key', array( self::class, 'display_meta_key' ), 10, 2 );
 		add_action( 'woocommerce_order_status_processing', array( self::class, 'maybe_issue_order' ), 20 );
 		add_action( 'woocommerce_order_status_completed', array( self::class, 'maybe_issue_order' ), 20 );
 		add_action( self::RETRY_HOOK, array( self::class, 'maybe_issue_order' ) );
@@ -78,6 +90,11 @@ final class LicenseIssuer {
 		$order = wc_get_order( absint( $order_id ) );
 		// Renewal and plan upgrade orders pay for an existing license; they never issue a new one.
 		if ( ! $order instanceof \WC_Order || ! $order->is_paid() || $order->get_meta( '_wplc_renewal_for_license', true ) || $order->get_meta( '_wplc_upgrade_for_license', true ) ) {
+			return;
+		}
+		// A WooCommerce Subscriptions renewal pays the next period of a subscription
+		// that already got its license; issuing again would create a second key per period (P-20).
+		if ( self::is_subscriptions_renewal( $order ) ) {
 			return;
 		}
 
@@ -147,12 +164,85 @@ final class LicenseIssuer {
 			if ( $issued ) {
 				// Read the complete list back: concurrent hooks for the same order each store
 				// every license of the item, so neither overwrites the other with a subset.
-				$item->update_meta_data( '_wplc_license_ids', self::issued_for_item( (int) $item_id, $issued ) );
+				$all_ids = self::issued_for_item( (int) $item_id, $issued );
+				$item->update_meta_data( '_wplc_license_ids', $all_ids );
+				self::describe_item( $item, $all_ids );
 				$item->save_meta_data();
 			}
 		}
 
 		self::record_outcome( $order, array_keys( $problems ) );
+	}
+
+	/**
+	 * B-42: write license reference and service period as visible item meta, so the
+	 * order, its emails and invoices say what the line paid for (renewal orders get the
+	 * same from RenewalOrder). Does not save the item.
+	 *
+	 * The license list follows the issued units; the period is written once and keeps
+	 * the first term even after later renewals moved the end date of the license.
+	 *
+	 * @param \WC_Order_Item $item Order item.
+	 * @param int[]          $license_ids Licenses issued for the item.
+	 * @return void
+	 */
+	public static function describe_item( $item, array $license_ids ): void {
+		global $wpdb;
+
+		$license_ids = array_values( array_filter( array_map( 'intval', $license_ids ) ) );
+		if ( ! $license_ids ) {
+			return;
+		}
+		$tables       = Schema::table_names();
+		$placeholders = implode( ',', array_fill( 0, count( $license_ids ), '%d' ) );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- table name from Schema::table_names() and a generated list of %d placeholders.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, key_prefix, starts_at, paid_until FROM {$tables['licenses']} WHERE id IN ({$placeholders}) ORDER BY unit_index ASC, id ASC",
+				$license_ids
+			),
+			ARRAY_A
+		);
+		// phpcs:enable
+		if ( ! is_array( $rows ) || ! $rows ) {
+			return;
+		}
+
+		$labels = array();
+		$starts = array();
+		$ends   = array();
+		foreach ( $rows as $row ) {
+			$labels[] = trim( sprintf( '#%d %s', (int) $row['id'], (string) $row['key_prefix'] ) );
+			if ( ! empty( $row['starts_at'] ) ) {
+				$starts[] = substr( (string) $row['starts_at'], 0, 10 );
+			}
+			if ( ! empty( $row['paid_until'] ) ) {
+				$ends[] = substr( (string) $row['paid_until'], 0, 10 );
+			}
+		}
+		$item->update_meta_data( self::ITEM_META_LICENSE, implode( ', ', $labels ) );
+		if ( $starts && $ends && '' === (string) $item->get_meta( self::ITEM_META_PERIOD, true ) ) {
+			$item->update_meta_data( self::ITEM_META_PERIOD, min( $starts ) . ' – ' . max( $ends ) );
+		}
+	}
+
+	/**
+	 * Translate the keys of the visible item meta when they are displayed.
+	 *
+	 * @param mixed $display_key Key as WooCommerce would show it.
+	 * @param mixed $meta        Meta object with a `key` property.
+	 * @return mixed
+	 */
+	public static function display_meta_key( $display_key, $meta = null ) {
+		$key = is_object( $meta ) && isset( $meta->key ) ? (string) $meta->key : '';
+		if ( self::ITEM_META_LICENSE === $key ) {
+			return __( 'License', 'wp-license' );
+		}
+		if ( self::ITEM_META_PERIOD === $key ) {
+			return __( 'Service period (UTC)', 'wp-license' );
+		}
+
+		return $display_key;
 	}
 
 	/**
@@ -478,6 +568,38 @@ final class LicenseIssuer {
 	}
 
 	/**
+	 * Whether an order is a renewal or resubscribe order of WooCommerce Subscriptions.
+	 *
+	 * @param \WC_Order $order Order.
+	 * @return bool False when WooCommerce Subscriptions is not active.
+	 */
+	public static function is_subscriptions_renewal( \WC_Order $order ): bool {
+		foreach ( array( 'wcs_order_contains_renewal', 'wcs_order_contains_resubscribe' ) as $function ) {
+			if ( function_exists( $function ) && $function( $order ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * A new license UUID (RFC 4122 version 4) from the CSPRNG (P-63).
+	 *
+	 * The UUID is part of the license key and its first 32 bits are the public
+	 * key prefix, so it must not come from mt_rand() as wp_generate_uuid4() does.
+	 *
+	 * @return string Lowercase UUID, e.g. 0f8b7a3c-1d2e-4f5a-9b6c-7d8e9f0a1b2c.
+	 */
+	public static function new_uuid(): string {
+		$bytes    = random_bytes( 16 );
+		$bytes[6] = chr( ( ord( $bytes[6] ) & 0x0f ) | 0x40 );
+		$bytes[8] = chr( ( ord( $bytes[8] ) & 0x3f ) | 0x80 );
+
+		return vsprintf( '%s%s-%s-%s-%s-%s%s%s', str_split( bin2hex( $bytes ), 4 ) );
+	}
+
+	/**
 	 * Generate a key, store one license row and snapshot the plan entitlements.
 	 *
 	 * Shared by order-based and manual issuing. The license only becomes
@@ -497,7 +619,7 @@ final class LicenseIssuer {
 		$price = self::renewal_price( $plan, $context['renewal_price'] ?? null );
 
 		$tables = Schema::table_names();
-		$uuid   = wp_generate_uuid4();
+		$uuid   = self::new_uuid();
 		$key_id = LicenseKey::current_key_id();
 		$key    = LicenseKey::for_uuid( $uuid, $key_id );
 		if ( '' === $key_id || '' === $key ) {
@@ -721,7 +843,7 @@ final class LicenseIssuer {
 		$tables     = Schema::table_names();
 		$license    = $wpdb->get_row(
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name comes from Schema::table_names().
-			$wpdb->prepare( "SELECT id, license_uuid, license_key_secret_id, status, source_order_id FROM {$tables['licenses']} WHERE id = %d", $license_id ),
+			$wpdb->prepare( "SELECT id, license_uuid, license_key_secret_id, license_key_hash, status, source_order_id FROM {$tables['licenses']} WHERE id = %d", $license_id ),
 			ARRAY_A
 		);
 		if ( ! is_array( $license ) || 'active' !== (string) $license['status'] ) {
@@ -729,10 +851,17 @@ final class LicenseIssuer {
 		}
 
 		$order_id = (int) $license['source_order_id'];
-		$key      = LicenseKey::for_uuid( (string) $license['license_uuid'], (string) $license['license_key_secret_id'] );
+		// Only a key that reproduces the stored hash is mailed (P-62): a wrong key ID or a
+		// renamed key-ring entry would otherwise send the customer an invalid key.
+		$key = LicenseKey::verified_for_license( (string) $license['license_uuid'], (string) $license['license_key_secret_id'], (string) $license['license_key_hash'] );
 		if ( '' !== $key ) {
 			// Does nothing when the email for this license is already on record.
 			Notifications::on_license_issued( $license_id, $key, $order_id );
+		} elseif ( function_exists( 'wc_get_logger' ) ) {
+			wc_get_logger()->warning(
+				sprintf( 'License #%d: the key email was not sent because the configured secret no longer reproduces the stored key (see wp wplc recover-license-key-ids).', $license_id ),
+				array( 'source' => 'wp-license' )
+			);
 		}
 
 		/**

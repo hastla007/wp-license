@@ -44,6 +44,11 @@ final class AuthenticatorRateLimitTest extends TestCase {
 		$this->assertStringContainsString( 'ON DUPLICATE KEY UPDATE hits = hits + 1', $wpdb->last_query );
 	}
 
+	/** P-40: a nonce outlives every request that could carry it (timestamp window in both directions). */
+	public function test_nonce_lifetime_exceeds_the_accepted_timestamp_window(): void {
+		$this->assertGreaterThan( 2 * Authenticator::TIMESTAMP_WINDOW, Authenticator::NONCE_TTL );
+	}
+
 	public function test_each_attempt_reads_back_the_incremented_count(): void {
 		$this->assertSame( 1, Authenticator::increment_rate_limit( str_repeat( 'b', 64 ) ) );
 		$this->assertSame( 2, Authenticator::increment_rate_limit( str_repeat( 'b', 64 ) ) );

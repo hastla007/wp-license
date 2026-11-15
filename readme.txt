@@ -41,7 +41,7 @@ The code has unit tests for its pure logic, but it has not been accepted in a re
 * The product editor fields are added to the classic product editor; the block-based product editor is not supported.
 * Secrets are configured with constants in `wp-config.php`; the settings page (WooCommerce → Licenses → Settings) covers package hosts, reminder days and the lead time of the renewal notice.
 * Product plugins need their own integration of the client (license screen, feature gates, updater).
-* German translations are shipped; all other languages see the English source strings.
+* German translations are shipped (also used for de_AT, de_CH and the other German variants); all other languages see the English source strings.
 * Deleting the plugin keeps its database tables on purpose, because they are business records.
 
 == Requirements ==
@@ -80,6 +80,10 @@ Subjects, headings and additional text are edited under WooCommerce → Settings
 
 Licenses linked to the customer account, activated site URLs with product, WordPress and PHP versions, renewal records, an audit log and a log of sent notifications. It never stores card numbers. See `docs/PRIVACY-DATA-FLOWS.md` for the inventory and the retention periods.
 
+= How do I update the plugin? Does it contact other servers? =
+
+WordPress shows when a new release is published: during its normal update check the plugin asks the GitHub API (`api.github.com`) for the latest release of `hastla007/wp-license`. No site data is sent. Updates are never installed automatically: download the release ZIP and its `.sha256`, compare the checksum and upload the ZIP (see "Updating the license server plugin itself" in `docs/PRODUCTION-OPERATIONS.md`). To switch the check off, add `define( 'WPLC_DISABLE_UPDATE_CHECK', true );` to `wp-config.php`.
+
 = What happens to the data when I delete the plugin? =
 
 Scheduled jobs and the plugin's working state are removed. The `wplc_` database tables, the settings and the signing key are kept, because they are business records. To remove them as well, add `define( 'WPLC_REMOVE_ALL_DATA', true );` to `wp-config.php` before deleting the plugin. Uploaded packages and order meta are never removed automatically.
@@ -89,7 +93,7 @@ Scheduled jobs and the plugin's working state are removed. The `wplc_` database 
 = 0.2.0 =
 * Engineering preview, second consolidation: client library with pinned server key and WordPress updater, signed "deactivated" answers, release registry with package checks, Stripe payment references and webhook secrets per mode and site, staging guard, retention and privacy tools, customer account forms on the front end, graded admin capabilities.
 * An automatic renewal is only charged after its advance notice was sent; when the saved card is gone no other card is charged and the customer is told by email.
-* Database schema 20. Not production-ready.
+* Database schema 22. Not production-ready.
 
 = 0.1.0 =
 * Engineering preview: catalog mapping, license issuance and lifecycle, customer account page, admin tools, signed REST API, update delivery, opt-in renewal contract with an unvalidated Stripe adapter, customer emails, privacy exporter and eraser, data retention job, PHP client.

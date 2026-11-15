@@ -67,10 +67,25 @@ The product editor suggests these keys. The plan key (for example `solo`, `busin
 - The keys the shop offers as tick boxes in the product editor come from `WPLC\Catalog\EntitlementCatalog` (filter `wplc_entitlement_catalog`). Further keys and numeric limits can be entered as JSON.
 - A license stores a snapshot of its plan's entitlements. A plan change (upgrade, downgrade at the next renewal, administrator change) replaces the whole snapshot with the new plan's entitlements; clients see the change at their next entitlement check, without re-activation. A lower live site limit deactivates no site, it only blocks new activations (see [RENEWALS.md](RENEWALS.md#plan-changes)).
 
+## Changing a plan that licenses already use (A-23)
+
+Saving a plan in the product editor (or the catalog CSV import) changes what **new** licenses get. Existing licenses keep the snapshot from their purchase or last plan change, also when they renew; a customer's rights never change behind their back. To give existing licenses a feature or a higher site limit that their plan gained, run the opt-in sync:
+
+```
+wp wplc sync-entitlements --product=voucher-captain-pro --plan=business          # dry run: lists every license that differs
+wp wplc sync-entitlements --product=voucher-captain-pro --plan=business --apply  # writes the changes
+```
+
+- The plan of a license is the catalog mapping of the product it renews with (its product key, plan key and billing interval must still match); licenses without one are reported as "no current plan" and left alone. Only `active` and `past_due` licenses are changed.
+- The whole snapshot is replaced, the same way as for a plan change. A change that takes something away (a removed or switched-off feature, a lower number, a lower support level, any changed text value) is skipped and reported unless `--allow-reductions` is given. Check your terms before taking rights away from paying customers.
+- `--license=<id>` syncs one license; `--max-rows` and `--after-id` split large runs. Without `--apply` nothing is written. The command ends with exit code 1 while licenses remain that differ from their plan.
+- Each change is audited as `license_entitlements_synced` (before and after values of the changed keys) and fires `wplc/license_entitlements_synced`. Clients see it at their next entitlement check.
+
 ## Proposed plan mapping
 
 | Product / tier | Feature keys or limits |
 |---|---|
+| Affiliate Captain (core, free on WordPress.org) | No entitlements. Which functions stay in the core is not decided yet (T-42); see the note below the table. |
 | Affiliate Captain Starter | `affiliate.partner_portal`, `affiliate.coupon_attribution`, `affiliate.order_refund_handling`, `affiliate.basic_commissions`, `affiliate.manual_payout_csv`; live sites: 1 |
 | Affiliate Captain Pro | Starter plus `affiliate.partner_groups`, `affiliate.product_category_rates`, `affiliate.recurring_commissions`, `affiliate.extended_api`, `affiliate.automated_payouts`; live sites: 3 |
 | Affiliate Captain Agency | Pro plus `affiliate.white_label_portal`, `affiliate.webhooks`, `affiliate.multiple_programs`, `affiliate.priority_support`; live sites: 10 |
@@ -82,6 +97,8 @@ The product editor suggests these keys. The plan key (for example `solo`, `busin
 | WP Pass Captain Pro | Core plus `pass.woocommerce_sales`, `pass.membership_passes`, `pass.campaign_codes`, `pass.waitlist`, `pass.csv_export`; live sites: 1 |
 | WP Pass Captain Business | Pro plus `pass.seating`, `pass.service_slots`, `pass.pos`, `pass.offline_checkin`, `pass.advanced_reports`, `pass.api_webhooks`; live sites: 5 |
 | WP Pass Captain Agency | Business plus `pass.white_label`, `pass.priority_support`; live sites: 25 |
+
+**Open for Affiliate Captain (A-90, depends on T-42):** the Starter keys `affiliate.partner_portal`, `affiliate.coupon_attribution`, `affiliate.order_refund_handling`, `affiliate.basic_commissions` and `affiliate.manual_payout_csv` name functions that look like core functions of the free plugin, and they are still offered as tick boxes in the product editor (`EntitlementCatalog`). Under the rule above, a core function is never license-gated. Until the catalog is decided, the core plugin must not check these keys, an add-on checks only keys of functions it ships itself, and no plan should differ from another only by one of them. Once decided, keys that turn out to be core functions are removed from the catalog and listed under [Removed keys](#removed-keys).
 
 Add-on identifiers must be assigned from the eventual product SKU catalog and must not silently grant a whole higher tier. The precise plan/product IDs and add-on keys require validation against the real WooCommerce catalog before enabling entitlement enforcement.
 

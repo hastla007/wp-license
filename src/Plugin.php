@@ -27,6 +27,7 @@ use WPLC\Update\PackageStream;
 use WPLC\Update\CustomerDownload;
 use WPLC\Billing\RecurringConsent;
 use WPLC\Billing\BlockCheckoutConsent;
+use WPLC\Billing\WithdrawalConsent;
 use WPLC\Compatibility\Requirements;
 use WPLC\Billing\ManualRenewal;
 use WPLC\Billing\PlanUpgrade;
@@ -74,6 +75,8 @@ final class Plugin {
 		'wplc_send_reminders',
 		'wplc_retry_license_email',
 		'wplc_expire_due_licenses',
+		// One action per job of a split daily run; the next daily run queues them again.
+		'wplc_daily_job',
 	);
 
 	/**
@@ -82,6 +85,34 @@ final class Plugin {
 	 * @var bool
 	 */
 	private static $visiting_other_site = false;
+
+	/**
+	 * Whether this plugin is still active according to the database, bypassing the object cache.
+	 *
+	 * Recurring events are (re)scheduled on every request. A request that loaded the plugin while it was
+	 * active can reach that point after the plugin was deactivated or uninstalled in another request
+	 * (Action Scheduler loopback, WP-Cron spawn); it must not bring the events back. Only called when an
+	 * event is missing, so the direct query is rare.
+	 *
+	 * @return bool
+	 */
+	public static function is_active_in_database(): bool {
+		global $wpdb;
+		if ( ! defined( 'WPLC_FILE' ) || ! function_exists( 'plugin_basename' ) ) {
+			return true;
+		}
+		$basename = plugin_basename( WPLC_FILE );
+		$active   = maybe_unserialize( (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'active_plugins' ) ) );
+		if ( is_array( $active ) && in_array( $basename, $active, true ) ) {
+			return true;
+		}
+		if ( is_multisite() ) {
+			$network = maybe_unserialize( (string) $wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->sitemeta} WHERE meta_key = %s AND site_id = %d", 'active_sitewide_plugins', get_current_network_id() ) ) );
+			return is_array( $network ) && isset( $network[ $basename ] );
+		}
+
+		return false;
+	}
 
 	/**
 	 * Validate activation requirements before enabling the plugin.
@@ -135,6 +166,50 @@ final class Plugin {
 			false,
 			dirname( plugin_basename( WPLC_FILE ) ) . '/languages'
 		);
+		if ( ! is_textdomain_loaded( 'wp-license' ) ) { // @phpstan-ignore booleanNot.alwaysTrue (the stub assumes a loaded domain; it is not loaded without a file for the locale)
+			// B-120: Austrian and Swiss German fall back to the German translation.
+			$fallback = self::fallback_locale( function_exists( 'determine_locale' ) ? determine_locale() : get_locale() );
+			if ( '' !== $fallback ) {
+				load_textdomain( 'wp-license', WPLC_PATH . 'languages/wp-license-' . $fallback . '.mo', $fallback );
+			}
+		}
+	}
+
+	/**
+	 * Reload the translations after switch_to_locale(), e.g. for an email in the buyer's language (B-120).
+	 *
+	 * @return void
+	 */
+	public static function reload_textdomain(): void {
+		unload_textdomain( 'wp-license' );
+		self::load_textdomain();
+	}
+
+	/**
+	 * Shipped locale used for a locale without its own translation file (B-120).
+	 *
+	 * Pure. German variants without a file use `de_DE_formal`, informal ones
+	 * `de_DE`. Swiss German then shows "ß" where Swiss spelling has "ss".
+	 *
+	 * @param string $locale WordPress locale, e.g. `de_AT`.
+	 * @return string Locale of a shipped file, or an empty string.
+	 */
+	public static function fallback_locale( string $locale ): string {
+		$fallback = '';
+		if ( 1 === preg_match( '/^de_(AT|CH|LU|LI|BE)(_formal|_informal)?$/', $locale, $match ) ) {
+			$fallback = '_informal' === ( $match[2] ?? '' ) ? 'de_DE' : 'de_DE_formal';
+		}
+		if ( function_exists( 'apply_filters' ) ) {
+			/**
+			 * Filters the shipped translation used for a locale without its own file (B-120).
+			 *
+			 * @param string $fallback Locale of a file in languages/, or empty for none.
+			 * @param string $locale   Requested locale.
+			 */
+			$fallback = (string) apply_filters( 'wplc_translation_fallback_locale', $fallback, $locale );
+		}
+
+		return 1 === preg_match( '/^[a-z]{2,3}(_[A-Z]{2})?(_[a-z]+)?$/', $fallback ) ? $fallback : '';
 	}
 
 	/**
@@ -148,7 +223,7 @@ final class Plugin {
 			return;
 		}
 		Schema::migrate();
-		LicenseLifecycle::schedule_daily_event();
+		LicenseLifecycle::schedule_daily_event( true );
 		SiteGuard::remember();
 
 		// Orders paid and refunds made while the plugin was off are caught up; renewals that
@@ -185,7 +260,8 @@ final class Plugin {
 	 */
 	public static function deactivate_site(): void {
 		foreach ( self::CRON_HOOKS as $hook ) {
-			wp_clear_scheduled_hook( $hook );
+			// Every event of the hook, whatever its arguments (wp_clear_scheduled_hook() only matches equal ones).
+			wp_unschedule_hook( $hook );
 		}
 		// A cursor left behind by an unfinished reminder run would skip licenses after reactivation.
 		delete_option( 'wplc_reminder_cursor' );
@@ -280,11 +356,14 @@ final class Plugin {
 	 */
 	public static function on_plugins_loaded(): void {
 		self::load_textdomain();
+		add_action( 'change_locale', array( self::class, 'reload_textdomain' ) );
 
 		// Also without WooCommerce: on a network the site that deletes another site
 		// (usually the main site) may not run WooCommerce, but the deleted site's
 		// wplc_* tables must still be dropped with it.
 		Schema::register_hooks();
+		// A-42: release notification for the plugin itself (no automatic install).
+		\WPLC\Infrastructure\SelfUpdateCheck::register_hooks();
 
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			add_action( 'admin_notices', array( self::class, 'render_woocommerce_notice' ) );
@@ -315,6 +394,7 @@ final class Plugin {
 		Requirements::register_hooks();
 		RecurringConsent::register_hooks();
 		BlockCheckoutConsent::register_hooks();
+		WithdrawalConsent::register_hooks();
 		RenewalProcessor::register_hooks();
 		ManualRenewal::register_hooks();
 		PlanUpgrade::register_hooks();
@@ -328,6 +408,8 @@ final class Plugin {
 		// Last: wraps the job callbacks registered above (isolation, pause gate, heartbeat).
 		DailyRunner::register_hooks();
 		SiteGuard::remember();
+		// A-133: each queued action gets its own correlation ID in the log, even when one runner request handles several.
+		add_action( 'action_scheduler_before_execute', array( self::class, 'begin_log_correlation' ), 0, 0 );
 
 		/**
 		 * Fires after WP License Captain has confirmed its WooCommerce dependency.
@@ -335,6 +417,15 @@ final class Plugin {
 		 * @since 0.1.0
 		 */
 		do_action( 'wplc/loaded' );
+	}
+
+	/**
+	 * Start a new log correlation ID for the next queued action (A-133).
+	 *
+	 * @return void
+	 */
+	public static function begin_log_correlation(): void {
+		\WPLC\Infrastructure\Log::begin();
 	}
 
 	/**

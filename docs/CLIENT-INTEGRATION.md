@@ -36,7 +36,7 @@ It copies `src/Client/*.php`, replaces `namespace WPLC\Client;` by the given nam
 **Without the script: an unchanged copy.** Every class is declared inside `if ( ! class_exists( ... ) )`, so two add-ons with the same unchanged files do not end in "Cannot declare class". The limits of this way:
 
 - The copy that is loaded **first** is used by all add-ons, also when it is the older one. WordPress loads plugins in the alphabetical order of their folders.
-- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.0.1`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.1.0', '<' )`) and show a message; it cannot replace a class that is already declared.
+- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.0.2`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.1.0', '<' )`) and show a message; it cannot replace a class that is already declared.
 - The strings keep the text domain `wp-license`. They are translated through the `text_domain` setting only if the add-on's language files contain them; `make-pot` does not find them on its own.
 
 Use the unchanged copy for experiments only.
@@ -89,11 +89,18 @@ function voucher_captain_pro_license(): \VoucherCaptainPro\Licensing\LicenseMana
 }
 voucher_captain_pro_license()->register();
 
-// A premium feature.
-if ( voucher_captain_pro_license()->is_entitled( 'voucher.qr_redemption' ) ) {
-	require_once __DIR__ . '/includes/qr-redemption.php';
-}
+// A premium feature, switched on once all plugins and the theme are loaded.
+add_action(
+	'init',
+	static function () {
+		if ( voucher_captain_pro_license()->is_entitled( 'voucher.qr_redemption' ) ) {
+			require_once __DIR__ . '/includes/qr-redemption.php';
+		}
+	}
+);
 ```
+
+Asking `is_entitled()` while the plugin file is loaded works too, but then filters that the theme or later plugins add (such as `{prefix}_license_server_url`) come too late for this request.
 
 `voucher-captain-pro/uninstall.php`:
 
@@ -116,7 +123,7 @@ That is all. `register()` adds the license screen (**Settings → Voucher Captai
 
 ### Where the server address comes from
 
-Order of precedence: the filter `{prefix}_license_server_url`, then the `server_url` setting, which in the example reads a constant from `wp-config.php` and falls back to the built-in address.
+Order of precedence: the filter `{prefix}_license_server_url`, then the `server_url` setting, which in the example reads a constant from `wp-config.php` and falls back to the built-in address. The filter is read when the license is first needed in a request (not when the `LicenseManager` is created), so it also works from another plugin or the theme as long as the add-on does not ask for the license while its file is loaded; a must-use plugin or the constant always works.
 
 The address is burnt into every shipped copy. Before the first release, give the license server a **host name of its own that never changes**, for example `licenses.example.com`, pointing to the shop, and use it for `server_url` and for `Update URI`. If the shop moves to another domain later, the old host name keeps answering and no customer site has to be updated first. The address must be HTTPS without credentials, query or fragment; redirects are not followed. Two further settings exist for emergencies: `fallback_urls` (tried in order when the first address cannot be reached at all) and `rest_base` (when the server does not answer under `/wp-json`, for example `https://licenses.example.com/index.php?rest_route=`).
 
@@ -141,10 +148,11 @@ To rotate the server key: ship an add-on version that lists the old **and** the 
 | `text_domain` | | Text domain of the add-on. |
 | `option_prefix` | | Prefix of options, hooks and form fields. |
 | `network` | | Multisite: one activation for the network. Default `false`. See [Multisite](#multisite). |
-| `update_uri` | | Value of the `Update URI` header; saves reading the plugin file. |
+| `update_uri` | | Value of the `Update URI` header; saves reading the plugin file (without it the header is read once per request and kept in memory). Recommended. |
 | `channel` | | `stable` (default) or `beta`. |
 | `core_version` | | Version of the free core plugin, as a string or a closure. The server then holds back releases whose `requires_core` is higher. |
-| `settings_parent` | | Admin menu of the license screen. Default `options-general.php` (`settings.php` in network mode). `false`: no screen; call `render_settings()` inside the add-on's own page. |
+| `settings_parent` | | Admin menu of the license screen. Default `options-general.php` (`settings.php` in network mode). `false`: no screen; call `render_settings()` inside the add-on's own page and set `settings_url`. |
+| `settings_url` | | Full admin address of the add-on's own page that calls `render_settings()` (for `settings_parent => false`). The form returns there after an action and notices link to it. Without it, `settings_url()` is empty: notices carry no link and the form returns to the page that sent it. The filter `{prefix}_license_settings_url` still applies. |
 | `capability` | | Who may manage the license. Default `manage_options` (`manage_network_options` in network mode). |
 | `account_url` | | Customer account of the shop; appended to the grace and expiry notices. |
 | `fallback_urls`, `rest_base` | | See above. |
@@ -194,9 +202,9 @@ An expired or missing license only switches premium features off. It must never 
 ## How rights are stored
 
 - The manager stores the **signed snapshot** of the last answer (`payload` with its HMAC and the Ed25519 signature of the server) in the option `{prefix}_license_state`. It is not autoloaded and not a transient, so a flushed object cache does not switch the premium features off.
-- On every read the snapshot is verified again: the HMAC with the installation secret, and the server signature with the pinned keys. A snapshot edited in the database is void (state `stale`). Both checks run on every read (memoized for the current request only); nothing stored next to the snapshot can skip the server signature. Without the sodium extension WordPress' `sodium_compat` verifies. On a PHP with neither, the client fails closed: no answer and no snapshot is accepted (`wplc_ed25519_unavailable`, state `stale`), because the HMAC alone proves nothing to someone who can read the installation secret in the same database. The activation itself is kept.
+- On every read the snapshot is verified again: the HMAC with the installation secret, and the server signature with the pinned keys. A snapshot edited in the database is void (state `stale`). Both checks run on every read; nothing stored next to the snapshot can skip the server signature. Without the sodium extension WordPress' `sodium_compat` verifies, which takes about 20 ms per check: its result is then remembered for the rest of the request (for all add-ons using the library) and for a day in the object cache, or in a transient without a persistent object cache, under a key derived from signature, message and key. The stored value is an HMAC with `AUTH_KEY` and `AUTH_SALT` from `wp-config.php`, so a database edit cannot mark a forged snapshot as verified; without those constants only the per-request memo is used. The HMAC with the installation secret is checked on every read. `client()->uses_native_ed25519()` tells whether ext-sodium is used. On a PHP with neither, the client fails closed: no answer and no snapshot is accepted (`wplc_ed25519_unavailable`, state `stale`), because the HMAC alone proves nothing to someone who can read the installation secret in the same database. The activation itself is kept.
 - The snapshot is valid until its signed **`cache_expires_at`**. This is the offline window: 14 days after the answer, but never beyond `access_until`. The deadline is read from the signed payload. It is not restarted by failed attempts, and the add-on must not shorten it to `paid_until` on its own (that would lock honest customers out during the grace period).
-- Time is measured from the signed `server_time` inside the verified payload plus the local time that passed since it was stored (`fetched_at`). A wrong time zone or a constant clock error on the customer server therefore does not matter. The unsigned helper fields in the option can only make the result later: the highest local time seen (`clock_high`, so turning the clock back does not extend the window) and the highest signed server time seen. A `fetched_at` more than five minutes in the future (an edited option, or the clock turned back before the last answer) voids the snapshot (state `stale`) until a new signed answer arrives; the daily check and the admin catch-up ask at once. Limit: someone who can write the database and keeps resetting `fetched_at` can stretch the window again and again; no local-only check prevents that, but a single edit no longer unlocks anything for good.
+- Time is measured from the signed `server_time` inside the verified payload plus the local time that passed since it was stored (`fetched_at`). A wrong time zone or a constant clock error on the customer server therefore does not matter. The unsigned helper fields in the option can only make the result later: the highest local time seen (`clock_high`, so turning the clock back does not extend the window) and the highest signed server time seen. A `fetched_at` more than five minutes in the future (an edited option, or the clock turned back before the last answer, for example by an NTP correction) voids the snapshot (state `stale`) until a new signed answer arrives. The first page view that notices it schedules a one-off background check through WP-Cron right away (event `{prefix}_license_check`, at most every 15 minutes, transient `{prefix}_license_recheck`), so the features are back within minutes instead of after the next daily check; the admin catch-up asks at once as well. Limit: someone who can write the database and keeps resetting `fetched_at` can stretch the window again and again; no local-only check prevents that, but a single edit no longer unlocks anything for good.
 - An answer whose `server_time` is more than five minutes older than one already accepted is refused (`wplc_response_stale`).
 
 ## What an error does
@@ -268,7 +276,7 @@ A staging site set up from scratch needs the installation ID of the live site; i
 
 ### The same site under a new address
 
-A change of scheme (`http` → `https`), of a leading `www.` or of the case of the path is not a change; the comparison follows the server's rule for "the same site". After a real move to another domain the state is `site_changed`. The license screen then offers "The site moved here: transfer the activation" (`move()`): the activation request is repeated with the stored installation ID and secret, and the server stores the new address instead of counting a second site. A staging site cannot move to a host that is unrelated to its live site (`staging_site_invalid`).
+A change of scheme (`http` → `https`), of a leading `www.` or of the case of the path is not a change; the comparison follows the server's rule for "the same site". The address is the stored `home` option of the site (network mode: domain and path of the network), read without the `home_url` filter: multilingual plugins with one domain per language (WPML, Polylang) and domain mapping plugins filter `home_url()` per request, and a second language domain must not count as a copy. After a real move to another domain the state is `site_changed`. The license screen then shows both addresses (activated for, address of this site) and offers "The site moved here: transfer the activation" (`move()`) behind a checkbox "I confirm that the site moved and no longer runs at …"; without the confirmation nothing is sent (`run_form_action( 'move', $key, $confirmed )`). The warning says that the site at the old address loses the license and that a staging copy should be activated for its own address instead. The activation request is then repeated with the stored installation ID and secret, and the server stores the new address instead of counting a second site. A staging site cannot move to a host that is unrelated to its live site (`staging_site_invalid`).
 
 ### Deactivation
 
@@ -281,11 +289,15 @@ Decide once per add-on, before the first release; changing it later means every 
 | | `network` => `false` (default) | `network` => `true` |
 | --- | --- | --- |
 | Storage | `get_option()` of each site | `get_site_option()` of the network |
-| Activated address | `home_url()` of the site | `network_home_url()` |
+| Activated address | `home` option of the site (unfiltered) | domain and path of the network (`network_home_url()` without filter) |
 | Site slots | one per site of the network that activates | one for the whole network |
 | License screen | Settings of each site | Network Admin → Settings |
 | Who manages | `manage_options` | `manage_network_options` |
 | Daily check | on every activated site | on the main site |
+| Updates | one update entry for the network, fetched with the credentials of one activated site (see below) | with the network activation |
+| License form | `wp-admin/admin-post.php` of the site | `wp-admin/admin-post.php` of the main site, back to Network Admin → Settings |
+
+Updates with per-site activations: WordPress keeps a single update list for the whole network, and its check runs on whichever site's cron or admin screen comes first. The updater therefore caches the update data once for the network (`get_site_option( '{prefix}_update_meta' )`) and always asks with the credentials of the same site: the main site when it is activated, otherwise the activated site it used last time (`{prefix}_update_site`), otherwise the activated site with the lowest ID. The download uses the same site. An activation or deactivation on any site starts the choice anew. If no site of the network is activated, no update is offered and nothing is sent.
 
 Use `network => true` for an add-on that is network-activated and licensed per installation of WordPress. Use the default when each site of a network is a customer of its own (agencies).
 
@@ -293,7 +305,7 @@ Use `network => true` for an add-on that is network-activated and licensed per i
 
 `register()` hooks the updater when the add-on has a usable `Update URI` header.
 
-1. **Periodic check.** WordPress calls the filter `update_plugins_{host of the Update URI}`. The updater asks `POST /updates/check` with `download: false` (the server stores no download grant), plus `channel`, `wp_version`, `php_version` and `core_version`. The answer is cached in `{prefix}_update_meta`: twelve hours after a success, one hour after a failure, with a five-second timeout. WordPress runs the filter several times per check; only the first costs a request. "Check again" on the updates screen skips the cache.
+1. **Periodic check.** WordPress calls the filter `update_plugins_{host of the Update URI}`. The updater asks `POST /updates/check` with `download: false` (the server stores no download grant), plus `channel`, `wp_version`, `php_version` and `core_version`. The answer is cached in `{prefix}_update_meta` (a network option on a multisite with per-site activations): twelve hours after a success, one hour after a failure, with a five-second timeout. WordPress runs the filter several times per check; only the first costs a request. "Check again" on the updates screen skips the cache.
 2. **What WordPress gets.** `slug`, `plugin`, `version`/`new_version`, `tested`, `requires`, `requires_php`, `icons`, `url` and a **stable placeholder** as `package`, because a real link is valid for ten minutes and WordPress keeps the entry for twelve hours. An up-to-date add-on is listed under `no_update`, which the plugin list needs to show the auto-update switch.
 3. **"View details".** `plugins_api` is answered from the cached data: name, version, homepage, last update, requirements and the `changelog` section with all versions since the installed one.
 4. **Download.** In `upgrader_pre_download` the placeholder is replaced: a fresh check with `download: true`, download of `package`, comparison of the SHA-256 of the file with the signed `sha256`. A file that does not match is deleted and the update ends with `wplc_update_checksum`. The download only uses `https://` (plain `http://` only for `localhost`), on the first request and on every redirect (at most five; `wplc_update_insecure` otherwise), and stops at 100 MB (filter `{prefix}_license_max_package_bytes`, in bytes; `wplc_update_too_large`). There is no `HEAD` request first, because pre-signed storage URLs are signed for `GET` only; the response is streamed with `limit_response_size` and a larger file is deleted. This also runs for automatic updates.
@@ -327,7 +339,7 @@ Hooks (the prefix is the option prefix of the add-on):
 
 **Text for the privacy policy.** `register()` offers this paragraph in the privacy policy guide of WordPress (`privacy_text()` returns it):
 
-> *Voucher Captain Pro* checks its license and looks for updates at *licenses.example.com*. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), and the versions of the plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent.
+> *Voucher Captain Pro* checks its license and looks for updates at *licenses.example.com*. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), for a staging site the installation ID of its live site, and the versions of the plugin, of the base plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent. Legal basis: our legitimate interest in the use of licensed software and in security updates (Art. 6(1)(f) GDPR).
 
 What is sent, exactly: `site_url`, `installation_id`, `product_key`, `product_version`, `wp_version`, `php_version`, `environment`; on activation also `license_key` and the new installation secret; on update checks also `channel` and `core_version`. WordPress adds its default `User-Agent`, which contains the WordPress version and the site address. The versions are used to offer only updates the site can run and for support.
 
@@ -388,6 +400,6 @@ Stored credentials (`{prefix}_license`, not autoloaded): `installation_id`, `ins
 - `tests/Client/`: unit tests against a fake server that signs like the real one. One case for every row of the error table, signature checks (valid, tampered, wrong key, missing, legacy only, replayed), copies of a site, the pending activation, clock errors, back-off, and the export script.
 - `tests/integration/Client*IntegrationTest.php`: the library against the REST server of the test process with a real database: activate, check, update check, download, deactivate, staging copy, move, key change, signed refusals, and an update that the WordPress upgrader installs from a release ZIP in the local package storage. HTTP itself is bridged in the process (`tests/integration/ClientServerBridge.php` names what that leaves out).
 
-Not covered by any test here: a real add-on in a real shop over real HTTP and TLS, WP-Cron timing on a live host, a multisite network, and PHP without the sodium extension. Run the quick start above before the first release of each add-on.
+Not covered by any test here: a real add-on in a real shop over real HTTP and TLS, WP-Cron timing on a live host, and PHP without the sodium extension. The client integration tests also pass on a multisite test install (`WP_MULTISITE=1`; there the network-mode form, its `admin-post.php` target and the redirect to Network Admin are exercised); the per-site update source on a network is covered by unit tests only. Run the quick start above before the first release of each add-on.
 
-**Helpers kept from client 1.x.** `LicenseClient` 2.0 still offers the methods add-ons built on the 1.x API use: `check_entitlements_envelope()` (returns `array( 'data' => …, 'envelope' => … )` for an offline cache), `verify_cached_envelope( array $envelope )` (re-verifies a stored envelope like `verify_snapshot()`) and the static `LicenseClient::verified_server_data( array $envelope, string $installation_id, array $public_keys )`, which checks the legacy `signature_ed25519` (context `wplc-response-v1`). New add-ons use the `LicenseManager` facade.
+**Helpers kept from client 1.x.** `LicenseClient` 2.0 still offers the methods add-ons built on the 1.x API use: `check_entitlements_envelope()` (returns `array( 'data' => …, 'envelope' => … )` for an offline cache), `verify_cached_envelope( array $envelope )` (re-verifies a stored envelope like `verify_snapshot()`) and the static `LicenseClient::verified_server_data( array $envelope, string $installation_id, array $public_keys, string $expected_nonce )`. Since 2.0.2 that helper checks the payload signature `payload_signature_ed25519` (context `wplc-response-v2`, which covers the request nonce) and requires the nonce of the request (`wplc_nonce_mismatch` without it); the legacy `signature_ed25519` (context `wplc-response-v1`, no nonce, so a recorded answer could be replayed) is never accepted. The server still sends it for copies of client 1.x. New add-ons use the `LicenseManager` facade.

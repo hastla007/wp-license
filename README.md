@@ -10,6 +10,7 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 
 - Mark WooCommerce products or variations as license products with plan, billing interval (monthly/yearly), site limit, support level and entitlements; CSV export/import of the mapping.
 - One license per purchased unit when the order is paid. The purchase requires a customer account.
+- Checkout consent to the immediate start of the license (EU withdrawal right for digital content), required by default and recorded on the order; off when Germanized or German Market is active ([docs/CONCEPT-CHECKOUT-RENEWAL.md](docs/CONCEPT-CHECKOUT-RENEWAL.md)). Order lines show the license and the service period.
 - License states `pending`, `active`, `past_due`, `suspended`, `revoked`, `expired` with fixed transition rules and an audit log.
 - Refund of the purchase revokes the license; a Stripe dispute suspends it.
 
@@ -23,6 +24,7 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 **Customer account**
 
 - "Licenses" page: key with copy button, status, end date, sites in use, deactivate a site, cancel or resume automatic renewal, renew now, download the latest release.
+- The same list anywhere as shortcode `[wplc_licenses]` or block "My licenses"; release notes of a product as shortcode `[wplc_changelog product="product-key" limit="10"]` or block "Changelog".
 - Emails through WooCommerce: license issued, expiry reminder, upcoming automatic renewal, payment failed, license renewed, license expired.
 
 **Product plugins** ([docs/CLIENT-INTEGRATION.md](docs/CLIENT-INTEGRATION.md), [docs/API-V1.md](docs/API-V1.md))
@@ -43,7 +45,7 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 - Settings and diagnostics pages, health alert hook ([docs/MONITORING.md](docs/MONITORING.md)).
 - Personal data export and erasure through the WordPress privacy tools; scheduled data retention.
 
-**Languages:** English and German (`de_DE`, `de_DE_formal`). Regenerate with `bin/make-pot.sh`.
+**Languages:** English and German (`de_DE`, `de_DE_formal`). Austrian, Swiss, Luxembourg, Liechtenstein and Belgian German without their own file load `de_DE_formal` (`*_informal` variants `de_DE`; filter `wplc_translation_fallback_locale`). Regenerate with `bin/make-pot.sh`.
 
 ## Requirements
 

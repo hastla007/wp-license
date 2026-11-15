@@ -77,10 +77,13 @@ final class RenewalProcessorIntegrationTest extends WPLC_Renewal_TestCase {
 			$wpdb->update( $this->tables()['licenses'], array( 'cancel_at_period_end' => 1 ), array( 'id' => $f['license_id'] ) );
 		};
 
+		$before = $this->license( $f['license_id'] );
 		RenewalProcessor::process( $f['renewal_id'] );
 
 		$license = $this->license( $f['license_id'] );
-		$this->assertSame( $f['period_end'], $license['paid_until'] );
+		// P-02: the payment taken while the customer cancelled is not booked silently; it goes to review.
+		$this->assertSame( $before['paid_until'], $license['paid_until'] );
+		$this->assertSame( RenewalProcessor::STATUS_REVIEW, $this->renewal( $f['renewal_id'] )['status'] );
 		$this->assertSame( '1', (string) $license['cancel_at_period_end'] );
 		$this->assertCount( 1, $this->renewals_of( $f['license_id'] ) );
 	}
@@ -421,7 +424,12 @@ final class RenewalProcessorIntegrationTest extends WPLC_Renewal_TestCase {
 
 		$this->assertSame( 1, $this->charges() );
 		$this->assertSame( 'active', $this->license( $f['license_id'] )['status'] );
-		$this->assertSame( $f['period_end'], $this->license( $f['license_id'] )['paid_until'] );
+		// P-43: after the grace period the new period runs from the charge, not from the old due date.
+		$paid_until = $this->license( $f['license_id'] )['paid_until'];
+		$this->assertSame( $this->renewal( $f['renewal_id'] )['period_end'], $paid_until );
+		$expected = RenewalScheduler::period_end( time(), 'year', RenewalScheduler::anchor_day( $this->license( $f['license_id'] ) ) );
+		$this->assertLessThanOrEqual( 5, abs( strtotime( $paid_until . ' UTC' ) - $expected ), 'One full period from the charge.' );
+		$this->assertGreaterThan( strtotime( $f['period_end'] . ' UTC' ), strtotime( $paid_until . ' UTC' ) );
 	}
 
 	/** A-18: when that late attempt fails the license ends; nothing is retried beyond grace. */
@@ -647,6 +655,64 @@ final class RenewalProcessorIntegrationTest extends WPLC_Renewal_TestCase {
 		$this->assertSame( 'cancelled', $renewal['status'] );
 		$this->assertSame( 'renewal_window_ended', $renewal['last_error'] );
 		$this->assertSame( 'cancelled', wc_get_order( $order->get_id() )->get_status() );
+	}
+
+	/** Move an order's creation and last change two days back. */
+	private function age_order( int $order_id ): void {
+		global $wpdb;
+		$old = gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS );
+		if ( $this->hpos_enabled() ) {
+			$wpdb->update( $wpdb->prefix . 'wc_orders', array( 'date_created_gmt' => $old, 'date_updated_gmt' => $old ), array( 'id' => $order_id ) );
+		}
+		$wpdb->update( $wpdb->posts, array( 'post_date_gmt' => $old, 'post_date' => $old, 'post_modified_gmt' => $old, 'post_modified' => $old ), array( 'ID' => $order_id ) );
+		clean_post_cache( $order_id );
+		wp_cache_flush();
+	}
+
+	/** B-190: an unpaid renewal order whose renewal is gone or was paid with another order is closed with a note. */
+	public function test_b190_orphaned_renewal_orders_are_closed_with_a_note(): void {
+		global $wpdb;
+		$tables = $this->tables();
+
+		// 1. The renewal row no longer exists (e.g. after a database restore).
+		$gone = $this->renewing_license();
+		WPLC_Test_Recurring_Adapter::$mode = 'decline';
+		RenewalProcessor::process( $gone['renewal_id'] );
+		$gone_order = (int) $this->renewal( $gone['renewal_id'] )['renewal_order_id'];
+		$wpdb->delete( $tables['renewals'], array( 'id' => $gone['renewal_id'] ) );
+
+		// 2. The renewal was paid through another order.
+		$other = $this->renewing_license();
+		RenewalProcessor::process( $other['renewal_id'] );
+		$stale_order = (int) $this->renewal( $other['renewal_id'] )['renewal_order_id'];
+		$wpdb->update( $tables['renewals'], array( 'status' => 'paid', 'renewal_order_id' => $stale_order + 100000 ), array( 'id' => $other['renewal_id'] ) );
+
+		// 3. A failed renewal that still waits for its retry keeps its order.
+		$kept = $this->renewing_license();
+		RenewalProcessor::process( $kept['renewal_id'] );
+		$kept_order = (int) $this->renewal( $kept['renewal_id'] )['renewal_order_id'];
+
+		foreach ( array( $gone_order, $stale_order, $kept_order ) as $order_id ) {
+			$this->assertTrue( wc_get_order( $order_id )->needs_payment(), 'Fixture: the renewal order is not payable.' );
+		}
+
+		// A young order is left alone: it may be in the middle of being created or paid.
+		RenewalProcessor::cleanup_stale_renewals();
+		$this->assertSame( 'failed', wc_get_order( $gone_order )->get_status() );
+
+		foreach ( array( $gone_order, $stale_order, $kept_order ) as $order_id ) {
+			$this->age_order( $order_id );
+		}
+		RenewalProcessor::cleanup_stale_renewals();
+
+		foreach ( array( $gone_order, $stale_order ) as $order_id ) {
+			$this->assertSame( 'cancelled', wc_get_order( $order_id )->get_status() );
+			$notes = wp_list_pluck( wc_get_order_notes( array( 'order_id' => $order_id ) ), 'content' );
+			$this->assertNotEmpty( preg_grep( '/no license renewal can accept this order/', $notes ) );
+			$this->assertContains( 'renewal_order_orphaned', $this->audit_actions( 'order', $order_id ) );
+		}
+		$this->assertSame( 'failed', wc_get_order( $kept_order )->get_status() );
+		$this->assertSame( 'past_due', $this->license( $other['license_id'] )['status'], 'Closing the stale order does not touch the license.' );
 	}
 
 	/** B-34 / B-35: a failing daily task is contained and every task leaves a heartbeat. */

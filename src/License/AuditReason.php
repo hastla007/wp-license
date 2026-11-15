@@ -44,6 +44,8 @@ final class AuditReason {
 	public const LICENSE_KEY_ID_RECOVERED       = 'license_key_id_recovered';
 	public const INSTALLATION_SECRET_ROTATED    = 'installation_secret_rotated';
 	public const SIGNING_KEY_ROTATED            = 'signing_key_rotated';
+	public const LICENSE_KEY_SECRET_REVOKED     = 'license_key_secret_revoked';
+	public const ENTITLEMENTS_SYNCED_FROM_PLAN  = 'entitlements_synced_from_plan';
 	public const MANUAL_RENEWAL_STARTED         = 'manual_renewal_started';
 	public const MANUAL_RENEWAL_PAID            = 'manual_renewal_paid';
 	public const MANUAL_PERIOD_CHANGED          = 'manual_period_changed';
@@ -71,6 +73,13 @@ final class AuditReason {
 	public const REVIEW_NOT_PAID                = 'review_not_paid';
 	public const REVIEW_CLOSED                  = 'review_closed';
 	public const RENEWED_AFTER_REVIEW           = 'renewed_after_review';
+	public const RENEWAL_WITHDRAWN_DURING_CHARGE = 'renewal_withdrawn_during_charge';
+	public const MARKED_PAID_WITHOUT_PAYMENT    = 'marked_paid_without_payment';
+	public const MARKED_PAID_BY_ADMIN           = 'marked_paid_by_admin';
+	public const UNBOOKED_STRIPE_PAYMENT        = 'unbooked_stripe_payment';
+	public const REVIEW_ORDER_REFUNDED          = 'review_order_refunded';
+	public const REVIEW_ORDER_CANCELLED         = 'review_order_cancelled';
+	public const DUPLICATE_PAYMENT_REFUNDED     = 'duplicate_payment_refunded';
 	// Plan changes (T-110).
 	public const PLAN_UPGRADE_STARTED           = 'plan_upgrade_started';
 	public const PLAN_UPGRADED_FROM_ORDER       = 'plan_upgraded_from_order';
@@ -87,6 +96,8 @@ final class AuditReason {
 	public const UPGRADE_PRICE_MISMATCH         = 'upgrade_price_mismatch';
 	public const UPGRADE_CONSENT_MISSING        = 'upgrade_consent_missing';
 	public const UPGRADE_NOT_APPLIED            = 'upgrade_not_applied';
+	public const PLAN_UPGRADE_CANCELLED         = 'plan_upgrade_cancelled';
+	public const UPGRADE_QUOTE_EXPIRED          = 'upgrade_quote_expired';
 	public const LEGACY_PAYMENT_REVIEW          = 'payment_review';
 
 	/**
@@ -219,6 +230,9 @@ final class AuditReason {
 			self::LICENSE_KEY_ID_RECOVERED       => array( __( 'License key ID corrected after matching the stored verifier.', 'wp-license' ), array() ),
 			self::INSTALLATION_SECRET_ROTATED    => array( __( 'Installation secret encrypted with the configured current key.', 'wp-license' ), array() ),
 			self::SIGNING_KEY_ROTATED            => array( __( 'Response signing key rotated.', 'wp-license' ), array() ),
+			/* translators: %s: license key ID (an identifier from wp-config.php, not a secret). */
+			self::LICENSE_KEY_SECRET_REVOKED     => array( __( 'New key issued because the license-key secret "%s" was retired.', 'wp-license' ), array( 'key_id' ) ),
+			self::ENTITLEMENTS_SYNCED_FROM_PLAN  => array( __( 'Entitlements updated to the current settings of the plan.', 'wp-license' ), array() ),
 			// Manual renewals.
 			self::MANUAL_RENEWAL_STARTED         => array( __( 'The customer started a manual renewal.', 'wp-license' ), array() ),
 			self::MANUAL_RENEWAL_PAID            => array( __( 'The customer paid a manual renewal order.', 'wp-license' ), array() ),
@@ -237,6 +251,18 @@ final class AuditReason {
 			self::RENEWED_AFTER_REVIEW           => array( __( 'Renewed by an administrator after reviewing order #%1$d: %2$s', 'wp-license' ), array( 'order', 'note' ) ),
 			self::LICENSE_CHANGED_WHILE_UNKNOWN  => array( __( 'The license was changed while the payment result was still unknown.', 'wp-license' ), array() ),
 			self::PAID_AFTER_REVIEW_CLOSED       => array( __( 'The renewal order was paid after its review had been closed without booking.', 'wp-license' ), array() ),
+			self::RENEWAL_WITHDRAWN_DURING_CHARGE => array( __( 'Automatic renewal was cancelled or switched off while the payment was being taken. The renewal was not booked: refund the payment, or book the renewal on the review screen.', 'wp-license' ), array() ),
+			self::MARKED_PAID_WITHOUT_PAYMENT    => array( __( 'An administrator set the renewal order to paid although no payment had been attempted and the order has no transaction ID. The renewal was not booked: book it on the review screen if the money was received.', 'wp-license' ), array() ),
+			/* translators: %d: WordPress user ID of the administrator. */
+			self::MARKED_PAID_BY_ADMIN           => array( __( 'The renewal order was set to paid by an administrator (user #%d) without a transaction ID.', 'wp-license' ), array( 'user' ) ),
+			/* translators: 1: Stripe PaymentIntent ID, 2: reason code. */
+			self::UNBOOKED_STRIPE_PAYMENT        => array( __( 'Stripe reports a successful payment %1$s that could not be booked (%2$s). Check the payment in Stripe: refund it there, or book the renewal.', 'wp-license' ), array( 'intent', 'cause' ) ),
+			/* translators: %d: WooCommerce order number. */
+			self::REVIEW_ORDER_REFUNDED          => array( __( 'Review closed automatically: renewal order #%d was refunded.', 'wp-license' ), array( 'order' ) ),
+			/* translators: %d: WooCommerce order number. */
+			self::REVIEW_ORDER_CANCELLED         => array( __( 'Review closed automatically: renewal order #%d was cancelled.', 'wp-license' ), array( 'order' ) ),
+			/* translators: 1: WooCommerce order number, 2: transaction or PaymentIntent ID of the second payment. */
+			self::DUPLICATE_PAYMENT_REFUNDED     => array( __( 'Renewal order #%1$d was refunded while a second payment (%2$s) for the same period remains. The renewal was not rolled back.', 'wp-license' ), array( 'order', 'payment' ) ),
 			// Plan changes (T-110).
 			/* translators: %d: WooCommerce order number. */
 			self::PLAN_UPGRADE_STARTED           => array( __( 'The customer started a plan upgrade (order #%d).', 'wp-license' ), array( 'order' ) ),
@@ -258,6 +284,9 @@ final class AuditReason {
 			self::UPGRADE_PRICE_MISMATCH         => array( __( 'The paid upgrade order line or currency did not match the upgrade price.', 'wp-license' ), array() ),
 			self::UPGRADE_CONSENT_MISSING        => array( __( 'The upgrade order has no consent to the new automatic renewal amount.', 'wp-license' ), array() ),
 			self::UPGRADE_NOT_APPLIED            => array( __( 'The plan upgrade could not be applied to the license.', 'wp-license' ), array() ),
+			/* translators: 1: WooCommerce order number, 2: new order status (for example "cancelled" or "failed"). */
+			self::PLAN_UPGRADE_CANCELLED         => array( __( 'Plan upgrade order #%1$d was set to "%2$s" after it had been paid.', 'wp-license' ), array( 'order', 'status' ) ),
+			self::UPGRADE_QUOTE_EXPIRED          => array( __( 'The upgrade price was calculated too long ago; start the upgrade again for a new price.', 'wp-license' ), array() ),
 			self::LEGACY_PAYMENT_REVIEW          => array( __( 'Taken over from an earlier version: the payment result was unclear or the payment could not be applied. Compare the renewal order with the payment at the provider.', 'wp-license' ), array() ),
 			// Automatic renewals and payment events.
 			self::RENEWAL_ALREADY_PAID           => array( __( 'The renewal order was already paid.', 'wp-license' ), array() ),

@@ -407,6 +407,10 @@ final class StripeWebhook {
 				return;
 			}
 			set_transient( 'wplc_hb_' . $name, 1, MINUTE_IN_SECONDS );
+			if ( 'stripe_webhook_rejected' === $name ) {
+				// A-72: counted per minute, so a flood of forged requests costs one write a minute.
+				\WPLC\Admin\Diagnostics::count_rejected_webhook();
+			}
 		}
 		\WPLC\Admin\Diagnostics::mark_run( $name );
 	}

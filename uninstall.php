@@ -42,8 +42,20 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 	function wplc_uninstall_site( $remove_data = false ) {
 		global $wpdb;
 
-		foreach ( array( 'wplc_daily_lifecycle', 'wplc_cleanup_security_rows', 'wplc_send_reminders' ) as $hook ) {
-			wp_clear_scheduled_hook( $hook );
+		// Every WP-Cron event of the plugin, also single events with arguments (renewal, grace end,
+		// Stripe event, plan upgrade): wp_clear_scheduled_hook() only removes events with equal arguments.
+		$hooks = array( 'wplc_daily_lifecycle', 'wplc_cleanup_security_rows', 'wplc_send_reminders' );
+		$cron  = function_exists( '_get_cron_array' ) ? _get_cron_array() : array();
+		foreach ( is_array( $cron ) ? $cron : array() as $events ) {
+			foreach ( array_keys( is_array( $events ) ? $events : array() ) as $hook ) {
+				$hook = (string) $hook;
+				if ( 0 === strpos( $hook, 'wplc_' ) || 0 === strpos( $hook, 'wplc/' ) ) {
+					$hooks[] = $hook;
+				}
+			}
+		}
+		foreach ( array_unique( $hooks ) as $hook ) {
+			wp_unschedule_hook( $hook );
 		}
 
 		// Action Scheduler refuses to work before its data store is initialized (it is on a normal uninstall request).
@@ -65,21 +77,34 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 			'wplc_license_product_ids',
 			'wplc_gap_window',
 			'wplc_gap_reconciled_orders',
+			'wplc_gap_reconcile_cursor',
 			'wplc_billing_paused_since',
 			'wplc_site_guard_keep_paused',
 			'wplc_schema_last_error',
 			'wplc_schema_error',
 			'wplc_last_run',
+			'wplc_webhook_rejected',
 			'wplc_schema_verified',
 		);
 		foreach ( $working_state as $option ) {
 			delete_option( $option );
 		}
-		// Cursors of the former privacy eraser (one option per user) and the plugin's transients
-		// (key sample, lock counters, cached catalog and package checks).
+		// The plugin's transients (key sample, lock counters, cached catalog and package checks) through the
+		// transient API, so a persistent object cache forgets them too: first the fixed names (with an object
+		// cache they are not in the options table), then every one found in the table.
+		$transients = array( 'wplc_key_sample', 'wplc_key_note_synced', 'wplc_review_menu_count', 'wplc_package_storage_probe', 'wplc_package_dir_exposure', 'wplc_license_product_ids' );
+		$stored     = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( '_transient_wplc_' ) . '%' ) );
+		foreach ( is_array( $stored ) ? $stored : array() as $option_name ) {
+			$transients[] = substr( (string) $option_name, strlen( '_transient_' ) );
+		}
+		foreach ( array_unique( $transients ) as $transient ) {
+			delete_transient( $transient );
+		}
+		// Leftovers the API did not reach, and the cursors of the former privacy eraser (one option per user).
 		foreach ( array( 'wplc_privacy_eraser_cursor_', '_transient_wplc_', '_transient_timeout_wplc_' ) as $prefix ) {
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( $prefix ) . '%' ) );
 		}
+		wp_cache_delete( 'alloptions', 'options' );
 
 		if ( ! $remove_data ) {
 			return;
@@ -114,6 +139,14 @@ if ( is_multisite() && function_exists( 'get_sites' ) ) {
 		wplc_uninstall_site( $wplc_remove_data );
 		restore_current_blog();
 	}
+	// Network-wide transients (the release check `wplc_self_update`, A-42; and leftovers of other versions).
+	global $wpdb;
+	$wplc_site_transients = $wpdb->get_col( $wpdb->prepare( "SELECT meta_key FROM {$wpdb->sitemeta} WHERE meta_key LIKE %s", $wpdb->esc_like( '_site_transient_wplc_' ) . '%' ) );
+	foreach ( is_array( $wplc_site_transients ) ? $wplc_site_transients : array() as $wplc_site_transient ) {
+		delete_site_transient( substr( (string) $wplc_site_transient, strlen( '_site_transient_' ) ) );
+	}
 } else {
 	wplc_uninstall_site( $wplc_remove_data );
+	// Cached answer of the release check (A-42); stored as a site option on a single site.
+	delete_site_transient( 'wplc_self_update' );
 }

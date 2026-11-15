@@ -30,6 +30,11 @@ final class EntitlementService {
 	private const VERSION_LENGTH = 30;
 
 	/**
+	 * Seconds between two writes of `last_seen_at` when nothing else changed (P-50).
+	 */
+	public const LAST_SEEN_INTERVAL = 3600;
+
+	/**
 	 * Check the authenticated installation's current rights.
 	 *
 	 * @param \WP_REST_Request $request Request.
@@ -63,21 +68,16 @@ final class EntitlementService {
 			return new \WP_Error( 'license_not_found', 'The license record could not be found.', array( 'status' => 404 ) );
 		}
 
-		// Only overwrite the versions the client actually reported.
-		$seen = array( 'last_seen_at' => gmdate( 'Y-m-d H:i:s' ) );
-		foreach ( array( 'product_version', 'wp_version', 'php_version' ) as $version_field ) {
-			$reported = self::version_param( $request, $version_field );
-			if ( '' !== $reported ) {
-				$seen[ $version_field ] = $reported;
-			}
+		$seen = self::seen_changes( $activation, $request );
+		if ( array() !== $seen ) {
+			$wpdb->update(
+				$tables['activations'],
+				$seen,
+				array( 'id' => (int) $activation['id'] ),
+				array_fill( 0, count( $seen ), '%s' ),
+				array( '%d' )
+			);
 		}
-		$wpdb->update(
-			$tables['activations'],
-			$seen,
-			array( 'id' => (int) $activation['id'] ),
-			array_fill( 0, count( $seen ), '%s' ),
-			array( '%d' )
-		);
 
 		$data = self::snapshot( $license, $activation );
 
@@ -85,7 +85,7 @@ final class EntitlementService {
 		// another address (clone, staging copy with the same credentials) is
 		// then visible to both sides (A-34); it is not refused until the rule
 		// for moving a site is decided (B-164).
-		$reported_url = $request->get_param( 'site_url' );
+		$reported_url = Authenticator::signed_param( $request, 'site_url' );
 		if ( is_string( $reported_url ) && '' !== $reported_url ) {
 			$reported_key = SiteUrl::comparison_key( $reported_url );
 			$data['site_match'] = '' !== $reported_key && SiteUrl::comparison_key( (string) $activation['site_url'] ) === $reported_key;
@@ -195,6 +195,35 @@ final class EntitlementService {
 	}
 
 	/**
+	 * Columns of the activation an entitlement check has to write (P-50).
+	 *
+	 * Only versions the client reported and that differ from the stored ones;
+	 * `last_seen_at` once per LAST_SEEN_INTERVAL, or together with a version
+	 * change. An empty result means no write at all.
+	 *
+	 * @param array<string,mixed> $activation Activation row as read by the authenticator.
+	 * @param \WP_REST_Request    $request    Authenticated request.
+	 * @param int|null            $now        Unix timestamp, defaults to now.
+	 * @return array<string,string>
+	 */
+	public static function seen_changes( array $activation, \WP_REST_Request $request, ?int $now = null ): array {
+		$now = null === $now ? time() : $now;
+		$changes = array();
+		foreach ( array( 'product_version', 'wp_version', 'php_version' ) as $version_field ) {
+			$reported = self::clean_version( Authenticator::signed_param( $request, $version_field ) );
+			if ( '' !== $reported && (string) ( $activation[ $version_field ] ?? '' ) !== $reported ) {
+				$changes[ $version_field ] = $reported;
+			}
+		}
+		$last_seen = empty( $activation['last_seen_at'] ) ? false : strtotime( (string) $activation['last_seen_at'] . ' UTC' );
+		if ( array() !== $changes || false === $last_seen || $now - $last_seen >= self::LAST_SEEN_INTERVAL ) {
+			$changes['last_seen_at'] = gmdate( 'Y-m-d H:i:s', $now );
+		}
+
+		return $changes;
+	}
+
+	/**
 	 * Read one of the reported version strings.
 	 *
 	 * The columns hold 30 characters; anything longer is cut instead of
@@ -205,7 +234,16 @@ final class EntitlementService {
 	 * @return string
 	 */
 	public static function version_param( \WP_REST_Request $request, string $name ): string {
-		$value = $request->get_param( $name );
+		return self::clean_version( $request->get_param( $name ) );
+	}
+
+	/**
+	 * Clean one reported version value (see version_param()).
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string
+	 */
+	public static function clean_version( $value ): string {
 		if ( ! is_string( $value ) && ! is_int( $value ) && ! is_float( $value ) ) {
 			return '';
 		}
@@ -261,7 +299,7 @@ final class EntitlementService {
 		if ( false !== $paid_until ) {
 			// has_access() at the end of the paid period is true exactly when a grace period applies.
 			if ( LicenseLifecycle::has_access( $license, $paid_until ) ) {
-				$grace_end = $paid_until + LicenseLifecycle::GRACE_DAYS * DAY_IN_SECONDS;
+				$grace_end = $paid_until + LicenseLifecycle::grace_days() * DAY_IN_SECONDS;
 			}
 			if ( $access ) {
 				$access_end = null === $grace_end ? $paid_until : $grace_end;

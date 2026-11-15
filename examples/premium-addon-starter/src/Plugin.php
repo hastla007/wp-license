@@ -88,6 +88,7 @@ final class Plugin {
 		( new SettingsPage( $this->license(), Config::PREFIX, 'Premium Add-on Starter' ) )->register();
 		add_action( Config::cron_hook(), array( $this, 'daily' ) );
 		add_action( 'init', array( $this, 'schedule' ) );
+		add_action( 'admin_init', array( $this, 'catch_up' ) );
 
 		/**
 		 * The add-on is ready: register premium features here, each behind Entitlements::has( '<prefix>.<feature>' ).
@@ -109,6 +110,19 @@ final class Plugin {
 		}
 		$this->license()->refresh();
 		$this->updater()->check();
+	}
+
+	/**
+	 * admin_init: catch up a missed daily check (hosts with DISABLE_WP_CRON and no system cron).
+	 *
+	 * Runs for administrators only, not in AJAX requests, at most every 36 hours after a success and every hour
+	 * after a failure (LicenseService::catch_up_due()). Without it the signed cache would run out after 14 days.
+	 */
+	public function catch_up(): void {
+		if ( wp_doing_ajax() || ! current_user_can( 'manage_options' ) || ! $this->license()->catch_up_due() ) {
+			return;
+		}
+		$this->license()->refresh();
 	}
 
 	/** Deactivation keeps the license (an uninstall releases it) and removes the cron event. */

@@ -190,5 +190,20 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( array( 'status' => 'review_required', 'retry_at' => null, 'review_reason' => 'license_changed_during_charge', 'review_at' => $now ), $moved( $ids['with_error'] ) );
 		$this->assertSame( array( 'status' => 'review_required', 'retry_at' => null, 'review_reason' => 'payment_review', 'review_at' => $now ), $moved( $ids['without_error'] ) );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['renewals']} WHERE license_id = %d", 999021 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+
+		// Schema 22 (P-31, P-53): payment token and last event per source; the structure check sees a lost index.
+		$this->assertSame( Schema::VERSION, (string) get_option( Schema::VERSION_OPTION ) );
+		$this->assertTrue( Schema::run_registered_step( '22' ), 'Step 22 finds both indexes.' );
+		$this->assertTrue( Schema::run_registered_step( '22' ), 'Step 22 is repeatable.' );
+		$this->assertSame( array(), Schema::verify() );
+		$wpdb->query( "ALTER TABLE {$tables['licenses']} DROP INDEX payment_token" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name from Schema.
+		$this->assertFalse( Schema::run_registered_step( '22' ), 'Step 22 reports the missing index.' );
+		$this->assertSame( array( $tables['licenses'] . ': index payment_token is missing' ), Schema::verify(), 'The daily structure check reports a lost index.' );
+		$this->assertContains( $tables['licenses'] . ': index payment_token is missing', Schema::status()['problems'] );
+		$this->assertTrue( Schema::migrate(), 'dbDelta adds the index again.' );
+		$this->assertTrue( Schema::run_registered_step( '22' ) );
+		$this->assertSame( array(), Schema::verify() );
+		$plan = $wpdb->get_results( $wpdb->prepare( "EXPLAIN SELECT id FROM {$tables['licenses']} WHERE payment_token_id = %d", 42 ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		$this->assertSame( 'payment_token', (string) $plan[0]['key'], 'The token lookup uses the index.' );
 	}
 }

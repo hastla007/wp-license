@@ -9,6 +9,8 @@ namespace WPLC\Maintenance;
 
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
+use WPLC\License\LicenseLifecycle;
+use WPLC\Privacy\PersonalData;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -91,8 +93,15 @@ final class Orphans {
 					continue;
 				}
 				++$progress;
+				// Same follow-up as the privacy eraser (P-35, P-36): the open manual renewal order of
+				// a detached license could never be booked, and the deleted installations and the
+				// deleted owner must not stay readable in the audit snapshots.
+				LicenseLifecycle::cancel_open_renewals( $license_id, true, 'owner_deleted', __( 'WP License Captain: the customer account was deleted; this renewal was cancelled.', 'wp-license' ) );
+				$gone = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$tables['activations']} WHERE license_id = %d AND status <> %s", $license_id, 'active' ) ) );
 				$wpdb->query( $wpdb->prepare( "DELETE n FROM {$tables['request_nonces']} n INNER JOIN {$tables['activations']} a ON a.id = n.activation_id WHERE a.license_id = %d AND a.status <> %s", $license_id, 'active' ) );
 				$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['activations']} WHERE license_id = %d AND status <> %s", $license_id, 'active' ) );
+				PersonalData::scrub_audit( 'activation', $gone );
+				PersonalData::scrub_audit( 'license', array( $license_id ), $user_id );
 				AuditLog::record( 'license_owner_deleted', 'license', $license_id, 'Customer account deleted; the license was detached from the account and is not revoked.' );
 			}
 			if ( $progress < 1 ) {

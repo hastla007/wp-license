@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 e8ca7a3198e2d37fb9aa883c0a0fa8112e4189630acd0785ad37be80658ab78b). Do not edit: change the server copy and re-vendor.
+ * (source sha256 3b00fc4984dfb535bd46b56d3164de2fd2b8c3e08ad30c078adbad19dcea290e). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -33,7 +33,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.1';
+		const VERSION = '2.0.2';
 
 		/**
 		 * Text domain literal used in this file.
@@ -78,12 +78,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		 */
 		public function get( string $code ): string {
 			$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : '';
-			if ( null === $this->texts || $locale !== $this->texts_locale ) {
-				// Built once: the table has some hundred entries and every lookup used to rebuild it.
-				$this->texts        = self::texts();
-				$this->texts_locale = $locale;
+			$texts  = $this->texts;
+			if ( null === $texts || $locale !== $this->texts_locale ) {
+				$texts = self::texts();
+				if ( ! function_exists( 'did_action' ) || did_action( 'init' ) ) {
+					// Built once: the table has some hundred entries and every lookup used to rebuild it.
+					// Before init the add-on's translations may not be loaded yet, so nothing is kept then.
+					$this->texts        = $texts;
+					$this->texts_locale = $locale;
+				}
 			}
-			$texts = $this->texts;
 			if ( ! isset( $texts[ $code ] ) ) {
 				return '';
 			}
@@ -160,6 +164,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'error.installation_secret_invalid'   => __( 'The license server cannot read the activation of this site. Enter the license key to activate it again.', 'premium-addon-starter' ),
 				'error.activation_mismatch'           => __( 'The stored activation does not belong to this installation.', 'premium-addon-starter' ),
 				'error.site_mismatch'                 => __( 'This site is not the one the license was activated for.', 'premium-addon-starter' ),
+				'error.site_move_refused'             => __( 'A live site activation cannot be moved to a staging, local or test address. Activate this copy as a staging site instead.', 'premium-addon-starter' ),
 				'error.invalid_request_signature'     => __( 'The license server rejected the signature of this site.', 'premium-addon-starter' ),
 				'error.request_expired'               => __( 'The clock of this server differs too much from the clock of the license server.', 'premium-addon-starter' ),
 				'error.rate_limited'                  => __( 'Too many requests. Please try again in a few minutes.', 'premium-addon-starter' ),
@@ -232,6 +237,14 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'ui.saved.forgotten'                  => __( 'The license data was removed from this site without asking the license server. If the server still lists this activation, release it in your customer account.', 'premium-addon-starter' ),
 				'ui.saved.checked'                    => __( 'The license was checked.', 'premium-addon-starter' ),
 				'ui.saved.moved'                      => __( 'The activation was transferred to this address.', 'premium-addon-starter' ),
+				'ui.activated_address'                => __( 'Activated for', 'premium-addon-starter' ),
+				'ui.current_address'                  => __( 'Address of this site', 'premium-addon-starter' ),
+				/* translators: 1: address the license was activated for, 2: address of this site. */
+				'ui.move_warning'                     => __( 'Only if the site really moved: transferring moves the activation from %1$s to %2$s. The site at %1$s then loses the license. For a staging or test copy, activate this address instead.', 'premium-addon-starter' ),
+				'ui.move_not_live'                    => __( 'This site reports itself as a staging or development site.', 'premium-addon-starter' ),
+				/* translators: %s: address the license was activated for. */
+				'ui.move_confirm'                     => __( 'I confirm that the site moved and no longer runs at %s.', 'premium-addon-starter' ),
+				'ui.move_unconfirmed'                 => __( 'Nothing was transferred. Confirm that the site moved before you transfer the activation.', 'premium-addon-starter' ),
 				'ui.forbidden'                        => __( 'You are not allowed to manage the license of this plugin.', 'premium-addon-starter' ),
 				'ui.utc'                              => __( 'UTC', 'premium-addon-starter' ),
 				// Updater.
@@ -262,7 +275,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				// Privacy policy suggestion.
 				'privacy.title'                       => __( 'License check and updates', 'premium-addon-starter' ),
 				/* translators: 1: name of the add-on, 2: host name of the license server. */
-				'privacy.text'                        => __( '%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), and the versions of the plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent.', 'premium-addon-starter' ),
+				'privacy.text'                        => __( '%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), for a staging site the installation ID of its live site, and the versions of the plugin, of the base plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent. Legal basis: our legitimate interest in the use of licensed software and in security updates (Art. 6(1)(f) GDPR).', 'premium-addon-starter' ),
 			);
 		}
 	}

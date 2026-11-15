@@ -99,6 +99,113 @@ Consolidation of all earlier development branches into one code base. Preview: c
   - Uninstall cleans every site of a multisite in batches (was capped at 500); the privacy text names the product key and the environment that are sent.
   - Texts are built once per request; `is_activated()` and the other state checks no longer create a `WP_Error`.
 
+### Audit panel (15 Nov 2026)
+
+Eight reviewers (security admin/frontend, REST pentest, billing QA, client QA, performance, standards/multisite, Stripe, privacy/crypto) found 64 issues (`docs/TODO.md` §10, P-01–P-64); all were worked on, five only partly.
+
+- **Money:**
+  - P-02: license and renewal are re-checked under lock right before every charge, so nothing is charged after a confirmed cancellation, revocation, expiry or switch-off. A cancellation during a running charge opens a review case.
+  - P-03: the Stripe idempotency key of an attempt is frozen before sending and reused while `reconciling`, also after a card or amount change. A refused Stripe search no longer counts as "nothing found".
+  - P-04 / P-06: a plan change stores the gross/net flag with the renewal amount (no more 177.31 instead of 149.00). Upgrade/downgrade and credit use the license's contract price, not today's catalog price.
+  - P-05 / P-15 / P-18 / P-19 / P-60 (review cases and bookings):
+    - A refund or cancellation closes the review case.
+    - Refunding one of two payments for the same period keeps the renewal.
+    - "Book after review" stores the Stripe reference.
+    - Money that cannot be booked raises a review case and an alert.
+    - An order marked paid by hand without proof goes to review, and amount increases on automatic orders are refused.
+  - P-16 / P-17 / P-58 / P-59 / P-61 (Stripe events and upgrade orders):
+    - A card removed at Stripe is reported to the customer.
+    - Open upgrade orders expire, and a cancelled or failed paid upgrade reverts the plan.
+    - An early fraud warning switches renewal off.
+    - A success without a charge ID is never a decline.
+    - A new order gets its own Stripe key.
+  - P-43–P-46: late attempt after grace counts from the charge date, rows without `grace_ends_at` are not expired at once, a failed refund revocation is retried, a tax rate change no longer creates an order every 6 h.
+- **API:**
+  - P-09 / P-10: the activation limiter per key prefix counts per prefix and client address, so a public prefix can't lock out the owner. New installations per license and hour are capped (`wplc_new_activations_per_hour`).
+  - P-11: at most two open download grants per installation and package.
+  - P-12: signed routes read parameters only from the signed JSON body (`400 request_parameters_unsigned`).
+  - P-13 / P-22: `.dev` and labels on other domains are not staging, and a live activation can't move to a staging address (`409 site_move_refused`).
+  - P-40–P-42 / P-50: no replay at the window edge. A per-IP limit applies before authentication, with the same answer for an unknown installation and a bad signature. The proxy header is ignored without `WPLC_TRUSTED_PROXIES`, with a diagnostics warning. `last_seen_at` is written at most hourly.
+- **Admin, account, privacy:**
+  - P-07: granular `wplc_*` capabilities everywhere.
+  - P-08 / P-37: public cancellation only for the current owner, with atomic limits and asynchronous mail.
+  - P-20: WooCommerce Subscriptions renewals issue no license.
+  - P-27 / P-28: the duplicate audit page is removed; the kept one has a license filter and a redacted, audited CSV export. CSV exports are streamed.
+  - P-35 / P-36 / P-64: the privacy eraser redacts audit snapshots, cancels open manual renewals, finds data by billing email and clears Stripe references. The exporter has the missing fields, and the policy text names Stripe metadata and external package hosts.
+  - P-38: owner change issues a new key by default.
+  - P-39: "Sites" deactivates through the account.
+  - P-55: plural forms.
+  - P-62 / P-63: the follow-up mail only sends a key that matches its hash; UUIDs come from `random_bytes`.
+- **Client library 2.0.2 and starter:**
+  - P-01: network mode form posts to `wp-admin/admin-post.php`.
+  - P-14: `verified_server_data()` requires the v2 signature with nonce.
+  - P-21: multisite per-site updates use one site's credentials.
+  - P-22: "transfer activation" asks for confirmation.
+  - P-23: an immediate re-check after the clock is set back.
+  - P-24: the site identity comes from the unfiltered `home` option.
+  - P-25: Ed25519 results are cached without sodium.
+  - P-26: the starter gets the 2.0.1 hardenings.
+  - P-47–P-49: no texts before `init`, late filters, new `settings_url` option.
+- **Operations:**
+  - P-29 / P-30: gap reconcile works with a cursor, and every daily job is its own Action Scheduler action.
+  - P-31 / P-53: schema 22 adds indexes on `licenses.payment_token_id` and `event_inbox (source, received_at)`; the structure check repairs missing indexes.
+  - P-32: site deletion drops the site's `wplc_*` tables; `wp wplc schema orphans` finds leftovers.
+  - P-33: `Update URI` header.
+  - P-34: `signing-key --rotate` and `activation release --license` ask for confirmation.
+  - P-51 / P-52 / P-54 / P-56 / P-57: yesterday's API counters are kept, less admin overhead, uninstall removes cron events with arguments, the PHPCS gate compares per source line, readme says schema 22.
+
+### Open items from the 13 Nov audits (15 Nov 2026, wave 2)
+
+- **Renewals and orders:**
+  - Every renewal status change writes its own audit entry (A-73), including on owner changes.
+  - Removing a line from a paid order, or lowering its quantity, suspends the surplus licenses. The suspension is reversible; switch it off with the filter `wplc_suspend_license_on_order_item_change` (B-36).
+  - Orphaned unpaid renewal orders are closed daily (B-190).
+  - A period that ends in a shorter month runs until 23:59:59 UTC of its last day. A later purchase never ends earlier than an earlier one (B-178).
+- **Catalog and keys:**
+  - `wp wplc sync-entitlements` copies changed plan entitlements to existing licenses. It is a dry run by default, and reductions only happen with `--allow-reductions` (A-23).
+  - `wp wplc rekey-licenses --from=<key-id>` re-keys all licenses issued under a leaked key secret (B-155).
+  - "URL" releases without a resolver are no longer delivered, so the filter `wplc_require_package_resolver` now defaults to true (A-32).
+  - WooCommerce Subscriptions products can't be mapped as license products (P-20).
+- **Checkout and EU law:**
+  - Licence products ask for consent to immediate performance (withdrawal right for digital content). The consent is required by default, stored on the order with time and wording, confirmed in the order emails, and off when Germanized or German Market is active (B-39). The legal wording is the shop owner's decision.
+  - First orders show "License" and "Service period (UTC)" on the line item (B-42).
+  - Checkout boxes stay ticked when WooCommerce reloads the payment section (A-118).
+  - The block opt-in no longer repeats its long label in the confirmation and emails (B-114).
+  - New block "My licenses", plus the shortcode `[wplc_changelog]` and a "Changelog" block (B-117).
+- **Admin and support:**
+  - Support can lower the renewal amount (A-11).
+  - Support can cancel automatic renewal at the end of the term, and withdraw the cancellation (A-21).
+  - Rejected Stripe signatures are counted and raise an alert (A-72).
+  - New "Getting started" checklist (A-121).
+  - Readable audit action names, with the timezone shown (A-122).
+  - The search finds order numbers, and orders link to their licenses. The manual-license form keeps its input and lets you skip the email. Suspending a license and releasing a site ask for confirmation (A-123).
+  - Diagnostics name switched-off license emails (A-132) and warn about read/write-splitting database layers (B-24).
+  - A notice appears for new releases of this plugin. It reads GitHub, is cached for 12 h, never installs anything, and is switched off with `WPLC_DISABLE_UPDATE_CHECK` (A-42).
+- **Quality and operations:**
+  - Unified logging with a `request_id` per request or action, masked emails and `WPLC_DEBUG` (A-133).
+  - `docs/EXTENSION-POINTS.md` lists every action and filter and is kept current by a test (A-134).
+  - The grace period is defined in one place, with the filter `wplc_renewal_grace_days` (A-135).
+  - Stress runs report pass or fail through the exit code (B-196).
+  - Flaky API tests are fixed: rate limits count per calendar minute, and that boundary caused the failures (B-195, T-148).
+  - The output-buffer loop in downloads is fixed (B-104).
+  - No file-wide `phpcs:disable` remains; the baseline is down to 56 entries (P-56).
+  - de_AT, de_CH and other German variants without their own file use the German translation (B-120).
+
+### Behaviour changes in 0.2.0 (B-197)
+
+Compared with 0.1.0:
+- Charges only happen after the advance notice.
+- An unknown payment result waits for up to 12 h in `reconciling` and then goes to review.
+- Downloads are single-use by default.
+- Signed routes only read the signed JSON body.
+- A wrong request signature answers like an unknown installation.
+- A paid order that is cancelled without a refund suspends its licenses.
+- Plan changes are priced from the contract price.
+- Period ends at month ends move to the end of the last day.
+- "URL" releases need a resolver.
+- Licence products require the withdrawal consent at checkout.
+- Client library 2.0.2 requires the v2 response signature.
+
 ### Known limitations
 
 - Automatic renewal works only with the classic checkout and the WooCommerce Stripe gateway, and is not verified against Stripe yet.

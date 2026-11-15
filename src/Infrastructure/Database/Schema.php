@@ -59,8 +59,12 @@ final class Schema {
 	 * 21: both lines in one schema. Runs every data and verification step of both
 	 *     lines again (all idempotent), so an install recorded at 17 (line A) or
 	 *     20 (line B) also ends up complete.
+	 * 22: indexes licenses.payment_token (licenses of a deleted payment token: Orphans,
+	 *     Stripe token sync) and event_inbox.source_received (time of the last event per
+	 *     source on the diagnostics page), added by dbDelta (P-31, P-53). From this version
+	 *     on the daily structure check also compares the declared indexes.
 	 */
-	public const VERSION = '21';
+	public const VERSION = '22';
 
 	/**
 	 * Option in which ReminderLog records the layout of its table.
@@ -124,6 +128,7 @@ final class Schema {
 		'18' => array( self::class, 'step_18_adopt_reminder_log' ),
 		'19' => array( self::class, 'step_19_one_heartbeat_store' ),
 		'21' => array( self::class, 'step_21_merged_schema' ),
+		'22' => array( self::class, 'step_22_lookup_indexes' ),
 	);
 
 	/**
@@ -132,6 +137,7 @@ final class Schema {
 	 * @return void
 	 */
 	public static function register_hooks(): void {
+		// Also registered by wp-license.php when the file is loaded; add_filter() keeps one entry.
 		add_filter( 'wpmu_drop_tables', array( self::class, 'filter_wpmu_drop_tables' ), 10, 2 );
 		add_action( 'admin_notices', array( self::class, 'render_admin_notice' ) );
 	}
@@ -257,6 +263,7 @@ final class Schema {
 		}
 
 		$problems = array();
+		$present  = array();
 		foreach ( $expected as $table => $columns ) {
 			// Table names are compared case-insensitively (lower_case_table_names).
 			$found = array();
@@ -267,6 +274,104 @@ final class Schema {
 				}
 			}
 			$problems = array_merge( $problems, self::column_problems( $table, $columns, $found ) );
+			if ( $found ) {
+				$present[] = $table;
+			}
+		}
+
+		return array_merge( $problems, self::missing_index_problems( $present ) );
+	}
+
+	/**
+	 * Indexes declared in the CREATE TABLE statements that the database does not have.
+	 *
+	 * A lost index (restore from a dump without keys, a manual or aborted ALTER)
+	 * does not break anything at once, it only makes the list, the account page
+	 * or a daily job slow. The daily check reports it like a missing column, so
+	 * maybe_upgrade() lets dbDelta add it again and diagnostics shows it meanwhile.
+	 *
+	 * @param string[] $tables Existing tables to check (missing tables are reported by the column check).
+	 * @return string[] Problems such as "wp_wplc_licenses: index payment_token is missing".
+	 */
+	private static function missing_index_problems( array $tables ): array {
+		global $wpdb;
+
+		$declared = array();
+		foreach ( self::table_statements() as $statement ) {
+			$table = self::expected_columns( $statement )['table'];
+			if ( in_array( $table, $tables, true ) ) {
+				$declared[ $table ] = self::expected_indexes( $statement );
+			}
+		}
+		$declared = array_filter( $declared );
+		if ( ! $declared ) {
+			return array();
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $declared ), '%s' ) );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- one %s per table name.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT DISTINCT TABLE_NAME AS tbl, INDEX_NAME AS idx FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name IN ({$placeholders})",
+				array_keys( $declared )
+			),
+			ARRAY_A
+		);
+		// phpcs:enable
+		if ( ! is_array( $rows ) || '' !== (string) $wpdb->last_error ) {
+			return array( 'The indexes could not be read: ' . (string) $wpdb->last_error );
+		}
+
+		$actual = array();
+		foreach ( $rows as $row ) {
+			$actual[ strtolower( (string) $row['tbl'] ) ][] = (string) $row['idx'];
+		}
+		$problems = array();
+		foreach ( $declared as $table => $indexes ) {
+			$found    = isset( $actual[ strtolower( $table ) ] ) ? $actual[ strtolower( $table ) ] : array();
+			$problems = array_merge( $problems, self::index_problems( $table, $indexes, $found ) );
+		}
+
+		return $problems;
+	}
+
+	/**
+	 * Names of the indexes one CREATE TABLE statement declares (KEY and UNIQUE KEY lines).
+	 *
+	 * Pure helper. The primary key is covered by the column check.
+	 *
+	 * @param string $statement CREATE TABLE statement in dbDelta layout.
+	 * @return string[]
+	 */
+	public static function expected_indexes( string $statement ): array {
+		$indexes = array();
+		$lines   = preg_split( '/\R/', $statement );
+		foreach ( is_array( $lines ) ? $lines : array() as $line ) {
+			if ( preg_match( '/^\s*(?:UNIQUE\s+)?(?:KEY|INDEX)\s+`?([A-Za-z0-9_]+)`?\s*\(/i', $line, $match ) ) {
+				$indexes[] = $match[1];
+			}
+		}
+
+		return $indexes;
+	}
+
+	/**
+	 * Compare declared index names with the names the database reports.
+	 *
+	 * Pure helper; names are compared case-insensitively.
+	 *
+	 * @param string   $table    Table name for the messages.
+	 * @param string[] $expected Declared index names.
+	 * @param string[] $actual   Existing index names.
+	 * @return string[]
+	 */
+	public static function index_problems( string $table, array $expected, array $actual ): array {
+		$actual   = array_map( 'strtolower', array_map( 'strval', $actual ) );
+		$problems = array();
+		foreach ( $expected as $name ) {
+			if ( ! in_array( strtolower( $name ), $actual, true ) ) {
+				$problems[] = $table . ': index ' . $name . ' is missing';
+			}
 		}
 
 		return $problems;
@@ -505,6 +610,12 @@ final class Schema {
 	/**
 	 * Add a deleted site's tables to the tables WordPress drops with the site.
 	 *
+	 * Registered from wp-license.php as soon as the plugin file is loaded (P-32), so
+	 * it does not depend on WooCommerce or on plugins_loaded. Besides the tables
+	 * of this schema it adds every other `{site prefix}wplc_*` table of that site
+	 * (left by an older or newer plugin version). The main site is never touched:
+	 * WordPress does not delete it, and its prefix is the prefix of the whole network.
+	 *
 	 * @param mixed $tables Table names collected by WordPress.
 	 * @param mixed $site_id ID of the site that is being deleted.
 	 * @return mixed
@@ -513,11 +624,98 @@ final class Schema {
 		global $wpdb;
 
 		$site_id = (int) $site_id;
-		if ( ! is_array( $tables ) || $site_id <= 0 ) {
+		if ( ! is_array( $tables ) || $site_id <= 0 || ! is_object( $wpdb ) ) {
+			return $tables;
+		}
+		if ( function_exists( 'is_multisite' ) && is_multisite() && function_exists( 'is_main_site' ) && is_main_site( $site_id ) ) {
+			// WordPress never deletes the main site; its prefix is the prefix of every network table.
+			return $tables;
+		}
+		$prefix = (string) $wpdb->get_blog_prefix( $site_id );
+		if ( '' === $prefix ) {
 			return $tables;
 		}
 
-		return array_values( array_unique( array_merge( $tables, array_values( self::table_names_for_prefix( $wpdb->get_blog_prefix( $site_id ) ) ) ) ) );
+		$own   = array_values( self::table_names_for_prefix( $prefix ) );
+		$found = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix . 'wplc_' ) . '%' ) );
+		foreach ( is_array( $found ) ? $found : array() as $table ) {
+			if ( self::is_site_table( (string) $table, $prefix ) ) {
+				$own[] = (string) $table;
+			}
+		}
+
+		return array_values( array_unique( array_merge( $tables, $own ) ) );
+	}
+
+	/**
+	 * Whether a table name is a plugin table of the site with the given prefix.
+	 *
+	 * Pure helper. "wp_2_wplc_licenses" belongs to "wp_2_", "wp_22_wplc_licenses" does not.
+	 *
+	 * @param string $table  Table name.
+	 * @param string $prefix Site prefix, e.g. "wp_2_".
+	 * @return bool
+	 */
+	public static function is_site_table( string $table, string $prefix ): bool {
+		return '' !== $prefix && 1 === preg_match( '/^' . preg_quote( $prefix . 'wplc_', '/' ) . '[a-z0-9_]+$/i', $table );
+	}
+
+	/**
+	 * Plugin tables of network sites that no longer exist, grouped by site ID.
+	 *
+	 * `wpmu_drop_tables` only runs in a request in which the plugin is loaded. A site
+	 * that had the plugin active on its own and was deleted from the network admin
+	 * (main site without the plugin) keeps its tables. `wp wplc schema orphans` lists
+	 * them; nothing is dropped automatically, because another installation sharing
+	 * the database could use a similar prefix.
+	 *
+	 * @return array<int,string[]> Site ID => table names; empty on a single site.
+	 */
+	public static function orphaned_site_tables(): array {
+		global $wpdb;
+
+		if ( ! function_exists( 'is_multisite' ) || ! is_multisite() || ! function_exists( 'get_sites' ) ) {
+			return array();
+		}
+		$base   = (string) $wpdb->base_prefix;
+		$tables = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base ) . '%' . $wpdb->esc_like( '_wplc_' ) . '%' ) );
+		$ids    = array_map(
+			'intval',
+			(array) get_sites(
+				array(
+					'fields' => 'ids',
+					'number' => 0,
+				)
+			)
+		);
+
+		return self::orphans_from( is_array( $tables ) ? array_map( 'strval', $tables ) : array(), $base, $ids );
+	}
+
+	/**
+	 * Group plugin tables of sites that are not in the list of existing sites.
+	 *
+	 * Pure helper.
+	 *
+	 * @param string[] $tables   Table names.
+	 * @param string   $base     Base prefix of the network, e.g. "wp_".
+	 * @param int[]    $site_ids IDs of the existing sites.
+	 * @return array<int,string[]>
+	 */
+	public static function orphans_from( array $tables, string $base, array $site_ids ): array {
+		$orphans = array();
+		foreach ( $tables as $table ) {
+			if ( ! preg_match( '/^' . preg_quote( $base, '/' ) . '(\d+)_wplc_[a-z0-9_]+$/i', $table, $match ) ) {
+				continue;
+			}
+			$site_id = (int) $match[1];
+			if ( $site_id > 1 && ! in_array( $site_id, $site_ids, true ) ) {
+				$orphans[ $site_id ][] = $table;
+			}
+		}
+		ksort( $orphans );
+
+		return $orphans;
 	}
 
 	/**
@@ -718,7 +916,8 @@ final class Schema {
 				KEY paid_until (paid_until),
 				KEY key_prefix (key_prefix),
 				KEY next_payment_at (next_payment_at),
-				KEY source_order (source_order_id)
+				KEY source_order (source_order_id),
+				KEY payment_token (payment_token_id)
 			) {$charset_collate};",
 			"CREATE TABLE {$tables['activations']} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -805,7 +1004,8 @@ final class Schema {
 				PRIMARY KEY  (id),
 				UNIQUE KEY source_event (source,source_event_id),
 				KEY inbox_pending (processed_at,received_at),
-				KEY outcome_processed (outcome,processed_at)
+				KEY outcome_processed (outcome,processed_at),
+				KEY source_received (source,received_at)
 			) {$charset_collate};",
 			"CREATE TABLE {$tables['request_nonces']} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -1252,6 +1452,33 @@ final class Schema {
 		}
 
 		return self::indexes_exist( self::MERGED_INDEXES );
+	}
+
+	/**
+	 * Indexes added by schema 22 (table key => index names).
+	 *
+	 * @var array<string,string[]>
+	 */
+	private const LOOKUP_INDEXES = array(
+		'licenses'    => array( 'payment_token' ),
+		'event_inbox' => array( 'source_received' ),
+	);
+
+	/**
+	 * Schema 22: indexes for the payment token and the last event per source (P-31, P-53).
+	 *
+	 * `licenses.payment_token (payment_token_id)` serves the lookups that run when
+	 * WooCommerce deletes a saved payment method (Orphans::on_payment_token_deleted(),
+	 * the Stripe token sync); without it each of them scans the whole table, and the
+	 * UPDATE locks every row it reads. `event_inbox.source_received (source,
+	 * received_at)` answers "time of the last Stripe event" on the diagnostics page
+	 * from the index. dbDelta adds both; no data changes. dbDelta reports no errors,
+	 * so the step checks that the indexes exist and is retried otherwise.
+	 *
+	 * @return bool
+	 */
+	private static function step_22_lookup_indexes(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		return self::indexes_exist( self::LOOKUP_INDEXES );
 	}
 
 	/**

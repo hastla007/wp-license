@@ -51,6 +51,24 @@ final class Settings {
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 		add_action( 'add_option_' . self::OPTION, array( self::class, 'audit_added' ), 10, 2 );
 		add_action( 'update_option_' . self::OPTION, array( self::class, 'audit_updated' ), 10, 2 );
+		if ( defined( 'WPLC_FILE' ) ) {
+			add_filter( 'plugin_action_links_' . plugin_basename( WPLC_FILE ), array( self::class, 'plugin_action_links' ) );
+		}
+	}
+
+	/**
+	 * "Getting started" link in the plugin list: the entry point after activation (A-121).
+	 *
+	 * @param mixed $links Action links.
+	 * @return mixed
+	 */
+	public static function plugin_action_links( $links ) {
+		if ( ! is_array( $links ) || ! current_user_can( self::capability() ) ) {
+			return $links;
+		}
+		array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=' . self::PAGE ) ) . '">' . esc_html__( 'Getting started', 'wp-license' ) . '</a>' );
+
+		return $links;
 	}
 
 	/**
@@ -518,6 +536,7 @@ final class Settings {
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'License settings', 'wp-license' ) . '</h1>';
 		settings_errors( self::OPTION );
+		self::render_setup_steps();
 
 		echo '<h2>' . esc_html__( 'Status', 'wp-license' ) . '</h2>';
 		echo '<table class="widefat striped" role="presentation"><tbody>';
@@ -550,6 +569,92 @@ final class Settings {
 		do_settings_sections( self::PAGE );
 		submit_button();
 		echo '</form></div>';
+	}
+
+	/**
+	 * Steps from activation to the first sold license, in the order they are needed (A-121).
+	 *
+	 * @return array<int,array{key:string,title:string,text:string,done:bool,link:string,link_text:string}>
+	 */
+	public static function setup_steps(): array {
+		global $wpdb;
+
+		$tables  = Schema::table_names();
+		$secrets = ! self::uses_fallback( '\\WPLC\\License\\LicenseKey', 'uses_fallback_secret', array( 'WPLC_LICENSE_KEY_SECRETS', 'WPLC_LICENSE_KEY_SECRET' ) )
+			&& ! self::uses_fallback( '\\WPLC\\Security\\SecretCrypto', 'uses_fallback_key', array( 'WPLC_INSTALLATION_ENCRYPTION_KEYS', 'WPLC_INSTALLATION_ENCRYPTION_KEY' ) );
+		$plan    = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE active = 1 LIMIT 1', $tables['plans'] ) ) > 0;
+		$release = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE status = %s LIMIT 1', $tables['releases'], 'published' ) ) > 0;
+		$license = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i LIMIT 1', $tables['licenses'] ) ) > 0;
+
+		return array(
+			array(
+				'key'       => 'secrets',
+				'title'     => __( 'Define the secrets in wp-config.php', 'wp-license' ),
+				'text'      => __( 'Set WPLC_LICENSE_KEY_SECRETS (with WPLC_LICENSE_KEY_ID) and WPLC_INSTALLATION_ENCRYPTION_KEYS before the first license is sold. Keys issued without them depend on the WordPress salts and stop working when the salts change.', 'wp-license' ),
+				'done'      => $secrets,
+				'link'      => '',
+				'link_text' => '',
+			),
+			array(
+				'key'       => 'product',
+				'title'     => __( 'Turn a product into a license product', 'wp-license' ),
+				'text'      => __( 'Edit the WooCommerce product, tick "License product" and enter the license product key and a plan key. The product key is the identifier the premium add-on asks the server for (for example voucher-captain-pro); every plan of it (for example single or agency, one per product or variation) has its own plan key. Keep both unchanged once the product is sold.', 'wp-license' ),
+				'done'      => $plan,
+				'link'      => admin_url( 'edit.php?post_type=product' ),
+				'link_text' => __( 'Open products', 'wp-license' ),
+			),
+			array(
+				'key'       => 'webhook',
+				'title'     => __( 'Connect the Stripe webhook', 'wp-license' ),
+				'text'      => __( 'In the Stripe dashboard, add an endpoint with the webhook URL shown under "Status" below and the events listed in the documentation (docs/STRIPE-WEBHOOKS.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected.', 'wp-license' ),
+				'done'      => \WPLC\Api\V1\StripeWebhook::is_configured(),
+				'link'      => '',
+				'link_text' => '',
+			),
+			array(
+				'key'       => 'release',
+				'title'     => __( 'Publish the first release', 'wp-license' ),
+				'text'      => __( 'Upload the add-on package and publish it, so that licensed sites can download it and receive updates.', 'wp-license' ),
+				'done'      => $release,
+				'link'      => admin_url( 'admin.php?page=wplc-releases' ),
+				'link_text' => __( 'Open license releases', 'wp-license' ),
+			),
+			array(
+				'key'       => 'test',
+				'title'     => __( 'Make a test purchase', 'wp-license' ),
+				'text'      => __( 'Buy the product with a test customer, check the license under Licenses and activate it in the add-on on a test site. The diagnostics page shows whether the daily background run works.', 'wp-license' ),
+				'done'      => $license,
+				'link'      => admin_url( 'admin.php?page=' . Diagnostics::PAGE ),
+				'link_text' => __( 'Open diagnostics', 'wp-license' ),
+			),
+		);
+	}
+
+	/**
+	 * "Getting started" checklist; folded away once every step is done (A-121).
+	 *
+	 * @return void
+	 */
+	private static function render_setup_steps(): void {
+		$steps = self::setup_steps();
+		$open  = count( array_filter( array_column( $steps, 'done' ) ) ) < count( $steps );
+
+		echo '<details class="wplc-setup"' . ( $open ? ' open' : '' ) . '><summary><h2 style="display:inline">' . esc_html__( 'Getting started', 'wp-license' ) . '</h2></summary>';
+		echo '<ol>';
+		foreach ( $steps as $step ) {
+			echo '<li data-wplc-step="' . esc_attr( $step['key'] ) . '"><strong>' . esc_html( $step['title'] ) . '</strong> ';
+			if ( $step['done'] ) {
+				echo '<span class="dashicons dashicons-yes-alt" style="color:#00a32a" aria-hidden="true"></span> <span>' . esc_html__( 'Done', 'wp-license' ) . '</span>';
+			} else {
+				echo '<span>' . esc_html__( 'To do', 'wp-license' ) . '</span>';
+			}
+			echo '<br><span class="description">' . esc_html( $step['text'] ) . '</span>';
+			if ( '' !== $step['link'] ) {
+				echo ' <a href="' . esc_url( $step['link'] ) . '">' . esc_html( $step['link_text'] ) . '</a>';
+			}
+			echo '</li>';
+		}
+		echo '</ol></details>';
 	}
 
 	/**
@@ -612,7 +717,7 @@ final class Settings {
 			$rows[] = array(
 				'label' => __( 'License keys verifiable with the current secret', 'wp-license' ),
 				/* translators: 1: number of verifiable keys, 2: number of checked keys. */
-				'value' => sprintf( __( '%1$d of the %2$d most recent keys', 'wp-license' ), $sample['verified'], $sample['checked'] ),
+				'value' => sprintf( _n( '%1$s of the %2$s most recent key', '%1$s of the %2$s most recent keys', $sample['checked'], 'wp-license' ), number_format_i18n( $sample['verified'] ), number_format_i18n( $sample['checked'] ) ),
 				'state' => $sample['verified'] === $sample['checked'] ? 'ok' : 'warning',
 				'help'  => $sample['verified'] === $sample['checked'] ? '' : __( 'Some customers see "not available" instead of their key. The secret or the salts were changed. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS, or run "wp wplc recover-license-key-ids".', 'wp-license' ),
 			);
@@ -653,7 +758,18 @@ final class Settings {
 		$rows[] = array(
 			'label' => __( 'Renewal grace period', 'wp-license' ),
 			/* translators: %d: number of days. */
-			'value' => sprintf( _n( '%d day', '%d days', LicenseLifecycle::GRACE_DAYS, 'wp-license' ), LicenseLifecycle::GRACE_DAYS ),
+			'value' => sprintf( _n( '%d day', '%d days', LicenseLifecycle::grace_days(), 'wp-license' ), LicenseLifecycle::grace_days() ),
+		);
+
+		// B-45: the operator decides when ended licenses are detached from the customer.
+		$anonymize = \WPLC\Maintenance\Retention::configured_days()['anonymize_licenses'];
+		$rows[]    = array(
+			'label' => __( 'Anonymisation of ended licenses', 'wp-license' ),
+			'value' => $anonymize > 0
+				/* translators: %s: number of days. */
+				? sprintf( _n( '%s day after the end of the license', '%s days after the end of the license', $anonymize, 'wp-license' ), number_format_i18n( $anonymize ) )
+				: __( 'Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice with the filter wplc_retention_days (key anonymize_licenses).', 'wp-license' ),
+			'state' => $anonymize > 0 ? 'ok' : '',
 		);
 
 		return $rows;

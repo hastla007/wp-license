@@ -8,7 +8,8 @@
  * @package WPLC
  */
 
-use WPLC\Admin\AuditLogPage;
+use WPLC\Admin\AuditLogAdmin;
+use WPLC\Admin\CsvExport;
 use WPLC\Admin\Capabilities;
 use WPLC\Admin\LicenseAdmin;
 use WPLC\Admin\LicenseSearchStore;
@@ -505,6 +506,77 @@ final class AdminSupportIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertStringContainsString( 'wplc_notice=owner_unknown_customer', $unknown['location'] );
 	}
 
+	public function test_p55_count_texts_use_localized_numbers_and_plurals(): void {
+		wp_set_current_user( $this->manager );
+		$_GET = array(
+			'page'        => 'wplc-licenses',
+			'wplc_notice' => 'bulk_extended',
+			'wplc_n'      => '12345',
+			'wplc_m'      => '1',
+		);
+		ob_start();
+		\WPLC\Admin\AdminNotices::render();
+		$html = (string) ob_get_clean();
+		$_GET = array();
+		$this->assertStringContainsString( 'Terms extended: 12,345. Skipped: 1 ', $html );
+
+		$this->assertSame( 'Expires within 30 days', LicenseListTable::expiry_filter_labels()['soon'] );
+		$token = \WPLC\Admin\LicenseBulkActions::new_token();
+		set_transient( \WPLC\Admin\LicenseBulkActions::transient_name( $this->manager, $token ), array( 'action' => 'suspend', 'done' => array( 5 ), 'skipped' => array() ), 60 );
+		ob_start();
+		\WPLC\Admin\LicenseBulkActions::render_result( $this->manager, $token );
+		$this->assertStringContainsString( '1 done, 0 skipped.', (string) ob_get_clean() );
+	}
+
+	public function test_p38_change_owner_can_issue_a_new_key_for_the_new_owner(): void {
+		$seeded    = $this->seed_license( array( 'customer_id' => $this->customer ) );
+		$license   = $seeded['id'];
+		$site      = $this->seed_activation( $license )['id'];
+		$new_owner = self::factory()->user->create( array( 'role' => 'customer' ) );
+		$fired     = array();
+		$listener  = static function ( $license_id, $key ) use ( &$fired ) {
+			$fired[] = array( (int) $license_id, (string) $key );
+		};
+		add_action( 'wplc/license_key_reissued', $listener, 10, 2 );
+
+		wp_set_current_user( $this->manager );
+		$this->assertStringContainsString( 'name="new_key" value="1" checked', $this->render_detail( $license ) );
+		$result = $this->run_admin_post(
+			'wplc_admin_change_owner',
+			array(
+				'license_id'        => $license,
+				'customer'          => (string) $new_owner,
+				'expected_customer' => (string) $this->customer,
+				'reason'            => 'Sold to the client',
+				'new_key'           => '1',
+				'release_sites'     => '1',
+				'_wpnonce'          => wp_create_nonce( 'wplc_admin_change_owner_' . $license ),
+			)
+		);
+		remove_action( 'wplc/license_key_reissued', $listener, 10 );
+
+		$this->assertStringContainsString( 'wplc_notice=owner_changed_new_key', $result['location'] );
+		$row = $this->license( $license );
+		$this->assertSame( (string) $new_owner, (string) $row['customer_id'] );
+		$this->assertNotSame( $seeded['uuid'], $row['license_uuid'], 'The previous owner\'s key must stop working.' );
+		$this->assertNotSame( LicenseKey::hash( $seeded['key'] ), $row['license_key_hash'] );
+		$this->assertSame( 'deactivated', $this->activation( $site )['status'] );
+		$this->assertCount( 1, $fired );
+		$this->assertSame( $license, $fired[0][0] );
+		$actions = array_column( $this->audit_rows( 'license', $license ), 'action' );
+		$this->assertSame( array( 'license_owner_changed', 'license_key_reissued' ), array_slice( $actions, -2 ) );
+
+		// Without the option the key stays, as before.
+		$kept = $this->seed_license( array( 'customer_id' => $this->customer ) );
+		$this->assertSame( SupportActions::RESULT_OK, SupportActions::change_owner( $kept['id'], $new_owner, 'Gift', $this->admin ) );
+		$this->assertSame( $kept['uuid'], $this->license( $kept['id'] )['license_uuid'] );
+
+		// A revoked license changes owner, but cannot get a new key: the result says so.
+		$revoked = $this->seed_license( array( 'customer_id' => $this->customer, 'status' => 'revoked' ) );
+		$this->assertSame( SupportActions::RESULT_KEY_KEPT, SupportActions::change_owner( $revoked['id'], $new_owner, 'Gift', $this->admin, -1, true ) );
+		$this->assertSame( (string) $new_owner, (string) $this->license( $revoked['id'] )['customer_id'] );
+	}
+
 	// ---------------------------------------------------------------------
 	// A-51 / B-47: restore.
 	// ---------------------------------------------------------------------
@@ -898,31 +970,184 @@ final class AdminSupportIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertStringContainsString( 'clerk_anna (#' . $actor . ')', $html );
 		$this->assertStringNotContainsString( '<td>System</td>', $html );
 
-		$mine = AuditLogPage::entries( array( 'license' => $license ), 100 );
+		// P-27: the one remaining audit screen filters by license (license, its sites and renewals).
+		$entries = static function ( array $filters ): array {
+			global $wpdb;
+			$where = AuditLogAdmin::where( array_merge( array( 'license' => '', 'object_type' => '', 'object_id' => '', 'action' => '', 'actor' => '', 'from' => '', 'to' => '' ), $filters ) );
+			$table = \WPLC\Infrastructure\Database\Schema::table_names()['audit_log'];
+			$sql   = "SELECT * FROM {$table}{$where['sql']} ORDER BY id DESC";
+			return (array) $wpdb->get_results( $where['params'] ? $wpdb->prepare( $sql, $where['params'] ) : $sql, ARRAY_A );
+		};
+		$mine = $entries( array( 'license' => (string) $license ) );
 		$this->assertCount( 2, $mine );
 		$this->assertSame( array( 'activation', 'license' ), array_column( $mine, 'object_type' ) );
-		$this->assertCount( 1, AuditLogPage::entries( array( 'actor' => 'clerk_anna', 'object_type' => 'license' ), 100 ) );
-		$this->assertCount( 0, AuditLogPage::entries( array( 'actor' => 'no_such_login' ), 100 ) );
-		$this->assertCount( 0, AuditLogPage::entries( array( 'license' => $license, 'to' => gmdate( 'Y-m-d', time() - 3 * DAY_IN_SECONDS ) ), 100 ) );
+		$this->assertCount( 1, $entries( array( 'actor' => 'clerk_anna', 'object_type' => 'license' ) ) );
+		$this->assertCount( 0, $entries( array( 'actor' => 'no_such_login' ) ) );
+		$this->assertCount( 0, $entries( array( 'license' => (string) $license, 'to' => gmdate( 'Y-m-d', time() - 3 * DAY_IN_SECONDS ) ) ) );
 
-		$csv = AuditLogPage::export_csv( array( 'license' => $license ) );
+		$csv = AuditLogAdmin::export_csv( array( 'license' => (string) $license, 'object_type' => '', 'object_id' => '', 'action' => '', 'actor' => '', 'from' => '', 'to' => '' ) );
 		$this->assertStringContainsString( '"admin_status_change","license","' . $license . '","' . $actor . '","clerk_anna","Check"', $csv );
 
-		set_current_screen( 'woocommerce_page_wplc-audit' );
+		set_current_screen( 'woocommerce_page_' . AuditLogAdmin::PAGE );
 		$_GET = array(
-			'page'    => 'wplc-audit',
+			'page'    => AuditLogAdmin::PAGE,
 			'license' => (string) $license,
 		);
 		ob_start();
-		AuditLogPage::render();
+		AuditLogAdmin::render();
 		$page = (string) ob_get_clean();
 		$_GET = array();
 		$this->assertStringContainsString( 'clerk_anna (#' . $actor . ')', $page );
 		$this->assertStringContainsString( 'admin_site_released', $page );
+		$this->assertStringNotContainsString( 'Other', $page, 'Entries of another license are not listed.' );
+
+		// The license detail screen links to the kept screen.
+		wp_set_current_user( $this->manager );
+		$this->assertStringContainsString( 'page=' . AuditLogAdmin::PAGE . '&#038;license=' . $license, $this->render_detail( $license ) );
 
 		wp_set_current_user( $this->customer );
 		$this->expectException( WPDieException::class );
-		AuditLogPage::render();
+		AuditLogAdmin::render();
+	}
+
+	public function test_p27_old_audit_page_urls_redirect_to_the_kept_screen(): void {
+		$this->assertNull( AuditLogAdmin::legacy_redirect_url( array( 'page' => AuditLogAdmin::PAGE ) ) );
+		$this->assertNull( AuditLogAdmin::legacy_redirect_url( array() ) );
+
+		$target = AuditLogAdmin::legacy_redirect_url(
+			array(
+				'page'         => 'wplc-audit',
+				'license'      => '12',
+				'actor'        => '#7',
+				'audit_action' => 'admin_extend',
+				'from'         => '2026-01-01',
+				'evil'         => 'x',
+			)
+		);
+		$query = array();
+		parse_str( (string) wp_parse_url( (string) $target, PHP_URL_QUERY ), $query );
+		$this->assertSame(
+			array(
+				'page'         => AuditLogAdmin::PAGE,
+				'license'      => '12',
+				'audit_action' => 'admin_extend',
+				'actor'        => '7',
+				'from'         => '2026-01-01',
+			),
+			$query
+		);
+		$this->assertStringStartsWith( admin_url( 'admin.php' ), (string) $target );
+
+		// The old page is no longer registered, the export handler moved to the kept screen.
+		$this->assertFalse( class_exists( '\\WPLC\\Admin\\AuditLogPage', false ) && is_file( WPLC_PATH . 'src/Admin/AuditLogPage.php' ) );
+		$this->assertNotFalse( has_action( 'admin_post_' . AuditLogAdmin::EXPORT_ACTION, array( AuditLogAdmin::class, 'handle_export' ) ) );
+	}
+
+	public function test_p27_audit_export_is_redacted_audited_and_capped(): void {
+		global $wpdb;
+		$license = $this->seed_license( array( 'customer_id' => $this->customer ) )['id'];
+		// A row written past AuditLog::record() (an add-on, an old row): raw values in reason and snapshot.
+		$wpdb->insert(
+			$this->tables()['audit_log'],
+			array(
+				'actor_user_id' => 0,
+				'action'        => 'addon_note',
+				'object_type'   => 'license',
+				'object_id'     => $license,
+				'reason'        => 'Customer jane@example.test sent token=abc123',
+				'before_json'   => wp_json_encode( array( 'email' => 'jane@example.test' ) ),
+				'after_json'    => wp_json_encode( array( 'license_key' => 'WPLC-SECRET-KEY-1234' ) ),
+				'created_at'    => gmdate( 'Y-m-d H:i:s' ),
+			)
+		);
+		for ( $i = 0; $i < 3; $i++ ) {
+			\WPLC\License\AuditLog::record( 'admin_extend', 'license', $license, 'Row ' . $i, null, null, $this->admin );
+		}
+		$filters = array( 'license' => (string) $license, 'object_type' => '', 'object_id' => '', 'action' => '', 'actor' => '', 'from' => '', 'to' => '' );
+
+		$csv = AuditLogAdmin::export_csv( $filters );
+		$this->assertStringNotContainsString( 'jane@example.test', $csv );
+		$this->assertStringNotContainsString( 'abc123', $csv );
+		$this->assertStringNotContainsString( 'WPLC-SECRET-KEY-1234', $csv );
+		$this->assertStringContainsString( 'addon_note', $csv );
+		$this->assertStringNotContainsString( '# ', $csv );
+
+		// Keyset paging with a cap: the newest rows, then a marker line.
+		$capped = AuditLogAdmin::export_csv( $filters, 2 );
+		$lines  = array_values( array_filter( explode( "\r\n", $capped ) ) );
+		$this->assertCount( 4, $lines, 'Header, two rows and the marker.' );
+		$this->assertStringContainsString( 'Row 2', $lines[1] );
+		$this->assertStringContainsString( 'Row 1', $lines[2] );
+		$this->assertStringContainsString( 'Export truncated after 2 rows', $lines[3] );
+
+		// The download itself is recorded in the audit log.
+		wp_set_current_user( $this->manager );
+		$_GET     = array_merge( array( '_wpnonce' => wp_create_nonce( AuditLogAdmin::EXPORT_ACTION ), 'license' => (string) $license ) );
+		$_REQUEST = $_GET;
+		$this->halt_instead_of_exit();
+		ob_start();
+		try {
+			AuditLogAdmin::handle_export();
+		} catch ( \PHPUnit\Framework\Error\Warning $e ) {
+			// The download headers stop here in the test runner (output already started), after the audit entry.
+		} finally {
+			ob_end_clean();
+			$_GET     = array();
+			$_REQUEST = array();
+		}
+		$rows = $this->audit_rows( 'export', 0 );
+		$this->assertNotEmpty( $rows );
+		$this->assertSame( 'audit_log_exported', end( $rows )['action'] );
+		$this->assertSame( (string) $this->manager, (string) end( $rows )['actor_user_id'] );
+		$this->assertStringContainsString( '"license":"' . $license . '"', (string) end( $rows )['after_json'] );
+	}
+
+	public function test_p28_license_export_streams_emails_only_and_reports_the_cap(): void {
+		$second  = self::factory()->user->create( array( 'role' => 'customer', 'user_email' => 'second-buyer@example.test' ) );
+		$first   = $this->seed_license( array( 'customer_id' => $this->customer ) );
+		$other   = $this->seed_license( array( 'customer_id' => $second ) );
+		$third   = $this->seed_license( array( 'customer_id' => $second ) );
+		$filters = array(
+			'search'  => '',
+			'status'  => '',
+			'product' => '',
+			'report'  => '',
+			'orderby' => 'created',
+			'order'   => 'desc',
+		);
+		if ( ! class_exists( 'WP_List_Table' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+		}
+
+		// Only the email column of the users is read: no user meta lands in the cache.
+		wp_cache_delete( $second, 'user_meta' );
+		$handle = fopen( 'php://temp', 'w+' );
+		$result = LicenseAdmin::write_csv( $filters, $handle );
+		rewind( $handle );
+		$csv = (string) stream_get_contents( $handle );
+		fclose( $handle );
+		$this->assertFalse( $result['truncated'] );
+		$this->assertGreaterThanOrEqual( 3, $result['rows'] );
+		$this->assertStringContainsString( '"' . $other['id'] . '","' . LicenseKey::prefix( $other['uuid'] ) . '","' . $second . '","second-buyer@example.test"', $csv );
+		$this->assertFalse( wp_cache_get( $second, 'user_meta' ), 'The export must not load the meta of every customer.' );
+		$this->assertSame( array( $second => 'second-buyer@example.test' ), CsvExport::user_field( array( $second, $second, 0 ), 'user_email' ) );
+
+		// A capped export ends with a marker line; the next screen shows a notice once.
+		$all    = substr_count( LicenseAdmin::export_csv( $filters ), "\r\n" ) - 1;
+		$capped = LicenseAdmin::export_csv( $filters, $all - 1 );
+		$this->assertSame( $all + 1, substr_count( $capped, "\r\n" ), 'Header, cap rows and the marker.' );
+		$this->assertStringContainsString( 'Export truncated after', $capped );
+		$this->assertStringNotContainsString( 'Export truncated', LicenseAdmin::export_csv( $filters, $all ), 'An export of exactly the cap is complete.' );
+
+		CsvExport::remember_truncated( $this->manager, 'licenses', 100000 );
+		ob_start();
+		CsvExport::render_truncated_notice( $this->manager );
+		$notice = (string) ob_get_clean();
+		$this->assertStringContainsString( 'stopped at 100,000 licenses', $notice );
+		ob_start();
+		CsvExport::render_truncated_notice( $this->manager );
+		$this->assertSame( '', (string) ob_get_clean(), 'The notice is shown once.' );
+		unset( $first, $third );
 	}
 
 	// ---------------------------------------------------------------------

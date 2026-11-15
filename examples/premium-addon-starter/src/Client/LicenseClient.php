@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/LicenseClient.php
- * (source sha256 6e9f2a20d1e7bedbd996aef24de6971a3b0f8488e688ddb3603528f4ccc3ad97). Do not edit: change the server copy and re-vendor.
+ * (source sha256 c7af15bd7deb0f48dcf79737b4f2f548eb52c31bc549cdbf7fb843793189e58f). Do not edit: change the server copy and re-vendor.
  *
  * Transport of the license client: activation, signed requests, verified answers.
  *
@@ -35,7 +35,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.1';
+		const VERSION = '2.0.2';
 
 		/**
 		 * Context of the Ed25519 signature over the payload text.
@@ -44,6 +44,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 
 		/**
 		 * Context of the legacy Ed25519 signature over the JSON of the data (`signature_ed25519`).
+		 *
+		 * Not accepted by this client since 2.0.2 (that signature carries no nonce); the constant stays for code that reads it.
 		 */
 		const LEGACY_SIGNATURE_CONTEXT = 'wplc-response-v1';
 
@@ -143,6 +145,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * @var callable|null
 		 */
 		private $verifier;
+
+		/**
+		 * Hashes of snapshot signatures verified in this request (shared by all instances; see verified_snapshot_data()).
+		 *
+		 * @var array<string,bool>
+		 */
+		private static $verified = array();
 
 		/**
 		 * Constructor.
@@ -777,15 +786,136 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * @return array<string,mixed>|\WP_Error Signed data.
 		 */
 		public function verify_snapshot( array $envelope, bool $skip_server_signature = false ) {
-			$credentials = $this->credentials();
-			if ( is_wp_error( $credentials ) ) {
-				return $credentials;
+			$data = $this->verified_snapshot_data( $envelope, $skip_server_signature );
+
+			return is_array( $data ) ? $data : $this->error( $data );
+		}
+
+		/**
+		 * Like verify_snapshot(), but returns the error code instead of a WP_Error.
+		 *
+		 * Builds no texts, so it can run before `init` (feature checks while the
+		 * add-on loads) without loading translations too early.
+		 *
+		 * The Ed25519 result of a snapshot is remembered when this PHP verifies
+		 * with sodium_compat (no ext-sodium, about 20 ms per check): for the rest
+		 * of the request, and for a day in the object cache (or a transient)
+		 * under a key derived from signature, message and public key. The cached
+		 * value is an HMAC of that key with the `AUTH_KEY`/`AUTH_SALT` of
+		 * wp-config.php, so a database edit cannot mark a forged snapshot as
+		 * verified; without those constants only the per-request memo is used.
+		 * The HMAC with the installation secret is checked every time.
+		 *
+		 * @param array<string,mixed> $envelope              Value of last_envelope() as stored.
+		 * @param bool                $skip_server_signature Check the HMAC only (tests and diagnostics; never decide about rights with it).
+		 * @return array<string,mixed>|string Signed data, or an error code.
+		 */
+		public function verified_snapshot_data( array $envelope, bool $skip_server_signature = false ) {
+			$credentials = $this->stored_credentials();
+			if ( null === $credentials ) {
+				return 'wplc_not_activated';
 			}
 			$keys     = $skip_server_signature ? array() : $this->public_keys;
 			$required = $this->keys_given && ! $skip_server_signature;
-			$data     = self::verify( $envelope, (string) $credentials['installation_secret'], '', $keys, (string) $credentials['installation_id'], $required, $this->verifier );
+			$data     = self::verify( $envelope, (string) $credentials['installation_secret'], '', $keys, (string) $credentials['installation_id'], $required, $this->snapshot_verifier() );
+			if ( ! is_array( $data ) ) {
+				return $data;
+			}
 
-			return is_array( $data ) ? $this->check_product( $data ) : $this->error( $data );
+			return isset( $data['product_key'] ) && strtolower( (string) $data['product_key'] ) !== $this->product_key ? 'wplc_product_mismatch' : $data;
+		}
+
+		/**
+		 * Whether the Ed25519 checks run on ext-sodium (fast) rather than on sodium_compat or a replacement.
+		 *
+		 * @return bool
+		 */
+		public function uses_native_ed25519(): bool {
+			return 'sodium_crypto_sign_verify_detached' === $this->verifier && extension_loaded( 'sodium' );
+		}
+
+		/**
+		 * Ed25519 verification for stored snapshots: the plain verifier, or one that remembers positive results.
+		 *
+		 * @return callable|null
+		 */
+		private function snapshot_verifier() {
+			$verifier = $this->verifier;
+			if ( null === $verifier || $this->uses_native_ed25519() ) {
+				return $verifier;
+			}
+			$secret = self::verification_cache_secret();
+
+			return static function ( string $signature, string $message, string $key ) use ( $verifier, $secret ): bool {
+				$hash = hash( 'sha256', strlen( $key ) . ':' . $key . strlen( $signature ) . ':' . $signature . $message );
+				if ( isset( self::$verified[ $hash ] ) ) {
+					return true;
+				}
+				$name = 'wplc_ed25519_' . substr( $hash, 0, 40 );
+				$tag  = '' === $secret ? '' : hash_hmac( 'sha256', $hash, $secret );
+				if ( '' !== $tag ) {
+					$stored = self::cache_get( $name );
+					if ( is_string( $stored ) && hash_equals( $tag, $stored ) ) {
+						self::$verified[ $hash ] = true;
+						return true;
+					}
+				}
+				if ( true !== (bool) call_user_func( $verifier, $signature, $message, $key ) ) {
+					return false;
+				}
+				self::$verified[ $hash ] = true;
+				if ( '' !== $tag ) {
+					self::cache_set( $name, $tag );
+				}
+
+				return true;
+			};
+		}
+
+		/**
+		 * Key of the cached Ed25519 results: derived from AUTH_KEY and AUTH_SALT of wp-config.php; empty without them.
+		 *
+		 * @return string
+		 */
+		private static function verification_cache_secret(): string {
+			if ( ! defined( 'AUTH_KEY' ) || ! defined( 'AUTH_SALT' ) ) {
+				return '';
+			}
+			$secret = (string) constant( 'AUTH_KEY' ) . (string) constant( 'AUTH_SALT' );
+			if ( strlen( $secret ) < 32 || false !== strpos( $secret, 'put your unique phrase here' ) ) {
+				return '';
+			}
+
+			return hash_hmac( 'sha256', 'wplc-client-ed25519-cache', $secret );
+		}
+
+		/**
+		 * Read a cached verification tag (object cache when persistent, transient otherwise).
+		 *
+		 * @param string $name Key.
+		 * @return mixed
+		 */
+		private static function cache_get( string $name ) {
+			if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() ) {
+				return wp_cache_get( $name, 'wplc_client' );
+			}
+
+			return function_exists( 'get_transient' ) ? get_transient( $name ) : false;
+		}
+
+		/**
+		 * Store a verification tag for a day.
+		 *
+		 * @param string $name Key.
+		 * @param string $tag  Tag.
+		 * @return void
+		 */
+		private static function cache_set( string $name, string $tag ): void {
+			if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() ) {
+				wp_cache_set( $name, $tag, 'wplc_client', DAY_IN_SECONDS );
+			} elseif ( function_exists( 'set_transient' ) ) {
+				set_transient( $name, $tag, DAY_IN_SECONDS );
+			}
 		}
 
 		/**
@@ -822,65 +952,47 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		}
 
 		/**
-		 * Pure verification of the server's legacy Ed25519 signature of an envelope.
+		 * Pure verification of the server's Ed25519 payload signature of a fresh answer, without the installation secret.
 		 *
-		 * The server signs "wplc-response-v1\n{installation UUID}\n{JSON of data}"
-		 * (`signature_ed25519`). The JSON of the data is cut out of the received
-		 * `payload` string (`{"data":<JSON>,"nonce":<string>}`) byte for byte
-		 * instead of being re-encoded. New code verifies the payload signature
-		 * (verified_data() with public keys); this check stays for copies that
-		 * cached envelopes of client 1.x.
+		 * Checks the signature `payload_signature_ed25519` over
+		 * "wplc-response-v2\n{installation UUID}\n{payload}" against the pinned
+		 * keys, and that the payload echoes the nonce of the request the caller
+		 * sent. The nonce is mandatory: without it a recorded answer could be
+		 * replayed for ever. The legacy `signature_ed25519` (context
+		 * `wplc-response-v1`, no nonce) is never accepted since client 2.0.2;
+		 * the server still sends it for old copies only.
+		 *
+		 * For a stored offline cache use verify_cached_envelope() instead (it
+		 * also checks the HMAC with the installation secret).
 		 *
 		 * @param array<string,mixed> $envelope        Decoded response body.
 		 * @param string              $installation_id Installation UUID.
 		 * @param string[]            $public_keys     Accepted public keys (base64).
-		 * @return array<string,mixed>|string Verified data, or `wplc_server_signature_invalid`.
+		 * @param string              $expected_nonce  Nonce of the request; an empty string is refused.
+		 * @return array<string,mixed>|string Verified data, or one of the codes `wplc_server_signature_invalid`,
+		 *                                    `wplc_ed25519_unavailable`, `wplc_response_invalid`, `wplc_nonce_mismatch`.
 		 */
-		public static function verified_server_data( array $envelope, string $installation_id, array $public_keys ) {
-			$invalid = 'wplc_server_signature_invalid';
+		public static function verified_server_data( array $envelope, string $installation_id, array $public_keys, string $expected_nonce = '' ) {
 			$payload = $envelope['payload'] ?? null;
-			$signature = $envelope['signature_ed25519'] ?? null;
-			if ( '' === $installation_id || ! is_string( $payload ) || ! is_string( $signature ) || ! function_exists( 'sodium_crypto_sign_verify_detached' ) ) {
-				return $invalid;
+			if ( '' === $installation_id || ! is_string( $payload ) || '' === $payload ) {
+				return 'wplc_server_signature_invalid';
+			}
+			$verifier = self::default_verifier();
+			if ( null === $verifier ) {
+				return 'wplc_ed25519_unavailable';
+			}
+			if ( ! self::server_signature_valid( $payload, $envelope['payload_signature_ed25519'] ?? null, self::decode_keys( $public_keys ), $installation_id, $verifier ) ) {
+				return 'wplc_server_signature_invalid';
 			}
 			$decoded = json_decode( $payload, true );
 			if ( ! is_array( $decoded ) || ! isset( $decoded['data'], $decoded['nonce'] ) || ! is_array( $decoded['data'] ) || ! is_string( $decoded['nonce'] ) ) {
-				return $invalid;
+				return 'wplc_response_invalid';
 			}
-			$prefix = '{"data":';
-			$suffix = function_exists( 'wp_json_encode' ) ? wp_json_encode( array( 'nonce' => $decoded['nonce'] ), JSON_UNESCAPED_SLASHES ) : json_encode( array( 'nonce' => $decoded['nonce'] ), JSON_UNESCAPED_SLASHES );
-			if ( ! is_string( $suffix ) ) {
-				return $invalid;
+			if ( '' === $expected_nonce || ! hash_equals( $expected_nonce, $decoded['nonce'] ) ) {
+				return 'wplc_nonce_mismatch';
 			}
-			$suffix = ',' . substr( $suffix, 1 );
-			$data_length = strlen( $payload ) - strlen( $prefix ) - strlen( $suffix );
-			if ( $data_length < 2 || 0 !== strpos( $payload, $prefix ) || substr( $payload, -strlen( $suffix ) ) !== $suffix ) {
-				return $invalid;
-			}
-			$data_json = substr( $payload, strlen( $prefix ), $data_length );
-			// The cut-out part must be exactly the data, nothing smuggled around it.
-			if ( json_decode( $data_json, true ) !== $decoded['data'] ) {
-				return $invalid;
-			}
-			$message = self::LEGACY_SIGNATURE_CONTEXT . "\n" . strtolower( $installation_id ) . "\n" . $data_json;
-			$raw_signature = base64_decode( $signature, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- decodes a signature.
-			if ( false === $raw_signature || 64 !== strlen( $raw_signature ) ) {
-				return $invalid;
-			}
-			foreach ( $public_keys as $public_key ) {
-				$raw_key = base64_decode( (string) $public_key, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- decodes a public key.
-				if ( false === $raw_key || 32 !== strlen( $raw_key ) ) {
-					continue;
-				}
-				try {
-					if ( sodium_crypto_sign_verify_detached( $raw_signature, $message, $raw_key ) ) {
-						return $decoded['data'];
-					}
-				} catch ( \Throwable $e ) {
-					continue;
-				}
-			}
-			return $invalid;
+
+			return $decoded['data'];
 		}
 
 		/**
@@ -902,15 +1014,56 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 *                                    `wplc_nonce_mismatch`, `wplc_response_invalid`.
 		 */
 		public static function verified_data( array $envelope, string $secret, string $expected_nonce = '', $public_keys = array(), string $installation_id = '' ) {
+			$keys = is_array( $public_keys ) ? self::decode_keys( $public_keys ) : array();
+
+			return self::verify( $envelope, $secret, $expected_nonce, $keys, $installation_id, is_array( $public_keys ) && ! empty( $public_keys ), self::default_verifier() );
+		}
+
+		/**
+		 * Binary 32-byte keys of a list of base64 keys; invalid entries are skipped.
+		 *
+		 * @param array<mixed> $public_keys Base64 keys.
+		 * @return string[]
+		 */
+		private static function decode_keys( array $public_keys ): array {
 			$keys = array();
-			foreach ( is_array( $public_keys ) ? $public_keys : array() as $key ) {
+			foreach ( $public_keys as $key ) {
 				$binary = is_string( $key ) ? base64_decode( trim( $key ), true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- decodes a public key.
 				if ( is_string( $binary ) && 32 === strlen( $binary ) ) {
 					$keys[] = $binary;
 				}
 			}
 
-			return self::verify( $envelope, $secret, $expected_nonce, $keys, $installation_id, is_array( $public_keys ) && ! empty( $public_keys ), self::default_verifier() );
+			return $keys;
+		}
+
+		/**
+		 * Whether a base64 Ed25519 signature of the server over the payload text verifies with one of the keys.
+		 *
+		 * @param string   $payload         Payload text as received.
+		 * @param mixed    $signature       Base64 signature (`payload_signature_ed25519`).
+		 * @param string[] $keys            Binary public keys.
+		 * @param string   $installation_id Installation UUID.
+		 * @param callable $verifier        Ed25519 verification.
+		 * @return bool
+		 */
+		private static function server_signature_valid( string $payload, $signature, array $keys, string $installation_id, callable $verifier ): bool {
+			$binary = is_string( $signature ) ? base64_decode( $signature, true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- decodes a signature.
+			if ( ! is_string( $binary ) || 64 !== strlen( $binary ) || '' === $installation_id ) {
+				return false;
+			}
+			$message = self::SIGNATURE_CONTEXT . "\n" . strtolower( $installation_id ) . "\n" . $payload;
+			foreach ( $keys as $key ) {
+				try {
+					if ( true === (bool) call_user_func( $verifier, $binary, $message, $key ) ) {
+						return true;
+					}
+				} catch ( \Throwable $e ) {
+					continue;
+				}
+			}
+
+			return false;
 		}
 
 		/**
@@ -935,28 +1088,11 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				return 'wplc_signature_invalid';
 			}
 			if ( $require_server ) {
-				$server_signature = $envelope['payload_signature_ed25519'] ?? null;
-				$binary           = is_string( $server_signature ) ? base64_decode( $server_signature, true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- decodes a signature.
 				if ( null === $verifier ) {
 					// No Ed25519 implementation: never accept the HMAC alone in place of the server signature.
 					return 'wplc_ed25519_unavailable';
 				}
-				if ( ! is_string( $binary ) || 64 !== strlen( $binary ) || '' === $installation_id ) {
-					return 'wplc_server_signature_invalid';
-				}
-				$message = self::SIGNATURE_CONTEXT . "\n" . strtolower( $installation_id ) . "\n" . $payload;
-				$valid   = false;
-				foreach ( $keys as $key ) {
-					try {
-						if ( true === (bool) call_user_func( $verifier, $binary, $message, $key ) ) {
-							$valid = true;
-							break;
-						}
-					} catch ( \Throwable $e ) {
-						$valid = false;
-					}
-				}
-				if ( ! $valid ) {
+				if ( ! self::server_signature_valid( $payload, $envelope['payload_signature_ed25519'] ?? null, $keys, $installation_id, $verifier ) ) {
 					return 'wplc_server_signature_invalid';
 				}
 			}

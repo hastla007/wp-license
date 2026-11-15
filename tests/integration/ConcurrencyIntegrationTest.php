@@ -13,6 +13,12 @@ use WPLC\License\LicenseLifecycle;
 
 final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 
+	public function set_up(): void {
+		parent::set_up();
+		// These tests cover grants, not A-32: allow the redirect to the unchanged stored URL (default since A-32: refused).
+		add_filter( 'wplc_require_package_resolver', '__return_false' );
+	}
+
 	/**
 	 * Trusted package URL on the shop's own host.
 	 *
@@ -420,12 +426,13 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( array( 'redirect', $this->package_url() ), array( $served['outcome'], $served['location'] ) );
 	}
 
-	// A-32: with wplc_require_package_resolver a permanent package URL is never handed to a client.
+	// A-32: by default a permanent package URL is never handed to a client.
 	public function test_strict_mode_refuses_to_redirect_to_the_permanent_package_url(): void {
 		$license = $this->seed_license();
 		$site    = $this->activate_via_api( $license['key'] );
 		$token   = $this->request_grant( $site );
-		add_filter( 'wplc_require_package_resolver', '__return_true' );
+		remove_filter( 'wplc_require_package_resolver', '__return_false' );
+		$this->assertTrue( \WPLC\Api\V1\UpdateService::requires_package_resolver(), 'Strict mode is the default.' );
 		// A refused grant stays usable only with a reuse window; the default is strict single use (T-108).
 		add_filter( 'wplc_download_reuse_seconds', static function () { return 120; } );
 
@@ -444,6 +451,7 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( array( 'redirect', $signed ), array( $halt->kind, $halt->location ) );
 	}
 
+	/** P-11: unused grants are deleted as soon as they expire, used ones after the retention period. */
 	public function test_expired_and_consumed_grants_are_purged_after_the_retention_period(): void {
 		global $wpdb;
 		$tables  = $this->tables();
@@ -454,6 +462,9 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 			'old-expired'    => array( 'expires_at' => $old, 'consumed_at' => null ),
 			'old-consumed'   => array( 'expires_at' => $old, 'consumed_at' => $old ),
 			'recent-expired' => array( 'expires_at' => $recent, 'consumed_at' => null ),
+			'just-expired'   => array( 'expires_at' => gmdate( 'Y-m-d H:i:s', time() - 1 ), 'consumed_at' => null ),
+			'recent-used'    => array( 'expires_at' => $recent, 'consumed_at' => $recent ),
+			'open'           => array( 'expires_at' => gmdate( 'Y-m-d H:i:s', time() + 60 ), 'consumed_at' => null ),
 		);
 		foreach ( $rows as $label => $row ) {
 			$wpdb->insert(
@@ -472,8 +483,8 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 
 		\WPLC\Api\V1\UpdateService::purge_expired_grants();
 
-		$left = $wpdb->get_col( "SELECT token_hash FROM {$tables['download_tokens']}" );
-		$this->assertSame( array( hash( 'sha256', 'recent-expired' ) ), $left );
+		$left = $wpdb->get_col( "SELECT token_hash FROM {$tables['download_tokens']} ORDER BY id" );
+		$this->assertSame( array( hash( 'sha256', 'recent-used' ), hash( 'sha256', 'open' ) ), $left );
 	}
 
 	// ------------------------------------------------------------------

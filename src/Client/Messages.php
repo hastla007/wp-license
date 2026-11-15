@@ -30,7 +30,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.1';
+		const VERSION = '2.0.2';
 
 		/**
 		 * Text domain literal used in this file.
@@ -75,12 +75,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		 */
 		public function get( string $code ): string {
 			$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : '';
-			if ( null === $this->texts || $locale !== $this->texts_locale ) {
-				// Built once: the table has some hundred entries and every lookup used to rebuild it.
-				$this->texts        = self::texts();
-				$this->texts_locale = $locale;
+			$texts  = $this->texts;
+			if ( null === $texts || $locale !== $this->texts_locale ) {
+				$texts = self::texts();
+				if ( ! function_exists( 'did_action' ) || did_action( 'init' ) ) {
+					// Built once: the table has some hundred entries and every lookup used to rebuild it.
+					// Before init the add-on's translations may not be loaded yet, so nothing is kept then.
+					$this->texts        = $texts;
+					$this->texts_locale = $locale;
+				}
 			}
-			$texts = $this->texts;
 			if ( ! isset( $texts[ $code ] ) ) {
 				return '';
 			}
@@ -157,6 +161,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'error.installation_secret_invalid'   => __( 'The license server cannot read the activation of this site. Enter the license key to activate it again.', 'wp-license' ),
 				'error.activation_mismatch'           => __( 'The stored activation does not belong to this installation.', 'wp-license' ),
 				'error.site_mismatch'                 => __( 'This site is not the one the license was activated for.', 'wp-license' ),
+				'error.site_move_refused'             => __( 'A live site activation cannot be moved to a staging, local or test address. Activate this copy as a staging site instead.', 'wp-license' ),
 				'error.invalid_request_signature'     => __( 'The license server rejected the signature of this site.', 'wp-license' ),
 				'error.request_expired'               => __( 'The clock of this server differs too much from the clock of the license server.', 'wp-license' ),
 				'error.rate_limited'                  => __( 'Too many requests. Please try again in a few minutes.', 'wp-license' ),
@@ -229,6 +234,14 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'ui.saved.forgotten'                  => __( 'The license data was removed from this site without asking the license server. If the server still lists this activation, release it in your customer account.', 'wp-license' ),
 				'ui.saved.checked'                    => __( 'The license was checked.', 'wp-license' ),
 				'ui.saved.moved'                      => __( 'The activation was transferred to this address.', 'wp-license' ),
+				'ui.activated_address'                => __( 'Activated for', 'wp-license' ),
+				'ui.current_address'                  => __( 'Address of this site', 'wp-license' ),
+				/* translators: 1: address the license was activated for, 2: address of this site. */
+				'ui.move_warning'                     => __( 'Only if the site really moved: transferring moves the activation from %1$s to %2$s. The site at %1$s then loses the license. For a staging or test copy, activate this address instead.', 'wp-license' ),
+				'ui.move_not_live'                    => __( 'This site reports itself as a staging or development site.', 'wp-license' ),
+				/* translators: %s: address the license was activated for. */
+				'ui.move_confirm'                     => __( 'I confirm that the site moved and no longer runs at %s.', 'wp-license' ),
+				'ui.move_unconfirmed'                 => __( 'Nothing was transferred. Confirm that the site moved before you transfer the activation.', 'wp-license' ),
 				'ui.forbidden'                        => __( 'You are not allowed to manage the license of this plugin.', 'wp-license' ),
 				'ui.utc'                              => __( 'UTC', 'wp-license' ),
 				// Updater.
@@ -259,7 +272,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				// Privacy policy suggestion.
 				'privacy.title'                       => __( 'License check and updates', 'wp-license' ),
 				/* translators: 1: name of the add-on, 2: host name of the license server. */
-				'privacy.text'                        => __( '%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), and the versions of the plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent.', 'wp-license' ),
+				'privacy.text'                        => __( '%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), for a staging site the installation ID of its live site, and the versions of the plugin, of the base plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent. Legal basis: our legitimate interest in the use of licensed software and in security updates (Art. 6(1)(f) GDPR).', 'wp-license' ),
 			);
 		}
 	}

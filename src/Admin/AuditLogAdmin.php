@@ -21,7 +21,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * other screen shows.
  *
  * Stored reasons and snapshots are shown through AuditReason::label() and the
- * redaction of AuditLog (applied again at display time), never raw.
+ * redaction of AuditLog (applied again at display time), never raw. The same
+ * applies to the CSV export, which is itself recorded in the audit log.
+ *
+ * This is the only audit screen (P-27): the former second page `wplc-audit`
+ * redirects here, with its filters (including the license filter) carried over.
  */
 final class AuditLogAdmin {
 
@@ -36,6 +40,32 @@ final class AuditLogAdmin {
 	public const PER_PAGE = 50;
 
 	/**
+	 * Slug of the removed second audit page; its URLs redirect here.
+	 */
+	public const LEGACY_PAGE = 'wplc-audit';
+
+	/**
+	 * admin-post action of the CSV export.
+	 */
+	public const EXPORT_ACTION = 'wplc_admin_export_audit';
+
+	/**
+	 * Most entries in one CSV export.
+	 */
+	public const EXPORT_LIMIT = 50000;
+
+	/**
+	 * Entries read per batch of a CSV export.
+	 */
+	public const EXPORT_BATCH = 500;
+
+	/**
+	 * Most activation or renewal IDs listed literally in the license filter;
+	 * a license with more uses a subquery instead.
+	 */
+	private const LICENSE_FILTER_MAX_IDS = 2000;
+
+	/**
 	 * Register the menu entry and assets.
 	 *
 	 * @return void
@@ -44,6 +74,8 @@ final class AuditLogAdmin {
 		// After "Licenses" (10) and "Renewals to review" (11).
 		add_action( 'admin_menu', array( self::class, 'register_menu' ), 12 );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
+		add_action( 'admin_init', array( self::class, 'redirect_legacy_page' ) );
+		add_action( 'admin_post_' . self::EXPORT_ACTION, array( self::class, 'handle_export' ) );
 	}
 
 	/**
@@ -53,13 +85,54 @@ final class AuditLogAdmin {
 	 */
 	public static function register_menu(): void {
 		add_submenu_page(
-			'woocommerce',
+			Capabilities::menu_parent(),
 			__( 'License audit log', 'wp-license' ),
 			__( 'License audit log', 'wp-license' ),
-			'manage_woocommerce',
+			Capabilities::cap( 'view_diagnostics' ),
 			self::PAGE,
 			array( self::class, 'render' )
 		);
+		LicenseAdmin::connect_page( self::PAGE, __( 'License audit log', 'wp-license' ) );
+	}
+
+	/**
+	 * Redirect a request for the removed page `wplc-audit` to this screen.
+	 *
+	 * Runs on admin_init, before WordPress refuses the unknown page slug.
+	 *
+	 * @return void
+	 */
+	public static function redirect_legacy_page(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect.
+		$target = self::legacy_redirect_url( wp_unslash( $_GET ) );
+		if ( null !== $target ) {
+			wp_safe_redirect( $target, 301 );
+			exit;
+		}
+	}
+
+	/**
+	 * Target of a legacy `wplc-audit` URL, or null for any other request. Pure apart from admin_url().
+	 *
+	 * @param array<string,mixed> $get Unslashed query arguments.
+	 * @return string|null
+	 */
+	public static function legacy_redirect_url( array $get ): ?string {
+		if ( ! isset( $get['page'] ) || self::LEGACY_PAGE !== $get['page'] ) {
+			return null;
+		}
+		$args = array();
+		foreach ( array( 'license', 'object_type', 'object_id', 'audit_action', 'actor', 'from', 'to', 'paged' ) as $key ) {
+			if ( isset( $get[ $key ] ) && is_string( $get[ $key ] ) && '' !== trim( $get[ $key ] ) ) {
+				$args[ $key ] = sanitize_text_field( $get[ $key ] );
+			}
+		}
+		if ( isset( $args['actor'] ) && 1 === preg_match( '/^#\d+$/', $args['actor'] ) ) {
+			// The old page accepted "#12" for a user ID.
+			$args['actor'] = substr( $args['actor'], 1 );
+		}
+
+		return self::url( $args );
 	}
 
 	/**
@@ -105,7 +178,7 @@ final class AuditLogAdmin {
 	/**
 	 * Filters from the request.
 	 *
-	 * @return array{object_type:string,object_id:string,action:string,actor:string,from:string,to:string}
+	 * @return array{license:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string}
 	 */
 	public static function request_filters(): array {
 		$read = static function ( string $key ): string {
@@ -113,11 +186,13 @@ final class AuditLogAdmin {
 			return isset( $_GET[ $key ] ) && is_string( $_GET[ $key ] ) ? trim( sanitize_text_field( wp_unslash( $_GET[ $key ] ) ) ) : '';
 		};
 
+		$license   = $read( 'license' );
 		$object_id = $read( 'object_id' );
 		$from      = $read( 'from' );
 		$to        = $read( 'to' );
 
 		return array(
+			'license'     => '' !== $license && ctype_digit( $license ) && (int) $license > 0 ? (string) (int) $license : '',
 			'object_type' => sanitize_key( $read( 'object_type' ) ),
 			'object_id'   => '' !== $object_id && ctype_digit( $object_id ) ? (string) (int) $object_id : '',
 			'action'      => sanitize_key( $read( 'audit_action' ) ),
@@ -134,14 +209,23 @@ final class AuditLogAdmin {
 	 * retention job relies on the same property), so a date range becomes an ID
 	 * range found by a binary search over the primary key: no index on
 	 * created_at is needed. object_type/object_id use object_history, the
-	 * actor actor_history.
+	 * actor actor_history. The license filter (the license, its activations and
+	 * its renewals) reads the activation and renewal IDs first, so the audit
+	 * query is a few object_history ranges instead of a subquery per row.
 	 *
-	 * @param array{object_type:string,object_id:string,action:string,actor:string,from:string,to:string} $filters Filters.
+	 * @param array{license?:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string} $filters Filters.
 	 * @return array{sql:string,params:array<int,mixed>}
 	 */
 	public static function where( array $filters ): array {
 		$conditions = array();
 		$params     = array();
+
+		$license_id = isset( $filters['license'] ) ? (int) $filters['license'] : 0;
+		if ( $license_id > 0 ) {
+			$license_where = self::license_condition( $license_id );
+			$conditions[]  = $license_where['sql'];
+			$params        = array_merge( $params, $license_where['params'] );
+		}
 
 		if ( '' !== $filters['object_type'] ) {
 			$conditions[] = 'object_type = %s';
@@ -192,6 +276,43 @@ final class AuditLogAdmin {
 
 		return array(
 			'sql'    => $conditions ? ' WHERE ' . implode( ' AND ', $conditions ) : '',
+			'params' => $params,
+		);
+	}
+
+	/**
+	 * Condition matching every entry of one license: the license itself, its
+	 * site activations and its renewals.
+	 *
+	 * @param int $license_id License ID.
+	 * @return array{sql:string,params:array<int,mixed>}
+	 */
+	public static function license_condition( int $license_id ): array {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$parts  = array( "( object_type = 'license' AND object_id = %d )" );
+		$params = array( $license_id );
+		foreach ( array(
+			'activation' => $tables['activations'],
+			'renewal'    => $tables['renewals'],
+		) as $type => $table ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names().
+			$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE license_id = %d ORDER BY id ASC LIMIT %d", $license_id, self::LICENSE_FILTER_MAX_IDS + 1 ) ) );
+			if ( ! $ids ) {
+				continue;
+			}
+			if ( count( $ids ) > self::LICENSE_FILTER_MAX_IDS ) {
+				$parts[] = "( object_type = '{$type}' AND object_id IN ( SELECT id FROM {$table} WHERE license_id = %d ) )";
+				$params[] = $license_id;
+				continue;
+			}
+			$parts[] = "( object_type = '{$type}' AND object_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') )';
+			$params  = array_merge( $params, $ids );
+		}
+
+		return array(
+			'sql'    => '( ' . implode( ' OR ', $parts ) . ' )',
 			'params' => $params,
 		);
 	}
@@ -274,9 +395,7 @@ final class AuditLogAdmin {
 	 * @return void
 	 */
 	public static function render(): void {
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_die( esc_html__( 'You do not have permission to view licenses.', 'wp-license' ), '', array( 'response' => 403 ) );
-		}
+		Capabilities::require_cap( 'view_diagnostics', __( 'You do not have permission to view the audit log.', 'wp-license' ) );
 		if ( ! class_exists( '\\WP_List_Table' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 		}
@@ -286,12 +405,17 @@ final class AuditLogAdmin {
 		$table->prepare_items();
 
 		echo '<div class="wrap wplc-audit-log">';
-		echo '<h1>' . esc_html__( 'License audit log', 'wp-license' ) . '</h1>';
+		echo '<h1 class="wp-heading-inline">' . esc_html__( 'License audit log', 'wp-license' ) . '</h1> ';
+		echo '<a href="' . esc_url( self::export_url( $filters ) ) . '" class="page-title-action">' . esc_html__( 'Export as CSV', 'wp-license' ) . '</a>';
+		echo '<hr class="wp-header-end">';
+		CsvExport::render_truncated_notice( get_current_user_id() );
 		echo '<p class="description">' . esc_html__( 'Every recorded action on licenses, activations, renewals, releases, settings and keys, newest first. Read-only. Sensitive values are redacted.', 'wp-license' ) . '</p>';
 
 		echo '<form method="get" class="wplc-audit-filters">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '">';
 		echo '<p>';
+		echo '<label for="wplc-audit-license">' . esc_html__( 'License ID', 'wp-license' ) . '</label> ';
+		echo '<input type="number" min="1" class="small-text" id="wplc-audit-license" name="license" value="' . esc_attr( $filters['license'] ) . '"> ';
 		echo '<label for="wplc-audit-type">' . esc_html__( 'Object type', 'wp-license' ) . '</label> ';
 		echo '<select id="wplc-audit-type" name="object_type"><option value="">' . esc_html__( 'All types', 'wp-license' ) . '</option>';
 		$types = self::object_type_labels();
@@ -315,9 +439,139 @@ final class AuditLogAdmin {
 		submit_button( __( 'Filter', 'wp-license' ), '', 'filter_action', false );
 		echo ' <a href="' . esc_url( self::url() ) . '">' . esc_html__( 'Reset', 'wp-license' ) . '</a>';
 		echo '</p>';
-		echo '<p class="description">' . esc_html__( 'Object ID 0 shows system-wide entries (settings, catalog import, key rotation, bulk actions).', 'wp-license' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Object ID 0 shows system-wide entries (settings, catalog import, key rotation, bulk actions). License ID shows the license with its site activations and renewals.', 'wp-license' ) . '</p>';
 		$table->display();
 		echo '</form></div>';
+	}
+
+	/**
+	 * Nonce-protected URL of the CSV export for a set of filters.
+	 *
+	 * @param array<string,string> $filters Filters from request_filters().
+	 * @return string
+	 */
+	public static function export_url( array $filters ): string {
+		$args = array( 'action' => self::EXPORT_ACTION );
+		foreach ( $filters as $key => $value ) {
+			if ( '' !== $value ) {
+				$args[ 'action' === $key ? 'audit_action' : $key ] = $value;
+			}
+		}
+
+		return wp_nonce_url( add_query_arg( $args, admin_url( 'admin-post.php' ) ), self::EXPORT_ACTION );
+	}
+
+	/**
+	 * Stream the filtered audit log as CSV and record the export.
+	 *
+	 * @return void
+	 */
+	public static function handle_export(): void {
+		Capabilities::require_cap( 'view_diagnostics', __( 'You do not have permission to view the audit log.', 'wp-license' ) );
+		check_admin_referer( self::EXPORT_ACTION );
+
+		$filters = self::request_filters();
+		AuditLog::record( 'audit_log_exported', 'export', 0, '', null, array_filter( $filters, static function ( $value ): bool { return '' !== (string) $value; } ), get_current_user_id() );
+
+		$handle = CsvExport::open_download( 'license-audit-' . gmdate( 'Y-m-d' ) . '.csv' );
+		$result = self::write_csv( $filters, $handle );
+		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Output stream of a download.
+		if ( $result['truncated'] ) {
+			CsvExport::remember_truncated( get_current_user_id(), 'audit', self::EXPORT_LIMIT );
+		}
+		exit;
+	}
+
+	/**
+	 * Build the CSV for a set of filters as a string (tests, small logs).
+	 *
+	 * @param array{license?:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string} $filters Filters.
+	 * @param int                                                                                                           $limit   Row cap.
+	 * @return string
+	 */
+	public static function export_csv( array $filters, int $limit = self::EXPORT_LIMIT ): string {
+		$handle = fopen( 'php://temp', 'w+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- In-memory stream.
+		if ( false === $handle ) {
+			return '';
+		}
+		self::write_csv( $filters, $handle, $limit );
+		rewind( $handle );
+		$out = (string) stream_get_contents( $handle );
+		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- In-memory stream.
+
+		return $out;
+	}
+
+	/**
+	 * Write the filtered audit log to a stream, newest first, one keyset batch at a time.
+	 *
+	 * Reasons and snapshots are redacted as on the screen.
+	 *
+	 * @param array{license?:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string} $filters Filters.
+	 * @param resource                                                                                                      $handle  Output stream.
+	 * @param int                                                                                                           $limit   Row cap.
+	 * @return array{rows:int,truncated:bool}
+	 */
+	public static function write_csv( array $filters, $handle, int $limit = self::EXPORT_LIMIT ): array {
+		global $wpdb;
+
+		$table     = Schema::table_names()['audit_log'];
+		$where     = self::where( $filters );
+		$limit     = max( 1, $limit );
+		$last      = PHP_INT_MAX;
+		$total     = 0;
+		$truncated = false;
+		$redact    = static function ( $json ): string {
+			if ( ! is_string( $json ) || '' === $json ) {
+				return '';
+			}
+			$encoded = wp_json_encode( AuditLog::redact_for_display( json_decode( $json, true ) ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+			return false === $encoded ? '' : $encoded;
+		};
+		CsvExport::write( $handle, array( 'id', 'created_at_utc', 'action', 'object_type', 'object_id', 'actor_user_id', 'actor_login', 'reason', 'before', 'after' ) );
+		do {
+			$batch_size = min( self::EXPORT_BATCH, $limit - $total + 1 );
+			$sql        = "SELECT * FROM {$table}" . ( '' !== $where['sql'] ? $where['sql'] . ' AND' : ' WHERE' ) . ' id < %d ORDER BY id DESC LIMIT %d';
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Only the table name and fixed fragments with placeholders are interpolated.
+			$rows   = $wpdb->get_results( $wpdb->prepare( $sql, array_merge( $where['params'], array( $last, $batch_size ) ) ), ARRAY_A );
+			$rows   = is_array( $rows ) ? $rows : array();
+			$batch  = count( $rows );
+			$logins = CsvExport::user_field( array_column( $rows, 'actor_user_id' ), 'user_login' );
+			foreach ( $rows as $row ) {
+				if ( $total >= $limit ) {
+					$truncated = true;
+					break;
+				}
+				$last  = (int) $row['id'];
+				$actor = (int) $row['actor_user_id'];
+				CsvExport::write(
+					$handle,
+					array(
+						$last,
+						(string) $row['created_at'],
+						(string) $row['action'],
+						(string) $row['object_type'],
+						(int) $row['object_id'],
+						$actor,
+						$logins[ $actor ] ?? '',
+						AuditLog::redact_text_for_display( (string) $row['reason'] ),
+						$redact( $row['before_json'] ),
+						$redact( $row['after_json'] ),
+					)
+				);
+				++$total;
+			}
+			CsvExport::flush_batch( $handle );
+		} while ( ! $truncated && $batch === $batch_size );
+
+		if ( $truncated ) {
+			CsvExport::write( $handle, CsvExport::truncated_row( $limit ) );
+		}
+
+		return array(
+			'rows'      => $total,
+			'truncated' => $truncated,
+		);
 	}
 
 	/**

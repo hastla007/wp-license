@@ -108,14 +108,76 @@ if ( ! function_exists( 'get_sites' ) ) {
 	}
 }
 if ( ! function_exists( 'switch_to_blog' ) ) {
+	// The current site is $GLOBALS['wplc_test_blog'] (default 1); switching keeps a stack like WordPress.
 	function switch_to_blog( $site_id ) {
-		$GLOBALS['wplc_test_switched'][] = (int) $site_id;
+		$GLOBALS['wplc_test_switched'][]   = (int) $site_id;
+		$GLOBALS['wplc_test_blog_stack'][] = $GLOBALS['wplc_test_blog'] ?? 1;
+		$GLOBALS['wplc_test_blog']         = (int) $site_id;
 		return true;
 	}
 }
 if ( ! function_exists( 'restore_current_blog' ) ) {
 	function restore_current_blog() {
 		$GLOBALS['wplc_test_restored'] = ( $GLOBALS['wplc_test_restored'] ?? 0 ) + 1;
+		if ( ! empty( $GLOBALS['wplc_test_blog_stack'] ) ) {
+			$GLOBALS['wplc_test_blog'] = array_pop( $GLOBALS['wplc_test_blog_stack'] );
+		}
+		return true;
+	}
+}
+if ( ! function_exists( 'plugin_basename' ) ) {
+	function plugin_basename( $file ) {
+		return basename( dirname( (string) $file ) ) . '/' . basename( (string) $file );
+	}
+}
+if ( ! function_exists( 'get_file_data' ) ) {
+	function get_file_data( $file, $default_headers, $context = '' ) {
+		$GLOBALS['wplc_test_file_reads'] = ( $GLOBALS['wplc_test_file_reads'] ?? 0 ) + 1;
+		$headers                         = array();
+		foreach ( (array) $default_headers as $field => $name ) {
+			$headers[ $field ] = (string) ( $GLOBALS['wplc_test_file_headers'][ $name ] ?? '' );
+		}
+		return $headers;
+	}
+}
+if ( ! function_exists( 'get_current_blog_id' ) ) {
+	function get_current_blog_id() {
+		return (int) ( $GLOBALS['wplc_test_blog'] ?? 1 );
+	}
+}
+if ( ! function_exists( 'get_main_site_id' ) ) {
+	function get_main_site_id( $network_id = null ) {
+		return (int) ( $GLOBALS['wplc_test_main_site'] ?? 1 );
+	}
+}
+if ( ! function_exists( 'get_site_option' ) ) {
+	function get_site_option( $name, $default = false ) {
+		return array_key_exists( $name, $GLOBALS['wplc_test_site_options'] ?? array() ) ? $GLOBALS['wplc_test_site_options'][ $name ] : $default;
+	}
+	function update_site_option( $name, $value ) {
+		$GLOBALS['wplc_test_site_options'][ $name ] = $value;
+		return true;
+	}
+	function delete_site_option( $name ) {
+		unset( $GLOBALS['wplc_test_site_options'][ $name ] );
+		return true;
+	}
+}
+if ( ! function_exists( 'set_transient' ) ) {
+	// Same layout as the stub in tests/Admin/LicenseSearchStoreTest.php.
+	function set_transient( $name, $value, $expiration = 0 ) {
+		$GLOBALS['wplc_test_transients'][ $name ] = array( $value, $expiration );
+		return true;
+	}
+}
+if ( ! function_exists( 'get_transient' ) ) {
+	function get_transient( $name ) {
+		return isset( $GLOBALS['wplc_test_transients'][ $name ] ) ? $GLOBALS['wplc_test_transients'][ $name ][0] : false;
+	}
+}
+if ( ! function_exists( 'wp_schedule_single_event' ) ) {
+	function wp_schedule_single_event( $timestamp, $hook, $args = array() ) {
+		$GLOBALS['wplc_test_single_events'][] = array( $hook, $timestamp );
 		return true;
 	}
 }
@@ -168,6 +230,34 @@ final class WPLC_Test_Store extends OptionStore {
 	}
 	public function site_url(): string {
 		return $this->site;
+	}
+}
+
+/**
+ * In-memory per-site options of a multisite network: values and address follow switch_to_blog().
+ */
+final class WPLC_Test_Blog_Store extends OptionStore {
+	/** @var array<int,array<string,mixed>> Options by site ID. */
+	public $data = array();
+
+	public function __construct() {
+	}
+	public function is_network(): bool {
+		return false;
+	}
+	public function get( string $name, $fallback = array() ) {
+		$blog = get_current_blog_id();
+		return isset( $this->data[ $blog ] ) && array_key_exists( $name, $this->data[ $blog ] ) ? $this->data[ $blog ][ $name ] : $fallback;
+	}
+	public function set( string $name, $value ): bool {
+		$this->data[ get_current_blog_id() ][ $name ] = $value;
+		return true;
+	}
+	public function delete( string $name ): void {
+		unset( $this->data[ get_current_blog_id() ][ $name ] );
+	}
+	public function site_url(): string {
+		return 'https://site' . get_current_blog_id() . '.example';
 	}
 }
 

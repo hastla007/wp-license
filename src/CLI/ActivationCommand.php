@@ -45,7 +45,13 @@ final class ActivationCommand {
 		foreach ( $rows as $row ) {
 			\WP_CLI::line( implode( ' | ', array_map( 'strval', $row ) ) );
 		}
-		\WP_CLI::log( sprintf( '%d activations.', count( $rows ) ) );
+		\WP_CLI::log(
+			sprintf(
+				/* translators: %s: number of activations. */
+				_n( '%s activation.', '%s activations.', count( $rows ), 'wp-license' ),
+				number_format_i18n( count( $rows ) )
+			)
+		);
 	}
 
 	/**
@@ -61,31 +67,104 @@ final class ActivationCommand {
 	 * : Activation IDs to release.
 	 *
 	 * [--license=<id>]
-	 * : Release all active activations of this license instead.
+	 * : Release all active activations of this license instead. Asks for confirmation. Cannot be combined
+	 * with activation IDs.
 	 *
 	 * [--environment=<environment>]
-	 * : With --license: only "production", "staging" or "development" activations.
+	 * : With --license: only activations of this environment.
+	 * ---
+	 * options:
+	 *   - production
+	 *   - staging
+	 *   - development
+	 * ---
 	 *
 	 * [--reason=<text>]
 	 * : Reason for the audit log.
+	 *
+	 * [--yes]
+	 * : Do not ask for confirmation (--license).
 	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp wplc activation release 55 56
 	 *     wp wplc activation release --license=123 --environment=development
+	 *     wp wplc activation release --license=123 --yes
 	 *
 	 * @param array<int,string>   $args       Positional arguments.
 	 * @param array<string,mixed> $assoc_args Options.
 	 * @return void
 	 */
 	public function release( array $args, array $assoc_args ): void {
-		$ids = array_filter( array_map( 'absint', $args ) );
-		$license_id = absint( $assoc_args['license'] ?? 0 );
-		if ( ! $ids && $license_id < 1 ) {
-			\WP_CLI::error( 'Name activation IDs or a license with --license=<id>.' );
+		$plan = self::release_plan( $args, $assoc_args );
+		if ( is_wp_error( $plan ) ) {
+			\WP_CLI::error( $plan->get_error_message() );
 		}
-		if ( ! $ids ) {
-			$environment = (string) ( $assoc_args['environment'] ?? '' );
+		$ids = $plan['ids'];
+		if ( $plan['license_id'] > 0 ) {
+			if ( ! $ids ) {
+				\WP_CLI::success(
+					sprintf(
+						/* translators: %d: license ID. */
+						__( 'License %d has no matching active activation.', 'wp-license' ),
+						$plan['license_id']
+					)
+				);
+				return;
+			}
+			\WP_CLI::confirm(
+				sprintf(
+					/* translators: 1: number of activations, 2: license ID. */
+					_n( 'Release %1$s active activation of license %2$d? The site loses its license until it is activated again.', 'Release %1$s active activations of license %2$d? The sites lose their license until they are activated again.', count( $ids ), 'wp-license' ),
+					number_format_i18n( count( $ids ) ),
+					$plan['license_id']
+				),
+				$assoc_args
+			);
+		}
+
+		$released = self::release_ids( $ids, (string) ( $assoc_args['reason'] ?? __( 'Released with WP-CLI', 'wp-license' ) ) );
+		\WP_CLI::success(
+			sprintf(
+				/* translators: 1: number of released activations, 2: number of named activations. */
+				_n( 'Released %1$s of %2$s activation (others were not active any more).', 'Released %1$s of %2$s activations (others were not active any more).', count( $ids ), 'wp-license' ),
+				number_format_i18n( $released ),
+				number_format_i18n( count( $ids ) )
+			)
+		);
+	}
+
+	/**
+	 * Validate the arguments of `release` and resolve the activation IDs (P-34).
+	 *
+	 * Activation IDs and --license are exclusive (IDs of another license must not be
+	 * released under a license filter by accident), --environment needs --license
+	 * and one of the known environments.
+	 *
+	 * @param array<int,string>   $args       Positional arguments.
+	 * @param array<string,mixed> $assoc_args Options.
+	 * @return array{ids:int[],license_id:int}|\WP_Error
+	 */
+	public static function release_plan( array $args, array $assoc_args ) {
+		$ids         = array_values( array_filter( array_map( 'absint', $args ) ) );
+		$license_id  = absint( $assoc_args['license'] ?? 0 );
+		$environment = isset( $assoc_args['environment'] ) ? (string) $assoc_args['environment'] : '';
+		if ( count( $ids ) !== count( $args ) ) {
+			return new \WP_Error( 'invalid_id', __( 'Activation IDs must be positive numbers.', 'wp-license' ) );
+		}
+		if ( $ids && isset( $assoc_args['license'] ) ) {
+			return new \WP_Error( 'mixed', __( 'Name activation IDs or --license=<id>, not both.', 'wp-license' ) );
+		}
+		if ( ! $ids && $license_id < 1 ) {
+			return new \WP_Error( 'missing', __( 'Name activation IDs or a license with --license=<id>.', 'wp-license' ) );
+		}
+		if ( '' !== $environment && $license_id < 1 ) {
+			return new \WP_Error( 'environment_without_license', __( '--environment can only be used with --license.', 'wp-license' ) );
+		}
+		if ( isset( $assoc_args['environment'] ) && ! in_array( $environment, array( 'production', 'staging', 'development' ), true ) ) {
+			return new \WP_Error( 'environment', __( '--environment must be "production", "staging" or "development".', 'wp-license' ) );
+		}
+		if ( $license_id > 0 ) {
 			foreach ( self::rows( $license_id, 'active' ) as $row ) {
 				if ( '' === $environment || $row['environment'] === $environment ) {
 					$ids[] = (int) $row['id'];
@@ -93,8 +172,10 @@ final class ActivationCommand {
 			}
 		}
 
-		$released = self::release_ids( $ids, (string) ( $assoc_args['reason'] ?? 'Released with WP-CLI' ) );
-		\WP_CLI::success( sprintf( 'Released %d of %d activations (others were not active any more).', $released, count( $ids ) ) );
+		return array(
+			'ids'        => $ids,
+			'license_id' => $license_id,
+		);
 	}
 
 	/**

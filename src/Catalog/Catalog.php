@@ -50,6 +50,11 @@ final class Catalog {
 	public const IDS_OPTION = 'wplc_license_product_ids';
 
 	/**
+	 * WooCommerce Subscriptions product types, which cannot be license products (P-20).
+	 */
+	public const SUBSCRIPTION_TYPES = array( 'subscription', 'variable-subscription', 'subscription_variation' );
+
+	/**
 	 * Code of the last save_mapping() failure, empty after a success.
 	 *
 	 * @var string
@@ -117,7 +122,7 @@ final class Catalog {
 	 * Code of the last save_mapping() failure.
 	 *
 	 * @return string Empty string, or one of invalid_product, invalid_product_key, invalid_plan_key,
-	 *                invalid_interval, invalid_entitlements, product_not_found, invalid_price, db_error.
+	 *                invalid_interval, invalid_entitlements, product_not_found, subscription_product, invalid_price, db_error.
 	 */
 	public static function last_error(): string {
 		return self::$last_error;
@@ -144,6 +149,8 @@ final class Catalog {
 				return __( 'The WooCommerce product does not exist.', 'wp-license' );
 			case 'invalid_price':
 				return __( 'The product needs a valid regular price before it can become a license product.', 'wp-license' );
+			case 'subscription_product':
+				return __( 'WooCommerce Subscriptions products cannot be license products: Subscriptions bills its own renewals and WP License Captain renews licenses itself, so the customer would be charged twice. Use a simple or variable product.', 'wp-license' );
 			default:
 				return __( 'The license plan could not be written to the database.', 'wp-license' );
 		}
@@ -206,6 +213,10 @@ final class Catalog {
 		$product = wc_get_product( $variation_id ? $variation_id : $product_id );
 		if ( ! $product ) {
 			return self::fail( 'product_not_found' );
+		}
+		// P-20: WooCommerce Subscriptions renews these itself; a license plan on top would bill twice.
+		if ( self::is_subscription_product( $product ) || ( $variation_id && self::is_subscription_product( wc_get_product( $product_id ) ) ) ) {
+			return self::fail( 'subscription_product' );
 		}
 
 		$decimals    = function_exists( 'wc_get_price_decimals' ) ? max( 0, min( 6, (int) wc_get_price_decimals() ) ) : 2;
@@ -318,6 +329,20 @@ final class Catalog {
 		self::audit_change( $before, self::find_exact_mapping( $product_id, $variation_id, true ) );
 
 		return true;
+	}
+
+	/**
+	 * Whether a product is a WooCommerce Subscriptions product type (P-20).
+	 *
+	 * Such products cannot be mapped to a license plan.
+	 *
+	 * @param mixed $product WooCommerce product, variation or anything else.
+	 * @return bool
+	 */
+	public static function is_subscription_product( $product ): bool {
+		return is_object( $product )
+			&& is_callable( array( $product, 'is_type' ) )
+			&& $product->is_type( self::SUBSCRIPTION_TYPES );
 	}
 
 	/**

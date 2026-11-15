@@ -246,6 +246,7 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		$tables  = $this->tables();
 		$license = $this->seed_license();
 		$expired = $this->past( 2 );
+		$limit_expired = $this->past( 3 );
 		$future  = gmdate( 'Y-m-d H:i:s', time() + HOUR_IN_SECONDS );
 		$now     = gmdate( 'Y-m-d H:i:s' );
 
@@ -254,14 +255,17 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		for ( $i = 0; $i < 2500; $i++ ) {
 			$hash     = hash( 'sha256', 'row-' . $i );
 			$nonces[] = "(1,'{$hash}','{$expired}','{$expired}')";
-			$limits[] = "('{$hash}','{$expired}',1,'{$expired}')";
+			// P-51: rate-limit buckets are kept two days (yesterday's daily counters stay visible).
+			$limits[] = "('{$hash}','{$limit_expired}',1,'{$limit_expired}')";
 		}
 		$wpdb->query( "INSERT INTO {$tables['request_nonces']} (activation_id,nonce_hash,expires_at,created_at) VALUES " . implode( ',', $nonces ) );
 		$wpdb->query( "INSERT INTO {$tables['request_limits']} (limiter_hash,bucket_start,hits,created_at) VALUES " . implode( ',', $limits ) );
 		$wpdb->insert( $tables['request_nonces'], array( 'activation_id' => 1, 'nonce_hash' => hash( 'sha256', 'valid' ), 'expires_at' => $future, 'created_at' => $now ) );
 		$wpdb->insert( $tables['request_limits'], array( 'limiter_hash' => hash( 'sha256', 'valid' ), 'bucket_start' => $now, 'hits' => 1, 'created_at' => $now ) );
 		$wpdb->insert( $tables['download_tokens'], array( 'license_id' => $license['id'], 'token_hash' => hash( 'sha256', 'old' ), 'package_url' => 'https://example.test/a.zip', 'expires_at' => $this->past( 8 ), 'created_at' => $this->past( 8 ) ) );
-		$wpdb->insert( $tables['download_tokens'], array( 'license_id' => $license['id'], 'token_hash' => hash( 'sha256', 'new' ), 'package_url' => 'https://example.test/a.zip', 'expires_at' => $this->past( 1 ), 'created_at' => $this->past( 1 ) ) );
+		// A used grant inside the retention period stays; unused expired grants go at once (P-11).
+		$wpdb->insert( $tables['download_tokens'], array( 'license_id' => $license['id'], 'token_hash' => hash( 'sha256', 'new' ), 'package_url' => 'https://example.test/a.zip', 'expires_at' => $this->past( 1 ), 'consumed_at' => $this->past( 1 ), 'created_at' => $this->past( 1 ) ) );
+		$wpdb->insert( $tables['download_tokens'], array( 'license_id' => $license['id'], 'token_hash' => hash( 'sha256', 'unused' ), 'package_url' => 'https://example.test/a.zip', 'expires_at' => $this->past( 1 ), 'created_at' => $this->past( 1 ) ) );
 		$wpdb->insert( $tables['package_streams'], array( 'token_hash' => hash( 'sha256', 'old' ), 'release_id' => 1, 'license_id' => $license['id'], 'expires_at' => $this->past( 2 ), 'created_at' => $this->past( 2 ) ) );
 		$wpdb->insert( $tables['package_streams'], array( 'token_hash' => hash( 'sha256', 'new' ), 'release_id' => 1, 'license_id' => $license['id'], 'expires_at' => $future, 'created_at' => $now ) );
 

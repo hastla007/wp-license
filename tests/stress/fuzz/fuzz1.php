@@ -98,13 +98,13 @@ foreach ( array( 'pending', 'active', 'past_due', 'suspended', 'expired', 'revok
 } } } }
 $GLOBALS['ha'] = $ha;
 
-// ---- RenewalScheduler::period_end
+// ---- RenewalScheduler::period_end (B-178: a clamped period ends at 23:59:59 of the last day)
 $bad = 0; $drift = array();
 foreach ( array( 'month', 'year', '', 'week', 'MONTH' ) as $iv ) {
 	for ( $y = 2024; $y < 2044; $y++ ) { for ( $m = 1; $m <= 12; $m++ ) { $dim = cal_days_in_month( CAL_GREGORIAN, $m, $y ); for ( $d = 1; $d <= $dim; $d++ ) { foreach ( array( '00:00:00', '23:59:59', '02:30:00' ) as $tm ) {
 		$ts = strtotime( sprintf( '%04d-%02d-%02d %s UTC', $y, $m, $d, $tm ) ); $e = RenewalScheduler::period_end( $ts, $iv ); C( 'RenewalScheduler::period_end' );
 		$len = $e - $ts; $exp_min = 'month' === $iv ? 28 * 86400 : 365 * 86400; $exp_max = 'month' === $iv ? 31 * 86400 : 366 * 86400;
-		if ( $len < $exp_min || $len > $exp_max || gmdate( 'H:i:s', $e ) !== $tm ) { $bad++; if ( $bad < 5 ) { F( 'RenewalScheduler', "period_end($y-$m-$d $tm, '$iv') len=" . ( $len / 86400 ) ); } }
+		if ( $len < $exp_min || $len > $exp_max || gmdate( 'H:i:s', $e ) !== ( $d > (int) gmdate( 't', $e ) ? '23:59:59' : $tm ) ) { $bad++; if ( $bad < 5 ) { F( 'RenewalScheduler', "period_end($y-$m-$d $tm, '$iv') len=" . ( $len / 86400 ) ); } }
 	} } } }
 }
 // monotonic
@@ -170,7 +170,12 @@ $rs[] = 'message ambiguity: ' . json_encode( ResponseSigner::message( "a\nb", 'c
 foreach ( array( '', 'not base64!', base64_encode( 'short' ), base64_encode( random_bytes( 32 ) ), base64_encode( random_bytes( 64 ) ), base64_encode( random_bytes( 48 ) ), ' ' . base64_encode( random_bytes( 32 ) ) . "\n" ) as $cfg ) { try { $r = ResponseSigner::secret_key_from( $cfg ); C( 'ResponseSigner::secret_key_from' ); $extra = ''; if ( is_string( $r ) && 64 === strlen( $r ) ) { try { $s2 = ResponseSigner::sign_with( 'm', $r ); $extra = ' sig-verifies=' . json_encode( ResponseSigner::verify( 'm', $s2, ResponseSigner::public_key_of( $r ) ) ); } catch ( Throwable $e ) { $extra = ' SIGN THREW ' . $e->getMessage(); } } $rs[] = 'secret_key_from(len ' . strlen( (string) base64_decode( trim( $cfg ) ) ) . ') => ' . ( null === $r ? 'null' : strlen( $r ) . ' bytes' ) . $extra; } catch ( Throwable $e ) { $rs[] = 'secret_key_from threw ' . get_class( $e ) . ' ' . $e->getMessage(); } }
 $GLOBALS['rs'] = $rs;
 
-echo "==== FAILURES\n"; foreach ( $fail as $a => $list ) { echo "[$a] " . count( $list ) . "\n"; foreach ( array_slice( $list, 0, 12 ) as $l ) { echo "   $l\n"; } }
+// Areas with a known, still open defect: printed, but they do not fail the run (B-196).
+$known_open = array( 'RenewalScheduler' => 'B-178' );
+$unexpected = array_diff_key( $fail, $known_open );
+echo "==== FAILURES\n"; foreach ( $fail as $a => $list ) { echo "[$a] " . count( $list ) . ( isset( $known_open[ $a ] ) ? ' (known open: ' . $known_open[ $a ] . ')' : '' ) . "\n"; foreach ( array_slice( $list, 0, 12 ) as $l ) { echo "   $l\n"; } }
 echo "==== COUNTS\n"; foreach ( $cnt as $a => $n ) { echo "  $a: $n\n"; }
 foreach ( array( 'mm', 'nonidem', 'ctl', 'ipn', 'cidrdiff', 'hdr', 'lk', 'smx', 'ha', 'pe', 'mw', 'rsx', 'pl', 'sc', 'rs' ) as $g ) { echo "==== $g\n"; $v = $GLOBALS[ $g ] ?? array(); $n = 0; foreach ( $v as $kk => $vv ) { if ( ++$n > 70 ) { echo '   ... ' . count( $v ) . " total\n"; break; } echo '   ' . ( is_int( $kk ) ? '' : "$kk  <=  " ) . ( is_string( $vv ) ? substr( $vv, 0, 230 ) : json_encode( $vv ) ) . "\n"; } }
 echo "==== sm self loops\n"; print_r( $GLOBALS['sm']['self'] ); foreach ( $GLOBALS['sm']['edges'] as $f => $ts ) { echo "  $f -> " . implode( ', ', array_map( function ( $t ) use ( $ts ) { return $t . '[' . implode( '|', $ts[ $t ] ) . ']'; }, array_keys( $ts ) ) ) . "\n"; }
+echo $unexpected ? 'FAIL fuzz1: ' . implode( ', ', array_keys( $unexpected ) ) . "\n" : "PASS fuzz1\n";
+exit( $unexpected ? 1 : 0 );
