@@ -24,7 +24,7 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 **Customer account**
 
 - "Licenses" page: key with copy button, status, end date, sites in use, deactivate a site, cancel or resume automatic renewal, renew now, download the latest release.
-- The same list anywhere as shortcode `[wplc_licenses]` or block "My licenses"; release notes of a product as shortcode `[wplc_changelog product="product-key" limit="10"]` or block "Changelog".
+- The same list anywhere as shortcode `[wplc_licenses]` or block "My licenses"; release notes of a product as shortcode `[wplc_changelog product="product-key" limit="10"]` or block "Changelog"; the plans of a product with price (shop tax display), term, live-site limit, features and a "Buy" button as shortcode `[wplc_pricing product="product-key" highlight="plan-key" show_features="yes"]` or block "Pricing table" (only published, purchasable WooCommerce products with an active plan are listed).
 - Emails through WooCommerce: license issued, expiry reminder, upcoming automatic renewal, payment failed, license renewed, license expired.
 
 **Product plugins** ([docs/CLIENT-INTEGRATION.md](docs/CLIENT-INTEGRATION.md), [docs/API-V1.md](docs/API-V1.md))
@@ -50,7 +50,7 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 ## Requirements
 
 - WordPress 6.5 or later
-- WooCommerce (active); the tested version range is not determined yet
+- WooCommerce 8.9 or later, active (the CI integration matrix runs 8.9.3, 9.4.3 and 11.2.2, see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md))
 - PHP 7.4 or later
 - MySQL/MariaDB with a single writable primary (the renewal locks use `GET_LOCK`)
 - A working cron (system cron for `wp-cron.php` recommended)

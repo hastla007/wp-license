@@ -23,6 +23,7 @@ final class EnvironmentIntegrationTest extends WPLC_Integration_TestCase {
 			$this->assertSame( 0, strpos( $GLOBALS['wp_version'], $expected_wp ), 'Running WordPress ' . $GLOBALS['wp_version'] . ', expected ' . $expected_wp );
 		}
 		$this->assertTrue( version_compare( $GLOBALS['wp_version'], '6.5', '>=' ), 'The plugin declares WordPress 6.5 as its minimum.' );
+		$this->assertTrue( version_compare( WC()->version, \WPLC\Compatibility\Requirements::MIN_WC, '>=' ), 'The plugin declares WooCommerce ' . \WPLC\Compatibility\Requirements::MIN_WC . ' as its minimum.' );
 		// The multisite cell must not pass by skipping MultisiteIntegrationTest.
 		if ( '1' === (string) getenv( 'WP_MULTISITE' ) ) {
 			$this->assertTrue( is_multisite(), 'WP_MULTISITE=1, but WordPress was not installed as a network.' );

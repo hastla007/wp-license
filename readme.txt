@@ -17,7 +17,7 @@ WP License Captain turns a WooCommerce shop into a license server for premium Wo
 
 **This version is not production-ready. Do not use it to sell licenses, charge renewals or distribute paid updates.**
 
-The code has unit tests for its pure logic, but it has not been accepted in a real shop: payment flows have not passed a gateway sandbox, the emails and scheduled jobs have only run in an automated test shop (WordPress with WooCommerce 11.2, see `tests/e2e/`), not in a live one. WordPress 6.5 and WooCommerce 8.9 are the declared minimums; WooCommerce versions between 8.9 and 9.3 have never been run. That is why this readme declares neither "Tested up to" nor a WooCommerce version range. The open work is tracked in `docs/TODO.md`.
+The code has unit tests for its pure logic, but it has not been accepted in a real shop: payment flows have not passed a gateway sandbox, the emails and scheduled jobs have only run in an automated test shop (WordPress with WooCommerce 11.2, see `tests/e2e/`), not in a live one. WordPress 6.5, WooCommerce 8.9 and PHP 7.4 are the declared minimums; the CI integration matrix runs WooCommerce 8.9.3, 9.4.3 and 11.2.2 (`docs/COMPATIBILITY.md`), WooCommerce versions in between have never been run. That is why this readme declares neither "Tested up to" nor a WooCommerce version range. The open work is tracked in `docs/TODO.md`.
 
 = What is implemented =
 
@@ -48,7 +48,7 @@ The code has unit tests for its pure logic, but it has not been accepted in a re
 
 * WordPress 6.5 or later
 * PHP 7.4 or later
-* WooCommerce 8.9 or later, active (tested with 9.4 and 11.2)
+* WooCommerce 8.9 or later, active (CI integration matrix: 8.9.3, 9.4.3 and 11.2.2)
 * HTTPS for the site, and a working WP-Cron (a system cron is recommended)
 
 == Installation ==
