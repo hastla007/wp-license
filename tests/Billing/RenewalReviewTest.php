@@ -81,6 +81,15 @@ final class RenewalReviewTest extends TestCase {
 		$this->assertSame( '2026-12-14 09:00:00', RenewalReview::booking_paid_until( RenewalReview::KIND_RESULT_UNKNOWN, $renewal, $license, $this->ts( '2026-11-14 09:00:00' ) ) );
 	}
 
+	/** P-05: a refunded or cancelled order can only be closed, never booked or failed. */
+	public function test_closed_order_can_only_be_closed(): void {
+		$this->assertSame( RenewalReview::KIND_ORDER_CLOSED, RenewalReview::kind( true, false, false, true ) );
+		$this->assertSame( RenewalReview::KIND_ORDER_CLOSED, RenewalReview::kind( true, false, true, true ) );
+		$this->assertSame( RenewalReview::KIND_ORDER_CLOSED, RenewalReview::kind( true, true, true, true ) );
+		$this->assertSame( RenewalReview::KIND_NO_ORDER, RenewalReview::kind( false, false, false, true ) );
+		$this->assertSame( array( 'close' ), RenewalReview::actions( RenewalReview::KIND_ORDER_CLOSED ) );
+	}
+
 	public function test_expiry_deferral_is_capped(): void {
 		$this->assertSame( 30, LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS );
 		$this->assertSame( '2026-10-15 09:00:00', LicenseLifecycle::review_deferral_cutoff( $this->ts( '2026-11-14 09:00:00' ) ) );

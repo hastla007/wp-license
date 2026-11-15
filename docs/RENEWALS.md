@@ -68,7 +68,8 @@ The filter `wplc_disable_renewal_on_token_deletion( $disable, $token_id, $contex
 4. A job that runs before `retry_at` (duplicate job) re-queues itself and charges nothing.
 5. The filter `wplc_renewal_charge_allowed` can postpone the charge (for example until the advance notice was sent).
 6. The token and adapter are checked again. The renewal order is created once and reused for every attempt. An order that is already paid is booked instead of charged. An order waiting for an offline payment (`on-hold`) is waited for, see "Not a payment failure".
-7. The adapter sends an off-session PaymentIntent. Afterwards the order is read again: if the customer paid it in the meantime, that payment stays on the order and the automatic charge is reported as a double payment (order note, audit `renewal_double_payment`, action `wplc/renewal_needs_review`).
+7. Right before the charge (P-02) the license and the renewal row are read again under the license lock, and the row is moved to `processing` only while it still has the status it was read with (a conditional update). A cancellation, revocation, expiry, refund or switch-off (deleted card or account, privacy erasure) that happened while the order was being built is therefore never followed by a charge: the renewal is closed as in step 3 and its order cancelled. Cancellation (`schedule_cancellation()`) and switch-off (`RenewalSwitch::off()`) take the renewal lock of the current period before the license lock (the processor's lock order) and wait for a running charge up to `LicenseLifecycle::RENEWAL_LOCK_WAIT` seconds (10).
+8. The adapter sends an off-session PaymentIntent. Afterwards the order is read again: if the customer paid it in the meantime, that payment stays on the order and the automatic charge is reported as a double payment (order note, audit `renewal_double_payment`, action `wplc/renewal_needs_review`).
 
 ### Booking a payment
 
@@ -80,6 +81,8 @@ Every paid automatic renewal goes through `RenewalProcessor::finish_paid()`:
 4. A run that dies between the license update and step 2 is finished by the next reconciliation: it finds the license already at `period_end` and only completes the bookkeeping.
 
 A scheduled cancellation survives every payment: the paid period is granted, `cancel_at_period_end` stays set, and no further period is scheduled. Withdrawing the cancellation schedules the renewal again.
+
+Exception (P-02): when the customer cancels, or automatic renewal is switched off, **while the automatic charge is in flight** (the cancellation could not wait for it), the payment is not booked silently. The order is marked paid with its transaction ID, the renewal goes to `review_required` (reason `renewal_withdrawn_during_charge`), the order gets the meta `_wplc_renewal_review = yes` and a note, and `wplc/renewal_needs_review` fires. The shop refunds the payment and closes the case, or books it. Neither a paid-order hook nor a Stripe event books such a case.
 
 ### Not a payment failure
 
@@ -156,13 +159,19 @@ The case is listed under **WooCommerce → Renewals to review** (T-154; details 
 - **Mark as not paid** if it was not: the order becomes Failed and the attempt is recorded as a definite decline (audit `renewal_result_resolved`), the license becomes `past_due` with the usual email, and retries continue with a new idempotency key.
 - **Close without booking** after a refund or another decision: renewal `closed`, license unchanged.
 
-Setting the renewal order to Processing/Completed or Failed by hand still works as before and has the same effect as the first two actions (without the administrator's reason in the audit entry).
+Setting the renewal order to Processing/Completed or Failed by hand still works as before and has the same effect as the first two actions (without the administrator's reason in the audit entry). A renewal order set to Processing/Completed by an administrator without a transaction ID is booked with audit action `renewal_marked_paid_by_admin` and the administrator as actor (P-60); if no charge was ever made for it (renewal not `reconciling` or under review) it is not booked but opened as a case (reason `marked_paid_without_payment`), to be booked on the review screen if the money arrived.
+
+**Book renewal** stores the payment reference (P-18): the order's transaction ID if it has one; for Stripe the one successful PaymentIntent of exactly this renewal (the stored `_wplc_payment_intent_id`, or found by the renewal metadata, same amount and currency), with the gateway metas (`_stripe_intent_id`, `_stripe_charge_captured`, the charge as transaction ID) so a refund from WooCommerce and a dispute find it; otherwise the transaction ID the adapter returned. Filter `wplc_review_payment_reference`. Without any reference the order gets a note that the refund has to be made in the gateway.
+
+**Refunded or cancelled orders (P-05).** A full refund or a cancellation of the renewal order closes its open case automatically (renewal `closed`, `_wplc_review_closed` = `refunded`/`cancelled`, audit `renewal_review_closed` with reason `review_order_refunded`/`review_order_cancelled`). A case whose order is refunded or cancelled only offers **Close**: it is never booked, the order never set back to Processing, and never marked as not paid (which would charge the card again).
+
+**Money that cannot be booked (P-19).** A verified Stripe `payment_intent.succeeded` that cannot be booked (renewal cancelled, expired or closed, license revoked or suspended, amount or currency mismatch, link mismatch) is not only parked as `manual_review`: the order gets a note with the PaymentIntent, audit `stripe_payment_not_booked`, `wplc/renewal_needs_review` fires, and a linked renewal that is not being charged or already paid becomes a case (reason `unbooked_stripe_payment`). Such a case is never marked as not paid. A repeated event for a payment already recorded on the order stays silent.
 
 A Stripe `payment_intent.payment_failed` webhook for the attempt whose result was unknown also resolves an open case, like **Mark as not paid**: the attempt is recorded as a decline (audit `renewal_result_resolved`, reason `stripe_decline_reconciled`), the order becomes Failed with a note, the license `past_due` with the usual email, and the case leaves the list. This applies only to cases whose order still records the unknown result of that attempt (`_wplc_result_unknown_since`) and is unpaid and not a manual renewal; cases with a paid order (`license_changed_during_charge`, late manual payments) are never touched. Stripe reports the failure of a PaymentIntent as definite; the case existed only because that answer had not arrived. A Stripe success webhook books an open case like a paid order.
 
 **Expiry is deferred** while a case is open: the daily job and the grace-end job do not expire the license, for at most 30 days after the case was opened (`LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS`). Access is not extended by this: it ends with the normal grace period (14 days after `paid_until`). After 30 days the license expires normally; the case stays listed and booking it reactivates the license.
 
-**Paid, but the license changed during the charge** (audit reason `license_changed_during_charge`, T-22, B-50). The gateway confirmed the payment, but while the request was running an administrator suspended or revoked the license or moved its term, the original order was refunded, or the license expired. The license is not extended (a suspended or revoked license never is) and the renewal is not recorded as `paid`; it goes to `review_required` (reason `license_changed_during_charge`), the paid order gets a note and the meta `_wplc_renewal_review = yes`, and `wplc/renewal_needs_review` fires. In "Renewals to review": refund the payment on the order and **close** the case, or, if the customer keeps the license, **book** it (an expired license is reactivated; a suspended or revoked one must be reactivated first). A cancellation at period end made while the charge was running does not go to review: the charged period is booked, the cancellation stays, and the next period is not charged.
+**Paid, but the license changed during the charge** (audit reason `license_changed_during_charge`, T-22, B-50). The gateway confirmed the payment, but while the request was running an administrator suspended or revoked the license or moved its term, the original order was refunded, or the license expired. The license is not extended (a suspended or revoked license never is) and the renewal is not recorded as `paid`; it goes to `review_required` (reason `license_changed_during_charge`), the paid order gets a note and the meta `_wplc_renewal_review = yes`, and `wplc/renewal_needs_review` fires. In "Renewals to review": refund the payment on the order and **close** the case, or, if the customer keeps the license, **book** it (an expired license is reactivated; a suspended or revoked one must be reactivated first). A cancellation at period end, or a switch-off, made while the charge was running goes to review as well (reason `renewal_withdrawn_during_charge`, see "Booking a payment"); the cancellation stays and the next period is not charged.
 
 ### Customer authentication (3-D Secure)
 
@@ -205,7 +214,9 @@ At the end of the grace period `wplc/renewal_grace_ended` expires the license. T
 
 ### Renewals that were never attempted
 
-A renewal whose grace period is over although no charge was ever attempted (queue backlog, plugin inactive, shop-side block) is not expired unattempted: for 30 days after the due date the processor still makes the attempt, and the daily expiry leaves such a license alone (it grants no access after the grace period, only its status stays `active`). If that late attempt fails, the license ends.
+A renewal whose grace period is over although no charge was ever attempted (queue backlog, plugin inactive, shop-side block) is not expired unattempted: for 30 days after the due date the processor still makes the attempt, and the daily expiry leaves such a license alone (it grants no access after the grace period, only its status stays `active`). If that late attempt fails, the license ends. The customer had no access after the grace period, so the period charged by such a late attempt runs from the charge, like a manual renewal after the grace period (P-43): the renewal's `period_end` is moved to one period after the charge; the compare-and-set value (`period_start`) is unchanged.
+
+Rows without `grace_ends_at` (early development versions) count their grace period from `period_start` + 14 days (P-44); before, an empty value was read as "now" and such rows expired at once.
 
 ### Paused billing
 
@@ -237,7 +248,8 @@ The customer can cancel at period end in the account and withdraw the cancellati
 - Only the billing address is set. No shipping address: with "tax based on shipping address" WooCommerce then falls back to billing, so a saved shipping address in another country cannot change the tax.
 - The VAT exemption (`is_vat_exempt`) and the VAT ID metas of the first order are copied while the billing country is unchanged (filter `wplc_renewal_order_copied_meta_keys`).
 - Renewal orders do not reduce stock, stay payable when the product is out of stock, and do not grant download permissions again.
-- An administrator (`manage_woocommerce`, filter `wplc_can_override_renewal_amount`) can change the amount on the order screen. Saving the items stores the new net amount as the expected one (`_wplc_renewal_amount_override` = user ID, order note, audit `renewal_amount_overridden`); a payment of that amount renews the license. Any other difference is not charged automatically and not booked.
+- An administrator (`manage_woocommerce`, filter `wplc_can_override_renewal_amount`) can change the amount on the order screen. Saving the items stores the new net amount as the expected one (`_wplc_renewal_amount_override` = user ID, order note, audit `renewal_amount_overridden`); a payment of that amount renews the license. Any other difference is not charged automatically and not booked. P-60: on an automatic renewal order the amount can only be lowered (a higher amount would be charged off-session without the customer's consent), and no change is accepted while a payment of the order is in flight, unknown or under review; a refused change gets an order note and audit `renewal_amount_override_refused`, and the order is not charged until its amount matches again.
+- P-46: when the order total no longer matches the agreed gross amount (tax rate changed), the order is kept (`_wplc_renewal_amount_mismatch` = `yes`, one note) and priced again on every attempt instead of a new, immediately cancelled order every six hours. It is never charged while the meta is set, and a customer payment of such an order is not booked automatically (review).
 - Orders of renewals that will not be charged any more (license ended, term changed by an administrator, cancellation) are cancelled when unpaid; an `on-hold` order keeps its status and gets a note.
 
 ### Order metas
@@ -255,7 +267,12 @@ The customer can cancel at period end in the account and withdraw the cancellati
 | `_wplc_renewal_review` | `yes` when a paid order could not be applied |
 | `_wplc_renewal_amount_override` | User ID of the administrator who changed the amount |
 | `_wplc_duplicate_transaction_id` | Transaction of an automatic charge that succeeded although the order was already paid |
-| `_wplc_review_closed` | `paid` or `unpaid`: the review of this order was closed without booking, and the order's state then. Such an order is never booked automatically; an `unpaid` one that is paid later goes back to review |
+| `_wplc_duplicate_payment_intent_id` | Second successful Stripe PaymentIntent for an order that was already paid |
+| `_wplc_duplicate_refund_handled` | Time a refund of an order with a double payment was reported (P-15) |
+| `_wplc_review_closed` | `paid` or `unpaid`: the review of this order was closed without booking, and the order's state then; `refunded` or `cancelled` when the case closed itself (P-05). Such an order is never booked automatically; an `unpaid` one that is paid later goes back to review |
+| `_wplc_marked_paid_by` | User ID of the administrator who set an automatic renewal order to paid without a transaction ID (P-60) |
+| `_wplc_renewal_amount_mismatch` | `yes` while the order total does not match the agreed renewal amount (P-46) |
+| `_wplc_unbooked_payment_reported` | PaymentIntent of a Stripe payment that could not be booked and was reported (P-19) |
 
 ## Renewal price
 
@@ -311,10 +328,15 @@ A **full** refund of a paid renewal order (`woocommerce_order_fully_refunded`, s
 
 A partial refund of a renewal order changes nothing on the license.
 
+Double payment (P-15): when the order records a second payment for the same period (`_wplc_duplicate_transaction_id` or `_wplc_duplicate_payment_intent_id`), a full refund in WooCommerce refunds the payment on the order while the other one still pays the period. The renewal is then **not** rolled back and automatic renewal stays on; the refund is reported once (order note, audit `renewal_duplicate_refunded`, `wplc/renewal_needs_review`). The second payment is refunded in the payment gateway (the order note of the double payment names it). If both were refunded, shorten the term with "Change term".
+
+A refund that revokes licenses per unit stores the chosen licenses on the refund (`_wplc_refund_pending_licenses`) and marks the refund done (`_wplc_refund_processed`) only when every revocation went through (P-45). A revocation that failed because the license lock was busy is retried (`wplc_retry_refund_revocation`, growing delay); after 8 retries `wplc/license_needs_review` fires.
+
 A refund of the original purchase order revokes the license (per refunded unit, or all licenses on a full refund). The audit entry names the user who refunded and the order and refund numbers. `LicenseLifecycle::admin_restore()` takes a revocation back (reason and acting user required; the caller must check a capability of its own; no admin screen calls it yet).
 
 ## Other order status changes
 
+- A renewal order with an open review case that is set to `cancelled` closes the case (see "Review").
 - A paid order that is set to `cancelled` or `failed` afterwards (bounced debit) **suspends** the licenses issued from it, or the license a paid renewal order extended, and fires `wplc/license_needs_review`. Suspension is reversible in the admin. Filter `wplc_suspend_license_on_order_status` (return false to keep the license active).
 - When a customer account is deleted, automatic renewal is switched off for its licenses.
 

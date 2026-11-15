@@ -10,10 +10,14 @@
  * @package WPLC
  */
 
+use WPLC\Billing\RenewalOrder;
 use WPLC\Billing\RenewalProcessor;
+use WPLC\Billing\RenewalReview;
 use WPLC\Billing\RenewalScheduler;
+use WPLC\License\AuditReason;
 use WPLC\License\LicenseIssuer;
 use WPLC\License\LicenseLifecycle;
+use WPLC\Maintenance\RenewalSwitch;
 
 if ( ! class_exists( 'WPLC_Test_Interleaving_Adapter' ) ) {
 	/**
@@ -206,18 +210,172 @@ final class ConcurrentLifecycleIntegrationTest extends WPLC_Integration_TestCase
 			LicenseLifecycle::schedule_cancellation( $license_id, 'Customer cancelled', 0 );
 		};
 
+		$before = $this->license( $license_id );
 		RenewalProcessor::process( $fixture['renewal_id'] );
 
 		$license = $this->license( $license_id );
 		$renewal = $this->renewal( $fixture['renewal_id'] );
-		$this->assertSame( 'paid', $renewal['status'], 'The period that was charged is booked.' );
-		$this->assertSame( $renewal['period_end'], $license['paid_until'] );
+		// P-02: the customer got the cancellation confirmed while the charge ran; the payment is not
+		// booked silently, an administrator refunds it or books it.
+		$this->assertSame( RenewalProcessor::STATUS_REVIEW, $renewal['status'], 'A payment taken while the customer cancelled goes to review.' );
+		$this->assertSame( AuditReason::RENEWAL_WITHDRAWN_DURING_CHARGE, $renewal['review_reason'] );
+		$this->assertSame( $before['paid_until'], $license['paid_until'], 'The license is not extended without a decision.' );
 		$this->assertSame( '1', (string) $license['cancel_at_period_end'], 'A renewal must not reset a cancellation made while it was charging.' );
+		$order = wc_get_order( (int) $renewal['renewal_order_id'] );
+		$this->assertTrue( $order->is_paid(), 'The money was taken: the order is paid, with its transaction ID for a refund.' );
+		$this->assertSame( 'txn_interleave_1', $order->get_transaction_id() );
+
+		// The paid-order hook that follows does not book it either.
+		RenewalProcessor::reconcile_paid_renewal_order( (int) $order->get_id() );
+		$this->assertSame( RenewalProcessor::STATUS_REVIEW, $this->renewal( $fixture['renewal_id'] )['status'] );
+		$this->assertSame( $before['paid_until'], $this->license( $license_id )['paid_until'] );
 
 		// The next period is never charged: a cancelled license gets no further period (B-02).
 		$this->adapter->during_charge = null;
 		$this->assertSame( 0, RenewalScheduler::schedule_next( $license_id ) );
 		$this->assertSame( 1, $this->adapter->charges );
+	}
+
+	/**
+	 * Run a callback once while the processor builds the renewal order (after its first checks).
+	 *
+	 * @param callable $callback What another request does.
+	 * @return void
+	 */
+	private function while_the_order_is_built( callable $callback ): void {
+		$done = false;
+		add_action(
+			'woocommerce_new_order',
+			static function () use ( &$done, $callback ) {
+				if ( ! $done ) {
+					$done = true;
+					$callback();
+				}
+			}
+		);
+	}
+
+	/**
+	 * Assert that nothing was charged and the renewal and its order are closed.
+	 *
+	 * @param array<string,mixed> $fixture Result of due_renewal().
+	 * @param string              $before_paid_until paid_until before the attempt.
+	 * @return void
+	 */
+	private function assert_not_charged( array $fixture, string $before_paid_until ): void {
+		$renewal = $this->renewal( $fixture['renewal_id'] );
+		$this->assertSame( 0, $this->adapter->charges, 'Nothing may be charged after the change was confirmed.' );
+		$this->assertSame( 'cancelled', $renewal['status'] );
+		$this->assertSame( $before_paid_until, $this->license( $fixture['license_id'] )['paid_until'] );
+		$order = wc_get_order( (int) $renewal['renewal_order_id'] );
+		$this->assertInstanceOf( WC_Order::class, $order, 'Fixture: the order was not built.' );
+		$this->assertSame( 'cancelled', $order->get_status(), 'The unpaid order of the closed renewal is closed too.' );
+	}
+
+	/** P-02: a cancellation confirmed while the order is built stops the charge. */
+	public function test_cancellation_while_the_order_is_built_is_not_charged(): void {
+		$fixture    = $this->due_renewal();
+		$license_id = $fixture['license_id'];
+		$before     = $this->license( $license_id );
+		$this->while_the_order_is_built(
+			static function () use ( $license_id ) {
+				LicenseLifecycle::schedule_cancellation( $license_id, 'Customer cancelled', 0 );
+			}
+		);
+
+		RenewalProcessor::process( $fixture['renewal_id'] );
+
+		$this->assert_not_charged( $fixture, (string) $before['paid_until'] );
+		$this->assertSame( 'customer_cancelled', $this->renewal( $fixture['renewal_id'] )['last_error'] );
+		$this->assertSame( '1', (string) $this->license( $license_id )['cancel_at_period_end'] );
+	}
+
+	/** P-02: a revocation while the order is built: the renewal it cancelled is not set back to processing. */
+	public function test_revocation_while_the_order_is_built_is_not_charged(): void {
+		$fixture    = $this->due_renewal();
+		$license_id = $fixture['license_id'];
+		$before     = $this->license( $license_id );
+		$this->while_the_order_is_built(
+			static function () use ( $license_id ) {
+				LicenseLifecycle::admin_set_status( $license_id, 'revoked', 'Abuse', 1 );
+			}
+		);
+
+		RenewalProcessor::process( $fixture['renewal_id'] );
+
+		$this->assert_not_charged( $fixture, (string) $before['paid_until'] );
+		$this->assertSame( 'revoked', $this->license( $license_id )['status'] );
+	}
+
+	/** P-02: a switch-off (erasure, deleted account or card) while the order is built stops the charge. */
+	public function test_switch_off_while_the_order_is_built_is_not_charged(): void {
+		$fixture    = $this->due_renewal();
+		$license_id = $fixture['license_id'];
+		$before     = $this->license( $license_id );
+		$this->while_the_order_is_built(
+			static function () use ( $license_id ) {
+				RenewalSwitch::off( $license_id, 'Privacy erasure request: automatic renewal switched off.' );
+			}
+		);
+
+		RenewalProcessor::process( $fixture['renewal_id'] );
+
+		$this->assert_not_charged( $fixture, (string) $before['paid_until'] );
+		$this->assertSame( '0', (string) $this->license( $license_id )['renewal_enabled'] );
+	}
+
+	/** P-02: a switch-off while the charge is in flight: the payment goes to review, it is not booked. */
+	public function test_switch_off_while_the_charge_runs_sends_the_payment_to_review(): void {
+		$fixture    = $this->due_renewal();
+		$license_id = $fixture['license_id'];
+		$before     = $this->license( $license_id );
+		$this->adapter->during_charge = static function () use ( $license_id ) {
+			RenewalSwitch::off( $license_id, 'Customer account deleted' );
+		};
+
+		RenewalProcessor::process( $fixture['renewal_id'] );
+
+		$renewal = $this->renewal( $fixture['renewal_id'] );
+		$this->assertSame( 1, $this->adapter->charges );
+		$this->assertSame( RenewalProcessor::STATUS_REVIEW, $renewal['status'] );
+		$this->assertSame( $before['paid_until'], $this->license( $license_id )['paid_until'] );
+		$this->assertSame( RenewalReview::KIND_PAID_NOT_BOOKED, RenewalReview::kind_of( $renewal, $this->license( $license_id ) ) );
+		$this->assertContains( 'renewal_review_required', array_column( $this->audit( 'renewal', $fixture['renewal_id'] ), 'action' ) );
+	}
+
+	/** P-02: the switch-off takes the renewal lock of the current period, and still works when the license lock is busy. */
+	public function test_switch_off_takes_the_renewal_lock_and_falls_back_without_the_license_lock(): void {
+		global $wpdb;
+		$fixture    = $this->due_renewal();
+		$license_id = $fixture['license_id'];
+		// The open renewal order is closed while automatic renewal is switched off, under the locks.
+		$order = RenewalOrder::get_or_create( $this->renewal( $fixture['renewal_id'] ), $this->license( $license_id ), false );
+		$this->assertInstanceOf( WC_Order::class, $order );
+		$seen     = null;
+		$listener = static function () use ( &$seen, $fixture ) {
+			global $wpdb;
+			$seen = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT IS_USED_LOCK(%s) = CONNECTION_ID()', RenewalProcessor::renewal_lock_name( $fixture['renewal_id'] ) ) );
+		};
+		add_action( 'woocommerce_order_status_cancelled', $listener );
+
+		$other = mysqli_init();
+		$this->assertTrue( $other->real_connect( DB_HOST, DB_USER, DB_PASSWORD, DB_NAME ), 'A second database connection is needed.' );
+		$name = LicenseLifecycle::lock_name( $license_id );
+		$this->assertSame( '1', (string) $other->query( "SELECT GET_LOCK('" . $other->real_escape_string( $name ) . "', 0)" )->fetch_row()[0] );
+		add_filter( 'wplc_license_lock_timeout', '__return_zero' );
+
+		$this->assertTrue( RenewalSwitch::off( $license_id, 'Privacy erasure request: automatic renewal switched off.' ), 'An erasure must take effect even while the license lock is busy.' );
+
+		remove_filter( 'wplc_license_lock_timeout', '__return_zero' );
+		$other->query( "SELECT RELEASE_LOCK('" . $other->real_escape_string( $name ) . "')" );
+		$other->close();
+		remove_action( 'woocommerce_order_status_cancelled', $listener );
+
+		$this->assertSame( '0', (string) $this->license( $license_id )['renewal_enabled'] );
+		$this->assertSame( 'cancelled', $this->renewal( $fixture['renewal_id'] )['status'] );
+		$this->assertSame( '1', $seen, 'The renewal lock of the current period is held while automatic renewal is switched off.' );
+		$this->assertSame( 'cancelled', wc_get_order( $order->get_id() )->get_status() );
+		$this->assertSame( '0', (string) $wpdb->get_var( $wpdb->prepare( 'SELECT IS_USED_LOCK(%s) IS NOT NULL', RenewalProcessor::renewal_lock_name( $fixture['renewal_id'] ) ) ), 'The renewal lock is released.' );
 	}
 
 	public function test_lifecycle_change_waits_for_another_connection_that_holds_the_license_lock(): void {

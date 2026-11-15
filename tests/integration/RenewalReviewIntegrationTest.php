@@ -336,6 +336,130 @@ final class RenewalReviewIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertCount( 1, $this->audit( 'renewal', $renewal_id, 'renewal_review_required' ) );
 	}
 
+	/**
+	 * A case whose automatic payment was taken while the license had expired (paid, not booked).
+	 *
+	 * @return array{license_id:int,renewal_id:int,order_id:int,customer:int}
+	 */
+	private function paid_not_booked_case(): array {
+		global $wpdb;
+		$case = $this->unknown_result_case();
+		$wpdb->update( $this->tables()['licenses'], array( 'status' => 'expired' ), array( 'id' => $case['license_id'] ) );
+		wc_get_order( $case['order_id'] )->payment_complete( 'txn_found' );
+		RenewalProcessor::reconcile_paid_renewal_order( $case['order_id'] );
+		$this->assertSame( RenewalReview::KIND_PAID_NOT_BOOKED, RenewalReview::kind_of( $this->renewal( $case['renewal_id'] ), $this->license( $case['license_id'] ) ), 'Fixture: not a paid case.' );
+
+		return $case;
+	}
+
+	/** P-05: a refund of the order closes its case; it can neither be booked nor marked as not paid afterwards. */
+	public function test_p05_refund_closes_the_case_and_book_is_refused(): void {
+		$case  = $this->paid_not_booked_case();
+		$order = wc_get_order( $case['order_id'] );
+
+		$refund = wc_create_refund( array( 'order_id' => $order->get_id(), 'amount' => (string) $order->get_total(), 'reason' => 'Refunded after review note' ) );
+		$this->assertInstanceOf( WC_Order_Refund::class, $refund );
+
+		$renewal = $this->renewal( $case['renewal_id'] );
+		$this->assertSame( RenewalReview::STATUS_CLOSED, $renewal['status'], 'The refund closes the case.' );
+		$this->assertSame( 'refunded', wc_get_order( $case['order_id'] )->get_meta( RenewalReview::META_CLOSED, true ) );
+		$closed = $this->audit( 'renewal', $case['renewal_id'], 'renewal_review_closed' );
+		$this->assertCount( 1, $closed );
+		$this->assertStringStartsWith( AuditReason::REVIEW_ORDER_REFUNDED, (string) $closed[0]['reason'] );
+		$this->assertSame( 'review_not_open', RenewalReview::book( $case['renewal_id'], 'Second admin', $this->admin ) );
+
+		// Even a case opened again for this order offers only "close".
+		RenewalReview::open( $case['renewal_id'], 'manual_check' );
+		$this->assertSame( RenewalReview::KIND_ORDER_CLOSED, RenewalReview::kind_of( $this->renewal( $case['renewal_id'] ), $this->license( $case['license_id'] ) ) );
+		$this->assertSame( 'review_action_not_allowed', RenewalReview::book( $case['renewal_id'], 'Second admin', $this->admin ) );
+		$this->assertSame( 'refunded', wc_get_order( $case['order_id'] )->get_status(), 'A refunded order never becomes Processing again.' );
+		$this->assertSame( 'expired', $this->license( $case['license_id'] )['status'] );
+	}
+
+	/** P-05: a cancelled order closes its case; "not paid" cannot charge the card again. */
+	public function test_p05_cancelled_order_closes_the_case_without_a_new_charge(): void {
+		$case = $this->unknown_result_case();
+
+		wc_get_order( $case['order_id'] )->update_status( 'cancelled', 'Given up' );
+
+		$this->assertSame( RenewalReview::STATUS_CLOSED, $this->renewal( $case['renewal_id'] )['status'] );
+		$this->assertSame( 'cancelled', wc_get_order( $case['order_id'] )->get_meta( RenewalReview::META_CLOSED, true ) );
+		$this->assertSame( 'review_not_open', RenewalReview::mark_not_paid( $case['renewal_id'], 'Second admin', $this->admin ) );
+		RenewalProcessor::process( $case['renewal_id'] );
+		$this->assertCount( 1, $this->adapter->keys, 'Nothing is charged again.' );
+		$this->assertSame( 'active', $this->license( $case['license_id'] )['status'], 'No dunning for a case that was given up.' );
+	}
+
+	/** P-18: booking after review stores the Stripe payment Stripe holds for exactly this renewal. */
+	public function test_p18_book_after_review_stores_the_stripe_reference(): void {
+		require_once __DIR__ . '/helpers/StripeHelperStub.php';
+		require_once __DIR__ . '/helpers/StripeApiStub.php';
+		if ( ! property_exists( 'WC_Stripe_API', 'on_retrieve' ) ) {
+			$this->markTestSkipped( 'The real Stripe gateway is loaded; this test needs the API double.' );
+		}
+		$case  = $this->unknown_result_case();
+		$order = wc_get_order( $case['order_id'] );
+		$order->set_payment_method( 'stripe' );
+		$order->save();
+		$renewal = $this->renewal( $case['renewal_id'] );
+		$intent  = (object) array(
+			'id'              => 'pi_found_18',
+			'status'          => 'succeeded',
+			'amount'          => WC_Stripe_Helper::get_stripe_amount( $order->get_total(), $order->get_currency() ),
+			'amount_received' => WC_Stripe_Helper::get_stripe_amount( $order->get_total(), $order->get_currency() ),
+			'currency'        => strtolower( $order->get_currency() ),
+			'latest_charge'   => 'ch_found_18',
+			'metadata'        => (object) array(
+				'wplc_renewal_id' => (string) $case['renewal_id'],
+				'wplc_license_id' => (string) $case['license_id'],
+				'wplc_site'       => \WPLC\Gateway\StripeRecurringAdapter::site_id(),
+				'wplc_period'     => (string) $renewal['period_start'],
+			),
+		);
+		WC_Stripe_API::reset();
+		WC_Stripe_API::$on_retrieve = static function ( string $api ) use ( $intent ) {
+			return 0 === strpos( $api, 'payment_intents/search' ) ? (object) array( 'data' => array( $intent ) ) : (object) array( 'error' => (object) array( 'code' => 'resource_missing' ) );
+		};
+
+		$this->assertSame( 'review_booked', RenewalReview::book( $case['renewal_id'], 'Found in Stripe', $this->admin ) );
+		WC_Stripe_API::reset();
+
+		$order = wc_get_order( $case['order_id'] );
+		$this->assertTrue( $order->is_paid() );
+		$this->assertSame( 'ch_found_18', $order->get_transaction_id(), 'A refund from WooCommerce needs the charge.' );
+		$this->assertSame( 'pi_found_18', $order->get_meta( '_stripe_intent_id', true ), 'A dispute is matched by the PaymentIntent.' );
+		$this->assertSame( 'yes', $order->get_meta( '_stripe_charge_captured', true ) );
+	}
+
+	/** P-18: without a known payment reference the order says how to refund. */
+	public function test_p18_book_without_a_reference_leaves_a_note(): void {
+		$case = $this->unknown_result_case();
+
+		$this->assertSame( 'review_booked', RenewalReview::book( $case['renewal_id'], 'Confirmed by phone', $this->admin ) );
+
+		$notes = implode( "\n", wp_list_pluck( wc_get_order_notes( array( 'order_id' => $case['order_id'] ) ), 'content' ) );
+		$this->assertStringContainsString( 'no payment reference was found', $notes );
+	}
+
+	/** P-60: an administrator confirming an unknown result by setting the order paid is recorded as the actor. */
+	public function test_p60_admin_marking_an_unknown_result_paid_books_it_with_the_actor(): void {
+		$case = $this->unknown_result_case();
+		wp_set_current_user( $this->admin );
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			get_role( 'administrator' )->add_cap( 'manage_woocommerce' );
+		}
+		wc_get_order( $case['order_id'] )->update_status( 'processing', 'Found the payment' );
+		wp_set_current_user( 0 );
+
+		RenewalProcessor::reconcile_paid_renewal_order( $case['order_id'] );
+
+		$this->assertSame( 'paid', $this->renewal( $case['renewal_id'] )['status'] );
+		$booked = $this->audit( 'renewal', $case['renewal_id'], 'renewal_marked_paid_by_admin' );
+		$this->assertCount( 1, $booked );
+		$this->assertSame( (string) $this->admin, (string) $booked[0]['actor_user_id'] );
+		$this->assertCount( 0, $this->audit( 'renewal', $case['renewal_id'], 'renewal_customer_recovered' ), 'Not recorded as a customer payment.' );
+	}
+
 	public function test_review_screen_lists_the_case_with_its_actions(): void {
 		$case = $this->unknown_result_case();
 		wp_set_current_user( $this->admin );

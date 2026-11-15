@@ -51,6 +51,9 @@ final class RenewalProcessor {
 	/** Order meta: `{attempt_count}|{unix time}` of the first request of the attempt whose result is unknown. */
 	public const META_RESULT_UNKNOWN_SINCE = '_wplc_result_unknown_since';
 
+	/** Order meta: user ID of the administrator who set an automatic renewal order to paid without a transaction ID (P-60). */
+	public const META_MARKED_PAID_BY = '_wplc_marked_paid_by';
+
 	/** Seconds after which a renewal left in `processing` counts as stuck. */
 	public const STUCK_AFTER_SECONDS = 900;
 
@@ -219,8 +222,8 @@ final class RenewalProcessor {
 		}
 
 		$now = time();
-		$start = strtotime( (string) $renewal['period_start'] . ' UTC' );
-		$grace_end = strtotime( (string) $renewal['grace_ends_at'] . ' UTC' );
+		$start = self::utc_ts( $renewal['period_start'] ?? null );
+		$grace_end = self::grace_end_ts( $renewal );
 		$retry_at = empty( $renewal['retry_at'] ) ? 0 : (int) strtotime( (string) $renewal['retry_at'] . ' UTC' );
 		$grace_over = $grace_end && $now >= $grace_end;
 
@@ -248,20 +251,9 @@ final class RenewalProcessor {
 			}
 		}
 
-		if ( ! in_array( $license['status'], array( 'active', 'past_due' ), true ) ) {
-			self::close_renewal( $renewal, 'cancelled', 'license_' . sanitize_key( (string) $license['status'] ) );
-			return;
-		}
-
-		if ( ! empty( $license['cancel_at_period_end'] ) || empty( $license['renewal_enabled'] ) ) {
-			self::close_renewal( $renewal, 'cancelled', empty( $license['renewal_enabled'] ) ? 'renewal_disabled' : 'customer_cancelled' );
-			return;
-		}
-
-		if ( (string) $renewal['period_start'] !== (string) $license['paid_until'] ) {
-			// B-50: the term was moved (administrator, manual renewal). This row belongs to a period
-			// that no longer exists and must never be charged.
-			self::close_renewal( $renewal, 'cancelled', 'period_changed' );
+		$blocker = self::charge_blocker( $renewal, $license );
+		if ( '' !== $blocker ) {
+			self::close_renewal( $renewal, 'cancelled', $blocker );
 			return;
 		}
 
@@ -278,6 +270,7 @@ final class RenewalProcessor {
 			return;
 		}
 
+		$late_attempt = false;
 		if ( $grace_over ) {
 			// A-18 / B-14: a renewal that was never attempted (queue backlog, plugin inactive, shop-side
 			// block) gets its attempt instead of expiring unattempted, for as long as the customer could
@@ -358,13 +351,29 @@ final class RenewalProcessor {
 		// One timestamp for the stored attempt time and the retry calculation (B-11).
 		$attempt_time = time();
 		$started      = gmdate( 'Y-m-d H:i:s', $attempt_time );
-		$fields = array( 'status' => 'processing', 'retry_at' => null );
+		$fields = array();
 		if ( ! $reconciling || empty( $renewal['last_attempt_at'] ) ) {
 			// A repeat of an attempt with unknown outcome keeps the time of its first try (A-114).
 			$fields['last_attempt_at'] = $started;
-			$renewal['last_attempt_at'] = $started;
 		}
-		self::update_renewal( $renewal_id, $fields );
+		if ( $late_attempt && ! $reconciling ) {
+			// P-43: after the grace period the customer had no access; like a manual renewal (B-185)
+			// the new period runs from the charge, not from the old due date. The period start, the
+			// compare-and-set value on the license, stays.
+			$late_end = ManualRenewal::next_paid_until( (string) $renewal['period_start'], (string) $license['billing_interval'], $attempt_time, RenewalScheduler::anchor_day( $license ), true );
+			if ( self::utc_ts( $late_end ) > self::utc_ts( $renewal['period_end'] ?? null ) ) {
+				$fields['period_end'] = $late_end;
+			}
+		}
+		// P-02: the order was built without the license lock; a cancellation, revocation or switch-off
+		// may have happened meanwhile. Re-check under the license lock and claim the row conditionally.
+		$claim = self::claim_for_charge( $renewal, $fields );
+		if ( '' !== $claim['problem'] ) {
+			self::handle_lost_claim( $renewal, $claim['problem'], $claim['license'], $reconciling );
+			return;
+		}
+		$license = (array) $claim['license'];
+		$renewal = array_merge( $renewal, $fields );
 		self::schedule_stuck_check( $renewal_id );
 		// The key changes only after a definite failure was recorded (see attempt_idempotency_key()).
 		// A reconciliation check therefore sends the key of the attempt whose result is unknown.
@@ -426,7 +435,7 @@ final class RenewalProcessor {
 			$order->save();
 			$problem = sprintf(
 				/* translators: 1: transaction ID of the automatic charge, 2: transaction ID on the order. */
-				__( 'The automatic charge %1$s succeeded although the order was already paid (%2$s). One of the two payments must be refunded.', 'wp-license' ),
+				__( 'The automatic charge %1$s succeeded although the order was already paid (%2$s). One of the two payments must be refunded. Refund the second payment %1$s in the payment gateway; a refund of this order in WooCommerce refunds %2$s and keeps the renewal, because the other payment still pays the period.', 'wp-license' ),
 				$transaction_id,
 				(string) $order->get_transaction_id()
 			);
@@ -438,7 +447,191 @@ final class RenewalProcessor {
 			return;
 		}
 		$order->payment_complete( $transaction_id );
+		if ( self::withdrawn_during_charge( (int) $license['id'] ) ) {
+			// P-02: the customer cancelled (or automatic renewal was switched off) while the charge was
+			// in flight. The money is taken, but the renewal is not booked silently: an administrator
+			// refunds the payment or books the renewal on the review screen.
+			self::flag_withdrawn_during_charge( $renewal, $order );
+			return;
+		}
 		self::finish_paid( $renewal, $license, $order, 'renewal_paid', AuditReason::RENEWAL_CONFIRMED_BY_ADAPTER );
+	}
+
+	/**
+	 * Why a renewal must not be charged for this license now; empty when it may (P-02).
+	 *
+	 * Pure. The code is stored as the reason of the closed renewal.
+	 *
+	 * @param array<string,mixed> $renewal Renewal row.
+	 * @param array<string,mixed> $license License row.
+	 * @return string
+	 */
+	public static function charge_blocker( array $renewal, array $license ): string {
+		$status = (string) ( $license['status'] ?? '' );
+		if ( ! in_array( $status, array( 'active', 'past_due' ), true ) ) {
+			return 'license_' . preg_replace( '/[^a-z0-9_\-]/', '', strtolower( $status ) );
+		}
+		if ( empty( $license['renewal_enabled'] ) ) {
+			return 'renewal_disabled';
+		}
+		if ( ! empty( $license['cancel_at_period_end'] ) ) {
+			return 'customer_cancelled';
+		}
+		if ( (string) ( $renewal['period_start'] ?? '' ) !== (string) ( $license['paid_until'] ?? '' ) ) {
+			// B-50: the term was moved (administrator, manual renewal). This row belongs to a period
+			// that no longer exists and must never be charged.
+			return 'period_changed';
+		}
+
+		return '';
+	}
+
+	/**
+	 * Re-read license and renewal under the license lock and move the renewal to `processing` (P-02).
+	 *
+	 * Lock order: the caller holds the renewal lock; the license lock is taken
+	 * second, as everywhere. Cancellation, revocation and switch-off write the
+	 * license under the same lock, so either they come first and nothing is
+	 * charged, or the row is `processing` and they leave it to the processor.
+	 * The update only applies while the row still has the status it was read
+	 * with, so a renewal cancelled meanwhile is never set back to `processing`.
+	 *
+	 * @param array<string,mixed> $renewal Renewal row as read at the start of the attempt.
+	 * @param array<string,mixed> $fields Extra columns to write (last_attempt_at, period_end).
+	 * @return array{problem:string,license:array<string,mixed>|null} Empty problem when claimed.
+	 */
+	private static function claim_for_charge( array $renewal, array $fields ): array {
+		$result = LicenseLifecycle::run_locked(
+			(int) $renewal['license_id'],
+			static function () use ( $renewal, $fields ) {
+				global $wpdb;
+
+				$tables  = Schema::table_names();
+				$license = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d LIMIT 1', $tables['licenses'], (int) $renewal['license_id'] ), ARRAY_A );
+				$license = is_array( $license ) ? $license : null;
+				$status  = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE id = %d LIMIT 1', $tables['renewals'], (int) $renewal['id'] ) );
+				if ( $status !== (string) $renewal['status'] ) {
+					return array( 'problem' => 'renewal_changed', 'license' => $license );
+				}
+				if ( null === $license ) {
+					return array( 'problem' => 'license_missing', 'license' => null );
+				}
+				$blocker = self::charge_blocker( $renewal, $license );
+				if ( '' !== $blocker ) {
+					return array( 'problem' => $blocker, 'license' => $license );
+				}
+				$data    = array( 'status' => 'processing', 'retry_at' => null, 'updated_at' => gmdate( 'Y-m-d H:i:s' ) );
+				$formats = array( '%s', '%s', '%s' );
+				foreach ( array( 'last_attempt_at', 'period_end' ) as $column ) {
+					if ( isset( $fields[ $column ] ) ) {
+						$data[ $column ] = (string) $fields[ $column ];
+						$formats[]       = '%s';
+					}
+				}
+				$claimed = $wpdb->update( $tables['renewals'], $data, array( 'id' => (int) $renewal['id'], 'status' => (string) $renewal['status'] ), $formats, array( '%d', '%s' ) );
+
+				return array( 'problem' => 1 === (int) $claimed ? '' : 'renewal_changed', 'license' => $license );
+			}
+		);
+
+		return is_array( $result ) ? $result : array( 'problem' => 'license_busy', 'license' => null );
+	}
+
+	/**
+	 * Act on a renewal that could not be claimed for its charge (P-02). Nothing was charged.
+	 *
+	 * @param array<string,mixed>      $renewal Renewal row as read at the start of the attempt.
+	 * @param string                   $problem Result of claim_for_charge().
+	 * @param array<string,mixed>|null $license Fresh license row, if any.
+	 * @param bool                     $reconciling Whether the renewal waits for an unknown result.
+	 * @return void
+	 */
+	private static function handle_lost_claim( array $renewal, string $problem, ?array $license, bool $reconciling ): void {
+		global $wpdb;
+
+		$renewal_id = (int) $renewal['id'];
+		if ( 'license_busy' === $problem ) {
+			// Another request changes the license right now; look again shortly. Not a failed payment.
+			RenewalScheduler::enqueue( $renewal_id, time() + MINUTE_IN_SECONDS );
+			return;
+		}
+		if ( 'renewal_changed' === $problem ) {
+			// Cancelled or closed by another path while the order was built. That path read the row
+			// before the order was linked, so the order may still be open.
+			$tables = Schema::table_names();
+			$status = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE id = %d LIMIT 1', $tables['renewals'], $renewal_id ) );
+			if ( in_array( $status, array( 'cancelled', 'expired' ), true ) && ! empty( $renewal['renewal_order_id'] ) ) {
+				RenewalOrder::close_unpaid( (int) $renewal['renewal_order_id'], __( 'WP License Captain: this renewal is no longer due; the order is closed.', 'wp-license' ) );
+			}
+			return;
+		}
+		if ( $reconciling ) {
+			$reason = null !== $license ? self::reconciliation_problem( $renewal, $license, time() ) : '';
+			self::flag_for_review( $renewal, '' !== $reason ? $reason : $problem );
+			return;
+		}
+		self::close_renewal( $renewal, 'cancelled', $problem );
+	}
+
+	/**
+	 * Whether automatic renewal of the license was cancelled or switched off (P-02).
+	 *
+	 * Called after a successful charge of a renewal that was claimed while
+	 * neither was set, so true means it happened while the charge was in flight.
+	 *
+	 * @param int $license_id License ID.
+	 * @return bool
+	 */
+	private static function withdrawn_during_charge( int $license_id ): bool {
+		global $wpdb;
+
+		$tables  = Schema::table_names();
+		$license = $wpdb->get_row( $wpdb->prepare( 'SELECT status, renewal_enabled, cancel_at_period_end FROM %i WHERE id = %d LIMIT 1', $tables['licenses'], $license_id ), ARRAY_A );
+
+		return is_array( $license )
+			&& in_array( (string) $license['status'], array( 'active', 'past_due' ), true )
+			&& ( ! empty( $license['cancel_at_period_end'] ) || empty( $license['renewal_enabled'] ) );
+	}
+
+	/**
+	 * Send a paid renewal whose automatic renewal was withdrawn during the charge to review (P-02).
+	 *
+	 * @param array<string,mixed> $renewal Renewal row.
+	 * @param \WC_Order           $order Paid renewal order.
+	 * @return void
+	 */
+	private static function flag_withdrawn_during_charge( array $renewal, $order ): void {
+		$renewal_id = (int) $renewal['id'];
+		RenewalReview::open( $renewal_id, AuditReason::RENEWAL_WITHDRAWN_DURING_CHARGE, (int) $order->get_id(), true );
+		RenewalOrder::flag_for_review( $order, $renewal_id, AuditReason::RENEWAL_WITHDRAWN_DURING_CHARGE, 'renewal_paid_not_applied' );
+		AuditLog::record(
+			'renewal_review_required',
+			'renewal',
+			$renewal_id,
+			AuditReason::RENEWAL_WITHDRAWN_DURING_CHARGE,
+			array( 'status' => 'processing' ),
+			array( 'status' => self::STATUS_REVIEW, 'order_id' => (int) $order->get_id() )
+		);
+	}
+
+	/**
+	 * Whether an open review case may only be resolved by an administrator.
+	 *
+	 * Pure. Such a case is never booked by a paid-order hook or a Stripe event:
+	 * the payment is known, the decision (refund or book) is the shop's.
+	 *
+	 * @param array<string,mixed> $renewal Renewal row.
+	 * @return bool
+	 */
+	public static function review_needs_decision( array $renewal ): bool {
+		if ( self::STATUS_REVIEW !== (string) ( $renewal['status'] ?? '' ) ) {
+			return false;
+		}
+		$stored = (string) ( $renewal['review_reason'] ?? '' );
+		$parsed = AuditReason::parse( $stored );
+		$code   = is_array( $parsed ) ? (string) $parsed['code'] : $stored;
+
+		return in_array( $code, array( AuditReason::RENEWAL_WITHDRAWN_DURING_CHARGE, AuditReason::MARKED_PAID_WITHOUT_PAYMENT, AuditReason::UNBOOKED_STRIPE_PAYMENT ), true );
 	}
 
 	/**
@@ -556,9 +749,10 @@ final class RenewalProcessor {
 	 * @param \WC_Order           $order Paid renewal order.
 	 * @param string              $audit_action Audit action.
 	 * @param string              $reason Audit reason.
+	 * @param int                 $actor_user_id User who confirmed the payment, zero for the system.
 	 * @return bool True when the renewal is booked.
 	 */
-	private static function finish_paid( array $renewal, array $license, $order, string $audit_action, string $reason ): bool {
+	private static function finish_paid( array $renewal, array $license, $order, string $audit_action, string $reason, int $actor_user_id = 0 ): bool {
 		global $wpdb;
 
 		$renewal_id = (int) $renewal['id'];
@@ -605,7 +799,8 @@ final class RenewalProcessor {
 			$renewal_id,
 			$reason,
 			array( 'status' => $renewal['status'] ),
-			array( 'status' => 'paid', 'order_id' => $order_id )
+			array( 'status' => 'paid', 'order_id' => $order_id ),
+			$actor_user_id
 		);
 		$order->add_order_note(
 			sprintf(
@@ -688,7 +883,7 @@ final class RenewalProcessor {
 		$code = (string) $error->get_error_code();
 		$stored_code = substr( sanitize_key( $code ), 0, 100 );
 		$attempt = (int) $renewal['attempt_count'] + ( $definite ? 1 : 0 );
-		$grace_end = strtotime( (string) $renewal['grace_ends_at'] . ' UTC' );
+		$grace_end = self::grace_end_ts( $renewal );
 		$data = $error->get_error_data();
 		$stop_retries = 'renewal_manual_action_required' === $code || ( is_array( $data ) && array_key_exists( 'retryable', $data ) && false === $data['retryable'] );
 
@@ -813,7 +1008,7 @@ final class RenewalProcessor {
 			$order->save();
 		}
 
-		$grace_end = strtotime( (string) $renewal['grace_ends_at'] . ' UTC' );
+		$grace_end = self::grace_end_ts( $renewal );
 		$next = self::next_reconciliation_check( time(), $since, $grace_end ? (int) $grace_end : 0 );
 		if ( ! $next ) {
 			self::flag_for_review( $renewal, 'result_unknown_timeout' );
@@ -922,7 +1117,7 @@ final class RenewalProcessor {
 		if ( 0 === $since && ! empty( $renewal['last_attempt_at'] ) ) {
 			$since = (int) strtotime( (string) $renewal['last_attempt_at'] . ' UTC' );
 		}
-		$grace_end = strtotime( (string) $renewal['grace_ends_at'] . ' UTC' );
+		$grace_end = self::grace_end_ts( $renewal );
 		if ( ! self::next_reconciliation_check( $now, $since, $grace_end ? (int) $grace_end : 0 ) ) {
 			return 'result_unknown_timeout';
 		}
@@ -1231,6 +1426,18 @@ final class RenewalProcessor {
 			self::reconcile_paid_renewal_order( $order_id );
 			return;
 		}
+		if (
+			empty( self::$held_locks[ $renewal_id ] )
+			&& '' === (string) $order->get_transaction_id()
+			&& '' === (string) $order->get_meta( self::META_MARKED_PAID_BY, true )
+			&& get_current_user_id()
+			&& current_user_can( 'manage_woocommerce' )
+		) {
+			// P-60: a status change by hand, without a payment reference. Remember who made it; the
+			// asynchronous booking runs without a user.
+			$order->update_meta_data( self::META_MARKED_PAID_BY, (string) get_current_user_id() );
+			$order->save();
+		}
 		self::queue_paid_order_reconciliation( $order_id );
 	}
 
@@ -1334,6 +1541,8 @@ final class RenewalProcessor {
 		) {
 			self::finish_stripe_event( $inbox_id, 'manual_review' );
 			AuditLog::record( 'stripe_webhook_mismatch', 'webhook', $inbox_id, AuditReason::STRIPE_METADATA_MISMATCH );
+			// The link is not trusted, so no case is opened on the renewal; the money is still reported.
+			self::report_unbooked_payment( $event, $payload, null, $order instanceof \WC_Order ? $order : null, AuditReason::STRIPE_METADATA_MISMATCH );
 			return;
 		}
 
@@ -1344,7 +1553,7 @@ final class RenewalProcessor {
 			// one succeeded as well. Two payments for one period: never "already reconciled".
 			$problem = sprintf(
 				/* translators: 1: PaymentIntent of this event, 2: PaymentIntent that paid the order. */
-				__( 'Stripe reports a second successful payment %1$s for a renewal order that was paid by %2$s. One of the two payments must be refunded.', 'wp-license' ),
+				__( 'Stripe reports a second successful payment %1$s for a renewal order that was paid by %2$s. One of the two payments must be refunded. Refund the second payment %1$s in the payment gateway; a refund of this order in WooCommerce refunds %2$s and keeps the renewal, because the other payment still pays the period.', 'wp-license' ),
 				$intent_id,
 				$paid_by
 			);
@@ -1373,11 +1582,18 @@ final class RenewalProcessor {
 		if ( in_array( $renewal['status'], array( 'cancelled', 'expired', 'refunded', RenewalReview::STATUS_CLOSED ), true ) || in_array( $license['status'], array( 'revoked', 'suspended' ), true ) ) {
 			self::finish_stripe_event( $inbox_id, 'manual_review' );
 			AuditLog::record( 'stripe_webhook_manual_review', 'renewal', (int) $renewal['id'], AuditReason::STRIPE_EVENT_FOR_CLOSED_RECORD );
+			self::report_unbooked_payment( $event, $payload, $renewal, $order, AuditReason::STRIPE_EVENT_FOR_CLOSED_RECORD );
+			return;
+		}
+		if ( self::review_needs_decision( $renewal ) ) {
+			// The case waits for the administrator's decision (refund or book); an event never books it.
+			self::finish_stripe_event( $inbox_id, 'manual_review' );
 			return;
 		}
 
 		if ( ! class_exists( '\\WC_Stripe_Helper' ) ) {
 			self::finish_stripe_event( $inbox_id, 'manual_review' );
+			self::report_unbooked_payment( $event, $payload, $renewal, $order, 'stripe_gateway_unavailable' );
 			return;
 		}
 		// The charged amount must equal the total of our order, and the order's
@@ -1396,6 +1612,7 @@ final class RenewalProcessor {
 		) {
 			self::finish_stripe_event( $inbox_id, 'manual_review' );
 			AuditLog::record( 'stripe_webhook_amount_mismatch', 'renewal', (int) $renewal['id'], AuditReason::STRIPE_AMOUNT_MISMATCH );
+			self::report_unbooked_payment( $event, $payload, $renewal, $order, AuditReason::STRIPE_AMOUNT_MISMATCH );
 			return;
 		}
 
@@ -1431,6 +1648,62 @@ final class RenewalProcessor {
 
 		// Synchronous adapter results already own retry scheduling. The webhook is an idempotent audit/reconciliation signal.
 		self::finish_stripe_event( $inbox_id, 'failure_observed' );
+	}
+
+	/**
+	 * Make money that Stripe received but that cannot be booked visible (P-19).
+	 *
+	 * Only for `payment_intent.succeeded`. A payment that is already recorded
+	 * on its order (paid or refunded with this PaymentIntent or charge) is a
+	 * repeated event and stays silent; every other one gets an order note, an
+	 * audit entry, `wplc/renewal_needs_review` (a health alert) and, when the
+	 * renewal is linked and not being charged or booked, a review case.
+	 *
+	 * @param array<string,mixed>      $event Inbox row.
+	 * @param array<string,mixed>      $payload Minimized event payload.
+	 * @param array<string,mixed>|null $renewal Linked renewal row, null when the link is not trusted.
+	 * @param \WC_Order|null           $order Order named by the event, if any.
+	 * @param string                   $cause Reason code.
+	 * @return void
+	 */
+	private static function report_unbooked_payment( array $event, array $payload, ?array $renewal, $order, string $cause ): void {
+		if ( 'payment_intent.succeeded' !== (string) ( $event['event_type'] ?? '' ) ) {
+			return;
+		}
+		$intent_id = sanitize_text_field( (string) ( $payload['payment_intent_id'] ?? '' ) );
+		$charge_id = sanitize_text_field( (string) ( $payload['charge_id'] ?? '' ) );
+		if ( $order instanceof \WC_Order ) {
+			$recorded = ( $order->is_paid() || 'refunded' === $order->get_status() )
+				&& (
+					( '' !== $intent_id && (string) $order->get_meta( '_stripe_intent_id', true ) === $intent_id )
+					|| in_array( (string) $order->get_transaction_id(), array_filter( array( $intent_id, $charge_id ) ), true )
+				);
+			if ( $recorded || ( '' !== $intent_id && (string) $order->get_meta( '_wplc_unbooked_payment_reported', true ) === $intent_id ) ) {
+				return;
+			}
+		}
+		$reason     = AuditReason::encode( AuditReason::UNBOOKED_STRIPE_PAYMENT, array( 'intent' => '' !== $intent_id ? $intent_id : '-', 'cause' => sanitize_key( $cause ) ) );
+		$renewal_id = is_array( $renewal ) ? (int) $renewal['id'] : 0;
+		$order_id   = $order instanceof \WC_Order ? (int) $order->get_id() : 0;
+		$reviewable = array( 'scheduled', 'failed', 'manual_action_required', 'cancelled', 'expired', self::STATUS_RECONCILING, self::STATUS_REVIEW, RenewalReview::STATUS_CLOSED );
+		if ( $renewal_id && in_array( (string) $renewal['status'], $reviewable, true ) ) {
+			RenewalReview::open( $renewal_id, $reason, null, true );
+		}
+		if ( $order instanceof \WC_Order ) {
+			$order->update_meta_data( '_wplc_unbooked_payment_reported', $intent_id );
+			$order->save();
+			$order->add_order_note( 'WP License Captain: ' . AuditReason::label( $reason ) );
+		}
+		AuditLog::record(
+			'stripe_payment_not_booked',
+			$renewal_id ? 'renewal' : 'order',
+			$renewal_id ? $renewal_id : $order_id,
+			$reason,
+			null,
+			array( 'order_id' => $order_id, 'amount_received' => absint( $payload['amount_received'] ?? 0 ), 'currency' => sanitize_key( (string) ( $payload['currency'] ?? '' ) ) )
+		);
+		/** This action is documented in src/Billing/RenewalOrder.php */
+		do_action( 'wplc/renewal_needs_review', $order_id, $renewal_id, $reason );
 	}
 
 	/**
@@ -1496,6 +1769,10 @@ final class RenewalProcessor {
 				ManualRenewal::complete_locked( $order, $renewal, $license );
 				return;
 			}
+			if ( self::review_needs_decision( $renewal ) ) {
+				// P-02, P-19, P-60: the administrator decides on the review screen; a hook never books it.
+				return;
+			}
 			if ( ! in_array( $renewal['status'], array( 'scheduled', 'failed', 'manual_action_required', 'processing', self::STATUS_RECONCILING, self::STATUS_REVIEW ), true ) ) {
 				RenewalOrder::flag_for_review(
 					$order,
@@ -1511,8 +1788,22 @@ final class RenewalProcessor {
 			}
 			// The order is ours (meta and renewal link) and paid in full, so its total is what was charged.
 			// Verify that its pre-tax line still is the net renewal price and that the currency is unchanged.
-			if ( ! RenewalOrder::net_matches( $order ) || strtoupper( (string) $license['renewal_currency'] ) !== strtoupper( (string) $order->get_currency() ) ) {
+			if ( ! RenewalOrder::net_matches( $order ) || strtoupper( (string) $license['renewal_currency'] ) !== strtoupper( (string) $order->get_currency() ) || 'yes' === $order->get_meta( RenewalOrder::META_AMOUNT_MISMATCH, true ) ) {
 				RenewalOrder::flag_for_review( $order, $renewal_id, __( 'Paid customer recovery order did not match the stored renewal amount', 'wp-license' ), 'renewal_recovery_amount_mismatch' );
+				return;
+			}
+			$marked_by = absint( $order->get_meta( self::META_MARKED_PAID_BY, true ) );
+			if ( $marked_by && '' === (string) $order->get_transaction_id() ) {
+				// P-60: an administrator set the order to paid by hand, without any payment reference.
+				if ( ! in_array( $renewal['status'], array( self::STATUS_RECONCILING, self::STATUS_REVIEW ), true ) ) {
+					// Nothing says that money arrived (no charge with unknown result): never booked as
+					// "customer paid"; the administrator books it on the review screen if it did.
+					RenewalReview::open( $renewal_id, AuditReason::MARKED_PAID_WITHOUT_PAYMENT, $order_id, true );
+					RenewalOrder::flag_for_review( $order, $renewal_id, AuditReason::MARKED_PAID_WITHOUT_PAYMENT, 'renewal_review_required' );
+					return;
+				}
+				// The order note of the unknown result asks for exactly this: booked with the administrator as actor.
+				self::finish_paid( $renewal, $license, $order, 'renewal_marked_paid_by_admin', AuditReason::encode( AuditReason::MARKED_PAID_BY_ADMIN, array( 'user' => $marked_by ) ), $marked_by );
 				return;
 			}
 			self::finish_paid( $renewal, $license, $order, 'renewal_customer_recovered', AuditReason::CUSTOMER_PAID_RENEWAL );
@@ -1874,6 +2165,45 @@ final class RenewalProcessor {
 	}
 
 	/**
+	 * Unix time of a stored UTC datetime, zero when empty or invalid (P-44).
+	 *
+	 * Pure. `strtotime( ' UTC' )` returns the current time, not false, so an
+	 * empty column must never be passed to strtotime() with the suffix.
+	 *
+	 * @param mixed $value Stored 'Y-m-d H:i:s' UTC value, may be null.
+	 * @return int
+	 */
+	public static function utc_ts( $value ): int {
+		$value = is_scalar( $value ) ? trim( (string) $value ) : '';
+		if ( '' === $value || 0 === strpos( $value, '0000-00-00' ) ) {
+			return 0;
+		}
+		$timestamp = strtotime( $value . ' UTC' );
+
+		return false === $timestamp ? 0 : (int) $timestamp;
+	}
+
+	/**
+	 * End of the grace period of a renewal (P-44).
+	 *
+	 * Pure. Rows written by early development versions have no grace_ends_at;
+	 * their grace period ends GRACE_DAYS after the period start, as in the
+	 * diagnostics. Zero when neither is known.
+	 *
+	 * @param array<string,mixed> $renewal Renewal row.
+	 * @return int
+	 */
+	public static function grace_end_ts( array $renewal ): int {
+		$grace_end = self::utc_ts( $renewal['grace_ends_at'] ?? null );
+		if ( $grace_end ) {
+			return $grace_end;
+		}
+		$start = self::utc_ts( $renewal['period_start'] ?? null );
+
+		return $start ? $start + LicenseLifecycle::GRACE_DAYS * 86400 : 0;
+	}
+
+	/**
 	 * Name of the per-renewal MySQL advisory lock.
 	 *
 	 * @param int $renewal_id Renewal ID.
@@ -1904,6 +2234,36 @@ final class RenewalProcessor {
 		self::$held_locks[ $renewal_id ] = true;
 
 		return true;
+	}
+
+	/**
+	 * Take the lock of the renewal of the license's current period, if there is one (P-02).
+	 *
+	 * For callers that change whether a license may be charged (cancellation,
+	 * switch-off) before they take the license lock: lock order renewal, then
+	 * license. While the processor charges that renewal they wait up to
+	 * $timeout seconds; a caller that gets no lock proceeds anyway, and the
+	 * processor re-checks the license under the license lock before charging
+	 * and sends a payment taken meanwhile to review.
+	 *
+	 * @param int $license_id License ID.
+	 * @param int $timeout Seconds to wait.
+	 * @return int Locked renewal ID, zero when no lock was taken. Release it with unlock().
+	 */
+	public static function lock_current_period( int $license_id, int $timeout ): int {
+		global $wpdb;
+
+		$tables     = Schema::table_names();
+		$renewal_id = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT r.id FROM %i r JOIN %i l ON l.id = r.license_id AND r.period_start = l.paid_until WHERE l.id = %d ORDER BY r.id DESC LIMIT 1',
+				$tables['renewals'],
+				$tables['licenses'],
+				$license_id
+			)
+		);
+
+		return $renewal_id && self::lock( $renewal_id, $timeout ) ? $renewal_id : 0;
 	}
 
 	/**
