@@ -81,10 +81,26 @@ final class RotateInstallationSecretsCommand {
 		);
 
 		foreach ( $result['failed_ids'] as $failed_id ) {
-			\WP_CLI::warning( sprintf( 'Could not verify or encrypt activation ID %d; row was not changed.', $failed_id ) );
+			/* translators: %d: activation ID. */
+			\WP_CLI::warning( sprintf( __( 'Could not verify or encrypt activation ID %d; row was not changed.', 'wp-license' ), $failed_id ) );
 		}
-		\WP_CLI::log( sprintf( 'Mode: %s', $result['apply'] ? 'apply' : 'dry-run' ) );
-		\WP_CLI::log( sprintf( 'Inspected: %d; %s: %d; already current: %d; changed concurrently: %d; failed: %d; last ID: %d', $result['inspected'], $result['apply'] ? 'rotated' : 'needing rotation', $result['rotated'], $result['already_current'], $result['stale'], $result['failed'], $result['last_id'] ) );
+		/* translators: %s: "apply" or "dry-run". */
+		\WP_CLI::log( sprintf( __( 'Mode: %s', 'wp-license' ), $result['apply'] ? __( 'apply', 'wp-license' ) : __( 'dry-run', 'wp-license' ) ) );
+		\WP_CLI::log(
+			sprintf(
+				$result['apply']
+					/* translators: 1: inspected rows, 2: rotated rows, 3: rows already current, 4: rows changed concurrently, 5: failed rows, 6: last inspected activation ID. */
+					? __( 'Inspected: %1$d; rotated: %2$d; already current: %3$d; changed concurrently: %4$d; failed: %5$d; last ID: %6$d', 'wp-license' )
+					/* translators: 1: inspected rows, 2: rows needing rotation, 3: rows already current, 4: rows changed concurrently, 5: failed rows, 6: last inspected activation ID. */
+					: __( 'Inspected: %1$d; needing rotation: %2$d; already current: %3$d; changed concurrently: %4$d; failed: %5$d; last ID: %6$d', 'wp-license' ),
+				$result['inspected'],
+				$result['rotated'],
+				$result['already_current'],
+				$result['stale'],
+				$result['failed'],
+				$result['last_id']
+			)
+		);
 		/* translators: %s: status of the stored response signing key, for example "rotated". */
 		\WP_CLI::log( sprintf( __( 'Response signing key: %s', 'wp-license' ), $result['signing_key'] ) );
 		if ( 'empty' !== $result['next_signing_key'] ) {
@@ -95,20 +111,22 @@ final class RotateInstallationSecretsCommand {
 			\WP_CLI::warning( __( 'A stored response signing key cannot be decrypted with the configured key ring. Put the previous encryption key back into WPLC_INSTALLATION_ENCRYPTION_KEYS; until then responses carry no Ed25519 signature and clients that pin the public key reject them.', 'wp-license' ) );
 		}
 		if ( $result['not_inspected'] > 0 ) {
-			\WP_CLI::warning( sprintf( '%d rows after ID %d were not inspected (--max-rows). Continue with --after-id=%d.', $result['not_inspected'], $result['last_id'], $result['last_id'] ) );
+			/* translators: 1: number of rows not inspected, 2: last inspected ID (resume with --after-id). */
+			\WP_CLI::warning( sprintf( __( '%1$d rows after ID %2$d were not inspected (--max-rows). Continue with --after-id=%2$d.', 'wp-license' ), $result['not_inspected'], $result['last_id'] ) );
 		}
 		if ( $result['failed'] > 0 ) {
-			\WP_CLI::warning( 'Some rows need manual investigation. No failed row was modified.' );
+			\WP_CLI::warning( __( 'Some rows need manual investigation. No failed row was modified.', 'wp-license' ) );
 		}
 		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
-			\WP_CLI::log( 'Multisite: this run covered only the tables of the current site. Repeat it for every site of the network, for example: wp site list --field=url | xargs -I % wp --url=% wplc rotate-installation-secrets' );
+			\WP_CLI::log( __( 'Multisite: this run covered only the tables of the current site. Repeat it for every site of the network, for example: wp site list --field=url | xargs -I % wp --url=% wplc rotate-installation-secrets', 'wp-license' ) );
 		}
 
 		if ( $result['remaining'] > 0 ) {
-			\WP_CLI::log( sprintf( 'Rows still using an old key: %d. Keep the old keys in the key ring.', $result['remaining'] ) );
+			/* translators: %d: number of rows still encrypted with an old key. */
+			\WP_CLI::log( sprintf( __( 'Rows still using an old key: %d. Keep the old keys in the key ring.', 'wp-license' ), $result['remaining'] ) );
 			\WP_CLI::halt( 1 );
 		}
-		\WP_CLI::success( 'All inspected rows use the current key.' );
+		\WP_CLI::success( __( 'All inspected rows use the current key.', 'wp-license' ) );
 	}
 
 	/**
@@ -137,7 +155,8 @@ final class RotateInstallationSecretsCommand {
 			$limit = 0 === $max_rows ? $batch_size : min( $batch_size, $max_rows - $inspected );
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT id,installation_secret_hash,installation_secret_encrypted FROM {$tables['activations']} WHERE id > %d ORDER BY id ASC LIMIT %d",
+					'SELECT id,installation_secret_hash,installation_secret_encrypted FROM %i WHERE id > %d ORDER BY id ASC LIMIT %d',
+					$tables['activations'],
 					$last_id,
 					$limit
 				),
@@ -170,7 +189,8 @@ final class RotateInstallationSecretsCommand {
 
 				$updated = $wpdb->query(
 					$wpdb->prepare(
-						"UPDATE {$tables['activations']} SET installation_secret_encrypted = %s WHERE id = %d AND installation_secret_encrypted = %s",
+						'UPDATE %i SET installation_secret_encrypted = %s WHERE id = %d AND installation_secret_encrypted = %s',
+						$tables['activations'],
 						$new_envelope,
 						$last_id,
 						$old_envelope

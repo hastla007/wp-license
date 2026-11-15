@@ -76,6 +76,22 @@ final class Retention {
 	private const SWEEP_TIME_BUDGET = 10;
 
 	/**
+	 * Days rate-limit buckets are kept (P-51).
+	 *
+	 * The same period as `Authenticator::LIMIT_RETENTION_DAYS`: the daily counters of
+	 * rejected API requests (bucket "yesterday 00:00") must survive the whole of
+	 * today, because the diagnostics page shows yesterday's numbers.
+	 */
+	public const REQUEST_LIMIT_RETENTION_DAYS = 2;
+
+	/**
+	 * Highest activation ID handled per kind (live, staging) in this run of `ended_license_activations`.
+	 *
+	 * @var array<string,int>
+	 */
+	private static $ended_cursor = array();
+
+	/**
 	 * Longest accepted retention period (100 years) to keep date math safe.
 	 */
 	private const MAX_DAYS = 36500;
@@ -153,6 +169,19 @@ final class Retention {
 	}
 
 	/**
+	 * Oldest rate-limit bucket the hourly sweep keeps.
+	 *
+	 * Pure. Yesterday's daily counter (bucket yesterday 00:00 UTC) is younger than
+	 * this until the end of today.
+	 *
+	 * @param int $now Unix timestamp.
+	 * @return string UTC datetime; buckets that start before it are deleted.
+	 */
+	public static function request_limit_cutoff( int $now ): string {
+		return gmdate( 'Y-m-d H:i:s', $now - self::REQUEST_LIMIT_RETENTION_DAYS * 86400 );
+	}
+
+	/**
 	 * Run every enabled retention rule until it is done or the time budget is used up.
 	 *
 	 * @return array<string,int> Processed rows per rule (for tests and logs).
@@ -177,9 +206,10 @@ final class Retention {
 			return array();
 		}
 
-		$deadline  = microtime( true ) + $budget;
-		$processed = array();
-		$exhausted = false;
+		$deadline           = microtime( true ) + $budget;
+		$processed          = array();
+		$exhausted          = false;
+		self::$ended_cursor = array();
 		foreach ( $cutoffs as $rule => $cutoff ) {
 			if ( microtime( true ) >= $deadline ) {
 				$exhausted = true;
@@ -235,7 +265,7 @@ final class Retention {
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- only table names are interpolated.
 		$queries = array(
 			'request_nonces'  => $wpdb->prepare( "DELETE FROM {$tables['request_nonces']} WHERE expires_at <= %s LIMIT %d", gmdate( 'Y-m-d H:i:s', $now ), self::BATCH_SIZE ),
-			'request_limits'  => $wpdb->prepare( "DELETE FROM {$tables['request_limits']} WHERE bucket_start < %s LIMIT %d", gmdate( 'Y-m-d H:i:s', $now - DAY_IN_SECONDS ), self::BATCH_SIZE ),
+			'request_limits'  => $wpdb->prepare( "DELETE FROM {$tables['request_limits']} WHERE bucket_start < %s LIMIT %d", self::request_limit_cutoff( $now ), self::BATCH_SIZE ),
 			'download_tokens' => $wpdb->prepare( "DELETE FROM {$tables['download_tokens']} WHERE expires_at < %s LIMIT %d", gmdate( 'Y-m-d H:i:s', $now - $grant_days * DAY_IN_SECONDS ), self::BATCH_SIZE ),
 			'package_streams' => $wpdb->prepare( "DELETE FROM {$tables['package_streams']} WHERE expires_at < %s LIMIT %d", gmdate( 'Y-m-d H:i:s', $now - DAY_IN_SECONDS ), self::BATCH_SIZE ),
 		);
@@ -468,19 +498,40 @@ final class Retention {
 	private static function deactivate_ended_license_activations( array $tables, string $cutoff ): int {
 		global $wpdb;
 
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- only table names are interpolated.
-		$ids = $wpdb->get_col(
-			$wpdb->prepare(
-				"SELECT a.id FROM {$tables['activations']} a INNER JOIN {$tables['licenses']} l ON l.id = a.license_id WHERE a.status = %s AND ( l.status = %s OR ( l.status IN (%s,%s) AND l.paid_until IS NOT NULL AND l.paid_until < %s ) ) ORDER BY a.staging_parent_id IS NOT NULL, a.id ASC LIMIT %d",
-				'active',
-				'revoked',
-				'expired',
-				'cancelled',
-				$cutoff,
-				self::SMALL_BATCH_SIZE
-			)
-		);
-		// phpcs:enable
+		// Live installations first: releasing one also releases its staging sites. Two
+		// passes ordered by the primary key with a cursor instead of sorting by an
+		// expression, so a batch neither sorts all active installations nor reads the
+		// rows of the previous batches again (P-53).
+		$ids = array();
+		foreach ( array( 'live', 'staging' ) as $kind ) {
+			$need = self::SMALL_BATCH_SIZE - count( $ids );
+			if ( $need < 1 ) {
+				break;
+			}
+			$after   = isset( self::$ended_cursor[ $kind ] ) ? self::$ended_cursor[ $kind ] : 0;
+			$staging = 'live' === $kind ? 'IS NULL' : 'IS NOT NULL';
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- only the fixed "IS [NOT] NULL" above is interpolated.
+			$sql   = "SELECT a.id FROM %i a INNER JOIN %i l ON l.id = a.license_id WHERE a.status = %s AND a.staging_parent_id {$staging} AND a.id > %d AND ( l.status = %s OR ( l.status IN (%s,%s) AND l.paid_until IS NOT NULL AND l.paid_until < %s ) ) ORDER BY a.id ASC LIMIT %d";
+			$found = $wpdb->get_col(
+				$wpdb->prepare(
+					$sql, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- built above from constants only.
+					$tables['activations'],
+					$tables['licenses'],
+					'active',
+					$after,
+					'revoked',
+					'expired',
+					'cancelled',
+					$cutoff,
+					$need
+				)
+			);
+			$found = array_map( 'intval', (array) $found );
+			if ( $found ) {
+				self::$ended_cursor[ $kind ] = max( $found );
+				$ids                         = array_merge( $ids, $found );
+			}
+		}
 		$done = 0;
 		foreach ( (array) $ids as $activation_id ) {
 			if ( ActivationManager::deactivate( (int) $activation_id, 'License ended', 0, 'site_deactivated_license_ended' ) ) {
@@ -488,8 +539,8 @@ final class Retention {
 			}
 		}
 
-		// Without progress (lock contention) the loop must stop; the next run tries again.
-		return $done > 0 && count( (array) $ids ) >= self::SMALL_BATCH_SIZE ? self::SMALL_BATCH_SIZE : $done;
+		// The cursor moves past rows that could not be released (lock contention); the next run tries them again.
+		return count( $ids ) >= self::SMALL_BATCH_SIZE ? self::SMALL_BATCH_SIZE : $done;
 	}
 
 	/**

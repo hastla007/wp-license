@@ -32,5 +32,6 @@ final class Commands {
 		\WP_CLI::add_command( 'wplc license', LicenseCommand::class );
 		\WP_CLI::add_command( 'wplc activation', ActivationCommand::class );
 		\WP_CLI::add_command( 'wplc repair', RepairCommand::class );
+		\WP_CLI::add_command( 'wplc schema', SchemaCommand::class );
 	}
 }

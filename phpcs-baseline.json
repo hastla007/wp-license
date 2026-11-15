@@ -1,60 +1,136 @@
 {
     "src/Account/CustomerPortal.php": {
-        "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 1
+        "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": {
+            "$wpdb->prepare(": 1
+        }
     },
     "src/Admin/LicenseAdmin.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "$wpdb->prepare( \"SELECT * FROM {$tables['activations']} WHERE id = %d LIMIT 1\", $activation_id ),": 1,
+            "$wpdb->prepare( \"SELECT * FROM {$tables['plans']} WHERE id = %d AND active = 1 LIMIT 1\", $plan_id ),": 1
+        }
     },
     "src/Admin/LicenseDetail.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 7
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"SELECT p.id, p.product_key, p.plan_key, p.billing_interval, p.live_site_limit, pr.display_name FROM {$tables['plans']} p LEFT JOIN {$tables['products']} pr ON pr.product_key = p.product_key WHERE p.active = 1 ORDER BY p.product_key ASC, p.live_site_limit ASC, p.plan_key ASC LIMIT 500\",": 2,
+            "$wpdb->prepare( \"SELECT * FROM {$tables['activations']} WHERE license_id = %d ORDER BY status ASC, activated_at DESC LIMIT 500\", $license_id ),": 1,
+            "$wpdb->prepare( \"SELECT * FROM {$tables['entitlements']} WHERE license_id = %d ORDER BY entitlement_key ASC\", $license_id ),": 1,
+            "$wpdb->prepare( \"SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1\", $license_id ),": 1,
+            "$wpdb->prepare( \"SELECT * FROM {$tables['renewals']} WHERE license_id = %d ORDER BY period_start DESC, id DESC LIMIT 200\", $license_id ),": 1,
+            "$wpdb->prepare( \"SELECT display_name FROM {$tables['products']} WHERE product_key = %s LIMIT 1\", (string) $license['product_key'] )": 1
+        }
     },
     "src/Admin/LicenseListTable.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 1,
-        "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 1
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "$product_rows = $wpdb->get_results( \"SELECT product_key, display_name FROM {$tables['products']} ORDER BY display_name ASC LIMIT 500\", ARRAY_A );": 1
+        },
+        "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": {
+            "$wpdb->prepare(": 1
+        }
     },
     "src/Admin/ReleaseAdmin.php": {
-        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1
+        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": {
+            "'package_url' => isset( $_POST['package_url'] ) ? esc_url_raw( trim( (string) wp_unslash( $_POST['package_url'] ) ), array( 'https' ) ) : '',": 1
+        }
     },
     "src/Api/V1/ActivationService.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"SELECT * FROM {$tables['licenses']} WHERE license_key_hash = %s LIMIT 1\",": 1,
+            "\"SELECT id,installation_uuid,site_url,environment,staging_parent_id FROM {$tables['activations']} WHERE license_id = %d AND status = %s ORDER BY id ASC\",": 1,
+            "\"SELECT value_json FROM {$tables['entitlements']} WHERE license_id = %d AND entitlement_key = %s AND status = %s LIMIT 1\",": 1,
+            "$wpdb->prepare( \"SELECT * FROM {$tables['activations']} WHERE installation_uuid = %s LIMIT 1\", $installation_uuid ),": 1,
+            "$wpdb->prepare( \"SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1\", $license_id ),": 1,
+            "$wpdb->prepare( \"SELECT id,installation_uuid,environment,staging_parent_id FROM {$tables['activations']} WHERE id = %d LIMIT 1\", $activation_id ),": 1
+        }
     },
     "src/Api/V1/Authenticator.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 8
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"DELETE FROM {$tables['request_nonces']} WHERE activation_id = %d AND nonce_hash = %s AND expires_at <= %s\",": 1,
+            "\"INSERT IGNORE INTO {$tables['request_nonces']} (activation_id,nonce_hash,expires_at,created_at) VALUES (%d,%s,%s,%s)\",": 1,
+            "\"INSERT INTO {$tables['request_limits']} (limiter_hash,bucket_start,hits,created_at) VALUES (%s,%s,1,%s) ON DUPLICATE KEY UPDATE hits = hits + 1\",": 1,
+            "\"SELECT * FROM {$tables['activations']} WHERE installation_uuid = %s LIMIT 1\",": 1,
+            "\"SELECT hits FROM {$tables['request_limits']} WHERE limiter_hash = %s AND bucket_start = %s LIMIT 1\",": 1,
+            "\"UPDATE {$tables['activations']} SET installation_secret_encrypted = %s WHERE id = %d AND installation_secret_encrypted = %s\",": 1,
+            "'limits' => $wpdb->prepare( \"DELETE FROM {$tables['request_limits']} WHERE bucket_start < %s LIMIT %d\", $rate_cutoff, self::CLEANUP_BATCH ),": 1,
+            "'nonces' => $wpdb->prepare( \"DELETE FROM {$tables['request_nonces']} WHERE expires_at <= %s LIMIT %d\", $now, self::CLEANUP_BATCH ),": 1
+        }
     },
     "src/Api/V1/EntitlementService.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"SELECT COUNT(*) FROM {$tables['activations']} WHERE license_id = %d AND status = %s AND environment = %s\",": 1,
+            "\"SELECT entitlement_key,value_json FROM {$tables['entitlements']} WHERE license_id = %d AND status = %s AND (ends_at IS NULL OR ends_at > %s)\",": 1,
+            "$wpdb->prepare( \"SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1\", (int) $activation['license_id'] ),": 1
+        }
     },
     "src/Api/V1/StripeWebhook.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"INSERT IGNORE INTO {$tables['event_inbox']} (source,source_event_id,event_type,payload_hash,payload_json,received_at,outcome) VALUES (%s,%s,%s,%s,%s,%s,%s)\",": 1,
+            "\"SELECT payload_hash FROM {$tables['event_inbox']} WHERE source = %s AND source_event_id = %s LIMIT 1\",": 1
+        }
     },
     "src/Api/V1/UpdateService.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"DELETE FROM {$tables['download_tokens']} WHERE expires_at < %s ORDER BY expires_at ASC LIMIT %d\",": 1,
+            "\"SELECT dt.package_url, dt.license_id, dt.activation_id, dt.consumed_at, l.product_key, l.status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end FROM {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id WHERE dt.token_hash = %s AND ( ( dt.consumed_at IS NULL AND dt.expires_at > %s ) OR dt.consumed_at > %s ) LIMIT 1\",": 2,
+            "$wpdb->prepare( \"SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1\", (int) $activation['license_id'] ),": 1
+        }
     },
     "src/Billing/RenewalProcessor.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
-    },
-    "src/CLI/RecoverLicenseKeyIdsCommand.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
-    },
-    "src/CLI/RotateInstallationSecretsCommand.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"SELECT l.id FROM {$tables['licenses']} l LEFT JOIN {$tables['renewals']} r ON r.license_id = l.id AND r.period_start = l.paid_until": 2,
+            "\"SELECT r.* FROM {$tables['renewals']} r LEFT JOIN {$tables['licenses']} l ON l.id = r.license_id": 2
+        }
     },
     "src/License/ActivationManager.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"SELECT id,license_id,site_url,environment FROM {$tables['activations']} WHERE id = %d AND status = %s LIMIT 1\",": 1,
+            "\"SELECT id,site_url FROM {$tables['activations']} WHERE staging_parent_id = %d AND license_id = %d AND status = %s\",": 1,
+            "\"SELECT license_id FROM {$tables['activations']} WHERE id = %d AND status = %s LIMIT 1\",": 1
+        }
     },
     "src/Notifications/Notifications.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"SELECT * FROM {$tables['licenses']} WHERE status = %s AND customer_id > 0 AND paid_until IS NOT NULL AND paid_until > %s AND paid_until <= %s AND id > %d ORDER BY id ASC LIMIT %d\",": 1,
+            "\"SELECT renewal_order_id FROM {$tables['renewals']} WHERE license_id = %d AND status IN (%s,%s) AND renewal_order_id IS NOT NULL ORDER BY created_at DESC, id DESC LIMIT 1\",": 1,
+            "$wpdb->prepare( \"SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1\", $license_id ),": 1,
+            "$wpdb->prepare( \"SELECT display_name FROM {$tables['products']} WHERE product_key = %s LIMIT 1\", $product_key )": 1
+        }
     },
     "src/Update/CustomerDownload.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"SELECT COUNT(*) FROM {$tables['package_streams']} WHERE license_id = %d AND source = %s AND created_at > %s\",": 1,
+            "$license = $wpdb->get_row( $wpdb->prepare( \"SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1\", $license_id ), ARRAY_A );": 1
+        }
     },
     "src/Update/PackageStream.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"DELETE FROM {$tables['package_streams']} WHERE expires_at < %s\",": 1,
+            "\"SELECT s.release_id, s.source, s.consumed_at, l.status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end FROM {$tables['package_streams']} s INNER JOIN {$tables['licenses']} l ON l.id = s.license_id WHERE s.token_hash = %s AND ( ( s.consumed_at IS NULL AND s.expires_at > %s ) OR s.consumed_at > %s ) LIMIT 1\",": 2,
+            "\"UPDATE {$tables['package_streams']} SET consumed_at = %s WHERE token_hash = %s AND consumed_at IS NULL AND expires_at > %s\",": 1
+        }
     },
     "src/Update/ReleaseRegistry.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 8
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
+            "\"DELETE FROM {$tables['releases']} WHERE id = %d AND status = %s AND published_at IS NULL\",": 1,
+            "\"SELECT * FROM {$tables['releases']} WHERE product_key = %s AND version = %s AND channel = %s LIMIT 1\",": 1,
+            "\"SELECT id,product_key,version,channel,package_url,storage,sha256,requires_php,requires_wp,tested_wp,requires_core,plugin_file,status,published_at,created_at,updated_at FROM {$tables['releases']} ORDER BY product_key ASC, id DESC LIMIT 2000\",": 1,
+            "\"UPDATE {$tables['releases']} SET status = %s, published_at = COALESCE(published_at, %s), updated_at = %s WHERE id = %d AND status = %s\",": 1,
+            "\"UPDATE {$tables['releases']} SET status = %s, updated_at = %s WHERE id = %d AND status = %s\",": 1,
+            "$row = $wpdb->get_row( $wpdb->prepare( \"SELECT * FROM {$tables['releases']} WHERE id = %d LIMIT 1\", $release_id ), ARRAY_A );": 1,
+            "$rows = $wpdb->get_results( \"SELECT product_key, display_name FROM {$tables['products']} ORDER BY display_name ASC LIMIT 500\", ARRAY_A );": 1,
+            "return 1 === (int) $wpdb->get_var( $wpdb->prepare( \"SELECT COUNT(*) FROM {$tables['products']} WHERE product_key = %s\", $product_key ) );": 1
+        }
     },
     "tests/e2e/mu-plugins/wplc-e2e.php": {
-        "PHPCompatibility.FunctionDeclarations.NewClosure.ThisFoundInStatic": 8
+        "PHPCompatibility.FunctionDeclarations.NewClosure.ThisFoundInStatic": {
+            "$this->enabled = 'yes';": 1,
+            "$this->has_fields = false;": 1,
+            "$this->id = 'wplc_e2e_fake';": 1,
+            "$this->method_description = 'Test-only gateway.';": 1,
+            "$this->method_title = 'WPLC e2e fake card';": 1,
+            "$this->supports = array( 'products', 'tokenization' );": 1,
+            "$this->title = 'Fake card (e2e)';": 1,
+            "'redirect' => $this->get_return_url( $order ),": 1
+        }
     }
 }

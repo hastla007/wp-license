@@ -50,9 +50,16 @@ final class SigningKeyCommand {
 	 * prepared key. Not possible while the key comes from the constant.
 	 *
 	 * [--rotate]
-	 * : Switch to the prepared next key (or, without one, create a new key). Clients that do not pin the new public
-	 * key reject the server until they are updated – rotate only together with a product release. Not possible
-	 * while the key comes from the constant.
+	 * : Switch to the prepared next key. Clients that do not pin the new public key reject the server until they
+	 * are updated – rotate only together with a product release. Asks for confirmation. Without a prepared key the
+	 * command stops unless --force is given. Not possible while the key comes from the constant.
+	 *
+	 * [--force]
+	 * : With --rotate: create and use a brand-new key although none was prepared. Every delivered client that pins
+	 * the current key rejects all responses until it is updated, and the current private key is overwritten.
+	 *
+	 * [--yes]
+	 * : Do not ask for confirmation.
 	 *
 	 * [--generate]
 	 * : Print a new random value for WPLC_RESPONSE_SIGNING_KEY and its public key without storing anything.
@@ -63,6 +70,7 @@ final class SigningKeyCommand {
 	 *     wp wplc signing-key --field=public_key
 	 *     wp wplc signing-key --prepare --field=next_public_key
 	 *     wp wplc signing-key --rotate
+	 *     wp wplc signing-key --rotate --yes
 	 *     wp wplc signing-key --generate
 	 *
 	 * @param array<int,string>   $args       Positional arguments.
@@ -91,6 +99,7 @@ final class SigningKeyCommand {
 
 		if ( ! empty( $assoc_args['rotate'] ) ) {
 			$old = ResponseSigner::status();
+			self::confirm_rotation( $old, $assoc_args );
 			ResponseSigner::reset();
 			if ( null === ResponseSigner::rotate() ) {
 				\WP_CLI::error( __( 'The key comes from WPLC_RESPONSE_SIGNING_KEY, or the new key could not be stored encrypted (or the prepared key cannot be decrypted); rotate a constant in wp-config.php.', 'wp-license' ) );
@@ -128,6 +137,50 @@ final class SigningKeyCommand {
 	}
 
 	/**
+	 * Stop a rotation that would lock out the delivered clients, or ask before it (P-34).
+	 *
+	 * Ends the command (WP_CLI::error() or a declined confirmation) when the rotation must not run.
+	 *
+	 * @param array<string,string> $current    Status of the current key.
+	 * @param array<string,mixed>  $assoc_args Options (--force, --yes).
+	 * @return void
+	 */
+	private static function confirm_rotation( array $current, array $assoc_args ): void {
+		if ( ResponseSigner::uses_constant() ) {
+			\WP_CLI::error( __( 'The key comes from WPLC_RESPONSE_SIGNING_KEY; rotate the constant in wp-config.php.', 'wp-license' ) );
+		}
+		$next = ResponseSigner::next_secret_key();
+		if ( null !== $next ) {
+			$next_public = ResponseSigner::public_key_of( $next );
+			\WP_CLI::confirm(
+				sprintf(
+					/* translators: 1: key ID of the current signing key (may be empty), 2: key ID of the prepared key. */
+					__( 'Switch the response signing key from "%1$s" to the prepared key "%2$s"? Clients that do not pin the prepared public key reject this server until they are updated.', 'wp-license' ),
+					(string) $current['key_id'],
+					ResponseSigner::key_id_of( $next_public )
+				),
+				$assoc_args
+			);
+			return;
+		}
+		if ( '' !== (string) get_option( ResponseSigner::NEXT_OPTION, '' ) ) {
+			// rotate() refuses as well; say why before asking anything.
+			\WP_CLI::error( __( 'The prepared signing key cannot be decrypted. Restore the encryption key it was stored with instead of replacing it.', 'wp-license' ) );
+		}
+		if ( empty( $assoc_args['force'] ) ) {
+			\WP_CLI::error( __( 'No next key is prepared. Run "wp wplc signing-key --prepare", ship product releases that pin the printed next_public_key, then run --rotate. To create a brand-new key anyway (every client that pins the current key stops accepting responses), add --force.', 'wp-license' ) );
+		}
+		\WP_CLI::confirm(
+			sprintf(
+				/* translators: %s: key ID of the current signing key (may be empty). */
+				__( 'No next key is prepared. Replace the response signing key "%s" with a brand-new key? Every delivered client that pins the current public key rejects all responses until it is updated, and the current private key is overwritten.', 'wp-license' ),
+				(string) $current['key_id']
+			),
+			$assoc_args
+		);
+	}
+
+	/**
 	 * Explain why no signing key is usable.
 	 *
 	 * @param string $state State from ResponseSigner::status().
@@ -135,15 +188,19 @@ final class SigningKeyCommand {
 	 */
 	public static function state_message( string $state ): string {
 		$messages = array(
-			'constant_invalid' => 'WPLC_RESPONSE_SIGNING_KEY is not a valid key: it must be the base64 of a 32-byte seed or of a 64-byte Ed25519 secret key. Responses are sent without a server signature until it is corrected.',
-			'undecryptable' => 'The stored signing key cannot be decrypted with the configured encryption keys or salts. Restore the previous key ring, or create a new key with --rotate (clients that pin the old public key then reject this server).',
-			'corrupt' => 'The stored signing key is damaged. Restore it from a backup, or create a new key with --rotate.',
-			'missing' => 'The stored signing key is gone although this server had one. Restore the option wplc_response_signing_key from a backup, or create a new key with --rotate.',
-			'encryption_unavailable' => 'The signing key cannot be encrypted (no usable encryption key or no OpenSSL) and is therefore not stored. Configure WPLC_INSTALLATION_ENCRYPTION_KEYS or set WPLC_RESPONSE_SIGNING_KEY.',
-			'storage_failed' => 'The signing key could not be written to the options table.',
-			'busy' => 'Another request is creating the signing key. Try again.',
+			'constant_invalid'       => __( 'WPLC_RESPONSE_SIGNING_KEY is not a valid key: it must be the base64 of a 32-byte seed or of a 64-byte Ed25519 secret key. Responses are sent without a server signature until it is corrected.', 'wp-license' ),
+			'undecryptable'          => __( 'The stored signing key cannot be decrypted with the configured encryption keys or salts. Restore the previous key ring, or create a new key with --rotate --force (clients that pin the old public key then reject this server).', 'wp-license' ),
+			'corrupt'                => __( 'The stored signing key is damaged. Restore it from a backup, or create a new key with --rotate --force.', 'wp-license' ),
+			'missing'                => __( 'The stored signing key is gone although this server had one. Restore the option wplc_response_signing_key from a backup, or create a new key with --rotate --force.', 'wp-license' ),
+			'encryption_unavailable' => __( 'The signing key cannot be encrypted (no usable encryption key or no OpenSSL) and is therefore not stored. Configure WPLC_INSTALLATION_ENCRYPTION_KEYS or set WPLC_RESPONSE_SIGNING_KEY.', 'wp-license' ),
+			'storage_failed'         => __( 'The signing key could not be written to the options table.', 'wp-license' ),
+			'busy'                   => __( 'Another request is creating the signing key. Try again.', 'wp-license' ),
 		);
 
-		return $messages[ $state ] ?? 'No response signing key is available (' . $state . ').';
+		return $messages[ $state ] ?? sprintf(
+			/* translators: %s: internal state name of the signing key. */
+			__( 'No response signing key is available (%s).', 'wp-license' ),
+			$state
+		);
 	}
 }
