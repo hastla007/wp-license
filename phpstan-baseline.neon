@@ -105,7 +105,7 @@ parameters:
 		-
 			message: '#^Comparison operation "\>" between int\<1, 65535\> and 65535 is always false\.$#'
 			identifier: greater.alwaysFalse
-			count: 1
+			count: 2
 			path: src/Api/V1/SiteUrl.php
 
 		-
