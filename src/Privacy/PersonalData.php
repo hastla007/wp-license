@@ -224,7 +224,7 @@ final class PersonalData {
 			);
 			$owner_of = array();
 			foreach ( is_array( $orders ) ? $orders : array() as $order ) {
-				if ( $order instanceof \WC_Order && (int) $order->get_customer_id() > 0 && 0 === strcasecmp( (string) $order->get_billing_email(), $email ) ) {
+				if ( (int) $order->get_customer_id() > 0 && 0 === strcasecmp( (string) $order->get_billing_email(), $email ) ) {
 					$owner_of[ (int) $order->get_id() ] = (int) $order->get_customer_id();
 				}
 			}

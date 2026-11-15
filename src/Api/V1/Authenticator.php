@@ -221,9 +221,10 @@ final class Authenticator {
 	 * @return mixed Null when the body does not carry the parameter.
 	 */
 	public static function signed_param( \WP_REST_Request $request, string $name ) {
-		$params = $request->get_json_params();
+		// get_json_params() returns null for a body that is not JSON.
+		$params = (array) $request->get_json_params();
 
-		return is_array( $params ) && array_key_exists( $name, $params ) ? $params[ $name ] : null;
+		return array_key_exists( $name, $params ) ? $params[ $name ] : null;
 	}
 
 	/**
@@ -245,7 +246,7 @@ final class Authenticator {
 			return true;
 		}
 
-		return $request->is_json_content_type() && is_array( $request->get_json_params() );
+		return $request->is_json_content_type() && is_array( json_decode( (string) $request->get_body(), true ) );
 	}
 
 	/**

@@ -211,7 +211,7 @@ final class LicenseLifecycle {
 			$revoked = self::transition( $license_id, 'revoked', AuditReason::REFUNDED_ORDER_UNIT, 'order_refund', $actor );
 			// A license whose status allows no revocation (already revoked, expired) is done; one whose
 			// lock was busy or that changed meanwhile is tried again.
-			if ( ! $revoked && 'not_allowed' !== self::$last_refusal ) {
+			if ( ! $revoked && 'not_allowed' !== self::last_refusal() ) {
 				$left[] = $license_id;
 			}
 		}
@@ -225,7 +225,7 @@ final class LicenseLifecycle {
 		}
 		$retries = absint( $refund->get_meta( self::META_REFUND_RETRIES, true ) ) + 1;
 		$refund->update_meta_data( self::META_REFUND_PENDING, $left );
-		$refund->update_meta_data( self::META_REFUND_RETRIES, $retries );
+		$refund->update_meta_data( self::META_REFUND_RETRIES, (string) $retries );
 		$refund->save();
 		if ( $retries > self::REFUND_RETRY_LIMIT ) {
 			foreach ( $left as $license_id ) {

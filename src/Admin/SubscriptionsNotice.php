@@ -75,7 +75,7 @@ final class SubscriptionsNotice {
 			return;
 		}
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		$id     = is_object( $screen ) && isset( $screen->id ) ? (string) $screen->id : '';
+		$id     = is_object( $screen ) ? (string) $screen->id : '';
 		if ( false === strpos( $id, 'wplc' ) && 'product' !== $id && 'edit-product' !== $id ) {
 			return;
 		}

@@ -471,7 +471,7 @@ final class AuditLogAdmin {
 		check_admin_referer( self::EXPORT_ACTION );
 
 		$filters = self::request_filters();
-		AuditLog::record( 'audit_log_exported', 'export', 0, '', null, array_filter( $filters, 'strlen' ), get_current_user_id() );
+		AuditLog::record( 'audit_log_exported', 'export', 0, '', null, array_filter( $filters, static function ( $value ): bool { return '' !== (string) $value; } ), get_current_user_id() );
 
 		$handle = CsvExport::open_download( 'license-audit-' . gmdate( 'Y-m-d' ) . '.csv' );
 		$result = self::write_csv( $filters, $handle );

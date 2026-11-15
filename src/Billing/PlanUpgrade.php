@@ -1016,7 +1016,7 @@ final class PlanUpgrade {
 					);
 					$ids = is_array( $ids ) ? $ids : array();
 					foreach ( $ids as $id ) {
-						self::reconcile_order( (int) $id );
+						self::reconcile_order( absint( $id ) );
 					}
 					++$page;
 				} while ( count( $ids ) >= 100 && microtime( true ) < $deadline );
