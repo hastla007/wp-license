@@ -255,8 +255,20 @@ final class CustomerPortal {
 		if ( ! function_exists( 'wp_enqueue_style' ) || ! defined( 'WPLC_FILE' ) ) {
 			return;
 		}
-		wp_enqueue_style( 'wplc-account', plugins_url( 'assets/css/wplc-account.css', WPLC_FILE ), array(), self::asset_version( 'assets/css/wplc-account.css' ) );
+		self::enqueue_style();
 		wp_enqueue_script( 'wplc-ui', plugins_url( 'assets/js/wplc-ui.js', WPLC_FILE ), array(), self::asset_version( 'assets/js/wplc-ui.js' ), true );
+	}
+
+	/**
+	 * Enqueue the front-end stylesheet only (license list, site overview, pricing table).
+	 *
+	 * @return void
+	 */
+	public static function enqueue_style(): void {
+		if ( ! function_exists( 'wp_enqueue_style' ) || ! defined( 'WPLC_FILE' ) ) {
+			return;
+		}
+		wp_enqueue_style( 'wplc-account', plugins_url( 'assets/css/wplc-account.css', WPLC_FILE ), array(), self::asset_version( 'assets/css/wplc-account.css' ) );
 	}
 
 	/**

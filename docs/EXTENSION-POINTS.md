@@ -103,6 +103,7 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc_package_storage_probe` | `src/Update/PackageStorageCheck.php` | Filters whether the package directory may be probed over HTTP. |
 | `wplc_payment_token_id_for_order` | `src/License/LicenseIssuer.php` |  |
 | `wplc_plan_label` | `src/Notifications/Notifications.php` | Filter the plan name shown to customers. |
+| `wplc_pricing_table_plans` | `src/Account/PricingTable.php` | Filters the plans of the pricing table (block `wplc/pricing`, shortcode `[wplc_pricing]`). |
 | `wplc_product_docs_url` | `src/Notifications/Notifications.php` | Filter the documentation URL shown with the installation steps. |
 | `wplc_public_cancel_hourly_limit` | `src/Account/PublicCancellation.php` | Filter how many public cancellation requests are accepted per hour, |
 | `wplc_public_cancel_order_id` | `src/Account/PublicCancellation.php` | Filter the order ID for an order number typed on the public cancellation |

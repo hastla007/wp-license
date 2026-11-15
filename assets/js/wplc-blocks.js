@@ -1,6 +1,6 @@
 /**
- * Editor side of the blocks "My licenses" and "Changelog". Both are rendered on
- * the server; the editor shows a placeholder and, for the changelog, the settings.
+ * Editor side of the blocks "My licenses", "Changelog" and "Pricing table". All are rendered on
+ * the server; the editor shows a placeholder and, where a block has any, the settings.
  * Labels come from PHP (window.wplcBlocks), so this file has no translatable strings.
  */
 ( function ( wp ) {
@@ -86,6 +86,64 @@
 				null,
 				controls,
 				placeholder( props, s.changelogTitle, attributes.product ? attributes.product : s.changelogPlaceholder )
+			);
+		},
+		save: function () {
+			return null;
+		}
+	} );
+
+	wp.blocks.registerBlockType( 'wplc/pricing', {
+		apiVersion: 3,
+		title: s.pricingTitle,
+		description: s.pricingDescription,
+		category: 'widgets',
+		icon: 'money-alt',
+		supports: { html: false },
+		attributes: {
+			product: { type: 'string', default: '' },
+			highlight: { type: 'string', default: '' },
+			showFeatures: { type: 'boolean', default: true }
+		},
+		edit: function ( props ) {
+			var attributes = props.attributes;
+			var controls = null;
+			if ( InspectorControls && components.PanelBody && components.TextControl ) {
+				controls = el(
+					InspectorControls,
+					null,
+					el(
+						components.PanelBody,
+						{ title: s.pricingTitle },
+						el( components.TextControl, {
+							label: s.changelogProduct,
+							value: attributes.product,
+							onChange: function ( value ) {
+								props.setAttributes( { product: value } );
+							}
+						} ),
+						el( components.TextControl, {
+							label: s.pricingHighlight,
+							value: attributes.highlight,
+							onChange: function ( value ) {
+								props.setAttributes( { highlight: value } );
+							}
+						} ),
+						components.ToggleControl ? el( components.ToggleControl, {
+							label: s.pricingFeatures,
+							checked: !! attributes.showFeatures,
+							onChange: function ( value ) {
+								props.setAttributes( { showFeatures: !! value } );
+							}
+						} ) : null
+					)
+				);
+			}
+			return el(
+				wp.element.Fragment,
+				null,
+				controls,
+				placeholder( props, s.pricingTitle, attributes.product ? attributes.product : s.changelogPlaceholder )
 			);
 		},
 		save: function () {

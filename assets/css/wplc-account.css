@@ -109,3 +109,57 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* Pricing table (block wplc/pricing, shortcode [wplc_pricing]): colours come from the theme. */
+.wplc-pricing {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(14em, 1fr));
+	gap: 1.5em;
+	margin: 0 0 2em;
+}
+
+.wplc-pricing__plan {
+	display: flex;
+	flex-direction: column;
+	padding: 1.5em;
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	border-radius: 4px;
+}
+
+.wplc-pricing__plan--highlight {
+	border-width: 2px;
+	border-color: currentColor;
+}
+
+.wplc-pricing__badge {
+	margin: 0 0 0.5em;
+	font-size: 0.85em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.wplc-pricing__name {
+	margin: 0 0 0.5em;
+}
+
+.wplc-pricing__price {
+	margin: 0 0 1em;
+	font-size: 1.25em;
+	font-weight: 600;
+}
+
+.wplc-pricing__term {
+	font-size: 0.8em;
+	font-weight: 400;
+}
+
+.wplc-pricing__features {
+	flex: 1 1 auto;
+	margin: 0 0 1.5em;
+	padding-inline-start: 1.2em;
+}
+
+.wplc-pricing__buy {
+	margin: 0;
+}
