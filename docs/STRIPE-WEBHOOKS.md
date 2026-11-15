@@ -126,7 +126,7 @@ The follow-up events are resolved the same way. None of them changes a license; 
 | `charge.dispute.closed`, status `won` | `dispute_won` | `wplc/dispute_won( $license_id, $order_id, $dispute_id )` per license. The license is **not** reactivated: whether the customer gets it back is the shop's decision |
 | `charge.dispute.closed`, other status (`lost`, `warning_closed`) | `dispute_closed` | `wplc/dispute_closed( $order_id, $license_ids, $dispute_id, $status )` |
 | `charge.dispute.funds_reinstated` | `dispute_funds_reinstated` | `wplc/dispute_funds_reinstated( $order_id, $license_ids, $dispute_id )` |
-| `radar.early_fraud_warning.created` | `stripe_early_fraud_warning` | `wplc/stripe_early_fraud_warning( $order_id, $license_ids, $warning_id, $fraud_type )`. Alert only; refunding now usually avoids the dispute |
+| `radar.early_fraud_warning.created` | `stripe_early_fraud_warning` (plus `renewal_disabled` per license) | Automatic renewal of the order's licenses is switched off through `RenewalSwitch::off()` (P-58), so the reported card is not charged again off-session; the licenses stay usable until the end of the paid period. Then `wplc/stripe_early_fraud_warning( $order_id, $license_ids, $warning_id, $fraud_type )`. Refunding now usually avoids the dispute |
 
 ## Manual-review outcomes
 

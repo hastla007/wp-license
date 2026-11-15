@@ -86,6 +86,24 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	public const META_ATTEMPT_MARKED = '_wplc_stripe_attempt_marked';
 
 	/**
+	 * Order meta: the request of the current attempt as first sent to Stripe (P-03).
+	 *
+	 * Array with `attempt` (attempt key), `key` (Stripe idempotency key),
+	 * `payment_method`, `amount`, `currency` and `sent_at`. Written before the
+	 * request leaves and kept while its outcome is unknown, so every repeat of
+	 * the attempt sends the same Stripe key, whatever card or amount the order
+	 * has by then. Removed once Stripe answered the attempt definitely.
+	 */
+	public const META_ATTEMPT_REQUEST = '_wplc_stripe_attempt_request';
+
+	/**
+	 * Error parameters after which Stripe no longer knows the saved card or the customer (P-16).
+	 *
+	 * @var string[]
+	 */
+	private const MISSING_METHOD_PARAMS = array( 'payment_method', 'customer', 'source' );
+
+	/**
 	 * Register adapter and payment-token lookup.
 	 *
 	 * @return void
@@ -262,10 +280,10 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	/**
 	 * Classify a Stripe error object (B-62, A-15, A-16, B-146). Pure.
 	 *
-	 * @param array<string,string> $error Keys type, code, decline_code, advice_code, outcome_type.
+	 * @param array<string,string> $error Keys type, code, decline_code, advice_code, outcome_type, param.
 	 * @return array{kind:string,code:string,retryable:bool} kind is one of `authentication`,
-	 *         `declined`, `configuration`, `rate_limited`, `unknown`. `code` is the error
-	 *         code stored on the renewal.
+	 *         `declined`, `payment_method_missing`, `configuration`, `rate_limited`, `unknown`.
+	 *         `code` is the error code stored on the renewal.
 	 */
 	public static function classify_error( array $error ): array {
 		$type = sanitize_key( (string) ( $error['type'] ?? '' ) );
@@ -273,6 +291,7 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 		$decline = sanitize_key( (string) ( $error['decline_code'] ?? '' ) );
 		$advice = sanitize_key( (string) ( $error['advice_code'] ?? '' ) );
 		$outcome = sanitize_key( (string) ( $error['outcome_type'] ?? '' ) );
+		$param = sanitize_key( (string) ( $error['param'] ?? '' ) );
 
 		if ( in_array( 'authentication_required', array( $code, $decline ), true ) || 'payment_intent_authentication_failure' === $code ) {
 			return array(
@@ -316,8 +335,20 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 				'retryable' => ! $hard,
 			);
 		}
+		if (
+			'invalid_request_error' === $type
+			&& ( ( 'resource_missing' === $code && in_array( $param, self::MISSING_METHOD_PARAMS, true ) ) || 'payment_method_unexpected_state' === $code )
+		) {
+			// P-16: the card was removed or detached at Stripe, or the Stripe customer was deleted.
+			// Not a shop setting: the customer has to add a payment method, like a token that is gone locally.
+			return array(
+				'kind' => 'payment_method_missing',
+				'code' => 'renewal_payment_method_missing',
+				'retryable' => false,
+			);
+		}
 		if ( in_array( $type, array( 'invalid_request_error', 'authentication_error', 'permission_error' ), true ) ) {
-			// Wrong account or mode, deleted customer or payment method, invalid key: the shop has to act.
+			// Wrong account or mode, invalid key, malformed request: the shop has to act.
 			return array(
 				'kind' => 'configuration',
 				'code' => substr( 'stripe_' . ( '' !== $code ? $code : $type ), 0, 100 ),
@@ -347,11 +378,25 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	 * @param string $payment_method Stripe payment method ID.
 	 * @param int    $amount Amount in minor units.
 	 * @param string $currency Currency code.
+	 * The renewal order is part of the key (P-61): the salt lives on the order,
+	 * the attempt counter on the renewal, so a new order for the same attempt
+	 * would otherwise start at salt 0 again and reuse a key Stripe already
+	 * holds for the old order (`idempotency_error`). Zero leaves the order out,
+	 * the format of keys sent before that change.
+	 *
+	 * Only the first request of an attempt computes the key; repeats while its
+	 * outcome is unknown send the key stored in META_ATTEMPT_REQUEST (P-03).
+	 *
 	 * @param int    $salt Refusal counter.
+	 * @param int    $order_id Renewal order ID, zero for the format without it.
 	 * @return string
 	 */
-	public static function stripe_idempotency_key( string $attempt_key, string $customer, string $payment_method, int $amount, string $currency, int $salt = 0 ): string {
-		$bound = substr( hash( 'sha256', implode( '|', array( $customer, $payment_method, $amount, strtolower( $currency ), $salt ) ) ), 0, 16 );
+	public static function stripe_idempotency_key( string $attempt_key, string $customer, string $payment_method, int $amount, string $currency, int $salt = 0, int $order_id = 0 ): string {
+		$parts = array( $customer, $payment_method, $amount, strtolower( $currency ), $salt );
+		if ( $order_id > 0 ) {
+			$parts[] = 'order' . $order_id;
+		}
+		$bound = substr( hash( 'sha256', implode( '|', $parts ) ), 0, 16 );
 
 		return substr( $attempt_key, 0, 200 ) . ':' . $bound;
 	}
@@ -398,7 +443,13 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 			return self::configuration_error( 'renewal_gateway_mode_mismatch', __( 'The Stripe mode changed while this renewal was being charged. Check the payment in Stripe before charging again.', 'wp-license' ) );
 		}
 		$context = $this->renewal_context( $order );
-		$known = $this->find_existing_intent( $order, $context, $amount, $currency, $idempotency_key );
+		// P-03: a request of this attempt may already have reached Stripe (result unknown).
+		// Then only a lookup that definitely finds nothing lets a request go out, and that
+		// request carries the key of the first one, so Stripe can never take a second payment.
+		$frozen = self::frozen_request( $order, $idempotency_key );
+		$sent_before = null !== $frozen
+			|| 0 < RenewalProcessor::unknown_since_from_meta( (string) $order->get_meta( RenewalProcessor::META_RESULT_UNKNOWN_SINCE, true ), self::attempt_number( $idempotency_key ) );
+		$known = $this->find_existing_intent( $order, $context, $amount, $currency, $idempotency_key, $sent_before );
 		if ( is_wp_error( $known ) ) {
 			return $known;
 		}
@@ -422,8 +473,15 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 			'description' => self::description( $order ),
 			'metadata' => self::metadata( $order, $context, $idempotency_key, $amount ),
 		);
-		$salt = absint( $order->get_meta( self::META_KEY_SALT, true ) );
-		$stripe_key = self::stripe_idempotency_key( $idempotency_key, $customer, $payment_method, $amount, $currency, $salt );
+		if ( null !== $frozen ) {
+			// Even with another card or amount by now: with the first key Stripe either replays the
+			// first request or, if that never arrived, makes the one and only charge.
+			$stripe_key = $frozen['key'];
+		} else {
+			$salt = absint( $order->get_meta( self::META_KEY_SALT, true ) );
+			// An attempt sent before the key was stored keeps the key format of that time.
+			$stripe_key = self::stripe_idempotency_key( $idempotency_key, $customer, $payment_method, $amount, $currency, $salt, $sent_before ? 0 : (int) $order->get_id() );
+		}
 		$idempotency_filter = static function ( $current, $body ) use ( $stripe_key ) {
 			return ! empty( $body['metadata']['wplc_renewal_id'] ) ? $stripe_key : $current;
 		};
@@ -437,6 +495,20 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 		$order->update_meta_data( self::META_GATEWAY_LOCK, (string) ( time() + 5 * MINUTE_IN_SECONDS ) );
 		if ( '' !== $mode ) {
 			$order->update_meta_data( self::META_MODE, $mode );
+		}
+		if ( null === $frozen ) {
+			// Stored before the request leaves: a timeout or a crash must not lose the key.
+			$order->update_meta_data(
+				self::META_ATTEMPT_REQUEST,
+				array(
+					'attempt' => $idempotency_key,
+					'key' => $stripe_key,
+					'payment_method' => $payment_method,
+					'amount' => $amount,
+					'currency' => $currency,
+					'sent_at' => time(),
+				)
+			);
 		}
 		$order->save_meta_data();
 
@@ -461,11 +533,70 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 			return $unknown;
 		}
 		if ( ! empty( $response->error ) && is_object( $response->error ) ) {
-			return $this->result_from_error( $response->error, $order );
+			if ( null !== $frozen && 'idempotency_error' === sanitize_key( (string) ( $response->error->type ?? '' ) ) ) {
+				// P-03: the first request of this attempt reached Stripe with other parameters (the
+				// card or the amount changed since). Its payment exists or is being made; it is
+				// looked up again instead of charging with a new key.
+				$order->add_order_note( __( 'WP License Captain: the card or the amount of this renewal changed while the result of the first payment request was unknown. Stripe holds that first request, so nothing new was charged; the payment is looked up again.', 'wp-license' ) );
+				return $unknown;
+			}
+			$result = $this->result_from_error( $response->error, $order );
+		} else {
+			$result = $this->result_from_intent( $response, $order, $customer, $payment_method, $idempotency_key, false );
+			if ( null === $result ) {
+				$result = new \WP_Error( 'stripe_payment_unconfirmed', __( 'Stripe did not confirm the renewal payment as succeeded.', 'wp-license' ) );
+			}
 		}
-		$result = $this->result_from_intent( $response, $order, $customer, $payment_method, $idempotency_key, false );
+		if ( self::answers_attempt( $result ) ) {
+			$order->delete_meta_data( self::META_ATTEMPT_REQUEST );
+			$order->save_meta_data();
+		}
 
-		return null !== $result ? $result : new \WP_Error( 'stripe_payment_unconfirmed', __( 'Stripe did not confirm the renewal payment as succeeded.', 'wp-license' ) );
+		return $result;
+	}
+
+	/**
+	 * Request of this attempt as first sent to Stripe, if one was stored (P-03).
+	 *
+	 * @param \WC_Order $order Renewal order.
+	 * @param string    $attempt_key Key of the current attempt.
+	 * @return array{key:string,payment_method:string,amount:int,currency:string}|null
+	 */
+	private static function frozen_request( $order, string $attempt_key ): ?array {
+		$stored = $order->get_meta( self::META_ATTEMPT_REQUEST, true );
+		if ( ! is_array( $stored ) || (string) ( $stored['attempt'] ?? '' ) !== $attempt_key || '' === (string) ( $stored['key'] ?? '' ) ) {
+			return null;
+		}
+
+		return array(
+			'key' => (string) $stored['key'],
+			'payment_method' => (string) ( $stored['payment_method'] ?? '' ),
+			'amount' => absint( $stored['amount'] ?? 0 ),
+			'currency' => (string) ( $stored['currency'] ?? '' ),
+		);
+	}
+
+	/**
+	 * Attempt counter at the end of an attempt key `{renewal key}:{attempt}`. Pure.
+	 *
+	 * @param string $attempt_key Key of the attempt.
+	 * @return int -1 when the key carries no counter.
+	 */
+	public static function attempt_number( string $attempt_key ): int {
+		return preg_match( '/:(\d+)$/', $attempt_key, $match ) ? (int) $match[1] : -1;
+	}
+
+	/**
+	 * Whether a charge result settles the attempt, so its stored request may go (P-03). Pure.
+	 *
+	 * An unknown result keeps it, and so does a rate limit: Stripe did not look at
+	 * that repeat, but may still hold the first request of the attempt.
+	 *
+	 * @param array|\WP_Error $result Result of charge().
+	 * @return bool
+	 */
+	public static function answers_attempt( $result ): bool {
+		return ! ( is_wp_error( $result ) && in_array( $result->get_error_code(), array( RenewalProcessor::RESULT_UNKNOWN, 'renewal_gateway_rate_limited' ), true ) );
 	}
 
 	/**
@@ -487,8 +618,20 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 		if ( 'succeeded' === $status ) {
 			$this->remember_payment_intent( $order, $intent_id );
 			$charge_id = self::charge_id( $intent );
+			if ( '' === $charge_id && 0 === strpos( $intent_id, 'pi_' ) ) {
+				// P-59: an answer without the charge (other API version, shortened answer): ask for it.
+				$expanded = $this->retrieve( 'payment_intents/' . rawurlencode( $intent_id ) . '?expand%5B%5D=latest_charge' );
+				if ( is_object( $expanded ) && empty( $expanded->error ) && 'succeeded' === sanitize_key( (string) ( $expanded->status ?? '' ) ) ) {
+					$charge_id = self::charge_id( $expanded );
+				}
+			}
 			if ( '' === $charge_id ) {
-				return new \WP_Error( 'stripe_transaction_missing', __( 'Stripe did not return a transaction reference.', 'wp-license' ) );
+				// P-59: the money was taken. Never a decline: the result stays open and is looked up again.
+				return new \WP_Error(
+					RenewalProcessor::RESULT_UNKNOWN,
+					__( 'Stripe reports the renewal payment as succeeded but returned no transaction reference.', 'wp-license' ),
+					array( 'payment_intent' => $intent_id )
+				);
 			}
 			$intent_method = is_string( $intent->payment_method ?? null ) ? (string) $intent->payment_method : $payment_method;
 			$fresh = wc_get_order( (int) $order->get_id() );
@@ -564,8 +707,18 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 			'decline_code' => sanitize_key( (string) ( $error->decline_code ?? '' ) ),
 			'advice_code' => sanitize_key( (string) ( $error->advice_code ?? '' ) ),
 			'outcome_type' => self::outcome_type( $error, $intent ),
+			'param' => sanitize_key( (string) ( $error->param ?? '' ) ),
 		);
 		$class = self::classify_error( $details );
+		if ( 'payment_method_missing' === $class['kind'] && ! $this->account_knows_customer( $order ) ) {
+			// A secret key of another Stripe account answers the same way: that is the shop's
+			// problem, and the customer must not be asked for a new card because of it.
+			$class = array(
+				'kind' => 'configuration',
+				'code' => substr( 'stripe_' . ( '' !== $details['code'] ? $details['code'] : 'resource_missing' ), 0, 100 ),
+				'retryable' => false,
+			);
+		}
 		$data = array(
 			'retryable' => $class['retryable'],
 			'decline_code' => $details['decline_code'],
@@ -583,6 +736,19 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 			case 'rate_limited':
 				// A-15: Stripe refused to look at the request. Nothing was charged and the customer is not at fault.
 				return new \WP_Error( 'renewal_gateway_rate_limited', __( 'Stripe limited the number of requests. The renewal is tried again later.', 'wp-license' ), array( 'wait' => self::RATE_LIMIT_WAIT_SECONDS ) );
+			case 'payment_method_missing':
+				// P-16: nothing was charged. The corrected request (new card) must not get this stored answer.
+				$order->update_meta_data( self::META_KEY_SALT, (string) ( absint( $order->get_meta( self::META_KEY_SALT, true ) ) + 1 ) );
+				$order->update_meta_data( '_wplc_stripe_error_code', $details['code'] );
+				$order->save_meta_data();
+				$order->add_order_note(
+					sprintf(
+						/* translators: %s: Stripe error code. */
+						__( 'WP License Captain: Stripe no longer has the saved card or the customer of this renewal (%s). The customer was not charged and is asked to add a payment method.', 'wp-license' ),
+						'' !== $details['code'] ? $details['code'] : '-'
+					)
+				);
+				return self::configuration_error( $class['code'], __( 'The saved card or the customer no longer exists at Stripe. The renewal is not charged.', 'wp-license' ), $data );
 			case 'configuration':
 				// A-16: Stripe refused the request itself. A corrected request must not get this stored answer.
 				$order->update_meta_data( self::META_KEY_SALT, (string) ( absint( $order->get_meta( self::META_KEY_SALT, true ) ) + 1 ) );
@@ -617,6 +783,26 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 		);
 
 		return new \WP_Error( $class['code'], __( 'Stripe declined the renewal payment.', 'wp-license' ), $data );
+	}
+
+	/**
+	 * Whether the Stripe account the gateway uses knows the order's customer (P-16).
+	 *
+	 * Stripe keeps a deleted customer retrievable (`deleted: true`), so a
+	 * customer this account cannot find at all points to a key of another
+	 * account rather than to a card the customer lost.
+	 *
+	 * @param \WC_Order $order Renewal order.
+	 * @return bool False when unknown, not found or Stripe gave no answer.
+	 */
+	private function account_knows_customer( $order ): bool {
+		$customer = $order->get_customer_id() ? (string) get_user_option( '_stripe_customer_id', (int) $order->get_customer_id() ) : '';
+		if ( 0 !== strpos( $customer, 'cus_' ) ) {
+			return false;
+		}
+		$found = $this->retrieve( 'customers/' . rawurlencode( $customer ) );
+
+		return is_object( $found ) && empty( $found->error ) && $customer === (string) ( $found->id ?? '' );
 	}
 
 	/**
@@ -845,9 +1031,12 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	 * @param int                 $amount Expected amount in minor units.
 	 * @param string              $currency Expected currency, lower case.
 	 * @param string              $attempt_key Key of the current attempt.
+	 * @param bool                $sent_before Whether a request of this attempt may have reached Stripe
+	 *                                         (result unknown). Then only a definite answer counts as
+	 *                                         "nothing found" (P-03).
 	 * @return object|\WP_Error|null Intent, null when Stripe has none, WP_Error when that is not known.
 	 */
-	private function find_existing_intent( $order, array $context, int $amount, string $currency, string $attempt_key ) {
+	private function find_existing_intent( $order, array $context, int $amount, string $currency, string $attempt_key, bool $sent_before = false ) {
 		$unknown = new \WP_Error( 'renewal_result_unknown', __( 'Stripe could not be asked about earlier payments for this renewal.', 'wp-license' ) );
 		$candidates = array();
 
@@ -859,6 +1048,8 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 			}
 			if ( empty( $intent->error ) ) {
 				$candidates[] = $intent;
+			} elseif ( $sent_before ) {
+				return $unknown;
 			}
 		}
 
@@ -873,8 +1064,12 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 					$candidates[] = $intent;
 				}
 			}
+		} elseif ( $sent_before ) {
+			// P-03: a refused search is no proof that the earlier request took no payment.
+			return $unknown;
 		}
-		// A search that Stripe refuses (not available for the account) does not block renewals.
+		// Before the first request of an attempt, a search that Stripe refuses (not available
+		// for the account) does not block renewals: the new key cannot repeat an earlier payment.
 
 		$best = null;
 		$rank = array(

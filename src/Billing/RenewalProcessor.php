@@ -402,7 +402,12 @@ final class RenewalProcessor {
 			if ( in_array( $error->get_error_code(), self::SHOP_SIDE_ERRORS, true ) ) {
 				self::update_renewal( $renewal_id, array( 'status' => $renewal['status'] ) );
 				// A-16: the adapter names the cause in `reason`; the renewal row keeps it.
-				self::defer_attempt( $renewal, is_array( $error_data ) && ! empty( $error_data['reason'] ) ? (string) $error_data['reason'] : (string) $error->get_error_code(), self::BLOCKED_RETRY_SECONDS );
+				$reason = is_array( $error_data ) && ! empty( $error_data['reason'] ) ? (string) $error_data['reason'] : (string) $error->get_error_code();
+				if ( ! $reconciling && 'renewal_payment_method_missing' === $reason ) {
+					// P-16: the gateway no longer has the card (e.g. removed at Stripe): same as a token that is gone here.
+					PaymentReference::report_unresolved( $license, $renewal_id, $error, (string) ( $renewal['last_error'] ?? '' ) !== $reason );
+				}
+				self::defer_attempt( $renewal, $reason, self::BLOCKED_RETRY_SECONDS );
 				return;
 			}
 			$definite = self::RESULT_UNKNOWN !== $error->get_error_code();
@@ -1260,7 +1265,7 @@ final class RenewalProcessor {
 			return;
 		}
 		if ( is_array( $payload ) && StripeEventHandler::handles( (string) $event['event_type'] ) ) {
-			// B-148: dispute follow-ups and fraud warnings never change a license.
+			// B-148: dispute follow-ups never change a license; a fraud warning only switches automatic renewal off (P-58).
 			self::finish_stripe_event( $inbox_id, StripeEventHandler::handle( (string) $event['event_type'], $payload ) );
 			return;
 		}
