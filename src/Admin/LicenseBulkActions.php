@@ -212,7 +212,7 @@ final class LicenseBulkActions {
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Every field is sanitized below.
 		$post    = wp_unslash( $_POST );
-		$return  = self::return_url( is_array( $post ) ? $post : array() );
+		$return  = self::return_url( $post );
 		$action  = isset( $post['bulk_action'] ) && is_string( $post['bulk_action'] ) ? sanitize_key( $post['bulk_action'] ) : '';
 		$reason  = isset( $post['bulk_reason'] ) && is_string( $post['bulk_reason'] ) ? trim( sanitize_textarea_field( $post['bulk_reason'] ) ) : '';
 		$token   = isset( $post['bulk_token'] ) && is_string( $post['bulk_token'] ) ? sanitize_key( $post['bulk_token'] ) : '';

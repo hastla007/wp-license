@@ -263,7 +263,7 @@ final class PlanUpgrade {
 					if ( is_wp_error( $order ) ) {
 						return $unavailable;
 					}
-					$order->update_meta_data( self::META_LICENSE, $license_id );
+					$order->update_meta_data( self::META_LICENSE, (string) $license_id );
 					$order->set_created_via( 'wplc_plan_upgrade' );
 					RenewalOrder::set_addresses( $order, $license );
 				}
@@ -377,7 +377,7 @@ final class PlanUpgrade {
 				$problem = AuditReason::UPGRADE_TARGET_UNAVAILABLE;
 			}
 		}
-		if ( '' === $problem && $target ) {
+		if ( '' === $problem ) {
 			$amount = array(
 				'amount_minor' => absint( $order->get_meta( self::META_RENEWAL_MINOR, true ) ),
 				'decimals' => (int) $license['renewal_currency_decimals'],
@@ -790,7 +790,7 @@ final class PlanUpgrade {
 	private static function money( int $minor, int $decimals, string $currency ): string {
 		$decimal = Money::to_decimal( $minor, $decimals );
 		if ( function_exists( 'wc_price' ) ) {
-			return html_entity_decode( wp_strip_all_tags( (string) wc_price( $decimal, array( 'currency' => $currency, 'decimals' => $decimals ) ) ), ENT_QUOTES, 'UTF-8' );
+			return html_entity_decode( wp_strip_all_tags( (string) wc_price( (float) $decimal, array( 'currency' => $currency, 'decimals' => $decimals ) ) ), ENT_QUOTES, 'UTF-8' );
 		}
 
 		return $decimal . ' ' . $currency;
