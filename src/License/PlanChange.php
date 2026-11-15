@@ -933,12 +933,14 @@ final class PlanChange {
 	/**
 	 * Replace the entitlement snapshot with the target plan's entitlements.
 	 *
+	 * The caller holds the license lock. Also used by EntitlementSync (A-23).
+	 *
 	 * @param array<string,mixed> $license License row.
 	 * @param array<string,mixed> $plan Catalog plan row.
 	 * @param string              $now Current UTC datetime.
 	 * @return bool
 	 */
-	private static function replace_entitlements( array $license, array $plan, string $now ): bool {
+	public static function replace_entitlements( array $license, array $plan, string $now ): bool {
 		global $wpdb;
 
 		$tables       = Schema::table_names();

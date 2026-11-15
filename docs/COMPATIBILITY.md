@@ -32,7 +32,7 @@ WP License Captain renews licenses itself and does not integrate with WooCommerc
 
 - Renewal and resubscribe orders created by WCS (`wcs_order_contains_renewal()`, `wcs_order_contains_resubscribe()`) never issue a license, so a mapped subscription product no longer creates a new key every period.
 - The plugin screens and the product screens show a notice to users with `wplc_manage_catalog`; it lists license products that are subscription products (`subscription`, `variable-subscription`, `subscription_variation`, the first 200 license products are checked). Do not map subscription products to license plans: WCS would charge the subscription and the license renewal would be charged as well.
-- Mapping such products is not refused yet; the catalog check is open.
+- Mapping such products is refused: the product editor and the catalog CSV import report "WooCommerce Subscriptions products cannot be license products" (`Catalog::save_mapping()` fails with `subscription_product`; also for a variation of a variable subscription). Mappings created before this check keep issuing licenses on the first order; the notice lists them so they can be moved to a simple or variable product.
 
 ## Connected products: declared minimums
 
