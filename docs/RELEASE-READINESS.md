@@ -13,6 +13,7 @@ The work items themselves live in [TODO.md](TODO.md), the single task list. This
 - [ ] Release ZIP built by CI, installed on a clean WordPress with WooCommerce, activated without errors or notices (T-95).
 - [ ] Update from the previous schema version runs without data loss (T-60).
 - [ ] German and English admin and customer texts checked on screen; `languages/` is in the ZIP (T-76).
+- [ ] The plugin header keeps `Update URI: https://github.com/hastla007/wp-license` (P-33). WordPress then never asks WordPress.org for updates of this plugin, so a foreign plugin with the slug `wp-license` can never be offered as an update. The URI identifies the vendor's repository; WordPress itself fetches nothing from it. A plugin that hooks `update_plugins_github.com` (e.g. a Git-based updater) could offer updates from that repository; the shop installs updates of the license server by hand.
 
 ### 2. Purchase and renewal
 

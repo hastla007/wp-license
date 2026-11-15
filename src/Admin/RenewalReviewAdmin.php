@@ -30,6 +30,16 @@ final class RenewalReviewAdmin {
 	public const PAGE = 'wplc-renewal-review';
 
 	/**
+	 * Transient with the open case count for the menu badge (P-52).
+	 */
+	public const COUNT_TRANSIENT = 'wplc_review_menu_count';
+
+	/**
+	 * Seconds the menu badge count is cached. The review page itself always reads the database.
+	 */
+	private const COUNT_TTL = 60;
+
+	/**
 	 * Register menu, assets and the action handler.
 	 *
 	 * @return void
@@ -67,12 +77,31 @@ final class RenewalReviewAdmin {
 	}
 
 	/**
+	 * Open review cases for the menu badge, cached briefly.
+	 *
+	 * The menu is built on every admin request; a badge that lags up to a minute
+	 * behind is fine, a COUNT query on every request is not needed.
+	 *
+	 * @return int
+	 */
+	public static function menu_count(): int {
+		$cached = get_transient( self::COUNT_TRANSIENT );
+		if ( is_numeric( $cached ) ) {
+			return max( 0, (int) $cached );
+		}
+		$count = RenewalReview::open_count();
+		set_transient( self::COUNT_TRANSIENT, (string) $count, self::COUNT_TTL );
+
+		return $count;
+	}
+
+	/**
 	 * Add the WooCommerce submenu page.
 	 *
 	 * @return void
 	 */
 	public static function register_menu(): void {
-		$count = current_user_can( 'manage_woocommerce' ) ? RenewalReview::open_count() : 0;
+		$count = current_user_can( 'manage_woocommerce' ) ? self::menu_count() : 0;
 		add_submenu_page(
 			'woocommerce',
 			__( 'Renewals to review', 'wp-license' ),

@@ -237,23 +237,43 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$property->setAccessible( true );
 		$steps = $property->getValue();
 
-		$this->assertSame( '21', Schema::VERSION );
 		$this->assertSame( 'step_21_merged_schema', $steps['21'][1] );
 		$this->assertSame( 'step_18_adopt_reminder_log', $steps['18'][1] );
 		$this->assertSame( 'step_19_one_heartbeat_store', $steps['19'][1] );
 		// An install recorded at 17 (line A) runs the steps of line B and the merge step.
-		$this->assertSame( array( '18', '19', '21' ), Schema::pending_step_versions( '17', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '18', '19', '21' ), Schema::pending_step_versions( '17', '21', array_keys( $steps ) ) );
 		// An install recorded at 20 (line B) runs only the merge step, which repeats every data step.
-		$this->assertSame( array( '21' ), Schema::pending_step_versions( '20', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '21' ), Schema::pending_step_versions( '20', '21', array_keys( $steps ) ) );
 
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
 		$this->assertSame( 1, preg_match( '/function step_21_merged_schema\(\).*?\n\t}\n/s', $source, $match ) );
 		foreach ( array_keys( $steps ) as $version ) {
-			if ( '21' === (string) $version ) {
+			if ( version_compare( (string) $version, '21', '>=' ) ) {
+				// Step 21 repeats the steps of both lines before the merge; later steps run after it.
 				continue;
 			}
 			$this->assertStringContainsString( "'" . $steps[ $version ][1] . "'", $match[0], 'Step 21 does not repeat step ' . $version );
 		}
+	}
+
+	/**
+	 * P-31/P-53: schema 22 adds the payment-token and last-event indexes; installs on 21 run only step 22.
+	 */
+	public function test_schema_22_adds_the_lookup_index_step(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$property->setAccessible( true );
+		$steps = $property->getValue();
+
+		$this->assertSame( '22', Schema::VERSION );
+		$this->assertSame( 'step_22_lookup_indexes', $steps['22'][1] );
+		$this->assertSame( array( '22' ), Schema::pending_step_versions( '21', Schema::VERSION, array_keys( $steps ) ) );
+		// Installs of either development line run the merge step and step 22.
+		$this->assertSame( array( '21', '22' ), Schema::pending_step_versions( '20', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '18', '19', '21', '22' ), Schema::pending_step_versions( '17', Schema::VERSION, array_keys( $steps ) ) );
+
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		$this->assertStringContainsString( 'KEY payment_token (payment_token_id)', $source );
+		$this->assertStringContainsString( 'KEY source_received (source,received_at)', $source );
 	}
 
 	public function test_create_statements_contain_the_columns_of_both_lines(): void {

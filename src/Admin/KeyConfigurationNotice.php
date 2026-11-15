@@ -28,6 +28,11 @@ final class KeyConfigurationNotice {
 	public const NOTE_NAME = 'wplc-key-configuration';
 
 	/**
+	 * Transient that throttles the inbox note sync to once a day (P-52).
+	 */
+	public const NOTE_SYNC_TRANSIENT = 'wplc_key_note_synced';
+
+	/**
 	 * Register hooks.
 	 *
 	 * @return void
@@ -173,15 +178,23 @@ final class KeyConfigurationNotice {
 	public static function sync_inbox_note(): void {
 		$notes = '\\Automattic\\WooCommerce\\Admin\\Notes\\Notes';
 		$note  = '\\Automattic\\WooCommerce\\Admin\\Notes\\Note';
-		if ( wp_doing_ajax() || ! class_exists( $notes ) || ! class_exists( $note ) || ! current_user_can( 'manage_woocommerce' ) ) {
+		if ( wp_doing_ajax() || self::is_admin_post_request() || ! class_exists( $notes ) || ! class_exists( $note ) || ! current_user_can( 'manage_woocommerce' ) ) {
 			return;
 		}
+		// The note mirrors a state that changes rarely. has_problem() works from cached values
+		// (key sample transient); the notes table is only read when that state changed or
+		// once a day (P-52).
+		$problem = self::has_problem();
+		$state   = $problem ? 'problem' : 'ok';
+		if ( get_transient( self::NOTE_SYNC_TRANSIENT ) === $state ) {
+			return;
+		}
+		set_transient( self::NOTE_SYNC_TRANSIENT, $state, DAY_IN_SECONDS );
 
 		try {
 			$data_store = \WC_Data_Store::load( 'admin-note' );
 			// WC_Data_Store forwards unknown methods to the notes data store.
 			$existing = call_user_func( array( $data_store, 'get_notes_with_name' ), self::NOTE_NAME );
-			$problem    = self::has_problem();
 			if ( ! $problem ) {
 				if ( $existing ) {
 					call_user_func( array( $notes, 'delete_notes_with_name' ), self::NOTE_NAME );
@@ -205,6 +218,17 @@ final class KeyConfigurationNotice {
 			// The inbox is a convenience; the classic notice remains.
 			return;
 		}
+	}
+
+	/**
+	 * Whether this is a form submission to admin-post.php (no screen, nothing to show).
+	 *
+	 * @return bool
+	 */
+	private static function is_admin_post_request(): bool {
+		global $pagenow;
+
+		return isset( $pagenow ) && 'admin-post.php' === $pagenow;
 	}
 
 	/**

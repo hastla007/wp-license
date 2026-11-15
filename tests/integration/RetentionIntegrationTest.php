@@ -246,6 +246,7 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		$tables  = $this->tables();
 		$license = $this->seed_license();
 		$expired = $this->past( 2 );
+		$limit_expired = $this->past( 3 );
 		$future  = gmdate( 'Y-m-d H:i:s', time() + HOUR_IN_SECONDS );
 		$now     = gmdate( 'Y-m-d H:i:s' );
 
@@ -254,7 +255,8 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		for ( $i = 0; $i < 2500; $i++ ) {
 			$hash     = hash( 'sha256', 'row-' . $i );
 			$nonces[] = "(1,'{$hash}','{$expired}','{$expired}')";
-			$limits[] = "('{$hash}','{$expired}',1,'{$expired}')";
+			// P-51: rate-limit buckets are kept two days (yesterday's daily counters stay visible).
+			$limits[] = "('{$hash}','{$limit_expired}',1,'{$limit_expired}')";
 		}
 		$wpdb->query( "INSERT INTO {$tables['request_nonces']} (activation_id,nonce_hash,expires_at,created_at) VALUES " . implode( ',', $nonces ) );
 		$wpdb->query( "INSERT INTO {$tables['request_limits']} (limiter_hash,bucket_start,hits,created_at) VALUES " . implode( ',', $limits ) );

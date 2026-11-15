@@ -74,6 +74,8 @@ final class Plugin {
 		'wplc_send_reminders',
 		'wplc_retry_license_email',
 		'wplc_expire_due_licenses',
+		// One action per job of a split daily run; the next daily run queues them again.
+		'wplc_daily_job',
 	);
 
 	/**
@@ -185,7 +187,8 @@ final class Plugin {
 	 */
 	public static function deactivate_site(): void {
 		foreach ( self::CRON_HOOKS as $hook ) {
-			wp_clear_scheduled_hook( $hook );
+			// Every event of the hook, whatever its arguments (wp_clear_scheduled_hook() only matches equal ones).
+			wp_unschedule_hook( $hook );
 		}
 		// A cursor left behind by an unfinished reminder run would skip licenses after reactivation.
 		delete_option( 'wplc_reminder_cursor' );

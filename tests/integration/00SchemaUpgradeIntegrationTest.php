@@ -233,6 +233,12 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		if ( ! wp_next_scheduled( 'wplc_daily_lifecycle' ) ) {
 			wp_schedule_event( time() + 300, 'daily', 'wplc_daily_lifecycle' );
 		}
+		// P-54: single events with arguments (WP-Cron fallback of renewals, grace end, plan upgrade).
+		wp_schedule_single_event( time() + 90 * DAY_IN_SECONDS, 'wplc_process_renewal', array( 41 ) );
+		wp_schedule_single_event( time() + 600, 'wplc/renewal_grace_ended', array( 42 ) );
+		wp_schedule_single_event( time() + 600, 'wplc_apply_plan_upgrade', array( 43 ) );
+		wp_schedule_single_event( time() + 600, 'other_plugin_hook', array( 44 ) );
+		set_transient( 'wplc_hb_test', 'x', HOUR_IN_SECONDS );
 		if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 			define( 'WP_UNINSTALL_PLUGIN', 'wp-license/wp-license.php' );
 		}
@@ -240,6 +246,12 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		require dirname( __DIR__, 2 ) . '/uninstall.php';
 
 		$this->assertFalse( wp_next_scheduled( 'wplc_daily_lifecycle' ) );
+		$this->assertFalse( wp_next_scheduled( 'wplc_process_renewal', array( 41 ) ) );
+		$this->assertFalse( wp_next_scheduled( 'wplc/renewal_grace_ended', array( 42 ) ) );
+		$this->assertFalse( wp_next_scheduled( 'wplc_apply_plan_upgrade', array( 43 ) ) );
+		$this->assertNotFalse( wp_next_scheduled( 'other_plugin_hook', array( 44 ) ), 'Events of other plugins stay.' );
+		wp_clear_scheduled_hook( 'other_plugin_hook', array( 44 ) );
+		$this->assertFalse( get_transient( 'wplc_hb_test' ), 'Transients go through the transient API (object cache).' );
 		$this->assertFalse( get_option( 'wplc_reminder_cursor' ) );
 		$this->assertFalse( get_option( 'wplc_gap_window' ) );
 		wp_cache_delete( 'notoptions', 'options' );
@@ -330,5 +342,10 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 
 		$this->assertContains( $wpdb->get_blog_prefix( 5 ) . 'wplc_reminder_log', $tables );
 		$this->assertContains( 'wp_5_posts', $tables );
+		$this->assertSame( count( $tables ), count( array_unique( $tables ) ) );
+		if ( is_multisite() ) {
+			$this->assertSame( array( 'wp_1_posts' ), Schema::filter_wpmu_drop_tables( array( 'wp_1_posts' ), get_main_site_id() ), 'The main site is never touched.' );
+			$this->assertNotFalse( has_filter( 'wpmu_drop_tables', array( Schema::class, 'filter_wpmu_drop_tables' ) ) );
+		}
 	}
 }
