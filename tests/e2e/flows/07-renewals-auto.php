@@ -158,7 +158,7 @@ e2e_login( 0 );
 
 // Retries 2, 3, 4.
 // After the last retry the renewal waits for the end of grace with a date (B-190), without a queued charge job.
-$expected_retries = array( 2 => $utc( $start + 3 * DAY_IN_SECONDS ), 3 => $utc( $start + 7 * DAY_IN_SECONDS ), 4 => $utc( $start + \WPLC\License\LicenseLifecycle::GRACE_DAYS * DAY_IN_SECONDS ) );
+$expected_retries = array( 2 => $utc( $start + 3 * DAY_IN_SECONDS ), 3 => $utc( $start + 7 * DAY_IN_SECONDS ), 4 => $utc( $start + \WPLC\License\LicenseLifecycle::grace_days() * DAY_IN_SECONDS ) );
 foreach ( $expected_retries as $attempt => $retry_at ) {
 	// B-188: a job that runs before retry_at does not charge, so the retry is made due first.
 	$wpdb->update( $t['renewals'], array( 'retry_at' => $utc( time() - 5 ) ), array( 'id' => $renewal_id ) );

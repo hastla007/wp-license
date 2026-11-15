@@ -75,6 +75,16 @@ An older database does not know what happened after the backup: renewals that we
 
 Follow "Staging copies and the billing pause" above: environment type, `WPLC_PAUSE_BILLING`, own secrets, flush the object cache. Customer email delivery of WooCommerce itself (order emails) is outside this plugin; use a mail trap on staging.
 
+### Updating the license server plugin itself
+
+The plugin is not on WordPress.org and does not install its own updates (A-42). It tells the shop that a new release exists:
+
+- The header `Update URI: https://github.com/hastla007/wp-license` makes WordPress ask the filter `update_plugins_github.com` during its normal update check (twice a day). `WPLC\Infrastructure\SelfUpdateCheck` answers it from the latest published GitHub release of that repository (`https://api.github.com/repos/hastla007/wp-license/releases/latest`; drafts and pre-releases are not returned). The answer is cached for twelve hours (one hour after a failed check) in the site transient `wplc_self_update`.
+- **Plugins** then shows "There is a new version of WP License Captain available" with a link to the release, and "Automatic update is unavailable for this plugin": the answer never contains a package, so nothing is downloaded or installed without a person. **Diagnostics** shows the row "Newest release" from the cache (the diagnostics page itself makes no request).
+- To install: download `wp-license-captain-<version>.zip` and `.zip.sha256` from the release (built by `release.yml`), check `sha256sum -c`, take a backup, install on staging first, then upload the ZIP under **Plugins → Add New → Upload** and choose "Replace current with uploaded". Database migrations run on the next request (see "Database migrations").
+- The check sends one HTTPS request without site data to `api.github.com` (the IP address of the server and the user agent `wp-license-captain`). Switch it off with `define( 'WPLC_DISABLE_UPDATE_CHECK', true );` or the filter `wplc_self_update_check_enabled`; then watch the repository's releases instead. A fork or mirror can point the check elsewhere with `wplc_self_update_release_api` (the answer must have the GitHub release format).
+- If the repository is private, the API answers 404 and the row stays "Not known yet"; nothing else changes.
+
 ### Rolling back the plugin
 
 Installing an older plugin version over a newer database is detected: nothing is migrated backwards, administrators see a notice, and billing is paused until the newer version is installed again. Roll back the plugin only together with the database backup that belongs to it.

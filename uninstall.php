@@ -139,7 +139,7 @@ if ( is_multisite() && function_exists( 'get_sites' ) ) {
 		wplc_uninstall_site( $wplc_remove_data );
 		restore_current_blog();
 	}
-	// Network-wide transients (none are written today; removes leftovers of other versions).
+	// Network-wide transients (the release check `wplc_self_update`, A-42; and leftovers of other versions).
 	global $wpdb;
 	$wplc_site_transients = $wpdb->get_col( $wpdb->prepare( "SELECT meta_key FROM {$wpdb->sitemeta} WHERE meta_key LIKE %s", $wpdb->esc_like( '_site_transient_wplc_' ) . '%' ) );
 	foreach ( is_array( $wplc_site_transients ) ? $wplc_site_transients : array() as $wplc_site_transient ) {
@@ -147,4 +147,6 @@ if ( is_multisite() && function_exists( 'get_sites' ) ) {
 	}
 } else {
 	wplc_uninstall_site( $wplc_remove_data );
+	// Cached answer of the release check (A-42); stored as a site option on a single site.
+	delete_site_transient( 'wplc_self_update' );
 }

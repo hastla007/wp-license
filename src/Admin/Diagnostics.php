@@ -510,6 +510,41 @@ final class Diagnostics {
 	}
 
 	/**
+	 * Which database layer serves this site, and whether it splits reads from writes (B-24).
+	 *
+	 * HyperDB and LudicrousDB (both a `db.php` drop-in) send reads to replicas. The
+	 * activation lock and the site-limit counts must run on the primary; the plugin
+	 * asks for that with `send_reads_to_master()` (ActivationManager::use_primary_database()),
+	 * which has not been run against a replicated setup. A layer that splits without
+	 * offering that switch can let the site limit be exceeded. Pure apart from the defaults.
+	 *
+	 * @param object|null $db      Database object; defaults to $wpdb.
+	 * @param bool|null   $drop_in Whether `wp-content/db.php` exists; detected when null.
+	 * @return array{class:string,drop_in:bool,splitting:bool,primary_switch:bool,warning:bool}
+	 */
+	public static function database_layer( $db = null, ?bool $drop_in = null ): array {
+		if ( null === $db ) {
+			global $wpdb;
+			$db = $wpdb;
+		}
+		if ( null === $drop_in ) {
+			$drop_in = defined( 'WP_CONTENT_DIR' ) && file_exists( WP_CONTENT_DIR . '/db.php' );
+		}
+		$class = is_object( $db ) ? get_class( $db ) : '';
+		// Both drop-ins register their servers with add_database(); their class names are hyperdb and LudicrousDB.
+		$splitting      = is_object( $db ) && ( method_exists( $db, 'add_database' ) || in_array( strtolower( $class ), array( 'hyperdb', 'ludicrousdb' ), true ) );
+		$primary_switch = is_object( $db ) && method_exists( $db, 'send_reads_to_master' );
+
+		return array(
+			'class'          => $class,
+			'drop_in'        => $drop_in,
+			'splitting'      => $splitting,
+			'primary_switch' => $primary_switch,
+			'warning'        => $splitting,
+		);
+	}
+
+	/**
 	 * How the client address of API requests is determined on this server.
 	 *
 	 * @param array<string,mixed>|null $server Server variables; defaults to $_SERVER.
@@ -650,8 +685,8 @@ final class Diagnostics {
 		global $wpdb;
 
 		$cutoff = gmdate( 'Y-m-d H:i:s', $now - self::STUCK_RENEWAL_TOLERANCE );
-		// Rows without grace_ends_at: the grace period ends GRACE_DAYS after period_start.
-		$period_start_cutoff = gmdate( 'Y-m-d H:i:s', $now - self::STUCK_RENEWAL_TOLERANCE - LicenseLifecycle::GRACE_DAYS * 86400 );
+		// Rows without grace_ends_at: the grace period ends grace_days() after period_start.
+		$period_start_cutoff = gmdate( 'Y-m-d H:i:s', $now - self::STUCK_RENEWAL_TOLERANCE - LicenseLifecycle::grace_days() * 86400 );
 
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
@@ -712,7 +747,7 @@ final class Diagnostics {
 			$grace_end = self::row_time( $renewal, 'grace_ends_at' );
 			if ( null === $grace_end ) {
 				$period_start = self::row_time( $renewal, 'period_start' );
-				$grace_end = null === $period_start ? null : $period_start + LicenseLifecycle::GRACE_DAYS * 86400;
+				$grace_end = null === $period_start ? null : $period_start + LicenseLifecycle::grace_days() * 86400;
 			}
 			return null !== $grace_end && $grace_end <= $cutoff;
 		}
@@ -826,6 +861,18 @@ final class Diagnostics {
 		};
 
 		$add( __( 'Plugin version', 'wp-license' ), defined( 'WPLC_VERSION' ) ? (string) WPLC_VERSION : __( 'Unknown', 'wp-license' ) );
+		// A-42: cached answer of the release check only; this page does not ask GitHub.
+		$release = \WPLC\Infrastructure\SelfUpdateCheck::enabled() ? \WPLC\Infrastructure\SelfUpdateCheck::latest( false ) : null;
+		if ( ! \WPLC\Infrastructure\SelfUpdateCheck::enabled() ) {
+			$add( __( 'Newest release', 'wp-license' ), __( 'Check switched off (WPLC_DISABLE_UPDATE_CHECK)', 'wp-license' ) );
+		} elseif ( null === $release ) {
+			$add( __( 'Newest release', 'wp-license' ), __( 'Not known yet. WordPress checks for updates twice a day.', 'wp-license' ) );
+		} elseif ( defined( 'WPLC_VERSION' ) && version_compare( $release['version'], (string) WPLC_VERSION, '>' ) ) {
+			/* translators: 1: version number, 2: address of the release page. */
+			$add( __( 'Newest release', 'wp-license' ), sprintf( __( '%1$s is available: %2$s', 'wp-license' ), $release['version'], $release['url'] ), 'warning', __( 'Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/PRODUCTION-OPERATIONS.md).', 'wp-license' ) );
+		} else {
+			$add( __( 'Newest release', 'wp-license' ), $release['version'], 'ok' );
+		}
 		$add( __( 'PHP', 'wp-license' ), PHP_VERSION );
 		$add( __( 'WordPress', 'wp-license' ), get_bloginfo( 'version' ) );
 		$add( __( 'WooCommerce', 'wp-license' ), defined( 'WC_VERSION' ) ? WC_VERSION : __( 'Unavailable', 'wp-license' ) );
@@ -1078,6 +1125,19 @@ final class Diagnostics {
 			$lock ? 'ok' : 'warning',
 			$lock ? '' : __( 'Activations and renewals rely on named database locks. They fail behind database proxies that spread a request over several connections and on clusters with several writing nodes.', 'wp-license' )
 		);
+		$layer = self::database_layer();
+		if ( $layer['splitting'] ) {
+			$layer_help = $layer['primary_switch']
+				? __( 'This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/SECURITY-OPERATIONS.md).', 'wp-license' )
+				: __( 'This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/SECURITY-OPERATIONS.md).', 'wp-license' );
+			/* translators: %s: PHP class name of the database layer. */
+			$add( __( 'Database layer', 'wp-license' ), sprintf( __( '%s (read/write splitting)', 'wp-license' ), $layer['class'] ), 'warning', $layer_help );
+		} elseif ( $layer['drop_in'] ) {
+			/* translators: %s: PHP class name of the database layer. */
+			$add( __( 'Database layer', 'wp-license' ), sprintf( __( '%s (db.php drop-in)', 'wp-license' ), $layer['class'] ) );
+		} else {
+			$add( __( 'Database layer', 'wp-license' ), $layer['class'] );
+		}
 		$address = self::client_address();
 		$add(
 			__( 'Client address of this request', 'wp-license' ),

@@ -80,6 +80,11 @@ final class RenewalProcessor {
 	/** Seconds until a renewal blocked by a shop-side problem is tried again. */
 	public const BLOCKED_RETRY_SECONDS = 21600;
 
+	/**
+	 * Default retry days after the period start (filter `wplc_renewal_retry_days`, see retry_days()).
+	 */
+	public const DEFAULT_RETRY_DAYS = array( 1, 3, 7 );
+
 	/** Seconds one daily sweep may run. */
 	public const SWEEP_TIME_BUDGET = 20;
 
@@ -828,7 +833,7 @@ final class RenewalProcessor {
 		 *
 		 * @param int[] $days Days after the period start, ascending. Default 1, 3 and 7.
 		 */
-		$days = (array) apply_filters( 'wplc_renewal_retry_days', array( 1, 3, 7 ) );
+		$days = (array) apply_filters( 'wplc_renewal_retry_days', self::DEFAULT_RETRY_DAYS );
 		$days = array_values( array_filter( array_map( 'absint', $days ) ) );
 		sort( $days );
 
@@ -849,7 +854,7 @@ final class RenewalProcessor {
 	 * @param int[] $days Retry days after the period start.
 	 * @return int Unix timestamp, zero when no retry is left.
 	 */
-	public static function next_retry_at( int $attempt, int $period_start, int $now, array $days = array( 1, 3, 7 ) ): int {
+	public static function next_retry_at( int $attempt, int $period_start, int $now, array $days = self::DEFAULT_RETRY_DAYS ): int {
 		if ( $attempt < 1 || ! isset( $days[ $attempt - 1 ] ) || ! $period_start ) {
 			return 0;
 		}
@@ -2277,7 +2282,7 @@ final class RenewalProcessor {
 	 * End of the grace period of a renewal (P-44).
 	 *
 	 * Pure. Rows written by early development versions have no grace_ends_at;
-	 * their grace period ends GRACE_DAYS after the period start, as in the
+	 * their grace period ends grace_days() after the period start, as in the
 	 * diagnostics. Zero when neither is known.
 	 *
 	 * @param array<string,mixed> $renewal Renewal row.
@@ -2290,7 +2295,7 @@ final class RenewalProcessor {
 		}
 		$start = self::utc_ts( $renewal['period_start'] ?? null );
 
-		return $start ? $start + LicenseLifecycle::GRACE_DAYS * 86400 : 0;
+		return $start ? $start + LicenseLifecycle::grace_days() * 86400 : 0;
 	}
 
 	/**

@@ -899,7 +899,7 @@ final class Notifications {
 			'currency' => (string) $gross['currency'],
 			'interval' => RenewalTerms::interval_label( (string) ( $license['billing_interval'] ?? 'year' ) ),
 			'charge_date' => $due_at > 0 ? self::format_date( $due_at ) : '',
-			'grace_until' => false === $paid_until ? '' : self::format_date( (int) $paid_until + LicenseLifecycle::GRACE_DAYS * 86400 ),
+			'grace_until' => false === $paid_until ? '' : self::format_date( (int) $paid_until + LicenseLifecycle::grace_days() * 86400 ),
 			'account_url' => $account_url,
 			'pay_url' => self::pay_url( $license ),
 			'can_renew_now' => $renew_from > 0 && time() >= $renew_from ? '1' : '',
@@ -932,7 +932,7 @@ final class Notifications {
 			'currency' => function_exists( 'get_woocommerce_currency' ) ? (string) get_woocommerce_currency() : '',
 			'interval' => RenewalTerms::interval_label( 'year' ),
 			'charge_date' => self::format_date( $now + 30 * 86400 ),
-			'grace_until' => self::format_date( $now + ( 30 + LicenseLifecycle::GRACE_DAYS ) * 86400 ),
+			'grace_until' => self::format_date( $now + ( 30 + LicenseLifecycle::grace_days() ) * 86400 ),
 			'account_url' => function_exists( 'wc_get_account_endpoint_url' ) ? (string) wc_get_account_endpoint_url( 'wplc-licenses' ) : (string) home_url( '/' ),
 			'pay_url' => '',
 			'can_renew_now' => '1',
@@ -1210,19 +1210,7 @@ final class Notifications {
 	 * @return void
 	 */
 	public static function log( string $level, string $message, int $license_id = 0 ): void {
-		try {
-			if ( ! function_exists( 'wc_get_logger' ) ) {
-				return;
-			}
-			// Mailer errors can quote the recipient; addresses do not belong in a log file.
-			$message = (string) preg_replace( '/[^\s<>"\'(),;:]+@[^\s<>"\'(),;:]+/', '[email]', $message );
-			$context = array( 'source' => 'wp-license' );
-			if ( $license_id > 0 ) {
-				$context['license_id'] = $license_id;
-			}
-			wc_get_logger()->log( in_array( $level, array( 'error', 'warning', 'info', 'notice', 'debug' ), true ) ? $level : 'info', $message, $context );
-		} catch ( \Throwable $error ) {
-			unset( $error );
-		}
+		// Log::write() masks addresses: mailer errors can quote the recipient.
+		\WPLC\Infrastructure\Log::write( $level, $message, $license_id > 0 ? array( 'license_id' => $license_id ) : array() );
 	}
 }

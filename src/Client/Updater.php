@@ -69,6 +69,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		private $manager;
 
 		/**
+		 * `Update URI` header read from the plugin file, memoised for the request (null: not read yet).
+		 *
+		 * @var string|null
+		 */
+		private $header_update_uri = null;
+
+		/**
 		 * Constructor.
 		 *
 		 * @param LicenseManager $manager License manager of the add-on.
@@ -121,13 +128,19 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		/**
 		 * Value of the `Update URI` header.
 		 *
+		 * The configured `update_uri` wins and costs no file access. Without it the
+		 * plugin file is read once per request and the result is kept in memory.
+		 *
 		 * @return string
 		 */
 		public function update_uri(): string {
 			$uri = (string) $this->manager->config( 'update_uri' );
 			if ( '' === $uri && '' !== (string) $this->manager->config( 'plugin_file' ) && function_exists( 'get_file_data' ) ) {
-				$headers = get_file_data( (string) $this->manager->config( 'plugin_file' ), array( 'UpdateURI' => 'Update URI' ), 'plugin' );
-				$uri     = (string) ( $headers['UpdateURI'] ?? '' );
+				if ( null === $this->header_update_uri ) {
+					$headers                 = get_file_data( (string) $this->manager->config( 'plugin_file' ), array( 'UpdateURI' => 'Update URI' ), 'plugin' );
+					$this->header_update_uri = (string) ( $headers['UpdateURI'] ?? '' );
+				}
+				$uri = $this->header_update_uri;
 			}
 
 			return trim( $uri );

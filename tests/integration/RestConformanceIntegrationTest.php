@@ -509,6 +509,8 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	public function test_activation_attempts_are_rate_limited_per_ip(): void {
+		// The limits count per calendar minute; the burst must stay inside one (B-195).
+		$this->wait_for_minute_headroom( 20 );
 		// Different keys each time, so only the per-address limit (30/min) applies.
 		for ( $attempt = 1; $attempt <= 30; $attempt++ ) {
 			$unknown = \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() );
@@ -541,6 +543,8 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	public function test_failures_on_a_known_key_prefix_do_not_lock_out_the_valid_key(): void {
+		// The limits count per calendar minute; the burst must stay inside one (B-195).
+		$this->wait_for_minute_headroom( 20 );
 		// Someone who knows a customer's key prefix guesses the rest.
 		$license = $this->seed_license();
 		$guess   = substr( $license['key'], 0, 13 ) . substr( \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() ), 13 );
@@ -553,6 +557,8 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	public function test_activation_attempts_are_rate_limited_per_key(): void {
+		// The limits count per calendar minute; the burst must stay inside one (B-195).
+		$this->wait_for_minute_headroom( 20 );
 		// One key hammered repeatedly is stopped after 20 attempts per minute,
 		// before the per-address limit of 30 is reached.
 		$unknown = \WPLC\License\LicenseKey::for_uuid( wp_generate_uuid4() );

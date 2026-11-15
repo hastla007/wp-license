@@ -12,8 +12,9 @@ The work items themselves live in [TODO.md](TODO.md), the single task list. This
 - [ ] CI green on the release commit: lint, unit tests, integration tests, coding standards, static analysis (T-80).
 - [ ] Release ZIP built by CI, installed on a clean WordPress with WooCommerce, activated without errors or notices (T-95).
 - [ ] Update from the previous schema version runs without data loss (T-60).
+- [ ] The declared WooCommerce minimum (8.9) has run the integration suite once, or the minimum is raised to the oldest version CI runs (9.4). Versions 8.9 to 9.3 have never run (A-91).
 - [ ] German and English admin and customer texts checked on screen; `languages/` is in the ZIP (T-76).
-- [ ] The plugin header keeps `Update URI: https://github.com/hastla007/wp-license` (P-33). WordPress then never asks WordPress.org for updates of this plugin, so a foreign plugin with the slug `wp-license` can never be offered as an update. The URI identifies the vendor's repository; WordPress itself fetches nothing from it. A plugin that hooks `update_plugins_github.com` (e.g. a Git-based updater) could offer updates from that repository; the shop installs updates of the license server by hand.
+- [ ] The plugin header keeps `Update URI: https://github.com/hastla007/wp-license` (P-33). WordPress then never asks WordPress.org for updates of this plugin, so a foreign plugin with the slug `wp-license` can never be offered as an update. The URI identifies the vendor's repository; WordPress itself fetches nothing from it. The plugin itself answers `update_plugins_github.com` for its own file with the latest GitHub release, without a package (A-42): the shop sees that an update exists and installs the verified ZIP by hand (docs/PRODUCTION-OPERATIONS.md, "Updating the license server plugin itself").
 
 ### 2. Purchase and renewal
 
@@ -38,11 +39,15 @@ The work items themselves live in [TODO.md](TODO.md), the single task list. This
 - [ ] `WPLC_LICENSE_KEY_SECRETS` and `WPLC_INSTALLATION_ENCRYPTION_KEYS` defined on the production server; the admin notice about salt fallback is gone.
 - [ ] Key rotation and recovery rehearsed on a restored database copy (T-86).
 - [ ] Personal data export and erasure verified through the WordPress privacy tools; retention periods decided; deletion queries run against a database (T-92).
+- [ ] The anonymisation period for ended licenses decided and set (`wplc_retention_days`, key `anonymize_licenses`; the settings page shows it), or the decision to keep it off is recorded (B-45).
 - [ ] Independent review of the REST API authentication completed; concurrency verified (T-22).
+- [ ] `tests/stress/run.sh all` ends with exit code 0 against the release commit (every race scenario reports PASS, B-196).
 
 ### 5. Operations and legal
 
 - [ ] Production server, backups and a tested restore in place (T-90).
+- [ ] Diagnostics on the production server: "Database locks" working and "Database layer" without a read/write-splitting warning, or the `wplc_*` tables routed to the primary (B-24).
+- [ ] Someone watches new releases of the plugin: Diagnostics "Newest release" or the GitHub releases of the repository (A-42).
 - [ ] A subscriber for `wplc/health_alert` and monitoring of scheduled actions in place as described in [MONITORING.md](MONITORING.md) (T-91).
 - [ ] System cron runs `wp-cron.php`; Action Scheduler queue is processed.
 - [ ] Page cache and CDN exclusions set as described in [CACHING.md](CACHING.md) (T-107).

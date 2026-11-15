@@ -151,21 +151,47 @@ final class Retention {
 	 * @return array<string,string> Rule => 'Y-m-d H:i:s' cutoff; rows older than it are processed.
 	 */
 	public static function cutoffs( $days, int $now ): array {
-		$days    = is_array( $days ) ? $days : array();
 		$cutoffs = array();
-		foreach ( self::DEFAULT_DAYS as $rule => $default ) {
-			$value = array_key_exists( $rule, $days ) ? $days[ $rule ] : $default;
-			if ( ! is_int( $value ) && ! ( is_string( $value ) && preg_match( '/^\d{1,6}$/', $value ) ) ) {
-				continue;
+		foreach ( self::effective_days( $days ) as $rule => $value ) {
+			if ( $value > 0 ) {
+				$cutoffs[ $rule ] = gmdate( 'Y-m-d H:i:s', $now - $value * 86400 );
 			}
-			$value = min( self::MAX_DAYS, (int) $value );
-			if ( $value < 1 ) {
-				continue;
-			}
-			$cutoffs[ $rule ] = gmdate( 'Y-m-d H:i:s', $now - $value * 86400 );
 		}
 
 		return $cutoffs;
+	}
+
+	/**
+	 * Effective period of every rule in days; 0 means the rule is off.
+	 *
+	 * Pure: the same reading as cutoffs(). Unknown keys are ignored, missing keys
+	 * use the default, and zero, negative or non-numeric values switch a rule off.
+	 *
+	 * @param mixed $days Retention days keyed by rule, usually the filtered default map.
+	 * @return array<string,int>
+	 */
+	public static function effective_days( $days ): array {
+		$days      = is_array( $days ) ? $days : array();
+		$effective = array();
+		foreach ( self::DEFAULT_DAYS as $rule => $default ) {
+			$value = array_key_exists( $rule, $days ) ? $days[ $rule ] : $default;
+			if ( ! is_int( $value ) && ! ( is_string( $value ) && preg_match( '/^\d{1,6}$/', $value ) ) ) {
+				$value = 0;
+			}
+			$effective[ $rule ] = max( 0, min( self::MAX_DAYS, (int) $value ) );
+		}
+
+		return $effective;
+	}
+
+	/**
+	 * Configured periods after the filter `wplc_retention_days` (for the status screen).
+	 *
+	 * @return array<string,int> Rule => days, 0 when off.
+	 */
+	public static function configured_days(): array {
+		/** This filter is documented in Retention::run(). */
+		return self::effective_days( apply_filters( 'wplc_retention_days', self::DEFAULT_DAYS ) );
 	}
 
 	/**
@@ -624,12 +650,6 @@ final class Retention {
 	 * @return void
 	 */
 	private static function log( string $level, string $message ): void {
-		try {
-			if ( function_exists( 'wc_get_logger' ) ) {
-				wc_get_logger()->log( $level, $message, array( 'source' => 'wp-license' ) );
-			}
-		} catch ( \Throwable $error ) {
-			unset( $error );
-		}
+		\WPLC\Infrastructure\Log::write( $level, $message, array( 'component' => 'retention' ) );
 	}
 }

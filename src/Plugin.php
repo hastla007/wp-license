@@ -138,6 +138,50 @@ final class Plugin {
 			false,
 			dirname( plugin_basename( WPLC_FILE ) ) . '/languages'
 		);
+		if ( ! is_textdomain_loaded( 'wp-license' ) ) {
+			// B-120: Austrian and Swiss German fall back to the German translation.
+			$fallback = self::fallback_locale( function_exists( 'determine_locale' ) ? determine_locale() : get_locale() );
+			if ( '' !== $fallback ) {
+				load_textdomain( 'wp-license', WPLC_PATH . 'languages/wp-license-' . $fallback . '.mo', $fallback );
+			}
+		}
+	}
+
+	/**
+	 * Reload the translations after switch_to_locale(), e.g. for an email in the buyer's language (B-120).
+	 *
+	 * @return void
+	 */
+	public static function reload_textdomain(): void {
+		unload_textdomain( 'wp-license' );
+		self::load_textdomain();
+	}
+
+	/**
+	 * Shipped locale used for a locale without its own translation file (B-120).
+	 *
+	 * Pure. German variants without a file use `de_DE_formal`, informal ones
+	 * `de_DE`. Swiss German then shows "ß" where Swiss spelling has "ss".
+	 *
+	 * @param string $locale WordPress locale, e.g. `de_AT`.
+	 * @return string Locale of a shipped file, or an empty string.
+	 */
+	public static function fallback_locale( string $locale ): string {
+		$fallback = '';
+		if ( 1 === preg_match( '/^de_(AT|CH|LU|LI|BE)(_formal|_informal)?$/', $locale, $match ) ) {
+			$fallback = '_informal' === ( $match[2] ?? '' ) ? 'de_DE' : 'de_DE_formal';
+		}
+		if ( function_exists( 'apply_filters' ) ) {
+			/**
+			 * Filters the shipped translation used for a locale without its own file (B-120).
+			 *
+			 * @param string $fallback Locale of a file in languages/, or empty for none.
+			 * @param string $locale   Requested locale.
+			 */
+			$fallback = (string) apply_filters( 'wplc_translation_fallback_locale', $fallback, $locale );
+		}
+
+		return 1 === preg_match( '/^[a-z]{2,3}(_[A-Z]{2})?(_[a-z]+)?$/', $fallback ) ? $fallback : '';
 	}
 
 	/**
@@ -284,11 +328,14 @@ final class Plugin {
 	 */
 	public static function on_plugins_loaded(): void {
 		self::load_textdomain();
+		add_action( 'change_locale', array( self::class, 'reload_textdomain' ) );
 
 		// Also without WooCommerce: on a network the site that deletes another site
 		// (usually the main site) may not run WooCommerce, but the deleted site's
 		// wplc_* tables must still be dropped with it.
 		Schema::register_hooks();
+		// A-42: release notification for the plugin itself (no automatic install).
+		\WPLC\Infrastructure\SelfUpdateCheck::register_hooks();
 
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			add_action( 'admin_notices', array( self::class, 'render_woocommerce_notice' ) );
@@ -333,6 +380,8 @@ final class Plugin {
 		// Last: wraps the job callbacks registered above (isolation, pause gate, heartbeat).
 		DailyRunner::register_hooks();
 		SiteGuard::remember();
+		// A-133: each queued action gets its own correlation ID in the log, even when one runner request handles several.
+		add_action( 'action_scheduler_before_execute', array( self::class, 'begin_log_correlation' ), 0, 0 );
 
 		/**
 		 * Fires after WP License Captain has confirmed its WooCommerce dependency.
@@ -340,6 +389,15 @@ final class Plugin {
 		 * @since 0.1.0
 		 */
 		do_action( 'wplc/loaded' );
+	}
+
+	/**
+	 * Start a new log correlation ID for the next queued action (A-133).
+	 *
+	 * @return void
+	 */
+	public static function begin_log_correlation(): void {
+		\WPLC\Infrastructure\Log::begin();
 	}
 
 	/**

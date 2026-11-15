@@ -495,7 +495,7 @@ final class SiteGuardIntegrationTest extends WPLC_Integration_TestCase {
 		$window = GapGuard::window();
 		$this->assertIsArray( $window );
 		$this->assertSame( 'deactivation', $window['source'] );
-		$this->assertSame( $window['to'] + GapGuard::DEFAULT_HOLD_DAYS * DAY_IN_SECONDS, $window['hold_until'] );
+		$this->assertSame( $window['to'] + GapGuard::default_hold_days() * DAY_IN_SECONDS, $window['hold_until'] );
 		$this->assertTrue( GapGuard::protects( gmdate( 'Y-m-d H:i:s', time() - 16 * DAY_IN_SECONDS ) ), 'A renewal that became due during the deactivation.' );
 		if ( function_exists( 'as_next_scheduled_action' ) ) {
 			$this->assertNotFalse( as_next_scheduled_action( GapReconciler::HOOK, array(), 'wplc' ), 'The catch-up run is queued.' );
