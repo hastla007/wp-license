@@ -475,6 +475,35 @@ final class SiteGuardIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertCount( 0, $this->licenses_for_order( $order->get_id() ) );
 	}
 
+	// A request that loaded the plugin before it was deactivated or uninstalled elsewhere must not bring the events back.
+	public function test_recurring_events_are_not_rescheduled_once_the_plugin_is_inactive(): void {
+		wp_clear_scheduled_hook( 'wplc_daily_lifecycle' );
+		wp_clear_scheduled_hook( 'wplc_cleanup_security_rows' );
+		$active  = (array) get_option( 'active_plugins', array() );
+		$network = is_multisite() ? (array) get_site_option( 'active_sitewide_plugins', array() ) : array();
+		update_option( 'active_plugins', array_values( array_diff( $active, array( plugin_basename( WPLC_FILE ) ) ) ) );
+		if ( is_multisite() ) {
+			update_site_option( 'active_sitewide_plugins', array_diff_key( $network, array( plugin_basename( WPLC_FILE ) => 0 ) ) );
+		}
+		try {
+			LicenseLifecycle::schedule_daily_event();
+			\WPLC\Api\V1\Routes::schedule_cleanup_event();
+			$this->assertFalse( wp_next_scheduled( 'wplc_daily_lifecycle' ) );
+			$this->assertFalse( wp_next_scheduled( 'wplc_cleanup_security_rows' ) );
+
+			// The activation hook runs before WordPress stores the plugin as active.
+			LicenseLifecycle::schedule_daily_event( true );
+			$this->assertNotFalse( wp_next_scheduled( 'wplc_daily_lifecycle' ) );
+		} finally {
+			update_option( 'active_plugins', $active );
+			if ( is_multisite() ) {
+				update_site_option( 'active_sitewide_plugins', $network );
+			}
+		}
+		\WPLC\Api\V1\Routes::schedule_cleanup_event();
+		$this->assertNotFalse( wp_next_scheduled( 'wplc_cleanup_security_rows' ) );
+	}
+
 	// B-14, B-125: deactivation leaves a timestamp and no reminder cursor; activation records the gap and queues the catch-up.
 	public function test_deactivation_and_activation_bridge_the_gap(): void {
 		update_option( 'wplc_reminder_cursor', 4711, false );

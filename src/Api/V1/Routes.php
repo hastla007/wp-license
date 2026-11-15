@@ -50,7 +50,7 @@ final class Routes {
 	 * @return void
 	 */
 	public static function schedule_cleanup_event(): void {
-		if ( ! wp_next_scheduled( 'wplc_cleanup_security_rows' ) ) {
+		if ( ! wp_next_scheduled( 'wplc_cleanup_security_rows' ) && \WPLC\Plugin::is_active_in_database() ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'wplc_cleanup_security_rows' );
 		}
 	}

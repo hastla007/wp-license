@@ -87,6 +87,34 @@ final class Plugin {
 	private static $visiting_other_site = false;
 
 	/**
+	 * Whether this plugin is still active according to the database, bypassing the object cache.
+	 *
+	 * Recurring events are (re)scheduled on every request. A request that loaded the plugin while it was
+	 * active can reach that point after the plugin was deactivated or uninstalled in another request
+	 * (Action Scheduler loopback, WP-Cron spawn); it must not bring the events back. Only called when an
+	 * event is missing, so the direct query is rare.
+	 *
+	 * @return bool
+	 */
+	public static function is_active_in_database(): bool {
+		global $wpdb;
+		if ( ! defined( 'WPLC_FILE' ) || ! function_exists( 'plugin_basename' ) ) {
+			return true;
+		}
+		$basename = plugin_basename( WPLC_FILE );
+		$active   = maybe_unserialize( (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'active_plugins' ) ) );
+		if ( is_array( $active ) && in_array( $basename, $active, true ) ) {
+			return true;
+		}
+		if ( is_multisite() ) {
+			$network = maybe_unserialize( (string) $wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->sitemeta} WHERE meta_key = %s AND site_id = %d", 'active_sitewide_plugins', get_current_network_id() ) ) );
+			return is_array( $network ) && isset( $network[ $basename ] );
+		}
+
+		return false;
+	}
+
+	/**
 	 * Validate activation requirements before enabling the plugin.
 	 *
 	 * @param bool $network_wide Whether the plugin is activated for the whole network.
@@ -195,7 +223,7 @@ final class Plugin {
 			return;
 		}
 		Schema::migrate();
-		LicenseLifecycle::schedule_daily_event();
+		LicenseLifecycle::schedule_daily_event( true );
 		SiteGuard::remember();
 
 		// Orders paid and refunds made while the plugin was off are caught up; renewals that

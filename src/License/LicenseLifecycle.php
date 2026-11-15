@@ -108,10 +108,11 @@ final class LicenseLifecycle {
 	/**
 	 * Schedule a daily expiry sweep.
 	 *
+	 * @param bool $activating True from the activation hook, which runs before WordPress stores the plugin as active.
 	 * @return void
 	 */
-	public static function schedule_daily_event(): void {
-		if ( ! wp_next_scheduled( 'wplc_daily_lifecycle' ) ) {
+	public static function schedule_daily_event( $activating = false ): void {
+		if ( ! wp_next_scheduled( 'wplc_daily_lifecycle' ) && ( true === $activating || \WPLC\Plugin::is_active_in_database() ) ) {
 			wp_schedule_event( time() + 300, 'daily', 'wplc_daily_lifecycle' );
 		}
 	}
