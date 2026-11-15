@@ -36,6 +36,9 @@ final class ResponseSigner {
 	public const NEXT_OPTION = 'wplc_response_signing_key_next';
 	public const CONTEXT     = 'wplc-response-v1';
 
+	/** Context of the signature over the exact payload text, which also binds the request nonce. */
+	public const PAYLOAD_CONTEXT = 'wplc-response-v2';
+
 	/** @var string|null Binary secret key of this request. */
 	private static ?string $secret_key = null;
 
@@ -52,6 +55,16 @@ final class ResponseSigner {
 	 */
 	public static function message( string $installation_uuid, string $json ): string {
 		return self::CONTEXT . "\n" . strtolower( $installation_uuid ) . "\n" . $json;
+	}
+
+	/**
+	 * Message that is signed for the payload text of an envelope (binds the request nonce).
+	 *
+	 * @param string $installation_uuid Installation UUID.
+	 * @param string $payload           The `payload` member exactly as sent.
+	 */
+	public static function payload_message( string $installation_uuid, string $payload ): string {
+		return self::PAYLOAD_CONTEXT . "\n" . strtolower( $installation_uuid ) . "\n" . $payload;
 	}
 
 	/**
@@ -302,21 +315,31 @@ final class ResponseSigner {
 	}
 
 	/**
-	 * Signature fields for an envelope: signature_ed25519 and key_id, or nothing when Ed25519 is not available.
+	 * Signature fields for an envelope, or nothing when Ed25519 is not available.
+	 *
+	 * - `signature_ed25519`: over message() of the JSON of the data (client of this repository, v1).
+	 * - `payload_signature_ed25519`: over payload_message() of the exact payload text, which includes the request
+	 *   nonce (client library of hastla007/captain-pro, v2). Present when a payload is given.
+	 * - `key_id`: identifier of the signing key.
 	 *
 	 * @param string $installation_uuid Installation UUID.
 	 * @param string $json              JSON of the data.
+	 * @param string $payload           The payload text of the envelope ('' to omit its signature).
 	 * @return array<string,string>
 	 */
-	public static function envelope_fields( string $installation_uuid, string $json ): array {
+	public static function envelope_fields( string $installation_uuid, string $json, string $payload = '' ): array {
 		$secret = self::secret_key();
 		if ( null === $secret ) {
 			return array();
 		}
-		return array(
+		$fields = array(
 			'signature_ed25519' => self::sign_with( self::message( $installation_uuid, $json ), $secret ),
-			'key_id'            => self::key_id_of( self::public_key_of( $secret ) ),
 		);
+		if ( '' !== $payload ) {
+			$fields['payload_signature_ed25519'] = self::sign_with( self::payload_message( $installation_uuid, $payload ), $secret );
+		}
+		$fields['key_id'] = self::key_id_of( self::public_key_of( $secret ) );
+		return $fields;
 	}
 
 	/** Forget the cached key (tests, rotation). */

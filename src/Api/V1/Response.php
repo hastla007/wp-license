@@ -50,9 +50,11 @@ final class Response {
 	 *   carries the request nonce, and its HMAC. Protects transport and binds
 	 *   the answer to one request.
 	 * - `signature_ed25519` + `key_id`: the server's own signature over
-	 *   "wplc-response-v1\n{installation UUID}\n{JSON of data}". The client
-	 *   holds the installation secret too, so only this one proves that the
-	 *   license server produced the data. Present when a signing key exists.
+	 *   "wplc-response-v1\n{installation UUID}\n{JSON of data}" (client of this repository).
+	 * - `payload_signature_ed25519`: the server's signature over
+	 *   "wplc-response-v2\n{installation UUID}\n{payload}", which also binds the request nonce (client library of
+	 *   hastla007/captain-pro). The client holds the installation secret too, so only the Ed25519 signatures prove
+	 *   that the license server produced the data. Present when a signing key exists.
 	 *
 	 * @param array<string,mixed> $data              Payload.
 	 * @param string              $secret            Installation secret.
@@ -73,6 +75,6 @@ final class Response {
 			'payload_signature' => hash_hmac( 'sha256', $payload, $secret ),
 		);
 
-		return '' === $installation_uuid ? $envelope : array_merge( $envelope, ResponseSigner::envelope_fields( $installation_uuid, $json ) );
+		return '' === $installation_uuid ? $envelope : array_merge( $envelope, ResponseSigner::envelope_fields( $installation_uuid, $json, $payload ) );
 	}
 }
