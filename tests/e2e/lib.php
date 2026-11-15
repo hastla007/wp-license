@@ -440,6 +440,8 @@ function e2e_checkout( int $customer_id, array $items, string $gateway = 'wplc_e
 		e2e_fake_card( $customer_id );
 	}
 	unset( $_POST['wplc_recurring_consent'] );
+	// B-39: the classic checkout requires the consent to the immediate start for license carts.
+	$_POST['wplc_withdrawal_consent'] = '1';
 	if ( $consent ) {
 		$_POST['wplc_recurring_consent'] = '1';
 	}
@@ -451,7 +453,7 @@ function e2e_checkout( int $customer_id, array $items, string $gateway = 'wplc_e
 		$data[ 'billing_' . $field ] = $value;
 	}
 	$order_id = WC()->checkout()->create_order( $data );
-	unset( $_POST['wplc_recurring_consent'] );
+	unset( $_POST['wplc_recurring_consent'], $_POST['wplc_withdrawal_consent'] );
 	if ( is_wp_error( $order_id ) ) {
 		throw new RuntimeException( 'checkout failed: ' . $order_id->get_error_message() );
 	}

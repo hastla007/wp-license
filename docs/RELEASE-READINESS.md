@@ -47,6 +47,7 @@ The work items themselves live in [TODO.md](TODO.md), the single task list. This
 - [ ] System cron runs `wp-cron.php`; Action Scheduler queue is processed.
 - [ ] Page cache and CDN exclusions set as described in [CACHING.md](CACHING.md) (T-107).
 - [ ] Legal review done: cancellation button, renewal information duties, withdrawal for digital content, privacy notice, invoices and VAT for renewals (T-93).
+- [ ] Withdrawal right for digital content decided (B-39): either the plugin's own checkout consent (required by default, wording via `wplc_withdrawal_consent_text`) or Germanized / German Market with their digital-product checkbox switched on for every license product (the plugin then stays silent). Invoice layout checked for the license and service period lines on first and renewal orders (B-42). See [CONCEPT-CHECKOUT-RENEWAL.md](CONCEPT-CHECKOUT-RENEWAL.md), sections "Widerrufsrecht" and "Rechnungsangaben".
 - [ ] Support procedures written and owners named for release, support, incident and rollback (T-94).
 
 ### 6. Sign-off

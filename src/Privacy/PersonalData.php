@@ -398,6 +398,10 @@ final class PersonalData {
 					if ( '' !== $consent_at ) {
 						$license_data[] = array( 'name' => __( 'Consent to automatic renewal given at (UTC)', 'wp-license' ), 'value' => $consent_at );
 					}
+					$withdrawal_at = (string) $order->get_meta( \WPLC\Billing\WithdrawalConsent::META_CONSENT_AT, true );
+					if ( '' !== $withdrawal_at ) {
+						$license_data[] = array( 'name' => __( 'Consent to the immediate start (withdrawal right) given at (UTC)', 'wp-license' ), 'value' => $withdrawal_at );
+					}
 				}
 			}
 

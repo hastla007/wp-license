@@ -44,13 +44,44 @@ Sichtbarkeit des Feldes:
 
 - Das Feld wird nur angemeldet, wenn ein Renewal-Adapter bereit ist (`Registry::any_supports_checkout()`) und der Shop mindestens ein Lizenzprodukt hat. Abschaltbar über den Filter `wplc_block_checkout_consent_enabled`.
 - Ab WooCommerce 9.9 blendet eine `hidden`-Regel das Feld aus, solange kein Lizenzprodukt im Warenkorb liegt (`cart.items` enthält keine der Lizenz-Produkt-IDs). Die IDs kommen aus dem Lizenzkatalog (`Catalog::license_product_ids()`, einschließlich der Varianten von Produkten, die am Hauptprodukt zugeordnet sind) und liegen in der automatisch geladenen Option `wplc_license_product_ids`; sie wird bei Katalog- und Produktänderungen sowie bei Statuswechseln (geplante Veröffentlichung) verworfen und beim nächsten Aufruf neu aufgebaut. Der Produktstatus spielt für die Liste keine Rolle.
-- WooCommerce 8.9 bis 9.8 kennt keine bedingte Anzeige: Das Feld erscheint dort bei jedem Warenkorb. Für Bestellungen ohne Lizenz wird der Wert ignoriert.
-- Bei mehr als 300 Lizenzprodukten wird die Regel nicht gesendet; das Feld ist dann ebenfalls immer sichtbar.
-- Das Feld erscheint mit seinem Wert in Bestellbestätigung und Bestell-E-Mails (`show_in_order_confirmation`), als eigener Beleg für den Kunden.
+- WooCommerce 8.9 bis 9.8 kennt keine bedingte Anzeige: Das Feld erscheint dort bei jedem Warenkorb. Für Bestellungen ohne Lizenz wird der Wert ignoriert. Mit dem Filter `wplc_block_checkout_consent_without_rule` (Standard `true`) entscheidet der Shop, ob das Opt-in dort trotzdem angeboten wird; `false` bietet im Block-Checkout dieser Versionen keine automatische Verlängerung an (B-114).
+- Bei mehr als 300 Lizenzprodukten wird die Regel nicht gesendet; das Feld ist dann ebenfalls immer sichtbar (gleicher Filter).
+- Der lange Text steht nur am Kontrollkästchen und in den Nachweisdaten. Bestellbestätigung und Bestell-E-Mails zeigen das Feld nicht mehr (`show_in_order_confirmation` `false`), sondern für beide Checkouts gleich: die Bestellbestätigungsseite eine kurze Zeile „Automatische Verlängerung: Sie haben am … (UTC) zugestimmt …“ (`RecurringConsent::granted_text()`), die Bestell-E-Mails die Verlängerungsbedingungen bzw. den Hinweis auf sie (`Notifications`) (B-114). Ein getrennter Rechtstext neben einem kurzen Label ist mit der Additional Checkout Fields API nicht möglich (sie kennt nur `label`); das Kontrollkästchen trägt deshalb den vollständigen Text.
 - Die gewählte Zahlungsart fließt nicht in die Anzeige ein (eine Regel über `checkout.payment_method` ist ohne Browsertest nicht umgesetzt). Wählt der Kunde das Opt-in mit einer Zahlungsart ohne Adapter, gilt dasselbe wie im klassischen Checkout: Bestellnotiz, keine Auto-Verlängerung; der Feldwert an der Bestellung wird auf „Nein“ gesetzt.
 - Das Feld steht im Abschnitt für zusätzliche Bestellinformationen des Checkout-Blocks. Position und Darstellung bestimmt WooCommerce.
 
+Klassischer Checkout (A-118): Beide Kontrollkästchen stehen im Zahlungsbereich, den WooCommerce bei jeder Änderung von Adresse, Versand oder Zahlungsart per `update_order_review` neu lädt. Der Server liest den Zustand dabei aus dem mitgesendeten Formular (`post_data`) und gibt das Kästchen angehakt zurück (`RecurringConsent::checkbox_posted()`); im Browser ist das noch nicht geprüft (T-130).
+
 Nicht zur Laufzeit geprüft: Darstellung im Browser, Auswertung der `hidden`-Regel im Browser, Kartenspeicherung mit Stripe im Block-Checkout. Gelesen wurden WooCommerce 8.9.0, 9.4.3 und 11.2.2 (Git-Tags aus `github.com/woocommerce/woocommerce`).
+
+## Widerrufsrecht bei digitalen Inhalten (B-39)
+
+Verbraucher in der EU können einen Vertrag über digitale Inhalte 14 Tage lang widerrufen. Das Widerrufsrecht erlischt vorzeitig nur, wenn der Kunde ausdrücklich zugestimmt hat, dass vor Ablauf der Frist mit der Ausführung begonnen wird, und seine Kenntnis vom Verlust des Widerrufsrechts bestätigt hat (Richtlinie 2011/83/EU, Art. 16 Buchst. m; § 356 Abs. 5 BGB). Der Händler muss das auf einem dauerhaften Datenträger bestätigen (Art. 8 Abs. 7).
+
+Technischer Standard des Plugins (`src/Billing/WithdrawalConsent.php`):
+
+| Punkt | Umsetzung |
+|---|---|
+| Abfrage | Kontrollkästchen im klassischen Checkout (`wplc_withdrawal_consent`, vor dem Opt-in der Auto-Verlängerung) und im Block-Checkout (Zusatzfeld `wplc/withdrawal-consent`), nur bei Warenkörben mit Lizenzprodukt, nie vorausgewählt. |
+| Pflicht | Standard: erforderlich. Klassisch über `woocommerce_after_checkout_validation`; im Block-Checkout ab WooCommerce 9.9 über `required` mit derselben `hidden`-Regel wie das Opt-in, vor 9.9 (oder bei mehr als 300 Lizenzprodukten) prüft `woocommerce_store_api_checkout_order_processed` vor der Zahlung und lehnt mit `wplc_withdrawal_consent_required` (400) ab. Filter `wplc_withdrawal_consent_required` (`false` = freiwillig; ohne Haken behält der Kunde sein Widerrufsrecht). |
+| Nachweis | Bestell-Meta `_wplc_withdrawal_consent_at` (UTC) und `_wplc_withdrawal_consent_evidence` (`text`, `hash` SHA-256, `locale`, `source` `classic`/`block`). |
+| Bestätigung | Kunden-Bestellmails (`woocommerce_email_after_order_table`, nicht an den Admin) und Bestellbestätigungsseite: Datum und Wortlaut der Zustimmung. |
+| Wortlaut | Filter `wplc_withdrawal_consent_text`. Der mitgelieferte Text ist ein technischer Vorschlag. |
+| Germanized / German Market | Sind `WooCommerce_Germanized` oder `Woocommerce_German_Market` geladen, fragt das Plugin nicht selbst (diese Plugins haben eigene Kontrollkästchen für digitale Produkte, die dort für die Lizenzprodukte eingeschaltet werden müssen). Filter `wplc_withdrawal_consent_enabled` überschreibt die Erkennung. |
+| Lizenzausgabe | Nicht an die Zustimmung gekoppelt (sie ist im Checkout bereits Pflicht). Wer die Ausgabe zusätzlich zurückhalten will, nutzt `wplc_can_issue_for_order`. |
+
+Nicht abgedeckt: Bestellungen, die nicht über den Checkout entstehen (vom Admin angelegt, Verlängerungs- und Upgrade-Bestellungen, die auf der Seite „Bestellung bezahlen“ bezahlt werden).
+
+**Entscheidung des Shop-Betreibers (vor dem Launch):** ob die Zustimmung Pflicht ist, der rechtliche Wortlaut, ob ein Rechtstexte-Plugin (Germanized, German Market) die Abfrage übernimmt, und ob Verlängerungen eine erneute Zustimmung brauchen. Rechtlich geprüft ist davon nichts (T-93).
+
+## Rechnungsangaben an der Bestellposition (B-42)
+
+Erstbestellungen tragen nach der Lizenzausgabe zwei sichtbare Positions-Metas, die WooCommerce in Bestellansicht, E-Mails und Rechnungs-Plugins (über `get_formatted_meta_data()`) ausgibt:
+
+- `wplc_license`, angezeigt als „Lizenz“: `#ID PRÄFIX` jeder für die Position ausgestellten Lizenz, durch Kommas getrennt.
+- `wplc_service_period`, angezeigt als „Leistungszeitraum (UTC)“: `JJJJ-MM-TT – JJJJ-MM-TT` des ersten Zeitraums. Wird einmal geschrieben und bleibt nach späteren Verlängerungen unverändert.
+
+Die Bezeichnungen werden bei der Anzeige übersetzt (`woocommerce_order_item_display_meta_key`). Verlängerungsbestellungen tragen dieselben Angaben aus `RenewalOrder` und den Positionsnamen „(Verlängerung der Lizenz)“. Die Angaben entstehen bei der Lizenzausgabe (Zahlung bzw. „abgeschlossen“ bei Nachnahme); eine Rechnung, die vorher erzeugt wird, enthält sie nicht. Ob Format und Bezeichnung den Rechnungsanforderungen genügen, entscheidet der Shop-Betreiber.
 
 ## Stripe-Gateway
 
