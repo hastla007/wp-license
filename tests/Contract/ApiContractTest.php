@@ -53,7 +53,7 @@ final class ApiContractTest extends TestCase {
 		);
 		$this->assertSame(
 			// The Ed25519 fields are optional: they need a signing key and an installation.
-			array_values( array_diff( array_keys( $envelope['properties'] ), array( 'signature_ed25519', 'key_id' ) ) ),
+			array_values( array_diff( array_keys( $envelope['properties'] ), array( 'signature_ed25519', 'payload_signature_ed25519', 'key_id' ) ) ),
 			array_keys( \WPLC\Api\V1\Response::envelope( array( 'status' => 'ok' ), 'contract-test-secret', 'contract-test-nonce' ) ),
 			'The server envelope and the published schema must list the same fields.'
 		);

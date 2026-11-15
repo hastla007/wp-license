@@ -98,9 +98,50 @@ final class EntitlementService {
 			'environment' => (string) $activation['environment'],
 			'entitlements' => $entitlements,
 			'server_time' => gmdate( 'Y-m-d H:i:s' ),
-			'cache_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * DAY_IN_SECONDS ),
-		);
+		) + self::access_fields( $license );
 
 		return Response::signed( $data, (string) $activation['installation_secret'], 200, (string) $activation['request_nonce'], (string) $activation['installation_uuid'] );
+	}
+
+	/**
+	 * Access fields of a signed license answer, derived from LicenseLifecycle::has_access().
+	 *
+	 * Read by the client library of hastla007/captain-pro (LicenseManager unlocks features only when `access` is
+	 * true); additive for the client of this repository.
+	 *
+	 * - `access`: whether the license grants premium rights now.
+	 * - `access_until`: end of access (paid period, or its end plus the renewal grace period while renewing).
+	 * - `grace_until`: end of the grace period while a renewal is pending or failing, else null.
+	 * - `activation_status`: always `active` (answers are only signed for active activations).
+	 * - `product_key`: product key of the license.
+	 * - `cache_expires_at`: offline window of 14 days, never beyond `access_until`.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param int|null            $now     Unix timestamp, defaults to now.
+	 * @return array<string,mixed>
+	 */
+	public static function access_fields( array $license, ?int $now = null ): array {
+		$now        = null === $now ? time() : $now;
+		$access     = LicenseLifecycle::has_access( $license, $now );
+		$paid_until = empty( $license['paid_until'] ) ? false : strtotime( (string) $license['paid_until'] . ' UTC' );
+		$renewing   = 'past_due' === (string) ( $license['status'] ?? '' )
+			|| ( ! empty( $license['renewal_enabled'] ) && empty( $license['cancel_at_period_end'] ) );
+		$grace_end  = false !== $paid_until && $renewing ? $paid_until + LicenseLifecycle::GRACE_DAYS * DAY_IN_SECONDS : null;
+		$access_end = null;
+		if ( $access && false !== $paid_until ) {
+			$access_end = null !== $grace_end ? $grace_end : $paid_until;
+		}
+		$cache_expires = $now + 14 * DAY_IN_SECONDS;
+		if ( null !== $access_end ) {
+			$cache_expires = min( $cache_expires, $access_end );
+		}
+		return array(
+			'access'            => $access,
+			'access_until'      => null === $access_end ? null : gmdate( 'Y-m-d H:i:s', $access_end ),
+			'grace_until'       => null === $grace_end ? null : gmdate( 'Y-m-d H:i:s', $grace_end ),
+			'activation_status' => 'active',
+			'product_key'       => (string) ( $license['product_key'] ?? '' ),
+			'cache_expires_at'  => gmdate( 'Y-m-d H:i:s', $cache_expires ),
+		);
 	}
 }

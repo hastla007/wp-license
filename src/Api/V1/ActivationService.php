@@ -398,8 +398,7 @@ final class ActivationService {
 			'staging_parent_id' => is_array( $activation ) && $activation['staging_parent_id'] ? (int) $activation['staging_parent_id'] : null,
 			'entitlements' => $entitlements,
 			'server_time' => gmdate( 'Y-m-d H:i:s' ),
-			'cache_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * DAY_IN_SECONDS ),
-		);
+		) + ( is_array( $license ) ? EntitlementService::access_fields( $license ) : array( 'cache_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * DAY_IN_SECONDS ) ) );
 
 		// Activation is not HMAC-authenticated; the installation ID the client
 		// just generated takes the place of the request nonce.

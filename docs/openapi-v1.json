@@ -489,7 +489,7 @@
         "properties": {
           "data": {
             "type": "object",
-            "description": "Kept for clients that predate payload; current clients must read the data member of the verified payload instead. Response-specific payload. Entitlement responses include activation_id, installation_id, license_status, paid_until, site_limit, site_count, environment, entitlements, server_time and cache_expires_at."
+            "description": "Kept for clients that predate payload; current clients must read the data member of the verified payload instead. Response-specific payload. Entitlement responses include activation_id, installation_id, license_status, paid_until, site_limit, site_count, environment, entitlements, server_time, cache_expires_at, access, access_until, grace_until, activation_status and product_key."
           },
           "signature": {
             "type": "string",
@@ -508,6 +508,10 @@
           "signature_ed25519": {
             "type": "string",
             "description": "Base64 Ed25519 signature of the server over \"wplc-response-v1\\n{installation UUID, lower case}\\n{JSON of data}\". Present when the server has a signing key. Clients that pin the server's public key must reject responses and cached snapshots without a valid signature."
+          },
+          "payload_signature_ed25519": {
+            "type": "string",
+            "description": "Base64 Ed25519 signature of the server over \"wplc-response-v2\\n{installation UUID, lower case}\\n{payload exactly as sent}\"; also binds the request nonce. Present when the server has a signing key. Read by the client library of hastla007/captain-pro."
           },
           "key_id": {
             "type": "string",

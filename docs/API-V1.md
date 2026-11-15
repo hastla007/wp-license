@@ -51,6 +51,11 @@ Successful responses use the envelope:
     "site_limit": 3,
     "entitlements": {},
     "server_time": "2026-11-12 00:00:00",
+    "access": true,
+    "access_until": "2027-11-12 00:00:00",
+    "grace_until": null,
+    "activation_status": "active",
+    "product_key": "voucher-captain-pro",
     "cache_expires_at": "2026-11-26 00:00:00"
   },
   "signature": "hex HMAC-SHA-256",
@@ -58,6 +63,8 @@ Successful responses use the envelope:
   "payload_signature": "hex HMAC-SHA-256"
 }
 ```
+
+`access` says whether the license grants premium rights now (same rule as the server's own checks, including the renewal grace period). `access_until` is the end of that access, `grace_until` the end of the grace period while a renewal is pending or failing (else `null`), and `cache_expires_at` the end of the offline window: 14 days, never beyond `access_until`. The client library of hastla007/captain-pro unlocks features only when `access` is `true`.
 
 ### Response signature
 
