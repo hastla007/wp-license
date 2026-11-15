@@ -345,9 +345,11 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$this->assertSame( 'wplc_connection_failed', $manager->refresh()->get_error_code() );
 		$this->assertTrue( $manager->is_entitled( 'feature.export' ) );
 
-		$this->clock = $expires - 1;
+		// A margin of a minute: the signed server time and the client clock of this test can be a
+		// second apart (the request crosses a second boundary), which made `- 1` flaky.
+		$this->clock = $expires - 60;
 		$this->assertTrue( $manager->is_entitled( 'feature.export' ) );
-		$this->clock = $expires + 1;
+		$this->clock = $expires + 60;
 		$this->assertFalse( $manager->is_entitled( 'feature.export' ) );
 		$this->assertSame( LicenseStatus::STATE_STALE, $manager->status()->state );
 	}
