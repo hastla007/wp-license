@@ -73,6 +73,14 @@ final class AdminNotices {
 			'bulk_in_progress'          => array( 'error', __( 'This bulk action is still being processed. Reload the list in a minute to see the result.', 'wp-license' ) ),
 			'bulk_missing_input'        => array( 'error', __( 'Select at least one license, an action and enter a reason.', 'wp-license' ) ),
 			'bulk_too_many'             => array( 'error', __( 'Too many licenses were selected. Select at most 100 licenses per bulk action.', 'wp-license' ) ),
+			// Plan change (T-110).
+			'plan_changed'              => array( 'success', __( 'The plan was changed. Future renewals use the new plan.', 'wp-license' ) ),
+			'plan_change_scheduled'     => array( 'success', __( 'The plan change is scheduled for the next renewal.', 'wp-license' ) ),
+			'plan_change_withdrawn'     => array( 'success', __( 'The scheduled plan change was withdrawn.', 'wp-license' ) ),
+			'plan_change_missing_input' => array( 'error', __( 'A license, a plan and a reason are required.', 'wp-license' ) ),
+			'plan_change_unavailable'   => array( 'error', __( 'The plan was not changed. The license must be active or past due, and the plan must be an active catalog plan of the same product and billing interval with a price in the license currency.', 'wp-license' ) ),
+			'plan_change_busy'          => array( 'error', __( 'The license or its renewal is being processed right now. Try again in a minute.', 'wp-license' ) ),
+			'plan_change_not_withdrawn' => array( 'error', __( 'There is no scheduled plan change to withdraw.', 'wp-license' ) ),
 		);
 	}
 

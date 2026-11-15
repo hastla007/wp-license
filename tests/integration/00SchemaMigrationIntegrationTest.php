@@ -130,8 +130,13 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( Schema::run_registered_step( '16' ), 'Step 16 finds download_tokens.activation_id.' );
 		$wpdb->query( "ALTER TABLE {$tables['download_tokens']} DROP COLUMN activation_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name from Schema.
 		$this->assertFalse( Schema::run_registered_step( '16' ), 'Step 16 reports the missing column.' );
-		$this->assertTrue( Schema::migrate(), 'dbDelta adds the column again.' );
+		// Schema 17 (T-110): plan change columns.
+		$this->assertTrue( Schema::run_registered_step( '17' ), 'Step 17 finds the plan change columns.' );
+		$wpdb->query( "ALTER TABLE {$tables['licenses']} DROP COLUMN plan_order_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name from Schema.
+		$this->assertFalse( Schema::run_registered_step( '17' ), 'Step 17 reports a missing column.' );
+		$this->assertTrue( Schema::migrate(), 'dbDelta adds the columns again.' );
 		$this->assertTrue( Schema::run_registered_step( '16' ) );
+		$this->assertTrue( Schema::run_registered_step( '17' ) );
 
 		foreach ( Schema::table_names() as $table_name ) {
 			$table_exists = $wpdb->get_var(

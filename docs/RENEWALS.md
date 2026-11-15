@@ -2,7 +2,7 @@
 
 Describes what the code does today. Nothing on this page has been run against a live shop or a Stripe test account yet: everything is **implemented, not yet verified in a shop** (see [TODO.md](TODO.md), T-02 and T-12).
 
-Source: `src/Billing/*`, `src/License/LicenseLifecycle.php`, `src/License/LicenseStateMachine.php`, `src/Gateway/*`.
+Source: `src/Billing/*`, `src/License/LicenseLifecycle.php`, `src/License/LicenseStateMachine.php`, `src/License/PlanChange.php`, `src/Gateway/*`.
 
 ## Two ways to renew
 
@@ -202,6 +202,99 @@ A **full** refund of a paid renewal order (`woocommerce_order_fully_refunded`, s
 A partial refund of a renewal order changes nothing on the license.
 
 A refund of the original purchase order revokes the license (per refunded unit, or all licenses on a full refund).
+
+A refund of a plan upgrade order is described under "Plan changes" below.
+
+## Plan changes
+
+A license can change to another plan of the same product (T-110): for example Solo → Business (more live sites, more features) or back. The license, its key, its paid period (`paid_until`) and its site activations stay. What changes: the plan key, the entitlement snapshot (including `sites.live_limit`), and the product and amount used for future renewals (`renewal_product_id`, `renewal_amount_minor`).
+
+Source: `src/License/PlanChange.php` (core, shared by all paths), `src/Billing/PlanUpgrade.php` (customer account, upgrade order, refund).
+
+### Which plans are offered
+
+Plans are WooCommerce products or variations mapped in the catalog (`src/Catalog/Catalog.php`). A license can change to every active mapping with
+
+- the same product key and a different plan key,
+- the same billing interval (a monthly license cannot become a yearly one this way),
+- a simple product or a variation with a regular price in the license's currency and precision (a mapping on a variable parent has no price of its own and is skipped). The customer only sees products that can be bought.
+
+The catalog has no ranking of plans: a plan whose current regular price is higher than the current regular price of the license's product (`renewal_product_id`; the stored amount if that product is gone) is an **upgrade**; a cheaper or equally priced one is a **downgrade**. A target is identified by its product or variation ID, because catalog rows get new IDs whenever a mapping is saved.
+
+### Upgrade (customer, prorated, immediate)
+
+The account page shows "Upgrade to …" for each upgrade target of an `active` license inside its paid period, with the amount due now and the price per period afterwards. Not offered while the renewal of the next period is being charged, its result is unknown, it is under review, or it waits for customer authentication.
+
+**Price (T-109).** `PlanChange::upgrade_amount()`: `(new price − old price) × remaining time / period length`, in integer minor units with `Money::prorate()` (half up), never negative. Both prices are the current regular prices of the two products. Remaining time is `paid_until − now`; the period length is one billing interval ending at `paid_until` (`PlanChange::period_start_before()`, same end-of-month rule as the renewal periods). If nothing is left to pay (last seconds of the period), no upgrade is offered.
+
+**Order.** `admin-post.php?action=wplc_start_upgrade` (nonce `wplc_start_upgrade_{license_id}`, owner only) creates one WooCommerce order (created via `wplc_plan_upgrade`) with one line: the target product at the prorated amount. Tax works as for manual renewals: the amount is a catalog price, converted with `wc_get_price_excluding_tax()` for the target product (`RenewalOrder::set_line()`), WooCommerce adds tax from the customer's address. A second click re-prices the same unpaid order (one open upgrade order per license); a paid but not yet applied order, or one waiting for an offline payment, blocks a new one. The customer pays on the normal pay page with any payment method.
+
+**Payment.** `woocommerce_payment_complete` and the status changes to processing/completed (`PlanUpgrade::handle_paid_order()`) switch the plan under the renewal lock of the next period (if that renewal exists) and then the license lock. Before switching, the order is checked against the license: same customer, status `active`/`past_due`, `paid_until` unchanged and still in the future, plan, product and previous upgrade order unchanged, the target mapping still the same plan, the pre-tax line equal to the priced amount (`_wplc_renewal_net_minor`) and the currency unchanged, and the consent present for an automatically renewing license. The switch is a conditional update on exactly those values; `licenses.plan_order_id` records the order. A duplicate hook finds `plan_order_id` equal to the order and does nothing. If the lock is busy (a renewal is running), the application is queued again (`wplc_apply_plan_upgrade`).
+
+After the switch:
+
+- entitlements: the target plan's entitlements, ending at the unchanged `paid_until`; keys the new plan does not have are removed,
+- `renewal_product_id` = target product, `renewal_amount_minor` = target price (the amount shown and consented to),
+- a scheduled downgrade is dropped,
+- an unpaid manual renewal order of the next period is re-priced with the new plan (paid and on-hold orders are not touched),
+- audit `plan_upgraded` (reason `plan_upgraded_from_order`), order note, order meta `_wplc_upgrade_state = applied`, action `wplc/license_plan_changed`.
+
+An upgrade order never issues a license (`LicenseIssuer` skips orders with `_wplc_upgrade_for_license`).
+
+**Paid, but not applicable.** If a check fails (for example the term was changed by an administrator, a renewal was booked, the license was suspended, the plan was changed meanwhile), the license is not changed. The order gets a note, `_wplc_upgrade_state = review` and `_wplc_upgrade_review_reason`; audit `plan_upgrade_rejected`; the license detail page shows a warning with the order link. The shop refunds the order, or changes the plan with "Change plan" if the customer keeps it. These cases are not listed under "Renewals to review".
+
+A payment that arrives days after the order was created (bank transfer) pays the amount that was quoted then, which covered more remaining days than are left: the customer pays slightly more, never less. The order is applied as long as the period has not changed.
+
+**Refund.** A **full** refund of an applied upgrade order (`woocommerce_order_fully_refunded`, status `refunded`) restores the previous plan (entitlements of the previous plan's current catalog mapping, the previous renewal product and amount, the previous `plan_order_id`), audit `plan_upgrade_reverted` and `plan_upgrade_refunded`, `_wplc_upgrade_state = reverted`. This happens only while the upgraded period is still running (`paid_until` unchanged) and the plan was not changed since, and only if the previous mapping still exists. Otherwise the refund is only recorded (`plan_upgrade_refunded` with `reverted: false`, order note, state `refunded`): after a renewal at the new plan the customer has paid the new price for the current period. The license is never revoked by an upgrade refund. A **partial** refund changes nothing (audit `plan_upgrade_partially_refunded`, order note). A Stripe dispute of an upgrade order suspends the license like a dispute of its purchase.
+
+### Automatic renewal after an upgrade (consent)
+
+The automatic renewal charges `renewal_amount_minor` off-session. The customer agreed to the old amount only, so it may rise only with a new consent:
+
+- For a license with automatic renewal switched on (`renewal_enabled = 1`, also while a cancellation is pending, which the customer could withdraw), the upgrade form shows a required checkbox: "I agree that my saved payment method is charged {price} {per year/month} automatically from the next renewal on {date}, until I cancel." The handler refuses the upgrade without it (`upgrade_consent_required`). The time of the consent is stored on the order (`_wplc_upgrade_recurring_consent_at`), the consented amount in `_wplc_upgrade_renewal_minor`; the audit entry `plan_upgrade_started` records `recurring_consent`, the order note on payment repeats amount and time.
+- Without consent (administrator change, see below) a more expensive plan keeps the old automatic amount; a cheaper plan lowers it (`PlanChange::next_renewal_amount()`).
+
+Legal note (not legal advice): for off-session charges the card networks and the EU/German consumer rules expect the customer to have agreed to the amount and frequency of the recurring payment. A higher amount than the one agreed at the original checkout is treated here as a new agreement and is only charged with the recorded consent above. The shop's terms should describe plan changes and their effect on the recurring amount; the shop may want to send its own confirmation email (hook `wplc/license_plan_changed`). Have the wording reviewed for your jurisdiction.
+
+### Downgrade (at the next renewal)
+
+The account page shows "Switch to … at the next renewal" for each downgrade target (`wplc_schedule_downgrade`, nonce `wplc_schedule_downgrade_{license_id}`; licenses in `active` or `past_due`). Nothing is refunded and nothing changes now: the license stores the pending plan (`pending_plan_key`, `pending_product_id`, schema 17; audit `plan_change_scheduled`). The account shows "Changes to … with the next renewal" and a "Keep current plan" button (`wplc_cancel_plan_change`, audit `plan_change_cancelled`).
+
+The next renewal is billed with the pending plan (`RenewalOrder::price()`, `RenewalOrder::choose_pending_price()`):
+
+- manual renewal: the current regular price of the pending plan's product, with that product on the order line;
+- automatic renewal: that price, but never more than the stored amount (consent);
+- if the pending product has no usable price (deleted, other currency), the renewal is billed with the current plan and the change waits.
+
+When a renewal order is booked (automatic charge, manual payment, booking after review), `PlanChange::apply_pending_after_renewal()` switches the plan if that order was billed with the pending product: plan key, entitlements (ending at the new `paid_until`), `renewal_product_id`, `renewal_amount_minor` (the price charged), audit `plan_changed_at_renewal`. An order that was priced before the downgrade was scheduled (for example an automatic retry order, or a manual order the customer was already paying) renews the current plan; the change waits for the next renewal. A pending change whose catalog mapping was removed or changed is dropped at the next renewal (audit `plan_change_dropped`). A license that does not renew (cancelled, expired) never applies its pending change. An upgrade replaces a pending downgrade.
+
+### Fewer live sites
+
+A lower `sites.live_limit` never deactivates sites. Sites above the new limit stay active and keep working; new activations are refused (`site_limit`, HTTP 409) until the customer has released enough sites in the account or in the product. The account page says so before the change is scheduled. The same applies to an administrator's change.
+
+### Administrator change
+
+License detail → "Change plan" (see [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#change-plan)): any target of the same product and interval (also products that cannot be bought), "Now" or "With the next renewal", reason required. No order, no charge, no refund; the same core service and locks. "Now" keeps the paid period, the automatic amount is not raised (see consent above), audit `admin_plan_change`. "With the next renewal" stores the pending plan like a customer downgrade (any target, also a more expensive one; the automatic amount stays capped at the stored amount).
+
+### Order metas of an upgrade order
+
+| Meta | Meaning |
+| --- | --- |
+| `_wplc_upgrade_for_license` | License ID |
+| `_wplc_upgrade_from_plan`, `_wplc_upgrade_from_product`, `_wplc_upgrade_from_renewal_minor`, `_wplc_upgrade_from_plan_order` | Plan, renewal product, renewal amount and upgrade order of the license when the order was priced (checked on payment, restored on refund) |
+| `_wplc_upgrade_to_plan`, `_wplc_upgrade_to_product` | Target plan and product |
+| `_wplc_upgrade_paid_until` | End of the period the price was prorated for |
+| `_wplc_upgrade_renewal_minor` | Renewal amount from the next period (target price) |
+| `_wplc_upgrade_recurring_consent_at` | UTC time of the consent to the new automatic amount |
+| `_wplc_upgrade_state` | `applied`, `review`, `reverted` or `refunded` |
+| `_wplc_upgrade_review_reason` | Reason code when the payment could not be applied |
+| `_wplc_renewal_net_minor`, `_wplc_renewal_price_decimals` | Priced pre-tax line total, as for renewal orders |
+
+### Limits
+
+- Same billing interval only; no change between monthly and yearly.
+- No credit for a downgrade and no immediate downgrade by the customer.
+- Not verified in a shop or against Stripe yet.
 
 ## Taxes
 

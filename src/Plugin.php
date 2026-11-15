@@ -29,6 +29,7 @@ use WPLC\Billing\RecurringConsent;
 use WPLC\Billing\BlockCheckoutConsent;
 use WPLC\Compatibility\Requirements;
 use WPLC\Billing\ManualRenewal;
+use WPLC\Billing\PlanUpgrade;
 use WPLC\Billing\RenewalProcessor;
 use WPLC\Gateway\StripeRecurringAdapter;
 use WPLC\Privacy\PersonalData;
@@ -190,6 +191,7 @@ final class Plugin {
 		BlockCheckoutConsent::register_hooks();
 		RenewalProcessor::register_hooks();
 		ManualRenewal::register_hooks();
+		PlanUpgrade::register_hooks();
 		StripeRecurringAdapter::register_hooks();
 		PersonalData::register_hooks();
 		Notifications::register_hooks();

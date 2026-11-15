@@ -13,6 +13,7 @@ Source: `src/Admin/*`, `src/License/LicenseLifecycle.php`, `src/License/Activati
 | Bulk: suspend, reactivate, revoke, release all site activations | Licenses (list) | `manage_woocommerce` | yes, one for the batch | per license as for the single action (`admin_status_change`; `admin_site_released` per activation plus `admin_sites_released` on the license), plus one `admin_bulk_action` summary (object ID 0) |
 | Suspend, revoke, reactivate | License detail | `manage_woocommerce` | yes | `admin_status_change` |
 | Change term | License detail | `manage_woocommerce` | yes | `admin_extend` |
+| Change plan (now / with the next renewal, withdraw) | License detail | `manage_woocommerce` | yes | `admin_plan_change`, `plan_change_scheduled`, `plan_change_cancelled` |
 | Release a site activation | License detail | `manage_woocommerce` | yes | `admin_site_released` |
 | Add license manually | Licenses → Add license manually | `manage_woocommerce` | yes | `license_issued_manually` |
 | Book a renewal under review | Renewals to review | `manage_woocommerce` | yes | `renewal_review_booked` (renewal), `renewal_booked_after_review` (license) |
@@ -90,6 +91,18 @@ The full license key is not shown here. The customer sees it in the account unde
 
 Sets a new end date (end of that day in the site timezone, must be in the future). No payment is taken and no order is created. Allowed for `active`, `past_due` and `expired` licenses; an expired license becomes active again. Open renewal attempts for the old period are cancelled; if automatic renewal is on, the next charge is scheduled for the new end date. For a suspended license, reactivate first.
 
+### Change plan
+
+Moves the license to another plan of the same product and billing interval (T-110; details in [RENEWALS.md](RENEWALS.md#plan-changes)). The list shows every active catalog mapping with another plan key and a price in the license currency, with plan key, product, price and live sites. Allowed for `active` and `past_due` licenses. No order is created, nothing is charged or refunded, and the paid period stays.
+
+- **Now:** the plan key, the entitlements and the live site limit change at once; future renewals use the product of the new plan. For a license with automatic renewal, the automatic amount is lowered for a cheaper plan but never raised for a more expensive one (the customer did not agree to a higher off-session amount); manual renewals use the current price of the new product. A scheduled plan change is dropped. Audit `admin_plan_change` with plan, renewal product, renewal amount and site limit before and after.
+- **With the next renewal:** stored as pending plan, exactly like a downgrade chosen by the customer; the renewal is billed with the new plan's product (an automatic charge never above the stored amount) and switches the plan when it is booked. Audit `plan_change_scheduled`. The summary shows "changes to … with the next renewal".
+- **Withdraw plan change** (with reason): removes a pending change. Audit `plan_change_cancelled`.
+
+A lower site limit deactivates no site: sites above the limit keep working, new activations are refused until enough sites are released (use "Release a site activation" below if the customer asks).
+
+A paid customer upgrade that could not be applied (the license changed between order and payment) shows a warning "A paid plan upgrade was not applied" with the order link and the reason. Refund that order in WooCommerce, or use "Change plan → Now" if the customer keeps the upgrade (then consider the automatic amount: it is not raised by this action).
+
 ### Release a site activation
 
 Frees one active site. The site can no longer authenticate and loses updates and premium features; a staging site linked to it is released as well. Use this for lost or decommissioned sites when the customer cannot deactivate in the product plugin or in their account. Confirm the customer's identity first.
@@ -153,6 +166,7 @@ Details: [UPDATES.md](UPDATES.md), [UPDATE-STORAGE.md](UPDATE-STORAGE.md).
 ## Not available in the admin
 
 - Showing or re-sending a customer's license key.
-- Moving a license to another customer or plan.
+- Moving a license to another customer.
+- Charging or refunding a plan change from the admin: the customer upgrades in the account (prorated order); refunds are made on that WooCommerce order.
 - Refunds and disputes: refunds are made on the WooCommerce order and change the license automatically; a Stripe dispute suspends the license (see [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md)). "Renewals to review" links to the order but never triggers a gateway refund.
 - A screen for Stripe events that need manual review; see [MONITORING.md](MONITORING.md).

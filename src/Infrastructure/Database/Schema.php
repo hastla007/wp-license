@@ -30,8 +30,11 @@ final class Schema {
 	 * 15: indexes for the license list, the account page and diagnostics (T-89).
 	 * 16: download_tokens.activation_id, the installation an update grant was
 	 *     issued to (T-108); older grants keep 0 and expire within minutes.
+	 * 17: licenses.pending_plan_key, licenses.pending_product_id (downgrade at the
+	 *     next renewal) and licenses.plan_order_id (the paid upgrade order that set
+	 *     the current plan), for plan changes (T-110).
 	 */
-	public const VERSION = '16';
+	public const VERSION = '17';
 
 	/**
 	 * Option in which ReminderLog recorded its self-installed table (up to schema 11).
@@ -66,6 +69,7 @@ final class Schema {
 		'14' => array( self::class, 'step_14_renewal_review_columns' ),
 		'15' => array( self::class, 'step_15_list_indexes' ),
 		'16' => array( self::class, 'step_16_grant_activation_column' ),
+		'17' => array( self::class, 'step_17_plan_change_columns' ),
 	);
 
 	/**
@@ -272,6 +276,9 @@ final class Schema {
 				renewal_currency_decimals tinyint(3) unsigned NOT NULL DEFAULT 2,
 				renewal_currency char(3) NOT NULL DEFAULT 'EUR',
 				renewal_product_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				pending_plan_key varchar(100) NOT NULL DEFAULT '',
+				pending_product_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				plan_order_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				cancel_at_period_end tinyint(1) NOT NULL DEFAULT 0,
 				revoked_at datetime DEFAULT NULL,
 				billing_interval varchar(10) NOT NULL DEFAULT 'year',
@@ -732,6 +739,32 @@ final class Schema {
 		);
 
 		return 1 === (int) $exists;
+	}
+
+	/**
+	 * Schema 17: confirm that dbDelta added the plan change columns (T-110).
+	 *
+	 * No data changes: existing licenses have no pending plan change (empty key,
+	 * product 0) and no upgrade order (0). dbDelta reports no errors, so a
+	 * missing column is detected here and the step is retried.
+	 *
+	 * @return bool
+	 */
+	private static function step_17_plan_change_columns(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		global $wpdb;
+
+		$tables = self::table_names();
+		$count  = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name IN (%s, %s, %s)',
+				$tables['licenses'],
+				'pending_plan_key',
+				'pending_product_id',
+				'plan_order_id'
+			)
+		);
+
+		return 3 === $count;
 	}
 
 	/**

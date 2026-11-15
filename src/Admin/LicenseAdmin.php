@@ -11,6 +11,7 @@ use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
 use WPLC\License\LicenseIssuer;
 use WPLC\License\LicenseLifecycle;
+use WPLC\License\PlanChange;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -40,6 +41,8 @@ final class LicenseAdmin {
 		add_action( 'admin_post_wplc_admin_license_status', array( self::class, 'handle_status_change' ) );
 		add_action( 'admin_post_wplc_admin_release_activation', array( self::class, 'handle_release_activation' ) );
 		add_action( 'admin_post_wplc_admin_extend_license', array( self::class, 'handle_extend' ) );
+		add_action( 'admin_post_wplc_admin_change_plan', array( self::class, 'handle_change_plan' ) );
+		add_action( 'admin_post_wplc_admin_cancel_plan_change', array( self::class, 'handle_cancel_plan_change' ) );
 		add_action( 'admin_post_wplc_admin_add_license', array( self::class, 'handle_add_license' ) );
 		add_action( 'admin_post_wplc_admin_license_search', array( self::class, 'handle_search' ) );
 		AdminNotices::register_hooks();
@@ -424,6 +427,47 @@ final class LicenseAdmin {
 
 		$extended = (bool) call_user_func( array( LicenseLifecycle::class, 'admin_extend' ), $license_id, $paid_until, $reason, get_current_user_id() );
 		AdminNotices::redirect( $extended ? 'term_extended' : 'extend_failed', $fallback );
+	}
+
+	/**
+	 * Change the plan of a license now or from the next renewal (T-110). No payment is taken.
+	 *
+	 * @return void
+	 */
+	public static function handle_change_plan(): void {
+		self::require_capability();
+
+		$license_id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
+		check_admin_referer( 'wplc_admin_change_plan_' . $license_id );
+
+		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
+		$when       = isset( $_POST['when'] ) ? sanitize_key( wp_unslash( $_POST['when'] ) ) : '';
+		$reason     = self::posted_reason();
+		if ( ! $license_id || ! $product_id || '' === $reason || ! in_array( $when, array( 'now', 'renewal' ), true ) ) {
+			AdminNotices::redirect( 'plan_change_missing_input' );
+		}
+		$result = 'now' === $when
+			? PlanChange::admin_change_now( $license_id, $product_id, $reason, get_current_user_id() )
+			: PlanChange::schedule_pending( $license_id, $product_id, get_current_user_id(), $reason, true );
+		AdminNotices::redirect( $result, self::detail_url( $license_id ) );
+	}
+
+	/**
+	 * Withdraw a plan change scheduled for the next renewal.
+	 *
+	 * @return void
+	 */
+	public static function handle_cancel_plan_change(): void {
+		self::require_capability();
+
+		$license_id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
+		check_admin_referer( 'wplc_admin_cancel_plan_change_' . $license_id );
+		$reason = self::posted_reason();
+		if ( ! $license_id || '' === $reason ) {
+			AdminNotices::redirect( 'plan_change_missing_input' );
+		}
+		$withdrawn = PlanChange::cancel_pending( $license_id, get_current_user_id(), $reason );
+		AdminNotices::redirect( $withdrawn ? 'plan_change_withdrawn' : 'plan_change_not_withdrawn', self::detail_url( $license_id ) );
 	}
 
 	/**

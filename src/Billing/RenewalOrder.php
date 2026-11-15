@@ -9,6 +9,7 @@ namespace WPLC\Billing;
 
 use WPLC\Catalog\Catalog;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\PlanChange;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -81,7 +82,8 @@ final class RenewalOrder {
 		$was_manual = $order ? 'yes' === $order->get_meta( self::META_MANUAL, true ) : false;
 		$is_new = ! $order;
 		$price = self::price( $license, $manual );
-		$product = self::product( $license, $price['plan'] );
+		// A downgrade scheduled for the next renewal (T-110) is billed with its own product.
+		$product = $price['pending_product'] ? $price['pending_product'] : self::product( $license, $price['plan'] );
 		if ( ! $product ) {
 			return new \WP_Error( 'renewal_product_missing', __( 'The source product is no longer available for renewal.', 'wp-license' ) );
 		}
@@ -236,11 +238,12 @@ final class RenewalOrder {
 	 * Automatic renewals charge the amount stored on the license at purchase
 	 * (the regular price of the purchased product or variation). Manual
 	 * renewals use the current regular price of that product or variation; see
-	 * choose_price() for the fallbacks.
+	 * choose_price() for the fallbacks. A plan change scheduled for the next
+	 * renewal (T-110) replaces the price, see choose_pending_price().
 	 *
 	 * @param array<string,mixed> $license License row.
 	 * @param bool                $manual Manual renewal.
-	 * @return array{amount_minor:int,decimals:int,currency:string,plan:array<string,mixed>|null}
+	 * @return array{amount_minor:int,decimals:int,currency:string,plan:array<string,mixed>|null,pending_product:\WC_Product|null}
 	 */
 	public static function price( array $license, bool $manual ): array {
 		global $wpdb;
@@ -262,9 +265,53 @@ final class RenewalOrder {
 		}
 
 		$price = self::choose_price( $license, $plan, $current, $manual );
+		$pending_product = null;
+		$pending = PlanChange::pending_target( $license );
+		if ( $pending ) {
+			$with_pending = self::choose_pending_price( $price, $pending['price'], $manual );
+			if ( null !== $with_pending ) {
+				$price = $with_pending;
+				$pending_product = $pending['product'];
+			}
+		}
 		$price['plan'] = $plan;
+		$price['pending_product'] = $pending_product;
 
 		return $price;
+	}
+
+	/**
+	 * Price of a renewal that switches to a pending plan (T-110). Pure helper.
+	 *
+	 * - Manual: the current regular price of the pending plan's product; the
+	 *   customer sees it on the pay page.
+	 * - Automatic: that price, but never more than the stored amount: the
+	 *   customer agreed to off-session charges of the stored amount only.
+	 *
+	 * @param array{amount_minor:int,decimals:int,currency:string}      $base Price without the plan change.
+	 * @param array{amount_minor:int,decimals:int,currency:string}|null $pending Current regular price of the pending product.
+	 * @param bool                                                      $manual Manual renewal.
+	 * @return array{amount_minor:int,decimals:int,currency:string}|null Null when the pending plan cannot be billed (no price, other currency or precision): the renewal keeps the current plan.
+	 */
+	public static function choose_pending_price( array $base, ?array $pending, bool $manual ): ?array {
+		if (
+			null === $pending
+			|| (int) $pending['amount_minor'] <= 0
+			|| strtoupper( (string) $pending['currency'] ) !== strtoupper( (string) $base['currency'] )
+			|| (int) $pending['decimals'] !== (int) $base['decimals']
+		) {
+			return null;
+		}
+		$amount = (int) $pending['amount_minor'];
+		if ( ! $manual && (int) $base['amount_minor'] > 0 ) {
+			$amount = min( $amount, (int) $base['amount_minor'] );
+		}
+
+		return array(
+			'amount_minor' => $amount,
+			'decimals' => (int) $base['decimals'],
+			'currency' => strtoupper( (string) $base['currency'] ),
+		);
 	}
 
 	/**
@@ -326,7 +373,7 @@ final class RenewalOrder {
 	 * @param array<string,mixed> $license License row.
 	 * @return \WC_Product|false
 	 */
-	private static function purchased_product( array $license ) {
+	public static function purchased_product( array $license ) {
 		$product_id = (int) ( $license['renewal_product_id'] ?? 0 );
 		if ( $product_id > 0 ) {
 			$product = function_exists( 'wc_get_product' ) ? wc_get_product( $product_id ) : false;
@@ -375,7 +422,7 @@ final class RenewalOrder {
 	 * @param int         $decimals Precision of the amount.
 	 * @return bool
 	 */
-	private static function set_line( $order, $product, int $amount_minor, int $decimals ): bool {
+	public static function set_line( $order, $product, int $amount_minor, int $decimals ): bool {
 		$catalog_price = Money::to_decimal( $amount_minor, $decimals );
 		$net = function_exists( 'wc_get_price_excluding_tax' )
 			? wc_get_price_excluding_tax( $product, array( 'qty' => 1, 'price' => $catalog_price ) )
@@ -423,7 +470,7 @@ final class RenewalOrder {
 	 * @param array<string,mixed> $license License row.
 	 * @return void
 	 */
-	private static function set_addresses( $order, array $license ): void {
+	public static function set_addresses( $order, array $license ): void {
 		$billing = array();
 		$shipping = array();
 		if ( class_exists( '\\WC_Customer' ) ) {
