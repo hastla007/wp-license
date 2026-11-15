@@ -156,7 +156,8 @@ final class Authenticator {
 		$expires_at = gmdate( 'Y-m-d H:i:s', time() + self::NONCE_TTL );
 		$nonce_inserted = $wpdb->query(
 			$wpdb->prepare(
-				"INSERT INTO {$tables['request_nonces']} (activation_id,nonce_hash,expires_at,created_at) VALUES (%d,%s,%s,%s) ON DUPLICATE KEY UPDATE created_at = IF(expires_at <= %s, %s, created_at), expires_at = IF(expires_at <= %s, %s, expires_at)",
+				"INSERT INTO %i (activation_id,nonce_hash,expires_at,created_at) VALUES (%d,%s,%s,%s) ON DUPLICATE KEY UPDATE created_at = IF(expires_at <= %s, %s, created_at), expires_at = IF(expires_at <= %s, %s, expires_at)",
+				$tables['request_nonces'],
 				(int) $activation['id'],
 				$nonce_hash,
 				$expires_at,

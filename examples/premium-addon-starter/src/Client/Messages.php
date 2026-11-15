@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 e3e791d639d693fae8ecdcac4e306b12e35bf63613e85138b9a11aa6067dae67). Do not edit: change the server copy and re-vendor.
+ * (source sha256 59b3a6b78482bfe78b3e8c18ef73c4a937036bc05d56062e61fdc305e23d7ad6). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -164,6 +164,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'error.installation_secret_invalid'   => __( 'The license server cannot read the activation of this site. Enter the license key to activate it again.', 'premium-addon-starter' ),
 				'error.activation_mismatch'           => __( 'The stored activation does not belong to this installation.', 'premium-addon-starter' ),
 				'error.site_mismatch'                 => __( 'This site is not the one the license was activated for.', 'premium-addon-starter' ),
+				'error.site_move_refused'             => __( 'A live site activation cannot be moved to a staging, local or test address. Activate this copy as a staging site instead.', 'premium-addon-starter' ),
 				'error.invalid_request_signature'     => __( 'The license server rejected the signature of this site.', 'premium-addon-starter' ),
 				'error.request_expired'               => __( 'The clock of this server differs too much from the clock of the license server.', 'premium-addon-starter' ),
 				'error.rate_limited'                  => __( 'Too many requests. Please try again in a few minutes.', 'premium-addon-starter' ),

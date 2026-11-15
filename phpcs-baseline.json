@@ -45,8 +45,6 @@
     },
     "src/Api/V1/Authenticator.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
-            "\"DELETE FROM {$tables['request_nonces']} WHERE activation_id = %d AND nonce_hash = %s AND expires_at <= %s\",": 1,
-            "\"INSERT IGNORE INTO {$tables['request_nonces']} (activation_id,nonce_hash,expires_at,created_at) VALUES (%d,%s,%s,%s)\",": 1,
             "\"INSERT INTO {$tables['request_limits']} (limiter_hash,bucket_start,hits,created_at) VALUES (%s,%s,1,%s) ON DUPLICATE KEY UPDATE hits = hits + 1\",": 1,
             "\"SELECT * FROM {$tables['activations']} WHERE installation_uuid = %s LIMIT 1\",": 1,
             "\"SELECT hits FROM {$tables['request_limits']} WHERE limiter_hash = %s AND bucket_start = %s LIMIT 1\",": 1,
@@ -70,7 +68,6 @@
     },
     "src/Api/V1/UpdateService.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
-            "\"DELETE FROM {$tables['download_tokens']} WHERE expires_at < %s ORDER BY expires_at ASC LIMIT %d\",": 1,
             "\"SELECT dt.package_url, dt.license_id, dt.activation_id, dt.consumed_at, l.product_key, l.status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end FROM {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id WHERE dt.token_hash = %s AND ( ( dt.consumed_at IS NULL AND dt.expires_at > %s ) OR dt.consumed_at > %s ) LIMIT 1\",": 2,
             "$wpdb->prepare( \"SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1\", (int) $activation['license_id'] ),": 1
         }

@@ -1003,6 +1003,10 @@ final class Diagnostics {
 				$address['proxies'] ? __( 'set', 'wp-license' ) : __( 'not set', 'wp-license' )
 			)
 		);
+		$proxy_warning = \WPLC\Api\V1\ClientIp::configuration_warning();
+		if ( '' !== $proxy_warning ) {
+			$add( __( 'Proxy header ignored', 'wp-license' ), __( 'Not used', 'wp-license' ), 'warning', $proxy_warning );
+		}
 
 		return $rows;
 	}

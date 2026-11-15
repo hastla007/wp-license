@@ -161,6 +161,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'error.installation_secret_invalid'   => __( 'The license server cannot read the activation of this site. Enter the license key to activate it again.', 'wp-license' ),
 				'error.activation_mismatch'           => __( 'The stored activation does not belong to this installation.', 'wp-license' ),
 				'error.site_mismatch'                 => __( 'This site is not the one the license was activated for.', 'wp-license' ),
+				'error.site_move_refused'             => __( 'A live site activation cannot be moved to a staging, local or test address. Activate this copy as a staging site instead.', 'wp-license' ),
 				'error.invalid_request_signature'     => __( 'The license server rejected the signature of this site.', 'wp-license' ),
 				'error.request_expired'               => __( 'The clock of this server differs too much from the clock of the license server.', 'wp-license' ),
 				'error.rate_limited'                  => __( 'Too many requests. Please try again in a few minutes.', 'wp-license' ),
