@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: WP License Captain 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-11-13T21:35:54+00:00\n"
-"PO-Revision-Date: 2026-11-15 08:05+0000\n"
+"PO-Revision-Date: 2026-11-15 08:06+0000\n"
 "Last-Translator: \n"
 "Language-Team: German\n"
 "Language: de_DE\n"
@@ -7015,3 +7015,7 @@ msgstr "WP License Captain: Der Kunde hat die Löschung seiner Lizenzdaten beant
 #: templates/wplc-cancel.php:65
 msgid "If you entered an order number, you can also use the license reference from your license e-mail (it starts with WPLC-) or cancel in your customer account."
 msgstr "Wenn Sie eine Bestellnummer eingegeben haben, können Sie auch die Lizenzreferenz aus Ihrer Lizenz-E-Mail verwenden (sie beginnt mit WPLC-) oder in Ihrem Kundenkonto kündigen."
+
+#: src/Maintenance/Orphans.php:99
+msgid "WP License Captain: the customer account was deleted; this renewal was cancelled."
+msgstr "WP License Captain: Das Kundenkonto wurde gelöscht; diese Verlängerung wurde storniert."

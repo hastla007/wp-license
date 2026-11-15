@@ -323,6 +323,27 @@ final class RenewalLifecycleIntegrationTest extends WPLC_Renewal_TestCase {
 		$this->assertFalse( has_action( 'deleted_user', array( LicenseLifecycle::class, 'handle_deleted_user' ) ) );
 	}
 
+	/** P-35/P-36 parity: deleting the owner cancels the open manual renewal and scrubs the audit snapshots. */
+	public function test_deleting_the_owner_cancels_the_manual_renewal_and_scrubs_audit_snapshots(): void {
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		global $wpdb;
+		$customer = $this->customer();
+		$license  = $this->buy( $this->create_license_product(), $customer, false );
+		$this->move_due_date( (int) $license['id'], 10 * DAY_IN_SECONDS );
+		$order = ManualRenewal::start( (int) $license['id'], $customer );
+		$this->assertInstanceOf( WC_Order::class, $order, is_wp_error( $order ) ? $order->get_error_message() : '' );
+		\WPLC\License\AuditLog::record( 'license_owner_changed', 'license', (int) $license['id'], 'test', array( 'customer_id' => $customer ), array( 'customer_id' => 999 ) );
+
+		wp_delete_user( $customer );
+
+		$this->assertSame( 'cancelled', wc_get_order( $order->get_id() )->get_status(), 'The open manual renewal order of a detached license is closed.' );
+		$json = (string) $wpdb->get_var( $wpdb->prepare( "SELECT before_json FROM {$this->tables()['audit_log']} WHERE object_type = 'license' AND object_id = %d AND action = 'license_owner_changed'", (int) $license['id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- test, table name.
+		$this->assertStringNotContainsString( '"customer_id":' . $customer, $json );
+		$this->assertStringContainsString( \WPLC\Privacy\PersonalData::ERASED, $json );
+		$after = (string) $wpdb->get_var( $wpdb->prepare( "SELECT after_json FROM {$this->tables()['audit_log']} WHERE object_type = 'license' AND object_id = %d AND action = 'license_owner_changed'", (int) $license['id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- test, table name.
+		$this->assertStringContainsString( '999', $after, 'The other owner named in the entry stays.' );
+	}
+
 	/** B-185: a manual renewal paid late but inside grace continues from the due date. */
 	public function test_b185_manual_renewal_paid_in_grace_continues_from_the_due_date(): void {
 		$customer = $this->customer();

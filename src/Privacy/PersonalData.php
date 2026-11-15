@@ -756,7 +756,7 @@ final class PersonalData {
 	 * @param string   $action        Limit to one audit action; '' for all.
 	 * @return int|false Rows changed, false on a database error.
 	 */
-	private static function scrub_audit( string $object_type, array $object_ids, ?int $only_customer = null, string $action = '' ) {
+	public static function scrub_audit( string $object_type, array $object_ids, ?int $only_customer = null, string $action = '' ) {
 		global $wpdb;
 
 		$object_ids = array_values( array_unique( array_filter( array_map( 'intval', $object_ids ) ) ) );
