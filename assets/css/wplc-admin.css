@@ -67,3 +67,22 @@
 .wp-list-table.wplc-licenses .column-renewal { width: 8%; }
 .wp-list-table.wplc-licenses .column-paid_until,
 .wp-list-table.wplc-licenses .column-created { width: 11%; }
+
+/* License list bulk actions (T-102) and audit log screen (T-156). */
+.wplc-bulk-controls input[type="text"] {
+	width: 22em;
+	max-width: 100%;
+}
+
+.wplc-bulk-result .wplc-bulk-skipped {
+	max-width: 60em;
+}
+
+.wplc-audit-log .wplc-audit-details pre {
+	max-height: 20em;
+	max-width: 40em;
+	overflow: auto;
+	white-space: pre-wrap;
+	word-break: break-all;
+	margin: 0 0 6px;
+}

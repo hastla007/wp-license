@@ -225,6 +225,30 @@ scanned the whole event inbox. New index `outcome_processed (outcome, processed_
 serves both inbox metrics: 50 000 → 100 rows. The renewal metrics already
 used `due_renewals`.
 
+### License list filters and audit log screen (T-102, T-156)
+
+New WHERE clauses were checked with `ANALYZE` on the scale-1 seed (50 000
+licenses, 30 000 renewals, 150 000 audit rows). No new index was needed:
+
+| Filter | Plan | Rows read |
+|---|---|---:|
+| renewal = review_required / failed | semi-join materialized from `renewals.due_renewals`, licenses by primary key | 94 / 778 |
+| past due with open renewal | `status_created` (past_due), first match per license in `license_period` | 841 |
+| expires within 30 days, sorted by paid until | range on `paid_until` | 51 |
+| expires within 30 days, default sort | `created_at` index, filtered (14 ms) | 11 585 |
+| paid period ended | `created_at` index, filtered; COUNT through `paid_until` | 2 385 |
+| renewal mode automatic / cancelling | `created_at` index, filtered (no selective index; ~50% / ~2% match) | 104 / 2 019 |
+| source order ID | the order's items from `woocommerce_order_items.order_id`, then `order_unit` | 2 |
+| audit log, no filter | primary key, newest first | 50 |
+| audit log, object type (rare) / object ID alone | `object_history` ranges (the stored types are read with a loose index scan) | ≤ matches |
+| audit log, date range | binary search over the primary key (IDs grow with `created_at`, as the retention job assumes) turns the range into an ID range | ~17 lookups + 50 |
+
+The licenses table has no index on `source_order_id`; a filter for an order
+whose items no longer exist falls back to a full scan (rare). The audit log has
+no index on `action`: filtering by a rare action alone reads every row (63 ms
+at 150 000 rows). Combine it with an object type, actor or date range on large
+logs, or add an `(action, id)` index if support uses that filter often.
+
 ## Schema 15
 
 | Table | New index | Serves |

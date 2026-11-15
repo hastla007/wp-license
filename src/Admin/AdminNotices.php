@@ -67,6 +67,12 @@ final class AdminNotices {
 			'review_action_not_allowed' => array( 'error', __( 'This action is not available for this renewal.', 'wp-license' ) ),
 			'review_license_status'     => array( 'error', __( 'The license is suspended or revoked and cannot be extended. Reactivate it first, or close the review and refund the payment.', 'wp-license' ) ),
 			'review_book_failed'        => array( 'error', __( 'The renewal could not be booked. Check the license status and try again.', 'wp-license' ) ),
+			// License list bulk actions (T-102).
+			'bulk_done'                 => array( 'success', __( 'The bulk action was processed. The result for every license is shown below.', 'wp-license' ) ),
+			'bulk_already_done'         => array( 'error', __( 'This bulk action was already processed and was not run again. Its result is shown below. Reload the list to start a new one.', 'wp-license' ) ),
+			'bulk_in_progress'          => array( 'error', __( 'This bulk action is still being processed. Reload the list in a minute to see the result.', 'wp-license' ) ),
+			'bulk_missing_input'        => array( 'error', __( 'Select at least one license, an action and enter a reason.', 'wp-license' ) ),
+			'bulk_too_many'             => array( 'error', __( 'Too many licenses were selected. Select at most 100 licenses per bulk action.', 'wp-license' ) ),
 		);
 	}
 

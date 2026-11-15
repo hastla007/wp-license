@@ -45,6 +45,8 @@ final class LicenseAdmin {
 		AdminNotices::register_hooks();
 		Settings::register_hooks();
 		RenewalReviewAdmin::register_hooks();
+		LicenseBulkActions::register_hooks();
+		AuditLogAdmin::register_hooks();
 	}
 
 	/**
@@ -205,9 +207,9 @@ final class LicenseAdmin {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="wplc-license-search">';
 		echo '<input type="hidden" name="action" value="wplc_admin_license_search">';
 		wp_nonce_field( 'wplc_admin_license_search' );
-		foreach ( array( 'status', 'product' ) as $field ) {
-			if ( '' !== $filters[ $field ] ) {
-				echo '<input type="hidden" name="' . esc_attr( $field ) . '" value="' . esc_attr( $filters[ $field ] ) . '">';
+		foreach ( LicenseListTable::FILTER_ARGS as $field ) {
+			if ( '' !== (string) $filters[ $field ] && '0' !== (string) $filters[ $field ] ) {
+				echo '<input type="hidden" name="' . esc_attr( $field ) . '" value="' . esc_attr( (string) $filters[ $field ] ) . '">';
 			}
 		}
 		self::render_order_fields( $filters );
@@ -221,6 +223,15 @@ final class LicenseAdmin {
 		echo '</p>';
 		echo '<p class="description">' . esc_html__( 'Search by key prefix, product, plan, customer ID, customer email, #license ID, or paste a complete license key.', 'wp-license' ) . '</p>';
 		echo '</form>';
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only: the result is stored per user.
+		$bulk_token = isset( $_GET[ LicenseBulkActions::QUERY_ARG ] ) ? sanitize_key( wp_unslash( $_GET[ LicenseBulkActions::QUERY_ARG ] ) ) : '';
+		if ( '' !== $bulk_token ) {
+			LicenseBulkActions::render_result( get_current_user_id(), $bulk_token );
+		}
+		// Bulk actions are POSTed through their own form; checkboxes and controls in
+		// the table are bound to it with form="wplc-bulk-form" (T-102).
+		LicenseBulkActions::render_form( $filters );
 
 		echo '<form method="get">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '">';
@@ -270,7 +281,7 @@ final class LicenseAdmin {
 	 */
 	public static function search_redirect_url( int $user_id, array $post ): string {
 		$args = array( 'page' => self::PAGE );
-		foreach ( array( 'status', 'product', 'orderby', 'order' ) as $field ) {
+		foreach ( array_merge( LicenseListTable::FILTER_ARGS, array( 'orderby', 'order' ) ) as $field ) {
 			$value = isset( $post[ $field ] ) && is_string( $post[ $field ] ) ? sanitize_key( $post[ $field ] ) : '';
 			if ( '' !== $value ) {
 				$args[ $field ] = $value;

@@ -212,6 +212,26 @@ final class Format {
 	}
 
 	/**
+	 * Convert a local calendar date to the UTC start of that day (00:00:00 local).
+	 *
+	 * @param string        $date     'Y-m-d' in the site timezone.
+	 * @param \DateTimeZone $timezone Site timezone.
+	 * @return string 'Y-m-d H:i:s' UTC, or '' for an invalid date.
+	 */
+	public static function local_date_to_utc_start_of_day( string $date, \DateTimeZone $timezone ): string {
+		$date = trim( $date );
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+			return '';
+		}
+		$local = \DateTimeImmutable::createFromFormat( '!Y-m-d', $date, $timezone );
+		if ( ! $local instanceof \DateTimeImmutable || $local->format( 'Y-m-d' ) !== $date ) {
+			return '';
+		}
+
+		return $local->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+	}
+
+	/**
 	 * Calendar date in the site timezone for a stored UTC datetime (for date inputs).
 	 *
 	 * @param mixed         $utc_datetime 'Y-m-d H:i:s' in UTC.
