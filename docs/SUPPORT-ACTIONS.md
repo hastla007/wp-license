@@ -48,6 +48,8 @@ add_filter( 'wplc_capability', function ( $capability, $action ) {
 | Suspend, revoke, reactivate | License detail | `wplc_manage_licenses` | yes | `admin_status_change` |
 | Change term | License detail | `wplc_manage_licenses` | yes | `admin_extend` |
 | Change plan (now / with the next renewal, withdraw) | License detail | `manage_woocommerce` | yes | `admin_plan_change`, `plan_change_scheduled`, `plan_change_cancelled` |
+| Cancel automatic renewal at the end of the paid period, withdraw the cancellation | License detail | `wplc_manage_licenses` | yes | `cancellation_scheduled`, `cancellation_withdrawn` |
+| Change the automatic renewal amount (lower only) | License detail | `wplc_manage_licenses` | yes | `admin_renewal_amount_changed` |
 | Restore with a new end date | License detail (suspended with ended term, or revoked) | `wplc_manage_licenses`; revoked: `wplc_restore_licenses` | yes | `admin_restore` |
 | Issue new key | License detail | `wplc_manage_licenses` | yes | `license_key_reissued` |
 | Send key email again | License detail | `wplc_manage_licenses` | yes | `license_key_resend_requested` |
@@ -93,7 +95,7 @@ The search field accepts:
 
 - a **complete license key** (pasted; spaces, line breaks, non-breaking spaces and typographic dashes are ignored). Keys are not stored; the search compares the key's hash. The search is sent as a form post and the result page carries the license ID instead, so the key does not appear in the address bar, the browser history or the server's access log,
 - `#123` for a license ID,
-- a number: license ID, customer ID or part of the key prefix,
+- a number: license ID, customer ID, order ID (the licenses issued for that order, or the license a renewal order renews) or part of the key prefix. Order numbers changed by a sequential-numbering plugin are not resolved; use the order ID,
 - an **email address** or part of one (anything containing `@`),
 - a **license UUID** or the **installation ID** a customer site reports,
 - other text: key prefix, product key, plan key, part of a customer email, or part of the address of an activated site.
@@ -144,6 +146,10 @@ Every license runs through the same lifecycle code as the single action, under i
 
 A batch runs once. Submitting the same form again (double click, browser reload or back button) does not repeat it: the list shows the stored result with the notice "already processed". The result is kept for one hour and only for the administrator who ran it. Each batch also writes one summary entry `admin_bulk_action` (object type `license`, object ID 0) with the action and the changed and skipped license IDs.
 
+## Order screen
+
+The WooCommerce order screen (HPOS and legacy) has a box "Licenses" for users with `wplc_view_licenses` (A-123): the licenses issued for the order and, on a renewal order, the license it renews, each linked to its detail screen.
+
 ## License detail
 
 Shows customer, product, plan, status, billing interval, start, paid until, whether the license grants access right now, renewal mode, next automatic payment, live sites used/allowed, source order, technical IDs, then the site activations, renewals, entitlements and the latest 100 audit entries with a link to the complete audit log of the license.
@@ -156,7 +162,7 @@ Users with `wplc_view_licenses` but without `wplc_manage_licenses` see this scre
 
 ### Suspend, revoke, reactivate
 
-- **Suspend** (`active`, `past_due`, `expired` → `suspended`): the license stops granting access until it is reactivated.
+- **Suspend** (`active`, `past_due`, `expired` → `suspended`, after a confirmation): the license stops granting access until it is reactivated.
 - **Revoke** (→ `revoked`): the license stops granting access and automatic renewal is switched off. Only an administrator can undo it (see *Restore*).
 - **Reactivate** (`suspended`, `past_due`, `expired` → `active`): only possible while `paid_until` is in the future. If the period has ended, change the term (past due, expired) or restore the license (suspended).
 
@@ -216,13 +222,23 @@ A paid customer upgrade that could not be applied (the license changed between o
 
 A paid upgrade order that is cancelled or fails afterwards (bounced SEPA debit) puts the license back on its previous plan while the upgraded period is still running. If that is no longer possible (a renewal was booked or the plan changed since), the plan stays, the order note says so and the license is reported for review (`license_needs_review`): decide whether to change the plan back with "Change plan → Now".
 
+### Automatic renewal
+
+Shown for `active` and `past_due` licenses with automatic renewal (A-21, A-11).
+
+- **Cancel at the end of the paid period** (with reason, after a confirmation): the same cancellation the customer can make in the account or on the public cancellation page. The license keeps running until `paid_until`, nothing more is charged, and the customer gets the cancellation confirmation email. Audit `cancellation_scheduled` with the acting user and the reason.
+- **Withdraw cancellation** (with reason): only while the paid period runs. The license is charged automatically again with the stored payment method; withdraw only when the customer asked for it. Audit `cancellation_withdrawn`. A license whose automatic renewal was switched off (for example after an owner change) cannot be switched on here: that needs the customer's consent to off-session charges, which they give in their account.
+- **Change renewal amount** (with reason): the amount of the next automatic renewals, in the same form as the product price (taxes are added as at purchase); the currency stays. It can only be **lowered**: the customer agreed to automatic charges of the current amount. A shop that collected the customer's consent to a higher amount elsewhere can allow increases with the filter `wplc_admin_can_raise_renewal_amount` (arguments: `false`, license row, new amount in minor units, acting user). Refused while an automatic charge is in flight and when the amount changed after the page was opened. Renewal orders that already exist keep their amount; change those on the order screen. Manual renewals use the current product price anyway. Audit `admin_renewal_amount_changed` with the amount before and after.
+
 ### Release a site activation
 
-Frees one active site. The site can no longer authenticate and loses updates and premium features; a staging site linked to it is released as well. Use this for lost or decommissioned sites when the customer cannot deactivate in the product plugin or in their account. Confirm the customer's identity first.
+Frees one active site. You are asked to confirm before the site is released. The site can no longer authenticate and loses updates and premium features; a staging site linked to it is released as well. Use this for lost or decommissioned sites when the customer cannot deactivate in the product plugin or in their account. Confirm the customer's identity first.
 
 ### Add license manually
 
-For goodwill and migrated customers. Input: user ID or email of an existing account, an active plan from the catalog, end date, reason. No order is created and nothing is charged. The license does not renew automatically; the customer can renew it in the account inside the renewal window (see [RENEWALS.md](RENEWALS.md)). The customer finds the key in the account, and the "license issued" email is sent.
+For goodwill and migrated customers. Input: user ID or email of an existing account, an active plan from the catalog, end date, reason. No order is created and nothing is charged. The license does not renew automatically; the customer can renew it in the account inside the renewal window (see [RENEWALS.md](RENEWALS.md)). The customer finds the key in the account, and the "license issued" email is sent unless "Do not send the license email with the key" is ticked (for a migrated customer who already has a key; the email can be sent later with *Send key email again*).
+
+When the form is refused (unknown customer, invalid date, missing field), it comes back with the entered values for ten minutes (A-123); they are kept per user in a transient and removed when the form is shown again or the license is created.
 
 A form that is submitted twice (double click, reload of the confirmation) creates one license; the second submission leads to the license that already exists.
 
@@ -267,7 +283,7 @@ While a renewal of a license is in review, the daily job and the grace-end job d
 WooCommerce → License audit log (page `wplc-audit-log`, capability `wplc_view_diagnostics`). Read-only list of all audit entries, newest first: licenses, activations, renewals, releases, settings, catalog imports, key rotations (object type `system`) and bulk-action summaries. It is the only audit screen: the former second page `wplc-audit` was removed (P-27), and its old URLs (for example bookmarks of "Open the complete audit log of this license") redirect here with their filters.
 
 - **Filters:** license ID (the license with its site activations and renewals; the link on the license detail screen sets it), object type, object ID (0 = system-wide entries), action (exact code, e.g. `settings_updated`), actor (user ID, email, login, or `system`), date range (days in the site timezone, both inclusive). The date range is mapped to an ID range and the license filter reads the IDs of the activations and renewals first, so no filter scans the table.
-- **Columns:** date, action code, object (linked: a license to its detail screen; an activation or renewal to the detail screen of its license; releases, settings and catalog entries to their screens), acting user as login and user ID, for example `anna (#17)` ("System" for jobs and webhooks), reason (system reason codes translated, as on the license detail screen), change summary ("field: old → new") with the full before/after snapshots under "Details".
+- **Columns:** date (in the site timezone, named in the column heading), action (a readable name with the code below it; A-122), object (linked: a license to its detail screen; an activation or renewal to the detail screen of its license; releases, settings and catalog entries to their screens), acting user as login and user ID, for example `anna (#17)` ("System" for jobs and webhooks), reason (system reason codes translated, as on the license detail screen), change summary ("field: old → new") with the full before/after snapshots under "Details".
 - **Redaction:** reasons and snapshots are redacted when written (license keys, emails, tokens, secrets). The screen applies the same redaction again before showing a row, so older rows or rows written by add-ons cannot show such values either. Site addresses of activations are kept (A-77) until a privacy erasure removes them.
 - **Export as CSV:** the filtered list with ID, time (UTC), action, object, actor ID and login, reason and the before/after snapshots, redacted exactly like the screen. It is streamed in batches (newest first, keyset paging) and holds at most 50,000 entries; a larger selection ends with a `# Export truncated …` line and the next visit of the screen shows a notice. Every export is recorded as `audit_log_exported` (object type `export`, ID 0) with the acting user and the filters.
 
@@ -275,7 +291,7 @@ Entries cannot be edited or deleted here. Old entries are removed by the data re
 
 ## Settings
 
-WooCommerce → License settings. Status rows (schema, Stripe webhook, secrets, how many recent license keys can be verified, why automatic renewal is unavailable, checkout type) and the settings.
+WooCommerce → License settings (also linked as "Getting started" in the plugin list). At the top, a "Getting started" checklist names the steps in the order they are needed – secrets in `wp-config.php`, a license product with product and plan key, the Stripe webhook, the first release, a test purchase – each marked done or to do with a link to its screen; it folds away once every step is done (A-121). Below it, status rows (schema, Stripe webhook, secrets, how many recent license keys can be verified, why automatic renewal is unavailable, checkout type) and the settings.
 
 - A change is written to the audit log (`settings_updated`, see above).
 - **Trusted package hosts** can only be changed by an administrator; other users see the list read-only. If someone else changed the list after you opened the page, your save keeps their list and tells you so; the other fields of your form are still saved.

@@ -290,7 +290,7 @@ final class LicenseListTable extends \WP_List_Table {
 		$filters = self::request_filters();
 
 		$this->products = array();
-		$product_rows   = $wpdb->get_results( "SELECT product_key, display_name FROM {$tables['products']} ORDER BY display_name ASC LIMIT 500", ARRAY_A );
+		$product_rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT product_key, display_name FROM %i ORDER BY display_name ASC LIMIT 500', $tables['products'] ), ARRAY_A );
 		foreach ( is_array( $product_rows ) ? $product_rows : array() as $row ) {
 			$this->products[ (string) $row['product_key'] ] = (string) $row['display_name'];
 		}
@@ -535,8 +535,15 @@ final class LicenseListTable extends \WP_List_Table {
 				);
 
 			case LicenseSearch::TYPE_NUMBER:
-				$sql    = 'id = %d OR customer_id = %d';
-				$params = array( (int) $search['value'], (int) $search['value'] );
+				// A-123: a number is also an order ID: the licenses issued for it, or the license a
+				// renewal order renews.
+				$sql    = 'id = %d OR customer_id = %d OR source_order_id = %d';
+				$params = array( (int) $search['value'], (int) $search['value'], (int) $search['value'] );
+				$renews = self::license_renewed_by_order( (int) $search['value'] );
+				if ( $renews > 0 ) {
+					$sql     .= ' OR id = %d';
+					$params[] = $renews;
+				}
 				$prefix = self::key_prefix_condition( $search['value'] );
 				if ( null !== $prefix ) {
 					$sql   .= ' OR ' . $prefix['sql'];
@@ -600,6 +607,24 @@ final class LicenseListTable extends \WP_List_Table {
 			'sql'    => '(' . implode( ' OR ', $parts ) . ')',
 			'params' => $params,
 		);
+	}
+
+	/**
+	 * License a renewal order renews (A-123), zero when the number is no renewal order.
+	 *
+	 * @param int $order_id Candidate order ID.
+	 * @return int
+	 */
+	private static function license_renewed_by_order( int $order_id ): int {
+		if ( $order_id <= 0 || ! function_exists( 'wc_get_order' ) || ! class_exists( '\\WPLC\\Billing\\RenewalOrder' ) ) {
+			return 0;
+		}
+		$order = wc_get_order( $order_id );
+		if ( ! $order instanceof \WC_Order ) {
+			return 0;
+		}
+
+		return absint( $order->get_meta( \WPLC\Billing\RenewalOrder::META_LICENSE, true ) );
 	}
 
 	/**

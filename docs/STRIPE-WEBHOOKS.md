@@ -52,7 +52,7 @@ Sites that share one Stripe account receive each other's events. Every renewal P
 ## What the receiver does
 
 - Verifies the `Stripe-Signature` header (HMAC-SHA256 over `{timestamp}.{body}`, 300 seconds tolerance). The body may be at most 1 MiB.
-- Records a heartbeat after every correctly signed request (`stripe_webhook`, plus `stripe_webhook_live` or `stripe_webhook_test`) and, at most once a minute, after a rejected signature (`stripe_webhook_rejected`); see `Diagnostics::last_run()`.
+- Records a heartbeat after every correctly signed request (`stripe_webhook`, plus `stripe_webhook_live` or `stripe_webhook_test`) and, at most once a minute, after a rejected signature (`stripe_webhook_rejected`); see `Diagnostics::last_run()`. Each of those once-a-minute records also counts towards the metric `rejected_webhook_minutes` (minutes with rejected requests in the last 24 hours, shown on the diagnostics page and alerted from 5 by default; A-72).
 - Stores a minimized payload in the event inbox table: PaymentIntent ID, payment status, received and requested amount, currency, renewal/license/order IDs and the attempt counter (`wplc_attempt`: the attempt idempotency key `{renewal key}:{attempt}` or, for older charges, the plain counter; null when absent) from the metadata, the charge ID when the event carries one, plus a SHA-256 of that stored payload. For disputes: dispute ID, PaymentIntent ID, charge ID, reason, order ID, dispute status. For early fraud warnings: warning ID, PaymentIntent ID, charge ID, fraud type, order ID. No customer or card data is stored.
 - Queues the event for reconciliation (`wplc_process_stripe_webhook`) and answers immediately.
 

@@ -27,8 +27,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 final class SupportActions {
 
-	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Only table names from Schema::table_names() and $wpdb are interpolated; every value goes through prepare().
-
 	public const RESULT_OK         = 'ok';
 	public const RESULT_STALE      = 'stale';
 	public const RESULT_PROCESSING = 'processing';
@@ -38,6 +36,11 @@ final class SupportActions {
 	 * Owner changed, but the requested new key could not be issued (P-38).
 	 */
 	public const RESULT_KEY_KEPT = 'key_kept';
+
+	/**
+	 * A higher automatic renewal amount needs the customer's consent (A-11).
+	 */
+	public const RESULT_INCREASE_REFUSED = 'increase_refused';
 
 	/**
 	 * Longest reason stored with a status (licenses.status_reason is varchar(255)).
@@ -98,7 +101,8 @@ final class SupportActions {
 		$prefix  = LicenseKey::prefix( $uuid );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET license_uuid = %s, license_key_hash = %s, license_key_secret_id = %s, key_prefix = %s, updated_at = %s WHERE id = %d AND license_uuid = %s AND status = %s",
+				"UPDATE %i SET license_uuid = %s, license_key_hash = %s, license_key_secret_id = %s, key_prefix = %s, updated_at = %s WHERE id = %d AND license_uuid = %s AND status = %s",
+				$tables['licenses'],
 				$uuid,
 				LicenseKey::hash( $key ),
 				$key_id,
@@ -231,7 +235,8 @@ final class SupportActions {
 		$now     = gmdate( 'Y-m-d H:i:s' );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET customer_id = %d, renewal_enabled = 0, next_payment_at = NULL, payment_gateway_id = %s, payment_token_id = 0, cancel_at_period_end = 0, updated_at = %s WHERE id = %d AND customer_id = %d AND status = %s",
+				"UPDATE %i SET customer_id = %d, renewal_enabled = 0, next_payment_at = NULL, payment_gateway_id = %s, payment_token_id = 0, cancel_at_period_end = 0, updated_at = %s WHERE id = %d AND customer_id = %d AND status = %s",
+				$tables['licenses'],
 				$new_customer_id,
 				'',
 				$now,
@@ -248,15 +253,39 @@ final class SupportActions {
 			return self::RESULT_STALE;
 		}
 
-		// Automatic attempts would charge the previous owner's payment method.
-		$wpdb->query(
+		// Automatic attempts would charge the previous owner's payment method. Each renewal
+		// is cancelled with a compare-and-set on its status and gets its own audit entry (A-73).
+		$open = $wpdb->get_results(
 			$wpdb->prepare(
-				"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, updated_at = %s WHERE license_id = %d AND status IN ('scheduled','failed','manual_action_required')",
-				'cancelled',
-				$now,
+				"SELECT id, status FROM %i WHERE license_id = %d AND status IN ('scheduled','failed','manual_action_required') ORDER BY id ASC LIMIT 500",
+				$tables['renewals'],
 				$license_id
-			)
+			),
+			ARRAY_A
 		);
+		foreach ( is_array( $open ) ? $open : array() as $renewal ) {
+			$cancelled = $wpdb->query(
+				$wpdb->prepare(
+					'UPDATE %i SET status = %s, retry_at = NULL, updated_at = %s WHERE id = %d AND status = %s',
+					$tables['renewals'],
+					'cancelled',
+					$now,
+					(int) $renewal['id'],
+					(string) $renewal['status']
+				)
+			);
+			if ( 1 === (int) $cancelled ) {
+				AuditLog::record(
+					'renewal_cancelled',
+					'renewal',
+					(int) $renewal['id'],
+					'license_owner_changed',
+					array( 'status' => (string) $renewal['status'] ),
+					array( 'status' => 'cancelled' ),
+					$actor_user_id
+				);
+			}
+		}
 
 		AuditLog::record(
 			'license_owner_changed',
@@ -399,6 +428,143 @@ final class SupportActions {
 	}
 
 	/**
+	 * Cancel the automatic renewal for the end of the paid period on behalf of the customer (A-21).
+	 *
+	 * The same cancellation as in the customer account: the license runs until the end of the
+	 * paid period, nothing more is charged, and the customer gets the confirmation email.
+	 * Withdraw it with withdraw_cancellation().
+	 *
+	 * @param int    $license_id    License ID.
+	 * @param string $reason        Required reason.
+	 * @param int    $actor_user_id Acting user.
+	 * @return string One of the RESULT_* constants.
+	 */
+	public static function cancel_renewal( int $license_id, string $reason, int $actor_user_id ): string {
+		$reason  = self::limit_reason( $reason );
+		$license = self::license( $license_id );
+		if ( '' === $reason || ! $license || empty( $license['renewal_enabled'] ) || ! in_array( (string) $license['status'], array( 'active', 'past_due' ), true ) ) {
+			return self::RESULT_FAILED;
+		}
+		if ( ! empty( $license['cancel_at_period_end'] ) ) {
+			return self::RESULT_STALE;
+		}
+
+		return LicenseLifecycle::schedule_cancellation( $license_id, $reason, $actor_user_id ) ? self::RESULT_OK : self::RESULT_FAILED;
+	}
+
+	/**
+	 * Withdraw a cancellation at the end of the paid period, so the license renews again (A-21).
+	 *
+	 * Only the automatic renewal the customer agreed to comes back: a license whose
+	 * automatic renewal was switched off stays manual, because switching it on needs
+	 * the customer's consent to off-session charges (they do that in their account).
+	 *
+	 * @param int    $license_id    License ID.
+	 * @param string $reason        Required reason.
+	 * @param int    $actor_user_id Acting user.
+	 * @return string One of the RESULT_* constants.
+	 */
+	public static function withdraw_cancellation( int $license_id, string $reason, int $actor_user_id ): string {
+		$reason  = self::limit_reason( $reason );
+		$license = self::license( $license_id );
+		if ( '' === $reason || ! $license ) {
+			return self::RESULT_FAILED;
+		}
+		if ( empty( $license['cancel_at_period_end'] ) ) {
+			return self::RESULT_STALE;
+		}
+
+		return LicenseLifecycle::resume_renewal( $license_id, $actor_user_id, $reason ) ? self::RESULT_OK : self::RESULT_FAILED;
+	}
+
+	/**
+	 * Change the amount of the next automatic renewals of a license (A-11).
+	 *
+	 * The amount stored on the license is what the customer agreed to be charged
+	 * off-session, so by default it can only be lowered (or set back to a lower
+	 * value). Raising it needs the customer's consent; the filter
+	 * `wplc_admin_can_raise_renewal_amount` allows it for shops that collected that
+	 * consent elsewhere. The currency stays. Renewal orders that already exist keep
+	 * their amount.
+	 *
+	 * @param int    $license_id      License ID.
+	 * @param int    $amount_minor    New amount in minor units, more than zero.
+	 * @param int    $expected_minor  Amount the administrator saw.
+	 * @param string $reason          Required reason.
+	 * @param int    $actor_user_id   Acting user.
+	 * @return string One of the RESULT_* constants or RESULT_INCREASE_REFUSED.
+	 */
+	public static function change_renewal_amount( int $license_id, int $amount_minor, int $expected_minor, string $reason, int $actor_user_id ): string {
+		global $wpdb;
+
+		$reason  = self::limit_reason( $reason );
+		$license = self::license( $license_id );
+		if ( '' === $reason || ! $license || $amount_minor <= 0 || ! in_array( (string) $license['status'], array( 'active', 'past_due' ), true ) ) {
+			return self::RESULT_FAILED;
+		}
+		$current = (int) $license['renewal_amount_minor'];
+		if ( $current !== $expected_minor ) {
+			return self::RESULT_STALE;
+		}
+		if ( $amount_minor === $current ) {
+			return self::RESULT_OK;
+		}
+		if ( $amount_minor > $current ) {
+			/**
+			 * Filters whether an administrator may raise the automatic renewal amount of a license.
+			 *
+			 * Off by default: the customer agreed to off-session charges of the stored amount.
+			 * Return true only when the customer consented to the new amount.
+			 *
+			 * @param bool                $allowed       Default false.
+			 * @param array<string,mixed> $license       License row.
+			 * @param int                 $amount_minor  Requested amount in minor units.
+			 * @param int                 $actor_user_id Acting user.
+			 */
+			if ( ! apply_filters( 'wplc_admin_can_raise_renewal_amount', false, $license, $amount_minor, $actor_user_id ) ) {
+				return self::RESULT_INCREASE_REFUSED;
+			}
+		}
+		if ( self::has_processing_renewal( $license_id ) ) {
+			return self::RESULT_PROCESSING;
+		}
+
+		$tables  = Schema::table_names();
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET renewal_amount_minor = %d, updated_at = %s WHERE id = %d AND renewal_amount_minor = %d AND status = %s',
+				$tables['licenses'],
+				$amount_minor,
+				gmdate( 'Y-m-d H:i:s' ),
+				$license_id,
+				$current,
+				(string) $license['status']
+			)
+		);
+		if ( 1 !== (int) $updated ) {
+			return self::RESULT_STALE;
+		}
+
+		AuditLog::record(
+			'admin_renewal_amount_changed',
+			'license',
+			$license_id,
+			$reason,
+			array(
+				'renewal_amount_minor' => $current,
+				'renewal_currency'     => (string) $license['renewal_currency'],
+			),
+			array(
+				'renewal_amount_minor' => $amount_minor,
+				'renewal_currency'     => (string) $license['renewal_currency'],
+			),
+			$actor_user_id
+		);
+
+		return self::RESULT_OK;
+	}
+
+	/**
 	 * Map the reason a lifecycle action was refused to a RESULT_* constant.
 	 *
 	 * @param string $refusal LicenseLifecycle::last_refusal().
@@ -451,7 +617,8 @@ final class SupportActions {
 		$tables = Schema::table_names();
 		$rows   = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, renewal_order_id, status FROM {$tables['renewals']} WHERE license_id = %d AND renewal_order_id > 0 AND status NOT IN ('paid','refunded') ORDER BY id DESC LIMIT 20",
+				"SELECT id, renewal_order_id, status FROM %i WHERE license_id = %d AND renewal_order_id > 0 AND status NOT IN ('paid','refunded') ORDER BY id DESC LIMIT 20",
+				$tables['renewals'],
 				$license_id
 			),
 			ARRAY_A
@@ -483,7 +650,7 @@ final class SupportActions {
 		$tables = Schema::table_names();
 
 		return (int) $wpdb->get_var(
-			$wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE license_id = %d AND status = %s", $license_id, 'processing' )
+			$wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE license_id = %d AND status = %s", $tables['renewals'], $license_id, 'processing' )
 		) > 0;
 	}
 
@@ -500,7 +667,7 @@ final class SupportActions {
 
 		$tables = Schema::table_names();
 		$ids    = $wpdb->get_col(
-			$wpdb->prepare( "SELECT id FROM {$tables['activations']} WHERE license_id = %d AND status = %s ORDER BY staging_parent_id IS NULL ASC, id ASC LIMIT 1000", $license_id, 'active' )
+			$wpdb->prepare( "SELECT id FROM %i WHERE license_id = %d AND status = %s ORDER BY staging_parent_id IS NULL ASC, id ASC LIMIT 1000", $tables['activations'], $license_id, 'active' )
 		);
 		$count  = 0;
 		foreach ( is_array( $ids ) ? $ids : array() as $activation_id ) {
@@ -526,7 +693,7 @@ final class SupportActions {
 			return null;
 		}
 		$tables = Schema::table_names();
-		$row    = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ), ARRAY_A );
+		$row    = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], $license_id ), ARRAY_A );
 
 		return is_array( $row ) ? $row : null;
 	}

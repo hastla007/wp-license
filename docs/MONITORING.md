@@ -38,6 +38,7 @@ Counters (`Diagnostics::metrics()`):
 | --- | --- | --- |
 | `pending_webhooks` | Stripe events stored but not reconciled yet | 1 |
 | `manual_review_webhooks` | Stripe events that ended as `manual_review` in the last 24 hours | 1 |
+| `rejected_webhook_minutes` | Minutes in the last 24 hours with at least one Stripe webhook request without a valid signature (option `wplc_webhook_rejected`, counted at most once a minute so that forged requests cannot cause a database write each). A few can be scans of the URL; more mean the signing secret does not match the endpoint (A-72) | 5 |
 | `overdue_renewals` | Stuck renewals (rules below): a queued attempt or check that did not run, or a grace period that ended without the renewal being closed | 1 |
 | `review_required_renewals` | Renewals in `review_required`: the payment result stayed unknown, a payment went through while the license changed, or a paid manual renewal (e.g. a late bank transfer) could not be applied. An administrator resolves them under WooCommerce → Renewals to review (see [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#renewals-to-review)). `payment_review_renewals` is the same count under its former name | 1 |
 | `stuck_processing_renewals` | Renewals in `processing` for more than one hour | 1 |
@@ -56,7 +57,7 @@ WooCommerce → License settings additionally shows whether the Stripe webhook s
 
 ## Heartbeat
 
-Option `wplc_last_run`: an array job name → Unix timestamp (UTC) of the last run. Written with
+Option `wplc_last_run`: an array job name → Unix timestamp (UTC) of the last run, at most 60 entries. It is autoloaded (P-52): the admin notice below reads it on every shop screen, so it costs no extra query; an option stored by an older version as not autoloaded switches over on its next write. Written with
 
 ```php
 \WPLC\Admin\Diagnostics::mark_run( 'renewals' ); // lowercase letters, digits, underscores

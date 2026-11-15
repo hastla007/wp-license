@@ -608,6 +608,31 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertApiError( 503, 'wplc_stripe_webhook_unconfigured', $this->post_webhook( $this->event( 'evt_unconfigured', 'payment_intent.succeeded' ) ) );
 	}
 
+	/** A-72: rejected signatures are counted, at most once a minute. */
+	public function test_a72_rejected_signatures_are_counted_once_a_minute(): void {
+		delete_option( \WPLC\Admin\Diagnostics::WEBHOOK_REJECTED_OPTION );
+		delete_transient( 'wplc_hb_stripe_webhook_rejected' );
+		$body = $this->event( 'evt_rejected_count', 'charge.refunded' );
+
+		$this->post_webhook( $body, 't=' . time() . ',v1=' . str_repeat( '0', 64 ) );
+		$this->post_webhook( $body, 't=' . time() . ',v1=' . str_repeat( '1', 64 ) );
+		$this->assertSame( 1, \WPLC\Admin\Diagnostics::rejected_webhook_minutes(), 'The second request in the same minute writes nothing.' );
+
+		delete_transient( 'wplc_hb_stripe_webhook_rejected' );
+		$this->post_webhook( $body, 't=' . time() . ',v1=' . str_repeat( '2', 64 ) );
+		$this->assertSame( 2, \WPLC\Admin\Diagnostics::rejected_webhook_minutes() );
+		$this->assertSame( 2, \WPLC\Admin\Diagnostics::metrics()['rejected_webhook_minutes'] );
+
+		// A valid event is not counted.
+		$this->post_webhook( $body );
+		$this->assertSame( 2, \WPLC\Admin\Diagnostics::rejected_webhook_minutes() );
+
+		// Hours older than 24 hours drop out.
+		\WPLC\Admin\Diagnostics::count_rejected_webhook( time() - 30 * HOUR_IN_SECONDS );
+		$this->assertSame( 2, \WPLC\Admin\Diagnostics::rejected_webhook_minutes() );
+		$this->assertSame( 0, \WPLC\Admin\Diagnostics::rejected_webhook_minutes( time() + 25 * HOUR_IN_SECONDS ) );
+	}
+
 	/** B-148, A-72: only a correctly signed event moves the heartbeat; a rejected one is recorded separately. */
 	public function test_b148_heartbeat_after_a_valid_signature(): void {
 		delete_option( \WPLC\Admin\Diagnostics::LAST_RUN_OPTION );

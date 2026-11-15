@@ -43,7 +43,7 @@ final class LicenseDetail {
 
 		$tables  = Schema::table_names();
 		$license = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], $license_id ),
 			ARRAY_A
 		);
 
@@ -56,19 +56,19 @@ final class LicenseDetail {
 		}
 
 		$activations = $wpdb->get_results(
-			$wpdb->prepare( "SELECT * FROM {$tables['activations']} WHERE license_id = %d ORDER BY status ASC, activated_at DESC LIMIT 500", $license_id ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE license_id = %d ORDER BY status ASC, activated_at DESC LIMIT 500", $tables['activations'], $license_id ),
 			ARRAY_A
 		);
 		$renewals    = $wpdb->get_results(
-			$wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE license_id = %d ORDER BY period_start DESC, id DESC LIMIT 200", $license_id ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE license_id = %d ORDER BY period_start DESC, id DESC LIMIT 200", $tables['renewals'], $license_id ),
 			ARRAY_A
 		);
 		$entitlements = $wpdb->get_results(
-			$wpdb->prepare( "SELECT * FROM {$tables['entitlements']} WHERE license_id = %d ORDER BY entitlement_key ASC", $license_id ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE license_id = %d ORDER BY entitlement_key ASC", $tables['entitlements'], $license_id ),
 			ARRAY_A
 		);
 		$display_name = $wpdb->get_var(
-			$wpdb->prepare( "SELECT display_name FROM {$tables['products']} WHERE product_key = %s LIMIT 1", (string) $license['product_key'] )
+			$wpdb->prepare( "SELECT display_name FROM %i WHERE product_key = %s LIMIT 1", $tables['products'], (string) $license['product_key'] )
 		);
 		$activations  = is_array( $activations ) ? $activations : array();
 		$renewals     = is_array( $renewals ) ? $renewals : array();
@@ -242,7 +242,7 @@ final class LicenseDetail {
 
 		$buttons = array(
 			'active'    => array( __( 'Reactivate', 'wp-license' ), '' ),
-			'suspended' => array( __( 'Suspend', 'wp-license' ), '' ),
+			'suspended' => array( __( 'Suspend', 'wp-license' ), __( 'Suspend this license? Its sites lose access to updates and features until it is reactivated.', 'wp-license' ) ),
 			'revoked'   => array( __( 'Revoke', 'wp-license' ), __( 'Revoke this license permanently? This cannot be undone.', 'wp-license' ) ),
 		);
 		$period_ended = ! empty( $license['paid_until'] ) && (string) $license['paid_until'] <= gmdate( 'Y-m-d H:i:s' );
@@ -283,6 +283,7 @@ final class LicenseDetail {
 		}
 
 		self::render_plan_change( $license );
+		self::render_renewal_actions( $license );
 
 		$processing = SupportActions::has_processing_renewal( $license_id );
 		$open       = SupportActions::open_renewal_orders( $license_id );
@@ -316,6 +317,56 @@ final class LicenseDetail {
 			echo ' ' . wp_kses_post( implode( ', ', $links ) );
 			echo '</p></div>';
 		}
+	}
+
+	/**
+	 * Automatic renewal on behalf of the customer (A-21) and its amount (A-11).
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return void
+	 */
+	private static function render_renewal_actions( array $license ): void {
+		if ( ! in_array( (string) $license['status'], array( 'active', 'past_due' ), true ) || empty( $license['renewal_enabled'] ) ) {
+			return;
+		}
+		$license_id = (int) $license['id'];
+		$post_url   = admin_url( 'admin-post.php' );
+
+		echo '<h3>' . esc_html__( 'Automatic renewal', 'wp-license' ) . '</h3>';
+		if ( empty( $license['cancel_at_period_end'] ) ) {
+			echo '<form method="post" class="wplc-inline-form" action="' . esc_url( $post_url ) . '" data-wplc-confirm="' . esc_attr__( 'Cancel the automatic renewal of this license for the end of the paid period?', 'wp-license' ) . '">';
+			echo '<input type="hidden" name="action" value="wplc_admin_cancel_renewal">';
+			echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+			self::nonce_input( 'wplc_admin_cancel_renewal_' . $license_id );
+			echo '<label for="wplc-cancel-renewal-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
+			echo '<input type="text" id="wplc-cancel-renewal-reason" name="reason" required maxlength="255">';
+			echo '<button class="button" type="submit">' . esc_html__( 'Cancel at the end of the paid period', 'wp-license' ) . '</button></form>';
+			echo '<p class="description">' . esc_html__( 'The same cancellation the customer can make in their account: the license keeps running until the end of the paid period, nothing more is charged, and the customer gets a confirmation email. It can be withdrawn here until the period ends.', 'wp-license' ) . '</p>';
+		} else {
+			echo '<form method="post" class="wplc-inline-form" action="' . esc_url( $post_url ) . '">';
+			echo '<input type="hidden" name="action" value="wplc_admin_withdraw_cancellation">';
+			echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+			self::nonce_input( 'wplc_admin_withdraw_cancellation_' . $license_id );
+			echo '<label for="wplc-withdraw-cancellation-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
+			echo '<input type="text" id="wplc-withdraw-cancellation-reason" name="reason" required maxlength="255">';
+			echo '<button class="button" type="submit">' . esc_html__( 'Withdraw cancellation', 'wp-license' ) . '</button></form>';
+			echo '<p class="description">' . esc_html__( 'The license is cancelled for the end of the paid period. Withdraw the cancellation only when the customer asked for it: the license is then charged automatically again with the stored payment method.', 'wp-license' ) . '</p>';
+		}
+
+		$decimals = (int) $license['renewal_currency_decimals'];
+		$current  = (int) $license['renewal_amount_minor'];
+		echo '<form method="post" class="wplc-inline-form" action="' . esc_url( $post_url ) . '">';
+		echo '<input type="hidden" name="action" value="wplc_admin_renewal_amount">';
+		echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+		echo '<input type="hidden" name="expected_minor" value="' . esc_attr( (string) $current ) . '">';
+		self::nonce_input( 'wplc_admin_renewal_amount_' . $license_id );
+		/* translators: %s: currency code, for example EUR. */
+		echo '<label for="wplc-renewal-amount">' . esc_html( sprintf( __( 'Renewal amount (%s)', 'wp-license' ), (string) $license['renewal_currency'] ) ) . '</label>';
+		echo '<input type="text" inputmode="decimal" id="wplc-renewal-amount" name="amount" required size="10" value="' . esc_attr( Money::to_decimal( $current, $decimals ) ) . '">';
+		echo '<label for="wplc-renewal-amount-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
+		echo '<input type="text" id="wplc-renewal-amount-reason" name="reason" required maxlength="255">';
+		echo '<button class="button" type="submit">' . esc_html__( 'Change renewal amount', 'wp-license' ) . '</button></form>';
+		echo '<p class="description">' . esc_html__( 'The amount of the next automatic renewals, in the same form as the product price in the shop (taxes are added as at purchase). It can only be lowered: the customer agreed to automatic charges of the current amount. Renewal orders that already exist keep their amount; change those on the order screen.', 'wp-license' ) . '</p>';
 	}
 
 	/**
@@ -509,7 +560,9 @@ final class LicenseDetail {
 			echo '<td>' . esc_html( Format::date( 'active' === $activation['status'] ? $activation['last_seen_at'] : $activation['deactivated_at'], true ) ) . '</td><td>';
 			if ( 'active' === $activation['status'] && Capabilities::can( 'manage_licenses' ) ) {
 				$field_id = 'wplc-release-' . $activation_id;
-				echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+				/* translators: %s: site URL. */
+				$question = sprintf( __( 'Release %s? The site loses its connection until it is activated again.', 'wp-license' ), (string) $activation['site_url'] );
+				echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-wplc-confirm="' . esc_attr( $question ) . '">';
 				echo '<input type="hidden" name="action" value="wplc_admin_release_activation">';
 				echo '<input type="hidden" name="activation_id" value="' . esc_attr( (string) $activation_id ) . '">';
 				self::nonce_input( 'wplc_admin_release_activation_' . $activation_id );
@@ -635,7 +688,7 @@ final class LicenseDetail {
 		}
 		echo '</p>';
 		echo '<table class="widefat striped"><thead><tr>';
-		foreach ( array( __( 'Date', 'wp-license' ), __( 'Action', 'wp-license' ), __( 'Object', 'wp-license' ), __( 'By', 'wp-license' ), __( 'Reason', 'wp-license' ), __( 'Change', 'wp-license' ) ) as $heading ) {
+		foreach ( array( Format::date_heading(), __( 'Action', 'wp-license' ), __( 'Object', 'wp-license' ), __( 'By', 'wp-license' ), __( 'Reason', 'wp-license' ), __( 'Change', 'wp-license' ) ) as $heading ) {
 			echo '<th scope="col">' . esc_html( $heading ) . '</th>';
 		}
 		echo '</tr></thead><tbody>';
@@ -646,7 +699,7 @@ final class LicenseDetail {
 			$actor_name = self::actor_label( $actor_id, $actor ? (string) $actor->user_login : '' );
 
 			echo '<tr><td>' . esc_html( Format::date( $entry['created_at'], true ) ) . '</td>';
-			echo '<td><code>' . esc_html( (string) $entry['action'] ) . '</code></td>';
+			echo '<td>' . Format::audit_action_html( (string) $entry['action'] ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in Format::audit_action_html().
 			echo '<td>' . esc_html( ( isset( $object_labels[ $type ] ) ? $object_labels[ $type ] : $type ) . ' #' . (int) $entry['object_id'] ) . '</td>';
 			echo '<td>' . esc_html( $actor_name ) . '</td>';
 			echo '<td>' . esc_html( AuditReason::label( (string) $entry['reason'] ) ) . '</td>';
@@ -769,7 +822,11 @@ final class LicenseDetail {
 
 		$tables = Schema::table_names();
 		$plans  = $wpdb->get_results(
-			"SELECT p.id, p.product_key, p.plan_key, p.billing_interval, p.live_site_limit, pr.display_name FROM {$tables['plans']} p LEFT JOIN {$tables['products']} pr ON pr.product_key = p.product_key WHERE p.active = 1 ORDER BY p.product_key ASC, p.live_site_limit ASC, p.plan_key ASC LIMIT 500",
+			$wpdb->prepare(
+				'SELECT p.id, p.product_key, p.plan_key, p.billing_interval, p.live_site_limit, pr.display_name FROM %i p LEFT JOIN %i pr ON pr.product_key = p.product_key WHERE p.active = 1 ORDER BY p.product_key ASC, p.live_site_limit ASC, p.plan_key ASC LIMIT 500',
+				$tables['plans'],
+				$tables['products']
+			),
 			ARRAY_A
 		);
 		$plans  = is_array( $plans ) ? $plans : array();
@@ -785,6 +842,9 @@ final class LicenseDetail {
 			return;
 		}
 
+		// A-123: entries of a form that was refused come back.
+		$kept = LicenseAdmin::take_add_form();
+
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="wplc_admin_add_license">';
 		wp_nonce_field( 'wplc_admin_add_license' );
@@ -793,7 +853,7 @@ final class LicenseDetail {
 		echo '<table class="form-table" role="presentation"><tbody>';
 
 		echo '<tr><th scope="row"><label for="wplc-add-customer">' . esc_html__( 'Customer', 'wp-license' ) . '</label></th><td>';
-		echo '<input type="text" id="wplc-add-customer" name="customer" class="regular-text" required aria-describedby="wplc-add-customer-help">';
+		echo '<input type="text" id="wplc-add-customer" name="customer" class="regular-text" required aria-describedby="wplc-add-customer-help" value="' . esc_attr( null !== $kept ? $kept['customer'] : '' ) . '">';
 		echo '<p class="description" id="wplc-add-customer-help">' . esc_html__( 'User ID or email address of an existing user account.', 'wp-license' ) . '</p></td></tr>';
 
 		echo '<tr><th scope="row"><label for="wplc-add-plan">' . esc_html__( 'Plan', 'wp-license' ) . '</label></th><td>';
@@ -809,11 +869,11 @@ final class LicenseDetail {
 				'month' === $plan['billing_interval'] ? __( 'monthly', 'wp-license' ) : __( 'yearly', 'wp-license' ),
 				$live
 			);
-			echo '<option value="' . esc_attr( (string) (int) $plan['id'] ) . '">' . esc_html( $text ) . '</option>';
+			echo '<option value="' . esc_attr( (string) (int) $plan['id'] ) . '"' . selected( null !== $kept && $kept['plan_id'] === (int) $plan['id'], true, false ) . '>' . esc_html( $text ) . '</option>';
 		}
 		echo '</select></td></tr>';
 
-		$default_end = ( new \DateTimeImmutable( 'now', wp_timezone() ) )->modify( '+1 year' )->format( 'Y-m-d' );
+		$default_end = null !== $kept && '' !== $kept['paid_until'] ? $kept['paid_until'] : ( new \DateTimeImmutable( 'now', wp_timezone() ) )->modify( '+1 year' )->format( 'Y-m-d' );
 		echo '<tr><th scope="row"><label for="wplc-add-paid-until">' . esc_html__( 'Paid until', 'wp-license' ) . '</label></th><td>';
 		echo '<input type="date" id="wplc-add-paid-until" name="paid_until" required min="' . esc_attr( wp_date( 'Y-m-d' ) ) . '" value="' . esc_attr( $default_end ) . '" aria-describedby="wplc-add-paid-until-help">';
 		echo '<p class="description" id="wplc-add-paid-until-help">';
@@ -822,8 +882,12 @@ final class LicenseDetail {
 		echo '</p></td></tr>';
 
 		echo '<tr><th scope="row"><label for="wplc-add-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label></th><td>';
-		echo '<input type="text" id="wplc-add-reason" name="reason" class="regular-text" required maxlength="255" aria-describedby="wplc-add-reason-help">';
+		echo '<input type="text" id="wplc-add-reason" name="reason" class="regular-text" required maxlength="255" aria-describedby="wplc-add-reason-help" value="' . esc_attr( null !== $kept ? $kept['reason'] : '' ) . '">';
 		echo '<p class="description" id="wplc-add-reason-help">' . esc_html__( 'Stored in the audit log. Do not enter license keys or passwords.', 'wp-license' ) . '</p></td></tr>';
+
+		echo '<tr><th scope="row">' . esc_html__( 'Email', 'wp-license' ) . '</th><td>';
+		echo '<label><input type="checkbox" name="skip_email" value="1"' . checked( null !== $kept && ! $kept['send_email'], true, false ) . '> ' . esc_html__( 'Do not send the license email with the key', 'wp-license' ) . '</label>';
+		echo '<p class="description">' . esc_html__( 'Tick this for a migrated customer who already has a key or should not get an email now. The customer finds the key in their account either way.', 'wp-license' ) . '</p></td></tr>';
 
 		echo '</tbody></table>';
 		submit_button( __( 'Add license', 'wp-license' ) );

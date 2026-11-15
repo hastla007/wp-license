@@ -18,6 +18,7 @@ The work items themselves live in [TODO.md](TODO.md), the single task list. This
 ### 2. Purchase and renewal
 
 - [ ] All [KRITISCH] purchase and renewal tasks closed (T-12, T-42, T-132).
+- [ ] The six [KRITISCH] findings of the 13 November audit stay fixed and are re-checked on real screens (B-154): A-01 variable product mapped on the parent only (guest gets an ownerless license), A-02 a new customer can buy with WooCommerce default settings, A-03 manual renewal uses the price of the purchased plan, A-04 renewal orders keep the tax exemption and VAT ID, A-05 saving in the variations tab keeps the license fields, A-06 long version strings do not block an activation. Their tests are listed in TODO.md section 7.
 - [ ] Purchase → license → email → account verified in the test shop with real WooCommerce screens.
 - [ ] Automatic renewal verified in the Stripe test mode: success, decline, 3-D Secure, timeout, removed card (T-12).
 - [ ] Manual renewal verified with at least two payment methods, including a net-price and a gross-price shop.

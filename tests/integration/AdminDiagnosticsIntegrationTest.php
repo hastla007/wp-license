@@ -106,6 +106,23 @@ final class AdminDiagnosticsIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertEqualsWithDelta( time(), Diagnostics::last_run( 'reminders' ), 5 );
 	}
 
+	public function test_p52_heartbeat_option_is_autoloaded_so_the_notice_costs_no_query(): void {
+		global $wpdb;
+
+		// An option written as not autoloaded by an older version switches on the next heartbeat.
+		add_option( Diagnostics::LAST_RUN_OPTION, array( 'renewals' => time() - 60 ), '', false );
+		$this->assertArrayNotHasKey( Diagnostics::LAST_RUN_OPTION, wp_load_alloptions( true ) );
+
+		Diagnostics::mark_run( 'renewals' );
+		wp_cache_delete( 'alloptions', 'options' );
+		wp_cache_delete( Diagnostics::LAST_RUN_OPTION, 'options' );
+		$this->assertArrayHasKey( Diagnostics::LAST_RUN_OPTION, wp_load_alloptions( true ) );
+
+		$before = $wpdb->num_queries;
+		Diagnostics::daily_run_state();
+		$this->assertSame( $before, $wpdb->num_queries );
+	}
+
 	public function test_b35_daily_run_is_bracketed_by_heartbeats_and_the_alarm_runs_last(): void {
 		// One wrapper (Maintenance\DailyRunner) brackets the run and writes the heartbeats;
 		// Diagnostics no longer registers brackets of its own.
