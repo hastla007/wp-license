@@ -58,13 +58,6 @@ final class PersonalData {
 	private const EXPORT_PHASES = array( 'activations', 'renewals', 'consents', 'history', 'emails', 'downloads', 'streams' );
 
 	/**
-	 * Snapshot keys of audit entries that identify the person or their sites (P-35).
-	 *
-	 * @var string[]
-	 */
-	public const SNAPSHOT_PERSONAL_KEYS = array( 'site_url', 'customer_id' );
-
-	/**
 	 * Replacement of an erased snapshot value.
 	 */
 	public const ERASED = '[ERASED]';
@@ -707,8 +700,8 @@ final class PersonalData {
 	/**
 	 * Replace the personal values of an audit snapshot. Pure apart from JSON encoding.
 	 *
-	 * Every value under a key of SNAPSHOT_PERSONAL_KEYS (at any depth) becomes
-	 * ERASED. With $only_customer, `customer_id` values are only replaced when
+	 * Every value under a `site_url` or `customer_id` key (at any depth) becomes
+	 * ERASED (P-35). With $only_customer, `customer_id` values are only replaced when
 	 * they equal that user ID (an owner change also names the other owner).
 	 *
 	 * @param mixed    $json          Stored JSON or null.

@@ -398,28 +398,6 @@ final class Authenticator {
 	}
 
 	/**
-	 * Read the current value of a minute bucket without counting.
-	 *
-	 * @param string $limiter_hash Bucket key from limiter_hash().
-	 * @return int
-	 */
-	public static function current_rate( string $limiter_hash ): int {
-		global $wpdb;
-
-		$tables = Schema::table_names();
-		$hits = $wpdb->get_var(
-			$wpdb->prepare(
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names().
-				"SELECT hits FROM {$tables['request_limits']} WHERE limiter_hash = %s AND bucket_start = %s LIMIT 1",
-				$limiter_hash,
-				gmdate( 'Y-m-d H:i:00' )
-			)
-		);
-
-		return is_numeric( $hits ) ? (int) $hits : 0;
-	}
-
-	/**
 	 * Hourly job (`wplc_cleanup_security_rows`): the cleanup as an action callback without a return value.
 	 *
 	 * @return void

@@ -9,8 +9,6 @@
 
 require getenv( 'WPLC_E2E_DIR' ) . '/lib.php';
 
-use WPLC\Client\LicenseClient;
-
 global $wpdb;
 $t         = e2e_tables();
 $simple_id = (int) e2e_get( 'simple_id' );

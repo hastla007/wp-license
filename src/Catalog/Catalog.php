@@ -474,15 +474,6 @@ final class Catalog {
 		return self::find_mapping( (int) $product->get_id(), 0 );
 	}
 
-	/**
-	 * Whether buying this product issues a license.
-	 *
-	 * @param mixed $product WC_Product.
-	 * @return bool
-	 */
-	public static function is_license_product( $product ): bool {
-		return null !== self::mapping_for_product( $product );
-	}
 
 	/**
 	 * Whether a cart or order line (product ID plus variation ID) issues a license.

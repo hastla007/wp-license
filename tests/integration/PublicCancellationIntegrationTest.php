@@ -5,7 +5,6 @@
  * @package WPLC
  */
 
-use WPLC\Account\CustomerPortal;
 use WPLC\Account\PaymentMethods;
 use WPLC\Account\PublicCancellation;
 
