@@ -69,7 +69,7 @@ final class RenewInsteadNotice {
 	 */
 	public static function notices_for_cart(): array {
 		$customer_id = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
-		if ( $customer_id <= 0 || ! function_exists( 'WC' ) || ! WC()->cart ) {
+		if ( $customer_id <= 0 || ! function_exists( 'WC' ) || null === WC()->cart ) {
 			return array();
 		}
 		$product_keys = array();

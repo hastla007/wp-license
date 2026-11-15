@@ -183,7 +183,7 @@ final class AuditLog {
 		 * The value is stored as a key of at most 20 characters; an empty
 		 * result keeps the detected source.
 		 *
-		 * @param string $source      Detected source.
+		 * @param mixed  $source      Detected source (a key such as `cron`; return a string, anything else is ignored).
 		 * @param string $action      Action identifier.
 		 * @param string $object_type Object type.
 		 * @param int    $object_id   Object ID.

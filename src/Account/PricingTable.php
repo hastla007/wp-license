@@ -216,9 +216,9 @@ final class PricingTable {
 		 * @param array<int,array<string,mixed>> $plans       Plans, cheapest first.
 		 * @param string                         $product_key License product key.
 		 */
-		$filtered = apply_filters( 'wplc_pricing_table_plans', $plans, $product_key );
+		$filtered = (array) apply_filters( 'wplc_pricing_table_plans', $plans, $product_key );
 
-		return array_slice( is_array( $filtered ) ? array_values( $filtered ) : $plans, 0, self::MAX_PLANS );
+		return array_slice( array_values( $filtered ), 0, self::MAX_PLANS );
 	}
 
 	/**
@@ -258,9 +258,9 @@ final class PricingTable {
 	private static function plan( array $row, \WC_Product $product ): array {
 		$price   = (float) wc_get_price_to_display( $product );
 		$regular = (float) wc_get_price_to_display( $product, array( 'price' => $product->get_regular_price() ) );
-		$html    = $product->is_on_sale() && $regular > $price ? wc_format_sale_price( $regular, $price ) : wc_price( $price );
+		$html    = $product->is_on_sale() && $regular > $price ? wc_format_sale_price( (string) $regular, (string) $price ) : wc_price( $price );
 		$name    = $product->get_name();
-		if ( $product->is_type( 'variation' ) && is_callable( array( $product, 'get_attribute_summary' ) ) && '' !== (string) $product->get_attribute_summary() ) {
+		if ( $product instanceof \WC_Product_Variation && '' !== (string) $product->get_attribute_summary() ) {
 			$name = wc_get_formatted_variation( $product, true, false, false );
 		}
 
