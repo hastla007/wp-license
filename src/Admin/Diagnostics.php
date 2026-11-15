@@ -78,6 +78,7 @@ final class Diagnostics {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ), 30 );
 		add_action( 'admin_notices', array( self::class, 'render_daily_run_notice' ) );
 		add_action( 'admin_post_wplc_storage_recheck', array( self::class, 'handle_storage_recheck' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 		// The heartbeat brackets of the daily chain (mark_daily_started/_finished) are written by
 		// Maintenance\DailyRunner, which also isolates the jobs and writes one heartbeat per job.
 		// The alarm runs after the work it reports on.
@@ -86,6 +87,21 @@ final class Diagnostics {
 		foreach ( array_keys( self::EVENT_ALERTS ) as $hook ) {
 			add_action( $hook, array( self::class, 'forward_event_alert' ), 99, 0 );
 		}
+	}
+
+	/**
+	 * Load the license screen stylesheet on the diagnostics page, so its tables scroll inside
+	 * themselves on narrow screens (A-126).
+	 *
+	 * @return void
+	 */
+	public static function enqueue_assets(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Screen detection only.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		if ( self::PAGE !== $page ) {
+			return;
+		}
+		wp_enqueue_style( 'wplc-admin', plugins_url( 'assets/css/wplc-admin.css', WPLC_FILE ), array(), \WPLC\Account\CustomerPortal::asset_version( 'assets/css/wplc-admin.css' ) );
 	}
 
 	/**
@@ -1244,7 +1260,7 @@ final class Diagnostics {
 	public static function render(): void {
 		Capabilities::require_cap( 'view_diagnostics', __( 'You do not have permission to view diagnostics.', 'wp-license' ) );
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'WP License Captain diagnostics', 'wp-license' ) . '</h1>';
+		echo '<div class="wrap wplc-diagnostics"><h1>' . esc_html__( 'WP License Captain diagnostics', 'wp-license' ) . '</h1>';
 		echo '<p>' . esc_html__( 'Read-only environment details for support. No license key, installation secret, token, or payment credential is displayed.', 'wp-license' ) . '</p>';
 		echo '<table class="widefat striped"><tbody>';
 		foreach ( self::rows() as $row ) {

@@ -30,6 +30,12 @@
 	margin: 0;
 }
 
+/* Site addresses have no break opportunity of their own; without this a long one widens the table past a phone screen (A-126). */
+.wplc-sites td,
+.wplc-license table td {
+	overflow-wrap: anywhere;
+}
+
 .wplc-pagination {
 	display: flex;
 	justify-content: space-between;

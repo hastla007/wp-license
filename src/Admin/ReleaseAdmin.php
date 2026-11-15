@@ -86,7 +86,7 @@ final class ReleaseAdmin {
 		$releases = ReleaseRegistry::all_by_product();
 		$notice = self::take_notice();
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'License releases', 'wp-license' ) . '</h1>';
+		echo '<div class="wrap wplc-releases"><h1>' . esc_html__( 'License releases', 'wp-license' ) . '</h1>';
 		self::render_notice( $notice );
 		self::render_storage_notice();
 		self::render_problems( $releases );

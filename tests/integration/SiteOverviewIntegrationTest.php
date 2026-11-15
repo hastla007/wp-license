@@ -349,4 +349,36 @@ final class SiteOverviewIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertStringContainsString( SiteOverview::ENDPOINT, $location );
 		$this->assertStringContainsString( 'wplc_site=kunde', $location );
 	}
+
+	/**
+	 * Found by the browser acceptance pass (tests/browser): the endpoint is no WooCommerce
+	 * query var, so is_wc_endpoint_url() was false and the page had neither its stylesheet
+	 * (long site addresses widened the table on phones) nor the Deactivate confirmation script.
+	 */
+	public function test_site_overview_loads_its_stylesheet_and_script(): void {
+		$account_id = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'My account', 'post_content' => '[woocommerce_my_account]' ) );
+		$previous   = get_option( 'woocommerce_myaccount_page_id' );
+		update_option( 'woocommerce_myaccount_page_id', $account_id );
+		SiteOverview::register_endpoint();
+		wp_dequeue_style( 'wplc-account' );
+		wp_dequeue_script( 'wplc-ui' );
+
+		try {
+			$this->go_to( add_query_arg( array( 'page_id' => $account_id ), home_url( '/' ) ) );
+			$this->assertFalse( SiteOverview::is_current_page(), 'Not on the overview without the endpoint.' );
+			SiteOverview::enqueue_assets();
+			$this->assertFalse( wp_style_is( 'wplc-account', 'enqueued' ) );
+
+			$this->go_to( add_query_arg( array( 'page_id' => $account_id, SiteOverview::ENDPOINT => '1' ), home_url( '/' ) ) );
+			$this->assertTrue( SiteOverview::is_current_page() );
+			SiteOverview::enqueue_assets();
+			$this->assertTrue( wp_style_is( 'wplc-account', 'enqueued' ), 'The overview loads the account stylesheet.' );
+			$this->assertTrue( wp_script_is( 'wplc-ui', 'enqueued' ), 'The overview loads the confirmation script.' );
+			$this->assertStringContainsString( '.', (string) wp_styles()->registered['wplc-account']->ver, 'Cache-busting version (plugin version plus file time).' );
+		} finally {
+			update_option( 'woocommerce_myaccount_page_id', $previous );
+			wp_dequeue_style( 'wplc-account' );
+			wp_dequeue_script( 'wplc-ui' );
+		}
+	}
 }

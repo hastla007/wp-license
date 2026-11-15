@@ -1,0 +1,71 @@
+/*
+ * Stand-in for the product data panel layout of WooCommerce's admin.css (11.2.2,
+ * client/legacy/css/admin.scss), flattened by hand. acceptance.js injects it ONLY when the
+ * site's WooCommerce has no compiled admin.css (source build of run-e2e.sh without
+ * wordpress.org). It covers just the rules the license fields depend on: tab column,
+ * panel width, label column of form fields, variation rows and the 500px breakpoint.
+ * With the release ZIP (CI) the real stylesheet is used and this file is ignored.
+ */
+#woocommerce-product-data .panel-wrap { overflow: hidden; background: #fff; }
+#woocommerce-product-data ul.wc-tabs { margin: 0; width: 20%; float: left; padding: 0 0 10px; box-sizing: border-box; background: #fafafa; border-right: 1px solid #eee; list-style: none; }
+#woocommerce-product-data .woocommerce_options_panel,
+#woocommerce-product-data .wc-metaboxes-wrapper { float: left; width: 80%; }
+.woocommerce_options_panel { min-height: 175px; box-sizing: border-box; padding: 9px; color: #555; }
+.woocommerce_options_panel p,
+.woocommerce_options_panel fieldset.form-field { margin: 0 0 9px; font-size: 12px; padding: 5px 9px; line-height: 24px; }
+.woocommerce_options_panel p::after,
+.woocommerce_options_panel fieldset.form-field::after { content: "."; display: block; height: 0; clear: both; visibility: hidden; }
+.woocommerce_options_panel p { margin: 9px 0; }
+.woocommerce_options_panel p.form-field,
+.woocommerce_options_panel fieldset.form-field { padding: 5px 20px 5px 162px !important; }
+.woocommerce_options_panel label,
+.woocommerce_options_panel legend { float: left; width: 150px; padding: 0; margin: 0 0 0 -150px; }
+.woocommerce_options_panel input[type="text"],
+.woocommerce_options_panel input[type="number"],
+.woocommerce_options_panel select { width: 50%; float: left; }
+.woocommerce_options_panel .checkbox,
+.woocommerce_variable_attributes .checkbox { margin: 4px 0 !important; vertical-align: middle; float: left; }
+.form-row label { display: inline-block; }
+.form-row input[type="text"],
+.form-row input[type="number"],
+.form-row select,
+.form-row textarea { width: 100%; vertical-align: middle; margin: 2px 0 0; padding: 5px; }
+.form-row.form-row-first,
+.form-row.form-row-last { width: 48%; float: right; }
+.form-row.form-row-first { clear: both; float: left; }
+.form-row.form-row-full { clear: both; }
+
+@media only screen and (max-width: 900px) {
+	#woocommerce-product-data ul.product_data_tabs { width: 10%; }
+	#woocommerce-product-data .wc-metaboxes-wrapper,
+	#woocommerce-product-data .woocommerce_options_panel { width: 90%; }
+}
+
+@media only screen and (max-width: 500px) {
+	.woocommerce_options_panel label,
+	.woocommerce_options_panel legend { float: none; width: auto; display: block; margin: 0; }
+	.woocommerce_options_panel fieldset.form-field,
+	.woocommerce_options_panel p.form-field { padding: 5px 20px !important; }
+}
+
+/* admin-rtl.css (rtlcss of the rules above). */
+.rtl #woocommerce-product-data ul.wc-tabs { float: right; border-right: 0; border-left: 1px solid #eee; }
+.rtl #woocommerce-product-data .woocommerce_options_panel,
+.rtl #woocommerce-product-data .wc-metaboxes-wrapper { float: right; }
+.rtl .woocommerce_options_panel p.form-field,
+.rtl .woocommerce_options_panel fieldset.form-field { padding: 5px 162px 5px 20px !important; }
+.rtl .woocommerce_options_panel label,
+.rtl .woocommerce_options_panel legend { float: right; margin: 0 -150px 0 0; }
+.rtl .woocommerce_options_panel input[type="text"],
+.rtl .woocommerce_options_panel input[type="number"],
+.rtl .woocommerce_options_panel select { float: right; }
+.rtl .form-row.form-row-first,
+.rtl .form-row.form-row-last { float: left; }
+.rtl .form-row.form-row-first { float: right; }
+
+@media only screen and (max-width: 500px) {
+	.rtl .woocommerce_options_panel label,
+	.rtl .woocommerce_options_panel legend { float: none; margin: 0; }
+	.rtl .woocommerce_options_panel fieldset.form-field,
+	.rtl .woocommerce_options_panel p.form-field { padding: 5px 20px !important; }
+}
