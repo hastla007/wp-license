@@ -405,6 +405,11 @@ final class LicenseLifecycle {
 		if ( $renewed && self::get_license( $renewed ) ) {
 			$ids[] = $renewed;
 		}
+		// A disputed plan upgrade order (T-110) suspends the upgraded license as well.
+		$upgraded = $order && is_callable( array( $order, 'get_meta' ) ) ? absint( $order->get_meta( '_wplc_upgrade_for_license', true ) ) : 0;
+		if ( $upgraded && self::get_license( $upgraded ) ) {
+			$ids[] = $upgraded;
+		}
 
 		return array_values( array_unique( $ids ) );
 	}
@@ -1119,6 +1124,20 @@ final class LicenseLifecycle {
 	 */
 	public static function lock_name( int $license_id ): string {
 		return 'wplc_license_' . substr( hash( 'sha256', Schema::lock_scope() . '|license-state:' . $license_id ), 0, 48 );
+	}
+
+	/**
+	 * Run work of another class under the per-license lock (re-entrant within one request).
+	 *
+	 * Lock order: a caller that also needs a per-renewal lock takes it first.
+	 * `wplc/license_status_changed` events raised inside run after the lock is released.
+	 *
+	 * @param int      $license_id License ID.
+	 * @param callable $callback Work to do; its return value is passed through.
+	 * @return mixed The callback result, or false when the lock could not be taken.
+	 */
+	public static function run_locked( int $license_id, callable $callback ) {
+		return self::with_license_lock( $license_id, $callback );
 	}
 
 	/**

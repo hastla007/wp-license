@@ -44,7 +44,8 @@ final class LicenseIssuer {
 		}
 
 		$order = wc_get_order( $order_id );
-		if ( ! $order || ! $order->is_paid() || $order->get_meta( '_wplc_renewal_for_license', true ) ) {
+		// Renewal and plan upgrade orders pay for an existing license; they never issue a new one.
+		if ( ! $order || ! $order->is_paid() || $order->get_meta( '_wplc_renewal_for_license', true ) || $order->get_meta( '_wplc_upgrade_for_license', true ) ) {
 			return;
 		}
 

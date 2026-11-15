@@ -126,6 +126,13 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( Schema::migrate(), 'dbDelta adds the index again.' );
 		$this->assertTrue( Schema::run_registered_step( '15' ) );
 
+		// Schema 16 (T-110): plan change columns.
+		$this->assertTrue( Schema::run_registered_step( '16' ), 'Step 16 finds the plan change columns.' );
+		$wpdb->query( "ALTER TABLE {$tables['licenses']} DROP COLUMN plan_order_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name from Schema.
+		$this->assertFalse( Schema::run_registered_step( '16' ), 'Step 16 reports a missing column.' );
+		$this->assertTrue( Schema::migrate(), 'dbDelta adds the column again.' );
+		$this->assertTrue( Schema::run_registered_step( '16' ) );
+
 		foreach ( Schema::table_names() as $table_name ) {
 			$table_exists = $wpdb->get_var(
 				$wpdb->prepare(

@@ -29,6 +29,7 @@ The product editor suggests these keys. The plan key (for example `solo`, `busin
 - Server plans return a boolean or a documented numeric limit. Clients fail closed for new premium features when an entitlement is absent or invalid.
 - Plan key/SKU assignment is a separate configuration step; the table below is the proposed entitlement mapping, not live catalog data.
 - Site counts are license limits, not feature entitlements. Staging does not consume another live site.
+- A license stores a snapshot of its plan's entitlements. A plan change (upgrade, downgrade at the next renewal, administrator change) replaces the whole snapshot with the new plan's entitlements; clients see the change at their next entitlement check, without re-activation. A lower live site limit deactivates no site, it only blocks new activations (see [RENEWALS.md](RENEWALS.md#plan-changes)).
 
 ## Proposed plan mapping
 

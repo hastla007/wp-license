@@ -381,6 +381,12 @@ final class CustomerPortal {
 		}
 		echo '</div>';
 
+		// Plan change: prorated upgrade now, downgrade at the next renewal (T-110).
+		$plan_upgrade = '\\WPLC\\Billing\\PlanUpgrade';
+		if ( class_exists( $plan_upgrade ) && method_exists( $plan_upgrade, 'render_account_section' ) ) {
+			call_user_func( array( $plan_upgrade, 'render_account_section' ), $license );
+		}
+
 		echo '<h4>' . esc_html__( 'Sites', 'wp-license' ) . '</h4>';
 		if ( ! $activations ) {
 			echo '<p>' . esc_html__( 'No sites are activated.', 'wp-license' ) . '</p>';
@@ -495,6 +501,17 @@ final class CustomerPortal {
 			'manual_renewal_busy'        => array( 'notice', __( 'A renewal for this license is being processed. Please try again in a few minutes.', 'wp-license' ) ),
 			'manual_renewal_paid'        => array( 'notice', __( 'Your payment for this renewal has been received and is being processed.', 'wp-license' ) ),
 			'manual_renewal_pending'     => array( 'notice', __( 'A renewal order for this license is already waiting for your payment to arrive.', 'wp-license' ) ),
+			// Plan changes (same texts as the errors of PlanUpgrade::start()).
+			'upgrade_unavailable'        => array( 'error', __( 'This license cannot be upgraded to the chosen plan at the moment.', 'wp-license' ) ),
+			'upgrade_busy'               => array( 'notice', __( 'This license is being changed right now. Please try again in a few minutes.', 'wp-license' ) ),
+			'upgrade_paid'               => array( 'notice', __( 'Your upgrade payment has been received and is being processed.', 'wp-license' ) ),
+			'upgrade_pending'            => array( 'notice', __( 'An upgrade order for this license is already waiting for your payment to arrive.', 'wp-license' ) ),
+			'upgrade_consent_required'   => array( 'error', __( 'Please agree to the new amount of the automatic renewal to upgrade.', 'wp-license' ) ),
+			'plan_change_scheduled'      => array( 'success', __( 'The plan change is recorded. It takes effect with the next renewal.', 'wp-license' ) ),
+			'plan_change_unavailable'    => array( 'error', __( 'This plan change is not available for the license.', 'wp-license' ) ),
+			'plan_change_busy'           => array( 'notice', __( 'This license is being changed right now. Please try again in a few minutes.', 'wp-license' ) ),
+			'plan_change_withdrawn'      => array( 'success', __( 'The scheduled plan change was withdrawn. The license keeps its current plan.', 'wp-license' ) ),
+			'plan_change_not_withdrawn'  => array( 'error', __( 'There is no scheduled plan change to withdraw.', 'wp-license' ) ),
 		);
 	}
 

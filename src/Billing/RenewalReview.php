@@ -11,6 +11,7 @@ use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
 use WPLC\License\AuditReason;
 use WPLC\License\LicenseLifecycle;
+use WPLC\License\PlanChange;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -497,6 +498,8 @@ final class RenewalReview {
 				$note
 			)
 		);
+		// A plan change scheduled for this renewal (T-110) takes effect now.
+		PlanChange::apply_pending_after_renewal( $license_id, $order );
 		if ( ! $order->is_paid() ) {
 			// The administrator confirmed the payment in the gateway. The paid-order hooks find the renewal paid.
 			if ( $order->needs_payment() ) {

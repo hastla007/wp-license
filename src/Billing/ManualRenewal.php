@@ -12,6 +12,7 @@ use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
 use WPLC\License\AuditReason;
 use WPLC\License\LicenseLifecycle;
+use WPLC\License\PlanChange;
 use WPLC\License\LicenseStateMachine;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -280,6 +281,8 @@ final class ManualRenewal {
 			return false;
 		}
 
+		// A plan change scheduled for this renewal (T-110) takes effect now.
+		PlanChange::apply_pending_after_renewal( $license_id, $order );
 		RenewalScheduler::schedule_next( $license_id );
 		$order->add_order_note(
 			sprintf(

@@ -70,6 +70,22 @@ final class AuditReason {
 	public const REVIEW_NOT_PAID                = 'review_not_paid';
 	public const REVIEW_CLOSED                  = 'review_closed';
 	public const RENEWED_AFTER_REVIEW           = 'renewed_after_review';
+	// Plan changes (T-110).
+	public const PLAN_UPGRADE_STARTED           = 'plan_upgrade_started';
+	public const PLAN_UPGRADED_FROM_ORDER       = 'plan_upgraded_from_order';
+	public const PLAN_DOWNGRADE_REQUESTED       = 'plan_downgrade_requested';
+	public const PLAN_CHANGE_WITHDRAWN          = 'plan_change_withdrawn';
+	public const PLAN_CHANGED_AT_RENEWAL        = 'plan_changed_at_renewal';
+	public const PLAN_CHANGE_TARGET_UNAVAILABLE = 'plan_change_target_unavailable';
+	public const PLAN_UPGRADE_REFUNDED          = 'plan_upgrade_refunded';
+	public const PLAN_UPGRADE_PARTIALLY_REFUNDED = 'plan_upgrade_partially_refunded';
+	public const UPGRADE_LICENSE_NOT_ACTIVE     = 'upgrade_license_not_active';
+	public const UPGRADE_PERIOD_CHANGED         = 'upgrade_period_changed';
+	public const UPGRADE_PLAN_CHANGED           = 'upgrade_plan_changed';
+	public const UPGRADE_TARGET_UNAVAILABLE     = 'upgrade_target_unavailable';
+	public const UPGRADE_PRICE_MISMATCH         = 'upgrade_price_mismatch';
+	public const UPGRADE_CONSENT_MISSING        = 'upgrade_consent_missing';
+	public const UPGRADE_NOT_APPLIED            = 'upgrade_not_applied';
 
 	/**
 	 * Build the stored form of a reason.
@@ -217,6 +233,27 @@ final class AuditReason {
 			self::RENEWED_AFTER_REVIEW           => array( __( 'Renewed by an administrator after reviewing order #%1$d: %2$s', 'wp-license' ), array( 'order', 'note' ) ),
 			self::LICENSE_CHANGED_WHILE_UNKNOWN  => array( __( 'The license was changed while the payment result was still unknown.', 'wp-license' ), array() ),
 			self::PAID_AFTER_REVIEW_CLOSED       => array( __( 'The renewal order was paid after its review had been closed without booking.', 'wp-license' ), array() ),
+			// Plan changes (T-110).
+			/* translators: %d: WooCommerce order number. */
+			self::PLAN_UPGRADE_STARTED           => array( __( 'The customer started a plan upgrade (order #%d).', 'wp-license' ), array( 'order' ) ),
+			/* translators: %d: WooCommerce order number. */
+			self::PLAN_UPGRADED_FROM_ORDER       => array( __( 'Plan upgraded after WooCommerce order #%d was paid.', 'wp-license' ), array( 'order' ) ),
+			self::PLAN_DOWNGRADE_REQUESTED       => array( __( 'The customer chose another plan from the next renewal.', 'wp-license' ), array() ),
+			self::PLAN_CHANGE_WITHDRAWN          => array( __( 'The customer kept the current plan; the scheduled plan change was withdrawn.', 'wp-license' ), array() ),
+			/* translators: %d: WooCommerce order number. */
+			self::PLAN_CHANGED_AT_RENEWAL        => array( __( 'Plan changed with the renewal paid by order #%d.', 'wp-license' ), array( 'order' ) ),
+			self::PLAN_CHANGE_TARGET_UNAVAILABLE => array( __( 'The scheduled plan is no longer available in the catalog; the change was dropped.', 'wp-license' ), array() ),
+			/* translators: %d: WooCommerce order number. */
+			self::PLAN_UPGRADE_REFUNDED          => array( __( 'Plan upgrade order #%d was refunded in full.', 'wp-license' ), array( 'order' ) ),
+			/* translators: 1: WooCommerce order number, 2: refunded amount, 3: currency code. */
+			self::PLAN_UPGRADE_PARTIALLY_REFUNDED => array( __( 'Plan upgrade order #%1$d was partially refunded (%2$s %3$s); the plan is unchanged.', 'wp-license' ), array( 'order', 'amount', 'currency' ) ),
+			self::UPGRADE_LICENSE_NOT_ACTIVE     => array( __( 'The license was no longer active when the upgrade was paid.', 'wp-license' ), array() ),
+			self::UPGRADE_PERIOD_CHANGED         => array( __( 'The paid period of the license changed or ended after the upgrade order was created.', 'wp-license' ), array() ),
+			self::UPGRADE_PLAN_CHANGED           => array( __( 'The plan of the license changed after the upgrade order was created.', 'wp-license' ), array() ),
+			self::UPGRADE_TARGET_UNAVAILABLE     => array( __( 'The plan of the upgrade order is no longer available in the catalog.', 'wp-license' ), array() ),
+			self::UPGRADE_PRICE_MISMATCH         => array( __( 'The paid upgrade order line or currency did not match the upgrade price.', 'wp-license' ), array() ),
+			self::UPGRADE_CONSENT_MISSING        => array( __( 'The upgrade order has no consent to the new automatic renewal amount.', 'wp-license' ), array() ),
+			self::UPGRADE_NOT_APPLIED            => array( __( 'The plan upgrade could not be applied to the license.', 'wp-license' ), array() ),
 			// Automatic renewals and payment events.
 			self::RENEWAL_ALREADY_PAID           => array( __( 'The renewal order was already paid.', 'wp-license' ), array() ),
 			self::RENEWAL_CONFIRMED_BY_ADAPTER   => array( __( 'The payment gateway confirmed the renewal.', 'wp-license' ), array() ),

@@ -8,11 +8,13 @@
 namespace WPLC\Admin;
 
 use WPLC\Billing\Money;
+use WPLC\Billing\PlanUpgrade;
 use WPLC\Billing\RenewalReview;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditReason;
 use WPLC\License\LicenseLifecycle;
 use WPLC\License\LicenseStateMachine;
+use WPLC\License\PlanChange;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -79,6 +81,7 @@ final class LicenseDetail {
 		echo '<hr class="wp-header-end">';
 
 		self::render_review_notice( $license_id );
+		self::render_upgrade_review_notice( $license_id );
 		self::render_summary( $license, is_string( $display_name ) ? $display_name : '', $activations, $entitlements );
 		self::render_actions( $license );
 		self::render_activations( $activations );
@@ -105,6 +108,23 @@ final class LicenseDetail {
 			/* translators: 1: date the review started, 2: date until which the expiry of the license is deferred. */
 			echo esc_html( sprintf( __( 'Open since %1$s. The license does not expire before the review is resolved, at the latest until %2$s.', 'wp-license' ), Format::date( $case['review_at'] ?: $case['updated_at'], true ), null !== $deferred ? Format::date( gmdate( 'Y-m-d H:i:s', $deferred ), true ) : '—' ) );
 			echo ' <a href="' . esc_url( RenewalReviewAdmin::list_url() . '#wplc-review-' . (int) $case['id'] ) . '">' . esc_html__( 'Resolve it in "Renewals to review"', 'wp-license' ) . '</a></p></div>';
+		}
+	}
+
+	/**
+	 * Warn when a paid plan upgrade order of this license could not be applied (T-110).
+	 *
+	 * @param int $license_id License ID.
+	 * @return void
+	 */
+	private static function render_upgrade_review_notice( int $license_id ): void {
+		foreach ( PlanUpgrade::orders_in_review( $license_id ) as $order_id => $reason ) {
+			echo '<div class="notice notice-warning inline wplc-upgrade-review-notice"><p><strong>' . esc_html__( 'A paid plan upgrade was not applied.', 'wp-license' ) . '</strong> ';
+			echo wp_kses_post( self::order_link( (int) $order_id ) ) . ' ';
+			if ( '' !== $reason ) {
+				echo esc_html( AuditReason::label( $reason ) ) . ' ';
+			}
+			echo esc_html__( 'Refund the order in WooCommerce, or change the plan below if the customer keeps the upgrade.', 'wp-license' ) . '</p></div>';
 		}
 	}
 
@@ -157,7 +177,7 @@ final class LicenseDetail {
 		$rows = array(
 			array( __( 'Customer', 'wp-license' ), LicenseAdmin::customer_html( (int) $license['customer_id'] ), true ),
 			array( __( 'Product', 'wp-license' ), '' !== $display_name ? $display_name . ' (' . (string) $license['product_key'] . ')' : (string) $license['product_key'] ),
-			array( __( 'Plan', 'wp-license' ), (string) $license['plan_key'] ),
+			array( __( 'Plan', 'wp-license' ), self::plan_text( $license ) ),
 			array( __( 'Status', 'wp-license' ), $status ),
 			array( __( 'Billing interval', 'wp-license' ), 'month' === $license['billing_interval'] ? __( 'Monthly', 'wp-license' ) : __( 'Yearly', 'wp-license' ) ),
 			array( __( 'Started', 'wp-license' ), Format::date( $license['starts_at'], true ) ),
@@ -236,6 +256,8 @@ final class LicenseDetail {
 			return;
 		}
 
+		self::render_plan_change( $license );
+
 		echo '<h3>' . esc_html__( 'Change term', 'wp-license' ) . '</h3>';
 		echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="wplc_admin_extend_license">';
@@ -250,6 +272,71 @@ final class LicenseDetail {
 		/* translators: %s: site timezone, for example Europe/Berlin. */
 		echo esc_html( sprintf( __( 'The license runs until the end of that day in the site timezone (%s). No payment is taken. An expired license becomes active again.', 'wp-license' ), wp_timezone_string() ) );
 		echo '</p>';
+	}
+
+	/**
+	 * Plan key, with a plan change scheduled for the next renewal.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return string
+	 */
+	private static function plan_text( array $license ): string {
+		$text = (string) $license['plan_key'];
+		if ( '' !== (string) ( $license['pending_plan_key'] ?? '' ) ) {
+			/* translators: %s: plan key the license changes to. */
+			$text .= ' — ' . sprintf( __( 'changes to %s with the next renewal', 'wp-license' ), (string) $license['pending_plan_key'] );
+		}
+
+		return $text;
+	}
+
+	/**
+	 * "Change plan" form (T-110): now or from the next renewal, no payment.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return void
+	 */
+	private static function render_plan_change( array $license ): void {
+		if ( ! in_array( (string) $license['status'], array( 'active', 'past_due' ), true ) ) {
+			return;
+		}
+		$license_id = (int) $license['id'];
+		$targets    = PlanChange::targets( $license, false );
+		echo '<h3>' . esc_html__( 'Change plan', 'wp-license' ) . '</h3>';
+		if ( '' !== (string) ( $license['pending_plan_key'] ?? '' ) ) {
+			echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			echo '<input type="hidden" name="action" value="wplc_admin_cancel_plan_change">';
+			echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+			self::nonce_input( 'wplc_admin_cancel_plan_change_' . $license_id );
+			/* translators: %s: plan key. */
+			echo '<span>' . esc_html( sprintf( __( 'Scheduled for the next renewal: %s.', 'wp-license' ), (string) $license['pending_plan_key'] ) ) . '</span> ';
+			echo '<label class="screen-reader-text" for="wplc-plan-cancel-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
+			echo '<input type="text" id="wplc-plan-cancel-reason" name="reason" required maxlength="255" placeholder="' . esc_attr__( 'Reason', 'wp-license' ) . '">';
+			echo '<button class="button" type="submit">' . esc_html__( 'Withdraw plan change', 'wp-license' ) . '</button></form>';
+		}
+		if ( ! $targets ) {
+			echo '<p>' . esc_html__( 'No other plan of this product with the same billing interval is mapped in the catalog.', 'wp-license' ) . '</p>';
+			return;
+		}
+		echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="wplc_admin_change_plan">';
+		echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+		self::nonce_input( 'wplc_admin_change_plan_' . $license_id );
+		echo '<label for="wplc-plan-target">' . esc_html__( 'New plan', 'wp-license' ) . '</label>';
+		echo '<select id="wplc-plan-target" name="product_id" required>';
+		foreach ( $targets as $product_id => $target ) {
+			$limit = PlanChange::site_limit_from_plan( $target['plan'] );
+			/* translators: 1: plan key, 2: product name, 3: price, 4: currency, 5: live sites. */
+			$label = sprintf( __( '%1$s — %2$s (%3$s %4$s, live sites: %5$s)', 'wp-license' ), (string) $target['plan']['plan_key'], wp_strip_all_tags( (string) $target['product']->get_name() ), Money::to_decimal( (int) $target['price']['amount_minor'], (int) $target['price']['decimals'] ), (string) $target['price']['currency'], null === $limit ? '—' : (string) $limit );
+			echo '<option value="' . esc_attr( (string) $product_id ) . '">' . esc_html( $label ) . '</option>';
+		}
+		echo '</select>';
+		echo '<label for="wplc-plan-when">' . esc_html__( 'When', 'wp-license' ) . '</label>';
+		echo '<select id="wplc-plan-when" name="when"><option value="now">' . esc_html__( 'Now', 'wp-license' ) . '</option><option value="renewal">' . esc_html__( 'With the next renewal', 'wp-license' ) . '</option></select>';
+		echo '<label for="wplc-plan-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
+		echo '<input type="text" id="wplc-plan-reason" name="reason" required maxlength="255">';
+		echo '<button class="button" type="submit">' . esc_html__( 'Change plan', 'wp-license' ) . '</button></form>';
+		echo '<p class="description">' . esc_html__( 'No payment is taken and nothing is refunded. The paid period stays. "Now" replaces the entitlements and the live site limit at once; sites above a lower limit stay active, but no new sites can be activated. Future renewals use the product of the new plan; an automatic renewal amount is never raised without the consent of the customer (it stays as it is for a more expensive plan).', 'wp-license' ) . '</p>';
 	}
 
 	/**
