@@ -7,7 +7,7 @@ A release package is stored in one of two ways.
 | Where the ZIP lives | Private directory on the shop server | Any HTTPS host: S3, GCS, a download server |
 | How it is added | Upload on **WooCommerce → License releases**, or `wp wplc release create --zip=…` | Package URL + SHA-256, or manifest import |
 | Delivered by | Streaming route on the shop (PHP, or the web server via `X-Accel-Redirect`/`X-Sendfile`) | Redirect to the (pre-signed) URL |
-| Does the client learn a permanent address? | No | **Yes, unless a resolver returns a pre-signed URL** (see below) |
+| Does the client learn a permanent address? | No | No: without a resolver that returns a pre-signed URL the release is not delivered at all (see below) |
 | Good for | Small catalogs, no extra infrastructure | Large files, many downloads, CDN |
 
 ## Local private storage
@@ -122,15 +122,17 @@ add_filter( 'wplc_resolve_update_package_url', function ( $url, $license_id ) {
 	return (string) $s3->createPresignedRequest( $command, '+5 minutes' )->getUri();
 }, 10, 2 );
 
-// 3. Never hand out the permanent URL, even if the resolver is missing one day.
-add_filter( 'wplc_require_package_resolver', '__return_true' );
+// 3. Nothing to do: since A-32 the server never hands out the unchanged permanent URL,
+//    even if the resolver is missing one day (`wplc_require_package_resolver` defaults to true).
 ```
 
 For Google Cloud Storage, return `$bucket->object( $key )->signedUrl( new DateTime( '+5 minutes' ), array( 'version' => 'v4' ) )` and allow `storage.googleapis.com`.
 
-### Without a resolver the address is permanent
+### Without a resolver a `url` release is not delivered
 
-A `url` release without a resolver is delivered by redirecting the client to the stored URL. Every licensed installation therefore learns that address and can keep using or pass it on after its license has ended. The releases screen warns about this. Either keep the object private and add a resolver, or upload the ZIP (`local`). With `wplc_require_package_resolver` returning `true`, the server refuses (404, grant not used) to redirect to an unchanged stored URL.
+Redirecting a client to the stored URL would tell every licensed installation the permanent address, which it could keep using or pass on after its license has ended. Since A-32 the server therefore refuses (404, grant not used; the customer-account download shows an error) to redirect to an unchanged stored URL, and the releases screen says that such releases are not delivered. Either keep the object private and add a resolver, or upload the ZIP (`local`).
+
+A shop that accepts the permanent address (for example a public mirror of a free download) restores the old behaviour with `add_filter( 'wplc_require_package_resolver', '__return_false' );`. The releases screen then warns that customers learn the address.
 
 ### Rules for a resolver
 

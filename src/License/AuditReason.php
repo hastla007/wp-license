@@ -44,6 +44,8 @@ final class AuditReason {
 	public const LICENSE_KEY_ID_RECOVERED       = 'license_key_id_recovered';
 	public const INSTALLATION_SECRET_ROTATED    = 'installation_secret_rotated';
 	public const SIGNING_KEY_ROTATED            = 'signing_key_rotated';
+	public const LICENSE_KEY_SECRET_REVOKED     = 'license_key_secret_revoked';
+	public const ENTITLEMENTS_SYNCED_FROM_PLAN  = 'entitlements_synced_from_plan';
 	public const MANUAL_RENEWAL_STARTED         = 'manual_renewal_started';
 	public const MANUAL_RENEWAL_PAID            = 'manual_renewal_paid';
 	public const MANUAL_PERIOD_CHANGED          = 'manual_period_changed';
@@ -228,6 +230,9 @@ final class AuditReason {
 			self::LICENSE_KEY_ID_RECOVERED       => array( __( 'License key ID corrected after matching the stored verifier.', 'wp-license' ), array() ),
 			self::INSTALLATION_SECRET_ROTATED    => array( __( 'Installation secret encrypted with the configured current key.', 'wp-license' ), array() ),
 			self::SIGNING_KEY_ROTATED            => array( __( 'Response signing key rotated.', 'wp-license' ), array() ),
+			/* translators: %s: license key ID (an identifier from wp-config.php, not a secret). */
+			self::LICENSE_KEY_SECRET_REVOKED     => array( __( 'New key issued because the license-key secret "%s" was retired.', 'wp-license' ), array( 'key_id' ) ),
+			self::ENTITLEMENTS_SYNCED_FROM_PLAN  => array( __( 'Entitlements updated to the current settings of the plan.', 'wp-license' ), array() ),
 			// Manual renewals.
 			self::MANUAL_RENEWAL_STARTED         => array( __( 'The customer started a manual renewal.', 'wp-license' ), array() ),
 			self::MANUAL_RENEWAL_PAID            => array( __( 'The customer paid a manual renewal order.', 'wp-license' ), array() ),

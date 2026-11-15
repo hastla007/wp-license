@@ -42,6 +42,7 @@ Use at least 32 random bytes per secret. Do not reuse WordPress salts, commit se
 The implementation can read current and previous key IDs and re-encrypt installation credentials (and the stored response signing key) lazily after authenticated use. It also provides bounded WP-CLI tools:
 
 - `wp wplc rotate-installation-secrets` defaults to a dry run; use `--apply` only after backup and validation. It processes at most `--max-rows` activations per run (default 5000); continue with `--after-id=<last ID>` from the previous output. Every run also checks the stored response signing key and a prepared next signing key, which are encrypted with the same key ring.
+- `wp wplc rekey-licenses --from=<key-id>` replaces the keys of every license issued under a leaked secret (see [A leaked license-key secret](#a-leaked-license-key-secret)). Without `--from` it lists the key IDs in use with their license counts.
 - `wp wplc recover-license-key-ids --to=<key-id>` defaults to a dry run and changes a row only when the existing license verifier matches a key derived by that key ID. The key ID must be configured in the ring. Continue a bounded run with `--after-id=<last ID>` (exactly the printed value; a larger value skips rows). Each change is audited as `license_key_id_recovered`.
 
 ### Rotation runbook (rehearsed, T-86)
@@ -50,7 +51,7 @@ The license-key ring and the encryption ring rotate independently. What each key
 
 | Ring | What breaks without the old entry | When the old entry may go |
 |---|---|---|
-| `WPLC_LICENSE_KEY_SECRETS` | Customers no longer see license keys derived with it ("Currently unavailable"). Activation with a key the customer already has keeps working: the server looks keys up by their stored hash, not by deriving them. | Never while licenses with that key ID exist; existing licenses are **not** migrated to the new ID (the key would change). |
+| `WPLC_LICENSE_KEY_SECRETS` | Customers no longer see license keys derived with it ("Currently unavailable"). Activation with a key the customer already has keeps working: the server looks keys up by their stored hash, not by deriving them. | Never while licenses with that key ID exist; a routine rotation does **not** migrate existing licenses to the new ID (the key would change). After a leak, `wp wplc rekey-licenses` moves them deliberately (see below). |
 | `WPLC_INSTALLATION_ENCRYPTION_KEYS` | Activations still encrypted with it fail with `401 installation_secret_invalid`, and a response signing key encrypted with it cannot be decrypted: responses lose the Ed25519 signature and every client that pins the public key rejects the server, including new activations (whose rows are still created and use up a site slot). | After `wp wplc rotate-installation-secrets` ends with exit code 0, **and** no backup that you might restore still needs it (see restore below). |
 
 1. **Back up** the database (`mysqldump --single-transaction`) and the current key constants (secrets manager). Record row counts and a checksum of the `license_key_secret_id`/`license_key_hash` and `installation_secret_encrypted` columns to compare after a restore.
@@ -65,6 +66,18 @@ The license-key ring and the encryption ring rotate independently. What each key
 **Recovering a removed encryption key.** Put the removed entry back into `WPLC_INSTALLATION_ENCRYPTION_KEYS` (keep the new one current), run `wp wplc rotate-installation-secrets --apply`, check `Response signing key: current` (or `rotated`), then retire it again. Do not run `wp wplc signing-key --rotate` to "repair" an undecryptable signing key: it creates a new key deliberately and every client that pins the old public key rejects the server. Activations created while signatures were missing exist on the server although the client reported an error; release them in the admin if they block a site slot.
 
 **Restoring a backup.** A restored database needs the key ring that was in use when the backup was taken: rows in it are still encrypted with the old encryption key and reference the old license-key IDs. Restoring a pre-rotation backup with only the new encryption key makes every installation fail with `installation_secret_invalid` and the response signature disappear. Keep retired keys in the secrets manager for as long as backups that use them are kept, and deploy them together with the restored database. A restore also brings back the response signing key of that time: clients that pin only a newer public key reject the server, and activations made after the backup are gone (those sites have to activate again).
+
+### A leaked license-key secret
+
+A rotation alone does not invalidate keys: the server finds a key by its stored SHA-256 verifier, so a key derived from a leaked secret keeps working even after the secret left `WPLC_LICENSE_KEY_SECRETS`. Whoever has the secret and a license UUID (it is part of every key) can derive further keys. Re-key the affected licenses (B-155):
+
+1. **Back up** the database. Add a new random entry to `WPLC_LICENSE_KEY_SECRETS`, make it current with `WPLC_LICENSE_KEY_ID` and deploy it to every node. The command refuses to run while the leaked ID is still current.
+2. **Count:** `wp wplc rekey-licenses --from=<leaked-id>` (dry run; exit code 1 while licenses with that ID exist).
+3. **Re-key:** `wp wplc rekey-licenses --from=<leaked-id> --apply`. Every license with that key ID gets a new UUID and a key derived with the current secret; its old key stops working at once and the customer account shows the new key. Revoked licenses are re-keyed too, so restoring one later does not revive the leaked key; licenses still being issued (`pending`) are skipped, run the command again. Each change is audited as `license_key_reissued` with the reason "New key issued because the license-key secret ... was retired". No key is printed.
+   - `--notify` sends each owner of a non-revoked license the new key by email (`wplc/license_key_reissued`, the same email as the support action "Issue a new key"). Without it, tell customers yourself: they need the new key only to activate another site.
+   - Activated sites keep working, because they authenticate with their installation secret, not with the key. If you suspect that the leak was used to activate foreign sites, add `--release-sites`: every site of these licenses is released and has to be activated again with the new key. Otherwise review the sites per license in the admin.
+   - `--max-rows=<n>` limits one run; repeat until it ends with exit code 0 ("No license uses this key ID any more").
+4. **Retire** the leaked entry from the ring once no backup you might restore still needs it (a restored backup brings the old keys back; re-key again after a restore).
 
 ### Rotating the response signing key
 

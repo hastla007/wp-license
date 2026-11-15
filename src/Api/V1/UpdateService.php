@@ -305,28 +305,36 @@ final class UpdateService {
 	/**
 	 * Whether a client may be redirected to the resolved package URL (A-32).
 	 *
-	 * Without a resolver, a release with storage "url" redirects every licensed
-	 * client to its permanent address, which keeps working after the license
-	 * ended. With `wplc_require_package_resolver` returning true such a redirect
-	 * is refused: only a URL changed by `wplc_resolve_update_package_url`
+	 * A redirect to the unchanged stored address of a release with storage
+	 * "url" would tell every licensed client the permanent address, which
+	 * keeps working after the license ended. By default such a redirect is
+	 * refused: only a URL changed by `wplc_resolve_update_package_url`
 	 * (pre-signed, short-lived) or the local streaming route is delivered.
+	 * A shop that accepts the permanent address returns false from
+	 * `wplc_require_package_resolver`.
 	 *
 	 * @param string $resolved URL after `wplc_resolve_update_package_url`.
 	 * @param string $stored URL stored with the release or grant.
 	 * @return bool
 	 */
 	public static function may_redirect_to( string $resolved, string $stored ): bool {
+		return ! self::requires_package_resolver( $stored ) || $resolved !== $stored;
+	}
+
+	/**
+	 * Whether a package URL may only be delivered after a resolver changed it (A-32).
+	 *
+	 * @param string $stored Stored package URL ('' when asked in general, e.g. for the releases screen).
+	 * @return bool
+	 */
+	public static function requires_package_resolver( string $stored = '' ): bool {
 		/**
 		 * Filters whether packages may only be delivered through a resolver.
 		 *
-		 * @param bool   $required Default false.
-		 * @param string $stored Stored package URL.
+		 * @param bool   $required Default true since A-32 (was false): never redirect to an unchanged stored URL.
+		 * @param string $stored Stored package URL, or '' when asked in general.
 		 */
-		if ( ! apply_filters( 'wplc_require_package_resolver', false, $stored ) ) {
-			return true;
-		}
-
-		return $resolved !== $stored;
+		return (bool) apply_filters( 'wplc_require_package_resolver', true, $stored );
 	}
 
 	/**
