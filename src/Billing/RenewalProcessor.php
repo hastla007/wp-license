@@ -355,7 +355,9 @@ final class RenewalProcessor {
 			return;
 		}
 
-		$started = gmdate( 'Y-m-d H:i:s' );
+		// One timestamp for the stored attempt time and the retry calculation (B-11).
+		$attempt_time = time();
+		$started      = gmdate( 'Y-m-d H:i:s', $attempt_time );
 		$fields = array( 'status' => 'processing', 'retry_at' => null );
 		if ( ! $reconciling || empty( $renewal['last_attempt_at'] ) ) {
 			// A repeat of an attempt with unknown outcome keeps the time of its first try (A-114).
@@ -367,7 +369,7 @@ final class RenewalProcessor {
 		// The key changes only after a definite failure was recorded (see attempt_idempotency_key()).
 		// A reconciliation check therefore sends the key of the attempt whose result is unknown.
 		$attempt_key = RenewalScheduler::attempt_idempotency_key( (string) $renewal['idempotency_key'], (int) $renewal['attempt_count'] );
-		$request_at = time();
+		$request_at = $attempt_time;
 		$result = $adapter->charge( $order, $token_id, $attempt_key );
 
 		// B-184: the charge took time; the customer may have paid the same order in the meantime.
@@ -717,7 +719,7 @@ final class RenewalProcessor {
 		}
 
 		$period_start = (int) strtotime( (string) $renewal['period_start'] . ' UTC' );
-		$next = self::next_retry_at( $attempt, $period_start, time(), self::retry_days() );
+		$next = self::next_retry_at( $attempt, $period_start, $request_at ? $request_at : time(), self::retry_days() );
 		$retry = $next && $grace_end && $next < $grace_end;
 		// B-190: an exhausted renewal waits for the end of grace with a date, not with an open end.
 		$wait_until = $retry ? $next : max( time() + 30, (int) $grace_end );
