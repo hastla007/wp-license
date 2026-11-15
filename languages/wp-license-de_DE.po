@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: WP License Captain 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-11-13T21:35:54+00:00\n"
-"PO-Revision-Date: 2026-11-15 08:06+0000\n"
+"PO-Revision-Date: 2026-11-15 08:11+0000\n"
 "Last-Translator: \n"
 "Language-Team: German\n"
 "Language: de_DE\n"
@@ -6341,12 +6341,6 @@ msgstr "Das Update-Paket ist größer als %s MB und wurde nicht heruntergeladen.
 msgid "The download of the update was redirected too often and was stopped."
 msgstr "Der Download des Updates wurde zu oft weitergeleitet und daher abgebrochen."
 
-#. translators: 1: name of the add-on, 2: host name of the license server.
-#: src/Client/Messages.php:275
-#, php-format
-msgid "%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), and the versions of the plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent."
-msgstr "%1$s prüft seine Lizenz und sucht nach Updates bei %2$s. Bei der Aktivierung der Lizenz, einmal täglich sowie beim Prüfen oder Herunterladen eines Updates sendet diese Website: ihre Adresse (URL), eine von dieser Website erzeugte Installations-ID, den Produktschlüssel des Plugins, die Art der Umgebung (Live-, Staging- oder Entwicklungs-Website), den Lizenzschlüssel (einmalig bei der Aktivierung) sowie die Versionen des Plugins, von WordPress und von PHP. Der Lizenzserver sieht die IP-Adresse dieses Webservers. Es werden keine Daten über Besucher oder Kunden dieser Website gesendet."
-
 #: src/Admin/AdminNotices.php:70
 msgid "The renewal order was refunded or cancelled. It cannot be booked or marked as not paid; close the review instead."
 msgstr "Die Verlängerungsbestellung wurde erstattet oder storniert. Sie kann weder gebucht noch als nicht bezahlt markiert werden; schließen Sie stattdessen die Prüfung ab."
@@ -7019,3 +7013,9 @@ msgstr "Wenn Sie eine Bestellnummer eingegeben haben, können Sie auch die Lizen
 #: src/Maintenance/Orphans.php:99
 msgid "WP License Captain: the customer account was deleted; this renewal was cancelled."
 msgstr "WP License Captain: Das Kundenkonto wurde gelöscht; diese Verlängerung wurde storniert."
+
+#. translators: 1: name of the add-on, 2: host name of the license server.
+#: src/Client/Messages.php:275
+#, php-format
+msgid "%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), for a staging site the installation ID of its live site, and the versions of the plugin, of the base plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent. Legal basis: our legitimate interest in the use of licensed software and in security updates (Art. 6(1)(f) GDPR)."
+msgstr "%1$s prüft seine Lizenz und sucht nach Updates bei %2$s. Bei der Aktivierung der Lizenz, einmal täglich sowie beim Prüfen oder Herunterladen eines Updates sendet diese Website: ihre Adresse (URL), eine von dieser Website erzeugte Installations-ID, den Produktschlüssel des Plugins, die Art der Umgebung (Live-, Staging- oder Entwicklungs-Website), den Lizenzschlüssel (einmalig bei der Aktivierung), bei einer Staging-Website die Installations-ID ihrer Live-Website sowie die Versionen des Plugins, des Basis-Plugins, von WordPress und von PHP. Der Lizenzserver sieht die IP-Adresse dieses Webservers. Es werden keine Daten über Besucher oder Kunden dieser Website gesendet. Rechtsgrundlage: unser berechtigtes Interesse an der Nutzung lizenzierter Software und an Sicherheitsupdates (Art. 6 Abs. 1 lit. f DSGVO)."

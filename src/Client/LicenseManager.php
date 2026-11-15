@@ -993,7 +993,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 */
 		public function add_privacy_text(): void {
 			if ( function_exists( 'wp_add_privacy_policy_content' ) ) {
-				wp_add_privacy_policy_content( (string) $this->config['name'], wp_kses_post( wpautop( $this->privacy_text(), false ) ) );
+				wp_add_privacy_policy_content( (string) $this->config['name'] . ' – ' . $this->text( 'privacy.title' ), wp_kses_post( wpautop( $this->privacy_text(), false ) ) );
 			}
 		}
 

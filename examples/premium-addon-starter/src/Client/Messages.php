@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 59b3a6b78482bfe78b3e8c18ef73c4a937036bc05d56062e61fdc305e23d7ad6). Do not edit: change the server copy and re-vendor.
+ * (source sha256 3b00fc4984dfb535bd46b56d3164de2fd2b8c3e08ad30c078adbad19dcea290e). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -275,7 +275,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				// Privacy policy suggestion.
 				'privacy.title'                       => __( 'License check and updates', 'premium-addon-starter' ),
 				/* translators: 1: name of the add-on, 2: host name of the license server. */
-				'privacy.text'                        => __( '%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), and the versions of the plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent.', 'premium-addon-starter' ),
+				'privacy.text'                        => __( '%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), for a staging site the installation ID of its live site, and the versions of the plugin, of the base plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent. Legal basis: our legitimate interest in the use of licensed software and in security updates (Art. 6(1)(f) GDPR).', 'premium-addon-starter' ),
 			);
 		}
 	}
