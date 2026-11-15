@@ -712,15 +712,12 @@ final class LicenseLifecycle {
 	 * @see self::admin_set_status()
 	 */
 	private static function admin_set_status_locked( int $license_id, string $status, string $reason, int $actor_user_id ): bool {
-		if ( '' === trim( $reason ) || ! in_array( $status, array( 'active', 'suspended', 'revoked' ), true ) ) {
+		if ( '' === trim( $reason ) ) {
 			return false;
 		}
 
 		$license = self::get_license( $license_id );
-		if ( ! $license || ! LicenseStateMachine::allows( (string) $license['status'], $status, 'admin_status_change' ) ) {
-			return false;
-		}
-		if ( 'active' === $status && ! empty( $license['paid_until'] ) && (string) $license['paid_until'] <= gmdate( 'Y-m-d H:i:s' ) ) {
+		if ( ! $license || '' !== self::admin_status_blocker( $license, $status ) ) {
 			return false;
 		}
 
@@ -738,6 +735,35 @@ final class LicenseLifecycle {
 		}
 
 		return $changed;
+	}
+
+	/**
+	 * Why an administrator status change would not be applied to a license, or '' when it would.
+	 *
+	 * The rules admin_set_status() enforces, so a caller (the bulk action of the
+	 * license list) can tell the administrator why a license was skipped.
+	 * admin_set_status() checks them again under the license lock.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param string              $status  Requested status.
+	 * @return string '' or one of: invalid_status, same_status, transition_not_allowed, paid_period_ended.
+	 */
+	public static function admin_status_blocker( array $license, string $status ): string {
+		if ( ! in_array( $status, array( 'active', 'suspended', 'revoked' ), true ) ) {
+			return 'invalid_status';
+		}
+		$current = isset( $license['status'] ) ? (string) $license['status'] : '';
+		if ( $current === $status ) {
+			return 'same_status';
+		}
+		if ( ! LicenseStateMachine::allows( $current, $status, 'admin_status_change' ) ) {
+			return 'transition_not_allowed';
+		}
+		if ( 'active' === $status && ! empty( $license['paid_until'] ) && (string) $license['paid_until'] <= gmdate( 'Y-m-d H:i:s' ) ) {
+			return 'paid_period_ended';
+		}
+
+		return '';
 	}
 
 	/**

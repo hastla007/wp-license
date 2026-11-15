@@ -91,6 +91,7 @@ $screens = array(
 	'diagnostics'    => array( 'admin.php?page=wplc-diagnostics', 'License diagnostics' ),
 	'renewal review' => array( 'admin.php?page=wplc-renewal-review', 'No renewal needs review.' ),
 	'catalog CSV'    => array( 'admin.php?page=wplc-catalog-csv', 'wplc_export_catalog_csv' ),
+	'audit log'      => array( 'admin.php?page=wplc-audit-log', 'License audit log' ),
 	'plugins screen' => array( 'plugins.php', 'WP License Captain' ),
 	'dashboard'      => array( 'index.php', 'wpbody-content' ),
 );

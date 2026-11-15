@@ -216,6 +216,48 @@ $carol_cookies = e2e_login( $carol_id );
 $forbidden     = e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $carol_cookies, 'body' => array( 'action' => 'wplc_admin_license_status', 'license_id' => (string) $target_id, 'status' => 'revoked', 'reason' => 'x', '_wpnonce' => wp_create_nonce( 'wplc_admin_license_status_' . $target_id ) ) ) );
 e2e_ok( 'active' === e2e_license( $target_id )['status'] && in_array( $forbidden['code'], array( 302, 403 ), true ), 'a customer cannot use the admin status action', $forbidden['code'] );
 
+// --- T-102: bulk action from the license list (one reason, per-row results, no double run). ---
+$admin_cookies = e2e_login( $admin_id );
+$revoked_ids   = array_map( 'intval', array_column( e2e_order_licenses( $order_id ), 'id' ) );
+$list          = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-licenses&mode=manual' ), array( 'cookies' => $admin_cookies ) );
+$bulk_form     = e2e_form( $list['body'], array( 'id="wplc-bulk-form"' ) );
+e2e_ok(
+	200 === $list['code'] && is_array( $bulk_form ) && false !== strpos( $list['body'], 'name="license_ids[]"' ) && false !== strpos( $list['body'], 'id="wplc-filter-renewal"' ) && false !== strpos( $list['body'], 'name="return_mode" value="manual"' ),
+	'license list renders the bulk form, row checkboxes and the new filters',
+	$list['code']
+);
+$bulk_body = array_merge( (array) $bulk_form, array( 'bulk_action' => 'suspend', 'bulk_reason' => 'e2e: bulk fraud check' ) );
+unset( $bulk_body['__action'] );
+$bulk_query = http_build_query( $bulk_body ) . '&' . implode( '&', array_map( static function ( int $id ): string { return 'license_ids%5B%5D=' . $id; }, array_merge( array( $target_id ), $revoked_ids ) ) );
+$bulk_post  = static function () use ( $bulk_query, $admin_cookies ) {
+	return e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $admin_cookies, 'body' => $bulk_query, 'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ) ) );
+};
+$bulk = $bulk_post();
+e2e_ok( 302 === $bulk['code'] && false !== strpos( $bulk['location'], 'wplc_notice=bulk_done' ) && false !== strpos( $bulk['location'], 'mode=manual' ), 'bulk suspend redirects back to the filtered list', array( $bulk['code'], $bulk['location'] ) );
+e2e_eq( 'suspended', e2e_license( $target_id )['status'], 'bulk suspend: the active license is suspended' );
+e2e_eq( array( 'revoked' ), array_values( array_unique( array_column( e2e_order_licenses( $order_id ), 'status' ) ) ), 'bulk suspend: revoked licenses stay revoked' );
+e2e_eq( 'e2e: bulk fraud check', e2e_rows( 'audit_log', "object_type = 'license' AND object_id = {$target_id} ORDER BY id DESC LIMIT 1" )[0]['reason'], 'bulk suspend: per-license audit entry with the batch reason' );
+$result_page = e2e_http( 'GET', $bulk['location'], array( 'cookies' => $admin_cookies ) );
+e2e_ok( 200 === $result_page['code'] && false !== strpos( $result_page['body'], '1 done, ' . count( $revoked_ids ) . ' skipped.' ) && false !== strpos( $result_page['body'], 'data-wplc-skip="transition_not_allowed"' ), 'the list shows the per-row result of the batch', $result_page['code'] );
+$audit_rows = count( e2e_rows( 'audit_log', "object_type = 'license' AND object_id = {$target_id}" ) );
+$again      = $bulk_post();
+e2e_ok( 302 === $again['code'] && false !== strpos( $again['location'], 'wplc_notice=bulk_already_done' ) && count( e2e_rows( 'audit_log', "object_type = 'license' AND object_id = {$target_id}" ) ) === $audit_rows, 'a resubmitted batch is not run again', array( $again['code'], $again['location'] ) );
+// Restore the license for the following steps through the single action.
+e2e_ok( \WPLC\License\LicenseLifecycle::admin_set_status( $target_id, 'active', 'e2e: restore after bulk', $admin_id ), 'restore the license after the bulk test' );
+
+// --- T-156: the audit log screen lists system-wide entries and the batch. ---
+$audit_page = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-audit-log&object_id=0' ), array( 'cookies' => $admin_cookies ) );
+e2e_ok(
+	200 === $audit_page['code'] && false !== strpos( $audit_page['body'], '<code>admin_bulk_action</code>' ) && false === strpos( $audit_page['body'], '<code>admin_status_change</code>' ) && false !== strpos( $audit_page['body'], '</html>' ),
+	'audit log screen filters to system-wide entries and shows the bulk batch',
+	$audit_page['code']
+);
+$audit_page = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-audit-log&object_type=license&object_id=' . $target_id ), array( 'cookies' => $admin_cookies ) );
+e2e_ok( 200 === $audit_page['code'] && false !== strpos( $audit_page['body'], 'e2e: bulk fraud check' ) && false !== strpos( $audit_page['body'], 'license=' . $target_id ), 'audit log screen filters by object and links to the license', $audit_page['code'] );
+$carol_cookies = e2e_login( $carol_id );
+$denied_page   = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-audit-log' ), array( 'cookies' => $carol_cookies ) );
+e2e_ok( 200 !== $denied_page['code'] || false === strpos( $denied_page['body'], 'admin_bulk_action' ), 'a customer cannot open the audit log', $denied_page['code'] );
+
 // --- Manual license creation through the admin form. ---
 wplc_e2e_clear_mails();
 $admin_cookies = e2e_login( $admin_id );

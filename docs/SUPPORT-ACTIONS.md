@@ -10,6 +10,7 @@ Source: `src/Admin/*`, `src/License/LicenseLifecycle.php`, `src/License/Activati
 | --- | --- | --- | --- | --- |
 | Search and filter licenses | Licenses | `manage_woocommerce` | – | – (read only) |
 | View license details | Licenses → a license | `manage_woocommerce` | – | – (read only) |
+| Bulk: suspend, reactivate, revoke, release all site activations | Licenses (list) | `manage_woocommerce` | yes, one for the batch | per license as for the single action (`admin_status_change`; `admin_site_released` per activation plus `admin_sites_released` on the license), plus one `admin_bulk_action` summary (object ID 0) |
 | Suspend, revoke, reactivate | License detail | `manage_woocommerce` | yes | `admin_status_change` |
 | Change term | License detail | `manage_woocommerce` | yes | `admin_extend` |
 | Release a site activation | License detail | `manage_woocommerce` | yes | `admin_site_released` |
@@ -19,12 +20,13 @@ Source: `src/Admin/*`, `src/License/LicenseLifecycle.php`, `src/License/Activati
 | Close a review without booking | Renewals to review | `manage_woocommerce` | yes | `renewal_review_closed` |
 | Create, import, publish, withdraw, delete releases | License releases | `manage_woocommerce` | only for withdraw | `release_created`, `release_updated`, `release_deleted`, and one entry per status change |
 | Read diagnostics | License diagnostics | `manage_woocommerce` | – | – (read only) |
+| Read the audit log | License audit log | `manage_woocommerce` | – | – (read only) |
 | Change settings | License settings | `manage_woocommerce` | – | `settings_updated` |
 | Export / import catalog CSV | License catalog CSV | `manage_woocommerce` (import also `edit_post` on each product) | – | import: `catalog_csv_imported`; export: not audited |
 
 Every action that changes a license, an activation or a release writes an audit entry with the acting user, the reason and the values before and after.
 
-Settings changes and catalog imports are system-level entries (object ID 0), shown on no admin screen; read them from the table `{prefix}wplc_audit_log`:
+Settings changes, catalog imports, key rotations and bulk-action summaries are system-level entries (object ID 0). The license detail screen does not show them; the [audit log screen](#audit-log) does (filter "Object ID" = 0):
 
 - `settings_updated` (object type `settings`): one entry per saved change, with the acting user and the changed keys in the reason. Before/after values are stored for `package_hosts` and `reminder_days` only; a changed `sender_note` is listed by name. Secrets are not settings (they live in `wp-config.php` constants), so none can appear here.
 - `catalog_csv_imported` (object type `catalog`): one entry per import attempt, also for a rejected file, with the acting user and `outcome` (`completed`, `row_limit_reached`, `upload_failed`, `file_too_large`, `unreadable`, `invalid_header`), the sanitized file name, rows read, rows imported, rows skipped or invalid, and up to 200 product or variation IDs whose mapping was written.
@@ -35,13 +37,42 @@ A rejected action returns to the screen with an explanation; only a missing capa
 
 ## License list
 
-WooCommerce → Licenses. Sortable table with filters for status and product. The search field accepts:
+WooCommerce → Licenses. Sortable table with these filters (they can be combined, and they are kept when searching, sorting, paging and after a bulk action):
+
+- **status** and **product**,
+- **renewal**: licenses with a renewal in `review_required` ("needs review"), `reconciling` ("result being checked"), `failed` or `manual_action_required` ("needs customer action"), or **past due with an open renewal** (license `past_due` and a renewal that is scheduled, processing, failed, needs action, reconciling or in review),
+- **renewal mode**: automatic, manual, cancels at period end (same definition as the "Renewal" column),
+- **expiry**: expires within 30 days (`active` or `past_due`, paid until in the next 30 days) or paid period ended (paid until in the past, any status),
+- **source order ID**: the licenses issued for that order (renewal orders are not source orders).
+
+The search field accepts:
 
 - a **complete license key** (pasted, spaces are ignored). Keys are not stored; the search compares the key's hash,
 - `#123` for a license ID,
 - a number: license ID, customer ID or part of the key prefix,
 - an **email address** or part of one (anything containing `@`),
 - other text: key prefix, product key, plan key, or part of a customer email.
+
+### Bulk actions
+
+Select licenses with the row checkboxes (at most 100 per batch), choose an action, enter **one reason** for the whole batch and click "Apply" (the browser asks for confirmation). Available actions:
+
+- **Suspend**, **Reactivate**, **Revoke (final)**: exactly the rules of the single action on the detail screen (see below). Reactivation is only applied while the paid period has not ended; changing the term is not available in bulk.
+- **Release all site activations**: releases every active site of the license (live sites first; their staging sites go with them). The license status does not change.
+
+Every license runs through the same lifecycle code as the single action, under its own lock, and gets its own audit entries with the batch reason and the acting user. A license the action does not apply to is skipped. After the batch the list shows "n done, m skipped" with a link to every changed license and a table of the skipped ones with the reason:
+
+| Skip reason | Meaning |
+| --- | --- |
+| The license already has this status. | e.g. suspending a suspended license |
+| This change is not allowed from the current status. | e.g. anything on a revoked license, suspending a pending one |
+| The paid period has ended. | Reactivate only after changing the term |
+| The license has no active site activations. | Release: nothing to release |
+| Not every site activation could be released. | Release: an activation changed during the batch; try again |
+| Not applied / being processed | The license changed or was locked by another request between check and change; try again |
+| The license was not found. | Deleted meanwhile |
+
+A batch runs once. Submitting the same form again (double click, browser reload or back button) does not repeat it: the list shows the stored result with the notice "already processed". The result is kept for one hour and only for the administrator who ran it. Each batch also writes one summary entry `admin_bulk_action` (object type `license`, object ID 0) with the action and the changed and skipped license IDs.
 
 ## License detail
 
@@ -98,6 +129,14 @@ Each action needs a reason, runs under the per-renewal lock (and then the licens
 ### Expiry while a case is open
 
 While a renewal of a license is in review, the daily job and the grace-end job do not set the license to `expired`, for at most 30 days after the case was opened (`LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS`). Access follows the normal rules: it still ends 14 days after paid until for automatic renewals. After 30 days the license expires normally; the case stays open and booking it reactivates the license.
+
+## Audit log
+
+WooCommerce → License audit log. Read-only list of all audit entries, newest first, 50 per page: licenses, activations, renewals, releases, settings, catalog imports, key rotations (object type `system`) and bulk-action summaries.
+
+- **Filters:** object type, object ID (0 = system-wide entries), action (exact code, e.g. `settings_updated`), actor (user ID, email, login, or `system`), date range (days in the site timezone, both inclusive).
+- **Columns:** date, action code, object (linked: a license to its detail screen; an activation or renewal to the detail screen of its license; releases, settings and catalog entries to their screens), acting user ("System" for jobs and webhooks), reason (system reason codes translated, as on the license detail screen), change summary ("field: old → new") with the full before/after snapshots under "Details".
+- **Redaction:** reasons and snapshots are redacted when written (license keys, emails, site URLs, tokens, secrets). The screen applies the same redaction again before showing a row, so older rows or rows written by add-ons cannot show such values either.
 
 ## Releases
 
