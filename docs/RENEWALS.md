@@ -56,6 +56,7 @@ One listener (`Maintenance\Orphans::on_payment_token_deleted()`) decides, and `M
 | The customer (My Account → Payment methods → Delete), a privacy erasure, the deletion of the account | Automatic renewal is switched off, the token and gateway references are removed, open automatic renewals are cancelled. The customer sees a notice and can switch renewal on again with another card. |
 | The Stripe gateway while it lists the saved methods (it deletes and re-creates its token rows) | Nothing is switched off. `StripeRecurringAdapter::keep_license_on_token_sync()` detaches the license from the row (audit `payment_token_detached`); the charge finds the re-created row through the payment method reference. |
 | Anything else (import, another plugin) | Nothing changes. If the method is really gone, the next charge reports `renewal_payment_method_missing`. |
+| Card detached or deleted at Stripe, Stripe customer deleted (P-16) | Stripe answers `resource_missing` for `payment_method`/`customer` (or `payment_method_unexpected_state`). When the Stripe account still knows the customer (a deleted customer stays retrievable), the charge reports `renewal_payment_method_missing` as above, including the action and the customer email. When the account does not know the customer at all (secret key of another account), it stays a shop problem (`stripe_resource_missing`) and the customer is not emailed. |
 
 The filter `wplc_disable_renewal_on_token_deletion( $disable, $token_id, $context )` overrides the decision (`context`: `customer`, `privacy`, `user_deleted`, `gateway_sync`, `other`).
 
@@ -102,6 +103,10 @@ The gateway receives `{renewal key}:{attempt_count}` (`RenewalScheduler::attempt
 - Retry after a recorded decline: new key, new charge request.
 - Check of an attempt whose result is unknown (crash, timeout): same key, Stripe replays the first result, the customer cannot be charged twice. A new key is never used before the outcome is known.
 
+The Stripe adapter turns this into its own Stripe key, bound to customer, card, amount, currency, a refusal counter and the renewal order (`StripeRecurringAdapter::stripe_idempotency_key()`; the order since P-61, so a new renewal order for the same attempt never reuses a key Stripe holds for the old order). The key of an attempt is frozen once it is sent (P-03): it is stored on the renewal order before the request leaves (`_wplc_stripe_attempt_request`) and every repeat while the outcome is unknown sends that stored key, even when the customer chose another card or the amount changed in the meantime. Stripe then either replays the first request or, if it never arrived, takes the one and only payment; if the first request did arrive with other parameters, Stripe answers `idempotency_error`, which is treated as "result still unknown" (no new key, no salt change), not as a shop configuration problem. The stored request is removed once Stripe answered the attempt definitely (success, decline, refusal); a rate limit or another unknown answer keeps it.
+
+While a request of the attempt may have reached Stripe, the payment lookup before a repeat must be definite: a search Stripe refuses or an error for the stored PaymentIntent counts as "unknown", and nothing is sent. Before the first request of an attempt a refused search does not block the charge (the new key cannot repeat an earlier payment).
+
 The Stripe adapter also writes the attempt counter into the PaymentIntent metadata (`wplc_attempt`, next to `order_id`, `wplc_renewal_id` and `wplc_license_id`; T-155), so a `payment_intent.payment_failed` webhook can be matched to the attempt. Before the request it records the counter on the order (`_wplc_stripe_attempt_marked`). A repeated request of an attempt whose first request was sent before this change (unknown result recorded, no marker recorded for that attempt) is sent without `wplc_attempt`, because Stripe rejects a reused idempotency key with changed parameters.
 
 ### Retries
@@ -112,7 +117,7 @@ An error whose data contains `retryable => false` (lost or stolen card, "do not 
 
 ### Unknown result (`renewal_result_unknown`)
 
-The adapter returns this code when Stripe gave no usable answer: exception, transport error, an error type other than `card_error`/`invalid_request_error`, or `idempotency_key_in_use`. The stuck-`processing` reconciliation (below) produces the same result. The payment may have been taken, so it is not treated as a decline:
+The adapter returns this code when Stripe gave no usable answer: exception, transport error, an error type other than `card_error`/`invalid_request_error`, `idempotency_key_in_use`, or a `succeeded` PaymentIntent whose charge ID cannot be read even after asking Stripe for it again (P-59; the money was taken, so it is never counted as a decline). The stuck-`processing` reconciliation (below) produces the same result. The payment may have been taken, so it is not treated as a decline:
 
 - the renewal becomes `reconciling`; the attempt counter stays, so every check uses the same idempotency key,
 - the order is not set to `failed` and gets an order note,

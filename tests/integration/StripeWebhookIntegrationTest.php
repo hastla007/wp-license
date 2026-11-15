@@ -755,7 +755,7 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	/** B-148: a lost dispute, returned funds and an early fraud warning are recorded and change no license. */
-	public function test_b148_lost_dispute_funds_reinstated_and_fraud_warning_only_alert(): void {
+	public function test_b148_lost_dispute_funds_reinstated_and_fraud_warning_switches_renewal_off(): void {
 		$fixture = $this->paid_fixture();
 		$fired   = array();
 		foreach ( array( 'wplc/dispute_closed', 'wplc/dispute_funds_reinstated', 'wplc/stripe_early_fraud_warning', 'wplc/dispute_won' ) as $hook ) {
@@ -782,6 +782,13 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 		$license = $this->license( $fixture['license_id'] );
 		$this->assertSame( 'active', $license['status'] );
 		$this->assertSame( $fixture['period_end'], $license['paid_until'] );
+		// P-58: the reported card is not charged again off-session; the license stays usable.
+		$this->assertSame( '0', (string) $license['renewal_enabled'] );
+		global $wpdb;
+		$reasons = $wpdb->get_col( $wpdb->prepare( 'SELECT reason FROM %i WHERE action = %s AND object_type = %s AND object_id = %d', $this->tables()['audit_log'], 'renewal_disabled', 'license', $fixture['license_id'] ) );
+		$this->assertSame( array( 'Stripe early fraud warning issfr_1' ), $reasons );
+		$open = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE license_id = %d AND status IN ('scheduled','failed')", $this->tables()['renewals'], $fixture['license_id'] ) );
+		$this->assertSame( 0, $open, 'Open automatic renewals are closed.' );
 		$stored = json_decode( (string) $this->inbox()[1]['payload_json'], true );
 		$this->assertSame( array( 'warning_id', 'payment_intent_id', 'charge_id', 'fraud_type', 'order_id' ), array_keys( $stored ), 'Only the minimized payload is stored.' );
 	}

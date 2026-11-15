@@ -445,6 +445,10 @@ final class StripeAdapterIntegrationTest extends WPLC_Renewal_TestCase {
 			'key in use'          => array( array( 'type' => 'invalid_request_error', 'code' => 'idempotency_key_in_use' ), 'unknown', 'renewal_result_unknown', true ),
 			'rate limit'          => array( array( 'type' => 'invalid_request_error', 'code' => 'rate_limit' ), 'rate_limited', 'stripe_rate_limited', true ),
 			'customer missing'    => array( array( 'type' => 'invalid_request_error', 'code' => 'resource_missing' ), 'configuration', 'stripe_resource_missing', false ),
+			'card gone at stripe' => array( array( 'type' => 'invalid_request_error', 'code' => 'resource_missing', 'param' => 'payment_method' ), 'payment_method_missing', 'renewal_payment_method_missing', false ),
+			'stripe customer gone' => array( array( 'type' => 'invalid_request_error', 'code' => 'resource_missing', 'param' => 'customer' ), 'payment_method_missing', 'renewal_payment_method_missing', false ),
+			'card detached'       => array( array( 'type' => 'invalid_request_error', 'code' => 'payment_method_unexpected_state' ), 'payment_method_missing', 'renewal_payment_method_missing', false ),
+			'other missing thing' => array( array( 'type' => 'invalid_request_error', 'code' => 'resource_missing', 'param' => 'mandate' ), 'configuration', 'stripe_resource_missing', false ),
 			'invalid key'         => array( array( 'type' => 'authentication_error' ), 'configuration', 'stripe_authentication_error', false ),
 			'api error'           => array( array( 'type' => 'api_error' ), 'unknown', 'renewal_result_unknown', true ),
 			'no type at all'      => array( array(), 'unknown', 'renewal_result_unknown', true ),
@@ -1118,5 +1122,221 @@ final class StripeAdapterIntegrationTest extends WPLC_Renewal_TestCase {
 		$target   = $ordinary->get_id();
 		do_action( 'woocommerce_api_wc_stripe' );
 		$this->assertSame( $statuses, $inside );
+	}
+
+	// ------------------------------------------------------------------
+	// P-03, P-16, P-59, P-61.
+	// ------------------------------------------------------------------
+
+	private function make_due_again( int $renewal_id ): void {
+		global $wpdb;
+		$wpdb->update( $this->tables()['renewals'], array( 'retry_at' => gmdate( 'Y-m-d H:i:s', time() - 5 ) ), array( 'id' => $renewal_id ) );
+	}
+
+	/** P-03: a card chosen while the result is unknown never gets a new Stripe key. */
+	public function test_p03_card_change_while_reconciling_keeps_the_stripe_key_of_the_first_request(): void {
+		global $wpdb;
+		$f = $this->due_renewal();
+		WC_Stripe_API::$responses[] = new RuntimeException( 'timeout' );
+		RenewalProcessor::process( $f['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $this->renewal( $f['renewal_id'] )['status'] );
+		$first_key = WC_Stripe_API::$requests[0]['key'];
+		$stored    = $this->renewal_order( $f['renewal_id'] )->get_meta( StripeRecurringAdapter::META_ATTEMPT_REQUEST, true );
+		$this->assertSame( $first_key, $stored['key'], 'The key is stored before the request leaves.' );
+
+		// The customer chooses another card in the account.
+		$new_token = $this->card( $f['customer'], 'pm_card_2' );
+		$wpdb->update( $this->tables()['licenses'], array( 'payment_token_id' => $new_token ), array( 'id' => $f['license_id'] ) );
+		// The first request had reached Stripe: the same key with another card is refused.
+		WC_Stripe_API::$responses[] = (object) array( 'error' => (object) array( 'type' => 'idempotency_error' ) );
+		$this->make_due_again( $f['renewal_id'] );
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$this->assertSame( 2, $this->posts() );
+		$this->assertSame( 'pm_card_2', WC_Stripe_API::$requests[1]['request']['payment_method'] );
+		$this->assertSame( $first_key, WC_Stripe_API::$requests[1]['key'], 'A changed card must not create a new idempotency key.' );
+		$renewal = $this->renewal( $f['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $renewal['status'], 'Not a shop configuration problem: the first payment is looked up again.' );
+		$this->assertSame( '0', (string) $renewal['attempt_count'] );
+		$this->assertSame( 'active', $this->license( $f['license_id'] )['status'] );
+		$order = $this->renewal_order( $f['renewal_id'] );
+		$this->assertSame( '', (string) $order->get_meta( StripeRecurringAdapter::META_KEY_SALT, true ), 'The salt must not change: a new key could charge twice.' );
+		$this->assertSame( $first_key, $order->get_meta( StripeRecurringAdapter::META_ATTEMPT_REQUEST, true )['key'] );
+
+		// Had the first request never arrived, Stripe takes the one and only payment with the first key.
+		WC_Stripe_API::$responses[] = $this->intent( 'succeeded', array( 'payment_method' => 'pm_card_2' ) );
+		$this->make_due_again( $f['renewal_id'] );
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$this->assertSame( 3, $this->posts() );
+		$this->assertSame( $first_key, WC_Stripe_API::$requests[2]['key'] );
+		$this->assertSame( 'paid', $this->renewal( $f['renewal_id'] )['status'] );
+		$this->assertSame( '', $this->renewal_order( $f['renewal_id'] )->get_meta( StripeRecurringAdapter::META_ATTEMPT_REQUEST, true ), 'A settled attempt leaves no stored request behind.' );
+	}
+
+	/** P-03: while the result is unknown, a search Stripe refuses is not "nothing found". */
+	public function test_p03_refused_search_while_reconciling_sends_no_request(): void {
+		$f = $this->due_renewal();
+		WC_Stripe_API::$responses[] = new RuntimeException( 'timeout' );
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		WC_Stripe_API::$on_retrieve = static function ( $api ) {
+			if ( 0 === strpos( $api, 'payment_intents/search' ) ) {
+				return (object) array( 'error' => (object) array( 'type' => 'invalid_request_error', 'code' => 'feature_not_enabled' ) );
+			}
+
+			return (object) array( 'error' => (object) array( 'code' => 'resource_missing' ) );
+		};
+		WC_Stripe_API::$responses[] = $this->intent();
+		$this->make_due_again( $f['renewal_id'] );
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$this->assertSame( 1, $this->posts(), 'No request while Stripe cannot say whether the first one took a payment.' );
+		$renewal = $this->renewal( $f['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $renewal['status'] );
+		$this->assertSame( 'renewal_result_unknown', $renewal['last_error'] );
+		$this->assertSame( '0', (string) $renewal['attempt_count'] );
+	}
+
+	/** P-03: before the first request of an attempt a refused search still does not block the renewal. */
+	public function test_p03_refused_search_before_the_first_request_does_not_block(): void {
+		$f = $this->due_renewal();
+		WC_Stripe_API::$on_retrieve = static function ( $api ) {
+			if ( 0 === strpos( $api, 'payment_intents/search' ) ) {
+				return (object) array( 'error' => (object) array( 'type' => 'invalid_request_error', 'code' => 'feature_not_enabled' ) );
+			}
+
+			return (object) array( 'error' => (object) array( 'code' => 'resource_missing' ) );
+		};
+		WC_Stripe_API::$responses[] = $this->intent();
+
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$this->assertSame( 1, $this->posts() );
+		$this->assertSame( 'paid', $this->renewal( $f['renewal_id'] )['status'] );
+	}
+
+	/** P-16: a card removed at Stripe asks the customer for a payment method instead of a silent shop alert. */
+	public function test_p16_card_missing_at_stripe_is_reported_as_missing_payment_method(): void {
+		$f       = $this->due_renewal();
+		$missing = array();
+		add_action(
+			'wplc/renewal_payment_method_missing',
+			static function ( $license_id, $renewal_id, $customer_id, $first ) use ( &$missing ) {
+				$missing[] = array( (int) $license_id, (int) $renewal_id, (bool) $first );
+			},
+			10,
+			4
+		);
+		// The account knows the customer; only the card is gone.
+		$customer_ref = 'cus_' . $f['customer'];
+		WC_Stripe_API::$on_retrieve = static function ( $api ) use ( $customer_ref ) {
+			if ( 'customers/' . $customer_ref === $api ) {
+				return (object) array( 'id' => $customer_ref, 'object' => 'customer' );
+			}
+
+			return 0 === strpos( $api, 'payment_intents/search' ) ? (object) array( 'data' => array() ) : (object) array( 'error' => (object) array( 'code' => 'resource_missing' ) );
+		};
+		WC_Stripe_API::$responses[] = (object) array( 'error' => (object) array( 'type' => 'invalid_request_error', 'code' => 'resource_missing', 'param' => 'payment_method' ) );
+
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$renewal = $this->renewal( $f['renewal_id'] );
+		$this->assertSame( 'scheduled', $renewal['status'] );
+		$this->assertSame( '0', (string) $renewal['attempt_count'], 'Not a declined payment.' );
+		$this->assertSame( 'renewal_payment_method_missing', $renewal['last_error'] );
+		$this->assertSame( 'active', $this->license( $f['license_id'] )['status'] );
+		$this->assertSame( array( array( $f['license_id'], $f['renewal_id'], true ) ), $missing );
+		$order = $this->renewal_order( $f['renewal_id'] );
+		$this->assertNotSame( 'failed', $order->get_status() );
+		$this->assertSame( '1', (string) $order->get_meta( StripeRecurringAdapter::META_KEY_SALT, true ), 'A request with a new card must not get the stored refusal.' );
+
+		// The next look reports the same cause again, but not as new.
+		WC_Stripe_API::$responses[] = (object) array( 'error' => (object) array( 'type' => 'invalid_request_error', 'code' => 'resource_missing', 'param' => 'payment_method' ) );
+		$this->make_due_again( $f['renewal_id'] );
+		RenewalProcessor::process( $f['renewal_id'] );
+		$this->assertSame( array( array( $f['license_id'], $f['renewal_id'], true ), array( $f['license_id'], $f['renewal_id'], false ) ), $missing );
+	}
+
+	/** P-16: "no such customer" from an account that does not know the customer is a shop problem (wrong key), not a lost card. */
+	public function test_p16_unknown_customer_in_this_account_stays_a_configuration_problem(): void {
+		$f       = $this->due_renewal();
+		$missing = 0;
+		add_action(
+			'wplc/renewal_payment_method_missing',
+			static function () use ( &$missing ) {
+				++$missing;
+			}
+		);
+		WC_Stripe_API::$responses[] = (object) array( 'error' => (object) array( 'type' => 'invalid_request_error', 'code' => 'resource_missing', 'param' => 'customer' ) );
+
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$this->assertContains( 'customers/cus_' . $f['customer'], WC_Stripe_API::$retrieved );
+		$renewal = $this->renewal( $f['renewal_id'] );
+		$this->assertSame( 'stripe_resource_missing', $renewal['last_error'] );
+		$this->assertSame( '0', (string) $renewal['attempt_count'] );
+		$this->assertSame( 0, $missing, 'The customer is not asked for a new card because of the shop\'s key.' );
+	}
+
+	/** P-59: a succeeded payment without charge ID is never a decline; the next check books it. */
+	public function test_p59_succeeded_payment_without_charge_is_not_a_decline(): void {
+		$f = $this->due_renewal();
+		WC_Stripe_API::$responses[] = $this->intent( 'succeeded', array( 'latest_charge' => null ) );
+
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$renewal = $this->renewal( $f['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $renewal['status'] );
+		$this->assertSame( 'renewal_result_unknown', $renewal['last_error'] );
+		$this->assertSame( '0', (string) $renewal['attempt_count'] );
+		$this->assertSame( 'active', $this->license( $f['license_id'] )['status'], 'No dunning for money that was taken.' );
+		$order = $this->renewal_order( $f['renewal_id'] );
+		$this->assertNotSame( 'failed', $order->get_status() );
+		$this->assertSame( 'pi_new_1', $order->get_meta( '_wplc_payment_intent_id', true ) );
+		$this->assertContains( 'payment_intents/pi_new_1?expand%5B%5D=latest_charge', WC_Stripe_API::$retrieved, 'The charge is asked for once.' );
+
+		$expanded = $this->intent(
+			'succeeded',
+			array(
+				'latest_charge' => (object) array( 'id' => 'ch_late_1' ),
+				'metadata'      => $this->own_metadata( $f['renewal_id'], $f['license_id'], $order ),
+			)
+		);
+		WC_Stripe_API::$on_retrieve = static function ( $api ) use ( $expanded ) {
+			if ( 0 === strpos( $api, 'payment_intents/pi_new_1' ) ) {
+				return $expanded;
+			}
+
+			return 0 === strpos( $api, 'payment_intents/search' ) ? (object) array( 'data' => array() ) : (object) array( 'error' => (object) array( 'code' => 'resource_missing' ) );
+		};
+		$this->make_due_again( $f['renewal_id'] );
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$this->assertSame( 1, $this->posts(), 'No second charge request.' );
+		$this->assertSame( 'paid', $this->renewal( $f['renewal_id'] )['status'] );
+		$this->assertSame( 'ch_late_1', $this->renewal_order( $f['renewal_id'] )->get_transaction_id() );
+	}
+
+	/** P-61: a new renewal order for the same attempt gets its own Stripe key. */
+	public function test_p61_new_order_for_the_same_attempt_gets_a_new_stripe_key(): void {
+		$f = $this->due_renewal();
+		WC_Stripe_API::$responses[] = (object) array( 'error' => (object) array( 'type' => 'invalid_request_error', 'code' => 'parameter_invalid_integer' ) );
+		RenewalProcessor::process( $f['renewal_id'] );
+		$old = $this->renewal_order( $f['renewal_id'] );
+		$this->assertSame( '1', (string) $old->get_meta( StripeRecurringAdapter::META_KEY_SALT, true ) );
+
+		// The order is cancelled (e.g. B-76); the renewal gets a fresh one, the attempt counter stays.
+		$old->update_status( 'cancelled' );
+		WC_Stripe_API::$responses[] = $this->intent();
+		$this->make_due_again( $f['renewal_id'] );
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$new = $this->renewal_order( $f['renewal_id'] );
+		$this->assertNotSame( $old->get_id(), $new->get_id() );
+		$this->assertSame( 2, $this->posts() );
+		$this->assertSame( '0', (string) $this->renewal( $f['renewal_id'] )['attempt_count'] );
+		$this->assertNotSame( WC_Stripe_API::$requests[0]['key'], WC_Stripe_API::$requests[1]['key'], 'Same attempt, salt 0 again: without the order the key would repeat and Stripe would answer idempotency_error.' );
+		$this->assertSame( 'paid', $this->renewal( $f['renewal_id'] )['status'] );
 	}
 }

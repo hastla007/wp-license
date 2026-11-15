@@ -28,6 +28,25 @@ final class StripeRecurringAdapterTest extends TestCase {
 		$this->assertTrue( StripeRecurringAdapter::attempt_marker_allowed( '0|1700000000', '', 1 ) );
 	}
 
+	/** P-61: the renewal order is part of the Stripe key; zero keeps the earlier format. */
+	public function test_stripe_key_depends_on_the_renewal_order(): void {
+		$legacy = StripeRecurringAdapter::stripe_idempotency_key( 'renewal:0', 'cus_1', 'pm_1', 4900, 'eur' );
+
+		$this->assertSame( $legacy, StripeRecurringAdapter::stripe_idempotency_key( 'renewal:0', 'cus_1', 'pm_1', 4900, 'eur', 0, 0 ) );
+		$this->assertNotSame( $legacy, StripeRecurringAdapter::stripe_idempotency_key( 'renewal:0', 'cus_1', 'pm_1', 4900, 'eur', 0, 41 ) );
+		$this->assertNotSame(
+			StripeRecurringAdapter::stripe_idempotency_key( 'renewal:0', 'cus_1', 'pm_1', 4900, 'eur', 0, 41 ),
+			StripeRecurringAdapter::stripe_idempotency_key( 'renewal:0', 'cus_1', 'pm_1', 4900, 'eur', 0, 42 )
+		);
+	}
+
+	/** P-03: the attempt counter is read from the end of the attempt key. */
+	public function test_attempt_number_of_an_attempt_key(): void {
+		$this->assertSame( 0, StripeRecurringAdapter::attempt_number( str_repeat( 'a', 64 ) . ':0' ) );
+		$this->assertSame( 12, StripeRecurringAdapter::attempt_number( 'abc:12' ) );
+		$this->assertSame( -1, StripeRecurringAdapter::attempt_number( 'abc' ) );
+	}
+
 	public function test_repeated_request_keeps_the_parameters_of_the_first_one(): void {
 		// The first request of attempt 1 carried the marker: the repeat carries it too.
 		$this->assertTrue( StripeRecurringAdapter::attempt_marker_allowed( '1|1700000000', '1', 1 ) );

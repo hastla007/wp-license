@@ -17,10 +17,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Dispute follow-ups and fraud warnings (B-148).
  *
- * None of these events changes a license. A won dispute does not lift the
+ * Dispute follow-ups do not change a license. A won dispute does not lift the
  * suspension by itself: whether the customer gets the license back is the
- * shop's decision. The events are written to the order and the audit log and
- * announced through actions.
+ * shop's decision. An early fraud warning switches automatic renewal off for
+ * the licenses of the payment (P-58), so the reported card is not charged
+ * again off-session; the license itself stays usable. The events are written
+ * to the order and the audit log and announced through actions.
  */
 final class StripeEventHandler {
 
@@ -63,17 +65,37 @@ final class StripeEventHandler {
 		if ( 'radar.early_fraud_warning.created' === $event_type ) {
 			$warning_id = sanitize_text_field( (string) ( $payload['warning_id'] ?? '' ) );
 			$fraud_type = sanitize_key( (string) ( $payload['fraud_type'] ?? '' ) );
+			// P-58: the card was reported as used fraudulently; it must not be charged again automatically.
+			$disabled = array();
+			foreach ( $license_ids as $license_id ) {
+				if ( LicenseLifecycle::disable_renewal( (int) $license_id, 'Stripe early fraud warning ' . $warning_id ) ) {
+					$disabled[] = (int) $license_id;
+				}
+			}
 			$order->add_order_note(
 				sprintf(
-					/* translators: 1: Stripe early fraud warning ID, 2: fraud type. */
-					__( 'WP License Captain: Stripe reported an early fraud warning %1$s (%2$s) for this payment. Nothing was changed. A refund now usually avoids a dispute.', 'wp-license' ),
+					/* translators: 1: Stripe early fraud warning ID, 2: fraud type, 3: comma-separated license IDs or "-". */
+					__( 'WP License Captain: Stripe reported an early fraud warning %1$s (%2$s) for this payment. Automatic renewal was switched off for license(s): %3$s. The licenses stay usable until the end of the paid period. A refund now usually avoids a dispute.', 'wp-license' ),
 					$warning_id,
-					'' !== $fraud_type ? $fraud_type : '-'
+					'' !== $fraud_type ? $fraud_type : '-',
+					$disabled ? '#' . implode( ', #', $disabled ) : '-'
 				)
 			);
-			AuditLog::record( 'stripe_early_fraud_warning', 'order', $order_id, $warning_id . ' ' . $fraud_type, null, array( 'licenses' => $license_ids ) );
+			AuditLog::record(
+				'stripe_early_fraud_warning',
+				'order',
+				$order_id,
+				$warning_id . ' ' . $fraud_type,
+				null,
+				array(
+					'licenses' => $license_ids,
+					'renewal_disabled' => $disabled,
+				)
+			);
 			/**
-			 * Fires when Stripe reports an early fraud warning for a license payment. Alert only.
+			 * Fires when Stripe reports an early fraud warning for a license payment.
+			 *
+			 * Automatic renewal of the licenses is already switched off (P-58).
 			 *
 			 * @param int    $order_id Order ID.
 			 * @param int[]  $license_ids Licenses paid by the order.
