@@ -8,6 +8,7 @@
 namespace WPLC\License;
 
 use WPLC\Billing\Money;
+use WPLC\Billing\PlanUpgrade;
 use WPLC\Billing\RenewalOrder;
 use WPLC\Billing\RenewalProcessor;
 use WPLC\Billing\RenewalScheduler;
@@ -115,13 +116,14 @@ final class PlanChange {
 	}
 
 	/**
-	 * Upgrade or downgrade, by the regular prices of both plans. Pure.
+	 * Upgrade or downgrade, by the license's contract price and the target's price. Pure.
 	 *
-	 * The catalog has no ranking of plans; a more expensive plan is the higher
-	 * one. An equally priced plan counts as a downgrade (no charge, takes
-	 * effect at the next renewal).
+	 * The catalog has no ranking of plans; a target that costs more than the
+	 * license's contract price (contract_price(), not today's catalog price of
+	 * the purchased product, P-06) is the higher one. An equally priced plan
+	 * counts as a downgrade (no charge, takes effect at the next renewal).
 	 *
-	 * @param int $current_minor Current plan price.
+	 * @param int $current_minor Contract price of the license (contract_price()).
 	 * @param int $target_minor  Target plan price.
 	 * @return string KIND_* constant.
 	 */
@@ -130,10 +132,174 @@ final class PlanChange {
 	}
 
 	/**
+	 * Whether catalog prices are entered including tax right now.
+	 *
+	 * @return bool
+	 */
+	public static function shop_prices_include_tax(): bool {
+		return function_exists( 'wc_prices_include_tax' ) && wc_prices_include_tax();
+	}
+
+	/**
+	 * How the stored renewal amount of a license is to be read (B-76).
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return bool|null True gross, false net, null unknown (read by the shop's current setting).
+	 */
+	public static function stored_includes_tax( array $license ): ?bool {
+		$flag = $license['renewal_amount_includes_tax'] ?? null;
+
+		return null === $flag || '' === $flag ? null : (bool) (int) $flag;
+	}
+
+	/**
+	 * Convert an amount between gross and net. Pure.
+	 *
+	 * @param int       $minor        Amount in minor units.
+	 * @param bool|null $from_gross   How the amount is to be read: true gross, false net, null already in the wanted basis.
+	 * @param bool      $to_gross     Wanted basis: true gross, false net.
+	 * @param float     $rate_percent Effective tax rate in percent (0 for no tax).
+	 * @return int
+	 */
+	public static function convert_tax_basis( int $minor, ?bool $from_gross, bool $to_gross, float $rate_percent ): int {
+		if ( null === $from_gross || $from_gross === $to_gross || $rate_percent <= 0 || $minor <= 0 ) {
+			return $minor;
+		}
+
+		return $to_gross
+			? (int) round( $minor * ( 100 + $rate_percent ) / 100 )
+			: (int) round( $minor * 100 / ( 100 + $rate_percent ) );
+	}
+
+	/**
+	 * Effective tax rate of the shop's base location for a product, in percent.
+	 *
+	 * Zero when taxes are off or the product is not taxable. Gross catalog
+	 * prices are turned into net order lines with the same base rates
+	 * (RenewalOrder::net_price()).
+	 *
+	 * @param \WC_Product|false|null $product Product (tax class); null or false for the standard class.
+	 * @return float
+	 */
+	public static function base_tax_rate( $product ): float {
+		if ( ! function_exists( 'wc_tax_enabled' ) || ! wc_tax_enabled() || ! class_exists( '\\WC_Tax' ) ) {
+			return 0.0;
+		}
+		if ( $product instanceof \WC_Product && ! $product->is_taxable() ) {
+			return 0.0;
+		}
+		$rates = \WC_Tax::get_base_tax_rates( $product instanceof \WC_Product ? $product->get_tax_class( 'unfiltered' ) : '' );
+
+		return (float) array_sum( \WC_Tax::calc_tax( 100.0, $rates, false ) );
+	}
+
+	/**
+	 * Contract price of the license for one period, read the way the shop enters prices today (P-06).
+	 *
+	 * What the customer pays for the current period, not today's catalog price
+	 * of the purchased product:
+	 * - the pre-tax amount of the paid renewal order of the current period,
+	 *   when that order billed the license's current plan (no plan change since);
+	 * - else the stored renewal amount (price at purchase, or the amount set by
+	 *   the last plan change), read with its gross/net flag;
+	 * - else (older rows without a stored amount) the catalog price, see current_price().
+	 *
+	 * The result is converted to gross or net like the catalog prices it is
+	 * compared with, so upgrade decisions and the proration credit compare
+	 * like with like.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return array{amount_minor:int,decimals:int,currency:string}|null
+	 */
+	public static function contract_price( array $license ): ?array {
+		$paid = self::paid_period_net( $license );
+		if ( null !== $paid ) {
+			$minor = $paid;
+			$flag  = false;
+		} elseif ( (int) $license['renewal_amount_minor'] > 0 ) {
+			$minor = (int) $license['renewal_amount_minor'];
+			$flag  = self::stored_includes_tax( $license );
+		} else {
+			return self::current_price( $license );
+		}
+
+		return array(
+			'amount_minor' => self::convert_tax_basis( $minor, $flag, self::shop_prices_include_tax(), self::base_tax_rate( RenewalOrder::purchased_product( $license ) ) ),
+			'decimals' => (int) $license['renewal_currency_decimals'],
+			'currency' => strtoupper( (string) $license['renewal_currency'] ),
+		);
+	}
+
+	/**
+	 * Renewal amount and its gross/net flag after a plan change without upgrade payment.
+	 *
+	 * Applies next_renewal_amount() with the stored amount converted to the
+	 * basis of today's catalog prices. When the stored amount stays, it keeps
+	 * its flag; when the target price is taken, the flag is the shop's current
+	 * price setting, as at purchase (P-04, B-76).
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param int                 $target_minor Catalog price of the target plan (0 for none).
+	 * @param bool                $consented Whether the customer agreed to the target amount.
+	 * @return array{amount_minor:int,includes_tax:bool|null}
+	 */
+	public static function renewal_terms_after_change( array $license, int $target_minor, bool $consented ): array {
+		$stored     = max( 0, (int) $license['renewal_amount_minor'] );
+		$flag       = self::stored_includes_tax( $license );
+		$automatic  = ! empty( $license['renewal_enabled'] );
+		$comparable = self::convert_tax_basis( $stored, $flag, self::shop_prices_include_tax(), self::base_tax_rate( RenewalOrder::purchased_product( $license ) ) );
+		if ( $target_minor <= 0 || self::next_renewal_amount( $comparable, $target_minor, $automatic, $consented ) !== $target_minor || ( $automatic && ! $consented && $comparable === $target_minor ) ) {
+			// The stored amount stays, read as before.
+			return array( 'amount_minor' => $stored, 'includes_tax' => $flag );
+		}
+
+		return array( 'amount_minor' => $target_minor, 'includes_tax' => self::shop_prices_include_tax() );
+	}
+
+	/**
+	 * Pre-tax amount paid for the current period by a renewal order of the current plan.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return int|null Null when there is no such order (first period, plan changed since, other currency).
+	 */
+	private static function paid_period_net( array $license ): ?int {
+		global $wpdb;
+
+		if ( empty( $license['paid_until'] ) || (int) $license['plan_order_id'] > 0 || (int) $license['renewal_product_id'] <= 0 || ! function_exists( 'wc_get_order' ) ) {
+			return null;
+		}
+		$tables   = Schema::table_names();
+		$order_id = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT renewal_order_id FROM {$tables['renewals']} WHERE license_id = %d AND period_end = %s AND status = %s AND renewal_order_id > 0 ORDER BY id DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+				(int) $license['id'],
+				(string) $license['paid_until'],
+				'paid'
+			)
+		);
+		$order    = $order_id ? wc_get_order( $order_id ) : false;
+		if ( ! $order instanceof \WC_Order || ! $order->is_paid() || ! self::order_bills_product( $order, (int) $license['renewal_product_id'] ) ) {
+			return null;
+		}
+		$net = (string) $order->get_meta( RenewalOrder::META_NET_MINOR, true );
+		if (
+			! ctype_digit( $net ) || (int) $net <= 0
+			|| absint( $order->get_meta( RenewalOrder::META_DECIMALS, true ) ) !== (int) $license['renewal_currency_decimals']
+			|| strtoupper( (string) $order->get_currency() ) !== strtoupper( (string) $license['renewal_currency'] )
+		) {
+			return null;
+		}
+
+		return (int) $net;
+	}
+
+	/**
 	 * Current regular price of the license's plan for one period.
 	 *
 	 * The regular price of the purchased product or variation; the stored
-	 * renewal amount when that product is gone or has no price.
+	 * renewal amount when that product is gone or has no price. Only the
+	 * fallback of contract_price() for rows without a stored amount: plan
+	 * change decisions use the contract price (P-06).
 	 *
 	 * @param array<string,mixed> $license License row.
 	 * @return array{amount_minor:int,decimals:int,currency:string}|null
@@ -183,7 +349,7 @@ final class PlanChange {
 			),
 			ARRAY_A
 		);
-		$current   = self::current_price( $license );
+		$current   = self::contract_price( $license );
 		$current_m = $current ? (int) $current['amount_minor'] : 0;
 		$targets   = array();
 		foreach ( is_array( $rows ) ? $rows : array() as $plan ) {
@@ -399,10 +565,12 @@ final class PlanChange {
 				if ( ! $target || ! in_array( (string) $license['status'], array( 'active', 'past_due' ), true ) ) {
 					return 'plan_change_unavailable';
 				}
+				$terms  = self::renewal_terms_after_change( $license, (int) $target['price']['amount_minor'], false );
 				$amount = array(
-					'amount_minor' => self::next_renewal_amount( (int) $license['renewal_amount_minor'], (int) $target['price']['amount_minor'], ! empty( $license['renewal_enabled'] ), false ),
+					'amount_minor' => $terms['amount_minor'],
 					'decimals' => (int) $target['price']['decimals'],
 					'currency' => (string) $target['price']['currency'],
+					'includes_tax' => $terms['includes_tax'],
 				);
 				if ( ! self::switch_locked( $license, $target, $amount, 0, 'admin_plan_change', $reason, $actor_user_id ) ) {
 					return 'plan_change_unavailable';
@@ -431,11 +599,16 @@ final class PlanChange {
 	 * order priced before the change was scheduled renews the current plan,
 	 * and the change waits for the next renewal.
 	 *
+	 * Also closes unpaid upgrade orders of the license that were priced for
+	 * the period before (PlanUpgrade::close_stale_orders(), P-17).
+	 *
 	 * @param int       $license_id License ID.
 	 * @param \WC_Order $order Paid renewal order.
 	 * @return bool True when the plan was changed.
 	 */
 	public static function apply_pending_after_renewal( int $license_id, $order ): bool {
+		// The period moved on: upgrade orders priced for the previous period must not be paid any more (P-17).
+		PlanUpgrade::close_stale_orders( $license_id );
 		$applied = LicenseLifecycle::run_locked(
 			$license_id,
 			static function () use ( $license_id, $order ) {
@@ -452,11 +625,12 @@ final class PlanChange {
 				if ( ! self::order_bills_product( $order, (int) $target['product_id'] ) ) {
 					return false;
 				}
-				$target_minor = $target['price'] ? (int) $target['price']['amount_minor'] : 0;
-				$amount       = array(
-					'amount_minor' => self::next_renewal_amount( (int) $license['renewal_amount_minor'], $target_minor, ! empty( $license['renewal_enabled'] ), false ),
+				$terms  = self::renewal_terms_after_change( $license, $target['price'] ? (int) $target['price']['amount_minor'] : 0, false );
+				$amount = array(
+					'amount_minor' => $terms['amount_minor'],
 					'decimals' => (int) $license['renewal_currency_decimals'],
 					'currency' => (string) $license['renewal_currency'],
+					'includes_tax' => $terms['includes_tax'],
 				);
 
 				return self::switch_locked(
@@ -491,7 +665,7 @@ final class PlanChange {
 	 *
 	 * @param array<string,mixed> $license License row read under the lock.
 	 * @param array<string,mixed> $target Target: product_id and plan (catalog row).
-	 * @param array{amount_minor:int,decimals:int,currency:string} $amount Renewal amount for future periods.
+	 * @param array{amount_minor:int,decimals:int,currency:string,includes_tax?:bool|null} $amount Renewal amount for future periods; includes_tax tells how it is to be read (true gross, false net, null unknown; default: the shop's current price setting).
 	 * @param int                 $plan_order_id Upgrade order that pays for the new plan, zero for none.
 	 * @param string              $action Audit action.
 	 * @param string              $reason Audit reason.
@@ -511,11 +685,14 @@ final class PlanChange {
 			return false;
 		}
 		$before_limit = self::site_limit_of( $license_id );
+		// P-04 (B-76): the gross/net flag always describes the amount written with it.
+		$includes_tax = array_key_exists( 'includes_tax', $amount ) ? $amount['includes_tax'] : self::shop_prices_include_tax();
+		$tax_flag_sql = null === $includes_tax ? 'NULL' : ( $includes_tax ? '1' : '0' );
 
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names from Schema::table_names(), values prepared.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names from Schema::table_names(), flag is a literal chosen above, values prepared.
 		$claimed = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET plan_key = %s, renewal_amount_minor = %d, renewal_currency_decimals = %d, renewal_currency = %s, renewal_product_id = %d, pending_plan_key = '', pending_product_id = 0, plan_order_id = %d, updated_at = %s"
+				"UPDATE {$tables['licenses']} SET plan_key = %s, renewal_amount_minor = %d, renewal_currency_decimals = %d, renewal_currency = %s, renewal_amount_includes_tax = {$tax_flag_sql}, renewal_product_id = %d, pending_plan_key = '', pending_product_id = 0, plan_order_id = %d, updated_at = %s"
 				. " WHERE id = %d AND plan_key = %s AND renewal_product_id = %d AND plan_order_id = %d AND COALESCE( paid_until, '' ) = %s",
 				(string) $plan['plan_key'],
 				max( 0, (int) $amount['amount_minor'] ),
@@ -550,6 +727,7 @@ final class PlanChange {
 				'plan_key' => (string) $license['plan_key'],
 				'renewal_product_id' => (int) $license['renewal_product_id'],
 				'renewal_amount_minor' => (int) $license['renewal_amount_minor'],
+				'renewal_amount_includes_tax' => self::stored_includes_tax( $license ),
 				'site_limit' => $before_limit,
 				'pending_plan_key' => (string) $license['pending_plan_key'],
 			),
@@ -557,6 +735,7 @@ final class PlanChange {
 				'plan_key' => (string) $plan['plan_key'],
 				'renewal_product_id' => $product_id,
 				'renewal_amount_minor' => (int) $amount['amount_minor'],
+				'renewal_amount_includes_tax' => $includes_tax,
 				'site_limit' => is_array( $entitlements ) && isset( $entitlements['sites.live_limit'] ) ? (int) $entitlements['sites.live_limit'] : null,
 				'paid_until' => $paid_until,
 				'order_id' => $plan_order_id,

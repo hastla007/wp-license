@@ -79,6 +79,61 @@ final class PlanChangeTest extends TestCase {
 		$this->assertSame( 4900, PlanChange::next_renewal_amount( 4900, 0, true, true ) );
 	}
 
+	public function test_tax_basis_conversion_between_gross_and_net(): void {
+		// P-04/P-06: 149.00 gross at 19 % is 125.21 net, and back.
+		$this->assertSame( 12521, PlanChange::convert_tax_basis( 14900, true, false, 19.0 ) );
+		$this->assertSame( 14900, PlanChange::convert_tax_basis( 12521, false, true, 19.0 ) );
+		// Same basis, unknown basis, no tax: unchanged.
+		$this->assertSame( 14900, PlanChange::convert_tax_basis( 14900, true, true, 19.0 ) );
+		$this->assertSame( 14900, PlanChange::convert_tax_basis( 14900, null, false, 19.0 ) );
+		$this->assertSame( 14900, PlanChange::convert_tax_basis( 14900, true, false, 0.0 ) );
+		$this->assertSame( 0, PlanChange::convert_tax_basis( 0, true, false, 19.0 ) );
+	}
+
+	public function test_stored_tax_flag_is_read_as_gross_net_or_unknown(): void {
+		$this->assertTrue( PlanChange::stored_includes_tax( array( 'renewal_amount_includes_tax' => '1' ) ) );
+		$this->assertFalse( PlanChange::stored_includes_tax( array( 'renewal_amount_includes_tax' => '0' ) ) );
+		$this->assertNull( PlanChange::stored_includes_tax( array( 'renewal_amount_includes_tax' => null ) ) );
+		$this->assertNull( PlanChange::stored_includes_tax( array() ) );
+	}
+
+	public function test_contract_price_is_the_stored_amount_not_the_catalog_price(): void {
+		// P-06: no WooCommerce here, so the catalog cannot be read; the stored amount is the contract price.
+		$license = array(
+			'id' => 1,
+			'paid_until' => '2027-01-01 00:00:00',
+			'plan_order_id' => 0,
+			'renewal_product_id' => 0,
+			'renewal_amount_minor' => 4900,
+			'renewal_amount_includes_tax' => 0,
+			'renewal_currency_decimals' => 2,
+			'renewal_currency' => 'eur',
+		);
+		$this->assertSame( array( 'amount_minor' => 4900, 'decimals' => 2, 'currency' => 'EUR' ), PlanChange::contract_price( $license ) );
+	}
+
+	public function test_renewal_terms_after_a_change_keep_the_flag_of_the_amount_they_keep(): void {
+		// No WooCommerce: the shop basis is net and there is no tax rate.
+		$license = array(
+			'renewal_amount_minor' => 4900,
+			'renewal_amount_includes_tax' => 1,
+			'renewal_enabled' => 1,
+			'renewal_product_id' => 0,
+		);
+		// Automatic, more expensive target, no consent: the old amount stays with its old flag.
+		$this->assertSame( array( 'amount_minor' => 4900, 'includes_tax' => true ), PlanChange::renewal_terms_after_change( $license, 14900, false ) );
+		// Cheaper target: the target price, read as the shop enters prices now (P-04).
+		$this->assertSame( array( 'amount_minor' => 1900, 'includes_tax' => false ), PlanChange::renewal_terms_after_change( $license, 1900, false ) );
+		// Equal price: nothing changes.
+		$this->assertSame( array( 'amount_minor' => 4900, 'includes_tax' => true ), PlanChange::renewal_terms_after_change( $license, 4900, false ) );
+		// Consent or manual renewal: the target price with the current flag.
+		$this->assertSame( array( 'amount_minor' => 14900, 'includes_tax' => false ), PlanChange::renewal_terms_after_change( $license, 14900, true ) );
+		$license['renewal_enabled'] = 0;
+		$this->assertSame( array( 'amount_minor' => 14900, 'includes_tax' => false ), PlanChange::renewal_terms_after_change( $license, 14900, false ) );
+		// No target price: the stored amount and flag stay.
+		$this->assertSame( array( 'amount_minor' => 4900, 'includes_tax' => true ), PlanChange::renewal_terms_after_change( $license, 0, false ) );
+	}
+
 	public function test_pending_plan_price_for_manual_and_automatic_renewals(): void {
 		$base = array( 'amount_minor' => 14900, 'decimals' => 2, 'currency' => 'EUR' );
 		$down = array( 'amount_minor' => 4900, 'decimals' => 2, 'currency' => 'eur' );

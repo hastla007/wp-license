@@ -208,6 +208,8 @@ A lower site limit deactivates no site: sites above the limit keep working, new 
 
 A paid customer upgrade that could not be applied (the license changed between order and payment) shows a warning "A paid plan upgrade was not applied" with the order link and the reason. Refund that order in WooCommerce, or use "Change plan → Now" if the customer keeps the upgrade (then consider the automatic amount: it is not raised by this action).
 
+A paid upgrade order that is cancelled or fails afterwards (bounced SEPA debit) puts the license back on its previous plan while the upgraded period is still running. If that is no longer possible (a renewal was booked or the plan changed since), the plan stays, the order note says so and the license is reported for review (`license_needs_review`): decide whether to change the plan back with "Change plan → Now".
+
 ### Release a site activation
 
 Frees one active site. The site can no longer authenticate and loses updates and premium features; a staging site linked to it is released as well. Use this for lost or decommissioned sites when the customer cannot deactivate in the product plugin or in their account. Confirm the customer's identity first.

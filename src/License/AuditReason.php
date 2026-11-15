@@ -87,6 +87,8 @@ final class AuditReason {
 	public const UPGRADE_PRICE_MISMATCH         = 'upgrade_price_mismatch';
 	public const UPGRADE_CONSENT_MISSING        = 'upgrade_consent_missing';
 	public const UPGRADE_NOT_APPLIED            = 'upgrade_not_applied';
+	public const PLAN_UPGRADE_CANCELLED         = 'plan_upgrade_cancelled';
+	public const UPGRADE_QUOTE_EXPIRED          = 'upgrade_quote_expired';
 	public const LEGACY_PAYMENT_REVIEW          = 'payment_review';
 
 	/**
@@ -258,6 +260,9 @@ final class AuditReason {
 			self::UPGRADE_PRICE_MISMATCH         => array( __( 'The paid upgrade order line or currency did not match the upgrade price.', 'wp-license' ), array() ),
 			self::UPGRADE_CONSENT_MISSING        => array( __( 'The upgrade order has no consent to the new automatic renewal amount.', 'wp-license' ), array() ),
 			self::UPGRADE_NOT_APPLIED            => array( __( 'The plan upgrade could not be applied to the license.', 'wp-license' ), array() ),
+			/* translators: 1: WooCommerce order number, 2: new order status (for example "cancelled" or "failed"). */
+			self::PLAN_UPGRADE_CANCELLED         => array( __( 'Plan upgrade order #%1$d was set to "%2$s" after it had been paid.', 'wp-license' ), array( 'order', 'status' ) ),
+			self::UPGRADE_QUOTE_EXPIRED          => array( __( 'The upgrade price was calculated too long ago; start the upgrade again for a new price.', 'wp-license' ), array() ),
 			self::LEGACY_PAYMENT_REVIEW          => array( __( 'Taken over from an earlier version: the payment result was unclear or the payment could not be applied. Compare the renewal order with the payment at the provider.', 'wp-license' ), array() ),
 			// Automatic renewals and payment events.
 			self::RENEWAL_ALREADY_PAID           => array( __( 'The renewal order was already paid.', 'wp-license' ), array() ),
