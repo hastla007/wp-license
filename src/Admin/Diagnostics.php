@@ -776,6 +776,18 @@ final class Diagnostics {
 		};
 
 		$add( __( 'Plugin version', 'wp-license' ), defined( 'WPLC_VERSION' ) ? (string) WPLC_VERSION : __( 'Unknown', 'wp-license' ) );
+		// A-42: cached answer of the release check only; this page does not ask GitHub.
+		$release = \WPLC\Infrastructure\SelfUpdateCheck::enabled() ? \WPLC\Infrastructure\SelfUpdateCheck::latest( false ) : null;
+		if ( ! \WPLC\Infrastructure\SelfUpdateCheck::enabled() ) {
+			$add( __( 'Newest release', 'wp-license' ), __( 'Check switched off (WPLC_DISABLE_UPDATE_CHECK)', 'wp-license' ) );
+		} elseif ( null === $release ) {
+			$add( __( 'Newest release', 'wp-license' ), __( 'Not known yet. WordPress checks for updates twice a day.', 'wp-license' ) );
+		} elseif ( defined( 'WPLC_VERSION' ) && version_compare( $release['version'], (string) WPLC_VERSION, '>' ) ) {
+			/* translators: 1: version number, 2: address of the release page. */
+			$add( __( 'Newest release', 'wp-license' ), sprintf( __( '%1$s is available: %2$s', 'wp-license' ), $release['version'], $release['url'] ), 'warning', __( 'Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/PRODUCTION-OPERATIONS.md).', 'wp-license' ) );
+		} else {
+			$add( __( 'Newest release', 'wp-license' ), $release['version'], 'ok' );
+		}
 		$add( __( 'PHP', 'wp-license' ), PHP_VERSION );
 		$add( __( 'WordPress', 'wp-license' ), get_bloginfo( 'version' ) );
 		$add( __( 'WooCommerce', 'wp-license' ), defined( 'WC_VERSION' ) ? WC_VERSION : __( 'Unavailable', 'wp-license' ) );

@@ -80,6 +80,10 @@ Subjects, headings and additional text are edited under WooCommerce → Settings
 
 Licenses linked to the customer account, activated site URLs with product, WordPress and PHP versions, renewal records, an audit log and a log of sent notifications. It never stores card numbers. See `docs/PRIVACY-DATA-FLOWS.md` for the inventory and the retention periods.
 
+= How do I update the plugin? Does it contact other servers? =
+
+WordPress shows when a new release is published: during its normal update check the plugin asks the GitHub API (`api.github.com`) for the latest release of `hastla007/wp-license`. No site data is sent. Updates are never installed automatically: download the release ZIP and its `.sha256`, compare the checksum and upload the ZIP (see "Updating the license server plugin itself" in `docs/PRODUCTION-OPERATIONS.md`). To switch the check off, add `define( 'WPLC_DISABLE_UPDATE_CHECK', true );` to `wp-config.php`.
+
 = What happens to the data when I delete the plugin? =
 
 Scheduled jobs and the plugin's working state are removed. The `wplc_` database tables, the settings and the signing key are kept, because they are business records. To remove them as well, add `define( 'WPLC_REMOVE_ALL_DATA', true );` to `wp-config.php` before deleting the plugin. Uploaded packages and order meta are never removed automatically.

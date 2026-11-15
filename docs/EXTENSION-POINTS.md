@@ -119,6 +119,8 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc_retention_time_budget` | `src/Maintenance/Retention.php` | Filter the seconds one retention run may take. |
 | `wplc_review_payment_reference` | `src/Billing/RenewalReview.php` | Filters the transaction ID stored when a reviewed renewal order is booked as paid. |
 | `wplc_schema_can_migrate` | `src/Infrastructure/Database/Schema.php` | Filter whether this request may run a schema migration. |
+| `wplc_self_update_check_enabled` | `src/Infrastructure/SelfUpdateCheck.php` | Filters whether the plugin looks for new releases of itself (A-42). |
+| `wplc_self_update_release_api` | `src/Infrastructure/SelfUpdateCheck.php` | Filters the API address of the latest release (A-42). |
 | `wplc_show_license_term` | `src/Catalog/TermDisplay.php` | Filters whether the license term is appended to the price of a license product. |
 | `wplc_stripe_adapter_status` | `src/Compatibility/Requirements.php` | Filters whether the Stripe renewal adapter is usable. |
 | `wplc_stripe_mode` | `src/Gateway/StripeRecurringAdapter.php` | Filters the mode the Stripe gateway is considered to run in. |
