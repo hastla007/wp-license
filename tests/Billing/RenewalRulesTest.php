@@ -91,14 +91,15 @@ final class RenewalRulesTest extends TestCase {
 	/** A-115: the billing day returns to the anchor day after a short month. */
 	public function test_a115_billing_day_returns_to_the_anchor_after_a_short_month(): void {
 		$feb = RenewalScheduler::period_end( $this->ts( '2027-01-31 08:00:00' ), 'month', 31 );
-		$this->assertSame( '2027-02-28 08:00:00', $this->utc( $feb ) );
+		// B-178: a clamped period ends at the end of the day.
+		$this->assertSame( '2027-02-28 23:59:59', $this->utc( $feb ) );
 		$mar = RenewalScheduler::period_end( $feb, 'month', 31 );
-		$this->assertSame( '2027-03-31 08:00:00', $this->utc( $mar ) );
+		$this->assertSame( '2027-03-31 23:59:59', $this->utc( $mar ) );
 		$apr = RenewalScheduler::period_end( $mar, 'month', 31 );
-		$this->assertSame( '2027-04-30 08:00:00', $this->utc( $apr ) );
+		$this->assertSame( '2027-04-30 23:59:59', $this->utc( $apr ) );
 
 		// Yearly license bought on 29 February.
-		$this->assertSame( '2029-02-28 08:00:00', $this->utc( RenewalScheduler::period_end( $this->ts( '2028-02-29 08:00:00' ), 'year', 29 ) ) );
+		$this->assertSame( '2029-02-28 23:59:59', $this->utc( RenewalScheduler::period_end( $this->ts( '2028-02-29 08:00:00' ), 'year', 29 ) ) );
 		$this->assertSame( '2032-02-29 08:00:00', $this->utc( RenewalScheduler::period_end( $this->ts( '2031-02-28 08:00:00' ), 'year', 29 ) ) );
 	}
 

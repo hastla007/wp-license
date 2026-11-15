@@ -238,4 +238,36 @@ final class OrderRefundIntegrationTest extends WPLC_Integration_TestCase {
 
 		$this->assertSame( array( 'active' ), $this->statuses( $order->get_id() ) );
 	}
+
+	/** B-36: lowering the quantity of a paid line suspends the licenses above the new quantity. */
+	public function test_lowering_the_quantity_of_a_paid_line_suspends_the_extra_licenses(): void {
+		$order = $this->paid_order( 3 );
+		$item  = $this->first_item( $order );
+
+		// Saving the line unchanged (as a refund or a meta update does) keeps every license.
+		$item->save();
+		$this->assertSame( array( 'active', 'active', 'active' ), $this->statuses( $order->get_id() ) );
+
+		$item->set_quantity( 1 );
+		$item->save();
+
+		$this->assertSame( array( 'active', 'suspended', 'suspended' ), $this->statuses( $order->get_id() ) );
+		$notes = wp_list_pluck( wc_get_order_notes( array( 'order_id' => $order->get_id() ) ), 'content' );
+		$this->assertNotEmpty( preg_grep( '/suspended license/', $notes ), 'The order says which licenses were suspended.' );
+	}
+
+	/** B-36: removing a paid line suspends all its licenses; a filter keeps them. */
+	public function test_removing_a_paid_line_suspends_its_licenses_unless_filtered(): void {
+		$order = $this->paid_order( 2 );
+		$order->remove_item( $this->first_item( $order )->get_id() );
+		$order->save();
+
+		$this->assertSame( array( 'suspended', 'suspended' ), $this->statuses( $order->get_id() ) );
+
+		add_filter( 'wplc_suspend_license_on_order_item_change', '__return_false' );
+		$kept = $this->paid_order( 2 );
+		wc_delete_order_item( $this->first_item( $kept )->get_id() );
+
+		$this->assertSame( array( 'active', 'active' ), $this->statuses( $kept->get_id() ) );
+	}
 }

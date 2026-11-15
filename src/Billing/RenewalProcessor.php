@@ -906,7 +906,7 @@ final class RenewalProcessor {
 						: __( 'The payment method was declined for good. Automatic retries have been stopped; the customer has to pay this order.', 'wp-license' )
 				);
 			}
-			AuditLog::record( 'renewal_manual_action_required', 'renewal', $renewal_id, $code, array( 'attempt_count' => (int) $renewal['attempt_count'] ), array( 'attempt_count' => $attempt, 'status' => 'manual_action_required' ) );
+			AuditLog::record( 'renewal_manual_action_required', 'renewal', $renewal_id, $code, array( 'status' => (string) $renewal['status'], 'attempt_count' => (int) $renewal['attempt_count'] ), array( 'attempt_count' => $attempt, 'status' => 'manual_action_required' ) );
 			if ( $grace_end ) {
 				self::schedule_grace_end( (int) $license['id'], $grace_end );
 			}
@@ -939,8 +939,8 @@ final class RenewalProcessor {
 			'renewal',
 			$renewal_id,
 			$code,
-			array( 'attempt_count' => (int) $renewal['attempt_count'] ),
-			array( 'attempt_count' => $attempt, 'error_code' => $code )
+			array( 'status' => (string) $renewal['status'], 'attempt_count' => (int) $renewal['attempt_count'] ),
+			array( 'status' => 'failed', 'attempt_count' => $attempt, 'error_code' => $code, 'retry_at' => gmdate( 'Y-m-d H:i:s', $wait_until ) )
 		);
 
 		if ( $retry ) {
@@ -2040,8 +2040,98 @@ final class RenewalProcessor {
 						self::unlock( $renewal_id );
 					}
 				}
+				self::close_orphaned_renewal_orders();
 			}
 		);
+	}
+
+	/**
+	 * Close unpaid renewal orders that no renewal can accept any more (B-190).
+	 *
+	 * An order created for a renewal is orphaned when its renewal row is gone
+	 * (database restore, manual clean-up), when the renewal ended or was paid
+	 * through another order, or when the renewal is linked to another order.
+	 * Such an order is cancelled with a note (pending, failed); an order on
+	 * hold waits for an offline payment and only gets a note, once. Renewals
+	 * that wait for a payment result or a review, renewals not linked to any
+	 * order yet (the next attempt links it) and orders changed within the last
+	 * hour are left alone.
+	 *
+	 * @return void
+	 */
+	public static function close_orphaned_renewal_orders(): void {
+		global $wpdb;
+
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return;
+		}
+		$tables = Schema::table_names();
+		$deadline = microtime( true ) + self::SWEEP_TIME_BUDGET;
+		$waiting = array( 'processing', self::STATUS_RECONCILING, self::STATUS_REVIEW, self::LEGACY_STATUS_REVIEW );
+		$open = array( 'scheduled', 'failed', 'manual_action_required', 'manual' );
+		$offset = 0;
+		do {
+			$ids = wc_get_orders(
+				array(
+					'type' => 'shop_order',
+					'created_via' => RenewalOrder::CREATED_VIA,
+					'status' => array( 'pending', 'failed', 'on-hold' ),
+					'date_created' => '<' . ( time() - DAY_IN_SECONDS ),
+					'orderby' => 'ID',
+					'order' => 'ASC',
+					'limit' => 100,
+					'offset' => $offset,
+					'return' => 'ids',
+				)
+			);
+			if ( ! is_array( $ids ) ) {
+				return;
+			}
+			$closed = 0;
+			foreach ( $ids as $order_id ) {
+				$order = wc_get_order( (int) $order_id );
+				if ( ! $order instanceof \WC_Order || RenewalOrder::CREATED_VIA !== $order->get_created_via() || $order->is_paid() || $order->get_date_paid() ) {
+					continue;
+				}
+				$modified = $order->get_date_modified();
+				if ( $modified && $modified->getTimestamp() > time() - HOUR_IN_SECONDS ) {
+					continue;
+				}
+				$renewal_id = absint( $order->get_meta( RenewalOrder::META_RENEWAL, true ) );
+				$renewal = $renewal_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT id, license_id, status, renewal_order_id FROM %i WHERE id = %d LIMIT 1', $tables['renewals'], $renewal_id ), ARRAY_A ) : null;
+				if ( is_array( $renewal ) ) {
+					$status = (string) $renewal['status'];
+					$linked = (int) $renewal['renewal_order_id'];
+					if (
+						in_array( $status, $waiting, true )
+						|| (int) $order->get_meta( RenewalOrder::META_LICENSE, true ) !== (int) $renewal['license_id']
+						|| ( in_array( $status, $open, true ) && 0 === $linked )
+						// A renewal booked on this very order (e.g. after a review) keeps it: cancelling it
+						// would read as a bounced payment and suspend the license.
+						|| ( (int) $order->get_id() === $linked && ! in_array( $status, array( 'cancelled', 'expired' ), true ) )
+					) {
+						continue;
+					}
+				}
+				$cause = ! is_array( $renewal ) ? 'renewal_missing' : ( in_array( (string) $renewal['status'], $open, true ) ? 'renewal_linked_elsewhere' : 'renewal_' . sanitize_key( (string) $renewal['status'] ) );
+				if ( 'on-hold' === $order->get_status() ) {
+					if ( 'yes' === $order->get_meta( '_wplc_orphan_noted', true ) ) {
+						continue;
+					}
+					$order->update_meta_data( '_wplc_orphan_noted', 'yes' );
+					$order->save_meta_data();
+					$order->add_order_note( __( 'WP License Captain: no license renewal can accept this order any more (the renewal was closed, paid with another order or no longer exists). Do not accept a payment for it without checking the license.', 'wp-license' ) );
+					AuditLog::record( 'renewal_order_orphaned', 'order', (int) $order->get_id(), $cause, null, array( 'renewal_id' => $renewal_id, 'status' => 'on-hold' ) );
+					continue;
+				}
+				if ( RenewalOrder::close_unpaid( (int) $order->get_id(), __( 'WP License Captain: no license renewal can accept this order any more (the renewal was closed, paid with another order or no longer exists); the order is closed.', 'wp-license' ) ) ) {
+					AuditLog::record( 'renewal_order_orphaned', 'order', (int) $order->get_id(), $cause, null, array( 'renewal_id' => $renewal_id, 'status' => 'cancelled' ) );
+					++$closed;
+				}
+			}
+			// Closed orders leave the result set; the next page starts after the ones that stay.
+			$offset += count( $ids ) - $closed;
+		} while ( count( $ids ) >= 100 && microtime( true ) < $deadline );
 	}
 
 	/**

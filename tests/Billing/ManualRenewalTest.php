@@ -68,7 +68,8 @@ final class ManualRenewalTest extends TestCase {
 
 	public function test_late_month_end_renewal_is_clamped(): void {
 		$this->assertSame(
-			'2027-02-28 10:00:00',
+			// B-178: a clamped period ends at the end of the day.
+			'2027-02-28 23:59:59',
 			ManualRenewal::next_paid_until( '2027-01-10 00:00:00', 'month', $this->ts( '2027-01-31 10:00:00' ) )
 		);
 	}

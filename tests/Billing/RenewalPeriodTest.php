@@ -9,21 +9,36 @@ final class RenewalPeriodTest extends TestCase {
 	}
 
 	public function test_monthly_period_clamps_january_31_to_february_end(): void {
-		$this->assertSame( '2025-02-28 10:15:00', $this->period_end( '2025-01-31 10:15:00', 'month' ) );
+		$this->assertSame( '2025-02-28 23:59:59', $this->period_end( '2025-01-31 10:15:00', 'month' ) );
 	}
 
 	public function test_monthly_period_preserves_leap_day_when_available(): void {
-		$this->assertSame( '2024-02-29 10:15:00', $this->period_end( '2024-01-31 10:15:00', 'month' ) );
+		$this->assertSame( '2024-02-29 23:59:59', $this->period_end( '2024-01-31 10:15:00', 'month' ) );
 	}
 
 	public function test_yearly_period_clamps_leap_day_in_non_leap_year(): void {
-		$this->assertSame( '2025-02-28 10:15:00', $this->period_end( '2024-02-29 10:15:00', 'year' ) );
+		$this->assertSame( '2025-02-28 23:59:59', $this->period_end( '2024-02-29 10:15:00', 'year' ) );
 	}
 
 	public function test_regular_dates_keep_day_and_time(): void {
 		$this->assertSame( '2026-12-13 23:59:59', $this->period_end( '2026-11-13 23:59:59', 'month' ) );
 		$this->assertSame( '2027-11-13 00:00:00', $this->period_end( '2026-11-13 00:00:00', 'year' ) );
 		$this->assertSame( '2027-01-31 08:00:00', $this->period_end( '2026-12-31 08:00:00', 'month' ) );
+	}
+
+	/** B-178: a later start never ends earlier, also across a clamped month end. */
+	public function test_b178_period_end_is_monotonic_at_month_ends(): void {
+		$this->assertSame( '2025-02-28 23:00:00', $this->period_end( '2025-01-28 23:00:00', 'month' ) );
+		$this->assertSame( '2025-02-28 23:59:59', $this->period_end( '2025-01-29 23:00:00', 'month' ) );
+		$this->assertSame( '2025-02-28 23:59:59', $this->period_end( '2025-01-30 10:00:00', 'month' ) );
+		foreach ( array( 'month', 'year' ) as $interval ) {
+			$previous = 0;
+			for ( $ts = strtotime( '2027-12-01 00:00:00 UTC' ); $ts < strtotime( '2029-04-01 00:00:00 UTC' ); $ts += 3 * HOUR_IN_SECONDS + 7 ) {
+				$end = RenewalScheduler::period_end( $ts, $interval );
+				$this->assertGreaterThanOrEqual( $previous, $end, $interval . ' period from ' . gmdate( 'c', $ts ) );
+				$previous = $end;
+			}
+		}
 	}
 
 	public function test_renewal_key_is_stable_per_license_and_period(): void {
