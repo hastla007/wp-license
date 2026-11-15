@@ -5,6 +5,7 @@
 	<file>wp-license.php</file>
 	<file>uninstall.php</file>
 	<file>src</file>
+	<file>mu-plugins</file>
 	<file>tools</file>
 	<file>bin</file>
 	<file>tests</file>

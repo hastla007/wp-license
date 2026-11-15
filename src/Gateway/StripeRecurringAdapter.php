@@ -80,12 +80,6 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	);
 
 	/**
-	 * Order meta: attempt counter whose PaymentIntent request carries the
-	 * `wplc_attempt` metadata. Written before the request is sent.
-	 */
-	public const META_ATTEMPT_MARKED = '_wplc_stripe_attempt_marked';
-
-	/**
 	 * Order meta: the request of the current attempt as first sent to Stripe (P-03).
 	 *
 	 * Array with `attempt` (attempt key), `key` (Stripe idempotency key),
@@ -1221,7 +1215,7 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	 * without it.
 	 *
 	 * @param string $unknown_since_meta Order meta RenewalProcessor::META_RESULT_UNKNOWN_SINCE.
-	 * @param string $marked_meta Order meta META_ATTEMPT_MARKED.
+	 * @param string $marked_meta Attempt counter whose request carried the marker, '' when none.
 	 * @param int    $attempt Attempt counter of this request.
 	 * @return bool
 	 */

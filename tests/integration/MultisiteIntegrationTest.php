@@ -14,6 +14,7 @@
 use WPLC\Api\V1\Routes;
 use WPLC\Billing\RenewalProcessor;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\Infrastructure\Database\SiteCleanupHelper;
 use WPLC\License\ActivationManager;
 use WPLC\License\LicenseLifecycle;
 use WPLC\Plugin;
@@ -244,6 +245,59 @@ final class MultisiteIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( array(), $this->existing_tables( $site_tables ), 'Orphan tables of the deleted site.' );
 		$main_tables = $this->site_tables( get_main_site_id() );
 		$this->assertSame( $main_tables, $this->existing_tables( $main_tables ) );
+	}
+
+	// P-32: the must-use helper drops the tables when the plugin is not loaded in the deleting request.
+	public function test_must_use_helper_drops_the_tables_without_the_plugin_filter(): void {
+		global $wpdb;
+
+		require_once dirname( __DIR__, 2 ) . '/mu-plugins/wplc-site-cleanup.php';
+		$this->assertNotFalse( has_filter( 'wpmu_drop_tables', 'wplc_mu_site_cleanup_filter' ) );
+
+		$site_id = $this->create_site();
+		switch_to_blog( $site_id );
+		$this->assertTrue( Schema::maybe_upgrade() );
+		restore_current_blog();
+		$site_tables = $this->site_tables( $site_id );
+		$this->assertSame( $site_tables, $this->existing_tables( $site_tables ) );
+
+		// The main site is never touched, whatever the caller passes.
+		$this->assertSame( array( 'x' ), wplc_mu_site_cleanup_filter( array( 'x' ), get_main_site_id() ) );
+		$selected = wplc_mu_site_cleanup_filter( array(), $site_id );
+		$expected = $site_tables;
+		sort( $selected );
+		sort( $expected );
+		$this->assertSame( $expected, $selected );
+
+		// As in a request in which WordPress did not load the plugin.
+		remove_filter( 'wpmu_drop_tables', array( Schema::class, 'filter_wpmu_drop_tables' ), 10 );
+		try {
+			$this->assertNotWPError( wp_delete_site( $site_id ) );
+		} finally {
+			add_filter( 'wpmu_drop_tables', array( Schema::class, 'filter_wpmu_drop_tables' ), 10, 2 );
+		}
+
+		$this->assertSame( array(), $this->existing_tables( $site_tables ), 'Orphan tables of the deleted site.' );
+		$main_tables = $this->site_tables( get_main_site_id() );
+		$this->assertSame( $main_tables, $this->existing_tables( $main_tables ) );
+	}
+
+	public function test_must_use_helper_install_and_remove_leave_other_files_alone(): void {
+		$dir    = get_temp_dir() . 'wplc-mu-' . wp_generate_password( 8, false );
+		$target = $dir . '/' . SiteCleanupHelper::FILE_NAME;
+
+		$this->assertSame( '', SiteCleanupHelper::install( $target ), 'Creates the directory and copies the file.' );
+		$this->assertSame( SiteCleanupHelper::STATUS_INSTALLED, SiteCleanupHelper::status( $target ) );
+		$this->assertSame( '', SiteCleanupHelper::remove( $target ) );
+		$this->assertFileDoesNotExist( $target );
+		$this->assertSame( '', SiteCleanupHelper::remove( $target ), 'Nothing to remove is not an error.' );
+
+		file_put_contents( $target, "<?php\n// Another must-use plugin.\n" );
+		$this->assertNotSame( '', SiteCleanupHelper::install( $target ) );
+		$this->assertNotSame( '', SiteCleanupHelper::remove( $target ) );
+		$this->assertFileExists( $target );
+		unlink( $target );
+		rmdir( $dir );
 	}
 
 	public function test_lock_names_differ_per_site(): void {

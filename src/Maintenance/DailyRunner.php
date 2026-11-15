@@ -391,14 +391,6 @@ final class DailyRunner {
 		return $last > 0 ? $last : (int) get_option( self::LAST_RUN_OPTION, 0 );
 	}
 
-	/**
-	 * Whether an isolated job is running right now.
-	 *
-	 * @return bool
-	 */
-	public static function in_job(): bool {
-		return self::$depth > 0;
-	}
 
 	/**
 	 * Run one job: a \Throwable is logged and kept for the diagnostics page, a finished job writes its heartbeat.

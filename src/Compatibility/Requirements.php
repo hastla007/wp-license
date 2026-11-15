@@ -152,18 +152,6 @@ final class Requirements {
 		echo '</p></div>';
 	}
 
-	/**
-	 * Running Action Scheduler version, or an empty string when unknown.
-	 *
-	 * @return string
-	 */
-	public static function action_scheduler_version(): string {
-		if ( ! class_exists( 'ActionScheduler_Versions' ) ) {
-			return '';
-		}
-		$version = \ActionScheduler_Versions::instance()->latest_version();
-		return is_string( $version ) ? $version : '';
-	}
 
 	/**
 	 * How a "schedule once per hook and args" request must be carried out.
