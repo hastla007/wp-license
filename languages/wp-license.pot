@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP License Captain 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15T10:19:39+00:00\n"
+"POT-Creation-Date: 2026-11-15T15:11:26+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -5123,82 +5123,98 @@ msgstr ""
 msgid "Webhooks"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:48
-msgid "Multiple programs"
+#: src/Catalog/EntitlementCatalog.php:49
+msgid "Payout as store credit"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:49
-#: src/Catalog/EntitlementCatalog.php:62
-#: src/Catalog/EntitlementCatalog.php:73
-msgid "Priority support"
+#: src/Catalog/EntitlementCatalog.php:50
+msgid "Payouts via Stripe Connect"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:51
+msgid "Leaderboard and milestone emails"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:52
-msgid "Custom branding"
+msgid "Multi-tier commissions"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:53
-msgid "PDF templates"
+msgid "Multiple programs"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:54
-msgid "Automatic delivery"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:55
-msgid "QR redemption"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:56
-msgid "Partial balance"
+#: src/Catalog/EntitlementCatalog.php:67
+#: src/Catalog/EntitlementCatalog.php:78
+msgid "Priority support"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:57
-msgid "Staff roles"
+msgid "Custom branding"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:58
-msgid "Scheduled delivery"
+msgid "PDF templates"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:59
-msgid "Bulk import and export"
+msgid "Automatic delivery"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:60
-msgid "Reports"
+msgid "QR redemption"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:61
-#: src/Catalog/EntitlementCatalog.php:72
+msgid "Partial balance"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:62
+msgid "Staff roles"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:63
+msgid "Scheduled delivery"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:64
+msgid "Bulk import and export"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:65
+msgid "Reports"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:66
+#: src/Catalog/EntitlementCatalog.php:77
 msgid "White label"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:68
+#: src/Catalog/EntitlementCatalog.php:73
 msgid "E-invoicing (XRechnung, ZUGFeRD)"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:69
+#: src/Catalog/EntitlementCatalog.php:74
 msgid "Card terminal (Stripe Terminal, SumUp)"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:70
+#: src/Catalog/EntitlementCatalog.php:75
 msgid "Virtual waiting room"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:71
+#: src/Catalog/EntitlementCatalog.php:76
 msgid "Write API"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:96
+#: src/Catalog/EntitlementCatalog.php:101
 msgid "Affiliate Captain"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:97
+#: src/Catalog/EntitlementCatalog.php:102
 msgid "Voucher Captain"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:98
+#: src/Catalog/EntitlementCatalog.php:103
 msgid "WP Pass Captain"
 msgstr ""
 
