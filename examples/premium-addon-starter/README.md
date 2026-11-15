@@ -90,7 +90,7 @@ define( 'VCAP_PRO_SERVER_URL', 'https://licenses-staging.example.com' );
 define( 'VCAP_PRO_SERVER_PUBLIC_KEYS', array( 'base64-public-key-of-the-staging-server' ) );
 ```
 
-The filters `<prefix>_server_url`, `<prefix>_server_public_keys` and `<prefix>_update_hosts` do the same in code. Without a pinned key the add-on refuses to activate and unlocks nothing.
+The filters `<prefix>_server_url`, `<prefix>_server_public_keys` and `<prefix>_update_hosts` do the same in code. `<prefix>_server_public_keys` is ignored unless `define( 'VCAP_PRO_LICENSE_DEV', true );` is set (development builds), so another plugin cannot pin a key of its own on a live site. Without a pinned key the add-on refuses to activate and unlocks nothing.
 
 ## License page
 

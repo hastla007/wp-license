@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/LicenseClient.php
- * (source sha256 aaaf1ff5b2fd89c85f568d6ae2769df9d4ca33d148ee89d8cc095a567a8269f5). Do not edit: change the server copy and re-vendor.
+ * (source sha256 6e9f2a20d1e7bedbd996aef24de6971a3b0f8488e688ddb3603528f4ccc3ad97). Do not edit: change the server copy and re-vendor.
  *
  * Transport of the license client: activation, signed requests, verified answers.
  *
@@ -35,7 +35,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.0';
+		const VERSION = '2.0.1';
 
 		/**
 		 * Context of the Ed25519 signature over the payload text.
@@ -137,6 +137,14 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		private $last_envelope = array();
 
 		/**
+		 * Ed25519 verification: callable( string $signature, string $message, string $public_key ): bool, or null
+		 * when this PHP has neither ext-sodium nor sodium_compat.
+		 *
+		 * @var callable|null
+		 */
+		private $verifier;
+
+		/**
 		 * Constructor.
 		 *
 		 * @param string              $server_url      Address of the license server (HTTPS).
@@ -158,6 +166,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 *     @type OptionStore $store          Storage (tests).
 		 *     @type callable    $transport      Replacement for wp_remote_request() (tests).
 		 *     @type callable    $clock          Replacement for time() (tests).
+		 *     @type callable|false $signature_verifier Replacement for sodium_crypto_sign_verify_detached(); false
+		 *                                       simulates a PHP without any Ed25519 implementation (tests).
 		 * }
 		 */
 		public function __construct( string $server_url, string $product_key, string $product_version, string $option_key, array $args = array() ) {
@@ -185,6 +195,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			$this->transport       = isset( $args['transport'] ) && is_callable( $args['transport'] ) ? $args['transport'] : null;
 			$this->clock           = isset( $args['clock'] ) && is_callable( $args['clock'] ) ? $args['clock'] : null;
 			$this->timeout         = isset( $args['timeout'] ) ? max( 0, (int) $args['timeout'] ) : 0;
+			$this->verifier        = self::default_verifier();
+			if ( array_key_exists( 'signature_verifier', $args ) && null !== $args['signature_verifier'] ) {
+				$this->verifier = is_callable( $args['signature_verifier'] ) ? $args['signature_verifier'] : null;
+			}
 
 			if ( ! empty( $args['public_keys'] ) && is_array( $args['public_keys'] ) ) {
 				$this->keys_given = true;
@@ -223,12 +237,25 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		}
 
 		/**
+		 * Whether this PHP can check the Ed25519 signature of the server (ext-sodium or sodium_compat).
+		 *
+		 * Without it, answers and stored snapshots are never accepted while keys are pinned: the client
+		 * does not fall back to the HMAC alone, because the installation secret is stored next to the
+		 * snapshot and anyone who can edit the database could recompute the HMAC.
+		 *
+		 * @return bool
+		 */
+		public function can_verify_server_signature(): bool {
+			return null !== $this->verifier;
+		}
+
+		/**
 		 * Whether credentials of an activation are stored (also on a copy of the site).
 		 *
 		 * @return bool
 		 */
 		public function is_activated(): bool {
-			return ! is_wp_error( $this->credentials() );
+			return null !== $this->stored_credentials();
 		}
 
 		/**
@@ -237,9 +264,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * @return string
 		 */
 		public function installation_id(): string {
-			$credentials = $this->credentials();
+			$credentials = $this->stored_credentials();
 
-			return is_wp_error( $credentials ) ? '' : (string) $credentials['installation_id'];
+			return null === $credentials ? '' : (string) $credentials['installation_id'];
 		}
 
 		/**
@@ -248,9 +275,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * @return string
 		 */
 		public function environment(): string {
-			$credentials = $this->credentials();
+			$credentials = $this->stored_credentials();
 
-			return is_wp_error( $credentials ) ? '' : (string) ( $credentials['environment'] ?? 'production' );
+			return null === $credentials ? '' : (string) ( $credentials['environment'] ?? 'production' );
 		}
 
 		/**
@@ -259,9 +286,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * @return string
 		 */
 		public function activated_site_url(): string {
-			$credentials = $this->credentials();
+			$credentials = $this->stored_credentials();
 
-			return is_wp_error( $credentials ) ? '' : (string) ( $credentials['site_url'] ?? '' );
+			return null === $credentials ? '' : (string) ( $credentials['site_url'] ?? '' );
 		}
 
 		/**
@@ -273,8 +300,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * @return bool
 		 */
 		public function site_matches(): bool {
-			$credentials = $this->credentials();
-			if ( is_wp_error( $credentials ) || empty( $credentials['site_url'] ) ) {
+			$credentials = $this->stored_credentials();
+			if ( null === $credentials || empty( $credentials['site_url'] ) ) {
 				return true;
 			}
 
@@ -685,11 +712,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * The credentials are removed
 		 * - after the signed confirmation of the server,
 		 * - without any request when this is a copy of the activated site,
-		 * - when the server answers that this is not the activated site
-		 *   (`site_mismatch`) or that it does not know the installation
-		 *   (`activation_not_found`): there is nothing to release.
-		 * In the last three cases the result is `status: removed_locally`.
-		 * Every other error keeps the credentials; use forget() to drop them anyway.
+		 * - on a signed refusal (`activation_deactivated` with an envelope that
+		 *   verifies against the pinned keys): the activation is already released.
+		 * In the last two cases the result is `status: removed_locally`.
+		 * Every other error keeps the credentials and is returned, also an
+		 * unsigned `site_mismatch` or `activation_not_found` (anyone between the
+		 * site and the server could send those); use forget() to drop them anyway.
 		 *
 		 * @return array<string,mixed>|\WP_Error
 		 */
@@ -717,7 +745,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				}
 			}
 			if ( is_wp_error( $data ) ) {
-				if ( in_array( $data->get_error_code(), array( 'site_mismatch', 'activation_not_found' ), true ) || self::is_signed_refusal( $data ) ) {
+				if ( self::is_signed_refusal( $data ) ) {
 					$this->forget();
 					return array(
 						'status' => 'removed_locally',
@@ -755,7 +783,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			}
 			$keys     = $skip_server_signature ? array() : $this->public_keys;
 			$required = $this->keys_given && ! $skip_server_signature;
-			$data     = self::verify( $envelope, (string) $credentials['installation_secret'], '', $keys, (string) $credentials['installation_id'], $required );
+			$data     = self::verify( $envelope, (string) $credentials['installation_secret'], '', $keys, (string) $credentials['installation_id'], $required, $this->verifier );
 
 			return is_array( $data ) ? $this->check_product( $data ) : $this->error( $data );
 		}
@@ -870,7 +898,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * @param mixed               $public_keys     Base64 public keys; any non-empty list makes the server signature mandatory.
 		 * @param string              $installation_id Installation UUID (part of the signed message).
 		 * @return array<string,mixed>|string Verified data, or one of the codes `wplc_signature_invalid`,
-		 *                                    `wplc_server_signature_invalid`, `wplc_nonce_mismatch`, `wplc_response_invalid`.
+		 *                                    `wplc_server_signature_invalid`, `wplc_ed25519_unavailable`,
+		 *                                    `wplc_nonce_mismatch`, `wplc_response_invalid`.
 		 */
 		public static function verified_data( array $envelope, string $secret, string $expected_nonce = '', $public_keys = array(), string $installation_id = '' ) {
 			$keys = array();
@@ -881,7 +910,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				}
 			}
 
-			return self::verify( $envelope, $secret, $expected_nonce, $keys, $installation_id, is_array( $public_keys ) && ! empty( $public_keys ) );
+			return self::verify( $envelope, $secret, $expected_nonce, $keys, $installation_id, is_array( $public_keys ) && ! empty( $public_keys ), self::default_verifier() );
 		}
 
 		/**
@@ -893,9 +922,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * @param string[]            $keys            Binary public keys.
 		 * @param string              $installation_id Installation UUID.
 		 * @param bool                $require_server  Whether a valid server signature is mandatory.
+		 * @param callable|null       $verifier        Ed25519 verification; null when PHP has none.
 		 * @return array<string,mixed>|string
 		 */
-		private static function verify( array $envelope, string $secret, string $expected_nonce, array $keys, string $installation_id, bool $require_server ) {
+		private static function verify( array $envelope, string $secret, string $expected_nonce, array $keys, string $installation_id, bool $require_server, $verifier ) {
 			$payload   = $envelope['payload'] ?? null;
 			$signature = $envelope['payload_signature'] ?? null;
 			if ( '' === $secret || ! is_string( $payload ) || '' === $payload || ! is_string( $signature ) ) {
@@ -907,14 +937,18 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			if ( $require_server ) {
 				$server_signature = $envelope['payload_signature_ed25519'] ?? null;
 				$binary           = is_string( $server_signature ) ? base64_decode( $server_signature, true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- decodes a signature.
-				if ( ! is_string( $binary ) || 64 !== strlen( $binary ) || '' === $installation_id || ! function_exists( 'sodium_crypto_sign_verify_detached' ) ) {
+				if ( null === $verifier ) {
+					// No Ed25519 implementation: never accept the HMAC alone in place of the server signature.
+					return 'wplc_ed25519_unavailable';
+				}
+				if ( ! is_string( $binary ) || 64 !== strlen( $binary ) || '' === $installation_id ) {
 					return 'wplc_server_signature_invalid';
 				}
 				$message = self::SIGNATURE_CONTEXT . "\n" . strtolower( $installation_id ) . "\n" . $payload;
 				$valid   = false;
 				foreach ( $keys as $key ) {
 					try {
-						if ( sodium_crypto_sign_verify_detached( $binary, $message, $key ) ) {
+						if ( true === (bool) call_user_func( $verifier, $binary, $message, $key ) ) {
 							$valid = true;
 							break;
 						}
@@ -1041,7 +1075,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				$signed = $data['signed'] ?? null;
 				unset( $data['signed'], $data['wplc_signed'], $data['verified'] );
 				if ( $authenticated && 'activation_deactivated' === $code && is_array( $signed ) ) {
-					$verified = self::verify( $signed, $secret, $nonce, $this->public_keys, $installation_id, $this->keys_given );
+					$verified = self::verify( $signed, $secret, $nonce, $this->public_keys, $installation_id, $this->keys_given, $this->verifier );
 					if ( is_array( $verified ) && 'deactivated' === ( $verified['activation_status'] ?? '' ) ) {
 						// Only this signed refusal may end the activation; an unsigned 4xx never does.
 						$data['wplc_signed'] = true;
@@ -1056,7 +1090,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			if ( ! is_array( $json ) ) {
 				return $this->error( $html ? 'wplc_blocked_by_firewall' : 'wplc_response_invalid', array( 'status' => $status ) );
 			}
-			$data = self::verify( $json, $secret, $nonce, $this->public_keys, $installation_id, $this->keys_given );
+			$data = self::verify( $json, $secret, $nonce, $this->public_keys, $installation_id, $this->keys_given, $this->verifier );
 			if ( ! is_array( $data ) ) {
 				return $this->error( $data, array( 'status' => $status ) );
 			}
@@ -1176,12 +1210,32 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * @return array<string,mixed>|\WP_Error
 		 */
 		private function credentials() {
+			$credentials = $this->stored_credentials();
+
+			return null === $credentials ? $this->error( 'wplc_not_activated' ) : $credentials;
+		}
+
+		/**
+		 * Stored credentials of a completed activation, or null (no error object, for the cheap state checks).
+		 *
+		 * @return array<string,mixed>|null
+		 */
+		private function stored_credentials() {
 			$credentials = '' === $this->option_key ? array() : $this->store->get( $this->option_key, array() );
 			if ( ! is_array( $credentials ) || empty( $credentials['installation_id'] ) || empty( $credentials['installation_secret'] ) || empty( $credentials['activation_id'] ) ) {
-				return $this->error( 'wplc_not_activated' );
+				return null;
 			}
 
 			return $credentials;
+		}
+
+		/**
+		 * Ed25519 verification of this PHP: ext-sodium or the sodium_compat polyfill WordPress ships.
+		 *
+		 * @return callable|null
+		 */
+		private static function default_verifier() {
+			return function_exists( 'sodium_crypto_sign_verify_detached' ) ? 'sodium_crypto_sign_verify_detached' : null;
 		}
 
 		/**

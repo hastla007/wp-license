@@ -30,7 +30,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.0';
+		const VERSION = '2.0.1';
 
 		/**
 		 * Text domain literal used in this file.
@@ -43,6 +43,20 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		 * @var string
 		 */
 		private $text_domain;
+
+		/**
+		 * Texts of this instance, built once per locale (memoized).
+		 *
+		 * @var array<string,string>|null
+		 */
+		private $texts;
+
+		/**
+		 * Locale the memoized texts were built for.
+		 *
+		 * @var string
+		 */
+		private $texts_locale = '';
 
 		/**
 		 * Constructor.
@@ -60,7 +74,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		 * @return string
 		 */
 		public function get( string $code ): string {
-			$texts = self::texts();
+			$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : '';
+			if ( null === $this->texts || $locale !== $this->texts_locale ) {
+				// Built once: the table has some hundred entries and every lookup used to rebuild it.
+				$this->texts        = self::texts();
+				$this->texts_locale = $locale;
+			}
+			$texts = $this->texts;
 			if ( ! isset( $texts[ $code ] ) ) {
 				return '';
 			}
@@ -113,6 +133,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'error.wplc_nonce_mismatch'           => __( 'The answer of the license server does not belong to this request and was ignored.', 'wp-license' ),
 				'error.wplc_product_mismatch'         => __( 'The answer of the license server is for another product and was ignored.', 'wp-license' ),
 				'error.wplc_response_stale'           => __( 'The answer of the license server is older than one already received and was ignored.', 'wp-license' ),
+				'error.wplc_ed25519_unavailable'      => __( 'This web server cannot check the signature of the license server (the PHP sodium functions are missing). Premium features stay off until PHP provides them.', 'wp-license' ),
 				// Errors of the license server (docs/API-V1.md, "Error codes").
 				'error.invalid_activation'            => __( 'The activation request was rejected as incomplete. Check the license key.', 'wp-license' ),
 				'error.invalid_key'                   => __( 'This license key is unknown. Please check it for typing errors.', 'wp-license' ),
@@ -229,10 +250,14 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'update.checksum'                     => __( 'The downloaded update does not match the checksum signed by the license server and was deleted.', 'wp-license' ),
 				'update.wrong_product'                => __( 'The license server offered a package for another product.', 'wp-license' ),
 				'update.folder'                       => __( 'The update package does not contain this plugin and was not installed.', 'wp-license' ),
+				'update.insecure'                     => __( 'The update was offered over an insecure connection (not HTTPS) and was not downloaded.', 'wp-license' ),
+				/* translators: %s: size limit in megabytes. */
+				'update.too_large'                    => __( 'The update package is larger than %s MB and was not downloaded.', 'wp-license' ),
+				'update.redirects'                    => __( 'The download of the update was redirected too often and was stopped.', 'wp-license' ),
 				// Privacy policy suggestion.
 				'privacy.title'                       => __( 'License check and updates', 'wp-license' ),
 				/* translators: 1: name of the add-on, 2: host name of the license server. */
-				'privacy.text'                        => __( '%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the license key (once, on activation), and the versions of the plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent.', 'wp-license' ),
+				'privacy.text'                        => __( '%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), and the versions of the plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent.', 'wp-license' ),
 			);
 		}
 	}

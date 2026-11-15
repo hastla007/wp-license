@@ -63,7 +63,11 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) {
 	}
 }
 if ( ! function_exists( 'apply_filters' ) ) {
-	function apply_filters( $hook, $value ) {
+	// Callbacks in $GLOBALS['wplc_test_filters'][ $hook ] are applied (same stub as tests/Admin/wp-function-stubs.php).
+	function apply_filters( $hook, $value, ...$args ) {
+		foreach ( $GLOBALS['wplc_test_filters'][ $hook ] ?? array() as $callback ) {
+			$value = $callback( $value, ...$args );
+		}
 		return $value;
 	}
 }
@@ -88,6 +92,43 @@ if ( ! function_exists( 'wp_next_scheduled' ) ) {
 if ( ! function_exists( 'wp_rand' ) ) {
 	function wp_rand( $min = 0, $max = 0 ) {
 		return $min;
+	}
+}
+if ( ! function_exists( 'is_multisite' ) ) {
+	// Single site unless a test sets $GLOBALS['wplc_test_sites'] (list of site IDs).
+	function is_multisite() {
+		return isset( $GLOBALS['wplc_test_sites'] );
+	}
+}
+if ( ! function_exists( 'get_sites' ) ) {
+	function get_sites( $args = array() ) {
+		$GLOBALS['wplc_test_get_sites'][] = $args;
+		$number = (int) ( $args['number'] ?? 100 );
+		return array_slice( (array) ( $GLOBALS['wplc_test_sites'] ?? array() ), (int) ( $args['offset'] ?? 0 ), $number > 0 ? $number : null );
+	}
+}
+if ( ! function_exists( 'switch_to_blog' ) ) {
+	function switch_to_blog( $site_id ) {
+		$GLOBALS['wplc_test_switched'][] = (int) $site_id;
+		return true;
+	}
+}
+if ( ! function_exists( 'restore_current_blog' ) ) {
+	function restore_current_blog() {
+		$GLOBALS['wplc_test_restored'] = ( $GLOBALS['wplc_test_restored'] ?? 0 ) + 1;
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_tempnam' ) ) {
+	function wp_tempnam( $filename = '', $dir = '' ) {
+		return (string) tempnam( sys_get_temp_dir(), 'wplc' );
+	}
+}
+if ( ! function_exists( 'wp_delete_file' ) ) {
+	function wp_delete_file( $file ) {
+		if ( is_file( $file ) ) {
+			unlink( $file );
+		}
 	}
 }
 foreach ( array( 'MINUTE_IN_SECONDS' => 60, 'HOUR_IN_SECONDS' => 3600, 'DAY_IN_SECONDS' => 86400 ) as $wplc_name => $wplc_value ) {
@@ -148,6 +189,10 @@ final class WPLC_Test_Server {
 	public $now = 1800000000;
 	/** @var int */
 	public $activation_id = 41;
+	/** @var array<string,Closure> Download handlers by URL (update packages, redirects). */
+	public $files = array();
+	/** @var string[] Download URLs requested, in order. */
+	public $downloads = array();
 
 	public function __construct( string $seed = '' ) {
 		$pair             = sodium_crypto_sign_seed_keypair( '' === $seed ? str_repeat( "\x07", 32 ) : $seed );
@@ -158,6 +203,10 @@ final class WPLC_Test_Server {
 	/** Transport callable for the client. */
 	public function transport(): callable {
 		return function ( string $url, array $args ) {
+			if ( isset( $this->files[ $url ] ) ) {
+				$this->downloads[] = $url;
+				return ( $this->files[ $url ] )( $args );
+			}
 			$headers = array();
 			foreach ( $args['headers'] as $name => $value ) {
 				$headers[ strtolower( $name ) ] = $value;
@@ -252,6 +301,24 @@ final class WPLC_Test_Server {
 	/** REST error answer. */
 	public static function error( int $status, string $code, array $data = array(), array $headers = array() ): array {
 		return self::json( $status, array( 'code' => $code, 'message' => 'Server text for ' . $code . '.', 'data' => array_merge( array( 'status' => $status ), $data ) ), $headers );
+	}
+
+	/** Serve a file at a URL (streamed into $args['filename'] like WordPress does with `stream`). */
+	public function file( string $url, string $body, array $headers = array() ): void {
+		$this->files[ $url ] = static function ( array $args ) use ( $body, $headers ) {
+			if ( ! empty( $args['stream'] ) && ! empty( $args['filename'] ) ) {
+				file_put_contents( $args['filename'], $body );
+				$body = '';
+			}
+			return array( 'headers' => $headers, 'body' => $body, 'response' => array( 'code' => 200, 'message' => 'OK' ) );
+		};
+	}
+
+	/** Answer a URL with a redirect. */
+	public function redirect( string $url, string $location, int $status = 302 ): void {
+		$this->files[ $url ] = static function () use ( $location, $status ) {
+			return array( 'headers' => array( 'location' => $location ), 'body' => '', 'response' => array( 'code' => $status, 'message' => '' ) );
+		};
 	}
 
 	/** Answer scripted as "signed 200 with this data". */
