@@ -45,6 +45,11 @@ final class EntitlementCatalog {
 				array( 'key' => 'affiliate.automated_payouts', 'label' => __( 'Automated payouts', 'wp-license' ) ),
 				array( 'key' => 'affiliate.white_label_portal', 'label' => __( 'White-label portal', 'wp-license' ) ),
 				array( 'key' => 'affiliate.webhooks', 'label' => __( 'Webhooks', 'wp-license' ) ),
+				// Added 15 Nov 2026 on request of the captain-pro development (Affiliate Captain Pro, all plans).
+				array( 'key' => 'affiliate.store_credit', 'label' => __( 'Payout as store credit', 'wp-license' ) ),
+				array( 'key' => 'affiliate.stripe_connect', 'label' => __( 'Payouts via Stripe Connect', 'wp-license' ) ),
+				array( 'key' => 'affiliate.leaderboard', 'label' => __( 'Leaderboard and milestone emails', 'wp-license' ) ),
+				array( 'key' => 'affiliate.multi_tier', 'label' => __( 'Multi-tier commissions', 'wp-license' ) ),
 				array( 'key' => 'affiliate.multiple_programs', 'label' => __( 'Multiple programs', 'wp-license' ) ),
 				array( 'key' => 'affiliate.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),

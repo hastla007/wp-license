@@ -86,7 +86,7 @@ wp wplc sync-entitlements --product=voucher-captain-pro --plan=business --apply 
 | Product / tier | Feature keys or limits |
 |---|---|
 | Affiliate Captain (core, free on WordPress.org) | No entitlements. Which functions stay in the core is not decided yet (T-42); see the note below the table. |
-| Affiliate Captain Starter | `affiliate.partner_portal`, `affiliate.coupon_attribution`, `affiliate.order_refund_handling`, `affiliate.basic_commissions`, `affiliate.manual_payout_csv`; live sites: 1 |
+| Affiliate Captain Starter | `affiliate.partner_portal`, `affiliate.coupon_attribution`, `affiliate.order_refund_handling`, `affiliate.basic_commissions`, `affiliate.manual_payout_csv`, and in every plan (added 15 Nov 2026) `affiliate.store_credit`, `affiliate.stripe_connect`, `affiliate.leaderboard`, `affiliate.multi_tier` (needs Affiliate Captain 0.15.0); live sites: 1 |
 | Affiliate Captain Pro | Starter plus `affiliate.partner_groups`, `affiliate.product_category_rates`, `affiliate.recurring_commissions`, `affiliate.extended_api`, `affiliate.automated_payouts`; live sites: 3 |
 | Affiliate Captain Agency | Pro plus `affiliate.white_label_portal`, `affiliate.webhooks`, `affiliate.multiple_programs`, `affiliate.priority_support`; live sites: 10 |
 | Voucher Captain (core, free on WordPress.org) | No entitlements. Every core feature works without a license, a key or a server call. |
