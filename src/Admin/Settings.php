@@ -534,7 +534,7 @@ final class Settings {
 			wp_die( esc_html__( 'You do not have permission to change license settings.', 'wp-license' ), '', array( 'response' => 403 ) );
 		}
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'License settings', 'wp-license' ) . '</h1>';
+		echo '<div class="wrap wplc-settings"><h1>' . esc_html__( 'License settings', 'wp-license' ) . '</h1>';
 		settings_errors( self::OPTION );
 		self::render_setup_steps();
 

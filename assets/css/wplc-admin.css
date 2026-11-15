@@ -111,6 +111,12 @@
 	margin: 0 0 6px;
 }
 
+/* Copyable snippets (nginx rule on the diagnostics page) scroll instead of widening the page. */
+.wplc-diagnostics pre {
+	max-width: 100%;
+	overflow-x: auto;
+}
+
 /* Narrow screens: WooCommerce stacks label and field, so the checklist gives up its label column too. */
 @media (max-width: 500px) {
 	#woocommerce-product-data .wplc-entitlements,
@@ -132,14 +138,32 @@
 	}
 }
 
-/* Detail tables and the status table of the settings page scroll inside themselves instead of widening the page. */
+/*
+ * Plain (non list-table) tables of the license screens scroll inside themselves instead of
+ * widening the page: detail, settings, releases, renewal review, diagnostics (A-126; the last
+ * three were found by tests/browser at 375 px).
+ */
 @media (max-width: 782px) {
 	.wplc-license-detail table.widefat,
-	.woocommerce_page_wplc-settings table.widefat {
+	.woocommerce_page_wplc-settings table.widefat,
+	.wplc-settings table.widefat,
+	.wplc-releases table.widefat,
+	.wplc-renewal-review table.widefat,
+	.wplc-diagnostics table.widefat {
 		display: block;
+		/* Containing block for the screen-reader labels (position: absolute) in the cells; without it they escape the scrolling box and widen the page anyway. */
+		position: relative;
 		max-width: 100%;
 		overflow-x: auto;
 		-webkit-overflow-scrolling: touch;
+	}
+
+	/* View links of the license list ("Ending in the next 30 days without automatic renewal") wrap. */
+	.wplc-license-list .subsubsub,
+	.wplc-license-list .subsubsub li,
+	.wplc-license-list .subsubsub a {
+		white-space: normal;
+		overflow-wrap: anywhere;
 	}
 
 	.wplc-license-detail table.widefat th[scope="row"] {

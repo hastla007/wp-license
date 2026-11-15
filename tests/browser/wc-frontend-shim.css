@@ -1,0 +1,22 @@
+/*
+ * Stand-in for the responsive-table rules of WooCommerce's woocommerce-smallscreen.css
+ * (11.2.2, client/legacy/css/woocommerce-smallscreen.scss), flattened by hand. acceptance.js
+ * injects it ONLY when the site's WooCommerce has no compiled frontend CSS (source build).
+ * WooCommerce loads the real file below 768px; the plugin's account tables rely on it
+ * (class shop_table_responsive + data-title on every cell).
+ */
+@media only screen and (max-width: 768px) {
+	.woocommerce table.shop_table_responsive thead,
+	.woocommerce-page table.shop_table_responsive thead,
+	.woocommerce table.shop_table_responsive tbody th,
+	.woocommerce-page table.shop_table_responsive tbody th { display: none; }
+	.woocommerce table.shop_table_responsive tr,
+	.woocommerce-page table.shop_table_responsive tr { display: block; }
+	.woocommerce table.shop_table_responsive tr td,
+	.woocommerce-page table.shop_table_responsive tr td { display: block; text-align: right !important; }
+	.woocommerce table.shop_table_responsive tr td::before,
+	.woocommerce-page table.shop_table_responsive tr td::before { content: attr(data-title) ": "; font-weight: 700; float: left; }
+	.rtl.woocommerce table.shop_table_responsive tr td,
+	.rtl .woocommerce table.shop_table_responsive tr td { text-align: left !important; }
+	.rtl .woocommerce table.shop_table_responsive tr td::before { float: right; }
+}
