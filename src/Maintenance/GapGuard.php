@@ -39,16 +39,25 @@ final class GapGuard {
 	public const MIN_GAP_SECONDS = 3600;
 
 	/**
-	 * Longest hold after the end of the gap, in days (filter `wplc_gap_hold_days`).
+	 * Longest hold after the end of the gap, in days (filter `wplc_gap_hold_days`):
+	 * the grace period plus one day (A-135: derived, not a second copy of it).
+	 *
+	 * @return int
 	 */
-	public const DEFAULT_HOLD_DAYS = 15;
+	public static function default_hold_days(): int {
+		return \WPLC\License\LicenseLifecycle::grace_days() + 1;
+	}
 
 	/**
 	 * Days before the gap whose due dates are protected as well (filter
 	 * `wplc_gap_due_margin_days`): those licenses were inside their retry and
-	 * grace period when the gap began.
+	 * grace period when the gap began. Equal to the grace period.
+	 *
+	 * @return int
 	 */
-	public const DEFAULT_MARGIN_DAYS = 14;
+	public static function default_margin_days(): int {
+		return \WPLC\License\LicenseLifecycle::grace_days();
+	}
 
 	/**
 	 * Record a gap. An overlapping or still active gap is extended.
@@ -109,15 +118,15 @@ final class GapGuard {
 		/**
 		 * Filter the longest hold after a gap in days.
 		 *
-		 * @param int $days Default 15 (grace period plus one day).
+		 * @param int $days Default: grace period plus one day (15).
 		 */
-		$hold_days = max( 0, min( 365, (int) apply_filters( 'wplc_gap_hold_days', self::DEFAULT_HOLD_DAYS ) ) );
+		$hold_days = max( 0, min( 365, (int) apply_filters( 'wplc_gap_hold_days', self::default_hold_days() ) ) );
 		/**
 		 * Filter how many days before the gap a due date is still protected.
 		 *
-		 * @param int $days Default 14 (grace period).
+		 * @param int $days Default: grace period (14).
 		 */
-		$margin_days = max( 0, min( 365, (int) apply_filters( 'wplc_gap_due_margin_days', self::DEFAULT_MARGIN_DAYS ) ) );
+		$margin_days = max( 0, min( 365, (int) apply_filters( 'wplc_gap_due_margin_days', self::default_margin_days() ) ) );
 
 		$hold_until = self::hold_until( $from, $to, $hold_days * 86400 );
 		if ( $now >= $hold_until ) {

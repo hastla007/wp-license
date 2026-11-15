@@ -204,7 +204,7 @@ All run on `wplc_daily_lifecycle`. Each one is isolated by `WPLC\Maintenance\Dai
 
 ### Grace period
 
-`LicenseLifecycle::GRACE_DAYS` is 14. `LicenseLifecycle::has_access()` decides whether a license grants updates and features:
+The grace period is 14 days (`LicenseLifecycle::GRACE_DAYS`). Every caller reads the effective value from `LicenseLifecycle::grace_days()`, which applies the filter `wplc_renewal_grace_days` (clamped to 1 to 90 days). A changed value applies to renewal rows scheduled afterwards (their `grace_ends_at`) and at once to access checks, the expiry backstop, mails and the gap protection (`wplc_gap_hold_days` defaults to the grace period plus one day, `wplc_gap_due_margin_days` to the grace period). Keep it longer than the last retry day (`wplc_renewal_retry_days`, default 1, 3 and 7, `RenewalProcessor::DEFAULT_RETRY_DAYS`). `LicenseLifecycle::has_access()` decides whether a license grants updates and features:
 
 - `active` or `past_due` and before `paid_until`: access.
 - After `paid_until`: access for 14 more days if the license is `past_due`, or if automatic renewal is on and not cancelled.

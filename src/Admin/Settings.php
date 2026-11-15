@@ -653,7 +653,7 @@ final class Settings {
 		$rows[] = array(
 			'label' => __( 'Renewal grace period', 'wp-license' ),
 			/* translators: %d: number of days. */
-			'value' => sprintf( _n( '%d day', '%d days', LicenseLifecycle::GRACE_DAYS, 'wp-license' ), LicenseLifecycle::GRACE_DAYS ),
+			'value' => sprintf( _n( '%d day', '%d days', LicenseLifecycle::grace_days(), 'wp-license' ), LicenseLifecycle::grace_days() ),
 		);
 
 		return $rows;

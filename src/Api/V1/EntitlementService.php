@@ -299,7 +299,7 @@ final class EntitlementService {
 		if ( false !== $paid_until ) {
 			// has_access() at the end of the paid period is true exactly when a grace period applies.
 			if ( LicenseLifecycle::has_access( $license, $paid_until ) ) {
-				$grace_end = $paid_until + LicenseLifecycle::GRACE_DAYS * DAY_IN_SECONDS;
+				$grace_end = $paid_until + LicenseLifecycle::grace_days() * DAY_IN_SECONDS;
 			}
 			if ( $access ) {
 				$access_end = null === $grace_end ? $paid_until : $grace_end;

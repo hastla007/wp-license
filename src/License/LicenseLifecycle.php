@@ -52,9 +52,15 @@ final class LicenseLifecycle {
 	private static $pending_events = array();
 
 	/**
-	 * Grace period after the paid period during which a renewing license keeps its rights.
+	 * Default grace period after the paid period during which a renewing license keeps its rights.
+	 *
+	 * Read the effective value with grace_days(); the filter `wplc_renewal_grace_days` can change it.
 	 */
 	public const GRACE_DAYS = 14;
+
+	/** Bounds of the filtered grace period in days. */
+	private const GRACE_DAYS_MIN = 1;
+	private const GRACE_DAYS_MAX = 90;
 
 	/** Seconds one expiry run may take before it hands over to a follow-up run (A-80). */
 	public const EXPIRY_TIME_BUDGET = 20;
@@ -255,10 +261,35 @@ final class LicenseLifecycle {
 	}
 
 	/**
+	 * Grace period in days after the paid period (A-135): the one place every caller reads it from.
+	 *
+	 * The value is used for new renewal rows (`grace_ends_at`), for access checks,
+	 * the expiry backstop, the stuck-renewal diagnostics, customer mails and the
+	 * gap protection. A changed value applies to rows scheduled afterwards; rows
+	 * that already have a `grace_ends_at` keep it. Keep it longer than the last
+	 * retry day (`wplc_renewal_retry_days`), or the last retries fall after access ended.
+	 *
+	 * @return int Days, between 1 and 90.
+	 */
+	public static function grace_days(): int {
+		$days = self::GRACE_DAYS;
+		if ( function_exists( 'apply_filters' ) ) {
+			/**
+			 * Filters the renewal grace period in days (A-135).
+			 *
+			 * @param int $days Default 14. Clamped to 1 to 90.
+			 */
+			$days = (int) apply_filters( 'wplc_renewal_grace_days', $days );
+		}
+
+		return max( self::GRACE_DAYS_MIN, min( self::GRACE_DAYS_MAX, $days ) );
+	}
+
+	/**
 	 * Whether a license currently grants premium rights.
 	 *
 	 * Active licenses are entitled until paid_until. A license whose automatic
-	 * renewal is pending or failing (past_due) stays entitled for GRACE_DAYS.
+	 * renewal is pending or failing (past_due) stays entitled for grace_days().
 	 *
 	 * @param array<string,mixed> $license License row.
 	 * @param int|null            $now     Unix timestamp, defaults to now.
@@ -282,7 +313,7 @@ final class LicenseLifecycle {
 		}
 		$renewing = 'past_due' === $status
 			|| ( ! empty( $license['renewal_enabled'] ) && empty( $license['cancel_at_period_end'] ) );
-		return $renewing && $now < $paid_until + self::GRACE_DAYS * 86400;
+		return $renewing && $now < $paid_until + self::grace_days() * 86400;
 	}
 
 	/**
@@ -1736,7 +1767,7 @@ final class LicenseLifecycle {
 					$cursor,
 					'active',
 					$now_utc,
-					gmdate( 'Y-m-d H:i:s', $now - ( self::GRACE_DAYS + 1 ) * DAY_IN_SECONDS ),
+					gmdate( 'Y-m-d H:i:s', $now - ( self::grace_days() + 1 ) * DAY_IN_SECONDS ),
 					$unattempted_after,
 					'scheduled',
 					'review_required',
@@ -1777,7 +1808,7 @@ final class LicenseLifecycle {
 					$tables['licenses'],
 					$cursor,
 					'past_due',
-					gmdate( 'Y-m-d H:i:s', $now - self::GRACE_DAYS * DAY_IN_SECONDS )
+					gmdate( 'Y-m-d H:i:s', $now - self::grace_days() * DAY_IN_SECONDS )
 				)
 			);
 			foreach ( $ids as $license_id ) {

@@ -219,4 +219,25 @@ final class UpdaterTest extends TestCase {
 			$this->assertFalse( Updater::is_allowed_package_url( $url ), $url );
 		}
 	}
+
+	public function test_p48_update_uri_reads_the_plugin_file_at_most_once_per_request(): void {
+		$GLOBALS['wplc_test_file_reads']   = 0;
+		$GLOBALS['wplc_test_file_headers'] = array( 'Update URI' => 'https://license.example/test-addon' );
+		try {
+			// Configured: no file access at all.
+			$configured = $this->kit->manager( array( 'update_uri' => 'https://license.example/test-addon', 'plugin_file' => '/plugins/test-addon/test-addon.php' ) );
+			$this->assertSame( 'license.example', $configured->updater()->update_host() );
+			$configured->updater()->placeholder();
+			$this->assertSame( 0, $GLOBALS['wplc_test_file_reads'] );
+
+			// Not configured: the header is read once and then kept in memory.
+			$updater = $this->kit->manager( array( 'plugin_file' => '/plugins/test-addon/test-addon.php' ) )->updater();
+			$this->assertSame( 'https://license.example/test-addon', $updater->update_uri() );
+			$this->assertSame( 'license.example', $updater->update_host() );
+			$updater->placeholder();
+			$this->assertSame( 1, $GLOBALS['wplc_test_file_reads'] );
+		} finally {
+			unset( $GLOBALS['wplc_test_file_reads'], $GLOBALS['wplc_test_file_headers'] );
+		}
+	}
 }

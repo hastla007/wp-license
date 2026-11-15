@@ -566,8 +566,8 @@ final class Diagnostics {
 		global $wpdb;
 
 		$cutoff = gmdate( 'Y-m-d H:i:s', $now - self::STUCK_RENEWAL_TOLERANCE );
-		// Rows without grace_ends_at: the grace period ends GRACE_DAYS after period_start.
-		$period_start_cutoff = gmdate( 'Y-m-d H:i:s', $now - self::STUCK_RENEWAL_TOLERANCE - LicenseLifecycle::GRACE_DAYS * 86400 );
+		// Rows without grace_ends_at: the grace period ends grace_days() after period_start.
+		$period_start_cutoff = gmdate( 'Y-m-d H:i:s', $now - self::STUCK_RENEWAL_TOLERANCE - LicenseLifecycle::grace_days() * 86400 );
 
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
@@ -627,7 +627,7 @@ final class Diagnostics {
 			$grace_end = self::row_time( $renewal, 'grace_ends_at' );
 			if ( null === $grace_end ) {
 				$period_start = self::row_time( $renewal, 'period_start' );
-				$grace_end = null === $period_start ? null : $period_start + LicenseLifecycle::GRACE_DAYS * 86400;
+				$grace_end = null === $period_start ? null : $period_start + LicenseLifecycle::grace_days() * 86400;
 			}
 			return null !== $grace_end && $grace_end <= $cutoff;
 		}

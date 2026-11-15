@@ -130,6 +130,16 @@ if ( ! function_exists( 'plugin_basename' ) ) {
 		return basename( dirname( (string) $file ) ) . '/' . basename( (string) $file );
 	}
 }
+if ( ! function_exists( 'get_file_data' ) ) {
+	function get_file_data( $file, $default_headers, $context = '' ) {
+		$GLOBALS['wplc_test_file_reads'] = ( $GLOBALS['wplc_test_file_reads'] ?? 0 ) + 1;
+		$headers                         = array();
+		foreach ( (array) $default_headers as $field => $name ) {
+			$headers[ $field ] = (string) ( $GLOBALS['wplc_test_file_headers'][ $name ] ?? '' );
+		}
+		return $headers;
+	}
+}
 if ( ! function_exists( 'get_current_blog_id' ) ) {
 	function get_current_blog_id() {
 		return (int) ( $GLOBALS['wplc_test_blog'] ?? 1 );

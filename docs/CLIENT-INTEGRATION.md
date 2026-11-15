@@ -148,7 +148,7 @@ To rotate the server key: ship an add-on version that lists the old **and** the 
 | `text_domain` | | Text domain of the add-on. |
 | `option_prefix` | | Prefix of options, hooks and form fields. |
 | `network` | | Multisite: one activation for the network. Default `false`. See [Multisite](#multisite). |
-| `update_uri` | | Value of the `Update URI` header; saves reading the plugin file on every request. Recommended. |
+| `update_uri` | | Value of the `Update URI` header; saves reading the plugin file (without it the header is read once per request and kept in memory). Recommended. |
 | `channel` | | `stable` (default) or `beta`. |
 | `core_version` | | Version of the free core plugin, as a string or a closure. The server then holds back releases whose `requires_core` is higher. |
 | `settings_parent` | | Admin menu of the license screen. Default `options-general.php` (`settings.php` in network mode). `false`: no screen; call `render_settings()` inside the add-on's own page and set `settings_url`. |
