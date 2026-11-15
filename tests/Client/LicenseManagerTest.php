@@ -29,6 +29,7 @@ final class LicenseManagerTest extends TestCase {
 
 	protected function tearDown(): void {
 		unset( $GLOBALS['wplc_test_filters'], $GLOBALS['wplc_test_sites'], $GLOBALS['wplc_test_get_sites'], $GLOBALS['wplc_test_switched'], $GLOBALS['wplc_test_restored'] );
+		unset( $GLOBALS['wplc_test_transients'], $GLOBALS['wplc_test_single_events'], $GLOBALS['wplc_test_site_options'], $GLOBALS['wplc_test_blog'], $GLOBALS['wplc_test_blog_stack'] );
 	}
 
 	private function activated(): LicenseManager {
@@ -549,7 +550,15 @@ final class LicenseManagerTest extends TestCase {
 		$this->kit->store->site = 'https://new-domain.example';
 		$this->assertSame( LicenseStatus::STATE_SITE_CHANGED, $manager->status()->state );
 
-		$message = $manager->run_form_action( 'move', self::KEY );
+		// P-22: without the confirmation nothing is sent; the old address keeps its activation.
+		$unconfirmed = $manager->run_form_action( 'move', self::KEY );
+		$this->assertSame( 'error', $unconfirmed['type'] );
+		$this->assertStringContainsString( 'Confirm that the site moved', $unconfirmed['text'] );
+		$this->assertSame( array(), $this->kit->server->requests );
+		$this->assertSame( LicenseStatus::STATE_SITE_CHANGED, $manager->status()->state );
+		$this->assertSame( 'https://shop.example', $this->kit->credentials()['site_url'] );
+
+		$message = $manager->run_form_action( 'move', self::KEY, true );
 
 		$this->assertSame( 'success', $message['type'] );
 		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->status()->state );
@@ -615,7 +624,7 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertTrue( $first->is_entitled( 'feature.flag' ) );
 		$this->assertFalse( $second->is_entitled( 'feature.flag' ) );
 		$this->assertSame( LicenseStatus::STATE_UNLICENSED, $second->status()->state );
-		$this->assertSame( '2.0.1', LicenseManager::VERSION );
+		$this->assertSame( '2.0.2', LicenseManager::VERSION );
 		$this->assertSame( LicenseManager::VERSION, LicenseClient::VERSION );
 	}
 
@@ -757,5 +766,148 @@ final class LicenseManagerTest extends TestCase {
 		$this->kit->manager()->uninstall();
 		$this->assertCount( LicenseManager::UNINSTALL_BATCH, $GLOBALS['wplc_test_switched'] );
 		$this->assertCount( 2, $GLOBALS['wplc_test_get_sites'] );
+	}
+
+	// ------------------------------------------------------------------
+	// Audit 2026-11-15 (client 2.0.2).
+	// ------------------------------------------------------------------
+
+	public function test_p23_a_clock_turned_back_schedules_one_background_check_at_once(): void {
+		$manager = $this->activated();
+
+		// The VM ran ten minutes ahead when the last answer arrived; NTP now corrects the clock.
+		$this->kit->now -= 600;
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ), 'Still only a signed answer restores the rights.' );
+		$this->assertSame( array( array( 'test_addon_license_check', time() ) ), $GLOBALS['wplc_test_single_events'] ?? null );
+		$this->assertSame( LicenseManager::RECHECK_LOCK, $GLOBALS['wplc_test_transients']['test_addon_license_recheck'][1] );
+
+		// Every further front-end request sees the lock and schedules nothing more.
+		$this->kit->manager()->status();
+		$this->kit->manager()->is_entitled( 'feature.flag' );
+		$this->assertCount( 1, $GLOBALS['wplc_test_single_events'] );
+		$this->assertSame( array(), $this->kit->server->requests, 'No request in the page view itself.' );
+
+		// The background check runs (WP-Cron, minutes later) and the features are back.
+		$this->kit->manager()->run_scheduled_check();
+		$this->assertCount( 1, $this->kit->server->requests );
+		$this->assertTrue( $this->kit->manager()->is_entitled( 'feature.flag' ) );
+
+		// A normal clock never schedules anything.
+		unset( $GLOBALS['wplc_test_single_events'], $GLOBALS['wplc_test_transients'] );
+		$this->kit->manager()->status();
+		$this->assertArrayNotHasKey( 'wplc_test_single_events', $GLOBALS );
+	}
+
+	public function test_p25_the_ed25519_result_of_a_snapshot_is_verified_once_per_request(): void {
+		$calls    = 0;
+		$verifier = static function ( string $signature, string $message, string $key ) use ( &$calls ): bool {
+			++$calls;
+			return sodium_crypto_sign_verify_detached( $signature, $message, $key );
+		};
+		$this->kit->manager( array( 'signature_verifier' => $verifier ) )->activate( self::KEY );
+		$this->assertFalse( $this->kit->manager( array( 'signature_verifier' => $verifier ) )->client()->uses_native_ed25519() );
+		$this->assertFalse( $this->kit->manager()->client()->uses_native_ed25519() && ! extension_loaded( 'sodium' ) );
+
+		// Several add-ons / instances read the same snapshot in a new request: one (slow) verification.
+		$memo = new ReflectionProperty( LicenseClient::class, 'verified' );
+		$memo->setAccessible( true );
+		$memo->setValue( null, array() );
+		$calls = 0;
+		for ( $i = 0; $i < 3; $i++ ) {
+			$this->assertTrue( $this->kit->manager( array( 'signature_verifier' => $verifier ) )->is_entitled( 'feature.flag' ) );
+		}
+		$this->assertSame( 1, $calls );
+		$this->assertArrayNotHasKey( 'wplc_test_transients', $GLOBALS, 'Without AUTH_KEY/AUTH_SALT nothing is stored outside the request.' );
+
+		// A forged snapshot (recomputed HMAC) is verified again on every read and never accepted.
+		$state                                              = $this->kit->store->data['test_addon_license_state'];
+		$forged                                             = $state;
+		$forged['envelope']['payload']                      = str_replace( '"feature.off":false', '"feature.off":true', $state['envelope']['payload'] );
+		$forged['envelope']['payload_signature']            = hash_hmac( 'sha256', $forged['envelope']['payload'], $this->kit->credentials()['installation_secret'] );
+		$this->kit->store->data['test_addon_license_state'] = $forged;
+		$calls = 0;
+		$this->assertFalse( $this->kit->manager( array( 'signature_verifier' => $verifier ) )->is_entitled( 'feature.off' ) );
+		$this->assertFalse( $this->kit->manager( array( 'signature_verifier' => $verifier ) )->is_entitled( 'feature.off' ) );
+		$this->assertSame( 2, $calls );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_p25_with_wp_config_salts_the_result_survives_the_request_and_cannot_be_forged(): void {
+		define( 'AUTH_KEY', str_repeat( 'k', 64 ) );
+		define( 'AUTH_SALT', str_repeat( 's', 64 ) );
+		$calls    = 0;
+		$verifier = static function ( string $signature, string $message, string $key ) use ( &$calls ): bool {
+			++$calls;
+			return sodium_crypto_sign_verify_detached( $signature, $message, $key );
+		};
+		$memo = new ReflectionProperty( LicenseClient::class, 'verified' );
+		$memo->setAccessible( true );
+		$this->kit->manager( array( 'signature_verifier' => $verifier ) )->activate( self::KEY );
+
+		$memo->setValue( null, array() );
+		unset( $GLOBALS['wplc_test_transients'] );
+		$calls = 0;
+		$this->assertTrue( $this->kit->manager( array( 'signature_verifier' => $verifier ) )->is_entitled( 'feature.flag' ) );
+		$this->assertSame( 1, $calls );
+		$names = array_keys( $GLOBALS['wplc_test_transients'] ?? array() );
+		$this->assertCount( 1, $names );
+		$this->assertStringStartsWith( 'wplc_ed25519_', $names[0] );
+		$this->assertSame( DAY_IN_SECONDS, $GLOBALS['wplc_test_transients'][ $names[0] ][1] );
+
+		// Next request (memo empty): the stored tag is used, no verification.
+		$memo->setValue( null, array() );
+		$calls = 0;
+		$this->assertTrue( $this->kit->manager( array( 'signature_verifier' => $verifier ) )->is_entitled( 'feature.flag' ) );
+		$this->assertSame( 0, $calls );
+
+		// A value written by someone with database access but without the wp-config salts is ignored.
+		$memo->setValue( null, array() );
+		$GLOBALS['wplc_test_transients'][ $names[0] ][0] = hash_hmac( 'sha256', 'guess', 'guess' );
+		$calls = 0;
+		$this->assertTrue( $this->kit->manager( array( 'signature_verifier' => $verifier ) )->is_entitled( 'feature.flag' ) );
+		$this->assertSame( 1, $calls );
+
+		// The HMAC with the installation secret is still checked on every read.
+		$memo->setValue( null, array() );
+		$state = $this->kit->store->data['test_addon_license_state'];
+		$state['envelope']['payload_signature'] = str_repeat( '0', 64 );
+		$this->kit->store->data['test_addon_license_state'] = $state;
+		$this->assertFalse( $this->kit->manager( array( 'signature_verifier' => $verifier ) )->is_entitled( 'feature.flag' ) );
+	}
+
+	public function test_p47_a_void_snapshot_is_checked_without_building_texts(): void {
+		$this->activated();
+		$state                                              = $this->kit->store->data['test_addon_license_state'];
+		$state['envelope']['payload_signature_ed25519']     = base64_encode( str_repeat( "\0", 64 ) );
+		$this->kit->store->data['test_addon_license_state'] = $state;
+
+		$manager  = $this->kit->manager();
+		$property = new ReflectionProperty( LicenseClient::class, 'messages' );
+		$property->setAccessible( true );
+		$property->setValue( $manager->client(), null );
+
+		// Would fail with an Error if a WP_Error with a text were built (feature checks run before init).
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+		$this->assertSame( LicenseStatus::STATE_STALE, $manager->status()->state );
+		$this->assertSame( 'wplc_server_signature_invalid', $this->kit->manager()->client()->verified_snapshot_data( $state['envelope'] ) );
+	}
+
+	public function test_p48_the_server_url_filter_counts_when_added_after_the_add_on_was_loaded(): void {
+		$manager = $this->kit->manager();
+		$GLOBALS['wplc_test_filters']['test_addon_license_server_url'][] = static function () {
+			return 'https://staging-shop.example';
+		};
+
+		$this->assertSame( 'staging-shop.example', $manager->client()->server_host() );
+	}
+
+	public function test_p49_settings_url_of_an_add_on_with_its_own_screen(): void {
+		$this->assertSame( '', $this->kit->manager( array( 'settings_parent' => false ) )->settings_url(), 'No screen of this class: no link to a page that does not exist.' );
+
+		$own = 'https://shop.example/wp-admin/admin.php?page=my-addon&tab=license';
+		$this->assertSame( $own, $this->kit->manager( array( 'settings_parent' => false, 'settings_url' => $own ) )->settings_url() );
 	}
 }

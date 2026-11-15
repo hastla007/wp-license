@@ -223,6 +223,7 @@ final class SettingsPage {
 			'missing' => __( 'not checked yet – premium features are off', 'premium-addon-starter' ),
 			'invalid' => __( 'stored status failed verification – premium features are off', 'premium-addon-starter' ),
 			'stale'   => __( 'not confirmed by the license server for 14 days – premium features are off', 'premium-addon-starter' ),
+			'site_changed' => __( 'this site runs under another address than the one the license was activated for (a copy or a moved site) – premium features are off; activate the license for this address', 'premium-addon-starter' ),
 		);
 		return $texts[ $problem ] ?? __( 'unknown – premium features are off', 'premium-addon-starter' );
 	}

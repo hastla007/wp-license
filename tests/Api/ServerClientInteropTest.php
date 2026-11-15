@@ -14,8 +14,9 @@ require_once dirname( __DIR__ ) . '/fixtures/interop/captain-pro-LicenseClient.p
 
 /**
  * Responses of this server are accepted by both clients with pinned keys:
- * the client of this repository (signature_ed25519, v1) and the client library
- * that hastla007/captain-pro ships (payload_signature_ed25519, v2).
+ * the client of this repository and the client library
+ * that hastla007/captain-pro ships, both through payload_signature_ed25519 (v2).
+ * The legacy signature_ed25519 (v1) is still sent for clients 1.x (P-14).
  */
 final class ServerClientInteropTest extends TestCase {
 	private const SECRET       = 'test-installation-secret-0123456789abcdef';
@@ -65,11 +66,25 @@ final class ServerClientInteropTest extends TestCase {
 		);
 	}
 
-	public function test_the_client_of_this_repository_still_accepts_it(): void {
+	public function test_the_client_of_this_repository_accepts_it_through_the_payload_signature(): void {
 		$envelope = Response::envelope( self::data(), self::SECRET, self::NONCE, self::INSTALLATION );
 
-		$this->assertSame( self::data(), LicenseClient::verified_server_data( $envelope, self::INSTALLATION, array( $this->public_key ) ) );
-		$this->assertSame( self::data(), LicenseClient::verified_data( $envelope, self::SECRET, self::NONCE, true ) );
+		$this->assertSame( self::data(), LicenseClient::verified_data( $envelope, self::SECRET, self::NONCE, array( $this->public_key ), self::INSTALLATION ) );
+		// P-14: the helper without the installation secret verifies the same v2 signature and needs the nonce.
+		$this->assertSame( self::data(), LicenseClient::verified_server_data( $envelope, self::INSTALLATION, array( $this->public_key ), self::NONCE ) );
+		$this->assertSame( 'wplc_nonce_mismatch', LicenseClient::verified_server_data( $envelope, self::INSTALLATION, array( $this->public_key ) ) );
+	}
+
+	public function test_p14_the_legacy_signature_is_still_sent_but_this_client_ignores_it(): void {
+		$envelope = Response::envelope( self::data(), self::SECRET, self::NONCE, self::INSTALLATION );
+
+		// Server output unchanged for clients 1.x: the v1 signature over the data JSON still verifies.
+		$this->assertTrue( ResponseSigner::verify( ResponseSigner::message( self::INSTALLATION, (string) wp_json_encode( self::data(), JSON_UNESCAPED_SLASHES ) ), $envelope['signature_ed25519'], $this->public_key ) );
+
+		// Without the payload signature this client accepts nothing, whatever the v1 signature says.
+		unset( $envelope['payload_signature_ed25519'] );
+		$this->assertSame( 'wplc_server_signature_invalid', LicenseClient::verified_server_data( $envelope, self::INSTALLATION, array( $this->public_key ), self::NONCE ) );
+		$this->assertSame( 'wplc_server_signature_invalid', LicenseClient::verified_data( $envelope, self::SECRET, self::NONCE, array( $this->public_key ), self::INSTALLATION ) );
 	}
 
 	public function test_the_captain_pro_client_rejects_a_forged_payload_and_another_installation(): void {

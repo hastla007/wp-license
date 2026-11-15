@@ -176,8 +176,23 @@ function wp_schedule_event( $timestamp, $recurrence, $hook ) {
 	$GLOBALS['wp_stub']['cron'][ $hook ] = $timestamp;
 	return true;
 }
+/** Multisite when $GLOBALS['wp_stub']['sites'] lists site IDs; switches are logged in 'switched'. */
 function is_multisite() {
-	return false;
+	return ! empty( $GLOBALS['wp_stub']['sites'] );
+}
+function get_sites( $args = array() ) {
+	$GLOBALS['wp_stub']['get_sites'][] = $args;
+	return array_slice( (array) ( $GLOBALS['wp_stub']['sites'] ?? array() ), (int) ( $args['offset'] ?? 0 ), (int) ( $args['number'] ?? 100 ) ?: null );
+}
+function switch_to_blog( $site_id ) {
+	$GLOBALS['wp_stub']['switched'][] = (int) $site_id;
+	return true;
+}
+function restore_current_blog() {
+	return true;
+}
+function wp_doing_ajax() {
+	return ! empty( $GLOBALS['wp_stub']['ajax'] );
 }
 function wp_nonce_field( $action = -1 ) {
 	echo '<input type="hidden" name="_wpnonce" value="nonce-' . esc_attr( $action ) . '">';

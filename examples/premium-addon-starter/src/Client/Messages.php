@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 e8ca7a3198e2d37fb9aa883c0a0fa8112e4189630acd0785ad37be80658ab78b). Do not edit: change the server copy and re-vendor.
+ * (source sha256 e3e791d639d693fae8ecdcac4e306b12e35bf63613e85138b9a11aa6067dae67). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -33,7 +33,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.1';
+		const VERSION = '2.0.2';
 
 		/**
 		 * Text domain literal used in this file.
@@ -78,12 +78,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		 */
 		public function get( string $code ): string {
 			$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : '';
-			if ( null === $this->texts || $locale !== $this->texts_locale ) {
-				// Built once: the table has some hundred entries and every lookup used to rebuild it.
-				$this->texts        = self::texts();
-				$this->texts_locale = $locale;
+			$texts  = $this->texts;
+			if ( null === $texts || $locale !== $this->texts_locale ) {
+				$texts = self::texts();
+				if ( ! function_exists( 'did_action' ) || did_action( 'init' ) ) {
+					// Built once: the table has some hundred entries and every lookup used to rebuild it.
+					// Before init the add-on's translations may not be loaded yet, so nothing is kept then.
+					$this->texts        = $texts;
+					$this->texts_locale = $locale;
+				}
 			}
-			$texts = $this->texts;
 			if ( ! isset( $texts[ $code ] ) ) {
 				return '';
 			}
@@ -232,6 +236,14 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'ui.saved.forgotten'                  => __( 'The license data was removed from this site without asking the license server. If the server still lists this activation, release it in your customer account.', 'premium-addon-starter' ),
 				'ui.saved.checked'                    => __( 'The license was checked.', 'premium-addon-starter' ),
 				'ui.saved.moved'                      => __( 'The activation was transferred to this address.', 'premium-addon-starter' ),
+				'ui.activated_address'                => __( 'Activated for', 'premium-addon-starter' ),
+				'ui.current_address'                  => __( 'Address of this site', 'premium-addon-starter' ),
+				/* translators: 1: address the license was activated for, 2: address of this site. */
+				'ui.move_warning'                     => __( 'Only if the site really moved: transferring moves the activation from %1$s to %2$s. The site at %1$s then loses the license. For a staging or test copy, activate this address instead.', 'premium-addon-starter' ),
+				'ui.move_not_live'                    => __( 'This site reports itself as a staging or development site.', 'premium-addon-starter' ),
+				/* translators: %s: address the license was activated for. */
+				'ui.move_confirm'                     => __( 'I confirm that the site moved and no longer runs at %s.', 'premium-addon-starter' ),
+				'ui.move_unconfirmed'                 => __( 'Nothing was transferred. Confirm that the site moved before you transfer the activation.', 'premium-addon-starter' ),
 				'ui.forbidden'                        => __( 'You are not allowed to manage the license of this plugin.', 'premium-addon-starter' ),
 				'ui.utc'                              => __( 'UTC', 'premium-addon-starter' ),
 				// Updater.
