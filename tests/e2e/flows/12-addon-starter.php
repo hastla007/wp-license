@@ -99,7 +99,7 @@ $config_class = $ns . 'Config';
 $service_of   = static function ( string $server_url = '', ?callable $clock = null ) use ( $ns, $config_class ) {
 	$client_class  = $ns . 'Client\\LicenseClient';
 	$service_class = $ns . 'License\\LicenseService';
-	$client        = new $client_class( '' === $server_url ? $config_class::server_url() : $server_url, $config_class::PRODUCT_KEY, '1.0.0', $config_class::credentials_option(), $config_class::server_public_keys() );
+	$client        = new $client_class( '' === $server_url ? $config_class::server_url() : $server_url, $config_class::PRODUCT_KEY, '1.0.0', $config_class::credentials_option(), array( 'public_keys' => $config_class::server_public_keys() ) );
 	return new $service_class( $client, $config_class::credentials_option(), $config_class::state_option(), $config_class::ENTITLEMENT_PREFIX, $config_class::CACHE_MAX_AGE, $clock );
 };
 $entitlements = $ns . 'License\\Entitlements';
@@ -149,7 +149,7 @@ e2e_ok( false === strpos( $page['body'], (string) ( $credentials['installation_s
 // --- Entitlements from the signed cache. ---
 $service = $service_of();
 $state   = get_option( $prefix . '_license_state' );
-e2e_ok( is_array( $state['envelope'] ?? null ) && isset( $state['envelope']['payload'], $state['envelope']['signature_ed25519'] ), 'the cache is the complete signed envelope (payload + server signature)' );
+e2e_ok( is_array( $state['envelope'] ?? null ) && isset( $state['envelope']['payload'], $state['envelope']['payload_signature_ed25519'] ) && '' !== $state['envelope']['payload_signature_ed25519'], 'the cache is the complete signed envelope (payload + server signature)' );
 $entitlements::use_service( $service );
 $all = true;
 foreach ( $true_keys as $key ) {
@@ -223,6 +223,9 @@ $zip_path = $tmp_root . '/dist/' . $slug . '-' . $new_version . '.zip';
 e2e_ok( 0 === $code && 0 === $build_code && is_file( $zip_path ) && is_file( $zip_path . '.sha256' ), 'bin/build-release.php builds the ' . $new_version . ' ZIP and its .sha256', implode( "\n", $build_output ) );
 $zip_bytes = (string) file_get_contents( $zip_path );
 e2e_eq( hash( 'sha256', $zip_bytes ), strtok( (string) file_get_contents( $zip_path . '.sha256' ), ' ' ), '.sha256 file matches the ZIP' );
+// B-53: flow 05 published voucher-captain packages in the folder "voucher-captain"; this add-on build uses
+// its own folder, so the operator moves the product to it first (a later package must use the same folder).
+\WPLC\Update\ReleaseRegistry::set_product_slug( 'voucher-captain', $slug );
 $releases = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
 $create   = e2e_form( $releases['body'], array( 'value="wplc_release_create"' ) );
 $upload   = e2e_multipart(
@@ -236,7 +239,7 @@ e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $admin_cook
 $release  = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['releases']} WHERE product_key = 'voucher-captain' AND version = %s", $new_version ), ARRAY_A );
 $releases = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
 if ( is_array( $release ) ) {
-	e2e_submit( (array) e2e_form( $releases['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $release['id'] . '"' ) ), $admin_cookies );
+	e2e_submit( (array) e2e_form( $releases['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $release['id'] . '"' ) ), $admin_cookies, array( 'reason' => 'e2e: starter release' ) ); // B-137: publishing needs a reason.
 	$release = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['releases']} WHERE id = %d", (int) $release['id'] ), ARRAY_A );
 }
 e2e_ok( is_array( $release ) && 'published' === $release['status'] && hash( 'sha256', $zip_bytes ) === $release['sha256'], 'release ' . $new_version . ' is published with the checksum of the built ZIP', $release );

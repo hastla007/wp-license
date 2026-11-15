@@ -46,7 +46,9 @@ final class RetentionQueriesIntegrationTest extends WP_UnitTestCase {
 		$this->assertFalse( $this->exists( 'event_inbox', $done ) );
 		$this->assertTrue( $this->exists( 'event_inbox', $review ) );
 		$this->assertTrue( $this->exists( 'event_inbox', $pending ) );
-		$this->assertTrue( $this->exists( 'event_inbox', $unproc ) );
+		// Merge of both lines: an event that was never resolved is deleted after event_inbox_open
+		// (730 days, line B); this one was received 800 days ago.
+		$this->assertFalse( $this->exists( 'event_inbox', $unproc ) );
 		$this->assertTrue( $this->exists( 'event_inbox', $young ) );
 	}
 
@@ -81,7 +83,9 @@ final class RetentionQueriesIntegrationTest extends WP_UnitTestCase {
 		$this->assertFalse( $this->exists( 'activations', $gone ) );
 		$this->assertSame( 0, $this->count_where( 'request_nonces', 'activation_id', $gone ), 'replay rows of the deleted installation' );
 		$this->assertTrue( $this->exists( 'activations', $young ) );
-		$this->assertTrue( $this->exists( 'activations', $kept_active_license ) );
+		// Merge of both lines: deactivated installations of a license in force fall under the
+		// inactive_activations rule (365 days, line B).
+		$this->assertFalse( $this->exists( 'activations', $kept_active_license ) );
 		$this->assertTrue( $this->exists( 'activations', $parent ) );
 	}
 
@@ -99,9 +103,10 @@ final class RetentionQueriesIntegrationTest extends WP_UnitTestCase {
 		for ( $i = 0; $i < Retention::BATCH_SIZE + 5; $i++ ) {
 			$this->insert( 'audit_log', array( 'action' => 'bulk', 'object_type' => 'license', 'reason' => 'x', 'created_at' => $this->old ) );
 		}
-		Retention::run();
-		$this->assertSame( 6, $this->count_where( 'audit_log', 'created_at', $this->old ), 'one batch per run' );
-		Retention::run();
+		// Merge of both lines: a run repeats bounded batches until the rule is done or the
+		// time budget is used up (line B), instead of one batch per run. The row kept while
+		// the rule was disabled goes as well.
+		$this->assertSame( array( 'audit_log' => Retention::BATCH_SIZE + 6 ), array_intersect_key( Retention::run(), array( 'audit_log' => 0 ) ) );
 		$this->assertSame( 0, $this->count_where( 'audit_log', 'created_at', $this->old ) );
 	}
 

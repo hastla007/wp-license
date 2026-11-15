@@ -32,6 +32,7 @@ final class AuditReason {
 	public const STAGING_DEACTIVATED_WITH_LIVE  = 'staging_deactivated_with_live';
 	public const REFUNDED_ORDER_UNIT            = 'refunded_order_unit';
 	public const ORDER_REFUNDED                 = 'order_refunded';
+	public const ORDER_NUMBER_REFUNDED          = 'order_number_refunded';
 	public const RENEWAL_ORDER_REFUNDED         = 'renewal_order_refunded';
 	public const RENEWAL_PARTIALLY_REFUNDED     = 'renewal_partially_refunded';
 	public const RENEWED_FROM_ORDER             = 'renewed_from_order';
@@ -86,6 +87,7 @@ final class AuditReason {
 	public const UPGRADE_PRICE_MISMATCH         = 'upgrade_price_mismatch';
 	public const UPGRADE_CONSENT_MISSING        = 'upgrade_consent_missing';
 	public const UPGRADE_NOT_APPLIED            = 'upgrade_not_applied';
+	public const LEGACY_PAYMENT_REVIEW          = 'payment_review';
 
 	/**
 	 * Build the stored form of a reason.
@@ -199,6 +201,8 @@ final class AuditReason {
 			// License lifecycle.
 			self::REFUNDED_ORDER_UNIT            => array( __( 'The order unit of this license was refunded.', 'wp-license' ), array() ),
 			self::ORDER_REFUNDED                 => array( __( 'The order was refunded in full.', 'wp-license' ), array() ),
+			/* translators: %d: order number. */
+			self::ORDER_NUMBER_REFUNDED          => array( __( 'Order #%d was refunded in full.', 'wp-license' ), array( 'order' ) ),
 			/* translators: %d: WooCommerce order number. */
 			self::RENEWAL_ORDER_REFUNDED         => array( __( 'Renewal order #%d was refunded in full.', 'wp-license' ), array( 'order' ) ),
 			/* translators: 1: WooCommerce order number, 2: refunded amount, 3: currency code. */
@@ -254,6 +258,7 @@ final class AuditReason {
 			self::UPGRADE_PRICE_MISMATCH         => array( __( 'The paid upgrade order line or currency did not match the upgrade price.', 'wp-license' ), array() ),
 			self::UPGRADE_CONSENT_MISSING        => array( __( 'The upgrade order has no consent to the new automatic renewal amount.', 'wp-license' ), array() ),
 			self::UPGRADE_NOT_APPLIED            => array( __( 'The plan upgrade could not be applied to the license.', 'wp-license' ), array() ),
+			self::LEGACY_PAYMENT_REVIEW          => array( __( 'Taken over from an earlier version: the payment result was unclear or the payment could not be applied. Compare the renewal order with the payment at the provider.', 'wp-license' ), array() ),
 			// Automatic renewals and payment events.
 			self::RENEWAL_ALREADY_PAID           => array( __( 'The renewal order was already paid.', 'wp-license' ), array() ),
 			self::RENEWAL_CONFIRMED_BY_ADAPTER   => array( __( 'The payment gateway confirmed the renewal.', 'wp-license' ), array() ),

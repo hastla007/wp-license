@@ -144,9 +144,10 @@ if ( $opened ) {
 }
 unlink( $tmp );
 
-// B-19: a second fetch inside the reuse window (120 s) is served; afterwards the token is dead.
+// T-108 (default after the merge of both lines): a download URL is single use, a second fetch is refused.
+// The reuse window of B-19 (filter wplc_download_reuse_seconds) is opt-in and covered by the integration tests.
 $second = $follow( $package_url );
-e2e_eq( 200, $second['code'], 'a second fetch of the same download URL inside the reuse window is served' );
+e2e_eq( 404, $second['code'], 'a second fetch of the same download URL is refused (single use, T-108)' );
 $wpdb->query( $wpdb->prepare( "UPDATE {$t['download_tokens']} SET consumed_at = %s WHERE consumed_at IS NOT NULL", gmdate( 'Y-m-d H:i:s', time() - 300 ) ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$t['package_streams']} SET consumed_at = %s WHERE consumed_at IS NOT NULL", gmdate( 'Y-m-d H:i:s', time() - 300 ) ) );
 $late = $follow( $package_url );

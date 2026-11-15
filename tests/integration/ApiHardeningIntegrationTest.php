@@ -295,13 +295,17 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 		$tables  = $this->tables();
 		$license = $this->seed_license();
 		$site    = $this->activate_via_api( $license['key'] );
-		$this->activate_via_api( LicenseKey::for_uuid( wp_generate_uuid4() ) );
+		$unknown = LicenseKey::for_uuid( wp_generate_uuid4() );
+		$this->activate_via_api( $unknown );
 		$this->dispatch( $this->api_request( 'POST', '/wplc/v1/entitlements/check', array(), $site ) );
 
 		$stored = $wpdb->get_col( "SELECT limiter_hash FROM {$tables['request_limits']}" );
 		$this->assertContains( Authenticator::limiter_hash( 'activation-ip', '127.0.0.1' ), $stored );
 		$this->assertContains( Authenticator::limiter_hash( 'installation', $site['uuid'] ), $stored );
-		$this->assertContains( ActivationService::key_limiter_hash( $license['key'] ), $stored );
+		// Merge of both lines: activation attempts count failures only (line A), so the
+		// per-key row exists for the key that failed, not for the one that worked.
+		$this->assertContains( ActivationService::key_limiter_hash( $unknown ), $stored );
+		$this->assertNotContains( ActivationService::key_limiter_hash( $license['key'] ), $stored );
 		// The former, reversible values.
 		$this->assertNotContains( hash( 'sha256', 'activation-ip:127.0.0.1' ), $stored );
 		$this->assertNotContains( hash( 'sha256', 'installation:' . $site['uuid'] ), $stored );

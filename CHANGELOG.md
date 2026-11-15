@@ -55,6 +55,15 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - The "overdue renewals" alert counts only renewals that are really stuck.
 - Classic checkout shows the automatic-renewal opt-in only while a payment method that can renew is selected.
 - License emails show the bought variation instead of the internal plan key.
+- Both parallel development lines are merged into one plugin (database schema 21). Where both solved the same problem, one behaviour remains:
+  - Renewals that need an administrator have one status, `review_required`, with the "Renewals to review" screen. Rows of the former status `payment_review` are moved by schema step 21. An unknown payment result waits in `reconciling` for up to 12 hours.
+  - Download grants and package stream links are single use on first presentation by default. The reuse window for interrupted downloads (`wplc_download_reuse_seconds`) is opt-in; HEAD requests never use a link up. Customer account downloads of local packages are sent in the response to the form, without a link.
+  - The admin license search is posted and kept as an opaque token (`wplc_search`); neither the term nor the license ID appears in a URL.
+  - Settings changes are audited as `settings_updated` with the names of all changed keys and the values of package hosts and reminder days.
+  - The audit log keeps the site address of an activation (it is needed to follow address changes).
+  - A suspended license whose term ended while it was suspended moves to `expired` when it is reactivated.
+  - Site URLs with dot segments (`/./`, `/../`) are rejected instead of resolved.
+  - The add-on starter uses the client library 2.0 (`LicenseClient`, `OptionStore`, `Messages`).
 
 ### Fixed
 

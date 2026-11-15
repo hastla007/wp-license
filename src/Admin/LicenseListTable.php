@@ -237,7 +237,12 @@ final class LicenseListTable extends \WP_List_Table {
 			$params       = array_merge( $params, $condition['params'] );
 		}
 
-		$search = self::search_condition( isset( $filters['search'] ) && is_array( $filters['search'] ) ? $filters['search'] : null );
+		// Criteria from LicenseSearchStore, or a raw term from callers outside the list screen.
+		$criteria = isset( $filters['search'] ) ? $filters['search'] : null;
+		if ( is_string( $criteria ) ) {
+			$criteria = LicenseSearch::criteria( $criteria );
+		}
+		$search = self::search_condition( is_array( $criteria ) ? $criteria : null );
 		if ( null !== $search ) {
 			$conditions[] = $search['sql'];
 			$params       = array_merge( $params, $search['params'] );

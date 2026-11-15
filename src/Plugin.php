@@ -77,6 +77,13 @@ final class Plugin {
 	);
 
 	/**
+	 * True while for_each_site() visits the other sites of a network activation.
+	 *
+	 * @var bool
+	 */
+	private static $visiting_other_site = false;
+
+	/**
 	 * Validate activation requirements before enabling the plugin.
 	 *
 	 * @param bool $network_wide Whether the plugin is activated for the whole network.
@@ -136,8 +143,8 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function activate_site(): void {
-		if ( function_exists( 'ms_is_switched' ) && ms_is_switched() && false === get_option( 'wplc_schema_version', false ) ) {
-			// Network activation: a site that never used the plugin gets its tables on first use.
+		if ( self::$visiting_other_site && false === get_option( 'wplc_schema_version', false ) ) {
+			// Network activation: another site that never used the plugin gets its tables on first use.
 			return;
 		}
 		Schema::migrate();
@@ -182,7 +189,7 @@ final class Plugin {
 		}
 		// A cursor left behind by an unfinished reminder run would skip licenses after reactivation.
 		delete_option( 'wplc_reminder_cursor' );
-		if ( function_exists( 'as_unschedule_all_actions' ) && \ActionScheduler::is_initialized() ) {
+		if ( function_exists( 'as_unschedule_all_actions' ) && \ActionScheduler::is_initialized() && self::site_has_action_tables() ) {
 			foreach ( self::QUEUED_HOOKS as $hook ) {
 				as_unschedule_all_actions( $hook, array(), 'wplc' );
 				as_unschedule_all_actions( $hook );
@@ -192,6 +199,25 @@ final class Plugin {
 			return;
 		}
 		update_option( self::DEACTIVATED_OPTION, time(), false );
+	}
+
+	/**
+	 * Whether the current site has the Action Scheduler tables.
+	 *
+	 * On a network, sites without WooCommerce have none (T-61); querying them
+	 * would only log database errors.
+	 *
+	 * @return bool
+	 */
+	private static function site_has_action_tables(): bool {
+		global $wpdb;
+
+		$table = isset( $wpdb->actionscheduler_actions ) ? (string) $wpdb->actionscheduler_actions : '';
+		if ( '' === $table || ! is_multisite() ) {
+			return true;
+		}
+
+		return $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
 	}
 
 	/**
@@ -208,11 +234,14 @@ final class Plugin {
 		}
 
 		// Every site of the network (T-61): cron events and options are stored per site.
+		$current = get_current_blog_id();
 		foreach ( self::network_site_ids() as $site_id ) {
 			switch_to_blog( (int) $site_id );
+			self::$visiting_other_site = (int) $site_id !== $current;
 			try {
 				call_user_func( $callback );
 			} finally {
+				self::$visiting_other_site = false;
 				restore_current_blog();
 			}
 		}

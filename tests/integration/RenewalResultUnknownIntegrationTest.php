@@ -230,6 +230,19 @@ final class RenewalResultUnknownIntegrationTest extends WPLC_Integration_TestCas
 	}
 
 	/**
+	 * Let the scheduled time of the next attempt or check arrive.
+	 *
+	 * The merged processor only runs a renewal when its retry_at has come (B-188).
+	 *
+	 * @param int $renewal_id Renewal ID.
+	 * @return void
+	 */
+	private function make_due( int $renewal_id ): void {
+		global $wpdb;
+		$wpdb->update( $this->tables()['renewals'], array( 'retry_at' => gmdate( 'Y-m-d H:i:s', time() - 5 ) ), array( 'id' => $renewal_id ) );
+	}
+
+	/**
 	 * Move the start of the unknown result into the past.
 	 *
 	 * @param int $renewal_id Renewal ID.
@@ -265,6 +278,7 @@ final class RenewalResultUnknownIntegrationTest extends WPLC_Integration_TestCas
 	public function test_reconciliation_check_reuses_the_key_and_books_a_success(): void {
 		$fixture                = $this->fixture_with_unknown_result();
 		$this->adapter->results = array( 'success' );
+		$this->make_due( $fixture['renewal_id'] );
 
 		RenewalProcessor::process( $fixture['renewal_id'] );
 
@@ -282,6 +296,7 @@ final class RenewalResultUnknownIntegrationTest extends WPLC_Integration_TestCas
 	public function test_check_that_reveals_a_decline_follows_the_normal_failure_path(): void {
 		$fixture                = $this->fixture_with_unknown_result();
 		$this->adapter->results = array( 'decline', 'success' );
+		$this->make_due( $fixture['renewal_id'] );
 
 		RenewalProcessor::process( $fixture['renewal_id'] );
 
@@ -293,6 +308,7 @@ final class RenewalResultUnknownIntegrationTest extends WPLC_Integration_TestCas
 		$this->assertSame( 'failed', wc_get_order( (int) $renewal['renewal_order_id'] )->get_status() );
 
 		// The next retry, after the definite failure, is a new request.
+		$this->make_due( $fixture['renewal_id'] );
 		RenewalProcessor::process( $fixture['renewal_id'] );
 		$this->assertCount( 3, $this->adapter->keys );
 		$this->assertStringEndsWith( ':1', $this->adapter->keys[2] );
@@ -605,6 +621,7 @@ final class RenewalResultUnknownIntegrationTest extends WPLC_Integration_TestCas
 
 		// The next retry uses the key of the new attempt.
 		$this->adapter->results = array( 'success' );
+		$this->make_due( $fixture['renewal_id'] );
 		RenewalProcessor::process( $fixture['renewal_id'] );
 		$this->assertSame(
 			array( ':0', ':1' ),
@@ -626,6 +643,7 @@ final class RenewalResultUnknownIntegrationTest extends WPLC_Integration_TestCas
 		// Attempt 0 is declined; the retry (attempt 1) ends with an unknown result.
 		$this->adapter->results = array( 'decline', 'unknown' );
 		RenewalProcessor::process( $fixture['renewal_id'] );
+		$this->make_due( $fixture['renewal_id'] );
 		RenewalProcessor::process( $fixture['renewal_id'] );
 		$renewal = $this->renewal( $fixture['renewal_id'] );
 		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $renewal['status'] );

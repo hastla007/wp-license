@@ -218,7 +218,7 @@ $client = new LicenseClient( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_clie
 $result = $client->activate( e2e_key( $license ) );
 e2e_ok( is_array( $result ), '[download] setup: site activated' );
 for ( $round = 1; $round <= $rounds; $round++ ) {
-	$update = $client->check_update();
+	$update = $client->check_update( true );
 	if ( ! e2e_ok( is_array( $update ) && ! empty( $update['package_url'] ), "[download] round {$round}: update check hands out a one-time download URL", is_wp_error( $update ) ? $update->get_error_code() : $update ) ) {
 		break;
 	}

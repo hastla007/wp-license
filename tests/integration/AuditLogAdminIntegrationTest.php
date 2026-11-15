@@ -109,9 +109,11 @@ final class AuditLogAdminIntegrationTest extends WPLC_Integration_TestCase {
 		// Activation entries link to their license.
 		$this->assertStringContainsString( 'page=wplc-licenses&#038;license=' . $license['id'], $html );
 		// Redaction, including rows that bypassed it when written.
-		foreach ( array( 'secret-site.test', 'tok_LEAK', 'abc123', 'jane@example.test', 'WPLC-ABCDEF12' ) as $secret ) {
+		foreach ( array( 'tok_LEAK', 'abc123', 'jane@example.test', 'WPLC-ABCDEF12' ) as $secret ) {
 			$this->assertStringNotContainsString( $secret, $html, $secret );
 		}
+		// The site address of an activation stays readable (A-77, kept in the merge of both lines).
+		$this->assertStringContainsString( 'secret-site.test', $html );
 		$this->assertStringContainsString( '[REDACTED]', $html );
 		// Snapshots are shown pretty-printed in a details element.
 		$this->assertStringContainsString( '<details class="wplc-audit-details">', $html );

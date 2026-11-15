@@ -599,7 +599,8 @@ final class StripeAdapterIntegrationTest extends WPLC_Renewal_TestCase {
 		RenewalProcessor::process( $f['renewal_id'] );
 
 		$renewal = $this->renewal( $f['renewal_id'] );
-		$this->assertSame( 'failed', $renewal['status'] );
+		// Merge of both lines: an unknown result parks the renewal in `reconciling` (line A, T-136).
+		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $renewal['status'] );
 		$this->assertSame( 'renewal_result_unknown', $renewal['last_error'] );
 		$this->assertSame( '0', (string) $renewal['attempt_count'] );
 		$this->assertSame( 'active', $this->license( $f['license_id'] )['status'] );

@@ -543,7 +543,12 @@ final class ClientUpdaterIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$this->assertSame( '', $updater->update_host() );
 		$this->assertFalse( $updater->register() );
 		$this->assertFalse( has_filter( 'upgrader_pre_download', array( $updater, 'filter_pre_download' ) ) );
-		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		if ( is_multisite() ) {
+			// On a network only a super admin may update plugins.
+			grant_super_admin( $admin );
+		}
+		wp_set_current_user( $admin );
 		ob_start();
 		$updater->render_missing_header_notice();
 		$this->assertStringContainsString( 'Update URI', (string) ob_get_clean() );

@@ -223,9 +223,18 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 
 	public function test_activation_normalizes_paths_and_rejects_non_canonical_ipv4_hosts(): void {
 		$license = $this->seed_license();
-		$result  = $this->activate_via_api( $license['key'], array( 'site_url' => 'https://Shop.Example.com//a/./b/../store/' ) );
+		$result  = $this->activate_via_api( $license['key'], array( 'site_url' => 'https://Shop.Example.com//a//store/' ) );
 		$data    = $this->assertSignedEnvelope( 'POST', '/activations', $result['response'], $result['secret'] );
 		$this->assertSame( 'https://shop.example.com/a/store', $this->activation( (int) $data['activation_id'] )['site_url'] );
+
+		// Merge of both lines: dot segments are refused, not resolved (line B's SiteUrl rules).
+		$this->assertContractError(
+			'POST',
+			'/activations',
+			400,
+			'invalid_activation',
+			$this->activate_via_api( $license['key'], array( 'site_url' => 'https://shop.example.com/a/./b/../store/' ) )['response']
+		);
 
 		$this->assertContractError(
 			'POST',
@@ -690,8 +699,11 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertContractError( 'POST', '/entitlements/check', 401, 'invalid_request_signature', $this->dispatch( $this->api_request( 'POST', $route, array() ) ) );
 
 		// Timestamp outside the five-minute window, correctly signed.
-		$stale = $this->api_request( 'POST', $route, array(), $site, null, (string) ( time() - 301 ) );
-		$this->assertContractError( 'POST', '/entitlements/check', 401, 'request_expired', $this->dispatch( $stale ) );
+		$stale    = $this->api_request( 'POST', $route, array(), $site, null, (string) ( time() - 301 ) );
+		$expired  = $this->dispatch( $stale );
+		$this->assertContractError( 'POST', '/entitlements/check', 401, 'request_expired', $expired );
+		// The client corrects its clock with the server time of the refusal (captain-pro client 2.0).
+		$this->assertEqualsWithDelta( time(), (int) $expired->get_data()['data']['server_time'], 5 );
 
 		// Body changed after signing.
 		$tampered = $this->api_request( 'POST', $route, array( 'product_version' => '1.0.0' ), $site );

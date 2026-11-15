@@ -161,5 +161,34 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 				$this->assertContains( $name, $present, $table . '.' . $name );
 			}
 		}
+
+		// Schema 21 (merge of both lines): line B's review status moves to review_required, with its reason.
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$ids = array();
+		foreach ( array( 'with_error' => 'license_changed_during_charge', 'without_error' => '' ) as $name => $error ) {
+			$wpdb->insert(
+				$tables['renewals'],
+				array(
+					'license_id'      => 999021,
+					'period_start'    => $now,
+					'period_end'      => $now,
+					'idempotency_key' => hash( 'sha256', 'schema21-' . $name . wp_rand() ),
+					'status'          => 'payment_review',
+					'retry_at'        => $now,
+					'last_error'      => $error,
+					'created_at'      => $now,
+					'updated_at'      => $now,
+				)
+			);
+			$ids[ $name ] = (int) $wpdb->insert_id;
+		}
+		$this->assertTrue( Schema::run_registered_step( '21' ) );
+		$this->assertTrue( Schema::run_registered_step( '21' ), 'Step 21 is repeatable.' );
+		$moved = static function ( int $id ) use ( $wpdb, $tables ) {
+			return $wpdb->get_row( $wpdb->prepare( "SELECT status, retry_at, review_reason, review_at FROM {$tables['renewals']} WHERE id = %d", $id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		};
+		$this->assertSame( array( 'status' => 'review_required', 'retry_at' => null, 'review_reason' => 'license_changed_during_charge', 'review_at' => $now ), $moved( $ids['with_error'] ) );
+		$this->assertSame( array( 'status' => 'review_required', 'retry_at' => null, 'review_reason' => 'payment_review', 'review_at' => $now ), $moved( $ids['without_error'] ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['renewals']} WHERE license_id = %d", 999021 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
 	}
 }

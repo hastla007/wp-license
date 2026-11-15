@@ -217,7 +217,7 @@ final class WiringIntegrationTest extends WPLC_Renewal_TestCase {
 			$values[ $row['label'] ] = $row['value'];
 		}
 
-		foreach ( array( 'Table structure', 'Charges, expiry and customer emails', 'Processing gap', 'Last failure: wiring_test_job', 'Response signing key (Ed25519, public)', 'Installation secrets encrypted with an old key', 'Rejected API requests today (UTC)', 'Renewals with an unclear payment result', 'Paid orders without their licenses', 'Database locks (GET_LOCK)' ) as $label ) {
+		foreach ( array( 'Table structure', 'Charges, expiry and customer emails', 'Processing gap', 'Last failure: wiring_test_job', 'Response signing key (Ed25519, public)', 'Installation secrets encrypted with an old key', 'Rejected API requests today (UTC)', 'Renewals needing review (unknown payment result, payment not applied)', 'Paid orders without their licenses', 'Database locks (GET_LOCK)' ) as $label ) {
 			$this->assertContains( $label, $labels );
 		}
 		$this->assertSame( 'Matches this plugin version', $values['Table structure'] );

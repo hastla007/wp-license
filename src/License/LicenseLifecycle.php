@@ -269,7 +269,8 @@ final class LicenseLifecycle {
 			)
 		);
 		foreach ( $ids as $license_id ) {
-			self::transition( (int) $license_id, 'revoked', AuditReason::ORDER_REFUNDED, 'order_refund', get_current_user_id() );
+			// B-47: the audit names the order, and the acting user (not "System").
+			self::transition( (int) $license_id, 'revoked', AuditReason::encode( AuditReason::ORDER_NUMBER_REFUNDED, array( 'order' => $order_id ) ), 'order_refund', get_current_user_id() );
 		}
 	}
 
@@ -385,6 +386,8 @@ final class LicenseLifecycle {
 	private static function roll_back_refunded_renewal( int $order_id, int $license_id, int $renewal_id ): void {
 		global $wpdb;
 
+		$order = wc_get_order( $order_id );
+
 		$tables = Schema::table_names();
 		$renewal = $wpdb->get_row(
 			$wpdb->prepare(
@@ -457,20 +460,22 @@ final class LicenseLifecycle {
 		// Automatic renewal is off now, so no open period may be charged.
 		self::cancel_open_renewals( $license_id, false, 'renewal_refunded', __( 'WP License Captain: automatic renewal was switched off after a refund.', 'wp-license' ) );
 
-		$order->add_order_note(
-			$rolled_back
-				? sprintf(
-					/* translators: 1: license ID, 2: new paid-through date (UTC). */
-					__( 'WP License Captain: the refunded renewal was taken back. License #%1$d is now paid until %2$s (UTC); automatic renewal is off.', 'wp-license' ),
-					$license_id,
-					$new_paid_until
-				)
-				: sprintf(
-					/* translators: %d: license ID. */
-					__( 'WP License Captain: the term of license #%d was NOT rolled back for this refund, because the term was changed in the meantime. Automatic renewal is off; adjust the term manually if needed.', 'wp-license' ),
-					$license_id
-				)
-		);
+		if ( $order instanceof \WC_Order ) {
+			$order->add_order_note(
+				$rolled_back
+					? sprintf(
+						/* translators: 1: license ID, 2: new paid-through date (UTC). */
+						__( 'WP License Captain: the refunded renewal was taken back. License #%1$d is now paid until %2$s (UTC); automatic renewal is off.', 'wp-license' ),
+						$license_id,
+						$new_paid_until
+					)
+					: sprintf(
+						/* translators: %d: license ID. */
+						__( 'WP License Captain: the term of license #%d was NOT rolled back for this refund, because the term was changed in the meantime. Automatic renewal is off; adjust the term manually if needed.', 'wp-license' ),
+						$license_id
+					)
+			);
+		}
 		AuditLog::record(
 			'renewal_refunded',
 			'license',
@@ -973,6 +978,11 @@ final class LicenseLifecycle {
 	 * charge. When a charge is already in flight the flag is set regardless: a
 	 * payment never clears it (B-02), so no further period is charged.
 	 *
+	 * Lock order: the renewal lock is taken before the license lock, as the
+	 * renewal processor does (renewal, then license). The reverse order lets
+	 * the database detect a deadlock between a cancellation and a charge and
+	 * fail one of them.
+	 *
 	 * @param int    $license_id License ID.
 	 * @param string $reason Cancellation reason.
 	 * @param int    $actor_user_id User ID or zero for system action.
@@ -980,12 +990,35 @@ final class LicenseLifecycle {
 	 * @return bool
 	 */
 	public static function schedule_cancellation( int $license_id, string $reason = '', int $actor_user_id = 0, int $received_at = 0 ): bool {
-		return (bool) self::with_license_lock(
-			$license_id,
-			static function () use ( $license_id, $reason, $actor_user_id, $received_at ) {
-				return self::schedule_cancellation_locked( $license_id, $reason, $actor_user_id, $received_at );
+		global $wpdb;
+
+		$license    = self::get_license( $license_id );
+		$renewal_id = 0;
+		$locked     = false;
+		if ( $license && ! empty( $license['paid_until'] ) && class_exists( '\\WPLC\\Billing\\RenewalProcessor' ) ) {
+			$tables     = Schema::table_names();
+			$renewal_id = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT id FROM %i WHERE license_id = %d AND period_start = %s LIMIT 1',
+					$tables['renewals'],
+					$license_id,
+					(string) $license['paid_until']
+				)
+			);
+			$locked     = $renewal_id && \WPLC\Billing\RenewalProcessor::lock( $renewal_id, 3 );
+		}
+		try {
+			return (bool) self::with_license_lock(
+				$license_id,
+				static function () use ( $license_id, $reason, $actor_user_id, $received_at ) {
+					return self::schedule_cancellation_locked( $license_id, $reason, $actor_user_id, $received_at );
+				}
+			);
+		} finally {
+			if ( $locked ) {
+				\WPLC\Billing\RenewalProcessor::unlock( $renewal_id );
 			}
-		);
+		}
 	}
 
 	/**
@@ -1002,37 +1035,19 @@ final class LicenseLifecycle {
 		}
 
 		$tables = Schema::table_names();
-		$renewal_id = 0;
-		$locked = false;
-		if ( ! empty( $license['paid_until'] ) && class_exists( '\\WPLC\\Billing\\RenewalProcessor' ) ) {
-			$renewal_id = (int) $wpdb->get_var(
-				$wpdb->prepare(
-					"SELECT id FROM %i WHERE license_id = %d AND period_start = %s LIMIT 1",
-					$tables['renewals'],
-					$license_id,
-					(string) $license['paid_until']
-				)
-			);
-			$locked = $renewal_id && \WPLC\Billing\RenewalProcessor::lock( $renewal_id, 3 );
-		}
-		try {
-			$updated = $wpdb->update(
-				$tables['licenses'],
-				array(
-					'cancel_at_period_end' => 1,
-					'next_payment_at' => null,
-					'status_reason' => self::clip( sanitize_text_field( $reason ) ),
-					'updated_at' => gmdate( 'Y-m-d H:i:s' ),
-				),
-				array( 'id' => $license_id, 'status' => (string) $license['status'] ),
-				array( '%d', '%s', '%s', '%s' ),
-				array( '%d', '%s' )
-			);
-		} finally {
-			if ( $locked ) {
-				\WPLC\Billing\RenewalProcessor::unlock( $renewal_id );
-			}
-		}
+		// The renewal lock of the current period, if free, is held by schedule_cancellation().
+		$updated = $wpdb->update(
+			$tables['licenses'],
+			array(
+				'cancel_at_period_end' => 1,
+				'next_payment_at' => null,
+				'status_reason' => self::clip( sanitize_text_field( $reason ) ),
+				'updated_at' => gmdate( 'Y-m-d H:i:s' ),
+			),
+			array( 'id' => $license_id, 'status' => (string) $license['status'] ),
+			array( '%d', '%s', '%s', '%s' ),
+			array( '%d', '%s' )
+		);
 
 		if ( false === $updated || 0 === $updated ) {
 			return false;

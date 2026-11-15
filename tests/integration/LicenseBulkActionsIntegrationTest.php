@@ -173,7 +173,8 @@ final class LicenseBulkActionsIntegrationTest extends WPLC_Integration_TestCase 
 		$result = $this->bulk( 'reactivate', array( $suspended['id'], $ended['id'], $active['id'] ), 'Cleared', LicenseBulkActions::new_token() );
 		$this->assertSame( 'redirect', $result['outcome'] );
 		$this->assertSame( 'active', $this->license( $suspended['id'] )['status'] );
-		$this->assertSame( 'suspended', $this->license( $ended['id'] )['status'] );
+		// A-51 (line B, kept in the merge): a suspended license whose term ended moves to `expired`.
+		$this->assertSame( 'expired', $this->license( $ended['id'] )['status'] );
 
 		$token  = LicenseBulkActions::new_token();
 		$this->bulk( 'revoke', array( $suspended['id'], $active['id'] ), 'Chargeback', $token );
@@ -333,7 +334,8 @@ final class LicenseBulkActionsIntegrationTest extends WPLC_Integration_TestCase 
 
 	public function test_source_order_filter_finds_the_licenses_of_an_order(): void {
 		$product = $this->create_license_product();
-		$order   = $this->create_paid_order( array( array( $product, 2 ) ) );
+		// A license needs an owner: an order without a customer account issues none.
+		$order   = $this->create_paid_order( array( array( $product, 2 ) ), self::factory()->user->create( array( 'role' => 'customer' ) ) );
 		$ids     = array_map( 'intval', wp_list_pluck( $this->licenses_for_order( $order->get_id() ), 'id' ) );
 		$this->assertCount( 2, $ids );
 		$this->seed_license();

@@ -575,7 +575,7 @@ final class RenewalProcessor {
 					? __( 'The license term was changed while the renewal was being paid; the payment was not applied', 'wp-license' )
 					: sprintf(
 						/* translators: %s: license status. */
-						__( 'The license status "%s" did not allow a renewal; the payment was not applied', 'wp-license' ),
+						__( 'The license could not be extended because its status changed to "%s" while the payment was running; the payment was not applied. Refund the payment, or reactivate the license and extend its term by hand', 'wp-license' ),
 						(string) $current['status']
 					);
 				self::flag_paid_but_not_booked( $renewal, $current, $order, $problem );

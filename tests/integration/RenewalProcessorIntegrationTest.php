@@ -275,7 +275,8 @@ final class RenewalProcessorIntegrationTest extends WPLC_Renewal_TestCase {
 
 		$this->assertSame( 'active', $this->license( $f['license_id'] )['status'] );
 		$renewal = $this->renewal( $f['renewal_id'] );
-		$this->assertSame( 'failed', $renewal['status'] );
+		// Merge of both lines: an unknown result parks the renewal in `reconciling` (line A, T-136).
+		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $renewal['status'] );
 		$this->assertSame( '0', (string) $renewal['attempt_count'] );
 		$this->assertSame( RenewalProcessor::RESULT_UNKNOWN, $renewal['last_error'] );
 		$this->assertContains( 'renewal_result_unknown', $this->audit_actions( 'renewal', $f['renewal_id'] ) );

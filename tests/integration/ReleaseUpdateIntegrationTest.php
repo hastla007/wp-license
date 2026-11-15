@@ -583,6 +583,8 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	public function test_a40_purge_deletes_old_grants_and_forgets_used_package_locations(): void {
+		// Merge of both lines: strict single use is the default (T-108); this covers the reuse window (B-19).
+		add_filter( 'wplc_download_reuse_seconds', array( $this, 'reuse_window' ) );
 		global $wpdb;
 		$tables  = $this->tables();
 		$license = $this->seed_license();
@@ -749,6 +751,8 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 	// ------------------------------------------------------------------
 
 	public function test_a111_release_with_a_missing_file_is_not_offered_and_does_not_burn_a_grant(): void {
+		// Merge of both lines: strict single use is the default (T-108); this covers the reuse window (B-19).
+		add_filter( 'wplc_download_reuse_seconds', array( $this, 'reuse_window' ) );
 		$installation = $this->installation();
 		$this->release( '1.1.0' );
 		$broken = $this->release( '1.2.0' );
@@ -785,6 +789,8 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 	// ------------------------------------------------------------------
 
 	public function test_b19_stream_answers_head_without_using_the_token_and_allows_a_short_reuse(): void {
+		// Merge of both lines: strict single use is the default (T-108); this covers the reuse window (B-19).
+		add_filter( 'wplc_download_reuse_seconds', array( $this, 'reuse_window' ) );
 		global $wpdb;
 		$installation = $this->installation();
 		$this->release( '1.1.0' );
@@ -934,6 +940,8 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	public function test_b143_grant_of_a_withdrawn_url_release_is_not_redeemed(): void {
+		// Merge of both lines: strict single use is the default (T-108); this covers the reuse window (B-19).
+		add_filter( 'wplc_download_reuse_seconds', array( $this, 'reuse_window' ) );
 		add_filter( 'wplc_verify_url_release_on_publish', '__return_false' );
 		$installation = $this->installation();
 		$id           = $this->url_release( '1.1.0', str_repeat( 'a', 64 ) );
@@ -1021,7 +1029,7 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'protected', LocalPackageStorage::exposure_status( true ) );
 		$this->assertNotContains( 'package_dir_exposed', array_column( ReleaseRegistry::problems(), 'code' ) );
 
-		foreach ( array( '.htaccess', 'index.html', 'web.config' ) as $file ) {
+		foreach ( array( '.htaccess', 'index.html', 'index.php', 'web.config' ) as $file ) {
 			unlink( $dir . '/' . $file );
 		}
 		rmdir( $dir );
@@ -1316,6 +1324,28 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	/**
+	 * Reuse window of line B (B-19) for the tests that cover it.
+	 *
+	 * @return int Seconds.
+	 */
+	public function reuse_window(): int {
+		return 120;
+	}
+
+	/**
+	 * Release ID of the latest customer download of a license.
+	 *
+	 * @param int $license_id License ID.
+	 * @return int
+	 */
+	private function last_customer_download( int $license_id ): int {
+		global $wpdb;
+		$tables = $this->tables();
+
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT release_id FROM {$tables['package_streams']} WHERE license_id = %d AND source = %s ORDER BY id DESC LIMIT 1", $license_id, PackageStream::SOURCE_CUSTOMER ) );
+	}
+
+	/**
 	 * Post the account download form like a browser would (front end, not wp-admin).
 	 *
 	 * @param int    $license_id License ID.
@@ -1363,16 +1393,17 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertMatchesRegularExpression( '/<option value="1\.2\.0"\s+selected[^>]*>1\.2\.0 \(latest\)/', $html );
 		$this->assertStringContainsString( '<option value="1.1.0">1.1.0</option>', $html );
 
+		// Merge of both lines: a local package is sent in the response to the POST (T-108),
+		// so no stream token appears in a URL; the recorded download names the release.
 		$latest = $this->post_download( $license['id'] );
 		$this->assertInstanceOf( WPLC_Test_Halt::class, $latest );
-		$this->assertSame( $new, (int) $this->grant_row( 'package_streams', $this->token_of( $latest->location ) )['release_id'] );
+		$this->assertSame( array( 'status', 200, '' ), array( $latest->kind, $latest->status, $latest->location ) );
+		$this->assertSame( $new, $this->last_customer_download( $license['id'] ) );
 
 		$older = $this->post_download( $license['id'], '1.1.0' );
 		$this->assertInstanceOf( WPLC_Test_Halt::class, $older );
-		$token = $this->token_of( $older->location );
-		$this->assertSame( $old, (int) $this->grant_row( 'package_streams', $token )['release_id'] );
-		$stream = $this->run_request( new WP_REST_Request( 'GET', '/wplc/v1/packages/' . $token ) );
-		$this->assertSame( array( 'status', 200 ), array( $stream->kind, $stream->status ) );
+		$this->assertSame( array( 'status', 200, '' ), array( $older->kind, $older->status, $older->location ) );
+		$this->assertSame( $old, $this->last_customer_download( $license['id'] ) );
 
 		// Unknown or malformed versions are refused.
 		$this->assertInstanceOf( WPDieException::class, $this->post_download( $license['id'], '9.9.9' ) );
@@ -1410,10 +1441,8 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 
 		$halt = $this->post_download( $license['id'] );
 		$this->assertInstanceOf( WPLC_Test_Halt::class, $halt );
-		$token = $this->token_of( $halt->location );
-		$this->assertSame( $paid_for, (int) $this->grant_row( 'package_streams', $token )['release_id'] );
-		$stream = $this->run_request( new WP_REST_Request( 'GET', '/wplc/v1/packages/' . $token ) );
-		$this->assertSame( array( 'status', 200 ), array( $stream->kind, $stream->status ), 'The stream serves an account download of an ended license.' );
+		$this->assertSame( array( 'status', 200 ), array( $halt->kind, $halt->status ), 'The account serves the download of an ended license.' );
+		$this->assertSame( $paid_for, $this->last_customer_download( $license['id'] ) );
 		$this->assertInstanceOf( WPDieException::class, $this->post_download( $license['id'], '1.2.0' ), 'A version released after the paid period needs a renewal.' );
 		$this->assertSame( $later, (int) ReleaseRegistry::latest_published( 'test-product' )['id'] );
 
@@ -1427,9 +1456,6 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 			$this->assertSame( '', $this->button_html( $license['id'] ), $status );
 			$this->assertInstanceOf( WPDieException::class, $this->post_download( $license['id'] ), $status );
 		}
-		// The token issued while the license was "expired" died with the revocation.
-		$dead = $this->run_request( new WP_REST_Request( 'GET', '/wplc/v1/packages/' . $token ) );
-		$this->assertSame( 404, $dead->get_status() );
 
 		// The shop can switch the policy off.
 		$wpdb->update( $this->tables()['licenses'], array( 'status' => 'expired' ), array( 'id' => $license['id'] ) );

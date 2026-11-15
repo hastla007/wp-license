@@ -517,3 +517,30 @@ Beim Zusammenführen der zehn Arbeitspakete und im Add-on-Repository `captain-pr
 - [ ] **B-197 [WICHTIG]** (Release) `CHANGELOG.md` hat keinen Eintrag für 0.2.0. Er muss die Verhaltensänderungen nennen: Abgebucht wird erst nach der Vorab-Ankündigung; das Löschen des Zahlungsmittels schaltet die Verlängerung nur ab, wenn der Kunde es selbst ausgelöst hat; es gibt nur noch die eine Audit-Aktion `renewal_disabled`; die Suche der Lizenzliste läuft per POST; Shop-Manager können die Paket-Hosts nicht mehr ändern; Gastbestellungen bekommen nur dann eine Lizenz, wenn die Rechnungs-E-Mail zu einem Konto gehört; Produkt- und Tarifschlüssel mit Unterstrich werden beim nächsten Speichern abgelehnt. Gehört zu A-91.
 - [ ] **B-198 [WICHTIG]** (Übersetzung) Die Dateien unter `languages/` (Vorlage `.pot`, `de_DE`, `de_DE_formal`) sind auf dem Stand vor Welle 1; mehrere hundert neue Texte fehlen und erscheinen im Admin, im Kundenkonto und in den Mails auf Englisch. Vorlage neu erzeugen und beide deutschen Fassungen nachziehen. Gehört zu B-120.
 - [ ] **B-199 [WICHTIG]** (Add-ons) Den Kern-Plugins fehlen Erweiterungspunkte für echte Premiumfunktionen: Voucher Captain hat keinen Hook für das Admin-Menü; bei Pass Captain fließt `wpcap_modules` in die Kennung des Installers ein, sodass ein Add-on dort kein Modul ergänzen kann, ohne sie zu verändern; Affiliate Captain hat keine Hooks für Auszahlungswege, Provisionsregeln und Berichte. Die Arbeit gehört zur Aufgabe A4 der Kern-Repositories und ist Voraussetzung für T-131.
+
+## 9. Zusammenführung vom 15.11.2026
+
+Die Linien `claude/zen-babbage-7q4nac` (Linie A, T-Nummern) und `claude/sharp-mendel-xiiwf3` (Linie B, A- und B-Nummern) sind in einem Plugin vereint (Version 0.2.0, Datenbankschema 21). Alle Funktionen beider Linien bleiben erhalten. Wo beide dieselbe Aufgabe gelöst haben, gilt eine Umsetzung:
+
+### Entscheidungen
+
+- **Schema:** Die `CREATE TABLE`-Anweisungen enthalten alle Spalten, Indizes und Tabellen beider Linien; Prüfung und Selbstheilung kommen aus Linie B. Schritt 21 führt alle Daten- und Prüfschritte beider Linien (10, 12 bis 19) noch einmal aus, verschiebt Verlängerungen im Status `payment_review` nach `review_required` und prüft die zusätzlichen Indizes. Alles ist wiederholbar.
+- **Prüfstatus der Verlängerung:** Es gibt nur `review_required` mit der Seite „Renewals to review“ (Linie A, T-136/T-155). Ein unklares Zahlungsergebnis wartet in `reconciling` und geht nach 12 Stunden in die Prüfung (Linie B: 20 Stunden). Eine in `processing` hängende Abbuchung wird bei einer Laufzeitänderung durch den Admin geprüft statt storniert, denn das Geld kann abgebucht sein.
+- **Download-Berechtigungen:** Standard ist die einmalige Verwendung beim ersten Vorzeigen (T-108). Das Wiederverwendungsfenster von Linie B (B-19) ist über `wplc_download_reuse_seconds` zuschaltbar; HEAD verbraucht nie etwas. Ein Update-Check mit `download=false` legt keine Berechtigung an (A-40). Downloads aus dem Kundenkonto liefern lokale Pakete direkt in der Antwort auf das Formular (Linie A).
+- **Admin-Suche:** Die Suche wird per POST abgeschickt und als undurchsichtiges Token gespeichert (Linie A, T-141); weder der Begriff noch die Lizenz-ID stehen in einer URL. `LicenseListTable::query_parts()` nimmt zusätzlich einen rohen Suchbegriff an (Linie B, B-119/A-76).
+- **Aktivierungslimit:** Gezählt werden nur Fehlversuche je Adresse und je Schlüsselpräfix (Linie A); der Zähler aller Versuche je Schlüssel aus Linie B entfällt.
+- **Audit:** Einstellungen werden als `settings_updated` protokolliert (Linie A; `settings_changed` entfällt). Gründe sind Codes, die bei der Anzeige übersetzt werden; die Rückabwicklung einer Bestellung nennt die Bestellnummer (`order_number_refunded`). Die Site-Adresse bleibt im Audit lesbar (A-77).
+- **Site-Adressen:** Regeln von Linie B (Punktsegmente werden abgelehnt), dazu die IDN-Umwandlung ohne `intl` aus Linie A.
+- **Lizenzstatus:** Eine gesperrte Lizenz, deren Laufzeit während der Sperre endete, wird beim Reaktivieren `expired` (A-51). Eine gekündigte Lizenz bekommt keine weitere Verlängerungszeile (B-02).
+- **Signaturschlüssel:** `wp wplc signing-key --prepare` (Linie A) und die Rotation von Linie B; ein nicht mehr entschlüsselbarer Schlüssel darf rotiert werden.
+- **Client:** Die Bibliothek 2.0 von Linie B mit den Funktionen von Linie A (feste Schlüssel, `check_entitlements_envelope()`, `verify_cached_envelope()`, `verified_server_data()`). Der Add-on-Starter nutzt sie (`bin/vendor-client.php` liefert `LicenseClient`, `Messages`, `OptionStore`).
+- **Deinstallation:** Mit `WPLC_REMOVE_ALL_DATA` werden auch `wplc_response_signing_key_next` und `wplc_sites_endpoint_rules` gelöscht.
+- **Sperren:** Eine Kündigung nimmt die Sperre der laufenden Verlängerung vor der Lizenzsperre, in derselben Reihenfolge wie die Abbuchung. In der ersten Fassung der Zusammenführung (Lizenzsperre von Linie A um die Verlängerungssperre von Linie B) erkannte die Datenbank im E2E-Lauf eine Verklemmung, und die bezahlte Verlängerung landete in der Prüfung.
+- **Multisite:** Eine Netzwerkaktivierung richtet die aktuelle Site sofort ein, die übrigen Sites beim ersten Aufruf (Linie B); Ereignisse und Optionen werden auf allen Sites angelegt bzw. entfernt (Linie A, T-61). Sites ohne Action-Scheduler-Tabellen werden beim Deaktivieren übersprungen.
+
+### Offen nach der Zusammenführung
+
+- [ ] **M-01 [WICHTIG]** (Entscheidung) Frist für ein unklares Zahlungsergebnis: 12 Stunden (jetzt) oder 20 Stunden (Linie B)? Stripe hält Idempotenzschlüssel 24 Stunden.
+- [ ] **M-02 [WICHTIG]** (Entscheidung) Soll das Wiederverwendungsfenster für Download-Links standardmäßig aus bleiben (T-108) oder wie in Linie B zwei Minuten betragen? Mit Fenster übersteht ein abgebrochener Download einen zweiten Versuch; ohne Fenster holt der Client eine neue Berechtigung per Update-Check.
+- [ ] **M-03 [WICHTIG]** (Übersetzung) Die neuen und geänderten Texte der Zusammenführung fehlen in `languages/`. Gehört zu B-198.
+- [ ] **M-04 [OPTIMIERUNG]** (Tests) PHPStan lief in dieser Umgebung nicht (Paket nicht installiert, kein Zugriff auf GitHub); der CI-Lauf muss es prüfen.

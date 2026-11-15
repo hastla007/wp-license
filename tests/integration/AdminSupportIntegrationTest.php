@@ -11,6 +11,7 @@
 use WPLC\Admin\AuditLogPage;
 use WPLC\Admin\Capabilities;
 use WPLC\Admin\LicenseAdmin;
+use WPLC\Admin\LicenseSearchStore;
 use WPLC\Admin\LicenseListTable;
 use WPLC\Admin\Settings;
 use WPLC\Admin\SupportActions;
@@ -819,63 +820,62 @@ final class AdminSupportIntegrationTest extends WPLC_Integration_TestCase {
 		$secret = substr( $seeded['key'], -64 );
 		wp_set_current_user( $this->manager );
 
-		// The search form is posted and answered with a redirect that carries the license ID instead.
+		// Merge of both lines: the search form is posted and answered with a redirect that
+		// carries an opaque search token (line A), never the term or the license ID.
 		$posted = $this->run_admin_post(
-			'wplc_admin_search',
+			'wplc_admin_license_search',
 			array(
 				's'        => '  ' . strtolower( $seeded['key'] ),
 				'status'   => 'active',
-				'_wpnonce' => wp_create_nonce( 'wplc_admin_search' ),
+				'_wpnonce' => wp_create_nonce( 'wplc_admin_license_search' ),
 			)
 		);
 		$this->assertSame( 'redirect', $posted['outcome'] );
 		$this->assertStringNotContainsStringIgnoringCase( $secret, $posted['location'] );
-		$this->assertStringContainsString( 's=%23' . $seeded['id'], $posted['location'] );
-		$this->assertStringContainsString( 'wplc_key_search=1', $posted['location'] );
+		$this->assertStringContainsString( LicenseSearchStore::QUERY_ARG . '=', $posted['location'] );
 		$this->assertStringContainsString( 'status=active', $posted['location'] );
-
-		$unknown = $this->run_admin_post(
-			'wplc_admin_search',
-			array(
-				's'        => substr( $seeded['key'], 0, -1 ) . ( 'A' === substr( $seeded['key'], -1 ) ? 'B' : 'A' ),
-				'_wpnonce' => wp_create_nonce( 'wplc_admin_search' ),
-			)
-		);
-		$this->assertStringContainsString( 's=%230', $unknown['location'] );
+		$query = array();
+		wp_parse_str( (string) wp_parse_url( $posted['location'], PHP_URL_QUERY ), $query );
+		$token = (string) $query[ LicenseSearchStore::QUERY_ARG ];
 
 		$email = $this->run_admin_post(
-			'wplc_admin_search',
+			'wplc_admin_license_search',
 			array(
 				's'        => 'alice@customer.test',
-				'_wpnonce' => wp_create_nonce( 'wplc_admin_search' ),
+				'_wpnonce' => wp_create_nonce( 'wplc_admin_license_search' ),
 			)
 		);
-		$this->assertStringContainsString( 's=alice%40customer.test', $email['location'] );
-		$this->assertStringNotContainsString( 'wplc_key_search', $email['location'] );
+		$this->assertStringNotContainsString( 'alice', $email['location'] );
 
-		// A key that still arrives in the address (old bookmark) is not repeated in the page.
+		// A key that still arrives in the address (old bookmark) is ignored and not repeated in the page.
 		set_current_screen( 'woocommerce_page_wplc-licenses' );
-		$_GET                   = array(
+		$_GET     = array(
 			'page' => 'wplc-licenses',
 			's'    => $seeded['key'],
 		);
-		$_REQUEST               = $_GET;
-		$original_uri           = isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '';
-		$_SERVER['REQUEST_URI'] = '/wp-admin/admin.php?page=wplc-licenses&s=' . rawurlencode( $seeded['key'] );
+		$_REQUEST = $_GET;
 		ob_start();
 		LicenseAdmin::render();
 		$html = (string) ob_get_clean();
-		$uri  = (string) $_SERVER['REQUEST_URI'];
-		$_GET = array();
-		$_SERVER['REQUEST_URI'] = $original_uri;
+		$this->assertStringNotContainsStringIgnoringCase( $secret, $html );
+
+		// The token finds the license without the key in the page.
+		$_GET     = array(
+			'page'                         => 'wplc-licenses',
+			LicenseSearchStore::QUERY_ARG => $token,
+		);
+		$_REQUEST = $_GET;
+		ob_start();
+		LicenseAdmin::render();
+		$html     = (string) ob_get_clean();
+		$_GET     = array();
+		$_REQUEST = array();
 
 		$this->assertStringNotContainsStringIgnoringCase( $secret, $html );
-		$this->assertStringNotContainsStringIgnoringCase( $secret, $uri );
 		$this->assertStringContainsString( 'Search results for the pasted license key', $html );
 		$this->assertStringContainsString( LicenseKey::prefix( $seeded['uuid'] ), $html );
 		$this->assertStringNotContainsString( LicenseKey::prefix( $other['uuid'] ), $html );
-		$this->assertStringContainsString( 'value="wplc_admin_search"', $html );
-		$this->assertStringContainsString( 'replaceState', $html );
+		$this->assertStringContainsString( 'value="wplc_admin_license_search"', $html );
 	}
 
 	public function test_a76_b135_audit_log_shows_login_and_id_and_filters_by_license(): void {
@@ -1073,9 +1073,10 @@ final class AdminSupportIntegrationTest extends WPLC_Integration_TestCase {
 		$rows = $this->audit_rows( 'settings', 0 );
 		$this->assertCount( $audit_before + 1, $rows );
 		$last = end( $rows );
-		$this->assertSame( 'settings_changed', $last['action'] );
+		// Merge of both lines: one settings audit entry, line A's `settings_updated`.
+		$this->assertSame( 'settings_updated', $last['action'] );
 		$this->assertSame( (string) $this->manager, (string) $last['actor_user_id'] );
-		$this->assertSame( 'reminder_days', $last['reason'] );
-		$this->assertStringContainsString( '"reminder_days":"21"', (string) $last['after_json'] );
+		$this->assertSame( 'Changed: reminder_days', $last['reason'] );
+		$this->assertMatchesRegularExpression( '/"reminder_days":"?21"?/', (string) $last['after_json'] );
 	}
 }

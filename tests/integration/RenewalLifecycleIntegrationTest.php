@@ -48,7 +48,9 @@ final class RenewalLifecycleIntegrationTest extends WPLC_Renewal_TestCase {
 
 		$this->assertSame( $goodwill, $this->license( $f['license_id'] )['paid_until'] );
 		$rows = $this->renewals_of( $f['license_id'] );
-		$this->assertSame( 'cancelled', $rows[0]['status'], 'The renewal of the old period is closed.' );
+		// Merge of both lines: a charge stuck in processing may have taken the money, so the
+		// old period goes to payment review (T-136/T-155) instead of being cancelled; it is closed either way.
+		$this->assertSame( RenewalProcessor::STATUS_REVIEW, $rows[0]['status'], 'The renewal of the old period is closed.' );
 		$this->assertSame( 'scheduled', $rows[1]['status'] );
 		$this->assertSame( $goodwill, $rows[1]['period_start'] );
 
@@ -106,7 +108,8 @@ final class RenewalLifecycleIntegrationTest extends WPLC_Renewal_TestCase {
 		$last = end( $rows );
 		$this->assertSame( 'order_refund', $last['action'] );
 		$this->assertSame( $clerk, (int) $last['actor_user_id'], 'The refund must not be attributed to "System".' );
-		$this->assertStringContainsString( '#' . $order_id, $last['reason'] );
+		// The reason is stored as a code with the order number and shown translated.
+		$this->assertStringContainsString( '#' . $order_id, \WPLC\License\AuditReason::label( (string) $last['reason'] ) );
 
 		// A normal status change still cannot undo it ...
 		$this->assertFalse( LicenseLifecycle::admin_set_status( (int) $license['id'], 'active', 'undo', $clerk ) );

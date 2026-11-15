@@ -1224,7 +1224,8 @@ final class Schema {
 	 * only when it was at 19 or later, and an install recorded at 20 (line B)
 	 * never ran the steps 12 to 17 of line A. dbDelta has added every missing
 	 * column, index and table by now; this step runs every data and
-	 * verification step of both lines again. All of them are idempotent.
+	 * verification step of both lines again and moves line B's review
+	 * status `payment_review` to `review_required`. All of it is idempotent.
 	 *
 	 * @return bool
 	 */
@@ -1246,7 +1247,39 @@ final class Schema {
 			}
 		}
 
+		if ( ! self::adopt_payment_review_rows() ) {
+			return false;
+		}
+
 		return self::indexes_exist( self::MERGED_INDEXES );
+	}
+
+	/**
+	 * Move renewals of line B's review status `payment_review` to `review_required`.
+	 *
+	 * Line B parked a payment that was taken but not applied, or whose result
+	 * stayed unknown, in `payment_review`. The merged code knows one review
+	 * status with its admin screen (RenewalReview). The reason comes from
+	 * `last_error`, the start of the case from the last change of the row.
+	 * Idempotent: rows already moved no longer match.
+	 *
+	 * @return bool
+	 */
+	private static function adopt_payment_review_rows(): bool {
+		global $wpdb;
+
+		$tables = self::table_names();
+		$result = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE %i SET status = %s, retry_at = NULL, review_reason = IF( review_reason = '', LEFT( IF( last_error = '', %s, last_error ), 255 ), review_reason ), review_at = COALESCE( review_at, updated_at ) WHERE status = %s",
+				$tables['renewals'],
+				'review_required',
+				'payment_review',
+				'payment_review'
+			)
+		);
+
+		return false !== $result;
 	}
 
 	/**
