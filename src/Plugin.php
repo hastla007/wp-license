@@ -398,6 +398,7 @@ final class Plugin {
 		WithdrawalConsent::register_hooks();
 		RenewalProcessor::register_hooks();
 		ManualRenewal::register_hooks();
+		\WPLC\Billing\RenewInsteadNotice::register_hooks();
 		PlanUpgrade::register_hooks();
 		StripeRecurringAdapter::register_hooks();
 		PersonalData::register_hooks();

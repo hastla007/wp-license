@@ -118,7 +118,10 @@ final class ManualRenewal {
 	 * @return void
 	 */
 	public static function handle_start(): void {
-		$license_id = isset( $_POST['license_id'] ) ? absint( wp_unslash( $_POST['license_id'] ) ) : 0;
+		// phpcs:disable WordPress.Security.NonceVerification -- Verified by check_admin_referer() below.
+		// The form posts the license ID; the "Renew instead" link of the cart (A-22) sends it in the URL.
+		$license_id = isset( $_POST['license_id'] ) ? absint( wp_unslash( $_POST['license_id'] ) ) : ( isset( $_GET['license_id'] ) ? absint( wp_unslash( $_GET['license_id'] ) ) : 0 );
+		// phpcs:enable
 		$account_url = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'myaccount' ) : home_url( '/' );
 		if ( ! is_user_logged_in() ) {
 			wp_safe_redirect( $account_url );

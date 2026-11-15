@@ -75,6 +75,7 @@ What the suites cover:
 |---|---|
 | `00EnvironmentIntegrationTest.php` | Plugin booted behind WooCommerce, order storage mode, permanent tables |
 | `00SchemaMigrationIntegrationTest.php` | Schema creation and repeatability |
+| `ActivationTransferIntegrationTest.php` | A-22: a customer moves a site (with its staging site) from an ended license to a newer one, the installation keeps working on the new license, limits and ownership rules; the "Renew instead" notice in cart and checkout with its renewal link, filter and dismissal |
 | `MultisiteIntegrationTest.php` | Network only (`WP_MULTISITE=1`): tables, schema version, licenses, REST answers, lock names and cron events per site; network/site activation and deactivation, site deletion, uninstall (docs/MULTISITE.md) |
 | `OrderLicenseIssuanceIntegrationTest.php` | T-81: paid order → one license per unit, duplicate hooks, unmapped products, variations, guest orders, renewal orders |
 | `OrderRefundIntegrationTest.php` | T-81: partial refunds by quantity, full refunds with and without line items, amount-only refunds |

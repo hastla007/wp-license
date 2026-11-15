@@ -9,6 +9,7 @@ namespace WPLC\Account;
 
 use WPLC\Admin\Format;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\ActivationTransfer;
 use WPLC\License\AuditLog;
 use WPLC\License\AuditReason;
 use WPLC\License\LicenseKey;
@@ -405,6 +406,8 @@ final class CustomerPortal {
 		}
 
 		$related = self::load_related( $licenses );
+		// A-22: newer licenses of the same product that can take over sites.
+		$related['transfer_candidates'] = $licenses ? ActivationTransfer::candidates_for_customer( $user_id ) : array();
 		$views   = array();
 		foreach ( $licenses as $license ) {
 			$views[] = self::license_view( $license, $related );
@@ -561,7 +564,20 @@ final class CustomerPortal {
 				'site_url'    => (string) $activation['site_url'],
 				'environment' => Format::environment_label( (string) $activation['environment'] ),
 				'activated'   => Format::date( $activation['activated_at'] ),
+				// A staging site moves together with its live site.
+				'movable'     => in_array( (string) $activation['environment'], array( 'production', 'development' ), true ),
 			);
+		}
+		$transfer_targets = array();
+		if ( $activations ) {
+			$candidates = isset( $related['transfer_candidates'][ $product_key ] ) && is_array( $related['transfer_candidates'][ $product_key ] ) ? $related['transfer_candidates'][ $product_key ] : array();
+			foreach ( ActivationTransfer::targets_from( $license, $candidates, time() ) as $target ) {
+				$transfer_targets[] = array(
+					'id'          => (int) $target['id'],
+					'reference'   => (string) ( $target['key_prefix'] ?? '' ),
+					'valid_until' => Format::date( $target['paid_until'] ?? '', false, __( 'No expiry', 'wp-license' ) ),
+				);
+			}
 		}
 		$sites_text = isset( $related['limits'][ $license_id ] )
 			/* translators: 1: number of live sites in use, 2: number of live sites included in the plan. */
@@ -598,6 +614,8 @@ final class CustomerPortal {
 			'pay_url'       => $pay_url,
 			'can_renew'     => $can_renew,
 			'activations'   => $activations,
+			// A-22: licenses this one can move its sites to (empty unless it ended or is ending).
+			'transfer_targets' => $transfer_targets,
 			// The download button prints its own hint when no release is published.
 			'download_hint' => '',
 			'install_steps' => $has_access ? Notifications::install_steps( $license ) : array(),
@@ -815,6 +833,14 @@ final class CustomerPortal {
 			'site_not_found'     => array( 'error', __( 'The site activation was not found for this account.', 'wp-license' ) ),
 			'site_not_active'    => array( 'notice', __( 'This site was already deactivated.', 'wp-license' ) ),
 			'site_failed'        => array( 'error', __( 'The site could not be deactivated. Please try again.', 'wp-license' ) ),
+			// Moving a site to another license (A-22).
+			'site_transferred'      => array( 'success', __( 'The site was moved to your other license. The installed plugin keeps working without entering the new key.', 'wp-license' ) ),
+			'transfer_not_allowed'  => array( 'error', __( 'The site cannot be moved to this license. Sites can only be moved from a license that has ended or is ending to a newer license of the same product.', 'wp-license' ) ),
+			'transfer_not_movable'  => array( 'error', __( 'A staging site moves together with its live site. Move the live site instead.', 'wp-license' ) ),
+			'transfer_same_site'    => array( 'notice', __( 'This site is already activated on the other license. Deactivate it here to free the place.', 'wp-license' ) ),
+			'transfer_limit'        => array( 'error', __( 'The other license has no free place for this site. Deactivate a site there first.', 'wp-license' ) ),
+			'transfer_busy'         => array( 'notice', __( 'One of the licenses is being changed right now. Please try again in a few minutes.', 'wp-license' ) ),
+			'transfer_failed'       => array( 'error', __( 'The site could not be moved. Please try again.', 'wp-license' ) ),
 			'cancel_scheduled'   => array( 'success', __( 'Your cancellation is recorded. The license stays valid until the end of the paid period.', 'wp-license' ) ),
 			'cancel_failed'      => array( 'error', __( 'The license could not be cancelled. It may already be cancelled or no longer be active.', 'wp-license' ) ),
 			'cancel_withdrawn'   => array( 'success', __( 'Your cancellation was withdrawn. The license continues as before.', 'wp-license' ) ),
@@ -940,7 +966,7 @@ final class CustomerPortal {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- The nonce is verified per action below.
 		$action = isset( $_POST['action'] ) ? sanitize_key( wp_unslash( $_POST['action'] ) ) : '';
 		$return = isset( $_POST['wplc_return'] ) ? esc_url_raw( wp_unslash( $_POST['wplc_return'] ) ) : '';
-		$object = 'wplc_deactivate_site' === $action
+		$object = in_array( $action, array( 'wplc_deactivate_site', 'wplc_transfer_site' ), true )
 			? ( isset( $_POST['activation_id'] ) ? absint( wp_unslash( $_POST['activation_id'] ) ) : 0 )
 			: ( isset( $_POST['license_id'] ) ? absint( wp_unslash( $_POST['license_id'] ) ) : 0 );
 		$nonce  = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
@@ -948,6 +974,7 @@ final class CustomerPortal {
 
 		$nonce_actions = array(
 			'wplc_deactivate_site'    => 'wplc_deactivate_site_',
+			'wplc_transfer_site'      => 'wplc_transfer_site_',
 			'wplc_cancel_license'     => 'wplc_cancel_license_',
 			'wplc_resume_license'     => 'wplc_resume_license_',
 			'wplc_start_renewal'      => 'wplc_start_renewal_',
@@ -974,6 +1001,12 @@ final class CustomerPortal {
 		switch ( $action ) {
 			case 'wplc_deactivate_site':
 				self::finish( self::deactivate_site( $object ) );
+				break;
+
+			case 'wplc_transfer_site':
+				// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified above for this activation.
+				$target = isset( $_POST['target_license_id'] ) ? absint( wp_unslash( $_POST['target_license_id'] ) ) : 0;
+				self::finish( self::transfer_site( $object, $target ) );
 				break;
 
 			case 'wplc_cancel_license':
@@ -1083,6 +1116,28 @@ final class CustomerPortal {
 		}
 
 		return 'site_deactivated';
+	}
+
+	/**
+	 * Move a site of the current customer to another of their licenses (A-22).
+	 *
+	 * @param int $activation_id     Activation ID.
+	 * @param int $target_license_id License that takes over the site.
+	 * @return string Key of notice_messages().
+	 */
+	private static function transfer_site( int $activation_id, int $target_license_id ): string {
+		$result = ActivationTransfer::move( $activation_id, $target_license_id, get_current_user_id() );
+		$codes  = array(
+			'moved'       => 'site_transferred',
+			'not_found'   => 'site_not_found',
+			'not_movable' => 'transfer_not_movable',
+			'not_allowed' => 'transfer_not_allowed',
+			'same_site'   => 'transfer_same_site',
+			'limit'       => 'transfer_limit',
+			'busy'        => 'transfer_busy',
+		);
+
+		return isset( $codes[ $result ] ) ? $codes[ $result ] : 'transfer_failed';
 	}
 
 	/**
@@ -1255,6 +1310,50 @@ final class CustomerPortal {
 		/* translators: %s: site URL. */
 		echo '<span class="screen-reader-text"> ' . esc_html( sprintf( __( 'site %s', 'wp-license' ), $site_url ) ) . '</span></button>';
 		echo '</form>';
+	}
+
+	/**
+	 * Print the form that moves a site to a newer license of the customer (A-22).
+	 *
+	 * One button per target license; nothing for a staging site (it moves with
+	 * its live site) or when the license has no target.
+	 *
+	 * @param array<string,mixed> $site Activation display values from license_view().
+	 * @param array<string,mixed> $view License display values.
+	 * @return void
+	 */
+	public static function render_transfer_forms( array $site, array $view ): void {
+		$targets = isset( $view['transfer_targets'] ) && is_array( $view['transfer_targets'] ) ? $view['transfer_targets'] : array();
+		if ( ! $targets || empty( $site['movable'] ) || empty( $site['id'] ) ) {
+			return;
+		}
+		$activation_id = (int) $site['id'];
+		$site_url      = (string) ( $site['site_url'] ?? '' );
+		foreach ( $targets as $target ) {
+			$reference = '' !== (string) ( $target['reference'] ?? '' ) ? (string) $target['reference'] : '#' . (int) $target['id'];
+			$question  = sprintf(
+				/* translators: 1: site URL, 2: license reference such as WPLC-1A2B3C4D, 3: date. */
+				__( 'Move %1$s to license %2$s (valid through %3$s)? The site then counts towards that license, and the installed plugin keeps working without entering the new key.', 'wp-license' ),
+				$site_url,
+				$reference,
+				(string) ( $target['valid_until'] ?? '' )
+			);
+			self::open_form(
+				'wplc_transfer_site',
+				array(
+					'activation_id'     => (string) $activation_id,
+					'target_license_id' => (string) (int) $target['id'],
+				),
+				'wplc_transfer_site_' . $activation_id,
+				$question,
+				'wplc-inline'
+			);
+			/* translators: %s: license reference such as WPLC-1A2B3C4D. */
+			$label = sprintf( __( 'Move to %s', 'wp-license' ), $reference );
+			/* translators: 1: button label, 2: site URL. */
+			echo '<button type="submit" class="button" aria-label="' . esc_attr( sprintf( __( '%1$s: site %2$s', 'wp-license' ), $label, $site_url ) ) . '">' . esc_html( $label ) . '</button>';
+			echo '</form>';
+		}
 	}
 
 	/**
