@@ -2,6 +2,8 @@
 
 This is the guide for the developer of a premium add-on. Everything the add-on needs is in `src/Client/` of this repository: a small library for PHP 7.4 and WordPress 6.5 that needs neither WooCommerce nor any other class of the license server. The server side of the contract is specified in [API-V1.md](API-V1.md) and [UPDATES.md](UPDATES.md).
 
+> **Server and client are separate.** WP License Captain Server is a separately sold product for vendors who want to license their own software. A WordPress product can implement the client directly against the API in [API-V1.md](API-V1.md), or use the PHP library in `src/Client/`; a dedicated client plugin such as License Captain Client is also an option. The client library used in Captain Pro add-ons serves only our own license checks and does not include or replace the server product.
+
 > **Where the client belongs.** The core plugin of each product is free, ungated and published on WordPress.org. It must not contain this library, an entitlement check, a custom updater or any call to the license server. Only the separate premium add-on, which is sold and delivered from the shop, carries it.
 
 > **Starting a premium add-on?** [`examples/premium-addon-starter/`](../examples/premium-addon-starter/README.md) is a complete add-on skeleton with this client vendored under the add-on namespace (`bin/vendor-client.php`), a license settings page, a fail-closed entitlement helper on a signed 14-day offline cache, the updater with SHA-256 and size checks, uninstall cleanup, a privacy note, tests with server-generated signed fixtures, and `bin/init-addon.php` to create a product repository from it. Its tests run with `composer test:starter`, and e2e flow 12 runs it against a real server.
