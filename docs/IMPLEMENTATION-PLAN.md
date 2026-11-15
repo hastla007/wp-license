@@ -200,3 +200,10 @@ Die früheren 37 gestapelten `codex/*`-Branches sind in einem Integrationsstand 
 **Ergebnis / Abnahme**
 - Testfälle für Kauf, doppelte Events, Verlängerung, Kündigung, Refund, Chargeback, Site-Limit, Staging, Offlinebetrieb und Update sind bestanden.
 - Release ist reproduzierbar und kann bei Fehlern zurückgerollt werden.
+
+
+## Ergänzung: geplante Produkte der Captain Suite
+
+WP License Captain lizenziert Premium-Add-ons; die kostenlosen Kern-Plugins bleiben lizenzfrei. Die bereits gebauten Add-ons für Voucher, Pass und Affiliate verwenden das bestehende Client-/Update-Modell. Die geplanten Add-ons `form-captain-pro` und `review-captain-pro` werden nach demselben Muster aufgenommen, sobald sie im Captain-Pro-Repository implementiert sind. Produktkey/Slug/Add-on-Ordner/Textdomain müssen identisch sein; Feature-Rechte folgen den Präfixen `form.*` und `review.*`. Die vorgeschlagenen Produktpläne Solo/Studio/Agency entsprechen 1/5/25 Live-Sites; Preise und Produkt-Tarife bleiben pro Produkt separat.
+
+Lizenzserveraufgaben: Katalogprodukte und Entitlements registrieren, WooCommerce-Tarife und Updatepakete zuordnen, Client-Kompatibilität und Signaturschlüssel prüfen, Staging-/Live-Limits validieren und Ende-zu-Ende-Kauf, Aktivierung, Offline-Cache, Refund/Widerruf und Updatezustellung für beide neuen Add-ons nachweisen. Bis dahin sind die beiden Produktschlüssel geplante Produktkonfiguration, keine bereits verkaufsfähigen Lizenzen.
