@@ -704,3 +704,13 @@ Stand 15.11.2026 abends: alle 64 Funde bearbeitet (sieben Fix-Agenten, zusammeng
 - [x] **P-62 [OPTIMIERUNG]** (Krypto) Folge-Job verschickt den Schlüssel ohne `matches_hash()` (Lücke in B-64). (`src/License/LicenseIssuer.php:732-736`)
 - [x] **P-63 [OPTIMIERUNG]** (Krypto) Lizenz-UUIDs aus `wp_generate_uuid4()` (`mt_rand`); auf `random_bytes` umstellen. (`src/License/LicenseIssuer.php:500`, `src/Admin/SupportActions.php:85`)
 - [x] **P-64 [OPTIMIERUNG]** (Datenschutz) Auskunft/Eraser finden Daten nur über die Konto-E-Mail; einige Felder fehlen in der Auskunft; Eraser übersieht `cus_`/`pm_`-Referenzen bei `renewal_enabled=0`; Datenschutztext nennt externe Paket-Hosts und Stripe-Metadaten nicht. (`src/Privacy/PersonalData.php:115-151, 602-647`)
+
+
+## 11. Geplante Captain-Suite-Produkte: Form und Review
+
+- [ ] Katalogeinträge für `form-captain-pro` und `review-captain-pro` vorbereiten; Add-on-Slug/Textdomain/Product-Key exakt angleichen und erst nach vorhandenem Add-on-Build aktivieren.
+- [ ] Entitlements `form.*` und `review.*` mit den verantwortlichen Add-on-Repositories abstimmen; nur stabile, tatsächlich implementierte Features freischalten.
+- [ ] Pro Produkt Pläne/Site-Limits (1/5/25 Live-Sites) sowie Staging-Regel, Support-Level und Updatekanal definieren; Preise bleiben unabhängig.
+- [ ] WooCommerce-Produkte, Lizenzpläne, Releases und Updatepakete für beide Add-ons im Shop anlegen und Testdaten von Produktionsdaten trennen.
+- [ ] E2E: Kauf/Refund, Aktivierung, Site-Limit, Staging, Entitlement-Änderung, Offline-Cache, Schlüsselrotation, Update und Deaktivierung für beide Clients abnehmen.
+- **Abnahme:** Keine Form-/Review-Pro-Funktion wird vor erfolgreichem Vertragstest und veröffentlichtem Add-on-Paket als lizenzierbares Recht angeboten.
