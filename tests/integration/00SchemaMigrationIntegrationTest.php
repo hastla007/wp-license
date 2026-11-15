@@ -126,6 +126,18 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( Schema::migrate(), 'dbDelta adds the index again.' );
 		$this->assertTrue( Schema::run_registered_step( '15' ) );
 
+		// Schema 16 (T-108): the installation an update grant was issued to.
+		$this->assertTrue( Schema::run_registered_step( '16' ), 'Step 16 finds download_tokens.activation_id.' );
+		$wpdb->query( "ALTER TABLE {$tables['download_tokens']} DROP COLUMN activation_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name from Schema.
+		$this->assertFalse( Schema::run_registered_step( '16' ), 'Step 16 reports the missing column.' );
+		// Schema 17 (T-110): plan change columns.
+		$this->assertTrue( Schema::run_registered_step( '17' ), 'Step 17 finds the plan change columns.' );
+		$wpdb->query( "ALTER TABLE {$tables['licenses']} DROP COLUMN plan_order_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name from Schema.
+		$this->assertFalse( Schema::run_registered_step( '17' ), 'Step 17 reports a missing column.' );
+		$this->assertTrue( Schema::migrate(), 'dbDelta adds the columns again.' );
+		$this->assertTrue( Schema::run_registered_step( '16' ) );
+		$this->assertTrue( Schema::run_registered_step( '17' ) );
+
 		foreach ( Schema::table_names() as $table_name ) {
 			$table_exists = $wpdb->get_var(
 				$wpdb->prepare(
@@ -135,5 +147,48 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 			);
 			$this->assertSame( '1', (string) $table_exists, 'Missing WPLC schema table: ' . $table_name );
 		}
+
+		// A-105 (schema 18 and 19): the indexes the order lookups, the admin list, retention and diagnostics rely on.
+		$tables  = Schema::table_names();
+		$indexes = array(
+			'licenses'    => array( 'source_order', 'created_at', 'status_paid_until' ),
+			'activations' => array( 'status_deactivated' ),
+			'event_inbox' => array( 'outcome_processed' ),
+		);
+		foreach ( $indexes as $table => $names ) {
+			$present = (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s', $tables[ $table ] ) );
+			foreach ( $names as $name ) {
+				$this->assertContains( $name, $present, $table . '.' . $name );
+			}
+		}
+
+		// Schema 21 (merge of both lines): line B's review status moves to review_required, with its reason.
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$ids = array();
+		foreach ( array( 'with_error' => 'license_changed_during_charge', 'without_error' => '' ) as $name => $error ) {
+			$wpdb->insert(
+				$tables['renewals'],
+				array(
+					'license_id'      => 999021,
+					'period_start'    => $now,
+					'period_end'      => $now,
+					'idempotency_key' => hash( 'sha256', 'schema21-' . $name . wp_rand() ),
+					'status'          => 'payment_review',
+					'retry_at'        => $now,
+					'last_error'      => $error,
+					'created_at'      => $now,
+					'updated_at'      => $now,
+				)
+			);
+			$ids[ $name ] = (int) $wpdb->insert_id;
+		}
+		$this->assertTrue( Schema::run_registered_step( '21' ) );
+		$this->assertTrue( Schema::run_registered_step( '21' ), 'Step 21 is repeatable.' );
+		$moved = static function ( int $id ) use ( $wpdb, $tables ) {
+			return $wpdb->get_row( $wpdb->prepare( "SELECT status, retry_at, review_reason, review_at FROM {$tables['renewals']} WHERE id = %d", $id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		};
+		$this->assertSame( array( 'status' => 'review_required', 'retry_at' => null, 'review_reason' => 'license_changed_during_charge', 'review_at' => $now ), $moved( $ids['with_error'] ) );
+		$this->assertSame( array( 'status' => 'review_required', 'retry_at' => null, 'review_reason' => 'payment_review', 'review_at' => $now ), $moved( $ids['without_error'] ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['renewals']} WHERE license_id = %d", 999021 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
 	}
 }

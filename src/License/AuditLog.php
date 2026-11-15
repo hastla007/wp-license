@@ -59,6 +59,30 @@ final class AuditLog {
 	}
 
 	/**
+	 * Apply the write-time redaction again before a stored summary is shown.
+	 *
+	 * Rows written by older versions or by add-ons that bypassed record()
+	 * might still contain sensitive fields; admin screens pass every decoded
+	 * snapshot through here (defense in depth).
+	 *
+	 * @param mixed $value Decoded summary.
+	 * @return mixed
+	 */
+	public static function redact_for_display( $value ) {
+		return self::redact_value( $value );
+	}
+
+	/**
+	 * Apply the write-time text redaction again before a stored reason is shown.
+	 *
+	 * @param string $value Stored text.
+	 * @return string
+	 */
+	public static function redact_text_for_display( string $value ): string {
+		return self::redact_text( $value );
+	}
+
+	/**
 	 * Encode a small state summary.
 	 *
 	 * @param mixed $value Summary value.
@@ -80,7 +104,9 @@ final class AuditLog {
 	 * @return mixed
 	 */
 	private static function redact_value( $value ) {
-		$sensitive = '/(?:license.?key|secret|token|password|authorization|email|phone|address|site.?url)/i';
+		// The site URL of an activation is kept (A-77): support needs it to
+		// follow address changes, and it is shown next to the activation anyway.
+		$sensitive = '/(?:license.?key|secret|token|password|authorization|email|phone|address)/i';
 
 		if ( is_object( $value ) ) {
 			$value = get_object_vars( $value );

@@ -8,11 +8,13 @@
 namespace WPLC\Admin;
 
 use WPLC\Billing\Money;
+use WPLC\Billing\PlanUpgrade;
 use WPLC\Billing\RenewalReview;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditReason;
 use WPLC\License\LicenseLifecycle;
 use WPLC\License\LicenseStateMachine;
+use WPLC\License\PlanChange;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -79,8 +81,12 @@ final class LicenseDetail {
 		echo '<hr class="wp-header-end">';
 
 		self::render_review_notice( $license_id );
+		self::render_upgrade_review_notice( $license_id );
 		self::render_summary( $license, is_string( $display_name ) ? $display_name : '', $activations, $entitlements );
-		self::render_actions( $license );
+		if ( Capabilities::can( 'manage_licenses' ) ) {
+			self::render_actions( $license );
+			self::render_support_actions( $license );
+		}
 		self::render_activations( $activations );
 		self::render_renewals( $renewals );
 		self::render_entitlements( $entitlements );
@@ -105,6 +111,23 @@ final class LicenseDetail {
 			/* translators: 1: date the review started, 2: date until which the expiry of the license is deferred. */
 			echo esc_html( sprintf( __( 'Open since %1$s. The license does not expire before the review is resolved, at the latest until %2$s.', 'wp-license' ), Format::date( $case['review_at'] ?: $case['updated_at'], true ), null !== $deferred ? Format::date( gmdate( 'Y-m-d H:i:s', $deferred ), true ) : '—' ) );
 			echo ' <a href="' . esc_url( RenewalReviewAdmin::list_url() . '#wplc-review-' . (int) $case['id'] ) . '">' . esc_html__( 'Resolve it in "Renewals to review"', 'wp-license' ) . '</a></p></div>';
+		}
+	}
+
+	/**
+	 * Warn when a paid plan upgrade order of this license could not be applied (T-110).
+	 *
+	 * @param int $license_id License ID.
+	 * @return void
+	 */
+	private static function render_upgrade_review_notice( int $license_id ): void {
+		foreach ( PlanUpgrade::orders_in_review( $license_id ) as $order_id => $reason ) {
+			echo '<div class="notice notice-warning inline wplc-upgrade-review-notice"><p><strong>' . esc_html__( 'A paid plan upgrade was not applied.', 'wp-license' ) . '</strong> ';
+			echo wp_kses_post( self::order_link( (int) $order_id ) ) . ' ';
+			if ( '' !== $reason ) {
+				echo esc_html( AuditReason::label( $reason ) ) . ' ';
+			}
+			echo esc_html__( 'Refund the order in WooCommerce, or change the plan below if the customer keeps the upgrade.', 'wp-license' ) . '</p></div>';
 		}
 	}
 
@@ -139,8 +162,25 @@ final class LicenseDetail {
 
 		$renewal = Format::renewal_mode_label( $license );
 		if ( ! empty( $license['renewal_enabled'] ) ) {
-			$amount   = Money::to_decimal( (int) $license['renewal_amount_minor'], (int) $license['renewal_currency_decimals'] );
-			$renewal .= ' — ' . $amount . ' ' . (string) $license['renewal_currency'];
+			$amount = Money::to_decimal( (int) $license['renewal_amount_minor'], (int) $license['renewal_currency_decimals'] );
+			if ( function_exists( 'wc_price' ) ) {
+				// A-131: amount in the shop's number format.
+				$renewal .= ' — ' . html_entity_decode(
+					wp_strip_all_tags(
+						wc_price(
+							(float) $amount,
+							array(
+								'currency' => (string) $license['renewal_currency'],
+								'decimals' => (int) $license['renewal_currency_decimals'],
+							)
+						)
+					),
+					ENT_QUOTES,
+					'UTF-8'
+				);
+			} else {
+				$renewal .= ' — ' . $amount . ' ' . (string) $license['renewal_currency'];
+			}
 			if ( '' !== (string) $license['payment_gateway_id'] ) {
 				$renewal .= ' (' . (string) $license['payment_gateway_id'] . ')';
 			}
@@ -157,7 +197,7 @@ final class LicenseDetail {
 		$rows = array(
 			array( __( 'Customer', 'wp-license' ), LicenseAdmin::customer_html( (int) $license['customer_id'] ), true ),
 			array( __( 'Product', 'wp-license' ), '' !== $display_name ? $display_name . ' (' . (string) $license['product_key'] . ')' : (string) $license['product_key'] ),
-			array( __( 'Plan', 'wp-license' ), (string) $license['plan_key'] ),
+			array( __( 'Plan', 'wp-license' ), self::plan_text( $license ) ),
 			array( __( 'Status', 'wp-license' ), $status ),
 			array( __( 'Billing interval', 'wp-license' ), 'month' === $license['billing_interval'] ? __( 'Monthly', 'wp-license' ) : __( 'Yearly', 'wp-license' ) ),
 			array( __( 'Started', 'wp-license' ), Format::date( $license['starts_at'], true ) ),
@@ -212,7 +252,10 @@ final class LicenseDetail {
 				continue;
 			}
 			if ( 'active' === $target && $period_ended ) {
-				echo '<p>' . esc_html__( 'The paid period has ended. Change the term below to reactivate this license.', 'wp-license' ) . '</p>';
+				// A-51: a suspended license cannot use "Change term"; it is restored with a new end date below.
+				if ( 'suspended' !== $status ) {
+					echo '<p>' . esc_html__( 'The paid period has ended. Change the term below to reactivate this license.', 'wp-license' ) . '</p>';
+				}
 				continue;
 			}
 			$any     = true;
@@ -227,8 +270,11 @@ final class LicenseDetail {
 			echo '<input type="text" id="' . esc_attr( $form_id ) . '" name="reason" required maxlength="255" placeholder="' . esc_attr__( 'Reason', 'wp-license' ) . '">';
 			echo '<button class="button" type="submit">' . esc_html( $button[0] ) . '</button></form>';
 		}
-		if ( ! $any && 'revoked' === $status ) {
-			echo '<p>' . esc_html__( 'A revoked license cannot be changed. Add a new license instead.', 'wp-license' ) . '</p>';
+		if ( ! $any && 'revoked' === $status && ! Capabilities::can( 'restore_licenses' ) ) {
+			echo '<p>' . esc_html__( 'A revoked license can only be restored by an administrator. Otherwise add a new license.', 'wp-license' ) . '</p>';
+		}
+		if ( ( 'suspended' === $status && $period_ended ) || ( 'revoked' === $status && Capabilities::can( 'restore_licenses' ) ) ) {
+			self::render_restore_form( $license );
 		}
 
 		// The term of a suspended license cannot be changed; reactivate it first.
@@ -236,11 +282,18 @@ final class LicenseDetail {
 			return;
 		}
 
+		self::render_plan_change( $license );
+
+		$processing = SupportActions::has_processing_renewal( $license_id );
+		$open       = SupportActions::open_renewal_orders( $license_id );
+
 		echo '<h3>' . esc_html__( 'Change term', 'wp-license' ) . '</h3>';
 		echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="wplc_admin_extend_license">';
 		echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
 		self::nonce_input( 'wplc_admin_extend_license_' . $license_id );
+		// B-133: the handler refuses when the term is no longer the one shown here.
+		echo '<input type="hidden" name="expected_paid_until" value="' . esc_attr( (string) $license['paid_until'] ) . '">';
 		echo '<label for="wplc-extend-date">' . esc_html__( 'New end date', 'wp-license' ) . '</label>';
 		echo '<input type="date" id="wplc-extend-date" name="paid_until" required min="' . esc_attr( wp_date( 'Y-m-d' ) ) . '" value="' . esc_attr( Format::utc_to_local_date( $license['paid_until'], wp_timezone() ) ) . '">';
 		echo '<label for="wplc-extend-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
@@ -250,6 +303,167 @@ final class LicenseDetail {
 		/* translators: %s: site timezone, for example Europe/Berlin. */
 		echo esc_html( sprintf( __( 'The license runs until the end of that day in the site timezone (%s). No payment is taken. An expired license becomes active again.', 'wp-license' ), wp_timezone_string() ) );
 		echo '</p>';
+		if ( $processing ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'An automatic payment for this license is being processed right now. The term cannot be changed until it has finished.', 'wp-license' ) . '</p></div>';
+		}
+		if ( $open ) {
+			$links = array();
+			foreach ( $open as $row ) {
+				$links[] = self::order_link( $row['order_id'] );
+			}
+			echo '<div class="notice notice-warning inline"><p>';
+			echo esc_html__( 'The customer still has an unpaid renewal order for this license. Changing the term does not cancel it: if the customer pays it later, the payment is accepted but may not extend the license. Cancel the order in WooCommerce first, or leave the term unchanged.', 'wp-license' );
+			echo ' ' . wp_kses_post( implode( ', ', $links ) );
+			echo '</p></div>';
+		}
+	}
+
+	/**
+	 * Form that brings a suspended or revoked license back with a new end date.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return void
+	 */
+	private static function render_restore_form( array $license ): void {
+		$license_id = (int) $license['id'];
+		$status     = (string) $license['status'];
+		$default    = ( new \DateTimeImmutable( 'now', wp_timezone() ) )->modify( '+30 days' )->format( 'Y-m-d' );
+		$current    = Format::utc_to_local_date( $license['paid_until'], wp_timezone() );
+
+		echo '<h3>' . esc_html__( 'Restore with a new end date', 'wp-license' ) . '</h3>';
+		echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"' . ( 'revoked' === $status ? ' data-wplc-confirm="' . esc_attr__( 'Restore this revoked license? The customer gets access again.', 'wp-license' ) . '"' : '' ) . '>';
+		echo '<input type="hidden" name="action" value="wplc_admin_restore_license">';
+		echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+		echo '<input type="hidden" name="expected_status" value="' . esc_attr( $status ) . '">';
+		self::nonce_input( 'wplc_admin_restore_license_' . $license_id );
+		echo '<label for="wplc-restore-date">' . esc_html__( 'New end date', 'wp-license' ) . '</label>';
+		echo '<input type="date" id="wplc-restore-date" name="paid_until" required min="' . esc_attr( wp_date( 'Y-m-d' ) ) . '" value="' . esc_attr( $current > wp_date( 'Y-m-d' ) ? $current : $default ) . '">';
+		echo '<label for="wplc-restore-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
+		echo '<input type="text" id="wplc-restore-reason" name="reason" required maxlength="255">';
+		echo '<button class="button" type="submit">' . esc_html__( 'Restore license', 'wp-license' ) . '</button></form>';
+		echo '<p class="description">';
+		echo esc_html(
+			'revoked' === $status
+				? __( 'Use this to undo a revocation that happened by mistake, for example an order set to "refunded" by accident. The license becomes active until the end of that day. Automatic renewal stays off. No payment is taken.', 'wp-license' )
+				: __( 'The paid period of this suspended license has ended. It becomes active again until the end of that day. No payment is taken.', 'wp-license' )
+		);
+		echo '</p>';
+	}
+
+	/**
+	 * Key and owner actions.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return void
+	 */
+	private static function render_support_actions( array $license ): void {
+		$license_id = (int) $license['id'];
+		$status     = (string) $license['status'];
+		if ( 'pending' === $status ) {
+			return;
+		}
+		$post_url = admin_url( 'admin-post.php' );
+
+		if ( 'revoked' !== $status ) {
+			echo '<h3>' . esc_html__( 'License key', 'wp-license' ) . '</h3>';
+			echo '<form method="post" class="wplc-inline-form" action="' . esc_url( $post_url ) . '" data-wplc-confirm="' . esc_attr__( 'Issue a new key? The old key stops working immediately.', 'wp-license' ) . '">';
+			echo '<input type="hidden" name="action" value="wplc_admin_reissue_key">';
+			echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+			self::nonce_input( 'wplc_admin_reissue_key_' . $license_id );
+			echo '<label class="screen-reader-text" for="wplc-reissue-reason">' . esc_html__( 'Reason for the new key', 'wp-license' ) . '</label>';
+			echo '<input type="text" id="wplc-reissue-reason" name="reason" required maxlength="255" placeholder="' . esc_attr__( 'Reason', 'wp-license' ) . '">';
+			echo '<label><input type="checkbox" name="release_sites" value="1"> ' . esc_html__( 'Also release all activated sites', 'wp-license' ) . '</label> ';
+			echo '<button class="button" type="submit">' . esc_html__( 'Issue new key', 'wp-license' ) . '</button></form>';
+			echo '<p class="description">' . esc_html__( 'For a key that was published or passed on. The license keeps its term, its order and its renewal. Sites that are already activated keep working unless you release them; release unknown sites below. The customer finds the new key in their account.', 'wp-license' ) . '</p>';
+
+			if ( ! empty( $license['customer_id'] ) ) {
+				echo '<form method="post" class="wplc-inline-form" action="' . esc_url( $post_url ) . '">';
+				echo '<input type="hidden" name="action" value="wplc_admin_resend_key">';
+				echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+				self::nonce_input( 'wplc_admin_resend_key_' . $license_id );
+				echo '<label class="screen-reader-text" for="wplc-resend-reason">' . esc_html__( 'Reason for sending the key again', 'wp-license' ) . '</label>';
+				echo '<input type="text" id="wplc-resend-reason" name="reason" required maxlength="255" placeholder="' . esc_attr__( 'Reason', 'wp-license' ) . '">';
+				echo '<button class="button" type="submit">' . esc_html__( 'Send key email again', 'wp-license' ) . '</button></form>';
+			}
+		}
+
+		echo '<h3>' . esc_html__( 'Change owner', 'wp-license' ) . '</h3>';
+		echo '<form method="post" class="wplc-inline-form" action="' . esc_url( $post_url ) . '" data-wplc-confirm="' . esc_attr__( 'Hand this license over to another customer?', 'wp-license' ) . '">';
+		echo '<input type="hidden" name="action" value="wplc_admin_change_owner">';
+		echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+		echo '<input type="hidden" name="expected_customer" value="' . esc_attr( (string) (int) $license['customer_id'] ) . '">';
+		self::nonce_input( 'wplc_admin_change_owner_' . $license_id );
+		echo '<label for="wplc-owner-customer">' . esc_html__( 'New customer (user ID or email)', 'wp-license' ) . '</label>';
+		echo '<input type="text" id="wplc-owner-customer" name="customer" required>';
+		echo '<label for="wplc-owner-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
+		echo '<input type="text" id="wplc-owner-reason" name="reason" required maxlength="255">';
+		echo '<button class="button" type="submit">' . esc_html__( 'Change owner', 'wp-license' ) . '</button></form>';
+		echo '<p class="description">' . esc_html__( 'The new customer sees the license and its key in their account; the previous owner no longer does. Automatic renewal is switched off, because the stored payment method belongs to the previous owner. Activated sites stay connected.', 'wp-license' ) . '</p>';
+	}
+
+	/**
+	 * Plan key, with a plan change scheduled for the next renewal.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return string
+	 */
+	private static function plan_text( array $license ): string {
+		$text = (string) $license['plan_key'];
+		if ( '' !== (string) ( $license['pending_plan_key'] ?? '' ) ) {
+			/* translators: %s: plan key the license changes to. */
+			$text .= ' — ' . sprintf( __( 'changes to %s with the next renewal', 'wp-license' ), (string) $license['pending_plan_key'] );
+		}
+
+		return $text;
+	}
+
+	/**
+	 * "Change plan" form (T-110): now or from the next renewal, no payment.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return void
+	 */
+	private static function render_plan_change( array $license ): void {
+		if ( ! in_array( (string) $license['status'], array( 'active', 'past_due' ), true ) ) {
+			return;
+		}
+		$license_id = (int) $license['id'];
+		$targets    = PlanChange::targets( $license, false );
+		echo '<h3>' . esc_html__( 'Change plan', 'wp-license' ) . '</h3>';
+		if ( '' !== (string) ( $license['pending_plan_key'] ?? '' ) ) {
+			echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			echo '<input type="hidden" name="action" value="wplc_admin_cancel_plan_change">';
+			echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+			self::nonce_input( 'wplc_admin_cancel_plan_change_' . $license_id );
+			/* translators: %s: plan key. */
+			echo '<span>' . esc_html( sprintf( __( 'Scheduled for the next renewal: %s.', 'wp-license' ), (string) $license['pending_plan_key'] ) ) . '</span> ';
+			echo '<label class="screen-reader-text" for="wplc-plan-cancel-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
+			echo '<input type="text" id="wplc-plan-cancel-reason" name="reason" required maxlength="255" placeholder="' . esc_attr__( 'Reason', 'wp-license' ) . '">';
+			echo '<button class="button" type="submit">' . esc_html__( 'Withdraw plan change', 'wp-license' ) . '</button></form>';
+		}
+		if ( ! $targets ) {
+			echo '<p>' . esc_html__( 'No other plan of this product with the same billing interval is mapped in the catalog.', 'wp-license' ) . '</p>';
+			return;
+		}
+		echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="wplc_admin_change_plan">';
+		echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+		self::nonce_input( 'wplc_admin_change_plan_' . $license_id );
+		echo '<label for="wplc-plan-target">' . esc_html__( 'New plan', 'wp-license' ) . '</label>';
+		echo '<select id="wplc-plan-target" name="product_id" required>';
+		foreach ( $targets as $product_id => $target ) {
+			$limit = PlanChange::site_limit_from_plan( $target['plan'] );
+			/* translators: 1: plan key, 2: product name, 3: price, 4: currency, 5: live sites. */
+			$label = sprintf( __( '%1$s — %2$s (%3$s %4$s, live sites: %5$s)', 'wp-license' ), (string) $target['plan']['plan_key'], wp_strip_all_tags( (string) $target['product']->get_name() ), Money::to_decimal( (int) $target['price']['amount_minor'], (int) $target['price']['decimals'] ), (string) $target['price']['currency'], null === $limit ? '—' : (string) $limit );
+			echo '<option value="' . esc_attr( (string) $product_id ) . '">' . esc_html( $label ) . '</option>';
+		}
+		echo '</select>';
+		echo '<label for="wplc-plan-when">' . esc_html__( 'When', 'wp-license' ) . '</label>';
+		echo '<select id="wplc-plan-when" name="when"><option value="now">' . esc_html__( 'Now', 'wp-license' ) . '</option><option value="renewal">' . esc_html__( 'With the next renewal', 'wp-license' ) . '</option></select>';
+		echo '<label for="wplc-plan-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
+		echo '<input type="text" id="wplc-plan-reason" name="reason" required maxlength="255">';
+		echo '<button class="button" type="submit">' . esc_html__( 'Change plan', 'wp-license' ) . '</button></form>';
+		echo '<p class="description">' . esc_html__( 'No payment is taken and nothing is refunded. The paid period stays. "Now" replaces the entitlements and the live site limit at once; sites above a lower limit stay active, but no new sites can be activated. Future renewals use the product of the new plan; an automatic renewal amount is never raised without the consent of the customer (it stays as it is for a more expensive plan).', 'wp-license' ) . '</p>';
 	}
 
 	/**
@@ -286,7 +500,7 @@ final class LicenseDetail {
 			echo '<td>' . esc_html( $versions ) . '</td>';
 			echo '<td>' . esc_html( Format::date( $activation['activated_at'], true ) ) . '</td>';
 			echo '<td>' . esc_html( Format::date( 'active' === $activation['status'] ? $activation['last_seen_at'] : $activation['deactivated_at'], true ) ) . '</td><td>';
-			if ( 'active' === $activation['status'] ) {
+			if ( 'active' === $activation['status'] && Capabilities::can( 'manage_licenses' ) ) {
 				$field_id = 'wplc-release-' . $activation_id;
 				echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 				echo '<input type="hidden" name="action" value="wplc_admin_release_activation">';
@@ -408,7 +622,11 @@ final class LicenseDetail {
 		);
 
 		/* translators: %d: maximum number of entries. */
-		echo '<p class="description">' . esc_html( sprintf( __( 'Latest %d entries, newest first.', 'wp-license' ), self::AUDIT_LIMIT ) ) . '</p>';
+		echo '<p class="description">' . esc_html( sprintf( __( 'Latest %d entries, newest first.', 'wp-license' ), self::AUDIT_LIMIT ) );
+		if ( Capabilities::can( 'view_diagnostics' ) ) {
+			echo ' <a href="' . esc_url( AuditLogPage::url( array( 'license' => $license_id ) ) ) . '">' . esc_html__( 'Open the complete audit log of this license', 'wp-license' ) . '</a>';
+		}
+		echo '</p>';
 		echo '<table class="widefat striped"><thead><tr>';
 		foreach ( array( __( 'Date', 'wp-license' ), __( 'Action', 'wp-license' ), __( 'Object', 'wp-license' ), __( 'By', 'wp-license' ), __( 'Reason', 'wp-license' ), __( 'Change', 'wp-license' ) ) as $heading ) {
 			echo '<th scope="col">' . esc_html( $heading ) . '</th>';
@@ -418,14 +636,7 @@ final class LicenseDetail {
 			$actor_id = (int) $entry['actor_user_id'];
 			$actor    = $actor_id ? get_userdata( $actor_id ) : false;
 			$type     = (string) $entry['object_type'];
-			if ( $actor ) {
-				$actor_name = (string) $actor->display_name;
-			} elseif ( $actor_id ) {
-				/* translators: %d: user ID. */
-				$actor_name = sprintf( __( 'Deleted user #%d', 'wp-license' ), $actor_id );
-			} else {
-				$actor_name = __( 'System', 'wp-license' );
-			}
+			$actor_name = self::actor_label( $actor_id, $actor ? (string) $actor->user_login : '' );
 
 			echo '<tr><td>' . esc_html( Format::date( $entry['created_at'], true ) ) . '</td>';
 			echo '<td><code>' . esc_html( (string) $entry['action'] ) . '</code></td>';
@@ -435,6 +646,25 @@ final class LicenseDetail {
 			echo '<td>' . esc_html( self::change_summary( $entry['before_json'], $entry['after_json'] ) ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
+	}
+
+	/**
+	 * Label of the acting user: the login name and ID, which the user cannot change (B-135).
+	 *
+	 * @param int    $actor_id   User ID, zero for system events.
+	 * @param string $user_login Login name, empty when the account no longer exists.
+	 * @return string
+	 */
+	public static function actor_label( int $actor_id, string $user_login ): string {
+		if ( $actor_id <= 0 ) {
+			return __( 'System', 'wp-license' );
+		}
+		if ( '' === $user_login ) {
+			/* translators: %d: user ID. */
+			return sprintf( __( 'Deleted user #%d', 'wp-license' ), $actor_id );
+		}
+
+		return $user_login . ' (#' . $actor_id . ')';
 	}
 
 	/**
@@ -551,6 +781,8 @@ final class LicenseDetail {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="wplc_admin_add_license">';
 		wp_nonce_field( 'wplc_admin_add_license' );
+		// A-60: identifies this rendered form, so a double click cannot create two licenses.
+		echo '<input type="hidden" name="request_id" value="' . esc_attr( strtolower( wp_generate_password( 24, false ) ) ) . '">';
 		echo '<table class="form-table" role="presentation"><tbody>';
 
 		echo '<tr><th scope="row"><label for="wplc-add-customer">' . esc_html__( 'Customer', 'wp-license' ) . '</label></th><td>';

@@ -35,3 +35,77 @@
 	justify-content: space-between;
 	gap: 1em;
 }
+
+/* Live region next to the copy button: read by screen readers, visible as a short hint. */
+.wplc-copy-status {
+	flex: 1 1 100%;
+	min-height: 1em;
+	font-size: 0.875em;
+}
+
+.wplc-copy-status:empty {
+	display: none;
+}
+
+.wplc-license-status-help {
+	margin: 0 0 1em;
+}
+
+.wplc-renewal-terms {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 0.25em 1em;
+	margin: 0 0 1em;
+}
+
+.wplc-renewal-terms dt {
+	font-weight: 600;
+}
+
+.wplc-renewal-terms dd {
+	margin: 0;
+}
+
+.wplc-payment-method,
+.wplc-enable-renewal,
+.wplc-install-steps {
+	margin: 0 0 1em;
+}
+
+.wplc-payment-method-form,
+.wplc-enable-renewal-form {
+	margin: 0.5em 0;
+}
+
+.wplc-payment-method select,
+.wplc-enable-renewal select {
+	max-width: 100%;
+}
+
+.wplc-install-steps summary,
+.wplc-enable-renewal summary {
+	cursor: pointer;
+}
+
+.wplc-cancel-details {
+	margin: 0 0 1em;
+}
+
+.wplc-cancel-details dt {
+	font-weight: 600;
+}
+
+.wplc-cancel-details dd {
+	margin: 0 0 0.5em;
+	overflow-wrap: anywhere;
+}
+
+.wplc-cancel-form .wplc-cancel-back {
+	margin-inline-start: 1em;
+}
+
+@media (max-width: 480px) {
+	.wplc-renewal-terms {
+		grid-template-columns: 1fr;
+	}
+}

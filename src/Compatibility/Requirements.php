@@ -63,6 +63,7 @@ final class Requirements {
 	 */
 	const STRIPE_REQUIRED_SYMBOLS = array(
 		array( 'WC_Stripe_API', 'request' ),
+		array( 'WC_Stripe_API', 'retrieve' ),
 		array( 'WC_Stripe_Helper', 'get_stripe_amount' ),
 		array( 'WC_Stripe_Helper', 'get_stripe_settings' ),
 		array( 'WC_Stripe_Helper', 'should_force_save_payment_method' ),
@@ -300,7 +301,7 @@ final class Requirements {
 		foreach ( self::STRIPE_REQUIRED_SYMBOLS as $symbol ) {
 			if ( ! class_exists( $symbol[0] ) ) {
 				$missing[] = $symbol[0];
-			} elseif ( null !== $symbol[1] && ! method_exists( $symbol[0], $symbol[1] ) ) {
+			} elseif ( ! method_exists( $symbol[0], $symbol[1] ) ) {
 				$missing[] = $symbol[0] . '::' . $symbol[1];
 			}
 		}

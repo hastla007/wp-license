@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * - Detection: check() asks /wplc/v1/updates/check (signed) from the daily cron and whenever WordPress rebuilds the
  *   update_plugins transient (also from cron) and the stored result is older than 12 hours. No capability check:
  *   detection must not depend on a logged-in admin.
- * - Download: the package URL is one-time and valid for ten minutes, so upgrader_pre_download asks for a fresh one
+ * - Download: the package URL is used up by its first request and valid for five minutes, so upgrader_pre_download asks for a fresh one
  *   right before downloading, follows redirects by hand (HTTPS, allow-listed hosts only), enforces the size limit and
  *   compares the SHA-256 from the signed answer before WordPress unpacks anything. Any failure returns a WP_Error;
  *   WordPress then aborts and the installed version stays untouched.
@@ -92,7 +92,7 @@ final class Updater {
 	 */
 	public function check() {
 		$now    = (int) call_user_func( $this->clock );
-		$result = $this->client->check_update();
+		$result = $this->client->check_update( true );
 		if ( is_wp_error( $result ) ) {
 			$stored = $this->stored();
 			// Without access (license_inactive, activation gone) no update is offered any more.
@@ -200,7 +200,7 @@ final class Updater {
 			return $reply;
 		}
 		// The URL in the transient may be used or expired: ask for a fresh grant and checksum.
-		$fresh = $this->client->check_update();
+		$fresh = $this->client->check_update( true );
 		if ( is_wp_error( $fresh ) ) {
 			return $fresh;
 		}

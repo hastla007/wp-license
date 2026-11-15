@@ -21,8 +21,10 @@ final class ServerSyncTest extends TestCase {
 	public function test_vendored_client_equals_the_server_copy_rewritten(): void {
 		$dir = $this->server_dir();
 		require_once dirname( __DIR__, 2 ) . '/bin/vendor-client.php';
-		$expected = premium_addon_starter_vendor_client( (string) file_get_contents( $dir . '/src/Client/LicenseClient.php' ), PREMIUM_ADDON_STARTER_CLIENT_NAMESPACE, PREMIUM_ADDON_STARTER_CLIENT_TEXT_DOMAIN );
-		$this->assertSame( $expected, file_get_contents( dirname( __DIR__, 2 ) . '/src/Client/LicenseClient.php' ), 'Run php bin/vendor-client.php' );
+		foreach ( PREMIUM_ADDON_STARTER_CLIENT_FILES as $file ) {
+			$expected = premium_addon_starter_vendor_client( (string) file_get_contents( $dir . '/src/Client/' . $file ), PREMIUM_ADDON_STARTER_CLIENT_NAMESPACE, PREMIUM_ADDON_STARTER_CLIENT_TEXT_DOMAIN, $file );
+			$this->assertSame( $expected, file_get_contents( dirname( __DIR__, 2 ) . '/src/Client/' . $file ), $file . ': run php bin/vendor-client.php' );
+		}
 	}
 
 	public function test_committed_fixtures_equal_what_the_server_code_produces(): void {
@@ -45,6 +47,7 @@ final class ServerSyncTest extends TestCase {
 		$json   = (string) wp_json_encode( $data, JSON_UNESCAPED_SLASHES );
 		$signer = '\\WPLC\\Security\\ResponseSigner';
 		$real['signature_ed25519'] = $signer::sign_with( $signer::message( (string) $keys['installation_id'], $json ), $fake->secret_key() );
+		$real['payload_signature_ed25519'] = $signer::sign_with( $signer::payload_message( (string) $keys['installation_id'], (string) $real['payload'] ), $fake->secret_key() );
 		$real['key_id']            = $signer::key_id_of( $signer::public_key_of( $fake->secret_key() ) );
 		$this->assertSame( $real, $fake->envelope( $data, (string) $keys['installation_secret'], 'n-123', (string) $keys['installation_id'] ) );
 	}

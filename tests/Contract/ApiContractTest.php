@@ -53,7 +53,7 @@ final class ApiContractTest extends TestCase {
 		);
 		$this->assertSame(
 			// The Ed25519 fields are optional: they need a signing key and an installation.
-			array_values( array_diff( array_keys( $envelope['properties'] ), array( 'signature_ed25519', 'key_id' ) ) ),
+			array_values( array_diff( array_keys( $envelope['properties'] ), array( 'signature_ed25519', 'payload_signature_ed25519', 'key_id' ) ) ),
 			array_keys( \WPLC\Api\V1\Response::envelope( array( 'status' => 'ok' ), 'contract-test-secret', 'contract-test-nonce' ) ),
 			'The server envelope and the published schema must list the same fields.'
 		);
@@ -80,10 +80,10 @@ final class ApiContractTest extends TestCase {
 			// 400 invalid input, 401 invalid_key, 403 product_mismatch/expired, 409 conflicts and site_limit,
 			// 429 rate_limited, 500 activation_failed/server_configuration, 503 retry_later and limiter store.
 			'post /activations' => array( 200, 400, 401, 403, 409, 429, 500, 503 ),
-			// 403 activation_mismatch, 409 also deactivation_failed, 503 also retry_later (license lock).
-			'delete /activations/{activation_id}' => array( 200, 401, 403, 409, 429, 503 ),
-			// 404 license_not_found.
-			'post /entitlements/check' => array( 200, 401, 404, 409, 429, 503 ),
+			// 400 invalid site_url, 403 activation_mismatch, 409 also deactivation_failed/site_mismatch, 503 also retry_later (license lock).
+			'delete /activations/{activation_id}' => array( 200, 400, 401, 403, 409, 429, 503 ),
+			// 400 invalid input (strict request validation), 404 license_not_found.
+			'post /entitlements/check' => array( 200, 400, 401, 404, 409, 429, 503 ),
 			// 400 missing product_key/current_version, 403 license_inactive, 503 also package configuration/grant.
 			'post /updates/check' => array( 200, 400, 401, 403, 409, 429, 503 ),
 			'post /webhooks/stripe' => array( 200, 400, 409, 500, 503 ),
@@ -93,6 +93,49 @@ final class ApiContractTest extends TestCase {
 			list( $method, $path ) = explode( ' ', $operation, 2 );
 			$declared = array_map( 'intval', array_keys( $contract['paths'][ $path ][ $method ]['responses'] ) );
 			$this->assertSame( $statuses, $declared, $operation );
+		}
+	}
+
+	/** B-72: the published error codes are exactly the codes the server knows, each with one status. */
+	public function test_contract_lists_the_error_codes_and_status_values_of_the_server(): void {
+		$contract = json_decode(
+			(string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/openapi-v1.json' ),
+			true,
+			512,
+			JSON_THROW_ON_ERROR
+		);
+		$schemas  = $contract['components']['schemas'];
+
+		$this->assertSame( array_keys( \WPLC\Api\V1\ApiLog::CODES ), $schemas['ErrorCode']['enum'] );
+		$this->assertSame( array( 'active', 'past_due', 'expired', 'suspended', 'revoked', 'pending', 'deactivated' ), $schemas['LicenseStatus']['enum'] );
+		$this->assertSame( array( 'active', 'deactivated' ), $schemas['ActivationStatus']['enum'] );
+		$this->assertSame( \WPLC\Api\V1\ActivationService::ENVIRONMENTS, $schemas['Environment']['enum'] );
+		// B-75: the secret pattern of the contract is the one the server validates with.
+		$this->assertSame(
+			'/' . str_replace( '/', '\\/', $schemas['ActivationRequest']['properties']['installation_secret']['pattern'] ) . '/',
+			\WPLC\Api\V1\ActivationService::SECRET_PATTERN
+		);
+
+		// The Markdown reference documents every code.
+		$markdown = (string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/API-V1.md' );
+		foreach ( \WPLC\Api\V1\ApiLog::CODES as $code => $status ) {
+			$this->assertMatchesRegularExpression( '/\| `' . preg_quote( $code, '/' ) . '` \| ' . $status . ' \|/', $markdown, 'docs/API-V1.md must list ' . $code . ' with status ' . $status );
+		}
+	}
+
+	/** T-145: every signed route declares the answers shared by all authenticated requests. */
+	public function test_signed_routes_declare_replay_rate_limit_and_unavailable_responses(): void {
+		$contract = json_decode(
+			(string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/openapi-v1.json' ),
+			true,
+			512,
+			JSON_THROW_ON_ERROR
+		);
+		foreach ( array( array( '/activations/{activation_id}', 'delete' ), array( '/entitlements/check', 'post' ), array( '/updates/check', 'post' ) ) as $operation ) {
+			$responses = $contract['paths'][ $operation[0] ][ $operation[1] ]['responses'];
+			foreach ( array( '401', '409', '429', '503' ) as $status ) {
+				$this->assertSame( '#/components/responses/ApiError', $responses[ $status ]['$ref'] ?? '', $operation[0] . ' must declare ' . $status );
+			}
 		}
 	}
 }

@@ -80,6 +80,7 @@ final class Format {
 			'reconciling'            => __( 'Checking payment result', 'wp-license' ),
 			'review_required'        => __( 'Review required', 'wp-license' ),
 			'closed'                 => __( 'Review closed without booking', 'wp-license' ),
+			'payment_review'         => __( 'Payment result unclear – check manually', 'wp-license' ),
 			'cancelled'              => __( 'Cancelled', 'wp-license' ),
 			'manual'                 => __( 'Awaiting customer payment', 'wp-license' ),
 			'refunded'               => __( 'Refunded', 'wp-license' ),
@@ -209,6 +210,26 @@ final class Format {
 			->setTime( 23, 59, 59 )
 			->setTimezone( new \DateTimeZone( 'UTC' ) )
 			->format( 'Y-m-d H:i:s' );
+	}
+
+	/**
+	 * Convert a local calendar date to the UTC start of that day (00:00:00 local).
+	 *
+	 * @param string        $date     'Y-m-d' in the site timezone.
+	 * @param \DateTimeZone $timezone Site timezone.
+	 * @return string 'Y-m-d H:i:s' UTC, or '' for an invalid date.
+	 */
+	public static function local_date_to_utc_start_of_day( string $date, \DateTimeZone $timezone ): string {
+		$date = trim( $date );
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+			return '';
+		}
+		$local = \DateTimeImmutable::createFromFormat( '!Y-m-d', $date, $timezone );
+		if ( ! $local instanceof \DateTimeImmutable || $local->format( 'Y-m-d' ) !== $date ) {
+			return '';
+		}
+
+		return $local->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 	}
 
 	/**

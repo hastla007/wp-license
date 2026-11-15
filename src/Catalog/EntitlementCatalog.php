@@ -40,9 +40,9 @@ final class EntitlementCatalog {
 				array( 'key' => 'affiliate.manual_payout_csv', 'label' => __( 'Manual payout CSV', 'wp-license' ) ),
 				array( 'key' => 'affiliate.partner_groups', 'label' => __( 'Partner groups', 'wp-license' ) ),
 				array( 'key' => 'affiliate.product_category_rates', 'label' => __( 'Product and category rates', 'wp-license' ) ),
-				array( 'key' => 'affiliate.bonuses', 'label' => __( 'Bonuses', 'wp-license' ) ),
 				array( 'key' => 'affiliate.recurring_commissions', 'label' => __( 'Recurring commissions', 'wp-license' ) ),
 				array( 'key' => 'affiliate.extended_api', 'label' => __( 'Extended API', 'wp-license' ) ),
+				array( 'key' => 'affiliate.automated_payouts', 'label' => __( 'Automated payouts', 'wp-license' ) ),
 				array( 'key' => 'affiliate.white_label_portal', 'label' => __( 'White-label portal', 'wp-license' ) ),
 				array( 'key' => 'affiliate.webhooks', 'label' => __( 'Webhooks', 'wp-license' ) ),
 				array( 'key' => 'affiliate.multiple_programs', 'label' => __( 'Multiple programs', 'wp-license' ) ),
@@ -58,7 +58,6 @@ final class EntitlementCatalog {
 				array( 'key' => 'voucher.scheduled_delivery', 'label' => __( 'Scheduled delivery', 'wp-license' ) ),
 				array( 'key' => 'voucher.bulk_import_export', 'label' => __( 'Bulk import and export', 'wp-license' ) ),
 				array( 'key' => 'voucher.reports', 'label' => __( 'Reports', 'wp-license' ) ),
-				array( 'key' => 'voucher.central_license_overview', 'label' => __( 'Central license overview', 'wp-license' ) ),
 				array( 'key' => 'voucher.white_label', 'label' => __( 'White label', 'wp-license' ) ),
 				array( 'key' => 'voucher.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),
@@ -72,10 +71,8 @@ final class EntitlementCatalog {
 				array( 'key' => 'pass.service_slots', 'label' => __( 'Service slots', 'wp-license' ) ),
 				array( 'key' => 'pass.pos', 'label' => __( 'Point of sale', 'wp-license' ) ),
 				array( 'key' => 'pass.offline_checkin', 'label' => __( 'Offline check-in', 'wp-license' ) ),
-				array( 'key' => 'pass.team_assignment', 'label' => __( 'Team assignment', 'wp-license' ) ),
 				array( 'key' => 'pass.advanced_reports', 'label' => __( 'Advanced reports', 'wp-license' ) ),
 				array( 'key' => 'pass.api_webhooks', 'label' => __( 'API and webhooks', 'wp-license' ) ),
-				array( 'key' => 'pass.client_license_management', 'label' => __( 'Client license management', 'wp-license' ) ),
 				array( 'key' => 'pass.white_label', 'label' => __( 'White label', 'wp-license' ) ),
 				array( 'key' => 'pass.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),
@@ -123,7 +120,40 @@ final class EntitlementCatalog {
 	}
 
 	/**
-	 * Catalog groups that belong to a license product key such as "voucher-captain".
+	 * Product keys of the premium add-ons (decided 14.11.2026, T-158): key = add-on folder = text domain
+	 * (hastla007/captain-pro).
+	 *
+	 * The key on a license product must equal the key the add-on sends; each maps to its entitlement prefix.
+	 */
+	public const PRODUCT_KEYS = array(
+		'voucher-captain-pro'   => 'voucher',
+		'pass-captain-pro'      => 'pass',
+		'affiliate-captain-pro' => 'affiliate',
+	);
+
+	/**
+	 * Known product keys, filterable for further products.
+	 *
+	 * @return array<string,string> Product key => entitlement group.
+	 */
+	public static function known_product_keys(): array {
+		/**
+		 * Filter the product keys suggested in the product editor.
+		 *
+		 * @param array<string,string> $keys Product key => entitlement group (prefix without the dot).
+		 */
+		$keys = function_exists( 'apply_filters' ) ? apply_filters( 'wplc_known_product_keys', self::PRODUCT_KEYS ) : self::PRODUCT_KEYS;
+		$clean = array();
+		foreach ( (array) $keys as $key => $group ) {
+			if ( is_string( $key ) && is_string( $group ) && '' !== $key ) {
+				$clean[ $key ] = $group;
+			}
+		}
+		return $clean;
+	}
+
+	/**
+	 * Catalog groups that belong to a license product key such as "voucher-captain-pro".
 	 *
 	 * @param string $product_key License product key from the product editor.
 	 * @return string[] Matching group keys; empty when none matches.
@@ -133,6 +163,10 @@ final class EntitlementCatalog {
 		$matches     = array();
 		if ( '' === $product_key ) {
 			return $matches;
+		}
+		$known = self::known_product_keys();
+		if ( isset( $known[ $product_key ] ) ) {
+			return array( $known[ $product_key ] );
 		}
 		foreach ( array_keys( self::all() ) as $group ) {
 			if ( false !== strpos( $product_key, (string) $group ) ) {

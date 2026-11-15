@@ -16,7 +16,7 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 **Renewals** ([docs/RENEWALS.md](docs/RENEWALS.md))
 
 - Manual renewal by the customer with any payment method, 30 days before to 30 days after the end date, same license key.
-- Automatic renewal as an opt-in at the classic checkout, charged to the saved Stripe card, with retries on day 1, 3 and 7 and a 14-day grace period. The block checkout is not supported for the opt-in.
+- Automatic renewal as an opt-in at the classic checkout, charged to the saved Stripe card, with retries on day 1, 3 and 7 and a 14-day grace period. The opt-in is also offered in the block checkout as an additional checkout field (WooCommerce 8.9+; automated tests only). A license is charged only after the advance notice was sent, with a card saved through Stripe only, and never with another card when the saved one is gone.
 - Stripe webhook endpoint for reconciliation and disputes ([docs/STRIPE-WEBHOOKS.md](docs/STRIPE-WEBHOOKS.md)).
 - No PayPal automatic renewal; PayPal customers renew manually.
 
@@ -29,7 +29,7 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 
 - REST API v1: activate, deactivate, check entitlements, check for updates. Requests are signed per installation; responses are signed and bound to the request.
 - Live, staging and development activations; one staging site per live site.
-- PHP client class for product plugins (`src/Client/LicenseClient.php`).
+- PHP client library for product plugins in `src/Client/` (`LicenseManager` facade, `LicenseClient` transport with pinned Ed25519 keys, `Updater` for WordPress updates); `bin/export-client.php` copies it into an add-on.
 
 **Updates** ([docs/UPDATES.md](docs/UPDATES.md))
 

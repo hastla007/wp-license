@@ -310,19 +310,17 @@ final class OrderLicenseIssuanceIntegrationTest extends WPLC_Integration_TestCas
 		$this->assertSame( 5900, RenewalOrder::price( $license, false )['amount_minor'], 'The consented automatic amount of an existing license is not raised.' );
 	}
 
-	public function test_guest_order_issues_a_license_without_an_owner(): void {
+	/**
+	 * A-01: this test used to document that a guest got a license with customer_id 0,
+	 * which nobody could see or manage. Such a license is no longer issued.
+	 */
+	public function test_guest_order_issues_no_ownerless_license(): void {
 		$product = $this->create_license_product();
 		$order   = $this->create_paid_order( array( array( $product, 1 ) ), 0 );
 
-		$licenses = $this->licenses_for_order( $order->get_id() );
-
-		// Documents current behavior: guests get a license with customer_id 0.
-		// Nobody can see or manage it in "My account"; the key only leaves the
-		// server through the wplc/license_issued action.
-		$this->assertCount( 1, $licenses );
-		$this->assertSame( 0, (int) $licenses[0]['customer_id'] );
-		$this->assertSame( 'active', $licenses[0]['status'] );
-		$this->assertSame( 0, (int) $licenses[0]['renewal_enabled'] );
+		$this->assertCount( 0, $this->licenses_for_order( $order->get_id() ) );
+		// The paid order is flagged for the shop instead of failing silently (A-70).
+		$this->assertSame( 'no_customer', (string) $order->get_meta( LicenseIssuer::META_PROBLEM, true ) );
 	}
 
 	public function test_renewal_order_never_issues_a_new_license(): void {

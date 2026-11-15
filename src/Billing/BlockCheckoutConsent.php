@@ -7,6 +7,7 @@
 
 namespace WPLC\Billing;
 
+use WPLC\Catalog\Catalog;
 use WPLC\Compatibility\Requirements;
 use WPLC\Gateway\Registry;
 
@@ -35,7 +36,9 @@ final class BlockCheckoutConsent {
 	const FIELD_META_KEY = '_wc_other/wplc/recurring-consent';
 
 	/**
-	 * Cache of the product IDs that are license products.
+	 * Former cache of the license product IDs (a transient built from product meta).
+	 * The list now comes from Catalog::license_product_ids(); the name is only kept
+	 * so that the old transient can be removed.
 	 */
 	const PRODUCT_IDS_TRANSIENT = 'wplc_license_product_ids';
 
@@ -54,9 +57,12 @@ final class BlockCheckoutConsent {
 		add_action( 'woocommerce_store_api_checkout_update_order_from_request', array( self::class, 'save_consent' ), 10, 2 );
 		add_action( 'woocommerce_store_api_checkout_order_processed', array( self::class, 'after_order_processed' ) );
 
+		// The ID list contains the variations of products mapped at parent level, so it follows product changes.
 		foreach ( array( 'woocommerce_new_product', 'woocommerce_update_product', 'woocommerce_new_product_variation', 'woocommerce_update_product_variation', 'trashed_post', 'untrashed_post', 'deleted_post' ) as $hook ) {
 			add_action( $hook, array( self::class, 'flush_product_ids' ), 10, 0 );
 		}
+		// A scheduled product goes live without any of the save hooks above.
+		add_action( 'transition_post_status', array( self::class, 'flush_on_status_change' ), 10, 3 );
 	}
 
 	/**
@@ -87,10 +93,15 @@ final class BlockCheckoutConsent {
 
 		$field = array(
 			'id'       => self::FIELD_ID,
-			'label'    => __( 'Renew this license automatically: I authorize renewal charges at the displayed monthly or yearly price to my saved card until I cancel. Without this option the license ends after the paid period.', 'wp-license' ),
+			// One wording for both checkouts. The renewal price of every license stands in the
+			// order summary (TermDisplay), so the label does not have to repeat amounts.
+			'label'    => RecurringConsent::label(),
 			'location' => 'order',
 			'type'     => 'checkbox',
 			'required' => false,
+			// Deliberately shown on the order confirmation and in the order emails: "yes" there is the
+			// customer's own record of the consent. save_consent() resets the value when nothing will renew.
+			'show_in_order_confirmation' => true,
 		);
 		// Before WooCommerce 9.9 a field cannot be hidden; it is then shown for every cart
 		// as soon as the shop sells license products. The value is ignored for other orders.
@@ -174,7 +185,7 @@ final class BlockCheckoutConsent {
 			Registry::supports_checkout( (string) $order->get_payment_method() )
 		);
 
-		RecurringConsent::apply_decision( $order, $decision );
+		RecurringConsent::apply_decision( $order, $decision, 'block' );
 		if ( $requested && 'granted' !== $decision ) {
 			// Keep "Yes" off the order confirmation and the admin order screen when nothing will renew.
 			$order->update_meta_data( self::FIELD_META_KEY, '0' );
@@ -211,35 +222,15 @@ final class BlockCheckoutConsent {
 	}
 
 	/**
-	 * IDs of all products and variations marked as license products.
+	 * IDs of all products and variations that issue a license.
+	 *
+	 * Read from the license catalog (autoloaded option, no query per request),
+	 * not from product meta: a product is a license product when it has a plan.
 	 *
 	 * @return array<int,int>
 	 */
 	public static function license_product_ids(): array {
-		$cached = get_transient( self::PRODUCT_IDS_TRANSIENT );
-		if ( is_array( $cached ) ) {
-			return array_map( 'intval', $cached );
-		}
-
-		$ids = get_posts(
-			array(
-				'post_type'      => array( 'product', 'product_variation' ),
-				'post_status'    => array( 'publish', 'private' ),
-				'fields'         => 'ids',
-				'posts_per_page' => self::MAX_RULE_PRODUCTS + 1,
-				'orderby'        => 'ID',
-				'order'          => 'ASC',
-				'no_found_rows'  => true,
-				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- cached, flushed on product changes.
-				'meta_key'       => '_wplc_is_license_product',
-				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- see above.
-				'meta_value'     => 'yes',
-			)
-		);
-		$ids = array_map( 'intval', is_array( $ids ) ? $ids : array() );
-		set_transient( self::PRODUCT_IDS_TRANSIENT, $ids, DAY_IN_SECONDS );
-
-		return $ids;
+		return Catalog::license_product_ids();
 	}
 
 	/**
@@ -248,6 +239,24 @@ final class BlockCheckoutConsent {
 	 * @return void
 	 */
 	public static function flush_product_ids(): void {
-		delete_transient( self::PRODUCT_IDS_TRANSIENT );
+		Catalog::flush_product_ids();
+	}
+
+	/**
+	 * Forget the cached product IDs when a product or variation changes its status
+	 * (scheduled publication, private, draft).
+	 *
+	 * @param mixed $new_status New post status.
+	 * @param mixed $old_status Old post status.
+	 * @param mixed $post       Post object.
+	 * @return void
+	 */
+	public static function flush_on_status_change( $new_status, $old_status, $post ): void {
+		if ( $new_status === $old_status || ! is_object( $post ) || ! isset( $post->post_type ) ) {
+			return;
+		}
+		if ( in_array( $post->post_type, array( 'product', 'product_variation' ), true ) ) {
+			Catalog::flush_product_ids();
+		}
 	}
 }

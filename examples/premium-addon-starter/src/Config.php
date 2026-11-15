@@ -16,7 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * The constants are the values of the release build. A test shop can override the server URL and the pinned keys in
  * wp-config.php (PREMIUM_ADDON_STARTER_SERVER_URL, PREMIUM_ADDON_STARTER_SERVER_PUBLIC_KEYS) or with the filters
- * documented on each method; release builds should not rely on that.
+ * documented on each method; release builds should not rely on that. The key filter only works while
+ * PREMIUM_ADDON_STARTER_LICENSE_DEV is defined and true, so another plugin cannot pin a key of its own.
  */
 final class Config {
 	/** Plugin slug = folder name = text domain. */
@@ -88,13 +89,18 @@ final class Config {
 	}
 
 	/**
-	 * Pinned server keys (filter: PREFIX_server_public_keys).
+	 * Pinned server keys (filter: PREFIX_server_public_keys, development builds only).
+	 *
+	 * The filter is applied only while the constant PREMIUM_ADDON_STARTER_LICENSE_DEV is defined and true: in a
+	 * release build no other plugin can add a key and sign rights for this add-on.
 	 *
 	 * @return string[]
 	 */
 	public static function server_public_keys(): array {
 		$keys = defined( 'PREMIUM_ADDON_STARTER_SERVER_PUBLIC_KEYS' ) ? (array) constant( 'PREMIUM_ADDON_STARTER_SERVER_PUBLIC_KEYS' ) : self::SERVER_PUBLIC_KEYS;
-		$keys = (array) apply_filters( self::PREFIX . '_server_public_keys', $keys );
+		if ( defined( 'PREMIUM_ADDON_STARTER_LICENSE_DEV' ) && true === (bool) constant( 'PREMIUM_ADDON_STARTER_LICENSE_DEV' ) ) {
+			$keys = (array) apply_filters( self::PREFIX . '_server_public_keys', $keys );
+		}
 		return array_values( array_filter( array_map( 'strval', $keys ), 'strlen' ) );
 	}
 

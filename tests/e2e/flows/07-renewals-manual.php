@@ -45,7 +45,7 @@ $license_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$t['licenses']}" )
 
 e2e_as_site( 'https://erin-shop.example' );
 delete_option( 'wplc_e2e_client_erin' );
-$client = new LicenseClient( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_erin' );
+$client = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_erin' );
 e2e_ok( is_array( $client->activate( e2e_key( $licenses[1] ) ) ), 'site activated on the license that will expire' );
 e2e_as_site( '' );
 

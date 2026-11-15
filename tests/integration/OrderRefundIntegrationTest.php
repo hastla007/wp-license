@@ -190,13 +190,23 @@ final class OrderRefundIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( array( 'revoked', 'revoked' ), $this->statuses( $order->get_id() ) );
 	}
 
-	public function test_cancelling_a_paid_order_without_refund_is_documented(): void {
+	/** B-36: a paid order cancelled without a refund suspends (not revokes) its license. */
+	public function test_cancelling_a_paid_order_without_refund_suspends_the_license(): void {
 		$order = $this->paid_order( 1 );
 
 		$order->update_status( 'cancelled' );
 
-		// Documents current behavior: only refunds revoke. A paid order that is
-		// cancelled without a refund keeps its license active.
+		// Changed with B-36 (was: the license stayed active). Suspension is reversible.
+		$this->assertSame( array( 'suspended' ), $this->statuses( $order->get_id() ) );
+	}
+
+	/** B-36 / T-152: the shop can keep the old behavior through a filter. */
+	public function test_cancelling_a_paid_order_keeps_the_license_when_the_filter_says_so(): void {
+		add_filter( 'wplc_suspend_license_on_order_status', '__return_false' );
+		$order = $this->paid_order( 1 );
+
+		$order->update_status( 'cancelled' );
+
 		$this->assertSame( array( 'active' ), $this->statuses( $order->get_id() ) );
 	}
 }

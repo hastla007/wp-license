@@ -65,6 +65,7 @@ final class FakeServer {
 			'payload'           => $payload,
 			'payload_signature' => hash_hmac( 'sha256', $payload, $secret ),
 			'signature_ed25519' => base64_encode( sodium_crypto_sign_detached( $message, $this->secret_key() ) ),
+			'payload_signature_ed25519' => base64_encode( sodium_crypto_sign_detached( 'wplc-response-v2' . "\n" . strtolower( $installation ) . "\n" . $payload, $this->secret_key() ) ),
 			'key_id'            => substr( hash( 'sha256', $public ), 0, 16 ),
 		);
 	}
@@ -75,8 +76,13 @@ final class FakeServer {
 		return array(
 			'activation_id'    => (int) $this->keys['activation_id'],
 			'installation_id'  => $installation,
+			'activation_status' => 'active',
+			'product_key'      => (string) $this->keys['product_key'],
 			'license_status'   => $this->status,
+			'access'           => in_array( $this->status, array( 'active', 'past_due' ), true ),
 			'paid_until'       => '2027-11-01 00:00:00',
+			'access_until'     => in_array( $this->status, array( 'active', 'past_due' ), true ) ? '2027-11-15 00:00:00' : null,
+			'grace_until'      => in_array( $this->status, array( 'active', 'past_due' ), true ) ? '2027-11-15 00:00:00' : null,
 			'site_limit'       => 5,
 			'site_count'       => 1,
 			'environment'      => 'production',

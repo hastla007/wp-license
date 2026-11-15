@@ -46,7 +46,25 @@ final class EntitlementCatalogTest extends TestCase {
 		$this->assertSame( array( 'affiliate' ), EntitlementCatalog::groups_for_product_key( 'Affiliate-Captain' ) );
 		$this->assertSame( array( 'pass' ), EntitlementCatalog::groups_for_product_key( 'wp-pass-captain' ) );
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'something-else' ) );
+		// The three add-on product keys (decision of 14 Nov 2026) each select exactly their feature group.
+		$this->assertSame( array( 'voucher' ), EntitlementCatalog::groups_for_product_key( 'voucher-captain-pro' ) );
+		$this->assertSame( array( 'pass' ), EntitlementCatalog::groups_for_product_key( 'pass-captain-pro' ) );
+		$this->assertSame( array( 'affiliate' ), EntitlementCatalog::groups_for_product_key( 'affiliate-captain-pro' ) );
+		foreach ( array( 'voucher-captain-pro', 'pass-captain-pro', 'affiliate-captain-pro' ) as $addon_key ) {
+			$this->assertTrue( \WPLC\Catalog\Catalog::is_valid_product_key( $addon_key ), $addon_key );
+		}
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( '' ) );
+	}
+
+	public function test_the_decided_product_keys_map_to_their_entitlement_prefix(): void {
+		$this->assertSame(
+			array( 'voucher-captain-pro' => 'voucher', 'pass-captain-pro' => 'pass', 'affiliate-captain-pro' => 'affiliate' ),
+			EntitlementCatalog::known_product_keys()
+		);
+		foreach ( EntitlementCatalog::known_product_keys() as $product_key => $group ) {
+			$this->assertSame( array( $group ), EntitlementCatalog::groups_for_product_key( $product_key ) );
+			$this->assertArrayHasKey( $group, EntitlementCatalog::all() );
+		}
 	}
 
 	public function test_split_ticks_known_true_keys_and_keeps_the_rest_as_json(): void {

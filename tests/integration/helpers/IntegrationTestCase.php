@@ -57,6 +57,11 @@ abstract class WPLC_Integration_TestCase extends WP_UnitTestCase {
 		$wp_rest_server = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		rest_get_server();
 		$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+
+		// B-41: an automatic charge needs the logged advance notice. The charge tests seed
+		// licenses that are already due; the rule itself is tested with the filter removed
+		// (LicenseEmailIntegrationTest::test_B41_*). Hooks are reset after every test.
+		add_filter( 'wplc_renewal_requires_advance_notice', '__return_false' );
 	}
 
 	public function tear_down(): void {

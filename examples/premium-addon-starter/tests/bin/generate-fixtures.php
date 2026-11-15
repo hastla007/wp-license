@@ -81,14 +81,27 @@ function premium_addon_starter_build_fixtures(): array {
 	$sign = static function ( array $data, string $installation, $key ) use ( $f, $secret, $signer ): array {
 		$envelope = \WPLC\Api\V1\Response::envelope( $data, $secret, $f['nonce'] );
 		$json     = (string) wp_json_encode( $data, JSON_UNESCAPED_SLASHES );
-		return array_merge( $envelope, array( 'signature_ed25519' => $signer::sign_with( $signer::message( $installation, $json ), $key ), 'key_id' => $signer::key_id_of( $signer::public_key_of( $key ) ) ) );
+		return array_merge(
+			$envelope,
+			array(
+				'signature_ed25519'         => $signer::sign_with( $signer::message( $installation, $json ), $key ),
+				'payload_signature_ed25519' => $signer::sign_with( $signer::payload_message( $installation, (string) $envelope['payload'] ), $key ),
+				'key_id'                    => $signer::key_id_of( $signer::public_key_of( $key ) ),
+			)
+		);
 	};
-	$entitlement_data = static function ( string $status, array $entitlements ) use ( $f ): array {
+	$entitlement_data = static function ( string $status, array $entitlements, string $product_key = '' ) use ( $f ): array {
+		$access = in_array( $status, array( 'active', 'past_due' ), true );
 		return array(
 			'activation_id'    => $f['activation_id'],
 			'installation_id'  => $f['installation_id'],
+			'activation_status' => 'active',
+			'product_key'      => '' === $product_key ? $f['product_key'] : $product_key,
 			'license_status'   => $status,
+			'access'           => $access,
 			'paid_until'       => '2027-11-01 00:00:00',
+			'access_until'     => $access ? '2027-11-15 00:00:00' : null,
+			'grace_until'      => $access ? '2027-11-15 00:00:00' : null,
 			'site_limit'       => 5,
 			'site_count'       => 1,
 			'environment'      => 'production',
@@ -137,6 +150,7 @@ function premium_addon_starter_build_fixtures(): array {
 	$original      = $sign( $entitlement_data( 'expired', array() ), $id, $server );
 	$tampered      = \WPLC\Api\V1\Response::envelope( $tampered_data, $secret, $f['nonce'] );
 	$tampered['signature_ed25519']        = $original['signature_ed25519'];
+	$tampered['payload_signature_ed25519'] = $original['payload_signature_ed25519'];
 	$tampered['key_id']                   = $original['key_id'];
 	$fixtures['entitlements-tampered.json'] = $tampered;
 

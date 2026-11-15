@@ -2,8 +2,13 @@
     "data": {
         "activation_id": 4711,
         "installation_id": "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b",
+        "activation_status": "active",
+        "product_key": "starter-product",
         "license_status": "active",
+        "access": true,
         "paid_until": "2027-11-01 00:00:00",
+        "access_until": "2027-11-15 00:00:00",
+        "grace_until": "2027-11-15 00:00:00",
         "site_limit": 5,
         "site_count": 1,
         "environment": "production",
@@ -14,9 +19,10 @@
         "server_time": "2026-11-01 00:00:00",
         "cache_expires_at": "2026-11-15 00:00:00"
     },
-    "signature": "4032c45266ed699152dcd7301a9a7e4a80eb576b943a284a12f1616cbc28dec0",
-    "payload": "{\"data\":{\"activation_id\":4711,\"installation_id\":\"6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b\",\"license_status\":\"active\",\"paid_until\":\"2027-11-01 00:00:00\",\"site_limit\":5,\"site_count\":1,\"environment\":\"production\",\"entitlements\":{\"other.pdf_templates\":true,\"otherstarter.reports\":true},\"server_time\":\"2026-11-01 00:00:00\",\"cache_expires_at\":\"2026-11-15 00:00:00\"},\"nonce\":\"fixture-nonce-0123456789abcdef\"}",
-    "payload_signature": "dfb8273492295720d67498643e80ea21a135e4a591520fcdad25c40829d2cbe2",
-    "signature_ed25519": "FBtZ5AMC1OOmuF23M43p7lUvMAFGw0dzwZEKw1h3pFwDyvQlHK89WSUcU0k4iqwQCFSRdyCCDGBxrYsGKym5BA==",
+    "signature": "1232e2f8a8d88471b89eae5a5579f28de9b5b188d4233f5d1b2b1e0aac32c601",
+    "payload": "{\"data\":{\"activation_id\":4711,\"installation_id\":\"6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b\",\"activation_status\":\"active\",\"product_key\":\"starter-product\",\"license_status\":\"active\",\"access\":true,\"paid_until\":\"2027-11-01 00:00:00\",\"access_until\":\"2027-11-15 00:00:00\",\"grace_until\":\"2027-11-15 00:00:00\",\"site_limit\":5,\"site_count\":1,\"environment\":\"production\",\"entitlements\":{\"other.pdf_templates\":true,\"otherstarter.reports\":true},\"server_time\":\"2026-11-01 00:00:00\",\"cache_expires_at\":\"2026-11-15 00:00:00\"},\"nonce\":\"fixture-nonce-0123456789abcdef\"}",
+    "payload_signature": "f242510962878568726af02f2edca1a4c04290de1b7d936efa8265fd4139e286",
+    "signature_ed25519": "SoCHPVLbzkGJf3+e+0TdV08ZkPp4kEvnTMX553A9WWxWUw4CymZiHMsCeiLlAmVzEaSdi2VH022uEIoQu6EBDQ==",
+    "payload_signature_ed25519": "4m6bURhMhvgL4uTq3o+sD8D7PmtR0DbDlsSZ6fxMwgN7BoFl+wX7RMSWKnv+eQ4fB0TK/de9YqFFUoioegQ7Bg==",
     "key_id": "10ba682c8ad13513"
 }

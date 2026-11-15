@@ -20,6 +20,8 @@ parameters:
 		- vendor/php-stubs/wp-cli-stubs/wp-cli-commands-stubs.php
 		- vendor/php-stubs/wp-cli-stubs/wp-cli-i18n-stubs.php
 		- vendor/php-stubs/wp-cli-stubs/wp-cli-tools-stubs.php
+		# WooCommerce Stripe Gateway: the two static methods the renewal adapter calls.
+		- tests/phpstan-stubs.php
 	# Optional wp-config.php constants: their presence and value differ per installation.
 	dynamicConstantNames:
 		- WPLC_INSTALLATION_ENCRYPTION_KEY

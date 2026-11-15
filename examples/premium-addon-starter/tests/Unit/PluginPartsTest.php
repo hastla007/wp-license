@@ -73,7 +73,7 @@ final class PluginPartsTest extends TestCase {
 		update_option( 'core_plugin_settings', array( 'keep' => true ) );
 		$GLOBALS['wp_stub']['cron'][ Config::cron_hook() ] = 123;
 
-		$client = new LicenseClient( (string) $keys['server_url'], (string) $keys['product_key'], '1.0.0', Config::credentials_option(), array( (string) $keys['server_public_key'] ) );
+		$client = new LicenseClient( (string) $keys['server_url'], (string) $keys['product_key'], '1.0.0', Config::credentials_option(), array( 'public_keys' => array( (string) $keys['server_public_key'] ) ) );
 		$this->assertTrue( Uninstaller::cleanup_site( $client ) );
 		$this->assertContains( 'DELETE /wplc/v1/activations/{id}', $server->seen );
 		$this->assertSame( array( 'core_plugin_settings' => array( 'keep' => true ) ), $GLOBALS['wp_stub']['options'] );

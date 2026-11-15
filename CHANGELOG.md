@@ -8,6 +8,7 @@ Consolidation of all earlier development branches into one code base. Preview: c
 
 ### Added
 
+- Customer account → **Sites**: every site the customer activated, across all licenses and products, in one table with product, environment, installed and latest version, last contact and license state. Flags what needs attention (license not active, payment overdue, license ends without renewal, update available, no contact for 14 days), with search, filters, CSV export and the existing site deactivation. Replaces the entitlements `voucher.central_license_overview` and `pass.client_license_management`.
 - Manual renewal: customers can renew a license in their account with any payment method, from 30 days before to 30 days after the end date. The license key and site activations stay the same. An expired license becomes active again when renewed inside this period.
 - Customer emails: license issued, reminder before the license ends, notice before an automatic renewal is charged, payment failed, license renewed, license expired.
 - Customer account: copy button for the license key, translated status names, dates in the shop's format and timezone, confirmation before deactivating a site, cancel and resume automatic renewal, download of the latest plugin version.
@@ -27,10 +28,15 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - Premium add-on starter (`examples/premium-addon-starter/`) for the product add-ons, tested end to end against the server.
 - Load-test tooling (`tests/load/`) and indexes for large shops (database schema 15).
 - Multisite integration tests and a CI cell for networks; release ZIP built on every pull request.
+- Bulk actions and new filters on the license list; a read-only license audit log page.
+- Customer account page "Sites" with all active sites across licenses (from PR #39).
+- Responses carry `payload_signature_ed25519` and the access fields (`access`, `access_until`, `grace_until`, `activation_status`, `product_key`) read by the add-on client library.
 - Admin page "Renewals to review" for renewals whose payment may have been taken without extending the license (unknown result, license changed during the charge, late manual payment), with book / mark as not paid / close actions.
 
 ### Changed
 
+- Entitlement catalog: removed `voucher.central_license_overview`, `pass.client_license_management` (now the Sites page of the customer account), `pass.team_assignment` and `affiliate.bonuses` (free in the core plugins). Licenses that stored one of them keep the value; see `docs/ENTITLEMENTS.md`, "Removed keys".
+- Entitlement catalog: added `affiliate.automated_payouts` (automatic payouts through PayPal in Affiliate Captain Pro).
 - Automatic renewal is now an opt-in at checkout and no longer a condition for buying. Without it the license runs for the paid period and can be renewed manually.
 - Buying a license requires a customer account.
 - Failed automatic renewals are retried on day 1, 3 and 7; the license keeps working for 14 days after the end date before it expires.
@@ -49,6 +55,15 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - The "overdue renewals" alert counts only renewals that are really stuck.
 - Classic checkout shows the automatic-renewal opt-in only while a payment method that can renew is selected.
 - License emails show the bought variation instead of the internal plan key.
+- Both parallel development lines are merged into one plugin (database schema 21). Where both solved the same problem, one behaviour remains:
+  - Renewals that need an administrator have one status, `review_required`, with the "Renewals to review" screen. Rows of the former status `payment_review` are moved by schema step 21. An unknown payment result waits in `reconciling` for up to 12 hours.
+  - Download grants and package stream links are single use on first presentation by default. The reuse window for interrupted downloads (`wplc_download_reuse_seconds`) is opt-in; HEAD requests never use a link up. Customer account downloads of local packages are sent in the response to the form, without a link.
+  - The admin license search is posted and kept as an opaque token (`wplc_search`); neither the term nor the license ID appears in a URL.
+  - Settings changes are audited as `settings_updated` with the names of all changed keys and the values of package hosts and reminder days.
+  - The audit log keeps the site address of an activation (it is needed to follow address changes).
+  - A suspended license whose term ended while it was suspended moves to `expired` when it is reactivated.
+  - Site URLs with dot segments (`/./`, `/../`) are rejected instead of resolved.
+  - The add-on starter uses the client library 2.0 (`LicenseClient`, `OptionStore`, `Messages`).
 
 ### Fixed
 
@@ -73,7 +88,16 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - One-time, short-lived download links; packages are only delivered from private storage or trusted HTTPS hosts.
 - A full license key typed into the admin search no longer appears in URLs, browser history or server logs.
 - Product plugins can reject data that was not signed by the license server, even if the site's own database was changed.
+- One-time download links are used up on first use, last 5 minutes and are bound to the installation.
 - Rotating the installation encryption key also re-encrypts the response signing key; before, retiring the old key silently switched the server signature off. `wp wplc signing-key --prepare` publishes the next public key before it is used.
+- Client library 2.0.1 (`src/Client`, re-vendored into the add-on starter), after an external audit:
+  - The offline window is measured from the signed `server_time` inside the verified payload only; a stored `fetched_at` in the future voids the snapshot and triggers a new check, so editing the option no longer keeps features unlocked for good.
+  - The server signature of the stored snapshot is checked on every read; the unsigned `verified_at` no longer skips it for 12 hours without ext-sodium. A PHP with no Ed25519 implementation at all accepts nothing (`wplc_ed25519_unavailable`).
+  - Update packages are only downloaded over HTTPS (also after redirects; `http://` only for localhost) and are capped at 100 MB (filter `{prefix}_license_max_package_bytes`).
+  - `deactivate()` keeps the credentials on an unsigned `site_mismatch` or `activation_not_found`; only a signed refusal removes them. When the server really no longer knows the installation, the settings screen offers "Remove the license data from this site only" (`LicenseManager::forget_locally()`). The add-on starter follows the same rule.
+  - The filter `{prefix}_license_public_keys` (and the starter's `<prefix>_server_public_keys`) only works when `{PREFIX}_LICENSE_DEV` is defined, so another plugin cannot pin a key.
+  - Uninstall cleans every site of a multisite in batches (was capped at 500); the privacy text names the product key and the environment that are sent.
+  - Texts are built once per request; `is_activated()` and the other state checks no longer create a `WP_Error`.
 
 ### Known limitations
 

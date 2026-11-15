@@ -74,7 +74,8 @@ php -r '
 	}
 	$files = array();
 	foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . "/src", FilesystemIterator::SKIP_DOTS ) ) as $f ) {
-		if ( "php" === $f->getExtension() ) {
+		// src/Client/load.php declares no class: it is the loader add-ons require.
+		if ( "php" === $f->getExtension() && $root . "/src/Client/load.php" !== $f->getRealPath() ) {
 			$files[] = $f->getRealPath();
 		}
 	}

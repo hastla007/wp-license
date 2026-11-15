@@ -214,12 +214,10 @@ final class ConcurrentLifecycleIntegrationTest extends WPLC_Integration_TestCase
 		$this->assertSame( $renewal['period_end'], $license['paid_until'] );
 		$this->assertSame( '1', (string) $license['cancel_at_period_end'], 'A renewal must not reset a cancellation made while it was charging.' );
 
-		// The next period is never charged.
+		// The next period is never charged: a cancelled license gets no further period (B-02).
 		$this->adapter->during_charge = null;
-		$next = RenewalScheduler::schedule_next( $license_id );
-		RenewalProcessor::process( $next );
+		$this->assertSame( 0, RenewalScheduler::schedule_next( $license_id ) );
 		$this->assertSame( 1, $this->adapter->charges );
-		$this->assertSame( 'cancelled', $this->renewal( $next )['status'] );
 	}
 
 	public function test_lifecycle_change_waits_for_another_connection_that_holds_the_license_lock(): void {
@@ -258,7 +256,7 @@ final class ConcurrentLifecycleIntegrationTest extends WPLC_Integration_TestCase
 
 	public function test_a_unit_issued_by_a_concurrent_hook_is_reused_without_a_database_error(): void {
 		$product = $this->create_license_product();
-		$order   = $this->create_order( array( array( $product, 2 ) ) );
+		$order   = $this->create_order( array( array( $product, 2 ) ), self::factory()->user->create( array( 'role' => 'customer' ) ) ); // A license needs an owner.
 		// Mark the order paid without the paid-order hooks; the test calls the issuer itself.
 		$hooks = array( 'woocommerce_payment_complete', 'woocommerce_order_status_processing', 'woocommerce_order_status_completed' );
 		foreach ( $hooks as $hook ) {

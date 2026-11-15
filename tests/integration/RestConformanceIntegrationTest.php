@@ -223,9 +223,18 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 
 	public function test_activation_normalizes_paths_and_rejects_non_canonical_ipv4_hosts(): void {
 		$license = $this->seed_license();
-		$result  = $this->activate_via_api( $license['key'], array( 'site_url' => 'https://Shop.Example.com//a/./b/../store/' ) );
+		$result  = $this->activate_via_api( $license['key'], array( 'site_url' => 'https://Shop.Example.com//a//store/' ) );
 		$data    = $this->assertSignedEnvelope( 'POST', '/activations', $result['response'], $result['secret'] );
 		$this->assertSame( 'https://shop.example.com/a/store', $this->activation( (int) $data['activation_id'] )['site_url'] );
+
+		// Merge of both lines: dot segments are refused, not resolved (line B's SiteUrl rules).
+		$this->assertContractError(
+			'POST',
+			'/activations',
+			400,
+			'invalid_activation',
+			$this->activate_via_api( $license['key'], array( 'site_url' => 'https://shop.example.com/a/./b/../store/' ) )['response']
+		);
 
 		$this->assertContractError(
 			'POST',
@@ -304,9 +313,9 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	public function test_development_activation_requires_a_local_host(): void {
-		$license = $this->seed_license();
+		$license = $this->seed_license( array(), array( 'sites.live_limit' => 5 ) );
 
-		foreach ( array( 'https://shop.example.com', 'https://localhost.example.com', 'https://test.example.org', 'http://192.168.1.10' ) as $url ) {
+		foreach ( array( 'https://shop.example.com', 'https://localhost.example.com', 'https://test.example.org', 'http://93.184.216.34', 'https://ddev.site.example.com' ) as $url ) {
 			$this->assertContractError(
 				'POST',
 				'/activations',
@@ -316,7 +325,8 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 			);
 		}
 
-		foreach ( array( 'http://localhost:8080', 'https://shop.test', 'http://dev.local/wp', 'http://127.0.0.1', 'http://shop.localhost' ) as $url ) {
+		// B-162: private networks and the domains of DDEV and Lando are local as well.
+		foreach ( array( 'http://localhost:8080', 'https://shop.test', 'http://dev.local/wp', 'http://127.0.0.1', 'http://shop.localhost', 'http://192.168.1.10', 'http://10.0.0.5:8080', 'https://shop.ddev.site', 'https://shop.lndo.site', 'http://shop.internal' ) as $url ) {
 			$result = $this->activate_via_api( $license['key'], array( 'environment' => 'development', 'site_url' => $url ) );
 			$data   = $this->assertSignedEnvelope( 'POST', '/activations', $result['response'], $result['secret'] );
 			$this->assertSame( 'development', $data['environment'], $url );
@@ -355,18 +365,20 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertContractError( 'POST', '/activations', 401, 'invalid_key', $this->activate_via_api( $unknown )['response'] );
 
 		$past     = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
+		// B-72: one code per reason instead of "expired" for everything.
 		$inactive = array(
-			'paid period ended'      => array( 'status' => 'active', 'paid_until' => $past ),
-			'expired status'         => array( 'status' => 'expired', 'paid_until' => $past ),
-			'revoked'                => array( 'status' => 'revoked' ),
-			'suspended'              => array( 'status' => 'suspended' ),
-			'pending'                => array( 'status' => 'pending' ),
-			'grace period exhausted' => array( 'status' => 'past_due', 'paid_until' => gmdate( 'Y-m-d H:i:s', time() - 15 * DAY_IN_SECONDS ) ),
+			'paid period ended'      => array( array( 'status' => 'active', 'paid_until' => $past ), 'license_expired', 'expired' ),
+			'expired status'         => array( array( 'status' => 'expired', 'paid_until' => $past ), 'license_expired', 'expired' ),
+			'revoked'                => array( array( 'status' => 'revoked' ), 'license_revoked', 'revoked' ),
+			'suspended'              => array( array( 'status' => 'suspended' ), 'license_suspended', 'suspended' ),
+			'pending'                => array( array( 'status' => 'pending' ), 'license_inactive', 'pending' ),
+			'grace period exhausted' => array( array( 'status' => 'past_due', 'paid_until' => gmdate( 'Y-m-d H:i:s', time() - 15 * DAY_IN_SECONDS ) ), 'license_expired', 'expired' ),
 		);
-		foreach ( $inactive as $label => $overrides ) {
-			$candidate = $this->seed_license( $overrides );
+		foreach ( $inactive as $label => $case ) {
+			$candidate = $this->seed_license( $case[0] );
 			$response  = $this->activate_via_api( $candidate['key'] )['response'];
-			$this->assertApiError( 403, 'expired', $response );
+			$this->assertApiError( 403, $case[1], $response );
+			$this->assertSame( $case[2], $response->get_data()['data']['license_status'], $label );
 			$this->check_declared( 'POST', '/activations', $response );
 		}
 		$this->assert_no_spec_gaps();
@@ -583,16 +595,21 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 
 		$this->assertSame( 'active', $this->activation( $first_id )['status'] );
 
-		// After deactivation the credential no longer authenticates.
 		$this->assertSame( 200, $this->dispatch( $this->api_request( 'DELETE', $route, null, $first ) )->get_status() );
-		$this->assertContractError( 'DELETE', $path_template, 401, 'activation_not_found', $this->dispatch( $this->api_request( 'DELETE', $route, null, $first ) ) );
-		$this->assertContractError(
-			'POST',
-			'/entitlements/check',
-			401,
-			'activation_not_found',
-			$this->dispatch( $this->api_request( 'POST', '/wplc/v1/entitlements/check', array(), $first ) )
-		);
+
+		// B-70: after deactivation the installation is still recognized and gets signed answers,
+		// so it cannot keep running on a cached "active". A repeated DELETE confirms again (A-110).
+		$again = $this->assertSignedEnvelope( 'DELETE', $path_template, $this->dispatch( $this->api_request( 'DELETE', $route, null, $first ) ), $first['secret'] );
+		$this->assertSame( array( 'activation_id' => $first_id, 'status' => 'deactivated' ), $again );
+		$check = $this->assertSignedEnvelope( 'POST', '/entitlements/check', $this->dispatch( $this->api_request( 'POST', '/wplc/v1/entitlements/check', array(), $first ) ), $first['secret'] );
+		$this->assertSame( 'deactivated', $check['license_status'] );
+		$this->assertSame( 'deactivated', $check['activation_status'] );
+		$this->assertFalse( $check['access'] );
+		$this->assertSame( array(), $check['entitlements'] );
+
+		// An installation the server never saw stays anonymous.
+		$unknown = $this->api_request( 'DELETE', $route, null, array( 'uuid' => wp_generate_uuid4(), 'secret' => $first['secret'] ) );
+		$this->assertContractError( 'DELETE', $path_template, 401, 'activation_not_found', $this->dispatch( $unknown ) );
 		$this->assert_no_spec_gaps();
 	}
 
@@ -607,16 +624,12 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 200, $this->dispatch( $this->api_request( 'DELETE', '/wplc/v1/activations/' . $live_id, null, $live ) )->get_status() );
 
 		$staging_check = $this->dispatch( $this->api_request( 'POST', '/wplc/v1/entitlements/check', array(), $staging ) );
-		if ( 'active' === $this->activation( $staging_id )['status'] || 200 === $staging_check->get_status() ) {
-			$this->markTestIncomplete(
-				'BUG: ActivationService::deactivate() leaves the staging child active after its live parent was deactivated. '
-				. 'The orphaned staging installation still authenticates (entitlements/check returned ' . $staging_check->get_status() . ') '
-				. 'and the customer can then activate a new live site: one license, two working installations beyond the limit. '
-				. 'Fix: deactivate active children WHERE staging_parent_id = parent under the same license lock (ActivationManager::deactivate contract).'
-			);
-		}
 		$this->assertSame( 'deactivated', $this->activation( $staging_id )['status'] );
-		$this->assertSame( 401, $staging_check->get_status() );
+		// B-70: the released staging site is told so in a signed answer.
+		$data = $this->assertSignedEnvelope( 'POST', '/entitlements/check', $staging_check, $staging['secret'] );
+		$this->assertSame( 'deactivated', $data['license_status'] );
+		$this->assertFalse( $data['access'] );
+		$this->assertSame( array(), $data['entitlements'] );
 	}
 
 	// ------------------------------------------------------------------
@@ -686,8 +699,11 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertContractError( 'POST', '/entitlements/check', 401, 'invalid_request_signature', $this->dispatch( $this->api_request( 'POST', $route, array() ) ) );
 
 		// Timestamp outside the five-minute window, correctly signed.
-		$stale = $this->api_request( 'POST', $route, array(), $site, null, (string) ( time() - 301 ) );
-		$this->assertContractError( 'POST', '/entitlements/check', 401, 'request_expired', $this->dispatch( $stale ) );
+		$stale    = $this->api_request( 'POST', $route, array(), $site, null, (string) ( time() - 301 ) );
+		$expired  = $this->dispatch( $stale );
+		$this->assertContractError( 'POST', '/entitlements/check', 401, 'request_expired', $expired );
+		// The client corrects its clock with the server time of the refusal (captain-pro client 2.0).
+		$this->assertEqualsWithDelta( time(), (int) $expired->get_data()['data']['server_time'], 5 );
 
 		// Body changed after signing.
 		$tampered = $this->api_request( 'POST', $route, array( 'product_version' => '1.0.0' ), $site );
@@ -797,9 +813,19 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		$untrusted = $this->dispatch( $this->api_request( 'POST', '/wplc/v1/updates/check', array( 'product_key' => 'test-product', 'current_version' => '1.0.0' ), $site ) );
 		$this->assertContractError( 'POST', '/updates/check', 503, 'package_configuration_invalid', $untrusted );
 
+		// B-140: a license without access gets a signed answer that names the version and the reason,
+		// but neither a package nor a grant (before: a bare 403 license_inactive).
 		$wpdb->update( $tables['licenses'], array( 'status' => 'revoked' ), array( 'id' => $license['id'] ) );
 		$revoked = $this->dispatch( $this->api_request( 'POST', '/wplc/v1/updates/check', array( 'product_key' => 'test-product', 'current_version' => '1.0.0' ), $site ) );
-		$this->assertContractError( 'POST', '/updates/check', 403, 'license_inactive', $revoked );
+		$data    = $this->assertSignedEnvelope( 'POST', '/updates/check', $revoked, $site['secret'] );
+		$this->assertTrue( $data['update_available'] );
+		$this->assertFalse( $data['license_active'] );
+		$this->assertSame( 'license_revoked', $data['reason'] );
+		$this->assertSame( '2.0.0', $data['version'] );
+		$this->assertSame( '', $data['package_url'] );
+		$this->assertSame( '', $data['package'] );
+		$this->assertArrayNotHasKey( 'sha256', $data );
+		$this->assertArrayNotHasKey( 'download_expires_at', $data );
 
 		$this->assertSame( 0, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables['download_tokens']}" ) );
 		$this->assert_no_spec_gaps();

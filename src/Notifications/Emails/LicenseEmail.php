@@ -10,6 +10,8 @@ namespace WPLC\Notifications\Emails;
 use WPLC\Admin\Settings;
 use WPLC\Notifications\Notifications;
 use WPLC\Notifications\Placeholders;
+use WPLC\Notifications\PurchaseLocale;
+use WPLC\Notifications\RenewalTerms;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -36,11 +38,25 @@ abstract class LicenseEmail extends \WC_Email {
 	protected $wplc_view = array();
 
 	/**
+	 * License row the current email is about (WC_Email::$object is declared for objects).
+	 *
+	 * @var array<string,mixed>
+	 */
+	protected $wplc_license = array();
+
+	/**
 	 * Extra data handed over by the trigger.
 	 *
 	 * @var array<string,mixed>
 	 */
 	protected $wplc_context = array();
+
+	/**
+	 * Terms of the automatic renewal as label => value; empty without automatic renewal.
+	 *
+	 * @var array<string,string>
+	 */
+	protected $wplc_terms = array();
 
 	/**
 	 * Set the properties every license email shares.
@@ -64,27 +80,28 @@ abstract class LicenseEmail extends \WC_Email {
 	}
 
 	/**
-	 * Send the email to the license owner in the owner's language.
+	 * Send the email in the language of the purchase.
 	 *
 	 * @param array<string,mixed> $license License row.
 	 * @param array<string,mixed> $context Extra data for the template.
 	 * @return bool True when the mailer accepted the message.
 	 */
 	public function trigger( array $license, array $context = array() ): bool {
-		$user = get_userdata( (int) ( $license['customer_id'] ?? 0 ) );
-		if ( ! $user || ! is_email( $user->user_email ) || ! $this->is_enabled() ) {
+		$address = self::recipient_for( $license );
+		if ( '' === $address || ! $this->is_enabled() ) {
 			return false;
 		}
 
-		$switched = function_exists( 'switch_to_locale' ) && function_exists( 'get_user_locale' )
-			? (bool) switch_to_locale( get_user_locale( (int) $user->ID ) )
-			: false;
+		$locale   = PurchaseLocale::for_license( $license );
+		$switched = '' !== $locale && function_exists( 'switch_to_locale' ) ? (bool) switch_to_locale( $locale ) : false;
 
 		try {
-			$this->object       = $license;
-			$this->recipient    = (string) $user->user_email;
+			$this->object       = (object) $license;
+			$this->wplc_license = $license;
+			$this->recipient    = $address;
 			$this->wplc_context = $context;
 			$this->wplc_view    = Notifications::view( $license, $context );
+			$this->wplc_terms   = RenewalTerms::rows( $license );
 			$this->placeholders = array_merge( $this->placeholders, Placeholders::map( $this->wplc_view ) );
 
 			$recipient = $this->get_recipient();
@@ -97,11 +114,73 @@ abstract class LicenseEmail extends \WC_Email {
 			// Never keep a plaintext key or customer data on the long-lived mailer object.
 			$this->wplc_context = array();
 			$this->wplc_view    = array();
+			$this->wplc_terms   = array();
 			$this->object       = false;
+			$this->wplc_license = array();
 			if ( $switched && function_exists( 'restore_previous_locale' ) ) {
 				restore_previous_locale();
 			}
 		}
+	}
+
+	/**
+	 * Address the emails of a license go to.
+	 *
+	 * The billing email of the order the license was bought with: that is the
+	 * address the customer entered for this purchase and where the order emails
+	 * went. Licenses without an order (issued by hand) use the account email.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return string Valid email address, or an empty string.
+	 */
+	public static function recipient_for( array $license ): string {
+		$address = '';
+		$order   = ! empty( $license['source_order_id'] ) && function_exists( 'wc_get_order' ) ? wc_get_order( (int) $license['source_order_id'] ) : false;
+		if ( $order instanceof \WC_Order && (int) $order->get_customer_id() === (int) ( $license['customer_id'] ?? 0 ) ) {
+			$address = (string) $order->get_billing_email();
+		}
+		if ( ! is_email( $address ) ) {
+			$user    = get_userdata( (int) ( $license['customer_id'] ?? 0 ) );
+			$address = $user ? (string) $user->user_email : '';
+		}
+
+		/**
+		 * Filter the recipient of the emails of one license.
+		 *
+		 * @param string              $address Email address.
+		 * @param array<string,mixed> $license License row.
+		 */
+		$address = apply_filters( 'wplc_license_email_recipient', $address, $license );
+
+		$address = (string) $address;
+
+		return is_email( $address ) ? $address : '';
+	}
+
+	/**
+	 * Fill the email with sample data for the WooCommerce email preview.
+	 *
+	 * @return void
+	 */
+	public function set_preview_data(): void {
+		$this->wplc_view    = Notifications::sample_view( $this->preview_status() );
+		$this->wplc_context = array( 'license_key' => 'WPLC-00000000-0000-4000-8000-000000000000-SAMPLE' );
+		$this->wplc_terms   = array(
+			__( 'Next renewal', 'wp-license' ) => $this->wplc_view['charge_date'],
+			__( 'Amount', 'wp-license' )       => $this->wplc_view['amount'],
+			__( 'Interval', 'wp-license' )     => $this->wplc_view['interval'],
+		);
+		$this->placeholders = array_merge( $this->placeholders, Placeholders::map( $this->wplc_view ) );
+		$this->recipient    = (string) get_option( 'admin_email', '' );
+	}
+
+	/**
+	 * License status the preview sample describes.
+	 *
+	 * @return string
+	 */
+	protected function preview_status(): string {
+		return 'active';
 	}
 
 	/**
@@ -114,6 +193,10 @@ abstract class LicenseEmail extends \WC_Email {
 		return array(
 			'view' => $this->wplc_view,
 			'license_key' => '',
+			'renewal_terms' => $this->wplc_terms,
+			'cancel_text' => RenewalTerms::cancel_text(),
+			'install_steps' => Notifications::install_steps( $this->wplc_license ),
+			'docs_url' => $this->wplc_license ? Notifications::docs_url( (string) ( $this->wplc_license['product_key'] ?? '' ) ) : '',
 			'email_heading' => $this->get_heading(),
 			'additional_content' => $this->get_additional_content(),
 			'sender_note' => self::sender_note(),

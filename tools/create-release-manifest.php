@@ -6,14 +6,18 @@
  * Usage:
  * php tools/create-release-manifest.php --zip=dist/product.zip --product-key=product --version=1.2.3 \
  *   --package-url=https://downloads.example.test/product-1.2.3.zip --requires-php=7.4 --requires-wp=6.4 \
- *   --tested-wp=6.8 --changelog=CHANGELOG.md [--output=dist/manifest.json]
+ *   --tested-wp=6.8 --changelog=CHANGELOG.md [--requires-core=1.4.0] [--output=dist/manifest.json]
+ *
+ * The checks mirror the server (WPLC\Update\ReleaseRegistry): versions are x.y.z with an optional
+ * -alphaN, -betaN or -rcN suffix; the product key follows WPLC\Catalog\Catalog::PRODUCT_KEY_PATTERN
+ * (keys of products created by older versions may also contain underscores).
  */
 
 if ( 'cli' !== PHP_SAPI ) {
 	exit( 1 );
 }
 
-$options = getopt( '', array( 'zip:', 'product-key:', 'version:', 'package-url:', 'requires-php:', 'requires-wp:', 'tested-wp:', 'changelog:', 'output:', 'help' ) );
+$options = getopt( '', array( 'zip:', 'product-key:', 'version:', 'package-url:', 'requires-php:', 'requires-wp:', 'tested-wp:', 'requires-core:', 'changelog:', 'output:', 'help' ) );
 $required = array( 'zip', 'product-key', 'version', 'package-url', 'requires-php', 'requires-wp', 'tested-wp', 'changelog' );
 
 if ( isset( $options['help'] ) ) {
@@ -38,16 +42,24 @@ if ( false === $package_url || 'https' !== strtolower( (string) parse_url( $pack
 	fwrite( STDERR, "Package URL must be a valid HTTPS URL.\n" );
 	exit( 2 );
 }
-if ( ! preg_match( '/^[a-z0-9][a-z0-9-]{1,99}$/', $options['product-key'] ) ) {
+// Catalog::PRODUCT_KEY_PATTERN, or the former wider form for products that already exist on the server.
+if ( ! preg_match( '/^[a-z0-9][a-z0-9-]{1,99}$/D', $options['product-key'] ) && ! preg_match( '/^[a-z0-9_-]{1,100}$/D', $options['product-key'] ) ) {
 	fwrite( STDERR, "Product key must use lowercase letters, digits, and hyphens.\n" );
 	exit( 2 );
 }
-if ( ! preg_match( '/^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$/', $options['version'] ) ) {
-	fwrite( STDERR, "Version must use semantic version components (for example 1.2.3).\n" );
+// ReleaseRegistry::VERSION_PATTERN: other suffixes (-pre1, +build) are sorted wrongly by version_compare().
+if ( strlen( $options['version'] ) > 40 || ! preg_match( '/^[0-9]+\\.[0-9]+\\.[0-9]+(?:-(?:alpha|beta|rc)[0-9]+)?$/D', $options['version'] ) ) {
+	fwrite( STDERR, "Version must be x.y.z, optionally followed by -alphaN, -betaN or -rcN (for example 1.2.3 or 2.0.0-rc1).\n" );
 	exit( 2 );
 }
-foreach ( array( 'requires-php', 'requires-wp', 'tested-wp' ) as $key ) {
-	if ( ! preg_match( '/^[0-9]+(?:\\.[0-9]+){0,2}$/', $options[ $key ] ) ) {
+if ( isset( $options['requires-core'] ) && '' === $options['requires-core'] ) {
+	unset( $options['requires-core'] );
+}
+foreach ( array( 'requires-php', 'requires-wp', 'tested-wp', 'requires-core' ) as $key ) {
+	if ( ! isset( $options[ $key ] ) ) {
+		continue;
+	}
+	if ( strlen( $options[ $key ] ) > 20 || ! preg_match( '/^[0-9]+(?:\\.[0-9]+){0,2}$/', $options[ $key ] ) ) {
 		fwrite( STDERR, "Invalid version supplied for --{$key}.\n" );
 		exit( 2 );
 	}
@@ -72,6 +84,7 @@ $manifest = array(
 	'requires_php' => $options['requires-php'],
 	'requires_wp' => $options['requires-wp'],
 	'tested_wp' => $options['tested-wp'],
+	'requires_core' => isset( $options['requires-core'] ) ? $options['requires-core'] : '',
 	'release_notes' => trim( $notes ),
 	'package_file' => basename( $zip ),
 	'generated_at_utc' => gmdate( 'c' ),

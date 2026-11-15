@@ -105,7 +105,7 @@ parameters:
 		-
 			message: '#^Comparison operation "\>" between int\<1, 65535\> and 65535 is always false\.$#'
 			identifier: greater.alwaysFalse
-			count: 1
+			count: 2
 			path: src/Api/V1/SiteUrl.php
 
 		-
@@ -177,7 +177,7 @@ parameters:
 		-
 			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
-			count: 2
+			count: 4
 			path: src/Catalog/EntitlementCatalog.php
 
 		-
@@ -236,12 +236,6 @@ parameters:
 
 		-
 			message: '#^Call to static method get_stripe_amount\(\) on an unknown class WC_Stripe_Helper\.$#'
-			identifier: class.notFound
-			count: 1
-			path: src/Gateway/StripeRecurringAdapter.php
-
-		-
-			message: '#^Call to static method request\(\) on an unknown class WC_Stripe_API\.$#'
 			identifier: class.notFound
 			count: 1
 			path: src/Gateway/StripeRecurringAdapter.php

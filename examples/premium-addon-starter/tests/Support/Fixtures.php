@@ -69,7 +69,7 @@ final class Fixtures {
 	 */
 	public static function client( ?array $keys = null, string $version = '1.0.0' ): LicenseClient {
 		$fixture = self::json( 'keys.json' );
-		return new LicenseClient( (string) $fixture['server_url'], (string) $fixture['product_key'], $version, self::CREDENTIALS, $keys ?? array( (string) $fixture['server_public_key'] ) );
+		return new LicenseClient( (string) $fixture['server_url'], (string) $fixture['product_key'], $version, self::CREDENTIALS, array( 'public_keys' => $keys ?? array( (string) $fixture['server_public_key'] ) ) );
 	}
 
 	/**
