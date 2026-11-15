@@ -267,6 +267,106 @@ final class RenewalOrderIntegrationTest extends WPLC_Renewal_TestCase {
 		$this->assertSame( 'active', $this->license( $f['license_id'] )['status'] );
 	}
 
+	/** P-46: a total that no longer matches keeps one order, priced again on every attempt, never charged. */
+	public function test_p46_amount_mismatch_reuses_one_order_and_never_charges_it(): void {
+		global $wpdb;
+		$this->set_tax( true );
+		$f = $this->renewing_license( -60, '119.00' );
+		$wpdb->update( $this->tables()['licenses'], array( 'renewal_amount_includes_tax' => 1 ), array( 'id' => $f['license_id'] ) );
+		// The tax rate changed: the order no longer adds up to the agreed gross amount.
+		$shift = static function ( $total ) {
+			return (string) ( (float) $total + 5 );
+		};
+		add_filter( 'woocommerce_order_get_total', $shift );
+
+		$order_ids = array();
+		for ( $run = 0; $run < 3; ++$run ) {
+			$wpdb->update( $this->tables()['renewals'], array( 'retry_at' => null ), array( 'id' => $f['renewal_id'] ) );
+			RenewalProcessor::process( $f['renewal_id'] );
+			$order_ids[] = (int) $this->renewal( $f['renewal_id'] )['renewal_order_id'];
+		}
+		remove_filter( 'woocommerce_order_get_total', $shift );
+
+		$this->assertSame( 0, $this->charges() );
+		$this->assertSame( 'renewal_amount_mismatch', $this->renewal( $f['renewal_id'] )['last_error'] );
+		$this->assertCount( 1, array_unique( $order_ids ), 'One order per renewal, not one per attempt.' );
+		$order = wc_get_order( $order_ids[0] );
+		$this->assertSame( 'pending', $order->get_status() );
+		$this->assertSame( 'yes', $order->get_meta( RenewalOrder::META_AMOUNT_MISMATCH, true ) );
+
+		// Once the total matches again the same order is charged.
+		$wpdb->update( $this->tables()['renewals'], array( 'retry_at' => null ), array( 'id' => $f['renewal_id'] ) );
+		RenewalProcessor::process( $f['renewal_id'] );
+		$this->assertSame( 1, $this->charges() );
+		$this->assertSame( $order_ids[0], (int) $this->renewal( $f['renewal_id'] )['renewal_order_id'] );
+		$this->assertSame( '', wc_get_order( $order_ids[0] )->get_meta( RenewalOrder::META_AMOUNT_MISMATCH, true ) );
+		$this->assertSame( 'paid', $this->renewal( $f['renewal_id'] )['status'] );
+	}
+
+	/** P-60: an administrator may lower the amount of an automatic renewal order, never raise it. */
+	public function test_p60_higher_amount_on_an_automatic_order_is_not_accepted(): void {
+		$f     = $this->renewing_license();
+		$order = $this->automatic_order( $f );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'shop_manager' ) ) );
+		$item = $this->first_item( $order );
+		$item->set_subtotal( '490.00' );
+		$item->set_total( '490.00' );
+		$item->save();
+		$order->calculate_totals();
+		do_action( 'woocommerce_saved_order_items', $order->get_id(), array() );
+		wp_set_current_user( 0 );
+
+		$order = wc_get_order( $order->get_id() );
+		$this->assertSame( '4900', $order->get_meta( RenewalOrder::META_NET_MINOR, true ), 'The agreed amount stays.' );
+		$this->assertContains( 'renewal_amount_override_refused', $this->audit_actions( 'renewal', $f['renewal_id'] ) );
+		$notes = implode( "\n", wp_list_pluck( wc_get_order_notes( array( 'order_id' => $order->get_id() ) ), 'content' ) );
+		$this->assertStringContainsString( 'can only be lowered', $notes );
+
+		RenewalProcessor::process( $f['renewal_id'] );
+		$this->assertSame( 0, $this->charges(), 'The higher amount is never charged off-session.' );
+	}
+
+	/** P-60: no amount change is accepted while the payment result of the order is being checked. */
+	public function test_p60_amount_cannot_change_while_the_result_is_unknown(): void {
+		global $wpdb;
+		$f     = $this->renewing_license();
+		$order = $this->automatic_order( $f );
+		$wpdb->update( $this->tables()['renewals'], array( 'status' => RenewalProcessor::STATUS_RECONCILING ), array( 'id' => $f['renewal_id'] ) );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'shop_manager' ) ) );
+		$item = $this->first_item( $order );
+		$item->set_subtotal( '30.00' );
+		$item->set_total( '30.00' );
+		$item->save();
+		$order->calculate_totals();
+		do_action( 'woocommerce_saved_order_items', $order->get_id(), array() );
+		wp_set_current_user( 0 );
+
+		$this->assertSame( '4900', wc_get_order( $order->get_id() )->get_meta( RenewalOrder::META_NET_MINOR, true ) );
+	}
+
+	/** P-60: an order set to Processing by hand, never charged and without a transaction ID, is reviewed, not booked. */
+	public function test_p60_order_marked_paid_by_hand_goes_to_review(): void {
+		$f     = $this->renewing_license();
+		$order = $this->automatic_order( $f );
+		$admin = self::factory()->user->create( array( 'role' => 'shop_manager' ) );
+		wp_set_current_user( $admin );
+		wc_get_order( $order->get_id() )->update_status( 'processing', 'Bulk action' );
+		wp_set_current_user( 0 );
+
+		RenewalProcessor::reconcile_paid_renewal_order( (int) $order->get_id() );
+
+		$renewal = $this->renewal( $f['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_REVIEW, $renewal['status'] );
+		$this->assertSame( \WPLC\License\AuditReason::MARKED_PAID_WITHOUT_PAYMENT, $renewal['review_reason'] );
+		$this->assertSame( $f['paid_until'], $this->license( $f['license_id'] )['paid_until'], 'No renewal without a payment.' );
+		$this->assertNotContains( 'renewal_customer_recovered', $this->audit_actions( 'renewal', $f['renewal_id'] ) );
+		// A repeated hook does not book it either; the administrator decides on the review screen.
+		RenewalProcessor::reconcile_paid_renewal_order( (int) $order->get_id() );
+		$this->assertSame( $f['paid_until'], $this->license( $f['license_id'] )['paid_until'] );
+		$this->assertSame( 'review_booked', \WPLC\Billing\RenewalReview::book( $f['renewal_id'], 'Bank transfer received', $admin ) );
+		$this->assertSame( $f['period_end'], $this->license( $f['license_id'] )['paid_until'] );
+	}
+
 	/** B-66: a manual renewal without a billing country is not created with wrong tax. */
 	public function test_b66_manual_renewal_needs_a_billing_country_when_taxes_are_on(): void {
 		$this->set_tax( false );

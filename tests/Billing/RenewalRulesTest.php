@@ -18,6 +18,43 @@ final class RenewalRulesTest extends TestCase {
 		return gmdate( 'Y-m-d H:i:s', $timestamp );
 	}
 
+	/** P-44: an empty grace_ends_at is not "now"; the grace period falls back to the period start. */
+	public function test_p44_missing_grace_end_falls_back_to_the_period_start(): void {
+		$this->assertSame( 0, RenewalProcessor::utc_ts( null ) );
+		$this->assertSame( 0, RenewalProcessor::utc_ts( '' ) );
+		$this->assertSame( 0, RenewalProcessor::utc_ts( '0000-00-00 00:00:00' ) );
+		$this->assertSame( 0, RenewalProcessor::utc_ts( 'not a date' ) );
+		$this->assertSame( $this->ts( '2026-11-01 10:00:00' ), RenewalProcessor::utc_ts( '2026-11-01 10:00:00' ) );
+
+		$this->assertSame( $this->ts( '2026-11-20 00:00:00' ), RenewalProcessor::grace_end_ts( array( 'period_start' => '2026-11-01 10:00:00', 'grace_ends_at' => '2026-11-20 00:00:00' ) ) );
+		$this->assertSame( $this->ts( '2026-11-15 10:00:00' ), RenewalProcessor::grace_end_ts( array( 'period_start' => '2026-11-01 10:00:00', 'grace_ends_at' => null ) ) );
+		$this->assertSame( 0, RenewalProcessor::grace_end_ts( array( 'period_start' => null, 'grace_ends_at' => null ) ) );
+	}
+
+	/** P-02: what stops a charge, re-checked under the license lock right before it. */
+	public function test_p02_charge_blocker(): void {
+		$renewal = array( 'period_start' => '2026-11-01 10:00:00' );
+		$license = array( 'status' => 'active', 'renewal_enabled' => 1, 'cancel_at_period_end' => 0, 'paid_until' => '2026-11-01 10:00:00' );
+
+		$this->assertSame( '', RenewalProcessor::charge_blocker( $renewal, $license ) );
+		$this->assertSame( '', RenewalProcessor::charge_blocker( $renewal, array( 'status' => 'past_due' ) + $license ) );
+		$this->assertSame( 'license_revoked', RenewalProcessor::charge_blocker( $renewal, array( 'status' => 'revoked' ) + $license ) );
+		$this->assertSame( 'renewal_disabled', RenewalProcessor::charge_blocker( $renewal, array( 'renewal_enabled' => 0 ) + $license ) );
+		$this->assertSame( 'customer_cancelled', RenewalProcessor::charge_blocker( $renewal, array( 'cancel_at_period_end' => 1 ) + $license ) );
+		$this->assertSame( 'period_changed', RenewalProcessor::charge_blocker( $renewal, array( 'paid_until' => '2027-11-01 10:00:00' ) + $license ) );
+	}
+
+	/** P-02, P-19, P-60: cases that only an administrator may resolve. */
+	public function test_review_cases_that_need_a_decision(): void {
+		$review = array( 'status' => RenewalProcessor::STATUS_REVIEW );
+
+		$this->assertTrue( RenewalProcessor::review_needs_decision( $review + array( 'review_reason' => 'renewal_withdrawn_during_charge' ) ) );
+		$this->assertTrue( RenewalProcessor::review_needs_decision( $review + array( 'review_reason' => 'marked_paid_without_payment' ) ) );
+		$this->assertTrue( RenewalProcessor::review_needs_decision( $review + array( 'review_reason' => 'unbooked_stripe_payment {"intent":"pi_1","cause":"x"}' ) ) );
+		$this->assertFalse( RenewalProcessor::review_needs_decision( $review + array( 'review_reason' => 'result_unknown_timeout' ) ) );
+		$this->assertFalse( RenewalProcessor::review_needs_decision( array( 'status' => 'closed', 'review_reason' => 'renewal_withdrawn_during_charge' ) ) );
+	}
+
 	/** B-11: on schedule the retries run on day 1, 3 and 7 after the period start. */
 	public function test_b11_retries_follow_the_schedule_when_attempts_run_on_time(): void {
 		$start = $this->ts( '2026-11-01 10:00:00' );

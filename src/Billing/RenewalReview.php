@@ -50,6 +50,16 @@ final class RenewalReview {
 	/** No usable order (missing, or a manual order that is not paid): only closing is possible. */
 	public const KIND_NO_ORDER = 'no_order';
 
+	/** The order was refunded or cancelled (P-05): only closing is possible. */
+	public const KIND_ORDER_CLOSED = 'order_closed';
+
+	/**
+	 * Order statuses that end a case: the money went back, or the order was given up (P-05).
+	 *
+	 * @var string[]
+	 */
+	public const CLOSED_ORDER_STATUSES = array( 'refunded', 'cancelled' );
+
 	public const ACTION_BOOK     = 'book';
 	public const ACTION_NOT_PAID = 'not_paid';
 	public const ACTION_CLOSE    = 'close';
@@ -63,11 +73,16 @@ final class RenewalReview {
 	 * @param bool $has_order Whether a matching renewal order exists.
 	 * @param bool $manual Whether it is a customer-initiated (manual) renewal order.
 	 * @param bool $paid Whether the order is paid.
+	 * @param bool $closed Whether the order was refunded or cancelled (P-05).
 	 * @return string One of the KIND_* constants.
 	 */
-	public static function kind( bool $has_order, bool $manual, bool $paid ): string {
+	public static function kind( bool $has_order, bool $manual, bool $paid, bool $closed = false ): string {
 		if ( ! $has_order ) {
 			return self::KIND_NO_ORDER;
+		}
+		if ( $closed ) {
+			// A refunded or cancelled order is neither booked nor charged again.
+			return self::KIND_ORDER_CLOSED;
 		}
 		if ( $manual ) {
 			return $paid ? self::KIND_MANUAL_PAYMENT : self::KIND_NO_ORDER;
@@ -269,9 +284,31 @@ final class RenewalReview {
 	 * @return string
 	 */
 	public static function kind_of( array $renewal, ?array $license ): string {
-		$order = self::order_for( $renewal, $license );
+		return self::kind_for_order( self::order_for( $renewal, $license ) );
+	}
 
-		return self::kind( null !== $order, $order ? RenewalOrder::is_manual( $order ) : false, $order ? $order->is_paid() : false );
+	/**
+	 * Kind of a case from its order (the result of order_for()).
+	 *
+	 * @param \WC_Order|null $order Renewal order of the case.
+	 * @return string
+	 */
+	public static function kind_for_order( $order ): string {
+		if ( ! $order instanceof \WC_Order ) {
+			return self::KIND_NO_ORDER;
+		}
+
+		return self::kind( true, RenewalOrder::is_manual( $order ), $order->is_paid(), self::order_closed( $order ) );
+	}
+
+	/**
+	 * Whether an order was refunded or cancelled (P-05).
+	 *
+	 * @param \WC_Order $order Order.
+	 * @return bool
+	 */
+	public static function order_closed( $order ): bool {
+		return in_array( (string) $order->get_status(), self::CLOSED_ORDER_STATUSES, true );
 	}
 
 	/**
@@ -311,6 +348,15 @@ final class RenewalReview {
 			$note,
 			self::ACTION_NOT_PAID,
 			static function ( array $renewal, array $license, $order, string $kind ) use ( $note, $actor_user_id ): string {
+				if ( self::order_closed( $order ) ) {
+					// P-05: never fail (and charge again) an order that was refunded or cancelled.
+					return 'review_order_closed';
+				}
+				$parsed = AuditReason::parse( (string) $renewal['review_reason'] );
+				if ( is_array( $parsed ) && AuditReason::UNBOOKED_STRIPE_PAYMENT === $parsed['code'] ) {
+					// P-19: Stripe reported the money as received; a new attempt would charge twice.
+					return 'review_action_not_allowed';
+				}
 				$order->update_status( 'failed', __( 'WP License Captain: marked as not paid after review.', 'wp-license' ) . ' ' . $note );
 				RenewalProcessor::resolve_as_declined_locked(
 					$renewal,
@@ -384,6 +430,74 @@ final class RenewalReview {
 	}
 
 	/**
+	 * Close the open case of a renewal order that was refunded or cancelled (P-05).
+	 *
+	 * Called from the refund and cancellation handlers of the license
+	 * lifecycle, before they take the license lock (lock order). The money went
+	 * back or the order was given up, so the case must neither be booked nor
+	 * charged again; a later payment of the order is never booked silently
+	 * (META_CLOSED). Does nothing when the order has no open case.
+	 *
+	 * @param int    $order_id Renewal order ID.
+	 * @param string $reason AuditReason::REVIEW_ORDER_REFUNDED or REVIEW_ORDER_CANCELLED.
+	 * @return bool True when a case was closed.
+	 */
+	public static function close_for_order( int $order_id, string $reason ): bool {
+		global $wpdb;
+
+		$order = $order_id && function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+		if ( ! $order instanceof \WC_Order ) {
+			return false;
+		}
+		$renewal_id = absint( $order->get_meta( RenewalOrder::META_RENEWAL, true ) );
+		if ( ! $renewal_id ) {
+			return false;
+		}
+		// Without waiting: the caller may hold the license lock (an order closed during a status
+		// change), which must never wait for a renewal lock. Without the lock (held by a running
+		// review action) the conditional update still decides.
+		$locked = RenewalProcessor::lock( $renewal_id, 0 );
+		try {
+			$tables  = Schema::table_names();
+			$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['renewals']} WHERE id = %d LIMIT 1", $renewal_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+			if ( ! is_array( $renewal ) || RenewalProcessor::STATUS_REVIEW !== (string) $renewal['status'] || (int) $renewal['renewal_order_id'] !== $order_id ) {
+				return false;
+			}
+			$claimed = $wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$tables['renewals']} SET status = %s, retry_at = NULL, updated_at = %s WHERE id = %d AND status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+					self::STATUS_CLOSED,
+					gmdate( 'Y-m-d H:i:s' ),
+					$renewal_id,
+					RenewalProcessor::STATUS_REVIEW
+				)
+			);
+			if ( 1 !== (int) $claimed ) {
+				return false;
+			}
+			$code = AuditReason::REVIEW_ORDER_CANCELLED === $reason ? 'cancelled' : 'refunded';
+			$order->update_meta_data( self::META_CLOSED, $code );
+			$order->save();
+			$order->add_order_note( __( 'WP License Captain: the renewal review was closed because this order was refunded or cancelled. The license was not extended.', 'wp-license' ) );
+			AuditLog::record(
+				'renewal_review_closed',
+				'renewal',
+				$renewal_id,
+				AuditReason::encode( $reason, array( 'order' => $order_id ) ),
+				array( 'status' => RenewalProcessor::STATUS_REVIEW, 'review_reason' => (string) $renewal['review_reason'] ),
+				array( 'status' => self::STATUS_CLOSED, 'kind' => self::KIND_ORDER_CLOSED, 'order_id' => $order_id ),
+				get_current_user_id()
+			);
+
+			return true;
+		} finally {
+			if ( $locked ) {
+				RenewalProcessor::unlock( $renewal_id );
+			}
+		}
+	}
+
+	/**
 	 * Run an action on an open case under the per-renewal lock.
 	 *
 	 * @param int      $renewal_id Renewal ID.
@@ -410,7 +524,7 @@ final class RenewalReview {
 			$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", (int) $renewal['license_id'] ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
 			$license = is_array( $license ) ? $license : null;
 			$order   = self::order_for( $renewal, $license );
-			$kind    = self::kind( null !== $order, $order ? RenewalOrder::is_manual( $order ) : false, $order ? $order->is_paid() : false );
+			$kind    = self::kind_for_order( $order );
 			if ( ! in_array( $action, self::actions( $kind ), true ) ) {
 				return 'review_action_not_allowed';
 			}
@@ -441,6 +555,10 @@ final class RenewalReview {
 
 		if ( ! self::license_allows_booking( (string) ( $license['status'] ?? '' ) ) ) {
 			return 'review_license_status';
+		}
+		if ( self::order_closed( $order ) ) {
+			// P-05: a refunded or cancelled order never renews the license or becomes Processing again.
+			return 'review_order_closed';
 		}
 		$renewal_id     = (int) $renewal['id'];
 		$license_id     = (int) $license['id'];
@@ -502,14 +620,129 @@ final class RenewalReview {
 		PlanChange::apply_pending_after_renewal( $license_id, $order );
 		if ( ! $order->is_paid() ) {
 			// The administrator confirmed the payment in the gateway. The paid-order hooks find the renewal paid.
+			// P-18: with its gateway reference, so a refund from WooCommerce and a dispute find the payment.
+			$reference = self::payment_reference( $order, $renewal );
+			if ( '' === $reference ) {
+				$order->add_order_note( __( 'WP License Captain: no payment reference was found for this renewal payment. Enter the transaction ID on this order; until then a refund has to be made in the payment gateway, and a dispute is not matched to this order automatically.', 'wp-license' ) );
+			}
 			if ( $order->needs_payment() ) {
-				$order->payment_complete();
+				$order->payment_complete( $reference );
 			} else {
+				if ( '' !== $reference && '' === (string) $order->get_transaction_id() ) {
+					$order->set_transaction_id( $reference );
+					$order->save();
+				}
 				$order->update_status( 'processing', __( 'WP License Captain: payment confirmed during the renewal review.', 'wp-license' ) );
 			}
 		}
 		RenewalScheduler::schedule_next( $license_id );
 
 		return 'review_booked';
+	}
+
+	/**
+	 * Transaction ID of the payment of a reviewed order that is booked as paid (P-18).
+	 *
+	 * In this order: the order's own transaction ID, a successful Stripe
+	 * PaymentIntent of exactly this renewal (the one stored on the order, or
+	 * found by the renewal metadata; its gateway metas are written as after an
+	 * automatic charge), the transaction ID the adapter returned for the
+	 * attempt. Empty when none is known; the filter
+	 * `wplc_review_payment_reference` lets another gateway integration answer.
+	 *
+	 * @param \WC_Order           $order Renewal order, not paid.
+	 * @param array<string,mixed> $renewal Renewal row.
+	 * @return string
+	 */
+	private static function payment_reference( $order, array $renewal ): string {
+		$reference = (string) $order->get_transaction_id();
+		if ( '' === $reference && 'stripe' === $order->get_payment_method() ) {
+			$intent = self::find_stripe_payment( $order, $renewal );
+			if ( $intent ) {
+				$intent_id = sanitize_text_field( (string) ( $intent->id ?? '' ) );
+				$charge_id = \WPLC\Gateway\StripeRecurringAdapter::charge_id( $intent );
+				\WPLC\Gateway\StripeRecurringAdapter::store_gateway_meta( $order, $intent_id, $charge_id );
+				$reference = '' !== $charge_id ? $charge_id : $intent_id;
+			}
+		}
+		if ( '' === $reference ) {
+			$reference = sanitize_text_field( (string) ( $renewal['gateway_attempt_id'] ?? '' ) );
+		}
+
+		/**
+		 * Filters the transaction ID stored when a reviewed renewal order is booked as paid.
+		 *
+		 * @param string              $reference Transaction ID, empty when unknown.
+		 * @param \WC_Order           $order Renewal order.
+		 * @param array<string,mixed> $renewal Renewal row.
+		 */
+		return sanitize_text_field( (string) apply_filters( 'wplc_review_payment_reference', $reference, $order, $renewal ) );
+	}
+
+	/**
+	 * The one successful Stripe PaymentIntent of a renewal, if Stripe knows exactly one (P-18).
+	 *
+	 * Only intents created for this renewal and license on this site, for the
+	 * order's amount and currency, count. None or more than one: null.
+	 *
+	 * @param \WC_Order           $order Renewal order.
+	 * @param array<string,mixed> $renewal Renewal row.
+	 * @return object|null
+	 */
+	private static function find_stripe_payment( $order, array $renewal ) {
+		if ( ! class_exists( '\\WC_Stripe_API' ) || ! class_exists( '\\WC_Stripe_Helper' ) ) {
+			return null;
+		}
+		$amount   = \WC_Stripe_Helper::get_stripe_amount( $order->get_total(), $order->get_currency() );
+		$currency = strtolower( (string) $order->get_currency() );
+		$answers  = array();
+		$stored   = (string) $order->get_meta( RenewalOrder::META_PAYMENT_INTENT, true );
+		if ( 0 === strpos( $stored, 'pi_' ) ) {
+			$answers[] = self::stripe_get( 'payment_intents/' . rawurlencode( $stored ) );
+		}
+		$query  = sprintf( "metadata['wplc_renewal_id']:'%d' AND metadata['wplc_license_id']:'%d'", (int) $renewal['id'], (int) $renewal['license_id'] );
+		$found  = self::stripe_get( 'payment_intents/search?limit=20&query=' . rawurlencode( $query ) );
+		$found  = is_object( $found ) && is_array( $found->data ?? null ) ? $found->data : array();
+		$answers = array_merge( $answers, $found );
+
+		$succeeded = array();
+		foreach ( $answers as $intent ) {
+			if ( ! is_object( $intent ) || ! empty( $intent->error ) || 'succeeded' !== (string) ( $intent->status ?? '' ) ) {
+				continue;
+			}
+			$metadata = is_object( $intent->metadata ?? null ) ? $intent->metadata : null;
+			$site     = $metadata ? (string) ( $metadata->wplc_site ?? '' ) : '';
+			$period   = $metadata ? (string) ( $metadata->wplc_period ?? '' ) : '';
+			if (
+				! $metadata
+				|| ( '' !== $period && (string) $renewal['period_start'] !== $period )
+				|| absint( $metadata->wplc_renewal_id ?? 0 ) !== (int) $renewal['id']
+				|| absint( $metadata->wplc_license_id ?? 0 ) !== (int) $renewal['license_id']
+				|| ( '' !== $site && ! hash_equals( \WPLC\Gateway\StripeRecurringAdapter::site_id(), $site ) )
+				|| absint( $intent->amount_received ?? ( $intent->amount ?? 0 ) ) !== $amount
+				|| strtolower( (string) ( $intent->currency ?? '' ) ) !== $currency
+			) {
+				continue;
+			}
+			$succeeded[ (string) ( $intent->id ?? '' ) ] = $intent;
+		}
+
+		return 1 === count( $succeeded ) ? reset( $succeeded ) : null;
+	}
+
+	/**
+	 * GET a Stripe API resource through the gateway; null when there is no usable answer.
+	 *
+	 * @param string $api Path below the API root.
+	 * @return object|null
+	 */
+	private static function stripe_get( string $api ) {
+		try {
+			$response = \WC_Stripe_API::retrieve( $api );
+		} catch ( \Throwable $exception ) {
+			return null;
+		}
+
+		return is_object( $response ) && ! is_wp_error( $response ) ? $response : null;
 	}
 }

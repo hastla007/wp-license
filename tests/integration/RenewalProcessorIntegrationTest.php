@@ -77,10 +77,13 @@ final class RenewalProcessorIntegrationTest extends WPLC_Renewal_TestCase {
 			$wpdb->update( $this->tables()['licenses'], array( 'cancel_at_period_end' => 1 ), array( 'id' => $f['license_id'] ) );
 		};
 
+		$before = $this->license( $f['license_id'] );
 		RenewalProcessor::process( $f['renewal_id'] );
 
 		$license = $this->license( $f['license_id'] );
-		$this->assertSame( $f['period_end'], $license['paid_until'] );
+		// P-02: the payment taken while the customer cancelled is not booked silently; it goes to review.
+		$this->assertSame( $before['paid_until'], $license['paid_until'] );
+		$this->assertSame( RenewalProcessor::STATUS_REVIEW, $this->renewal( $f['renewal_id'] )['status'] );
 		$this->assertSame( '1', (string) $license['cancel_at_period_end'] );
 		$this->assertCount( 1, $this->renewals_of( $f['license_id'] ) );
 	}
@@ -421,7 +424,12 @@ final class RenewalProcessorIntegrationTest extends WPLC_Renewal_TestCase {
 
 		$this->assertSame( 1, $this->charges() );
 		$this->assertSame( 'active', $this->license( $f['license_id'] )['status'] );
-		$this->assertSame( $f['period_end'], $this->license( $f['license_id'] )['paid_until'] );
+		// P-43: after the grace period the new period runs from the charge, not from the old due date.
+		$paid_until = $this->license( $f['license_id'] )['paid_until'];
+		$this->assertSame( $this->renewal( $f['renewal_id'] )['period_end'], $paid_until );
+		$expected = RenewalScheduler::period_end( time(), 'year', RenewalScheduler::anchor_day( $this->license( $f['license_id'] ) ) );
+		$this->assertLessThanOrEqual( 5, abs( strtotime( $paid_until . ' UTC' ) - $expected ), 'One full period from the charge.' );
+		$this->assertGreaterThan( strtotime( $f['period_end'] . ' UTC' ), strtotime( $paid_until . ' UTC' ) );
 	}
 
 	/** A-18: when that late attempt fails the license ends; nothing is retried beyond grace. */

@@ -110,6 +110,7 @@ final class RenewalReviewAdmin {
 			RenewalReview::KIND_PAID_NOT_BOOKED => __( 'Automatic payment taken, license not extended', 'wp-license' ),
 			RenewalReview::KIND_MANUAL_PAYMENT  => __( 'Manual payment not applied', 'wp-license' ),
 			RenewalReview::KIND_NO_ORDER        => __( 'No paid or payable order', 'wp-license' ),
+			RenewalReview::KIND_ORDER_CLOSED    => __( 'Order refunded or cancelled', 'wp-license' ),
 		);
 
 		return $labels[ $kind ] ?? $kind;
@@ -174,7 +175,7 @@ final class RenewalReviewAdmin {
 			'customer_id' => (int) $case['customer_id'],
 		);
 		$order      = RenewalReview::order_for( $case, $license );
-		$kind       = RenewalReview::kind( null !== $order, $order ? \WPLC\Billing\RenewalOrder::is_manual( $order ) : false, $order ? $order->is_paid() : false );
+		$kind       = RenewalReview::kind_for_order( $order );
 
 		if ( null === $license ) {
 			/* translators: %d: license ID. */

@@ -33,6 +33,8 @@ final class RenewalOrder {
 	public const META_DECIMALS = '_wplc_renewal_price_decimals';
 	/** User ID of the administrator who changed the renewal amount on the order (B-182). */
 	public const META_AMOUNT_OVERRIDE = '_wplc_renewal_amount_override';
+	/** Set while the order total does not match the agreed renewal amount (P-46); such an order is priced again, never charged. */
+	public const META_AMOUNT_MISMATCH = '_wplc_renewal_amount_mismatch';
 	/** Set once a paid order could not be applied and was reported for manual review. */
 	public const META_REVIEW = '_wplc_renewal_review';
 	/** Value of WC_Order::get_created_via() for every renewal order. */
@@ -116,6 +118,21 @@ final class RenewalOrder {
 		if ( false === $actual || $actual <= 0 || ! ctype_digit( $stored ) || (int) $stored === $actual ) {
 			return;
 		}
+		$refusal = self::amount_override_refusal( $order, (int) $stored, $actual );
+		if ( '' !== $refusal ) {
+			// P-60: the stored amount stays, so the changed order fails the amount check and is not charged.
+			$order->add_order_note( 'WP License Captain: ' . $refusal );
+			AuditLog::record(
+				'renewal_amount_override_refused',
+				'renewal',
+				absint( $order->get_meta( self::META_RENEWAL, true ) ),
+				$refusal,
+				array( 'net_minor' => (int) $stored ),
+				array( 'net_minor' => $actual, 'order_id' => (int) $order->get_id() ),
+				get_current_user_id()
+			);
+			return;
+		}
 		$order->update_meta_data( self::META_NET_MINOR, (string) $actual );
 		$order->update_meta_data( self::META_AMOUNT_OVERRIDE, (string) get_current_user_id() );
 		$order->save();
@@ -136,6 +153,34 @@ final class RenewalOrder {
 			array( 'net_minor' => $actual, 'order_id' => (int) $order->get_id() ),
 			get_current_user_id()
 		);
+	}
+
+	/**
+	 * Why an amount changed on the order screen is not accepted; empty when it is (P-60).
+	 *
+	 * - While a payment of the order is being taken or checked (processing,
+	 *   unknown result, review) the amount stays as it was charged.
+	 * - An automatic renewal is charged off-session with the consent and the
+	 *   advance notice of the agreed amount: it may be lowered, never raised.
+	 *
+	 * @param \WC_Order $order Renewal order.
+	 * @param int       $stored Stored net amount (minor units).
+	 * @param int       $actual Net amount now on the order (minor units).
+	 * @return string
+	 */
+	private static function amount_override_refusal( $order, int $stored, int $actual ): string {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$status = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE id = %d LIMIT 1', $tables['renewals'], absint( $order->get_meta( self::META_RENEWAL, true ) ) ) );
+		if ( in_array( $status, array( 'processing', RenewalProcessor::STATUS_RECONCILING, RenewalProcessor::STATUS_REVIEW ), true ) ) {
+			return __( 'The renewal amount cannot be changed while a payment of this order is being taken or checked. The change was not accepted; the order is not charged until its amount matches the agreed amount again.', 'wp-license' );
+		}
+		if ( ! self::is_manual( $order ) && $actual > $stored ) {
+			return __( 'The amount of an automatic renewal can only be lowered: a higher amount would be charged without the customer\'s consent. The change was not accepted; the order is not charged until its amount matches the agreed amount again.', 'wp-license' );
+		}
+
+		return '';
 	}
 
 	/**
@@ -222,7 +267,8 @@ final class RenewalOrder {
 		// Automatic retries keep their order unchanged, so a repeated attempt sends identical parameters.
 		// An amount set by an administrator on the order screen is kept as well (B-182).
 		$overridden = '' !== (string) $order->get_meta( self::META_AMOUNT_OVERRIDE, true );
-		if ( $is_new || ( ( $manual || $was_manual ) && ! $overridden ) ) {
+		$mismatch   = 'yes' === $order->get_meta( self::META_AMOUNT_MISMATCH, true );
+		if ( $is_new || $mismatch || ( ( $manual || $was_manual ) && ! $overridden ) ) {
 			// The tax location follows the customer's current billing address (B-129).
 			self::set_addresses( $order, $license );
 			$order->set_currency( $price['currency'] );
@@ -231,9 +277,20 @@ final class RenewalOrder {
 			}
 			if ( ! self::gross_matches( $order, $price ) ) {
 				// B-76: the stored gross amount no longer produces the same total (tax setting changed).
-				// The order is closed, so the next run prices and checks a fresh one.
-				$order->update_status( 'cancelled', __( 'WP License Captain: the order total did not match the agreed renewal amount.', 'wp-license' ) );
+				// P-46: the order is kept and priced again on the next run instead of a new order every
+				// time; it is marked so that it is never charged before its total matches again.
+				if ( ! $mismatch ) {
+					$order->update_meta_data( self::META_AMOUNT_MISMATCH, 'yes' );
+					$order->add_order_note( __( 'WP License Captain: the order total did not match the agreed renewal amount. The order is not charged; it is priced again on the next attempt. Check the shop tax settings.', 'wp-license' ) );
+				}
+				$order->save();
+				if ( $is_new && ! self::link( (int) $renewal['id'], (int) $order->get_id() ) ) {
+					return new \WP_Error( 'renewal_order_link_failed', __( 'The renewal order was created but could not be linked. A retry will attempt recovery.', 'wp-license' ) );
+				}
 				return new \WP_Error( 'renewal_amount_mismatch', __( 'The renewal order total does not match the agreed renewal amount. Check the shop tax settings.', 'wp-license' ) );
+			}
+			if ( $mismatch ) {
+				$order->delete_meta_data( self::META_AMOUNT_MISMATCH );
 			}
 		}
 		if ( $manual ) {

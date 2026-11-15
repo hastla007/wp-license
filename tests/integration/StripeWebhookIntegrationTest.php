@@ -6,6 +6,7 @@
  */
 
 use WPLC\Billing\RenewalProcessor;
+use WPLC\License\LicenseLifecycle;
 
 final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 
@@ -724,6 +725,101 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 		$rows = $this->inbox();
 		RenewalProcessor::process_stripe_event( (int) end( $rows )['id'] );
 		$this->assertSame( 'already_reconciled', $this->inbox_row( (int) end( $rows )['id'] )['outcome'] );
+	}
+
+	/** P-15: refunding the order of a double payment in WooCommerce keeps the renewal paid by the other payment. */
+	public function test_p15_refund_of_one_of_two_payments_does_not_roll_the_renewal_back(): void {
+		$fixture  = $this->paid_fixture();
+		$metadata = $this->renewal_metadata( $fixture['renewal_id'], $fixture['license_id'], $fixture['order_id'] );
+		$this->post_webhook( $this->event( 'evt_p15_second', 'payment_intent.succeeded', array( 'id' => 'pi_second_15', 'latest_charge' => 'ch_second_15', 'metadata' => $metadata ) ) );
+		$rows = $this->inbox();
+		RenewalProcessor::process_stripe_event( (int) end( $rows )['id'] );
+		$alerts = array();
+		add_action(
+			'wplc/renewal_needs_review',
+			static function ( $order_id, $renewal_id, $problem ) use ( &$alerts ) {
+				$alerts[] = (string) $problem;
+			},
+			10,
+			3
+		);
+
+		$order  = wc_get_order( $fixture['order_id'] );
+		$refund = wc_create_refund( array( 'order_id' => $order->get_id(), 'amount' => (string) $order->get_total(), 'reason' => 'Double payment' ) );
+		$this->assertInstanceOf( WC_Order_Refund::class, $refund );
+		LicenseLifecycle::handle_full_refund( (int) $order->get_id() );
+
+		$license = $this->license( $fixture['license_id'] );
+		$this->assertSame( $fixture['period_end'], $license['paid_until'], 'The second payment still pays the period.' );
+		$this->assertSame( '1', (string) $license['renewal_enabled'] );
+		global $wpdb;
+		$this->assertSame( 'paid', (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$this->tables()['renewals']} WHERE id = %d", $fixture['renewal_id'] ) ) );
+		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$this->tables()['audit_log']} WHERE action = %s AND object_id = %d", 'renewal_duplicate_refunded', $fixture['renewal_id'] ) ), 'Reported once, not per refund hook.' );
+		$this->assertCount( 1, $alerts );
+		$this->assertStringContainsString( 'pi_second_15', $alerts[0] );
+	}
+
+	/** P-19: money Stripe received for a renewal that can no longer be booked opens a review case with an alert. */
+	public function test_p19_success_for_a_cancelled_renewal_opens_a_review_case_once(): void {
+		global $wpdb;
+		if ( ! class_exists( 'WC_Stripe_Helper' ) ) {
+			require_once __DIR__ . '/helpers/StripeHelperStub.php';
+		}
+		$fixture = $this->renewal_fixture();
+		$wpdb->update( $this->tables()['renewals'], array( 'status' => 'cancelled' ), array( 'id' => $fixture['renewal_id'] ) );
+		$alerts = array();
+		add_action(
+			'wplc/renewal_needs_review',
+			static function ( $order_id, $renewal_id, $problem ) use ( &$alerts ) {
+				$alerts[] = array( (int) $order_id, (int) $renewal_id, (string) $problem );
+			},
+			10,
+			3
+		);
+		$metadata = $this->renewal_metadata( $fixture['renewal_id'], $fixture['license_id'], $fixture['order_id'] );
+		$this->post_webhook( $this->event( 'evt_p19_late', 'payment_intent.succeeded', array( 'id' => 'pi_late_19', 'metadata' => $metadata ) ) );
+		$rows = $this->inbox();
+		RenewalProcessor::process_stripe_event( (int) end( $rows )['id'] );
+
+		$renewal = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$this->tables()['renewals']} WHERE id = %d", $fixture['renewal_id'] ), ARRAY_A );
+		$this->assertSame( RenewalProcessor::STATUS_REVIEW, $renewal['status'], 'The payment is visible on the review screen.' );
+		$this->assertStringContainsString( 'pi_late_19', \WPLC\License\AuditReason::label( (string) $renewal['review_reason'] ) );
+		$this->assertCount( 1, $alerts );
+		$this->assertSame( array( $fixture['order_id'], $fixture['renewal_id'] ), array_slice( $alerts[0], 0, 2 ) );
+		$notes = implode( "\n", wp_list_pluck( wc_get_order_notes( array( 'order_id' => $fixture['order_id'] ) ), 'content' ) );
+		$this->assertStringContainsString( 'pi_late_19', $notes );
+		$this->assertSame( $fixture['paid_until'], $this->license( $fixture['license_id'] )['paid_until'], 'Nothing is booked by the event.' );
+		$this->assertSame( 'review_action_not_allowed', \WPLC\Billing\RenewalReview::mark_not_paid( $fixture['renewal_id'], 'No', 1 ), 'Money arrived: never charged again.' );
+
+		// The same payment reported again stays silent, and the event does not book the case.
+		$this->post_webhook( $this->event( 'evt_p19_again', 'payment_intent.succeeded', array( 'id' => 'pi_late_19', 'metadata' => $metadata ) ) );
+		$rows = $this->inbox();
+		RenewalProcessor::process_stripe_event( (int) end( $rows )['id'] );
+		$this->assertCount( 1, $alerts );
+		$this->assertSame( $fixture['paid_until'], $this->license( $fixture['license_id'] )['paid_until'] );
+	}
+
+	/** P-19: an amount mismatch on a success is reported as well. */
+	public function test_p19_success_with_a_wrong_amount_is_reported(): void {
+		if ( ! class_exists( 'WC_Stripe_Helper' ) ) {
+			require_once __DIR__ . '/helpers/StripeHelperStub.php';
+		}
+		$fixture = $this->renewal_fixture();
+		$alerts  = 0;
+		add_action(
+			'wplc/renewal_needs_review',
+			static function () use ( &$alerts ) {
+				++$alerts;
+			}
+		);
+		$inbox_id = $this->store_success_event( 'evt_p19_amount', $this->renewal_metadata( $fixture['renewal_id'], $fixture['license_id'], $fixture['order_id'] ), 100 );
+
+		RenewalProcessor::process_stripe_event( $inbox_id );
+
+		$this->assertSame( 1, $alerts );
+		global $wpdb;
+		$this->assertSame( RenewalProcessor::STATUS_REVIEW, (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$this->tables()['renewals']} WHERE id = %d", $fixture['renewal_id'] ) ) );
+		$this->assertFalse( wc_get_order( $fixture['order_id'] )->is_paid() );
 	}
 
 	/** B-148: a won dispute is announced and noted; the license is not reactivated automatically. */

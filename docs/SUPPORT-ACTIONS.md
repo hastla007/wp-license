@@ -227,12 +227,14 @@ A case is a renewal row in status `review_required`: the money may have been tak
 | Kind (column "Case") | How it arises | Typical reasons |
 | --- | --- | --- |
 | Automatic payment: result unknown | The gateway gave no definite answer for 12 hours, or a check was no longer safe (T-136). The order is not paid. | `result_unknown_timeout`, `renewal_cancelled`, `license_not_renewable`, `license_changed_while_unknown` |
-| Automatic payment taken, license not extended | The charge succeeded while the license was suspended, revoked, refunded or expired, or its term was moved (T-22, B-50), or the order was paid by hand while the license could not be extended. | `license_changed_during_charge` |
+| Automatic payment taken, license not extended | The charge succeeded while the license was suspended, revoked, refunded or expired, or its term was moved (T-22, B-50), or the order was paid by hand while the license could not be extended. The charge succeeded while the customer cancelled or automatic renewal was switched off (P-02). An administrator set a never-charged order to paid without a transaction ID (P-60). | `license_changed_during_charge`, `renewal_withdrawn_during_charge`, `marked_paid_without_payment` |
 | Manual payment not applied | A customer paid a manual renewal that could not be booked: the transfer arrived after the 30-day window, the license was suspended/revoked meanwhile, the period changed, or the order line does not match the price (T-137). | `manual_renewal_not_allowed`, `manual_period_changed`, `manual_price_mismatch`, `manual_license_not_extended` |
 
 Every new case also fires `wplc/renewal_needs_review` (passed on to `wplc/health_alert`). Rows that an earlier development version stored as `payment_review` are moved to `review_required` by schema step 21.
 
-A case whose order is missing (or a manual order that is not paid) can only be closed.
+A case whose order is missing (or a manual order that is not paid) can only be closed. So can a case whose order was refunded or cancelled (kind "Order refunded or cancelled", P-05); a full refund or cancellation of the order closes its open case by itself.
+
+Stripe payments that arrived but could not be booked (reason `unbooked_stripe_payment`, P-19) are listed as well; they cannot be marked as not paid. Cases with the reasons `renewal_withdrawn_during_charge`, `marked_paid_without_payment` and `unbooked_stripe_payment` are only resolved here, never by a paid-order hook or a Stripe event.
 
 Each row shows the license (key prefix, product, status, paid until), the customer, a link to the WooCommerce order with its status, the amount, the translated reason and when the case was opened. Oldest first, up to 200 rows.
 

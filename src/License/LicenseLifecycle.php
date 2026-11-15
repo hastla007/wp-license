@@ -24,6 +24,20 @@ final class LicenseLifecycle {
 	private const LOCK_TIMEOUT = 10;
 
 	/**
+	 * Seconds a cancellation or switch-off waits for a charge of the current period (P-02).
+	 */
+	public const RENEWAL_LOCK_WAIT = 10;
+
+	/** Refund meta: license IDs of refunded units that still have to be revoked (P-45). */
+	public const META_REFUND_PENDING = '_wplc_refund_pending_licenses';
+
+	/** Refund meta: number of revocation retries (P-45). */
+	public const META_REFUND_RETRIES = '_wplc_refund_retries';
+
+	/** Retries of a revocation whose license lock was busy before the shop is alerted (P-45). */
+	public const REFUND_RETRY_LIMIT = 8;
+
+	/**
 	 * Per-license lifecycle locks held by this request (license ID => true).
 	 *
 	 * @var array<int,bool>
@@ -59,6 +73,7 @@ final class LicenseLifecycle {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'woocommerce_order_refunded', array( self::class, 'handle_refund' ), 20, 2 );
+		add_action( 'wplc_retry_refund_revocation', array( self::class, 'retry_refund_revocation' ), 10, 2 );
 		add_action( 'woocommerce_order_fully_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
 		add_action( 'woocommerce_order_partially_refunded', array( self::class, 'handle_partial_renewal_refund' ), 20, 2 );
 		add_action( 'woocommerce_order_status_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
@@ -168,30 +183,75 @@ final class LicenseLifecycle {
 		if ( $refund->get_meta( '_wplc_refund_processed', true ) ) {
 			return;
 		}
-		$refund->update_meta_data( '_wplc_refund_processed', gmdate( 'Y-m-d H:i:s' ) );
-		$refund->save();
+
+		// P-45: the licenses of the refunded units are chosen once and stored on the refund, so a
+		// repeated hook or a retry revokes the same licenses, never further units of the order.
+		$pending = $refund->get_meta( self::META_REFUND_PENDING, true );
+		if ( is_array( $pending ) ) {
+			$license_ids = array_map( 'absint', $pending );
+		} else {
+			$license_ids = array();
+			foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
+				$source_item_id = absint( $refund_item->get_meta( '_refunded_item_id', true ) );
+				$quantity       = absint( $refund_item->get_quantity() );
+				if ( $source_item_id && $quantity ) {
+					$license_ids = array_merge( $license_ids, self::licenses_for_refunded_units( $source_item_id, $quantity ) );
+				}
+			}
+			$refund->update_meta_data( self::META_REFUND_PENDING, $license_ids );
+			$refund->save();
+		}
 
 		// B-47: the audit names the person who refunded and the documents.
 		$actor = is_callable( array( $refund, 'get_refunded_by' ) ) ? absint( $refund->get_refunded_by() ) : 0;
 		$actor = $actor ? $actor : get_current_user_id();
-		foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
-			$source_item_id = absint( $refund_item->get_meta( '_refunded_item_id', true ) );
-			$quantity       = absint( $refund_item->get_quantity() );
-			if ( ! $source_item_id || ! $quantity ) {
-				continue;
-			}
-
-			$license_ids = self::licenses_for_refunded_units( $source_item_id, $quantity );
-			foreach ( $license_ids as $license_id ) {
-				self::transition(
-					$license_id,
-					'revoked',
-					AuditReason::REFUNDED_ORDER_UNIT,
-					'order_refund',
-					$actor
-				);
+		$left  = array();
+		foreach ( $license_ids as $license_id ) {
+			self::$last_refusal = '';
+			$revoked = self::transition( $license_id, 'revoked', AuditReason::REFUNDED_ORDER_UNIT, 'order_refund', $actor );
+			// A license whose status allows no revocation (already revoked, expired) is done; one whose
+			// lock was busy or that changed meanwhile is tried again.
+			if ( ! $revoked && 'not_allowed' !== self::$last_refusal ) {
+				$left[] = $license_id;
 			}
 		}
+
+		if ( ! $left ) {
+			$refund->delete_meta_data( self::META_REFUND_PENDING );
+			$refund->delete_meta_data( self::META_REFUND_RETRIES );
+			$refund->update_meta_data( '_wplc_refund_processed', gmdate( 'Y-m-d H:i:s' ) );
+			$refund->save();
+			return;
+		}
+		$retries = absint( $refund->get_meta( self::META_REFUND_RETRIES, true ) ) + 1;
+		$refund->update_meta_data( self::META_REFUND_PENDING, $left );
+		$refund->update_meta_data( self::META_REFUND_RETRIES, $retries );
+		$refund->save();
+		if ( $retries > self::REFUND_RETRY_LIMIT ) {
+			foreach ( $left as $license_id ) {
+				self::log_error( 'refund ' . $refund_id . ': license ' . $license_id . ' could not be revoked' );
+				/** This action is documented in src/License/LicenseLifecycle.php */
+				do_action( 'wplc/license_needs_review', $license_id, AuditReason::REFUNDED_ORDER_UNIT );
+			}
+			return;
+		}
+		$at = time() + min( HOUR_IN_SECONDS, MINUTE_IN_SECONDS * ( 2 ** min( 6, $retries - 1 ) ) );
+		if ( function_exists( 'as_schedule_single_action' ) ) {
+			\WPLC\Compatibility\Requirements::schedule_single_action( $at, 'wplc_retry_refund_revocation', array( $order_id, $refund_id ), 'wplc' );
+		} elseif ( ! wp_next_scheduled( 'wplc_retry_refund_revocation', array( $order_id, $refund_id ) ) ) {
+			wp_schedule_single_event( $at, 'wplc_retry_refund_revocation', array( $order_id, $refund_id ) );
+		}
+	}
+
+	/**
+	 * Retry the revocation of refunded units whose license lock was busy (P-45).
+	 *
+	 * @param mixed $order_id Order ID.
+	 * @param mixed $refund_id Refund ID.
+	 * @return void
+	 */
+	public static function retry_refund_revocation( $order_id, $refund_id = 0 ): void {
+		self::handle_refund( absint( $order_id ), absint( $refund_id ) );
 	}
 
 	/**
@@ -365,6 +425,14 @@ final class LicenseLifecycle {
 		if ( ! $license_id || ! $renewal_id ) {
 			return;
 		}
+		if ( class_exists( '\\WPLC\\Billing\\RenewalReview' ) ) {
+			// P-05: an open review of this order ends with the refund. Before the license lock (lock order).
+			\WPLC\Billing\RenewalReview::close_for_order( $order_id, AuditReason::REVIEW_ORDER_REFUNDED );
+		}
+		if ( self::duplicate_payment_remains( $order, $renewal_id ) ) {
+			// P-15: one of two payments for this period was refunded; the other one still pays it.
+			return;
+		}
 
 		self::with_license_lock(
 			$license_id,
@@ -373,6 +441,41 @@ final class LicenseLifecycle {
 				return true;
 			}
 		);
+	}
+
+	/**
+	 * Whether a second payment for the period of a refunded renewal order remains (P-15).
+	 *
+	 * Two payments for one period are recorded on the order as
+	 * `_wplc_duplicate_transaction_id` (automatic charge while the customer
+	 * paid) or `_wplc_duplicate_payment_intent_id` (Stripe event). A refund in
+	 * WooCommerce refunds the payment on the order; the other payment still pays
+	 * the period, so the renewal must not be rolled back. The refund is reported
+	 * once (order note, audit entry, `wplc/renewal_needs_review`).
+	 *
+	 * @param \WC_Order $order Refunded renewal order.
+	 * @param int       $renewal_id Renewal ID.
+	 * @return bool
+	 */
+	private static function duplicate_payment_remains( $order, int $renewal_id ): bool {
+		$duplicate = (string) $order->get_meta( '_wplc_duplicate_transaction_id', true );
+		if ( '' === $duplicate ) {
+			$duplicate = (string) $order->get_meta( '_wplc_duplicate_payment_intent_id', true );
+		}
+		if ( '' === $duplicate ) {
+			return false;
+		}
+		if ( '' === (string) $order->get_meta( '_wplc_duplicate_refund_handled', true ) ) {
+			$order->update_meta_data( '_wplc_duplicate_refund_handled', gmdate( 'Y-m-d H:i:s' ) );
+			$order->save();
+			$reason = AuditReason::encode( AuditReason::DUPLICATE_PAYMENT_REFUNDED, array( 'order' => (int) $order->get_id(), 'payment' => $duplicate ) );
+			$order->add_order_note( 'WP License Captain: ' . AuditReason::label( $reason ) . ' ' . __( 'If both payments were refunded, shorten the term with "Change term" on the license.', 'wp-license' ) );
+			AuditLog::record( 'renewal_duplicate_refunded', 'renewal', $renewal_id, $reason, null, array( 'order_id' => (int) $order->get_id() ), get_current_user_id() );
+			/** This action is documented in src/Billing/RenewalOrder.php */
+			do_action( 'wplc/renewal_needs_review', (int) $order->get_id(), $renewal_id, $reason );
+		}
+
+		return true;
 	}
 
 	/**
@@ -512,6 +615,10 @@ final class LicenseLifecycle {
 		 * @param bool      $suspend Default true.
 		 * @param \WC_Order $order Order.
 		 */
+		if ( 'cancelled' === $order->get_status() && class_exists( '\\WPLC\\Billing\\RenewalReview' ) ) {
+			// P-05: an open review of a cancelled renewal order ends; it is neither booked nor charged again.
+			\WPLC\Billing\RenewalReview::close_for_order( $order_id, AuditReason::REVIEW_ORDER_CANCELLED );
+		}
 		if ( ! apply_filters( 'wplc_suspend_license_on_order_status', true, $order ) ) {
 			return;
 		}
@@ -578,12 +685,8 @@ final class LicenseLifecycle {
 	 * @return bool
 	 */
 	public static function disable_renewal( int $license_id, string $reason, int $actor_user_id = 0 ): bool {
-		return (bool) self::with_license_lock(
-			$license_id,
-			static function () use ( $license_id, $reason, $actor_user_id ) {
-				return \WPLC\Maintenance\RenewalSwitch::off( $license_id, $reason, $actor_user_id );
-			}
-		);
+		// RenewalSwitch::off() takes the renewal lock of the current period and then the license lock (P-02).
+		return \WPLC\Maintenance\RenewalSwitch::off( $license_id, $reason, $actor_user_id );
 	}
 
 	/**
@@ -974,9 +1077,12 @@ final class LicenseLifecycle {
 	 * Schedule cancellation for the end of the paid period.
 	 *
 	 * The flag is set under the lock of the current period's renewal when that
-	 * lock is free, so a cancellation never interleaves with the start of a
-	 * charge. When a charge is already in flight the flag is set regardless: a
-	 * payment never clears it (B-02), so no further period is charged.
+	 * lock becomes free within RENEWAL_LOCK_WAIT seconds, so a cancellation
+	 * never interleaves with a charge. When a charge is still in flight after
+	 * the wait the flag is set regardless: a payment never clears it (B-02), and
+	 * the processor sends a payment taken while the flag appeared to review
+	 * instead of booking it (P-02). A charge that has not started yet re-reads
+	 * the license under the license lock and is not made.
 	 *
 	 * Lock order: the renewal lock is taken before the license lock, as the
 	 * renewal processor does (renewal, then license). The reverse order lets
@@ -990,23 +1096,13 @@ final class LicenseLifecycle {
 	 * @return bool
 	 */
 	public static function schedule_cancellation( int $license_id, string $reason = '', int $actor_user_id = 0, int $received_at = 0 ): bool {
-		global $wpdb;
-
-		$license    = self::get_license( $license_id );
 		$renewal_id = 0;
-		$locked     = false;
-		if ( $license && ! empty( $license['paid_until'] ) && class_exists( '\\WPLC\\Billing\\RenewalProcessor' ) ) {
-			$tables     = Schema::table_names();
-			$renewal_id = (int) $wpdb->get_var(
-				$wpdb->prepare(
-					'SELECT id FROM %i WHERE license_id = %d AND period_start = %s LIMIT 1',
-					$tables['renewals'],
-					$license_id,
-					(string) $license['paid_until']
-				)
-			);
-			$locked     = $renewal_id && \WPLC\Billing\RenewalProcessor::lock( $renewal_id, 3 );
+		if ( empty( self::$held_locks[ $license_id ] ) && class_exists( '\\WPLC\\Billing\\RenewalProcessor' ) ) {
+			// P-02: a charge that has not been claimed yet sees the flag and is not made; one in flight
+			// that outlasts the wait is sent to review by the processor instead of being booked.
+			$renewal_id = \WPLC\Billing\RenewalProcessor::lock_current_period( $license_id, self::RENEWAL_LOCK_WAIT );
 		}
+		$locked = $renewal_id > 0;
 		try {
 			return (bool) self::with_license_lock(
 				$license_id,
@@ -1925,6 +2021,18 @@ final class LicenseLifecycle {
 	 */
 	public static function run_locked( int $license_id, callable $callback ) {
 		return self::with_license_lock( $license_id, $callback );
+	}
+
+	/**
+	 * Whether this request holds the per-license lock of a license.
+	 *
+	 * A caller that does must not take a per-renewal lock any more (lock order).
+	 *
+	 * @param int $license_id License ID.
+	 * @return bool
+	 */
+	public static function holds_license_lock( int $license_id ): bool {
+		return ! empty( self::$held_locks[ $license_id ] );
 	}
 
 	/**
