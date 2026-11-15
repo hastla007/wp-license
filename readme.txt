@@ -41,7 +41,7 @@ The code has unit tests for its pure logic, but it has not been accepted in a re
 * The product editor fields are added to the classic product editor; the block-based product editor is not supported.
 * Secrets are configured with constants in `wp-config.php`; the settings page (WooCommerce → Licenses → Settings) covers package hosts, reminder days and the lead time of the renewal notice.
 * Product plugins need their own integration of the client (license screen, feature gates, updater).
-* German translations are shipped; all other languages see the English source strings.
+* German translations are shipped (also used for de_AT, de_CH and the other German variants); all other languages see the English source strings.
 * Deleting the plugin keeps its database tables on purpose, because they are business records.
 
 == Requirements ==

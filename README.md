@@ -43,7 +43,7 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 - Settings and diagnostics pages, health alert hook ([docs/MONITORING.md](docs/MONITORING.md)).
 - Personal data export and erasure through the WordPress privacy tools; scheduled data retention.
 
-**Languages:** English and German (`de_DE`, `de_DE_formal`). Regenerate with `bin/make-pot.sh`.
+**Languages:** English and German (`de_DE`, `de_DE_formal`). Austrian, Swiss, Luxembourg, Liechtenstein and Belgian German without their own file load `de_DE_formal` (`*_informal` variants `de_DE`; filter `wplc_translation_fallback_locale`). Regenerate with `bin/make-pot.sh`.
 
 ## Requirements
 

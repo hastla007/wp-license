@@ -129,6 +129,7 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc_support_email` | `src/Notifications/Notifications.php` | Filter the support contact named in license emails. |
 | `wplc_suppress_renewal_order_email` | `src/Gateway/RenewalOrderEmails.php` | Filters whether a WooCommerce customer mail is suppressed for an automatic renewal order. |
 | `wplc_suspend_license_on_order_status` | `src/License/LicenseLifecycle.php` || Filters whether a cancelled, refunded or failed order suspends its licenses. Arguments: true, order. |
+| `wplc_translation_fallback_locale` | `src/Plugin.php` | Filters the shipped translation used for a locale without its own file (B-120). |
 | `wplc_update_check_issues_download` | `src/Api/V1/UpdateService.php` | Filters whether an update check without the `download` parameter creates a download grant. |
 | `wplc_update_package_hosts` | `src/Update/PackageStream.php` || Filters the hosts package URLs may point to (default: the shop host). |
 | `wplc_update_packages` | `src/Api/V1/UpdateService.php` | Filters the update packages on offer. |
