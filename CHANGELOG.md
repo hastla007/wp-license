@@ -28,6 +28,9 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - Premium add-on starter (`examples/premium-addon-starter/`) for the product add-ons, tested end to end against the server.
 - Load-test tooling (`tests/load/`) and indexes for large shops (database schema 15).
 - Multisite integration tests and a CI cell for networks; release ZIP built on every pull request.
+- Bulk actions and new filters on the license list; a read-only license audit log page.
+- Customer account page "Sites" with all active sites across licenses (from PR #39).
+- Responses carry `payload_signature_ed25519` and the access fields (`access`, `access_until`, `grace_until`, `activation_status`, `product_key`) read by the add-on client library.
 - Admin page "Renewals to review" for renewals whose payment may have been taken without extending the license (unknown result, license changed during the charge, late manual payment), with book / mark as not paid / close actions.
 
 ### Changed
@@ -76,6 +79,7 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - One-time, short-lived download links; packages are only delivered from private storage or trusted HTTPS hosts.
 - A full license key typed into the admin search no longer appears in URLs, browser history or server logs.
 - Product plugins can reject data that was not signed by the license server, even if the site's own database was changed.
+- One-time download links are used up on first use, last 5 minutes and are bound to the installation.
 - Rotating the installation encryption key also re-encrypts the response signing key; before, retiring the old key silently switched the server signature off. `wp wplc signing-key --prepare` publishes the next public key before it is used.
 
 ### Known limitations

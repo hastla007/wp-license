@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP License Captain 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14T23:56:43+00:00\n"
+"POT-Creation-Date: 2026-11-15T00:16:55+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -21,6 +21,7 @@ msgstr ""
 #: src/Privacy/PersonalData.php:60
 #: src/Admin/LicenseAdmin.php:57
 #: src/Admin/LicenseAdmin.php:58
+#: src/Admin/LicenseAdmin.php:60
 msgid "WP License Captain"
 msgstr ""
 
@@ -30,8 +31,8 @@ msgid "License and update management for WP product plugins sold through WooComm
 msgstr ""
 
 #: src/Account/CustomerPortal.php:93
-#: src/Admin/LicenseAdmin.php:59
-#: src/Admin/LicenseAdmin.php:184
+#: src/Admin/LicenseAdmin.php:61
+#: src/Admin/LicenseAdmin.php:186
 msgid "Licenses"
 msgstr ""
 
@@ -338,9 +339,11 @@ msgid "Last contact"
 msgstr ""
 
 #: src/Account/SiteOverview.php:259
+#: src/Admin/AuditLogAdmin.php:95
+#: src/Admin/LicenseBulkActions.php:532
 #: src/Admin/LicenseDetail.php:50
 #: src/Admin/LicenseDetail.php:405
-#: src/Admin/LicenseListTable.php:82
+#: src/Admin/LicenseListTable.php:98
 #: src/Admin/RenewalReviewAdmin.php:148
 msgid "License"
 msgstr ""
@@ -387,6 +390,7 @@ msgid "Show"
 msgstr ""
 
 #: src/Account/SiteOverview.php:331
+#: src/Admin/LicenseBulkActions.php:492
 msgid "Apply"
 msgstr ""
 
@@ -503,6 +507,7 @@ msgid "The license could not be created. Check the license key configuration and
 msgstr ""
 
 #: src/Admin/AdminNotices.php:59
+#: src/Admin/LicenseBulkActions.php:120
 #: src/Admin/LicenseDetail.php:51
 msgid "The license was not found."
 msgstr ""
@@ -541,6 +546,184 @@ msgstr ""
 
 #: src/Admin/AdminNotices.php:69
 msgid "The renewal could not be booked. Check the license status and try again."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:71
+msgid "The bulk action was processed. The result for every license is shown below."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:72
+msgid "This bulk action was already processed and was not run again. Its result is shown below. Reload the list to start a new one."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:73
+msgid "This bulk action is still being processed. Reload the list in a minute to see the result."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:74
+msgid "Select at least one license, an action and enter a reason."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:75
+msgid "Too many licenses were selected. Select at most 100 licenses per bulk action."
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:57
+#: src/Admin/AuditLogAdmin.php:58
+#: src/Admin/AuditLogAdmin.php:289
+msgid "License audit log"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:96
+#: src/Admin/LicenseDetail.php:406
+msgid "Activation"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:97
+#: src/Admin/LicenseDetail.php:166
+#: src/Admin/LicenseDetail.php:407
+#: src/Admin/LicenseListTable.php:104
+msgid "Renewal"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:98
+msgid "Release"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:99
+msgid "Settings"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:100
+msgid "Catalog"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:101
+#: src/Admin/AuditLogTable.php:177
+#: src/Admin/LicenseDetail.php:427
+msgid "System"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:278
+#: src/Admin/LicenseAdmin.php:151
+#: src/Admin/LicenseAdmin.php:266
+#: src/Admin/RenewalReviewAdmin.php:125
+msgid "You do not have permission to view licenses."
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:290
+msgid "Every recorded action on licenses, activations, renewals, releases, settings and keys, newest first. Read-only. Sensitive values are redacted."
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:295
+msgid "Object type"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:296
+msgid "All types"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:305
+msgid "Object ID"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:307
+#: src/Admin/AuditLogTable.php:52
+#: src/Admin/LicenseDetail.php:413
+msgid "Action"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:309
+#: src/Admin/AuditLogTable.php:54
+#: src/Admin/LicenseDetail.php:413
+msgid "By"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:310
+msgid "User ID, email or \"system\""
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:311
+msgid "From"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:313
+msgid "To"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:315
+#: src/Admin/LicenseListTable.php:851
+msgid "Filter"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:316
+msgid "Reset"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:318
+msgid "Object ID 0 shows system-wide entries (settings, catalog import, key rotation, bulk actions)."
+msgstr ""
+
+#. translators: %d: license ID.
+#: src/Admin/AuditLogAdmin.php:354
+#, php-format
+msgid "License #%d"
+msgstr ""
+
+#: src/Admin/AuditLogAdmin.php:382
+msgid "(unreadable)"
+msgstr ""
+
+#: src/Admin/AuditLogTable.php:51
+#: src/Admin/LicenseDetail.php:413
+msgid "Date"
+msgstr ""
+
+#: src/Admin/AuditLogTable.php:53
+#: src/Admin/LicenseDetail.php:413
+msgid "Object"
+msgstr ""
+
+#: src/Admin/AuditLogTable.php:55
+#: src/Admin/LicenseDetail.php:227
+#: src/Admin/LicenseDetail.php:246
+#: src/Admin/LicenseDetail.php:297
+#: src/Admin/LicenseDetail.php:413
+#: src/Admin/LicenseDetail.php:585
+#: src/Admin/ReleaseAdmin.php:310
+#: src/Admin/ReleaseAdmin.php:311
+#: src/Admin/RenewalReviewAdmin.php:148
+#: src/Admin/RenewalReviewAdmin.php:237
+msgid "Reason"
+msgstr ""
+
+#: src/Admin/AuditLogTable.php:56
+#: src/Admin/LicenseDetail.php:413
+msgid "Change"
+msgstr ""
+
+#. translators: %d: user ID.
+#: src/Admin/AuditLogTable.php:182
+#: src/Admin/LicenseAdmin.php:136
+#: src/Admin/LicenseDetail.php:425
+#, php-format
+msgid "Deleted user #%d"
+msgstr ""
+
+#: src/Admin/AuditLogTable.php:212
+msgid "Details"
+msgstr ""
+
+#: src/Admin/AuditLogTable.php:214
+msgid "Before"
+msgstr ""
+
+#: src/Admin/AuditLogTable.php:217
+msgid "After"
+msgstr ""
+
+#: src/Admin/AuditLogTable.php:240
+msgid "No audit entries match these filters."
 msgstr ""
 
 #: src/Admin/CatalogCsv.php:32
@@ -863,6 +1046,7 @@ msgid "Manual"
 msgstr ""
 
 #: src/Admin/Format.php:146
+#: src/Admin/LicenseListTable.php:279
 msgid "Cancels at period end"
 msgstr ""
 
@@ -886,49 +1070,129 @@ msgstr ""
 msgid "Keep these values in a password manager and in your backups. This notice disappears as soon as the constants are defined."
 msgstr ""
 
-#. translators: %d: user ID.
-#: src/Admin/LicenseAdmin.php:134
-#: src/Admin/LicenseDetail.php:425
-#, php-format
-msgid "Deleted user #%d"
-msgstr ""
-
-#: src/Admin/LicenseAdmin.php:149
-#: src/Admin/LicenseAdmin.php:255
-#: src/Admin/RenewalReviewAdmin.php:125
-msgid "You do not have permission to view licenses."
-msgstr ""
-
-#: src/Admin/LicenseAdmin.php:185
+#: src/Admin/LicenseAdmin.php:187
 #: src/Admin/LicenseDetail.php:541
 msgid "Add license manually"
 msgstr ""
 
-#: src/Admin/LicenseAdmin.php:191
+#: src/Admin/LicenseAdmin.php:193
 msgid "Search results for the pasted license key"
 msgstr ""
 
 #. translators: %s: search term.
-#: src/Admin/LicenseAdmin.php:193
+#: src/Admin/LicenseAdmin.php:195
 #, php-format
 msgid "Search results for: %s"
 msgstr ""
 
-#: src/Admin/LicenseAdmin.php:199
+#: src/Admin/LicenseAdmin.php:201
 msgid "This search has expired. Search again to see the results."
 msgstr ""
 
-#: src/Admin/LicenseAdmin.php:214
+#: src/Admin/LicenseAdmin.php:216
 msgid "Search licenses"
 msgstr ""
 
-#: src/Admin/LicenseAdmin.php:222
+#: src/Admin/LicenseAdmin.php:224
 msgid "Search by key prefix, product, plan, customer ID, customer email, #license ID, or paste a complete license key."
 msgstr ""
 
-#: src/Admin/LicenseAdmin.php:295
+#: src/Admin/LicenseAdmin.php:306
+#: src/Admin/LicenseBulkActions.php:203
 #: src/Admin/RenewalReviewAdmin.php:259
 msgid "You do not have permission to change licenses."
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:92
+#: src/Admin/LicenseDetail.php:205
+msgid "Suspend"
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:93
+#: src/Admin/LicenseDetail.php:204
+msgid "Reactivate"
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:94
+msgid "Revoke (final)"
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:95
+msgid "Release all site activations"
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:121
+msgid "The license already has this status."
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:122
+msgid "This change is not allowed from the current status."
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:123
+msgid "The paid period has ended. Change the term on the license screen first."
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:124
+msgid "Not applied: the license changed in the meantime or is being processed. Try again."
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:125
+msgid "The license has no active site activations."
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:126
+msgid "Not every site activation could be released. Try again."
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:127
+msgid "The license is being processed right now. Try again in a minute."
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:457
+msgid "Apply the selected action to every selected license?"
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:484
+msgid "Bulk action"
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:485
+msgid "Bulk actions"
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:490
+msgid "Reason for the bulk action"
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:491
+msgid "Reason (required, stored in the audit log)"
+msgstr ""
+
+#. translators: 1: number of changed licenses, 2: number of skipped licenses.
+#: src/Admin/LicenseBulkActions.php:516
+#, php-format
+msgid "%1$d done, %2$d skipped."
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:523
+msgid "Done:"
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:532
+#: src/Admin/LicenseDetail.php:161
+#: src/Admin/LicenseDetail.php:269
+#: src/Admin/LicenseDetail.php:321
+#: src/Admin/LicenseDetail.php:350
+#: src/Admin/LicenseListTable.php:101
+#: src/Admin/ReleaseAdmin.php:93
+#: src/Admin/Settings.php:408
+#: src/Privacy/PersonalData.php:129
+msgid "Status"
+msgstr ""
+
+#: src/Admin/LicenseBulkActions.php:532
+msgid "Skipped because"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:52
@@ -967,7 +1231,7 @@ msgstr ""
 
 #: src/Admin/LicenseDetail.php:158
 #: src/Admin/LicenseDetail.php:556
-#: src/Admin/LicenseListTable.php:83
+#: src/Admin/LicenseListTable.php:99
 #: src/Admin/RenewalReviewAdmin.php:148
 msgid "Customer"
 msgstr ""
@@ -988,17 +1252,6 @@ msgstr ""
 #: templates/emails/wplc-payment-failed.php:37
 #: templates/emails/wplc-renewal-notice.php:42
 msgid "Plan"
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:161
-#: src/Admin/LicenseDetail.php:269
-#: src/Admin/LicenseDetail.php:321
-#: src/Admin/LicenseDetail.php:350
-#: src/Admin/LicenseListTable.php:85
-#: src/Admin/ReleaseAdmin.php:93
-#: src/Admin/Settings.php:408
-#: src/Privacy/PersonalData.php:129
-msgid "Status"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:162
@@ -1022,18 +1275,12 @@ msgstr ""
 
 #: src/Admin/LicenseDetail.php:164
 #: src/Admin/LicenseDetail.php:578
-#: src/Admin/LicenseListTable.php:86
+#: src/Admin/LicenseListTable.php:102
 msgid "Paid until"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:165
 msgid "Access right now"
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:166
-#: src/Admin/LicenseDetail.php:407
-#: src/Admin/LicenseListTable.php:88
-msgid "Renewal"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:167
@@ -1042,13 +1289,13 @@ msgstr ""
 
 #. translators: 1: active live sites, 2: allowed live sites.
 #: src/Admin/LicenseDetail.php:169
-#: src/Admin/LicenseListTable.php:87
+#: src/Admin/LicenseListTable.php:103
 msgid "Live sites"
 msgstr ""
 
 #. translators: 1: number of active live sites, 2: allowed number of live sites.
 #: src/Admin/LicenseDetail.php:169
-#: src/Admin/LicenseListTable.php:579
+#: src/Admin/LicenseListTable.php:764
 #, php-format
 msgid "%1$d / %2$s"
 msgstr ""
@@ -1070,7 +1317,7 @@ msgid "Parent license"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:175
-#: src/Admin/LicenseListTable.php:89
+#: src/Admin/LicenseListTable.php:105
 msgid "Created"
 msgstr ""
 
@@ -1084,14 +1331,6 @@ msgstr ""
 
 #: src/Admin/LicenseDetail.php:201
 msgid "Every action needs a reason. It is stored in the audit log."
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:204
-msgid "Reactivate"
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:205
-msgid "Suspend"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:206
@@ -1112,18 +1351,6 @@ msgstr ""
 #: src/Admin/RenewalReviewAdmin.php:236
 #, php-format
 msgid "Reason: %s"
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:227
-#: src/Admin/LicenseDetail.php:246
-#: src/Admin/LicenseDetail.php:297
-#: src/Admin/LicenseDetail.php:413
-#: src/Admin/LicenseDetail.php:585
-#: src/Admin/ReleaseAdmin.php:310
-#: src/Admin/ReleaseAdmin.php:311
-#: src/Admin/RenewalReviewAdmin.php:148
-#: src/Admin/RenewalReviewAdmin.php:237
-msgid "Reason"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:231
@@ -1255,38 +1482,10 @@ msgstr ""
 msgid "No audit entries exist for this license."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:406
-msgid "Activation"
-msgstr ""
-
 #. translators: %d: maximum number of entries.
 #: src/Admin/LicenseDetail.php:411
 #, php-format
 msgid "Latest %d entries, newest first."
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:413
-msgid "Date"
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:413
-msgid "Action"
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:413
-msgid "Object"
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:413
-msgid "By"
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:413
-msgid "Change"
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:427
-msgid "System"
 msgstr ""
 
 #. translators: %d: order ID.
@@ -1346,36 +1545,108 @@ msgstr ""
 msgid "Add license"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:84
+#: src/Admin/LicenseListTable.php:100
 msgid "Product / Plan"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:518
+#: src/Admin/LicenseListTable.php:262
+msgid "Renewal needs review"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:263
+msgid "Renewal result being checked"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:264
+msgid "Renewal payment failed"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:265
+msgid "Renewal needs customer action"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:266
+msgid "Past due with open renewal"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:277
+msgid "Automatic renewal"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:278
+msgid "Manual renewal"
+msgstr ""
+
+#. translators: %d: number of days.
+#: src/Admin/LicenseListTable.php:291
+#, php-format
+msgid "Expires within %d days"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:292
+msgid "Paid period ended"
+msgstr ""
+
+#. translators: %d: license ID.
+#: src/Admin/LicenseListTable.php:685
+#, php-format
+msgid "Select license #%d"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:703
 msgid "View and manage"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:619
+#: src/Admin/LicenseListTable.php:804
 msgid "No licenses found."
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:635
+#: src/Admin/LicenseListTable.php:820
 msgid "Filter by status"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:636
+#: src/Admin/LicenseListTable.php:821
 msgid "All statuses"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:642
+#: src/Admin/LicenseListTable.php:827
 msgid "Filter by product"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:643
+#: src/Admin/LicenseListTable.php:828
 msgid "All products"
 msgstr ""
 
-#: src/Admin/LicenseListTable.php:649
-msgid "Filter"
+#: src/Admin/LicenseListTable.php:835
+msgid "Filter by renewal"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:835
+msgid "All renewal states"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:836
+msgid "Filter by renewal mode"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:836
+msgid "All renewal modes"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:837
+msgid "Filter by expiry"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:837
+msgid "Any expiry"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:848
+msgid "Filter by source order ID"
+msgstr ""
+
+#: src/Admin/LicenseListTable.php:849
+msgid "Order ID"
 msgstr ""
 
 #: src/Admin/ReleaseAdmin.php:49
@@ -1920,11 +2191,11 @@ msgstr ""
 msgid "The installation could not be deactivated."
 msgstr ""
 
-#: src/Api/V1/ActivationService.php:528
+#: src/Api/V1/ActivationService.php:527
 msgid "Too many activation attempts. Try again later."
 msgstr ""
 
-#: src/Api/V1/ActivationService.php:537
+#: src/Api/V1/ActivationService.php:536
 msgid "Activation rate limiting is temporarily unavailable."
 msgstr ""
 
@@ -2004,15 +2275,15 @@ msgstr ""
 msgid "The Stripe event identifier was already used for a different payload."
 msgstr ""
 
-#: src/Api/V1/UpdateService.php:45
+#: src/Api/V1/UpdateService.php:51
 msgid "An active license for this product is required to access updates."
 msgstr ""
 
-#: src/Api/V1/UpdateService.php:58
+#: src/Api/V1/UpdateService.php:64
 msgid "The update package is not configured with a trusted HTTPS URL and SHA-256 checksum."
 msgstr ""
 
-#: src/Api/V1/UpdateService.php:81
+#: src/Api/V1/UpdateService.php:88
 msgid "A secure package download could not be prepared."
 msgstr ""
 
@@ -2166,6 +2437,144 @@ msgstr ""
 
 #: src/Billing/RenewalReview.php:505
 msgid "WP License Captain: payment confirmed during the renewal review."
+msgstr ""
+
+#: src/CLI/RecoverLicenseKeyIdsCommand.php:66
+msgid "Provide a valid configured key ID with --to=<key-id>."
+msgstr ""
+
+#. translators: %s: license key ID passed with --to.
+#: src/CLI/RecoverLicenseKeyIdsCommand.php:72
+#, php-format
+msgid "Key ID \"%s\" is not configured in WPLC_LICENSE_KEY_SECRETS (or WPLC_LICENSE_KEY_SECRET as \"legacy\"). Add the secret under that ID first."
+msgstr ""
+
+#. translators: 1: "apply" or "dry-run", 2: inspected rows, 3: rows already verified, 4: recoverable rows, 5: unmatched rows, 6: rows changed concurrently, 7: last inspected license ID (resume with --after-id).
+#: src/CLI/RecoverLicenseKeyIdsCommand.php:150
+#, php-format
+msgid "Mode: %1$s; inspected: %2$d; already verified: %3$d; recoverable: %4$d; unmatched: %5$d; changed concurrently: %6$d; last ID: %7$d"
+msgstr ""
+
+#: src/CLI/RecoverLicenseKeyIdsCommand.php:151
+#: src/CLI/RotateInstallationSecretsCommand.php:154
+msgid "apply"
+msgstr ""
+
+#: src/CLI/RecoverLicenseKeyIdsCommand.php:151
+#: src/CLI/RotateInstallationSecretsCommand.php:154
+msgid "dry-run"
+msgstr ""
+
+#: src/CLI/RecoverLicenseKeyIdsCommand.php:161
+msgid "Unmatched rows were not modified. Check the configured key ring and recovery target."
+msgstr ""
+
+#. translators: %d: activation ID.
+#: src/CLI/RotateInstallationSecretsCommand.php:111
+#, php-format
+msgid "Could not verify activation ID %d; row was not changed."
+msgstr ""
+
+#. translators: %d: activation ID.
+#: src/CLI/RotateInstallationSecretsCommand.php:119
+#, php-format
+msgid "Could not encrypt activation ID %d; row was not changed."
+msgstr ""
+
+#. translators: %s: "apply" or "dry-run".
+#: src/CLI/RotateInstallationSecretsCommand.php:154
+#, php-format
+msgid "Mode: %s"
+msgstr ""
+
+#. translators: 1: inspected rows, 2: rotated rows, 3: rows already current, 4: rows changed concurrently, 5: failed rows, 6: last inspected activation ID (resume with --after-id).
+#: src/CLI/RotateInstallationSecretsCommand.php:159
+#, php-format
+msgid "Inspected: %1$d; rotated: %2$d; already current: %3$d; changed concurrently: %4$d; failed: %5$d; last ID: %6$d"
+msgstr ""
+
+#. translators: 1: inspected rows, 2: rows needing rotation, 3: rows already current, 4: rows changed concurrently, 5: failed rows, 6: last inspected activation ID (resume with --after-id).
+#: src/CLI/RotateInstallationSecretsCommand.php:169
+#, php-format
+msgid "Inspected: %1$d; needing rotation: %2$d; already current: %3$d; changed concurrently: %4$d; failed: %5$d; last ID: %6$d"
+msgstr ""
+
+#: src/CLI/RotateInstallationSecretsCommand.php:179
+msgid "Some rows need manual investigation. No failed row was modified."
+msgstr ""
+
+#: src/CLI/RotateInstallationSecretsCommand.php:186
+msgid "Response signing key"
+msgstr ""
+
+#: src/CLI/RotateInstallationSecretsCommand.php:186
+msgid "Prepared next signing key"
+msgstr ""
+
+#. translators: 1: "Response signing key" or "Prepared next signing key", 2: status, for example "already current".
+#: src/CLI/RotateInstallationSecretsCommand.php:201
+#, php-format
+msgid "%1$s: %2$s"
+msgstr ""
+
+#: src/CLI/RotateInstallationSecretsCommand.php:205
+msgid "A stored response signing key cannot be decrypted with the configured key ring. Put the previous encryption key back into WPLC_INSTALLATION_ENCRYPTION_KEYS; until then responses carry no Ed25519 signature and clients that pin the public key reject them."
+msgstr ""
+
+#: src/CLI/RotateInstallationSecretsCommand.php:216
+msgid "from WPLC_RESPONSE_SIGNING_KEY, nothing stored"
+msgstr ""
+
+#: src/CLI/RotateInstallationSecretsCommand.php:217
+msgid "not stored yet"
+msgstr ""
+
+#: src/CLI/RotateInstallationSecretsCommand.php:218
+msgid "already current"
+msgstr ""
+
+#: src/CLI/RotateInstallationSecretsCommand.php:219
+msgid "needs rotation"
+msgstr ""
+
+#: src/CLI/RotateInstallationSecretsCommand.php:220
+msgid "rotated"
+msgstr ""
+
+#: src/CLI/RotateInstallationSecretsCommand.php:221
+msgid "CANNOT BE DECRYPTED"
+msgstr ""
+
+#: src/CLI/SigningKeyCommand.php:64
+msgid "Ed25519 (sodium) is not available on this server."
+msgstr ""
+
+#: src/CLI/SigningKeyCommand.php:67
+msgid "Use --prepare and --rotate in separate steps, with a product release in between."
+msgstr ""
+
+#: src/CLI/SigningKeyCommand.php:70
+msgid "The key comes from WPLC_RESPONSE_SIGNING_KEY, or the prepared key could not be stored or decrypted."
+msgstr ""
+
+#: src/CLI/SigningKeyCommand.php:75
+msgid "The stored signing key cannot be decrypted. Restore the previous encryption key in WPLC_INSTALLATION_ENCRYPTION_KEYS instead of replacing the key that clients pin."
+msgstr ""
+
+#: src/CLI/SigningKeyCommand.php:79
+msgid "The key comes from WPLC_RESPONSE_SIGNING_KEY, or the new key could not be stored (or the prepared key cannot be decrypted); rotate a constant in wp-config.php."
+msgstr ""
+
+#: src/CLI/SigningKeyCommand.php:85
+msgid "The stored signing key cannot be decrypted with WPLC_INSTALLATION_ENCRYPTION_KEYS; responses carry no Ed25519 signature. Restore the previous encryption key."
+msgstr ""
+
+#: src/CLI/SigningKeyCommand.php:85
+msgid "No response signing key could be created."
+msgstr ""
+
+#: src/CLI/SigningKeyCommand.php:100
+msgid "Unknown field."
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:36
@@ -2991,40 +3400,41 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: release version number.
-#: src/Update/CustomerDownload.php:70
+#: src/Update/CustomerDownload.php:72
 #, php-format
 msgid "Download version %s"
 msgstr ""
 
-#: src/Update/CustomerDownload.php:94
+#: src/Update/CustomerDownload.php:96
 msgid "Invalid request."
 msgstr ""
 
-#: src/Update/CustomerDownload.php:99
+#: src/Update/CustomerDownload.php:101
 msgid "This download link has expired. Please reload the page and try again."
 msgstr ""
 
-#: src/Update/CustomerDownload.php:106
+#: src/Update/CustomerDownload.php:108
 msgid "This license does not belong to your account."
 msgstr ""
 
-#: src/Update/CustomerDownload.php:109
+#: src/Update/CustomerDownload.php:111
 msgid "An active license is required to download this product."
 msgstr ""
 
-#: src/Update/CustomerDownload.php:113
+#: src/Update/CustomerDownload.php:115
 msgid "No download is available for this product yet."
 msgstr ""
 
-#: src/Update/CustomerDownload.php:127
+#: src/Update/CustomerDownload.php:129
+#: src/Update/CustomerDownload.php:156
 msgid "The download could not be prepared. Please try again later."
 msgstr ""
 
-#: src/Update/CustomerDownload.php:133
+#: src/Update/CustomerDownload.php:135
 msgid "Too many downloads for this license. Please try again in an hour."
 msgstr ""
 
-#: src/Update/CustomerDownload.php:240
+#: src/Update/CustomerDownload.php:248
 msgid "Download unavailable"
 msgstr ""
 
@@ -3088,7 +3498,7 @@ msgstr ""
 msgid "Inside the web root; the HTTP self-check could not reach the site. Verify the deny rule manually."
 msgstr ""
 
-#: src/Update/PackageStream.php:191
+#: src/Update/PackageStream.php:198
 msgid "This download link is invalid or has expired."
 msgstr ""
 

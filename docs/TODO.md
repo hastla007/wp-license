@@ -1,6 +1,6 @@
 # WP License Captain — To-do-Liste
 
-Stand: 14.11.2026, Branch `claude/zen-babbage-7q4nac` (25 Aufgaben abgeschlossen, siehe Abschnitt 6 „Abgeschlossen am 14.11.2026“). Dies ist die einzige Aufgabenliste des Lizenzservers. Die Aufgaben der drei Produkt-Plugins (Kern-Plugin und Premium-Add-on) stehen in deren eigenen `TODO.md`.
+Stand: 14.11.2026, Branch `claude/zen-babbage-7q4nac` (29 Aufgaben abgeschlossen, siehe Abschnitt 6 „Abgeschlossen am 14.11.2026“). Dies ist die einzige Aufgabenliste des Lizenzservers. Die Aufgaben der drei Produkt-Plugins (Kern-Plugin und Premium-Add-on) stehen in deren eigenen `TODO.md`.
 
 **Regeln**
 
@@ -35,7 +35,7 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 
 ### Tests und Betrieb
 
-- [ ] **T-148 [WICHTIG]** Zweimal schlug ein einzelner Integrationstest lokal einmalig fehl, als zwei Testläufe denselben Datenbankserver nutzten. Die serverweiten Sperrnamen sind inzwischen pro Site eindeutig; beobachten, ob es in CI wieder auftritt. Am 14.11. traten ähnliche Zufallsfehler nur auf, solange parallele Testläufe versehentlich dieselbe Datenbank nutzten; mit getrennten Datenbanken waren alle Läufe stabil.
+- [ ] **T-148 [WICHTIG]** Zweimal schlug ein einzelner Integrationstest lokal einmalig fehl, als zwei Testläufe denselben Datenbankserver nutzten. Die serverweiten Sperrnamen sind inzwischen pro Site eindeutig; beobachten, ob es in CI wieder auftritt. Am 14.11. traten ähnliche Zufallsfehler nur auf, solange parallele Testläufe versehentlich dieselbe Datenbank nutzten; mit getrennten Datenbanken waren alle Läufe stabil. Am 15.11. scheiterte ein E2E-Lauf einmal an einem MariaDB-Deadlock beim Speichern eines WooCommerce-Transients (`wc_product_children_*`, 8 parallele Server-Prozesse); der nächste Lauf war grün.
 - [ ] **T-91 [WICHTIG]** Monitoring anschließen: Empfänger für `wplc/health_alert`, Überwachung von Action Scheduler, Webhooks und Paket-Host (`docs/MONITORING.md`).
 - [ ] **T-31 [WICHTIG]** Externer Paketspeicher (S3 oder GCS) ist nur dokumentiert. Bei Bedarf anbinden und abnehmen.
 - [ ] **T-93 [WICHTIG]** Rechtliche Prüfung: Kündigungsbutton, Hinweispflichten bei automatischer Verlängerung, Widerruf bei digitalen Inhalten, Umsatzsteuer und Rechnungen für Verlängerungen, Datenschutzhinweise.
@@ -46,13 +46,9 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 ## 4. Optimierung
 
 - [ ] **T-106 [OPTIMIERUNG]** Kürzeres Schlüsselformat (heute 106 Zeichen).
-- [ ] **T-108 [OPTIMIERUNG]** Download-Token steht weiter im URL-Pfad. Die Antwort verbietet inzwischen Caching und Referrer.
 - [ ] **T-109 [OPTIMIERUNG]** Add-ons mit anteiliger Berechnung; `Money::prorate()` ist nirgends angebunden.
 - [ ] **T-110 [OPTIMIERUNG]** Tarifwechsel einer bestehenden Lizenz.
-- [ ] **T-102 [OPTIMIERUNG]** Adminliste: Bulk-Aktionen und Filter nach Bestellung oder Verlängerung.
 - [ ] **T-150 [OPTIMIERUNG]** Die Bezeichnungen der Produktfunktionen im Rechtekatalog liegen in der Textdomain dieses Plugins und müssen hier mitübersetzt werden. In die Add-ons verlagern.
-- [ ] **T-151 [OPTIMIERUNG]** WP-CLI-Ausgaben und Logmeldungen sind englisch.
-- [ ] **T-156 [OPTIMIERUNG]** Systemweite Audit-Einträge (Einstellungen, CSV-Import, Schlüsselrotation; Objekt-ID 0) erscheinen auf keiner Adminseite.
 
 ## 5. Entscheidungen
 
@@ -82,6 +78,10 @@ Belege: *Unit* 509 Tests (+48 Add-on-Vorlage), *Integration* 196 Tests (HPOS und
 - [x] **T-144** `wplc_reminder_log` im Schema (Migration 12). *Unit, Integration, E2E (Upgrade).*
 - [x] **T-145** API-Spezifikation deklariert 409, 429 und 503; die drei unvollständigen Integrationstests prüfen jetzt hart. *Integration.*
 - [x] **T-146** `SiteUrl`: nicht kanonische IPv4-Schreibweisen abgelehnt, Pfade normalisiert, Umlaut-Domains auch ohne `intl` (gegen `idn_to_ascii` über alle BMP-Zeichen geprüft); bestehende Aktivierungen werden weiter erkannt. *Unit, Integration.*
+- [x] **T-102** Lizenzliste: Sammelaktionen (sperren, reaktivieren, widerrufen, alle Website-Aktivierungen freigeben) mit einer Begründung pro Durchgang, über die bestehenden Abläufe mit Sperren und Audit-Einträgen; doppeltes Absenden führt nichts zweimal aus. Neue Filter nach Bestellung, Verlängerungsstatus, Verlängerungsart und Ablauf. *Integration, E2E.*
+- [x] **T-156** Adminseite „Lizenz-Audit-Protokoll“ mit allen Einträgen inklusive systemweiter (Objekt-ID 0), Filtern, übersetzten Begründungen und erneuter Schwärzung vertraulicher Werte. *Integration, E2E.*
+- [x] **T-151** WP-CLI-Ausgaben übersetzbar; Logmeldungen bleiben bewusst englisch (für Support und Suche, `docs/MONITORING.md`).
+- [x] **T-108** Download-Token in URLs gelten nur noch 5 Minuten (Stream-Links 60 Sekunden), sind an die Installation gebunden und werden beim ersten Aufruf verbraucht, auch wenn danach ein Fehler folgt (Schema 16). Ein Token aus einem Zugriffslog ist damit wertlos. Download im Kundenkonto ohne Token-URL. Änderung gegenüber T-142: Nach einem 404 muss der Client eine neue URL anfordern. *Integration, E2E.*
 - [x] **T-89** Lasttest mit 50 000 Lizenzen, 119 000 Aktivierungen, 150 000 Audit-Einträgen u. a.: Schema 15 mit neuen Indizes, Lizenzliste, Suche, Kundenkonto und Datenbereinigung umgeschrieben (z. B. letzte Listenseite 89 → 19 ms, Suche nach Schlüsselpräfix 71 → 13 ms). REST-Pfade waren bereits reine Schlüsselzugriffe. Werkzeuge in `tests/load/`, Bericht in `docs/PERFORMANCE.md`.
 - [x] **T-86** Schlüsselrotation an einer Datenbankkopie geprobt (Backup, Rotation beider Schlüsselringe, `rotate-installation-secrets`, Signaturschlüssel, simulierte Fehler, Wiederherstellung). Zwei Fehler behoben: (1) Das Ausmustern des alten Verschlüsselungsschlüssels nach Anleitung schaltete unbemerkt die Ed25519-Signatur ab, alle Clients mit fest hinterlegtem Schlüssel wurden abgewiesen; der Signaturschlüssel wird jetzt mitrotiert, `signing-key --prepare` erzeugt den nächsten Schlüssel vorab. (2) Nach manueller Änderung der Key-ID zeigte das Kundenkonto einen falschen Schlüssel. Ablauf in `docs/SECURITY-OPERATIONS.md`, Nachweis in `docs/LAUNCH-EVIDENCE.md`. Wichtig: Eine wiederhergestellte Datenbank braucht den Schlüsselring vom Zeitpunkt des Backups.
 - [x] **T-95** Release-Build lokal aus `git archive` nachgestellt und das ZIP auf einer leeren WordPress-Installation installiert (Aktivierung ohne Hinweise, 14 Tabellen, alle Adminseiten, Deinstallation). Build in `bin/build-zip.sh`, neuer CI-Job `package.yml` baut das ZIP in jedem PR; `release.yml` prüft auch den Stable tag und testet vor dem Build. Nicht gelaufen: echter Tag-Push mit Release-Upload.
