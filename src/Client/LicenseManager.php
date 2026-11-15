@@ -28,7 +28,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.1';
+		const VERSION = '2.0.2';
 
 		/**
 		 * A signed answer ended the activation: rights and credentials are dropped.
@@ -56,6 +56,11 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		const CLOCK_SKEW = 300;
 
 		/**
+		 * Seconds between two background checks scheduled because the clock went back.
+		 */
+		const RECHECK_LOCK = 900;
+
+		/**
 		 * Sites handled per get_sites() query when uninstalling on a multisite.
 		 */
 		const UNINSTALL_BATCH = 100;
@@ -75,9 +80,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		private $prefix;
 
 		/**
-		 * Transport client.
+		 * Transport client, created on first use (see build_client()).
 		 *
-		 * @var LicenseClient
+		 * @var LicenseClient|null
 		 */
 		private $client;
 
@@ -115,6 +120,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 *     @type string|callable $core_version    Version of the free base plugin (or a callable returning it).
 		 *     @type string|false    $settings_parent Admin menu the license screen is added to; false for none.
 		 *                                            Default `options-general.php` (`settings.php` in network mode).
+		 *     @type string          $settings_url    Full admin address of the add-on's own screen that calls render_settings().
+		 *                                            Needed with `settings_parent => false` (redirect after the form, notice links).
 		 *     @type string          $capability      Capability that may manage the license.
 		 *     @type string          $account_url     Customer account of the shop (renewal link in notices).
 		 *     @type string[]        $fallback_urls   Further server addresses.
@@ -144,6 +151,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 					'settings_parent' => $network ? 'settings.php' : 'options-general.php',
 					'capability'      => $network ? 'manage_network_options' : 'manage_options',
 					'account_url'     => '',
+					'settings_url'    => '',
 					'public_keys'     => array(),
 				),
 				$config,
@@ -152,8 +160,24 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 					'network'     => $network,
 				)
 			);
+		}
 
-			$server_url = (string) ( $config['server_url'] ?? '' );
+		/**
+		 * Build the transport client on first use.
+		 *
+		 * The filters `{prefix}_license_server_url` and `{prefix}_license_public_keys`
+		 * are applied here, not in the constructor, so that a filter added after the
+		 * add-on file was included (another plugin, the theme) still counts as long
+		 * as nothing asked for the license before.
+		 *
+		 * @return LicenseClient
+		 */
+		private function build_client(): LicenseClient {
+			$config      = $this->config;
+			$prefix      = $this->prefix;
+			$network     = (bool) $config['network'];
+			$product_key = (string) $config['product_key'];
+			$server_url  = (string) ( $config['server_url'] ?? '' );
 			if ( '' !== $prefix && function_exists( 'apply_filters' ) ) {
 				/**
 				 * Filters the address of the license server of this add-on.
@@ -181,7 +205,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$public_keys = (array) apply_filters( $prefix . '_license_public_keys', $public_keys ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- prefixed with the add-on's own prefix.
 			}
 
-			$this->client = new LicenseClient(
+			return new LicenseClient(
 				$server_url,
 				$product_key,
 				(string) $this->config['version'],
@@ -212,7 +236,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 */
 		public function register(): void {
 			add_action( $this->cron_hook(), array( $this, 'run_scheduled_check' ) );
-			add_action( 'init', array( $this, 'ensure_schedule' ) );
+			if ( is_admin() || wp_doing_cron() ) {
+				// Self-healing of the daily event; not needed on every front-end request.
+				add_action( 'init', array( $this, 'ensure_schedule' ) );
+			}
 			add_action( 'admin_init', array( $this, 'catch_up' ) );
 			add_action( 'admin_init', array( $this, 'add_privacy_text' ) );
 			add_action( 'admin_post_' . $this->prefix . '_license', array( $this, 'handle_settings_form' ) );
@@ -247,6 +274,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @return LicenseClient
 		 */
 		public function client(): LicenseClient {
+			if ( null === $this->client ) {
+				$this->client = $this->build_client();
+			}
+
 			return $this->client;
 		}
 
@@ -324,17 +355,17 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$status->last_error_at = (int) ( $state['error']['at'] ?? 0 );
 			}
 
-			if ( ! $this->client->is_configured() ) {
+			if ( ! $this->client()->is_configured() ) {
 				$status->state = LicenseStatus::STATE_MISCONFIGURED;
 				return $status;
 			}
-			if ( ! $this->client->is_activated() ) {
+			if ( ! $this->client()->is_activated() ) {
 				$status->state = 'deactivated' === ( $state['lock'] ?? '' ) ? LicenseStatus::STATE_DEACTIVATED : LicenseStatus::STATE_UNLICENSED;
 				return $status;
 			}
-			$status->installation_id = $this->client->installation_id();
-			$status->environment     = $this->client->environment();
-			if ( ! $this->client->site_matches() ) {
+			$status->installation_id = $this->client()->installation_id();
+			$status->environment     = $this->client()->environment();
+			if ( ! $this->client()->site_matches() ) {
 				$status->state = LicenseStatus::STATE_SITE_CHANGED;
 				return $status;
 			}
@@ -355,6 +386,11 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 
 			$server_now = $this->server_now( $state, $data );
 			$expires    = self::utc( $status->cache_expires_at );
+			if ( PHP_INT_MAX === $server_now && (int) ( $state['fetched_at'] ?? 0 ) > $this->client()->now() + self::CLOCK_SKEW ) {
+				// The clock was turned back (NTP correction) or the option was edited: ask the server
+				// in the background right away instead of waiting for the next daily check.
+				$this->schedule_recheck();
+			}
 			if ( 0 === $expires || $server_now >= $expires ) {
 				// The signed offline window is used up; only a new signed answer restores the rights.
 				$status->state = LicenseStatus::STATE_STALE;
@@ -397,7 +433,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 */
 		public function activate( string $license_key, string $environment = '', string $staging_parent_installation_id = '' ) {
 			$before = $this->status()->state;
-			$data   = $this->client->activate( $license_key, $environment, $staging_parent_installation_id );
+			$data   = $this->client()->activate( $license_key, $environment, $staging_parent_installation_id );
 
 			return $this->after_activation( $data, $before );
 		}
@@ -411,7 +447,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		public function move( string $license_key ) {
 			$before = $this->status()->state;
 
-			return $this->after_activation( $this->client->move( $license_key ), $before );
+			return $this->after_activation( $this->client()->move( $license_key ), $before );
 		}
 
 		/**
@@ -421,9 +457,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 */
 		public function deactivate() {
 			$before = $this->status()->state;
-			$result = $this->client->deactivate();
+			$result = $this->client()->deactivate();
 			if ( ! is_wp_error( $result ) ) {
-				$this->client->store()->delete( $this->state_option() );
+				$this->client()->store()->delete( $this->state_option() );
 				$this->snapshot = null;
 				$this->updater()->flush();
 				$this->ensure_schedule();
@@ -444,8 +480,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 */
 		public function forget_locally(): void {
 			$before = $this->status()->state;
-			$this->client->forget();
-			$this->client->store()->delete( $this->state_option() );
+			$this->client()->forget();
+			$this->client()->store()->delete( $this->state_option() );
 			$this->snapshot = null;
 			$this->updater()->flush();
 			$this->ensure_schedule();
@@ -459,16 +495,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @return LicenseStatus|\WP_Error The error of the request; the stored status is kept or changed according to error_class().
 		 */
 		public function refresh( bool $force = true ) {
-			if ( ! $this->client->is_activated() ) {
-				return new \WP_Error( 'wplc_not_activated', $this->client->messages()->error( 'wplc_not_activated' ) );
+			if ( ! $this->client()->is_activated() ) {
+				return new \WP_Error( 'wplc_not_activated', $this->client()->messages()->error( 'wplc_not_activated' ) );
 			}
 			$state = $this->state();
-			$now   = $this->client->now();
+			$now   = $this->client()->now();
 			if ( ! $force && $now < (int) ( $state['next_attempt'] ?? 0 ) && $now >= (int) ( $state['last_attempt'] ?? 0 ) ) {
-				return new \WP_Error( 'wplc_backoff', $this->client->messages()->error( 'wplc_connection_failed' ), array( 'next_attempt' => (int) $state['next_attempt'] ) );
+				return new \WP_Error( 'wplc_backoff', $this->client()->messages()->error( 'wplc_connection_failed' ), array( 'next_attempt' => (int) $state['next_attempt'] ) );
 			}
 			$before = $this->status()->state;
-			$result = $this->client->check_entitlements();
+			$result = $this->client()->check_entitlements();
 			$error  = $this->apply( $result );
 			$this->changed( $before );
 
@@ -506,7 +542,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @return void
 		 */
 		public function run_scheduled_check(): void {
-			if ( $this->client->is_activated() && $this->client->site_matches() ) {
+			if ( $this->client()->is_activated() && $this->client()->site_matches() ) {
 				$this->refresh( false );
 			}
 		}
@@ -521,10 +557,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				return;
 			}
 			$scheduled = wp_next_scheduled( $this->cron_hook() );
-			if ( $this->client->is_activated() && ! $scheduled ) {
+			if ( $this->client()->is_activated() && ! $scheduled ) {
 				// A random offset spreads the checks of all customer sites over the day.
 				wp_schedule_event( time() + wp_rand( 300, DAY_IN_SECONDS ), 'daily', $this->cron_hook() );
-			} elseif ( $scheduled && ! $this->client->is_activated() ) {
+			} elseif ( $scheduled && ! $this->client()->is_activated() ) {
 				wp_clear_scheduled_hook( $this->cron_hook() );
 			}
 		}
@@ -539,16 +575,38 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		}
 
 		/**
+		 * Schedule a one-off background check now, at most once per RECHECK_LOCK seconds.
+		 *
+		 * Used when the stored snapshot cannot be dated because the clock went
+		 * back: the premium features are off until a new signed answer arrives,
+		 * which this brings within minutes instead of up to a day. It is no way
+		 * around the rule: only a signed answer restores the rights.
+		 *
+		 * @return void
+		 */
+		private function schedule_recheck(): void {
+			if ( ! function_exists( 'wp_schedule_single_event' ) || ! function_exists( 'get_transient' ) || ! $this->client()->site_matches() ) {
+				return;
+			}
+			$lock = $this->prefix . '_license_recheck';
+			if ( false !== get_transient( $lock ) ) {
+				return;
+			}
+			set_transient( $lock, 1, self::RECHECK_LOCK );
+			wp_schedule_single_event( time(), $this->cron_hook() );
+		}
+
+		/**
 		 * Catch up in the admin when WP-Cron did not run or the last attempt failed.
 		 *
 		 * @return void
 		 */
 		public function catch_up(): void {
-			if ( wp_doing_ajax() || ! current_user_can( (string) $this->config['capability'] ) || ! $this->client->is_activated() || ! $this->client->site_matches() ) {
+			if ( wp_doing_ajax() || ! current_user_can( (string) $this->config['capability'] ) || ! $this->client()->is_activated() || ! $this->client()->site_matches() ) {
 				return;
 			}
 			$state = $this->state();
-			$now   = $this->client->now();
+			$now   = $this->client()->now();
 			$last  = (int) ( $state['last_attempt'] ?? 0 );
 			$due   = empty( $state['error'] )
 				? $now - $last > self::CATCH_UP_AFTER
@@ -592,6 +650,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 					}
 					$offset += self::UNINSTALL_BATCH;
 				} while ( count( $sites ) === self::UNINSTALL_BATCH );
+				// The update data is kept once for the network (see Updater).
+				$this->updater()->flush();
 			} else {
 				$this->uninstall_site( $started );
 			}
@@ -605,12 +665,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @return void
 		 */
 		private function uninstall_site( int $started ): void {
-			if ( $this->client->is_activated() && time() - $started < 20 ) {
-				$this->client->deactivate();
+			if ( $this->client()->is_activated() && time() - $started < 20 ) {
+				$this->client()->deactivate();
 			}
-			$this->client->forget();
-			$this->client->store()->delete( $this->state_option() );
-			$this->client->store()->delete( $this->prefix . '_update_meta' );
+			$this->client()->forget();
+			$this->client()->store()->delete( $this->state_option() );
+			$this->client()->store()->delete( $this->prefix . '_update_meta' );
 			wp_clear_scheduled_hook( $this->cron_hook() );
 		}
 
@@ -621,13 +681,22 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Address of the license screen.
 		 *
+		 * The `settings_url` setting when the add-on gives one (its own screen or
+		 * tab that calls render_settings()); otherwise the screen this class adds.
+		 * With `settings_parent => false` and no `settings_url` there is no known
+		 * screen: the result is an empty string (notices then carry no link and
+		 * the form returns to the page it was sent from).
+		 *
 		 * @return string
 		 */
 		public function settings_url(): string {
-			$parent = false === $this->config['settings_parent'] ? 'options-general.php' : (string) $this->config['settings_parent'];
-			$parent = false === strpos( $parent, '.php' ) ? 'admin.php' : $parent;
-			$url    = $parent . ( false === strpos( $parent, '?' ) ? '?' : '&' ) . 'page=' . $this->page_slug();
-			$url    = $this->config['network'] ? network_admin_url( $url ) : admin_url( $url );
+			$url = (string) ( $this->config['settings_url'] ?? '' );
+			if ( '' === $url && false !== $this->config['settings_parent'] && '' !== $this->config['settings_parent'] ) {
+				$parent = (string) $this->config['settings_parent'];
+				$parent = false === strpos( $parent, '.php' ) ? 'admin.php' : $parent;
+				$url    = $parent . ( false === strpos( $parent, '?' ) ? '?' : '&' ) . 'page=' . $this->page_slug();
+				$url    = $this->config['network'] ? network_admin_url( $url ) : admin_url( $url );
+			}
 
 			return (string) apply_filters( $this->prefix . '_license_settings_url', $url ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- prefixed with the add-on's own prefix.
 		}
@@ -679,7 +748,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$this->row( $this->text( 'ui.last_checked' ), 0 === $status->last_checked ? $this->text( 'ui.never' ) : $this->date( gmdate( 'Y-m-d H:i:s', $status->last_checked ) ) );
 			}
 			if ( '' !== $status->last_error ) {
-				$this->row( $this->text( 'ui.last_error' ), $this->client->messages()->error( $status->last_error ) . ' (' . $status->last_error . ', ' . $this->date( gmdate( 'Y-m-d H:i:s', $status->last_error_at ) ) . ')' );
+				$this->row( $this->text( 'ui.last_error' ), $this->client()->messages()->error( $status->last_error ) . ' (' . $status->last_error . ', ' . $this->date( gmdate( 'Y-m-d H:i:s', $status->last_error_at ) ) . ')' );
 			}
 			echo '</tbody></table>';
 
@@ -688,7 +757,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				return;
 			}
 
-			echo '<form method="post" action="' . esc_url( $this->config['network'] ? network_admin_url( 'admin-post.php' ) : admin_url( 'admin-post.php' ) ) . '">';
+			// admin-post.php exists only in wp-admin/, also in network mode (there is no wp-admin/network/admin-post.php).
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			wp_nonce_field( $this->prefix . '_license' );
 			echo '<input type="hidden" name="action" value="' . esc_attr( $this->prefix . '_license' ) . '">';
 			$key_input = '<input type="text" class="regular-text code" name="' . esc_attr( $field ) . '" id="' . esc_attr( $field ) . '" autocomplete="off" spellcheck="false" placeholder="WPLC-…">';
@@ -709,11 +779,24 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			);
 
 			if ( LicenseStatus::STATE_SITE_CHANGED === $status->state ) {
-				echo '<p>' . esc_html( $this->client->messages()->error( 'wplc_site_changed' ) ) . '</p>';
+				$old = $this->client()->activated_site_url();
+				$new = $this->client()->store()->site_url();
+				echo '<p>' . esc_html( $this->client()->messages()->error( 'wplc_site_changed' ) ) . '</p>';
+				echo '<table class="form-table" role="presentation"><tbody>';
+				$this->row( $this->text( 'ui.activated_address' ), $old );
+				$this->row( $this->text( 'ui.current_address' ), $new );
+				echo '</tbody></table>';
 				echo '<p>' . wp_kses( $label . $key_input, $allowed ) . '</p><p>';
 				$this->button( 'activate', $this->text( 'ui.activate_copy' ), true );
-				$this->button( 'move', $this->text( 'ui.move' ) );
 				$this->button( 'deactivate', $this->text( 'ui.forget' ) );
+				echo '</p>';
+				// Transferring takes the license away from the address it was activated for: only after an explicit confirmation.
+				echo '<p class="description">' . esc_html( sprintf( $this->text( 'ui.move_warning' ), $old, $new ) );
+				if ( 'production' !== LicenseClient::detect_environment() ) {
+					echo ' ' . esc_html( $this->text( 'ui.move_not_live' ) );
+				}
+				echo '</p><p><label><input type="checkbox" name="wplc_confirm_move" value="1"> ' . esc_html( sprintf( $this->text( 'ui.move_confirm' ), $old ) ) . '</label></p><p>';
+				$this->button( 'move', $this->text( 'ui.move' ) );
 				echo '</p>';
 			} elseif ( '' !== $status->installation_id ) {
 				echo '<p>';
@@ -747,10 +830,18 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			$do     = isset( $_POST['wplc_do'] ) ? sanitize_key( wp_unslash( $_POST['wplc_do'] ) ) : '';
 			$field  = $this->prefix . '_license_key';
 			$key    = isset( $_POST[ $field ] ) ? sanitize_text_field( wp_unslash( $_POST[ $field ] ) ) : '';
-			$result = $this->run_form_action( $do, $key );
+			$result = $this->run_form_action( $do, $key, ! empty( $_POST['wplc_confirm_move'] ) );
 
 			set_transient( $this->flash_key(), $result, 60 );
-			wp_safe_redirect( $this->settings_url() );
+			$target = $this->settings_url();
+			if ( '' === $target ) {
+				// No license screen of this class: back to the add-on's own page that sent the form.
+				$target = (string) wp_get_referer();
+			}
+			if ( '' === $target ) {
+				$target = $this->config['network'] ? network_admin_url() : admin_url();
+			}
+			wp_safe_redirect( $target );
 			exit;
 		}
 
@@ -759,14 +850,21 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 *
 		 * @param string $action      `activate`, `move`, `deactivate`, `forget` or `check`.
 		 * @param string $license_key Key from the form.
+		 * @param bool   $confirmed   For `move`: the administrator confirmed that the site moved (the old address loses the license).
 		 * @return array{type:string,text:string} Message for the next page view.
 		 */
-		public function run_form_action( string $action, string $license_key = '' ): array {
+		public function run_form_action( string $action, string $license_key = '', bool $confirmed = false ): array {
 			$saved = 'ui.saved.checked';
 			if ( 'activate' === $action ) {
 				$result = $this->activate( $license_key );
 				$saved  = 'ui.saved.activated';
 			} elseif ( 'move' === $action ) {
+				if ( ! $confirmed ) {
+					return array(
+						'type' => 'error',
+						'text' => $this->text( 'ui.move_unconfirmed' ),
+					);
+				}
 				$result = $this->move( $license_key );
 				$saved  = 'ui.saved.moved';
 			} elseif ( 'deactivate' === $action ) {
@@ -821,8 +919,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				return;
 			}
 			printf( '<div class="notice notice-%s"><p>%s', esc_attr( $notice['type'] ), esc_html( $notice['text'] ) );
-			if ( ! $on_page ) {
-				printf( ' <a href="%s">%s</a>', esc_url( $this->settings_url() ), esc_html( $this->text( 'notice.open_settings' ) ) );
+			$url = $on_page ? '' : $this->settings_url();
+			if ( '' !== $url ) {
+				printf( ' <a href="%s">%s</a>', esc_url( $url ), esc_html( $this->text( 'notice.open_settings' ) ) );
 			}
 			echo '</p></div>';
 		}
@@ -841,7 +940,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				case LicenseStatus::STATE_ACTIVE:
 					if ( $status->needs_reactivation ) {
 						$text = sprintf( $this->text( 'notice.reactivate' ), $name );
-					} elseif ( '' !== $status->last_error && $this->client->now() - $status->last_checked > 3 * DAY_IN_SECONDS ) {
+					} elseif ( '' !== $status->last_error && $this->client()->now() - $status->last_checked > 3 * DAY_IN_SECONDS ) {
 						$text = sprintf( $this->text( 'notice.offline' ), $name, $this->date( $status->cache_expires_at ) );
 					}
 					break;
@@ -884,7 +983,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @return string
 		 */
 		public function privacy_text(): string {
-			return sprintf( $this->text( 'privacy.text' ), (string) $this->config['name'], $this->client->server_host() );
+			return sprintf( $this->text( 'privacy.text' ), (string) $this->config['name'], $this->client()->server_host() );
 		}
 
 		/**
@@ -933,7 +1032,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 */
 		private function apply( $result ) {
 			$state = $this->state();
-			$now   = $this->client->now();
+			$now   = $this->client()->now();
 
 			$state['last_attempt'] = $now;
 			$state['clock_high']   = max( $now, (int) ( $state['clock_high'] ?? 0 ) );
@@ -941,11 +1040,11 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 
 			if ( ! is_wp_error( $result ) ) {
 				$server_time = self::utc( (string) ( $result['server_time'] ?? '' ) );
-				if ( 0 === $server_time || empty( $this->client->last_envelope() ) ) {
-					$result = new \WP_Error( 'wplc_response_invalid', $this->client->messages()->error( 'wplc_response_invalid' ) );
+				if ( 0 === $server_time || empty( $this->client()->last_envelope() ) ) {
+					$result = new \WP_Error( 'wplc_response_invalid', $this->client()->messages()->error( 'wplc_response_invalid' ) );
 				} elseif ( $server_time < (int) ( $state['server_time_max'] ?? 0 ) - 300 ) {
 					// An answer older than one already seen is a replay, whatever it says.
-					$result = new \WP_Error( 'wplc_response_stale', $this->client->messages()->error( 'wplc_response_stale' ) );
+					$result = new \WP_Error( 'wplc_response_stale', $this->client()->messages()->error( 'wplc_response_stale' ) );
 				}
 			}
 
@@ -964,7 +1063,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 					unset( $state['envelope'] );
 				} else {
 					$state['lock']     = '';
-					$state['envelope'] = $this->client->last_envelope();
+					$state['envelope'] = $this->client()->last_envelope();
 				}
 				$this->write( $state );
 
@@ -1045,11 +1144,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			if ( empty( $state['envelope'] ) || ! is_array( $state['envelope'] ) ) {
 				return $this->snapshot;
 			}
-			// HMAC and Ed25519 are checked on every read (memoized for this request only). Nothing stored
-			// next to the snapshot can switch the server signature off: without ext-sodium WordPress's
-			// sodium_compat verifies, and a PHP with neither never accepts the snapshot.
-			$data = $this->client->verify_snapshot( $state['envelope'] );
-			if ( is_wp_error( $data ) ) {
+			// HMAC and Ed25519 are checked on every read. Nothing stored next to the snapshot can switch the
+			// server signature off: without ext-sodium WordPress's sodium_compat verifies (its result is
+			// remembered under a key bound to the signature, see LicenseClient::verified_snapshot_data()),
+			// and a PHP with neither never accepts the snapshot. No texts are built here (early is_entitled()).
+			$data = $this->client()->verified_snapshot_data( $state['envelope'] );
+			if ( ! is_array( $data ) ) {
 				return $this->snapshot;
 			}
 			$this->snapshot = $data;
@@ -1077,7 +1177,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 */
 		private function server_now( array $state, array $data ): int {
 			$signed  = self::utc( (string) ( $data['server_time'] ?? '' ) );
-			$now     = $this->client->now();
+			$now     = $this->client()->now();
 			$fetched = (int) ( $state['fetched_at'] ?? 0 );
 			if ( 0 === $signed || $fetched <= 0 || $fetched > $now + self::CLOCK_SKEW ) {
 				return PHP_INT_MAX;
@@ -1093,7 +1193,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @return array<string,mixed>
 		 */
 		private function state(): array {
-			$state = $this->client->store()->get( $this->state_option(), array() );
+			$state = $this->client()->store()->get( $this->state_option(), array() );
 
 			return is_array( $state ) ? $state : array();
 		}
@@ -1105,7 +1205,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @return void
 		 */
 		private function write( array $state ): void {
-			$this->client->store()->set( $this->state_option(), $state );
+			$this->client()->store()->set( $this->state_option(), $state );
 			$this->snapshot = null;
 		}
 
@@ -1143,7 +1243,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @return string
 		 */
 		private function text( string $code ): string {
-			return $this->client->messages()->get( $code );
+			return $this->client()->messages()->get( $code );
 		}
 
 		/**

@@ -169,7 +169,7 @@ The HMAC proves integrity in transit and of the client's cache, but the client k
 
 **Legacy fields.** `data`, `signature` and `signature_ed25519` are still sent so that product builds with an older bundled client keep working; the server will keep sending them for the whole of API v1. They are the only downgrade path: a client that accepts `data` + `signature` when `payload` is missing can be fed a stripped, replayed answer. New clients must require `payload`, `payload_signature` and (with a pinned key) `payload_signature_ed25519` and must ignore the legacy members. Removing the fallback from the bundled `LicenseClient` is tracked as B-158.
 
-`tests/Api/ServerClientInteropTest.php` checks that both signatures of one response verify: the payload signature with the copy of the client library used by hastla007/captain-pro, and the legacy `signature_ed25519` with `LicenseClient::verified_server_data()` (kept for add-ons built on client 1.x, such as the premium add-on starter).
+`tests/Api/ServerClientInteropTest.php` checks that the payload signature of one response verifies with the copy of the client library used by hastla007/captain-pro and with the client of this repository (also through `LicenseClient::verified_server_data()`, which since client 2.0.2 checks only `payload_signature_ed25519` and requires the request nonce), and that the legacy `signature_ed25519` is still sent and valid for clients 1.x but accepted by neither.
 
 Test vectors (seed 32 × `0x01` → public key `iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w=`, installation `a1b2c3d4-0000-4000-8000-000000000001`):
 

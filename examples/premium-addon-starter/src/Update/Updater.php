@@ -16,9 +16,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Hooks the add-on into the WordPress plugin updater.
  *
- * - Detection: check() asks /wplc/v1/updates/check (signed) from the daily cron and whenever WordPress rebuilds the
- *   update_plugins transient (also from cron) and the stored result is older than 12 hours. No capability check:
- *   detection must not depend on a logged-in admin.
+ * - Detection: check() asks /wplc/v1/updates/check (signed, `download: false`: no download grant on the server, the
+ *   short default timeout) from the daily cron and whenever WordPress rebuilds the update_plugins transient (also from
+ *   cron) and the stored result is older than 12 hours. No capability check: detection must not depend on a logged-in
+ *   admin. The transient carries a fixed placeholder as package, never a download URL.
  * - Download: the package URL is used up by its first request and valid for five minutes, so upgrader_pre_download asks for a fresh one
  *   right before downloading, follows redirects by hand (HTTPS, allow-listed hosts only), enforces the size limit and
  *   compares the SHA-256 from the signed answer before WordPress unpacks anything. Any failure returns a WP_Error;
@@ -92,7 +93,7 @@ final class Updater {
 	 */
 	public function check() {
 		$now    = (int) call_user_func( $this->clock );
-		$result = $this->client->check_update( true );
+		$result = $this->client->check_update( false );
 		if ( is_wp_error( $result ) ) {
 			$stored = $this->stored();
 			// Without access (license_inactive, activation gone) no update is offered any more.
@@ -104,7 +105,7 @@ final class Updater {
 			update_option( $this->option, $stored, false );
 			return $result;
 		}
-		$update = $this->validated( $result );
+		$update = $this->validated( $result, false );
 		if ( is_wp_error( $update ) ) {
 			update_option( $this->option, array( 'checked_at' => $now, 'update' => null, 'last_error' => $update->get_error_message() ), false );
 			return $update;
@@ -140,7 +141,7 @@ final class Updater {
 		);
 		if ( null !== $update && version_compare( (string) $update['version'], $this->current_version, '>' ) ) {
 			$item['new_version']  = (string) $update['version'];
-			$item['package']      = (string) $update['package_url'];
+			$item['package']      = $this->placeholder();
 			$item['requires_php'] = (string) $update['requires_php'];
 			$item['requires']     = (string) $update['requires_wp'];
 			$item['tested']       = (string) $update['tested_wp'];
@@ -204,7 +205,7 @@ final class Updater {
 		if ( is_wp_error( $fresh ) ) {
 			return $fresh;
 		}
-		$update = $this->validated( $fresh );
+		$update = $this->validated( $fresh, true );
 		if ( is_wp_error( $update ) ) {
 			return $update;
 		}
@@ -295,12 +296,20 @@ final class Updater {
 	}
 
 	/**
+	 * Stable stand-in for "the newest package" in the update transient; replaced in pre_download().
+	 */
+	public function placeholder(): string {
+		return $this->server_url . '/?wplc-package=' . rawurlencode( $this->product_key );
+	}
+
+	/**
 	 * Validate a verified update answer.
 	 *
-	 * @param array<string,mixed> $data Verified data of updates/check.
+	 * @param array<string,mixed> $data     Verified data of updates/check.
+	 * @param bool                $download Whether the answer must carry a package URL (download: true).
 	 * @return array<string,string>|null|\WP_Error Metadata, null when there is no newer version.
 	 */
-	private function validated( array $data ) {
+	private function validated( array $data, bool $download ) {
 		if ( empty( $data['update_available'] ) ) {
 			return null;
 		}
@@ -309,10 +318,15 @@ final class Updater {
 			$update[ $field ] = is_scalar( $data[ $field ] ?? null ) ? (string) $data[ $field ] : '';
 		}
 		$product_ok = '' === $update['product_key'] || $update['product_key'] === $this->product_key;
-		if ( ! preg_match( '/^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$/', $update['version'] ) || ! preg_match( '/^[a-f0-9]{64}$/', strtolower( $update['sha256'] ) ) || ! $this->is_allowed_url( $update['package_url'] ) || ! $product_ok ) {
+		$url_ok     = $download ? $this->is_allowed_url( $update['package_url'] ) : ( '' === $update['package_url'] || $this->is_allowed_url( $update['package_url'] ) );
+		if ( ! preg_match( '/^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$/', $update['version'] ) || ! preg_match( '/^[a-f0-9]{64}$/', strtolower( $update['sha256'] ) ) || ! $url_ok || ! $product_ok ) {
 			return new \WP_Error( 'update_metadata_invalid', __( 'The license server sent invalid update data.', 'premium-addon-starter' ) );
 		}
 		$update['sha256'] = strtolower( $update['sha256'] );
+		if ( ! $download ) {
+			// A periodic answer never leaves a download URL in the options.
+			$update['package_url'] = '';
+		}
 		return version_compare( $update['version'], $this->current_version, '>' ) ? $update : null;
 	}
 
@@ -323,7 +337,7 @@ final class Updater {
 	 * @param array<string,mixed> $hook_extra Upgrade context.
 	 */
 	private function is_own_package( string $package, array $hook_extra ): bool {
-		if ( ( $hook_extra['plugin'] ?? '' ) === $this->plugin_basename ) {
+		if ( ( $hook_extra['plugin'] ?? '' ) === $this->plugin_basename || $package === $this->placeholder() ) {
 			return true;
 		}
 		return '' !== $this->server_url && 0 === strpos( $package, $this->server_url . self::DOWNLOAD_ROUTE );

@@ -66,13 +66,12 @@ abstract class WPLC_Client_Bridge_TestCase extends WPLC_Integration_TestCase {
 		// Handlers that redirect or stream end with exit; the bridge catches them instead.
 		$this->halt_instead_of_exit();
 		add_filter( 'pre_http_request', array( $this, 'bridge' ), 0, 3 );
+		// A copy of the site: the stored `home` option differs (the client reads it unfiltered, P-24).
 		add_filter(
-			'home_url',
-			function ( $url, $path ) {
-				return '' !== $this->acting_home && ( '' === $path || '/' === $path ) ? $this->acting_home : $url;
-			},
-			10,
-			2
+			'option_home',
+			function ( $url ) {
+				return '' !== $this->acting_home ? $this->acting_home : $url;
+			}
 		);
 		add_filter(
 			'wplc_package_offload_header',

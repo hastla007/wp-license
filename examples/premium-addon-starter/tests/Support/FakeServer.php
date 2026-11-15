@@ -32,6 +32,8 @@ final class FakeServer {
 	public $redirects = array();
 	/** @var string[] Routes seen. */
 	public $seen = array();
+	/** @var array<int,array<string,mixed>> Bodies of updates/check requests. */
+	public $update_requests = array();
 	/** @var array<string,string> installation_id => secret registered by activations. */
 	private $installations = array();
 
@@ -139,6 +141,12 @@ final class FakeServer {
 			}
 			if ( 'POST /wplc/v1/updates/check' === $key ) {
 				$data = null === $this->update ? array( 'update_available' => false ) : $this->update;
+				if ( empty( $body['download'] ) && isset( $data['package_url'] ) ) {
+					// Like UpdateService: a periodic check (download: false) creates no grant and sends no URL.
+					$data['package_url'] = '';
+					unset( $data['package'], $data['download_expires_at'] );
+				}
+				$this->update_requests[] = $body;
 			} elseif ( 'DELETE /wplc/v1/activations/{id}' === $key ) {
 				unset( $this->installations[ $installation ] );
 				$data = array( 'activation_id' => (int) $this->keys['activation_id'], 'status' => 'inactive' );

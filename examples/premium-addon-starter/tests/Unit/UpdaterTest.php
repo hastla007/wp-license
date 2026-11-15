@@ -49,22 +49,48 @@ final class UpdaterTest extends TestCase {
 	}
 
 	public function test_the_signed_fixture_update_answer_verifies(): void {
-		$keys = Fixtures::json( 'keys.json' );
-		$data = LicenseClient::verified_server_data( Fixtures::json( 'update-available.json' ), (string) $keys['installation_id'], array( (string) $keys['server_public_key'] ) );
+		$keys     = Fixtures::json( 'keys.json' );
+		$envelope = Fixtures::json( 'update-available.json' );
+		$nonce    = (string) json_decode( (string) $envelope['payload'], true )['nonce'];
+		$data     = LicenseClient::verified_server_data( $envelope, (string) $keys['installation_id'], array( (string) $keys['server_public_key'] ), $nonce );
 		$this->assertSame( '9.9.9', $data['version'] );
 		$this->assertSame( hash_file( 'sha256', Fixtures::path( 'package.zip' ) ), $data['sha256'] );
+
+		// P-14 (client 2.0.2): the nonce of the request is required, and the legacy signature without nonce alone is not enough.
+		$this->assertSame( 'wplc_nonce_mismatch', LicenseClient::verified_server_data( $envelope, (string) $keys['installation_id'], array( (string) $keys['server_public_key'] ) ) );
+		unset( $envelope['payload_signature_ed25519'] );
+		$this->assertSame( 'wplc_server_signature_invalid', LicenseClient::verified_server_data( $envelope, (string) $keys['installation_id'], array( (string) $keys['server_public_key'] ), $nonce ) );
 	}
 
 	public function test_detection_runs_without_a_logged_in_user_and_fills_the_transient(): void {
 		$GLOBALS['wp_stub']['can'] = false;
-		$transient = $this->updater()->filter_update_transient( (object) array( 'response' => array(), 'checked' => array() ) );
+		$updater   = $this->updater();
+		$transient = $updater->filter_update_transient( (object) array( 'response' => array(), 'checked' => array() ) );
 
 		$this->assertContains( 'POST /wplc/v1/updates/check', $this->server->seen );
 		$item = $transient->response[ self::BASENAME ];
 		$this->assertSame( '9.9.9', $item->new_version );
-		$this->assertSame( $this->update['package_url'], $item->package );
+		$this->assertSame( $updater->placeholder(), $item->package, 'P-26: a placeholder, never a one-time download URL.' );
 		$this->assertSame( '7.4', $item->requires_php );
 		$this->assertSame( 9, count( (array) $item ) );
+	}
+
+	public function test_p26_the_periodic_check_asks_without_download_and_keeps_no_url(): void {
+		$updater = $this->updater();
+		$updater->check();
+
+		$this->assertCount( 1, $this->server->update_requests );
+		$this->assertFalse( $this->server->update_requests[0]['download'], 'No download grant on the server for a periodic check.' );
+		$timeout = end( $GLOBALS['wp_stub']['requests'] )['args']['timeout'];
+		$this->assertSame( 5, $timeout, 'The short default timeout of a web request, not the 15 s of a download.' );
+		$this->assertSame( '', $updater->stored()['update']['package_url'] );
+		$this->assertSame( '9.9.9', $updater->stored()['update']['version'] );
+
+		// The placeholder from the transient is handled by pre_download(), which asks with download: true.
+		$path = $updater->pre_download( false, $updater->placeholder(), null, array() );
+		$this->assertIsString( $path );
+		$this->assertTrue( end( $this->server->update_requests )['download'] );
+		unlink( $path );
 	}
 
 	public function test_a_recent_stored_check_is_reused(): void {
@@ -93,10 +119,11 @@ final class UpdaterTest extends TestCase {
 		// Client 2.0 refuses signed data of another product itself.
 		$this->server->update = array_merge( $this->update, array( 'product_key' => 'other-product' ) );
 		$this->assertSame( 'wplc_product_mismatch', $this->updater()->check()->get_error_code() );
+		// The package URL only comes with download: true, right before the download.
 		$this->server->update = array_merge( $this->update, array( 'package_url' => 'https://evil.example/x.zip' ) );
-		$this->assertSame( 'update_metadata_invalid', $this->updater()->check()->get_error_code() );
+		$this->assertSame( 'update_metadata_invalid', $this->updater()->pre_download( false, 'x', null, array( 'plugin' => self::BASENAME ) )->get_error_code() );
 		$this->server->update = array_merge( $this->update, array( 'package_url' => 'http://shop.example/wp-json/wplc/v1/updates/download/x' ) );
-		$this->assertSame( 'update_metadata_invalid', $this->updater()->check()->get_error_code() );
+		$this->assertSame( 'update_metadata_invalid', $this->updater()->pre_download( false, 'x', null, array( 'plugin' => self::BASENAME ) )->get_error_code() );
 	}
 
 	public function test_pre_download_fetches_a_fresh_grant_and_returns_the_verified_file(): void {

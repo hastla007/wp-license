@@ -19,6 +19,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * - The offline cache is the complete signed envelope of the last entitlement check. It is re-verified with
  *   LicenseClient::verify_cached_envelope() (HMAC and the pinned server signature) before every use.
  * - The cache is valid for at most CACHE_MAX_AGE seconds after the server issued it (signed `server_time`).
+ * - A copy of the site (another address than the activated one, or a signed `site_match: false`) unlocks nothing.
+ * - An answer older than the newest one already seen (signed `server_time` below `server_time_max` minus
+ *   CLOCK_SKEW) is a replay: refresh() refuses it and a cache holding it is void.
  * - Server errors keep the cache; answers that the activation no longer exists clear it; a signed
  *   expired/revoked answer replaces it, which switches premium features off at once.
  * - Decisions fail closed: no pinned key, no cache, a tampered or stale cache, a foreign entitlement prefix or a
@@ -28,6 +31,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class LicenseService {
 	/** Statuses with access, as the server reports them (past_due = renewal grace granted by the server). */
 	public const ACCESS_STATUSES = array( 'active', 'past_due' );
+
+	/** Seconds a signed server_time may lie below the newest one seen (clock jitter between server nodes). */
+	public const CLOCK_SKEW = 300;
+
+	/** Seconds after the last successful check when an admin page view catches up (WP-Cron may be off). */
+	public const CATCH_UP_AFTER = 129600;
+
+	/** Seconds between two catch-up attempts after a failed check. */
+	public const CATCH_UP_RETRY = 3600;
 
 	/** Errors after which the stored activation is gone on the server: the cache is dropped. */
 	public const GONE_ERRORS = array( 'activation_not_found', 'installation_secret_invalid', 'license_not_found', 'wplc_not_activated' );
@@ -75,6 +87,34 @@ final class LicenseService {
 	public function is_activated(): bool {
 		$credentials = get_option( $this->credentials_option, array() );
 		return is_array( $credentials ) && ! empty( $credentials['installation_id'] ) && ! empty( $credentials['installation_secret'] ) && ! empty( $credentials['activation_id'] );
+	}
+
+	/** Whether this site still runs under the address it was activated for (false on a copy of the site). */
+	public function site_matches(): bool {
+		return $this->client->site_matches();
+	}
+
+	/**
+	 * Whether an admin page view should check now: activated, not a copy, and the last success is older than
+	 * CATCH_UP_AFTER (after a failure: CATCH_UP_RETRY since the last attempt). Covers hosts without WP-Cron.
+	 */
+	public function catch_up_due(): bool {
+		if ( ! $this->is_configured() || ! $this->is_activated() || ! $this->client->site_matches() ) {
+			return false;
+		}
+		$now     = (int) call_user_func( $this->clock );
+		$state   = get_option( $this->state_option, array() );
+		$state   = is_array( $state ) ? $state : array();
+		$checked = (int) ( $state['checked_at'] ?? 0 );
+		$attempt = (int) ( $state['last_attempt'] ?? 0 );
+		if ( $attempt > $now || $checked > $now ) {
+			// The clock was turned back: ask at once.
+			return true;
+		}
+		if ( $now - $checked <= self::CATCH_UP_AFTER ) {
+			return false;
+		}
+		return '' === (string) ( $state['last_error'] ?? '' ) || $now - $attempt >= self::CATCH_UP_RETRY;
 	}
 
 	/** Installation UUID of this site ('' when not activated). Not secret; a staging site needs it as parent. */
@@ -181,13 +221,22 @@ final class LicenseService {
 			$this->save_state( $changes );
 			return $result;
 		}
+		$server_time = self::utc( (string) ( $result['data']['server_time'] ?? '' ) );
+		$seen        = (int) $this->state_value( 'server_time_max' );
+		if ( 0 === $server_time || $server_time < $seen - self::CLOCK_SKEW ) {
+			// An answer older than one already seen is a replay (or a broken answer), whatever it says.
+			$error = new \WP_Error( 'wplc_response_stale', __( 'The license server sent an outdated answer. The stored status is kept.', 'premium-addon-starter' ) );
+			$this->save_state( array( 'last_error' => $this->error_text( $error ), 'last_attempt' => $now ) );
+			return $error;
+		}
 		$saved = $this->save_state(
 			array(
-				'envelope'     => $result['envelope'],
-				'checked_at'   => $now,
-				'last_attempt' => $now,
-				'last_error'   => '',
-				'environment'  => (string) ( $result['data']['environment'] ?? $this->state_value( 'environment' ) ),
+				'envelope'        => $result['envelope'],
+				'server_time_max' => max( $server_time, $seen ),
+				'checked_at'      => $now,
+				'last_attempt'    => $now,
+				'last_error'      => '',
+				'environment'     => (string) ( $result['data']['environment'] ?? $this->state_value( 'environment' ) ),
 			)
 		);
 		if ( ! $saved ) {
@@ -212,7 +261,7 @@ final class LicenseService {
 		return $this->memo;
 	}
 
-	/** Why snapshot() returned null: '', 'not_configured', 'missing', 'invalid', 'stale'. */
+	/** Why snapshot() returned null: '', 'not_configured', 'missing', 'invalid', 'stale', 'site_changed'. */
 	public function cache_problem(): string {
 		$this->snapshot();
 		return $this->cache_problem;
@@ -280,20 +329,44 @@ final class LicenseService {
 			$this->cache_problem = 'missing';
 			return null;
 		}
+		if ( $this->is_activated() && ! $this->client->site_matches() ) {
+			// A copy of the site (staging clone, migration) carries the credentials of the original: no rights here.
+			$this->cache_problem = 'site_changed';
+			return null;
+		}
 		$data = $this->client->verify_cached_envelope( $envelope );
 		if ( is_wp_error( $data ) || ! is_array( $data ) ) {
 			$this->cache_problem = is_wp_error( $data ) && 'wplc_not_activated' === $data->get_error_code() ? 'missing' : 'invalid';
 			return null;
 		}
+		if ( false === ( $data['site_match'] ?? null ) ) {
+			// Signed by the server: the activation belongs to another address now.
+			$this->cache_problem = 'site_changed';
+			return null;
+		}
 		$now     = (int) call_user_func( $this->clock );
-		$issued  = strtotime( (string) ( $data['server_time'] ?? '' ) . ' UTC' );
-		$expires = isset( $data['cache_expires_at'] ) ? strtotime( (string) $data['cache_expires_at'] . ' UTC' ) : false;
-		if ( false === $issued || $now - $issued > $this->max_age || ( false !== $expires && $now > $expires ) ) {
+		$issued  = self::utc( (string) ( $data['server_time'] ?? '' ) );
+		$expires = isset( $data['cache_expires_at'] ) ? self::utc( (string) $data['cache_expires_at'] ) : 0;
+		$seen    = is_array( $state ) ? (int) ( $state['server_time_max'] ?? 0 ) : 0;
+		if ( 0 === $issued || $now - $issued > $this->max_age || ( 0 !== $expires && $now > $expires ) || $issued < $seen - self::CLOCK_SKEW ) {
 			$this->cache_problem = 'stale';
 			return null;
 		}
 		$this->cache_problem = '';
 		return $data;
+	}
+
+	/**
+	 * Unix time of a UTC date-time of the server ("Y-m-d H:i:s"); 0 when it cannot be read.
+	 *
+	 * @param string $value Date-time.
+	 */
+	private static function utc( string $value ): int {
+		if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $value ) ) {
+			return 0;
+		}
+		$time = strtotime( $value . ' UTC' );
+		return false === $time ? 0 : (int) $time;
 	}
 
 	/**

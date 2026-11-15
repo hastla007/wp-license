@@ -254,7 +254,7 @@ delete_option( $prefix . '_update' );
 set_site_transient( 'update_plugins', (object) array( 'last_checked' => time(), 'checked' => array( $basename => '1.0.0' ), 'response' => array(), 'translations' => array() ) );
 $transient = get_site_transient( 'update_plugins' );
 $offer     = $transient->response[ $basename ] ?? null;
-e2e_ok( is_object( $offer ) && $new_version === $offer->new_version && 0 === strpos( (string) $offer->package, 'https://shop.test/wp-json/wplc/v1/updates/download/' ), 'without a logged-in user the update_plugins transient offers ' . $new_version . ' with a one-time package URL', $offer );
+e2e_ok( is_object( $offer ) && $new_version === $offer->new_version && 0 === strpos( (string) $offer->package, 'https://shop.test/?wplc-package=' ), 'without a logged-in user the update_plugins transient offers ' . $new_version . ' with a placeholder package (P-26: periodic check with download false, no one-time URL)', $offer );
 $info = apply_filters( 'plugins_api', false, 'plugin_information', (object) array( 'slug' => $slug ) );
 e2e_ok( is_object( $info ) && $new_version === $info->version && false !== strpos( (string) $info->sections['changelog'], 'Starter update' ), 'plugins_api answers "View details" with version and release notes' );
 

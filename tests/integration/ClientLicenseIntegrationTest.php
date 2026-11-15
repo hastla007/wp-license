@@ -614,4 +614,136 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 
 		$this->assertContains( LicenseClient::detect_environment(), array( 'production', 'staging', 'development' ) );
 	}
+
+	// ------------------------------------------------------------------
+	// Audit 2026-11-15 (client 2.0.2).
+	// ------------------------------------------------------------------
+
+	public function test_p24_a_filtered_home_url_does_not_make_the_site_a_copy(): void {
+		$license = $this->seed_license();
+		$manager = $this->manager();
+		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->activate( $license['key'] )->state );
+
+		// A multilingual plugin serves the second language under its own domain by filtering home_url().
+		$language_domain = static function () {
+			return 'https://shop-second-language.example';
+		};
+		add_filter( 'home_url', $language_domain );
+		$this->assertSame( 'https://shop-second-language.example', home_url() );
+		$this->assertTrue( $manager->client()->site_matches() );
+		$this->assertTrue( $manager->is_entitled( 'feature.export' ) );
+		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->refresh()->state, 'The check is not refused as wplc_site_changed.' );
+		remove_filter( 'home_url', $language_domain );
+	}
+
+	public function test_p01_the_form_posts_to_admin_post_php_and_returns_to_the_license_screen(): void {
+		$network = is_multisite();
+		$admin   = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		if ( $network ) {
+			grant_super_admin( $admin );
+		}
+		wp_set_current_user( $admin );
+		$license = $this->seed_license();
+		$manager = $this->manager( array( 'network' => true ) );
+		$manager->register();
+
+		ob_start();
+		$manager->render_settings();
+		$html = (string) ob_get_clean();
+		$this->assertStringContainsString( 'action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"', $html );
+		$this->assertStringNotContainsString( '/network/admin-post.php', $html, 'wp-admin/network/ has no admin-post.php.' );
+		$this->assertFileExists( ABSPATH . 'wp-admin/admin-post.php' );
+		$this->assertFileDoesNotExist( ABSPATH . 'wp-admin/network/admin-post.php' );
+
+		$outcome = $this->run_admin_post(
+			'test_product_license',
+			array(
+				'_wpnonce'                 => wp_create_nonce( 'test_product_license' ),
+				'wplc_do'                  => 'activate',
+				'test_product_license_key' => $license['key'],
+			)
+		);
+		$this->assertSame( 'redirect', $outcome['outcome'] );
+		$this->assertSame( $manager->settings_url(), $outcome['location'] );
+		if ( $network ) {
+			$this->assertStringContainsString( '/wp-admin/network/settings.php?page=test-product-license', $outcome['location'] );
+			$this->assertIsArray( get_site_option( 'test_product_license' ), 'Network mode stores the activation for the network.' );
+			$this->assertFalse( get_option( 'test_product_license', false ) );
+		} else {
+			$this->assertStringContainsString( 'options-general.php?page=test-product-license', $outcome['location'] );
+		}
+		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->status()->state );
+
+		// Network mode: an administrator of a single site of the network may not use the form.
+		if ( $network ) {
+			wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+			$outcome = $this->run_admin_post( 'test_product_license', array( '_wpnonce' => wp_create_nonce( 'test_product_license' ), 'wplc_do' => 'check' ) );
+			$this->assertSame( array( 'die', 403 ), array( $outcome['outcome'], $outcome['status'] ) );
+		}
+	}
+
+	public function test_p49_without_a_license_screen_the_form_returns_to_the_page_that_sent_it(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		if ( is_multisite() ) {
+			grant_super_admin( get_current_user_id() );
+		}
+		$license = $this->seed_license();
+		$manager = $this->manager( array( 'settings_parent' => false ) );
+		$manager->register();
+		$own_page                = admin_url( 'admin.php?page=test-product&tab=license' );
+		$_REQUEST['_wp_http_referer'] = $own_page;
+
+		$outcome = $this->run_admin_post(
+			'test_product_license',
+			array(
+				'_wpnonce'                 => wp_create_nonce( 'test_product_license' ),
+				'_wp_http_referer'         => $own_page,
+				'wplc_do'                  => 'activate',
+				'test_product_license_key' => $license['key'],
+			)
+		);
+		$this->assertSame( 'redirect', $outcome['outcome'] );
+		$this->assertSame( $own_page, $outcome['location'] );
+		$this->assertStringNotContainsString( 'page=test-product-license', $outcome['location'] );
+	}
+
+	public function test_p22_transferring_from_a_copy_shows_both_addresses_and_needs_a_confirmation(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		if ( is_multisite() ) {
+			grant_super_admin( get_current_user_id() );
+		}
+		$license = $this->seed_license();
+		$manager = $this->manager();
+		$manager->register();
+		$manager->activate( $license['key'] );
+		$live              = $manager->client()->activated_site_url();
+		$this->acting_home = 'https://new-home.example.com';
+		$this->assertSame( LicenseStatus::STATE_SITE_CHANGED, $manager->status()->state );
+
+		ob_start();
+		$manager->render_settings();
+		$html = (string) ob_get_clean();
+		$this->assertStringContainsString( esc_html( $manager->client()->activated_site_url() ), $html );
+		$this->assertStringContainsString( 'https://new-home.example.com', $html );
+		$this->assertStringContainsString( 'name="wplc_confirm_move"', $html );
+		$this->assertStringContainsString( 'value="move"', $html );
+
+		// The button alone does nothing.
+		$this->http_log = array();
+		$post           = array(
+			'_wpnonce'                 => wp_create_nonce( 'test_product_license' ),
+			'wplc_do'                  => 'move',
+			'test_product_license_key' => $license['key'],
+		);
+		$this->assertSame( 'redirect', $this->run_admin_post( 'test_product_license', $post )['outcome'] );
+		$this->assertSame( array(), $this->http_log );
+		$this->assertSame( 'error', get_transient( 'test_product_license_flash_' . get_current_user_id() )['type'] );
+		$rows = $this->active_activations( $license['id'] );
+		$this->assertSame( $live, untrailingslashit( $rows[0]['site_url'] ), 'The live site keeps its activation.' );
+
+		// With the confirmation the activation moves.
+		$this->assertSame( 'redirect', $this->run_admin_post( 'test_product_license', array_merge( $post, array( 'wplc_confirm_move' => '1' ) ) )['outcome'] );
+		$this->assertSame( 'https://new-home.example.com', $this->active_activations( $license['id'] )[0]['site_url'] );
+		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->status()->state );
+	}
 }
