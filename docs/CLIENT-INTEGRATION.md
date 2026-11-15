@@ -36,7 +36,7 @@ It copies `src/Client/*.php`, replaces `namespace WPLC\Client;` by the given nam
 **Without the script: an unchanged copy.** Every class is declared inside `if ( ! class_exists( ... ) )`, so two add-ons with the same unchanged files do not end in "Cannot declare class". The limits of this way:
 
 - The copy that is loaded **first** is used by all add-ons, also when it is the older one. WordPress loads plugins in the alphabetical order of their folders.
-- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.0.0`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.1.0', '<' )`) and show a message; it cannot replace a class that is already declared.
+- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.0.1`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.1.0', '<' )`) and show a message; it cannot replace a class that is already declared.
 - The strings keep the text domain `wp-license`. They are translated through the `text_domain` setting only if the add-on's language files contain them; `make-pot` does not find them on its own.
 
 Use the unchanged copy for experiments only.
@@ -124,6 +124,8 @@ The address is burnt into every shipped copy. Before the first release, give the
 
 `public_keys` is a list of base64 Ed25519 public keys (`wp wplc signing-key --field=public_key` on the server). The library accepts an answer, and its stored copy, only with a valid signature of one of them over the bytes of the received `payload`. The facade refuses to work without a usable key (state `misconfigured`).
 
+**The keys cannot be changed by another plugin.** The filter `{prefix}_license_public_keys` exists for development builds only: it is applied when the constant `{PREFIX}_LICENSE_DEV` (the option prefix in upper case, e.g. `define( 'VOUCHER_CAPTAIN_PRO_LICENSE_DEV', true );`) is defined and true, and ignored otherwise. `WP_DEBUG` does not enable it, because it is on on many live sites. Release builds pin their keys in the code and never define the constant; a plugin that adds a key of its own through the filter then signs nothing.
+
 To rotate the server key: ship an add-on version that lists the old **and** the new key, wait until it is installed widely, then switch the server. Sites that still pin only the old key keep their rights until the signed deadline of their last snapshot and then stop with the state `stale`; that is why the order matters. Set the key on the server with `WPLC_RESPONSE_SIGNING_KEY` so that it survives a database restore ([SECURITY-OPERATIONS.md](SECURITY-OPERATIONS.md)).
 
 ## Settings of `LicenseManager`
@@ -146,7 +148,8 @@ To rotate the server key: ship an add-on version that lists the old **and** the 
 | `capability` | | Who may manage the license. Default `manage_options` (`manage_network_options` in network mode). |
 | `account_url` | | Customer account of the shop; appended to the grace and expiry notices. |
 | `fallback_urls`, `rest_base` | | See above. |
-| `store`, `transport`, `clock` | | Test doubles: an `OptionStore`, a replacement for `wp_remote_request()`, a replacement for `time()`. |
+| `store`, `transport`, `clock` | | Test doubles: an `OptionStore`, a replacement for `wp_remote_request()` (also used for the package download), a replacement for `time()`. |
+| `signature_verifier` | | Test double: replacement for `sodium_crypto_sign_verify_detached()`; `false` simulates a PHP without any Ed25519 implementation. |
 
 ## Methods of the facade
 
@@ -191,9 +194,9 @@ An expired or missing license only switches premium features off. It must never 
 ## How rights are stored
 
 - The manager stores the **signed snapshot** of the last answer (`payload` with its HMAC and the Ed25519 signature of the server) in the option `{prefix}_license_state`. It is not autoloaded and not a transient, so a flushed object cache does not switch the premium features off.
-- On every read the snapshot is verified again: the HMAC with the installation secret, and the server signature with the pinned keys. A snapshot edited in the database is void (state `stale`). Where PHP lacks the sodium extension, WordPress' slow fallback is used and the server signature is re-checked every twelve hours instead of on every request; the HMAC is checked always.
+- On every read the snapshot is verified again: the HMAC with the installation secret, and the server signature with the pinned keys. A snapshot edited in the database is void (state `stale`). Both checks run on every read (memoized for the current request only); nothing stored next to the snapshot can skip the server signature. Without the sodium extension WordPress' `sodium_compat` verifies. On a PHP with neither, the client fails closed: no answer and no snapshot is accepted (`wplc_ed25519_unavailable`, state `stale`), because the HMAC alone proves nothing to someone who can read the installation secret in the same database. The activation itself is kept.
 - The snapshot is valid until its signed **`cache_expires_at`**. This is the offline window: 14 days after the answer, but never beyond `access_until`. The deadline is read from the signed payload. It is not restarted by failed attempts, and the add-on must not shorten it to `paid_until` on its own (that would lock honest customers out during the grace period).
-- Time is measured from the signed `server_time` of the snapshot plus the local time that passed since it was stored. A wrong time zone or a constant clock error on the customer server therefore does not matter. The highest local time ever seen is stored; turning the clock back does not extend the window.
+- Time is measured from the signed `server_time` inside the verified payload plus the local time that passed since it was stored (`fetched_at`). A wrong time zone or a constant clock error on the customer server therefore does not matter. The unsigned helper fields in the option can only make the result later: the highest local time seen (`clock_high`, so turning the clock back does not extend the window) and the highest signed server time seen. A `fetched_at` more than five minutes in the future (an edited option, or the clock turned back before the last answer) voids the snapshot (state `stale`) until a new signed answer arrives; the daily check and the admin catch-up ask at once. Limit: someone who can write the database and keeps resetting `fetched_at` can stretch the window again and again; no local-only check prevents that, but a single edit no longer unlocks anything for good.
 - An answer whose `server_time` is more than five minutes older than one already accepted is refused (`wplc_response_stale`).
 
 ## What an error does
@@ -230,11 +233,12 @@ Codes of the library itself:
 | `wplc_response_invalid` | Status 2xx, but not a readable envelope. |
 | `wplc_signature_invalid` | `payload` or its HMAC is missing or wrong. |
 | `wplc_server_signature_invalid` | The Ed25519 signature of the server is missing or does not match a pinned key. |
+| `wplc_ed25519_unavailable` | This PHP has neither ext-sodium nor `sodium_compat`; nothing is accepted (fail closed). |
 | `wplc_nonce_mismatch` | The answer belongs to another request. |
 | `wplc_product_mismatch` | The signed data is for another product. |
 | `wplc_response_stale` | The answer is older than one already accepted. |
 | `wplc_backoff` | `refresh( false )` was skipped because of the back-off. |
-| `wplc_update_failed`, `wplc_update_license`, `wplc_update_unavailable`, `wplc_update_checksum`, `wplc_update_folder` | Updater, see below. |
+| `wplc_update_failed`, `wplc_update_license`, `wplc_update_unavailable`, `wplc_update_insecure`, `wplc_update_too_large`, `wplc_update_checksum`, `wplc_update_folder` | Updater, see below. |
 
 Codes of the server are listed in [API-V1.md](API-V1.md#error-codes). Those an activation form meets most often: `invalid_key`, `product_mismatch`, `license_expired`, `license_suspended`, `license_revoked`, `license_inactive`, `site_limit`, `staging_limit`, `development_limit`, `development_site_invalid`, `staging_parent_required`, `staging_parent_invalid`, `staging_site_invalid`, `rate_limited`.
 
@@ -268,7 +272,7 @@ A change of scheme (`http` → `https`), of a leading `www.` or of the case of t
 
 ### Deactivation
 
-`deactivate()` sends a signed `DELETE` with the current site address. The local data is removed after the signed confirmation; also when the server answers that it does not know the installation (`activation_not_found`) or that this is not the activated site (`site_mismatch`), because then there is nothing to release from here. Any other error keeps the credentials so that the release can be repeated. If the host or a firewall refuses the `DELETE` method (HTML page, `405`, `501`), the request is repeated as `POST` with `X-HTTP-Method-Override: DELETE`.
+`deactivate()` sends a signed `DELETE` with the current site address. The local data is removed after the signed confirmation, or on a signed refusal (`403 activation_deactivated` whose `data.signed` verifies against the pinned keys; result `status: removed_locally`). Every other error keeps the credentials and is returned, so that the release can be repeated; this includes an unsigned `site_mismatch` or `activation_not_found`, which anyone between the site and the server could send. An add-on that wants a "remove anyway" button calls `client()->forget()` (a new activation with the key also replaces credentials the server no longer knows). If the host or a firewall refuses the `DELETE` method (HTML page, `405`, `501`), the request is repeated as `POST` with `X-HTTP-Method-Override: DELETE`.
 
 ## Multisite
 
@@ -292,7 +296,7 @@ Use `network => true` for an add-on that is network-activated and licensed per i
 1. **Periodic check.** WordPress calls the filter `update_plugins_{host of the Update URI}`. The updater asks `POST /updates/check` with `download: false` (the server stores no download grant), plus `channel`, `wp_version`, `php_version` and `core_version`. The answer is cached in `{prefix}_update_meta`: twelve hours after a success, one hour after a failure, with a five-second timeout. WordPress runs the filter several times per check; only the first costs a request. "Check again" on the updates screen skips the cache.
 2. **What WordPress gets.** `slug`, `plugin`, `version`/`new_version`, `tested`, `requires`, `requires_php`, `icons`, `url` and a **stable placeholder** as `package`, because a real link is valid for ten minutes and WordPress keeps the entry for twelve hours. An up-to-date add-on is listed under `no_update`, which the plugin list needs to show the auto-update switch.
 3. **"View details".** `plugins_api` is answered from the cached data: name, version, homepage, last update, requirements and the `changelog` section with all versions since the installed one.
-4. **Download.** In `upgrader_pre_download` the placeholder is replaced: a fresh check with `download: true`, download of `package`, comparison of the SHA-256 of the file with the signed `sha256`. A file that does not match is deleted and the update ends with `wplc_update_checksum`. This also runs for automatic updates.
+4. **Download.** In `upgrader_pre_download` the placeholder is replaced: a fresh check with `download: true`, download of `package`, comparison of the SHA-256 of the file with the signed `sha256`. A file that does not match is deleted and the update ends with `wplc_update_checksum`. The download only uses `https://` (plain `http://` only for `localhost`), on the first request and on every redirect (at most five; `wplc_update_insecure` otherwise), and stops at 100 MB (filter `{prefix}_license_max_package_bytes`, in bytes; `wplc_update_too_large`). There is no `HEAD` request first, because pre-signed storage URLs are signed for `GET` only; the response is streamed with `limit_response_size` and a larger file is deleted. This also runs for automatic updates.
 5. **Folder.** In `upgrader_source_selection` the unpacked folder must contain the main file of the add-on (otherwise `wplc_update_folder`); a different folder name is corrected.
 6. **Afterwards.** `upgrader_process_complete` forgets the cached feed.
 
@@ -310,18 +314,20 @@ Hooks (the prefix is the option prefix of the add-on):
 | --- | --- | --- |
 | `{prefix}_license_status_changed` | action | `( $state, $previous_state, LicenseStatus $status )` whenever the state changes. |
 | `{prefix}_license_server_url` | filter | Address of the license server. |
+| `{prefix}_license_public_keys` | filter | Pinned keys; **only** when `{PREFIX}_LICENSE_DEV` is defined and true (see [The public key of the server](#the-public-key-of-the-server)). |
+| `{prefix}_license_max_package_bytes` | filter | Size limit of an update package in bytes (default 104857600). |
 | `{prefix}_license_settings_url` | filter | Address of the license screen. |
 | `{prefix}_license_show_notice` | filter | `( bool $show, array $notice )`: suppress a notice. |
 
 ## Uninstall
 
-`uninstall()` tries to release the activation with a short timeout and then deletes the credentials, the snapshot, the update cache and the cron event, whatever the server answered. On a multisite with per-site storage it does so for up to 500 sites and stops asking the server after 20 seconds. If the server cannot be reached, the site slot stays in use; the customer releases it in the customer account, or the shop with `wp wplc activation release <id>`.
+`uninstall()` tries to release the activation with a short timeout and then deletes the credentials, the snapshot, the update cache and the cron event, whatever the server answered. On a multisite with per-site storage it does so for every site, in batches of 100 (`get_sites()` with `offset`), and stops asking the server after 20 seconds; the local data of the remaining sites is still deleted. If the server cannot be reached, the site slot stays in use; the customer releases it in the customer account, or the shop with `wp wplc activation release <id>`.
 
 ## Privacy and security notes for the add-on
 
 **Text for the privacy policy.** `register()` offers this paragraph in the privacy policy guide of WordPress (`privacy_text()` returns it):
 
-> *Voucher Captain Pro* checks its license and looks for updates at *licenses.example.com*. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the license key (once, on activation), and the versions of the plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent.
+> *Voucher Captain Pro* checks its license and looks for updates at *licenses.example.com*. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), and the versions of the plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent.
 
 What is sent, exactly: `site_url`, `installation_id`, `product_key`, `product_version`, `wp_version`, `php_version`, `environment`; on activation also `license_key` and the new installation secret; on update checks also `channel` and `core_version`. WordPress adds its default `User-Agent`, which contains the WordPress version and the site address. The versions are used to offer only updates the site can run and for support.
 
@@ -357,7 +363,7 @@ Things to try before a release of the add-on: activate, "Check now", copy the da
 new LicenseClient( string $server_url, string $product_key, string $product_version, string $option_key, array $args = array() )
 ```
 
-`$args`: `public_keys`, `text_domain`, `fallback_urls`, `rest_base`, `timeout`, `network`, `allow_insecure` (accept an `http://` server on a local development machine), `store`, `transport`, `clock`. Without `public_keys` only the HMAC is checked; this mode exists for tests, the facade does not allow it.
+`$args`: `public_keys`, `text_domain`, `fallback_urls`, `rest_base`, `timeout`, `network`, `allow_insecure` (accept an `http://` server on a local development machine), `store`, `transport`, `clock`, `signature_verifier` (tests). Without `public_keys` only the HMAC is checked; this mode exists for tests, the facade does not allow it. `can_verify_server_signature()` tells whether this PHP has an Ed25519 implementation at all.
 
 | Method | Purpose |
 | --- | --- |

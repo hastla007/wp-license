@@ -20,7 +20,11 @@ if ( ! function_exists( '_n' ) ) {
 }
 
 if ( ! function_exists( 'apply_filters' ) ) {
-	function apply_filters( $hook, $value ) {
+	// Callbacks in $GLOBALS['wplc_test_filters'][ $hook ] are applied (same stub as tests/Client/client-test-kit.php).
+	function apply_filters( $hook, $value, ...$args ) {
+		foreach ( $GLOBALS['wplc_test_filters'][ $hook ] ?? array() as $callback ) {
+			$value = $callback( $value, ...$args );
+		}
 		return $value;
 	}
 }

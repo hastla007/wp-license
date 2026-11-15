@@ -24,13 +24,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 	 * - The `package` given to WordPress is a stable placeholder. Right before
 	 *   the download a fresh, ten-minute link is requested, the ZIP is
 	 *   downloaded and its SHA-256 is compared with the signed value.
+	 * - The download only follows `https://` addresses (plain `http://` only
+	 *   for localhost), also on every redirect, and stops at
+	 *   MAX_PACKAGE_BYTES (filter `{prefix}_license_max_package_bytes`).
 	 */
 	final class Updater {
 
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.0';
+		const VERSION = '2.0.1';
 
 		/**
 		 * Seconds a successful check is cached.
@@ -41,6 +44,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		 * Seconds a failed check is cached.
 		 */
 		const CACHE_FAILURE = 3600;
+
+		/**
+		 * Default size limit of an update package in bytes (100 MB).
+		 */
+		const MAX_PACKAGE_BYTES = 104857600;
+
+		/**
+		 * Redirects followed by the package download (the one-time link redirects to the storage).
+		 */
+		const MAX_REDIRECTS = 5;
 
 		/**
 		 * License manager of the add-on.
@@ -291,13 +304,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 				$this->flush();
 				return new \WP_Error( 'wplc_update_unavailable', $messages->get( 'update.unavailable' ) );
 			}
-			if ( ! function_exists( 'download_url' ) ) {
+			if ( ! self::is_allowed_package_url( $url ) ) {
+				return new \WP_Error( 'wplc_update_insecure', $messages->get( 'update.insecure' ) );
+			}
+			if ( ! function_exists( 'wp_tempnam' ) ) {
 				require_once ABSPATH . 'wp-admin/includes/file.php';
 			}
 			if ( is_object( $upgrader ) && isset( $upgrader->skin ) && is_object( $upgrader->skin ) && method_exists( $upgrader->skin, 'feedback' ) ) {
 				$upgrader->skin->feedback( 'downloading_package', $this->manager->client()->server_host() );
 			}
-			$file = download_url( $url, 300 );
+			$file = $this->download( $url );
 			if ( is_wp_error( $file ) ) {
 				return $file;
 			}
@@ -308,6 +324,132 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 			}
 
 			return $file;
+		}
+
+		/**
+		 * Largest package the download accepts, in bytes.
+		 *
+		 * @return int
+		 */
+		public function max_package_bytes(): int {
+			$max = self::MAX_PACKAGE_BYTES;
+			if ( function_exists( 'apply_filters' ) ) {
+				/**
+				 * Filters the size limit of an update package of this add-on, in bytes (default 100 MB).
+				 *
+				 * @param int $max Limit in bytes.
+				 */
+				$max = (int) apply_filters( $this->manager->prefix() . '_license_max_package_bytes', $max ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- prefixed with the add-on's own prefix.
+			}
+
+			return max( 1, $max );
+		}
+
+		/**
+		 * Whether a package address may be downloaded: `https://`, or `http://` on localhost only.
+		 *
+		 * @param string $url Address.
+		 * @return bool
+		 */
+		public static function is_allowed_package_url( string $url ): bool {
+			$parts = wp_parse_url( trim( $url ) );
+			if ( ! is_array( $parts ) || empty( $parts['host'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
+				return false;
+			}
+			$scheme = strtolower( (string) ( $parts['scheme'] ?? '' ) );
+			if ( 'https' === $scheme ) {
+				return true;
+			}
+			$host = strtolower( trim( (string) $parts['host'], '[]' ) );
+
+			return 'http' === $scheme && ( in_array( $host, array( 'localhost', '127.0.0.1', '::1' ), true ) || '.localhost' === substr( $host, -10 ) );
+		}
+
+		/**
+		 * Download a package into a temporary file: HTTPS on every hop, size limited.
+		 *
+		 * No HEAD request first: pre-signed storage URLs are signed for GET only. The
+		 * response is streamed with `limit_response_size`, so a larger file is cut off,
+		 * detected and deleted instead of filling the disk.
+		 *
+		 * @param string $url Package address from the signed update answer.
+		 * @return string|\WP_Error Path of the temporary file.
+		 */
+		private function download( string $url ) {
+			$messages  = $this->manager->client()->messages();
+			$max       = $this->max_package_bytes();
+			$transport = $this->manager->config( 'transport' );
+			for ( $hop = 0; $hop <= self::MAX_REDIRECTS; $hop++ ) {
+				if ( ! self::is_allowed_package_url( $url ) ) {
+					return new \WP_Error( 'wplc_update_insecure', $messages->get( 'update.insecure' ) );
+				}
+				$file = wp_tempnam( 'wplc-update' );
+				if ( ! is_string( $file ) || '' === $file ) {
+					return new \WP_Error( 'wplc_update_failed', sprintf( $messages->get( 'update.failed' ), 'tmp' ) );
+				}
+				$args     = array(
+					'timeout'             => 300,
+					'redirection'         => 0,
+					'sslverify'           => true,
+					'stream'              => true,
+					'filename'            => $file,
+					'limit_response_size' => $max + 1,
+				);
+				$response = is_callable( $transport ) ? call_user_func( $transport, $url, $args ) : wp_safe_remote_get( $url, $args );
+				if ( is_wp_error( $response ) || ! is_array( $response ) ) {
+					wp_delete_file( $file );
+					return is_wp_error( $response ) ? $response : new \WP_Error( 'wplc_update_failed', sprintf( $messages->get( 'update.failed' ), 'http' ) );
+				}
+				$code    = (int) ( $response['response']['code'] ?? 0 );
+				$headers = $response['headers'] ?? array();
+				if ( in_array( $code, array( 301, 302, 303, 307, 308 ), true ) ) {
+					wp_delete_file( $file );
+					$location = self::header( $headers, 'location' );
+					if ( '' === $location ) {
+						return new \WP_Error( 'wplc_update_failed', sprintf( $messages->get( 'update.failed' ), 'HTTP ' . $code ) );
+					}
+					$url = class_exists( 'WP_Http' ) && method_exists( 'WP_Http', 'make_absolute_url' ) ? (string) \WP_Http::make_absolute_url( $location, $url ) : $location;
+					continue;
+				}
+				if ( 200 !== $code ) {
+					wp_delete_file( $file );
+					return new \WP_Error( 'wplc_update_failed', sprintf( $messages->get( 'update.failed' ), 'HTTP ' . $code ) );
+				}
+				$length = self::header( $headers, 'content-length' );
+				clearstatcache( true, $file );
+				$size = is_file( $file ) ? (int) filesize( $file ) : 0;
+				if ( ( '' !== $length && (int) $length > $max ) || $size > $max ) {
+					wp_delete_file( $file );
+					return new \WP_Error( 'wplc_update_too_large', sprintf( $messages->get( 'update.too_large' ), (string) max( 1, (int) floor( $max / 1048576 ) ) ) );
+				}
+
+				return $file;
+			}
+
+			return new \WP_Error( 'wplc_update_failed', $messages->get( 'update.redirects' ) );
+		}
+
+		/**
+		 * Read one response header from an array or a header object.
+		 *
+		 * @param mixed  $headers Headers.
+		 * @param string $name    Lower-case name.
+		 * @return string
+		 */
+		private static function header( $headers, string $name ): string {
+			if ( is_array( $headers ) || $headers instanceof \Traversable ) {
+				foreach ( $headers as $key => $value ) {
+					if ( strtolower( (string) $key ) === $name ) {
+						return is_array( $value ) ? (string) reset( $value ) : (string) $value;
+					}
+				}
+			}
+			if ( $headers instanceof \ArrayAccess && isset( $headers[ $name ] ) ) {
+				$value = $headers[ $name ];
+				return is_array( $value ) ? (string) reset( $value ) : (string) $value;
+			}
+
+			return '';
 		}
 
 		/**

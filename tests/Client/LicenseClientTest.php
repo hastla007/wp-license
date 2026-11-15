@@ -9,6 +9,7 @@
 
 use PHPUnit\Framework\TestCase;
 use WPLC\Client\LicenseClient;
+use WPLC\Client\Messages;
 
 require_once __DIR__ . '/client-test-kit.php';
 
@@ -527,16 +528,31 @@ final class LicenseClientTest extends TestCase {
 	// ------------------------------------------------------------------
 
 	public function test_a110_deactivation_outcomes(): void {
+		$refusal = static function ( WPLC_Test_Server $server, array $options = array() ): Closure {
+			return static function ( array $request ) use ( $server, $options ) {
+				$data = array( 'activation_id' => 41, 'installation_id' => '', 'activation_status' => 'deactivated', 'server_time' => gmdate( 'Y-m-d H:i:s', $server->now ) );
+				return WPLC_Test_Server::error( 403, 'activation_deactivated', array( 'signed' => $server->envelope( $request, $data, $options ) ) );
+			};
+		};
 		$cases = array(
-			'site_mismatch'        => array( WPLC_Test_Server::error( 409, 'site_mismatch' ), 'removed_locally' ),
-			'activation_not_found' => array( WPLC_Test_Server::error( 401, 'activation_not_found' ), 'removed_locally' ),
-			'retry_later'          => array( WPLC_Test_Server::error( 503, 'retry_later' ), 'retry_later' ),
+			// Audit finding 4: unsigned refusals keep the credentials; anyone on the path could send them.
+			'site_mismatch'          => array( WPLC_Test_Server::error( 409, 'site_mismatch' ), 'site_mismatch' ),
+			'activation_not_found'   => array( WPLC_Test_Server::error( 401, 'activation_not_found' ), 'activation_not_found' ),
+			'activation_deactivated' => array( 'signed', 'removed_locally' ),
+			'forged refusal'         => array( 'forged', 'activation_deactivated' ),
+			'retry_later'            => array( WPLC_Test_Server::error( 503, 'retry_later' ), 'retry_later' ),
 			'activation_mismatch'  => array( WPLC_Test_Server::error( 403, 'activation_mismatch' ), 'activation_mismatch' ),
 			'timeout'              => array( new WP_Error( 'http_request_failed', 'timeout' ), 'wplc_connection_failed' ),
 		);
 		foreach ( $cases as $name => $case ) {
 			$this->kit                  = new WPLC_Client_Test_Kit();
-			$client                     = $this->activated();
+			$client = $this->activated();
+			if ( 'signed' === $case[0] ) {
+				$case[0] = $refusal( $this->kit->server );
+			} elseif ( 'forged' === $case[0] ) {
+				// Signed with a key the add-on did not pin.
+				$case[0] = $refusal( $this->kit->server, array( 'secret_key' => ( new WPLC_Test_Server( str_repeat( "\x09", 32 ) ) )->secret_key ) );
+			}
 			$this->kit->server->queue[] = $case[0];
 			$result                     = $client->deactivate();
 			if ( 'removed_locally' === $case[1] ) {
@@ -665,5 +681,75 @@ final class LicenseClientTest extends TestCase {
 		$this->kit->server->queue[] = WPLC_Test_Server::error( 409, 'staging_site_invalid' );
 		$this->assertSame( 'staging_site_invalid', $client->move( self::KEY )->get_error_code() );
 		$this->assertSame( 'https://new-domain.example', $this->kit->credentials()['site_url'] );
+	}
+
+	// ------------------------------------------------------------------
+	// Audit 2026-11 (client 2.0.1): Ed25519 availability, cheap state checks, memoized texts.
+	// ------------------------------------------------------------------
+
+	public function test_audit2_without_any_ed25519_implementation_nothing_is_accepted_on_the_hmac_alone(): void {
+		$client = $this->activated();
+		$client->check_entitlements();
+		$envelope = $client->last_envelope();
+		$this->assertIsArray( $client->verify_snapshot( $envelope ) );
+		$this->assertTrue( $client->can_verify_server_signature() );
+
+		// The same site on a PHP without ext-sodium and without sodium_compat.
+		$bare = $this->kit->client( array( 'signature_verifier' => false ) );
+		$this->assertFalse( $bare->can_verify_server_signature() );
+		$this->assertSame( 'wplc_ed25519_unavailable', $bare->verify_snapshot( $envelope )->get_error_code(), 'A stored snapshot is not taken as verified.' );
+		$this->assertSame( 'wplc_ed25519_unavailable', $bare->check_entitlements()->get_error_code(), 'A live answer neither.' );
+		$this->assertTrue( $bare->is_activated(), 'Nothing is dropped because of it.' );
+		$this->assertStringContainsString( 'sodium', $bare->messages()->error( 'wplc_ed25519_unavailable' ) );
+
+		// A replacement verifier is used for every check (the default is sodium_crypto_sign_verify_detached / sodium_compat).
+		$calls   = 0;
+		$counted = $this->kit->client(
+			array(
+				'signature_verifier' => static function ( string $signature, string $message, string $key ) use ( &$calls ): bool {
+					++$calls;
+					return sodium_crypto_sign_verify_detached( $signature, $message, $key );
+				},
+			)
+		);
+		$this->assertIsArray( $counted->verify_snapshot( $envelope ) );
+		$this->assertSame( 1, $calls );
+	}
+
+	public function test_audit5_state_checks_do_not_build_error_objects(): void {
+		$client     = $this->activated();
+		$unlicensed = $this->kit->client( array( 'store' => new WPLC_Test_Store() ) );
+		foreach ( array( $client, $unlicensed ) as $subject ) {
+			// Without its Messages instance, building a WP_Error would fail: the cheap checks must not need one.
+			$property = new ReflectionProperty( LicenseClient::class, 'messages' );
+			$property->setAccessible( true );
+			$property->setValue( $subject, null );
+			$subject->is_activated();
+			$subject->installation_id();
+			$subject->environment();
+			$subject->activated_site_url();
+			$subject->site_matches();
+		}
+		$this->assertTrue( $client->is_activated() );
+		$this->assertFalse( $unlicensed->is_activated() );
+		$this->assertSame( '', $unlicensed->installation_id() );
+		$this->assertTrue( $unlicensed->site_matches() );
+	}
+
+	public function test_audit5_the_text_table_is_built_once(): void {
+		$messages = new Messages( 'test-addon' );
+		$this->assertSame( 'License', $messages->get( 'ui.title' ) );
+
+		$property = new ReflectionProperty( Messages::class, 'texts' );
+		$property->setAccessible( true );
+		$texts = $property->getValue( $messages );
+		$this->assertIsArray( $texts );
+		$texts['ui.title'] = 'memoized';
+		$property->setValue( $messages, $texts );
+
+		$this->assertSame( 'memoized', $messages->get( 'ui.title' ), 'The second lookup reads the memoized table.' );
+		$this->assertSame( '', $messages->get( 'no.such.code' ) );
+		$this->assertStringContainsString( 'unknown_code', $messages->error( 'unknown_code' ) );
+		$this->assertSame( 'License', ( new Messages() )->get( 'ui.title' ), 'Per instance.' );
 	}
 }

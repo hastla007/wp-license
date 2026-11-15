@@ -27,6 +27,10 @@ final class LicenseManagerTest extends TestCase {
 		$GLOBALS['wplc_test_cron']    = array();
 	}
 
+	protected function tearDown(): void {
+		unset( $GLOBALS['wplc_test_filters'], $GLOBALS['wplc_test_sites'], $GLOBALS['wplc_test_get_sites'], $GLOBALS['wplc_test_switched'], $GLOBALS['wplc_test_restored'] );
+	}
+
 	private function activated(): LicenseManager {
 		$manager = $this->kit->manager();
 		$status  = $manager->activate( self::KEY );
@@ -387,10 +391,12 @@ final class LicenseManagerTest extends TestCase {
 		$this->kit->server->queue = array( new WP_Error( 'http_request_failed', 'blocked' ) );
 		$manager->refresh( true );
 
-		// Turned back once more, to before the activation.
+		// Turned back once more, to before the last signed answer: the stored fetched_at now lies in the
+		// future, which is what an edited option looks like. The snapshot counts as used up (audit finding 1).
 		$this->kit->now -= 30 * DAY_IN_SECONDS;
-		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
-		$this->kit->now += 43 * DAY_IN_SECONDS; // Two days past the highest time seen: day 14.
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+		$this->assertSame( LicenseStatus::STATE_STALE, $manager->status()->state );
+		$this->kit->now += 43 * DAY_IN_SECONDS; // Five days past the highest time seen: day 17.
 		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
 	}
 
@@ -592,6 +598,9 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertStringContainsString( 'license.example', $text );
 		$this->assertStringContainsString( 'address (URL)', $text );
 		$this->assertStringContainsString( 'WordPress and of PHP', $text );
+		// Audit finding 7: every field of the requests is named.
+		$this->assertStringContainsString( 'product key', $text );
+		$this->assertStringContainsString( 'environment (live, staging or development site)', $text );
 	}
 
 	public function test_several_addons_share_the_classes_without_sharing_state(): void {
@@ -606,7 +615,147 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertTrue( $first->is_entitled( 'feature.flag' ) );
 		$this->assertFalse( $second->is_entitled( 'feature.flag' ) );
 		$this->assertSame( LicenseStatus::STATE_UNLICENSED, $second->status()->state );
-		$this->assertSame( '2.0.0', LicenseManager::VERSION );
+		$this->assertSame( '2.0.1', LicenseManager::VERSION );
 		$this->assertSame( LicenseManager::VERSION, LicenseClient::VERSION );
+	}
+
+	// ------------------------------------------------------------------
+	// Audit 2026-11 (client 2.0.1).
+	// ------------------------------------------------------------------
+
+	public function test_audit1_edited_clock_fields_cannot_keep_the_rights_forever(): void {
+		$this->activated();
+		$state = $this->kit->store->data['test_addon_license_state'];
+
+		// fetched_at a little ahead (clock jitter, NTP) is fine.
+		$this->kit->store->data['test_addon_license_state'] = array_merge( $state, array( 'fetched_at' => $this->kit->now + LicenseManager::CLOCK_SKEW ) );
+		$this->assertTrue( $this->kit->manager()->is_entitled( 'feature.flag' ) );
+
+		// Someone sets fetched_at (and the other unsigned clock fields) far into the future so that no time
+		// would ever pass: the snapshot counts as tampered, not as fresh.
+		$this->kit->store->data['test_addon_license_state'] = array_merge(
+			$state,
+			array(
+				'fetched_at'      => $this->kit->now + 10 * 365 * DAY_IN_SECONDS,
+				'clock_high'      => 0,
+				'server_time_max' => 0,
+			)
+		);
+		$tampered = $this->kit->manager();
+		$this->assertFalse( $tampered->is_entitled( 'feature.flag' ) );
+		$this->assertSame( LicenseStatus::STATE_STALE, $tampered->status()->state );
+
+		// The next scheduled check asks at once (no back-off) and a signed answer repairs the state.
+		$this->kit->server->requests = array();
+		$tampered->run_scheduled_check();
+		$this->assertCount( 1, $this->kit->server->requests );
+		$this->assertTrue( $tampered->is_entitled( 'feature.flag' ) );
+		$this->assertSame( $this->kit->now, $this->kit->store->data['test_addon_license_state']['fetched_at'] );
+	}
+
+	public function test_audit1_the_unsigned_stored_server_time_is_not_read(): void {
+		$manager = $this->activated();
+		$this->kit->advance( 15 * DAY_IN_SECONDS );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ), 'The signed cache_expires_at (day 14) has passed.' );
+
+		// Client 2.0.0 added the time since fetched_at to the stored, unsigned `server_time`: moving that back
+		// by a month re-opened the window. Only the signed server_time inside the payload counts now.
+		$state                                              = $this->kit->store->data['test_addon_license_state'];
+		$state['server_time']                               = $this->kit->now - 60 * DAY_IN_SECONDS;
+		$state['server_time_max']                           = 0;
+		$this->kit->store->data['test_addon_license_state'] = $state;
+		$this->assertFalse( $this->kit->manager()->is_entitled( 'feature.flag' ) );
+	}
+
+	public function test_audit2_no_stored_flag_skips_the_server_signature(): void {
+		$this->activated();
+		$state = $this->kit->store->data['test_addon_license_state'];
+
+		// Forged rights with a recomputed HMAC, plus a fresh `verified_at` that client 2.0.0 honoured as
+		// "Ed25519 checked less than twelve hours ago" on PHP without ext-sodium.
+		$forged                                             = $state;
+		$forged['envelope']['payload']                      = str_replace( '"feature.off":false', '"feature.off":true', $state['envelope']['payload'] );
+		$forged['envelope']['payload_signature']            = hash_hmac( 'sha256', $forged['envelope']['payload'], $this->kit->credentials()['installation_secret'] );
+		$forged['verified_at']                              = $this->kit->now;
+		$this->kit->store->data['test_addon_license_state'] = $forged;
+		$this->assertFalse( $this->kit->manager()->is_entitled( 'feature.off' ) );
+		$this->assertFalse( $this->kit->manager()->is_entitled( 'feature.flag' ) );
+
+		// On a PHP without any Ed25519 implementation even the genuine snapshot unlocks nothing (fail closed).
+		$this->kit->store->data['test_addon_license_state'] = $state;
+		$bare = $this->kit->manager( array( 'signature_verifier' => false ) );
+		$this->assertFalse( $bare->is_entitled( 'feature.flag' ) );
+		$this->assertSame( LicenseStatus::STATE_STALE, $bare->status()->state );
+		$this->assertSame( 'wplc_ed25519_unavailable', $bare->refresh()->get_error_code() );
+		$this->assertTrue( $bare->client()->is_activated(), 'The activation is kept for a PHP that can verify.' );
+		$this->assertTrue( $this->kit->manager()->is_entitled( 'feature.flag' ) );
+	}
+
+	public function test_audit4_unsigned_refusals_never_drop_the_credentials_on_deactivation(): void {
+		$manager = $this->activated();
+		foreach ( array( WPLC_Test_Server::error( 409, 'site_mismatch' ), WPLC_Test_Server::error( 401, 'activation_not_found' ) ) as $answer ) {
+			$this->kit->server->queue[] = $answer;
+			$this->assertInstanceOf( WP_Error::class, $manager->deactivate() );
+			$this->assertTrue( $manager->client()->is_activated() );
+			$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+		}
+		$this->kit->server->queue[] = WPLC_Test_Server::error( 409, 'site_mismatch' );
+		$message                    = $manager->run_form_action( 'deactivate' );
+		$this->assertSame( 'error', $message['type'], 'The error is reported.' );
+		$this->assertStringContainsString( '(site_mismatch)', $message['text'] );
+
+		$this->kit->server->queue[] = $this->signed_refusal();
+		$this->assertSame( array( 'status' => 'removed_locally', 'reason' => 'activation_deactivated' ), $manager->deactivate() );
+		$this->assertFalse( $manager->client()->is_activated() );
+	}
+
+	public function test_audit6_the_public_keys_filter_only_works_in_a_development_build(): void {
+		$attacker = new WPLC_Test_Server( str_repeat( "\x09", 32 ) );
+		foreach ( array( 'release_addon', 'dev_addon' ) as $prefix ) {
+			$GLOBALS['wplc_test_filters'][ $prefix . '_license_public_keys' ][] = static function () use ( $attacker ) {
+				return array( $attacker->public_key );
+			};
+		}
+
+		// Release build: another plugin's filter is ignored; the pinned key stays the only one.
+		$release = $this->kit->manager( array( 'product_key' => 'release-addon' ) );
+		$this->assertFalse( LicenseManager::is_dev_build( 'release_addon' ) );
+		$this->kit->server->queue[] = static function ( array $request ) use ( $attacker ) {
+			$attacker->secrets[ $request['body']['installation_id'] ] = $request['body']['installation_secret'];
+			return WPLC_Test_Server::json( 200, $attacker->envelope( $request, $attacker->entitlement( array( 'product_key' => 'release-addon' ) ) ) );
+		};
+		$this->assertSame( 'wplc_server_signature_invalid', $release->activate( self::KEY )->get_error_code(), 'The injected key signs nothing.' );
+
+		// Nothing pinned and only the filter: still misconfigured.
+		$unpinned = $this->kit->manager( array( 'product_key' => 'release-addon', 'public_keys' => array() ) );
+		$this->assertSame( LicenseStatus::STATE_MISCONFIGURED, $unpinned->status()->state );
+
+		// Development build (constant of the add-on defined): the filter is honoured, e.g. for a staging server.
+		define( 'DEV_ADDON_LICENSE_DEV', true );
+		$this->assertTrue( LicenseManager::is_dev_build( 'dev_addon' ) );
+		$this->assertTrue( $this->kit->manager( array( 'product_key' => 'dev-addon', 'public_keys' => array() ) )->client()->is_configured() );
+	}
+
+	public function test_audit7_uninstall_cleans_every_site_of_a_large_network_in_batches(): void {
+		$GLOBALS['wplc_test_sites'] = range( 1, 1234 );
+		$manager                    = $this->activated();
+
+		$manager->uninstall();
+
+		$this->assertSame( range( 1, 1234 ), $GLOBALS['wplc_test_switched'] );
+		$this->assertSame( 1234, $GLOBALS['wplc_test_restored'] );
+		$this->assertCount( 13, $GLOBALS['wplc_test_get_sites'] );
+		$this->assertSame( LicenseManager::UNINSTALL_BATCH, $GLOBALS['wplc_test_get_sites'][0]['number'] );
+		$this->assertSame( 1200, $GLOBALS['wplc_test_get_sites'][12]['offset'] );
+		$this->assertFalse( $manager->client()->is_activated() );
+		$this->assertArrayNotHasKey( 'test_addon_license_state', $this->kit->store->data );
+
+		// Exactly one full batch: one extra, empty query ends the loop.
+		$GLOBALS['wplc_test_sites']     = range( 1, LicenseManager::UNINSTALL_BATCH );
+		$GLOBALS['wplc_test_get_sites'] = array();
+		$GLOBALS['wplc_test_switched']  = array();
+		$this->kit->manager()->uninstall();
+		$this->assertCount( LicenseManager::UNINSTALL_BATCH, $GLOBALS['wplc_test_switched'] );
+		$this->assertCount( 2, $GLOBALS['wplc_test_get_sites'] );
 	}
 }

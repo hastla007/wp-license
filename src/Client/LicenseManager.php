@@ -28,7 +28,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.0';
+		const VERSION = '2.0.1';
 
 		/**
 		 * A signed answer ended the activation: rights and credentials are dropped.
@@ -49,6 +49,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * Seconds after which a missed daily check is caught up in the admin.
 		 */
 		const CATCH_UP_AFTER = 129600;
+
+		/**
+		 * Seconds the stored `fetched_at` may lie ahead of the local clock before the snapshot counts as tampered.
+		 */
+		const CLOCK_SKEW = 300;
+
+		/**
+		 * Sites handled per get_sites() query when uninstalling on a multisite.
+		 */
+		const UNINSTALL_BATCH = 100;
 
 		/**
 		 * Settings.
@@ -110,8 +120,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 *     @type string[]        $fallback_urls   Further server addresses.
 		 *     @type string          $rest_base       REST base when the server does not use `/wp-json`.
 		 *     @type OptionStore     $store           Storage (tests).
-		 *     @type callable        $transport       HTTP transport (tests).
+		 *     @type callable        $transport       HTTP transport (tests); also used for update downloads.
 		 *     @type callable        $clock           Clock (tests).
+		 *     @type callable|false  $signature_verifier Ed25519 verification (tests, see LicenseClient).
 		 * }
 		 */
 		public function __construct( array $config ) {
@@ -155,6 +166,21 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$server_url = (string) apply_filters( $prefix . '_license_server_url', $server_url ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- prefixed with the add-on's own prefix.
 			}
 
+			$public_keys = (array) $this->config['public_keys'];
+			if ( '' !== $prefix && function_exists( 'apply_filters' ) && self::is_dev_build( $prefix ) ) {
+				/**
+				 * Filters the pinned public keys of the license server (development builds only).
+				 *
+				 * Honoured only when the constant `{PREFIX}_LICENSE_DEV` (the option
+				 * prefix in upper case, e.g. `VOUCHER_CAPTAIN_PRO_LICENSE_DEV`) is
+				 * defined and true. In a release build the filter is ignored, so no
+				 * other plugin can pin a key of its own and sign rights for this add-on.
+				 *
+				 * @param string[] $public_keys Base64 keys from the add-on's configuration.
+				 */
+				$public_keys = (array) apply_filters( $prefix . '_license_public_keys', $public_keys ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- prefixed with the add-on's own prefix.
+			}
+
 			$this->client = new LicenseClient(
 				$server_url,
 				$product_key,
@@ -162,14 +188,15 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$prefix . '_license',
 				array(
 					// An empty list would switch the server signature off; the facade does not allow that.
-					'public_keys'   => empty( $this->config['public_keys'] ) ? array( '' ) : (array) $this->config['public_keys'],
-					'text_domain'   => (string) $this->config['text_domain'],
-					'network'       => $network,
-					'fallback_urls' => $config['fallback_urls'] ?? array(),
-					'rest_base'     => $config['rest_base'] ?? '',
-					'store'         => $config['store'] ?? null,
-					'transport'     => $config['transport'] ?? null,
-					'clock'         => $config['clock'] ?? null,
+					'public_keys'        => empty( $public_keys ) ? array( '' ) : $public_keys,
+					'text_domain'        => (string) $this->config['text_domain'],
+					'network'            => $network,
+					'fallback_urls'      => $config['fallback_urls'] ?? array(),
+					'rest_base'          => $config['rest_base'] ?? '',
+					'store'              => $config['store'] ?? null,
+					'transport'          => $config['transport'] ?? null,
+					'clock'              => $config['clock'] ?? null,
+					'signature_verifier' => $config['signature_verifier'] ?? null,
 				)
 			);
 		}
@@ -197,6 +224,21 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				register_deactivation_hook( (string) $this->config['plugin_file'], array( $this, 'unschedule' ) );
 				$this->updater()->register();
 			}
+		}
+
+		/**
+		 * Whether the add-on runs as a development build: the constant `{PREFIX}_LICENSE_DEV` is defined and true.
+		 *
+		 * Only then is the filter `{prefix}_license_public_keys` applied. WP_DEBUG does not count: it is
+		 * switched on on many live sites.
+		 *
+		 * @param string $prefix Option prefix of the add-on.
+		 * @return bool
+		 */
+		public static function is_dev_build( string $prefix ): bool {
+			$constant = strtoupper( $prefix ) . '_LICENSE_DEV';
+
+			return '' !== $prefix && defined( $constant ) && true === (bool) constant( $constant );
 		}
 
 		/**
@@ -311,7 +353,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			$status->site_limit       = (int) ( $data['site_limit'] ?? 0 );
 			$status->site_count       = (int) ( $data['site_count'] ?? 0 );
 
-			$server_now = $this->server_now( $state );
+			$server_now = $this->server_now( $state, $data );
 			$expires    = self::utc( $status->cache_expires_at );
 			if ( 0 === $expires || $server_now >= $expires ) {
 				// The signed offline window is used up; only a new signed answer restores the rights.
@@ -492,7 +534,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			$due   = empty( $state['error'] )
 				? $now - $last > self::CATCH_UP_AFTER
 				: $now >= (int) ( $state['next_attempt'] ?? 0 );
-			if ( $due || $last > $now ) {
+			if ( $due || $last > $now || (int) ( $state['fetched_at'] ?? 0 ) > $now + self::CLOCK_SKEW ) {
 				$this->refresh( false );
 			}
 		}
@@ -502,37 +544,56 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 *
 		 * The server is asked with a short timeout; whatever it answers, the
 		 * local data is removed. If the server cannot be reached the site slot
-		 * stays in use until the customer releases it in the account.
+		 * stays in use until the customer releases it in the account. On a
+		 * multisite (per-site activations) every site is cleaned, in batches of
+		 * UNINSTALL_BATCH; the server is only asked during the first 20 seconds.
 		 *
 		 * @return void
 		 */
 		public function uninstall(): void {
 			$started = time();
-			$sites   = array( 0 );
 			if ( function_exists( 'is_multisite' ) && is_multisite() && ! $this->config['network'] ) {
-				$sites = get_sites(
-					array(
-						'fields' => 'ids',
-						'number' => 500,
-					)
-				);
-			}
-			foreach ( $sites as $site_id ) {
-				if ( $site_id ) {
-					switch_to_blog( (int) $site_id );
-				}
-				if ( $this->client->is_activated() && time() - $started < 20 ) {
-					$this->client->deactivate();
-				}
-				$this->client->forget();
-				$this->client->store()->delete( $this->state_option() );
-				$this->client->store()->delete( $this->prefix . '_update_meta' );
-				wp_clear_scheduled_hook( $this->cron_hook() );
-				if ( $site_id ) {
-					restore_current_blog();
-				}
+				$offset = 0;
+				do {
+					$sites = get_sites(
+						array(
+							'fields'                 => 'ids',
+							'number'                 => self::UNINSTALL_BATCH,
+							'offset'                 => $offset,
+							'orderby'                => 'id',
+							'order'                  => 'ASC',
+							'no_found_rows'          => true,
+							'update_site_meta_cache' => false,
+						)
+					);
+					$sites = is_array( $sites ) ? $sites : array();
+					foreach ( $sites as $site_id ) {
+						switch_to_blog( (int) $site_id );
+						$this->uninstall_site( $started );
+						restore_current_blog();
+					}
+					$offset += self::UNINSTALL_BATCH;
+				} while ( count( $sites ) === self::UNINSTALL_BATCH );
+			} else {
+				$this->uninstall_site( $started );
 			}
 			$this->snapshot = null;
+		}
+
+		/**
+		 * Uninstall step for the current site.
+		 *
+		 * @param int $started Unix time the uninstall started.
+		 * @return void
+		 */
+		private function uninstall_site( int $started ): void {
+			if ( $this->client->is_activated() && time() - $started < 20 ) {
+				$this->client->deactivate();
+			}
+			$this->client->forget();
+			$this->client->store()->delete( $this->state_option() );
+			$this->client->store()->delete( $this->prefix . '_update_meta' );
+			wp_clear_scheduled_hook( $this->cron_hook() );
 		}
 
 		// ------------------------------------------------------------------
@@ -851,6 +912,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 
 			$state['last_attempt'] = $now;
 			$state['clock_high']   = max( $now, (int) ( $state['clock_high'] ?? 0 ) );
+			unset( $state['verified_at'], $state['server_time'] ); // Unsigned fields of client 2.0.0; never read again.
 
 			if ( ! is_wp_error( $result ) ) {
 				$server_time = self::utc( (string) ( $result['server_time'] ?? '' ) );
@@ -863,11 +925,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			}
 
 			if ( ! is_wp_error( $result ) ) {
-				$state['server_time']        = $server_time;
 				$state['server_time_max']    = max( $server_time, (int) ( $state['server_time_max'] ?? 0 ) );
 				$state['fetched_at']         = $now;
+				$state['clock_high']         = $now; // A signed answer anchors the time again.
 				$state['last_success']       = $now;
-				$state['verified_at']        = $now;
 				$state['error']              = null;
 				$state['error_streak']       = 0;
 				$state['next_attempt']       = 0;
@@ -959,18 +1020,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			if ( empty( $state['envelope'] ) || ! is_array( $state['envelope'] ) ) {
 				return $this->snapshot;
 			}
-			// The HMAC is checked on every request. Ed25519 too when PHP has the sodium extension; with the
-			// slow pure-PHP fallback of WordPress the server signature is re-checked every twelve hours.
-			$now      = $this->client->now();
-			$verified = (int) ( $state['verified_at'] ?? 0 );
-			$skip     = ! extension_loaded( 'sodium' ) && $verified <= $now && $now - $verified < 12 * HOUR_IN_SECONDS;
-			$data     = $this->client->verify_snapshot( $state['envelope'], $skip );
+			// HMAC and Ed25519 are checked on every read (memoized for this request only). Nothing stored
+			// next to the snapshot can switch the server signature off: without ext-sodium WordPress's
+			// sodium_compat verifies, and a PHP with neither never accepts the snapshot.
+			$data = $this->client->verify_snapshot( $state['envelope'] );
 			if ( is_wp_error( $data ) ) {
 				return $this->snapshot;
-			}
-			if ( ! $skip && ! extension_loaded( 'sodium' ) ) {
-				$state['verified_at'] = $now;
-				$this->client->store()->set( $this->state_option(), $state );
 			}
 			$this->snapshot = $data;
 
@@ -978,21 +1033,33 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		}
 
 		/**
-		 * Time of the license server right now, derived from the signed `server_time` of the snapshot.
+		 * Time of the license server right now, derived from the signed `server_time` of the verified snapshot.
 		 *
-		 * Uses the local clock only to measure the time since the snapshot was
-		 * stored, so a wrong time zone or a constant offset does not matter. The
-		 * highest local time ever seen is kept: turning the clock back does not
-		 * extend the offline window.
+		 * The base is only the signed `server_time` inside the verified payload.
+		 * The local clock measures the time since the snapshot was stored
+		 * (`fetched_at`), so a wrong time zone or a constant offset does not
+		 * matter. The unsigned stored fields can only make the result later,
+		 * never earlier: `clock_high` (highest local time seen, so turning the
+		 * clock back does not extend the offline window) and `server_time_max`
+		 * (highest signed server time seen). A `fetched_at` more than CLOCK_SKEW
+		 * seconds in the future means the option was edited (or the clock was
+		 * turned back before the last answer): the snapshot then counts as
+		 * expired until a new signed answer arrives (catch_up() asks at once).
 		 *
 		 * @param array<string,mixed> $state Stored state.
-		 * @return int Unix time.
+		 * @param array<string,mixed> $data  Verified data of the snapshot.
+		 * @return int Unix time; PHP_INT_MAX when the snapshot cannot be dated.
 		 */
-		private function server_now( array $state ): int {
-			$local   = max( $this->client->now(), (int) ( $state['clock_high'] ?? 0 ) );
-			$elapsed = max( 0, $local - (int) ( $state['fetched_at'] ?? 0 ) );
+		private function server_now( array $state, array $data ): int {
+			$signed  = self::utc( (string) ( $data['server_time'] ?? '' ) );
+			$now     = $this->client->now();
+			$fetched = (int) ( $state['fetched_at'] ?? 0 );
+			if ( 0 === $signed || $fetched <= 0 || $fetched > $now + self::CLOCK_SKEW ) {
+				return PHP_INT_MAX;
+			}
+			$local = max( $now, (int) ( $state['clock_high'] ?? 0 ) );
 
-			return max( (int) ( $state['server_time'] ?? 0 ) + $elapsed, (int) ( $state['server_time_max'] ?? 0 ) );
+			return max( $signed + max( 0, $local - $fetched ), (int) ( $state['server_time_max'] ?? 0 ) );
 		}
 
 		/**
