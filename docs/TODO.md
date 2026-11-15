@@ -714,3 +714,15 @@ Stand 15.11.2026 abends: alle 64 Funde bearbeitet (sieben Fix-Agenten, zusammeng
 - [ ] WooCommerce-Produkte, Lizenzpläne, Releases und Updatepakete für beide Add-ons im Shop anlegen und Testdaten von Produktionsdaten trennen.
 - [ ] E2E: Kauf/Refund, Aktivierung, Site-Limit, Staging, Entitlement-Änderung, Offline-Cache, Schlüsselrotation, Update und Deaktivierung für beide Clients abnehmen.
 - **Abnahme:** Keine Form-/Review-Pro-Funktion wird vor erfolgreichem Vertragstest und veröffentlichtem Add-on-Paket als lizenzierbares Recht angeboten.
+
+## 12. Workflow Captain: Produktkatalog, Pläne und Lizenzereignisse
+
+Produktentscheidung: Produktkey workflow-captain-pro, Präfix workflow.; Jahrespläne Single 129 EUR/1 Live-Site, Business 229 EUR/5 Sites, Agency 399 EUR/25 Sites. Alle Pläne haben denselben Pro-Funktionsumfang; nur Site-Limit und Support unterscheiden sich.
+
+- [ ] WFC-LIC-01 – Katalog und Shoppläne registrieren. Add-on-Key, Slug und Textdomain angleichen; drei Jahrespläne mit Preisen, Site-Limits, Staging-Regel, Support, Verlängerung und WooCommerce-Produkten abbilden.
+- [ ] WFC-LIC-02 – Entitlements katalogisieren. workflow.suite_integrations, workflow.webhooks, workflow.event_correlation, workflow.advanced_logic, workflow.recipe_templates und workflow.extended_logs mit Typ, Beschreibung, Fail-closed-Regel und Dokumentation aufnehmen. Alle drei Pläne bekommen dieselben Rechte.
+- [ ] WFC-LIC-03 – Clientvertrag dokumentieren. ENTITLEMENTS.md, Plan-IDs, Site-Zählung, Staging, Offline-Cache, Schlüsselrotation, Ablauf und Rechteänderung mit Captain Pro und Workflow-Konzept abgleichen.
+- [ ] WFC-LIC-04 – Lizenzereignisse veröffentlichen. Versionierte Post-Commit-Ereignisse für Aktivierung, Verlängerung, Ablauf, Sperre, Reaktivierung, Site-Limit und Updatefreigabe; Payload nur mit stabiler Event-ID, Produkt/Plan, Status und Zeit, ohne Lizenzschlüssel, Zahlungsdaten, E-Mail oder geheime Site-Daten.
+- [ ] WFC-LIC-05 – Read-only Grenze absichern. Workflow darf Status und Entitlements lesen, aber Lizenzen, Zahlungen, Aktivierungen oder Site-Limits nicht verändern; Schleifen durch die eigene Workflow-Lizenz verhindern.
+- [ ] WFC-LIC-06 – Shop-/Lizenz-E2E abnehmen. Kauf, Refund, Aktivierung, Site-Limit, Staging, Entitlementänderung, Offline-Cache, Ablauf und Update für alle drei Pläne prüfen; Testprodukte von Live-Produkten trennen.
+- Abnahme: Produktkey, Plan-IDs und Rechte stimmen in Lizenzserver, Shop, Captain Pro und Workflow überein. Der Free-Kern funktioniert ohne Lizenzserver; Pro-Ablauf löscht keine Workflow-Daten.
