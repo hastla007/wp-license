@@ -537,8 +537,12 @@ final class SiteUrlNormalizationTest extends TestCase {
 			'same country-code domain'     => array( 'https://stage.example.co.uk', 'https://example.co.uk', true ),
 			'local copy'                   => array( 'http://shop.local', 'https://example.com', true ),
 			'private address'              => array( 'http://192.168.1.20', 'https://example.com', true ),
-			'staging label elsewhere'      => array( 'https://staging.agency.example', 'https://example.com', true ),
-			'dev label elsewhere'          => array( 'https://shop.dev.agency.example', 'https://example.com', true ),
+			// P-13: a staging label on a foreign domain or as TLD is a second live shop.
+			'staging label elsewhere'      => array( 'https://staging.agency.example', 'https://example.com', false ),
+			'dev label elsewhere'          => array( 'https://shop.dev.agency.example', 'https://example.com', false ),
+			'dev label on foreign domain'  => array( 'https://dev.other-shop.com', 'https://example.com', false ),
+			'public .dev domain'           => array( 'https://shop-b.dev', 'https://shop-a.com', false ),
+			'dev label, same domain'       => array( 'https://dev.example.com', 'https://example.com', true ),
 			'hosting staging domain'       => array( 'https://myshop.wpengine.com', 'https://example.com', true ),
 			'kinsta'                       => array( 'https://stg-myshop.kinsta.cloud', 'https://example.com', true ),
 			'second live shop'             => array( 'https://other-shop.com', 'https://example.com', false ),
@@ -558,5 +562,38 @@ final class SiteUrlNormalizationTest extends TestCase {
 	 */
 	public function test_staging_host_rule( string $staging, string $live, bool $allowed ): void {
 		$this->assertSame( $allowed, SiteUrl::is_staging_of( $staging, $live ) );
+	}
+
+	/**
+	 * P-22: addresses a live activation must not move to.
+	 *
+	 * @return array<string,array{0:string,1:bool}>
+	 */
+	public function data_staging_looking_addresses(): array {
+		return array(
+			'staging subdomain'     => array( 'https://staging.example.com', true ),
+			'dev subdomain, co.uk'  => array( 'https://dev.shop.example.co.uk', true ),
+			'test label deeper'     => array( 'https://shop.test.example.com', true ),
+			'local host'            => array( 'http://shop.local', true ),
+			'private address'       => array( 'http://192.168.1.20', true ),
+			'hosting staging host'  => array( 'https://myshop.wpengine.com', true ),
+			'public .dev domain'    => array( 'https://shop.dev', false ),
+			'www on .dev'           => array( 'https://www.shop.dev', false ),
+			'registrable dev name'  => array( 'https://dev.com', false ),
+			'live shop'             => array( 'https://www.example.com', false ),
+			'label inside a word'   => array( 'https://stagingshop.com', false ),
+			'public address'        => array( 'http://93.184.216.34', false ),
+			'invalid'               => array( 'not a url', false ),
+		);
+	}
+
+	/**
+	 * @dataProvider data_staging_looking_addresses
+	 *
+	 * @param string $url      Address.
+	 * @param bool   $expected Expected result.
+	 */
+	public function test_looks_like_staging( string $url, bool $expected ): void {
+		$this->assertSame( $expected, SiteUrl::looks_like_staging( $url ) );
 	}
 }

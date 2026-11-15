@@ -304,8 +304,8 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertContains( Authenticator::limiter_hash( 'installation', $site['uuid'] ), $stored );
 		// Merge of both lines: activation attempts count failures only (line A), so the
 		// per-key row exists for the key that failed, not for the one that worked.
-		$this->assertContains( ActivationService::key_limiter_hash( $unknown ), $stored );
-		$this->assertNotContains( ActivationService::key_limiter_hash( $license['key'] ), $stored );
+		$this->assertContains( ActivationService::key_limiter_hash( $unknown, '127.0.0.1' ), $stored );
+		$this->assertNotContains( ActivationService::key_limiter_hash( $license['key'], '127.0.0.1' ), $stored );
 		// The former, reversible values.
 		$this->assertNotContains( hash( 'sha256', 'activation-ip:127.0.0.1' ), $stored );
 		$this->assertNotContains( hash( 'sha256', 'installation:' . $site['uuid'] ), $stored );
@@ -614,9 +614,9 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 		);
 		$this->assertSame( array( 'activation_id' => $id, 'status' => 'deactivated' ), $delete );
 
-		// A wrong signature for a released installation stays anonymous.
+		// A wrong signature for a released installation stays anonymous (and looks like an unknown installation, P-41).
 		$forged = $this->api_request( 'POST', '/wplc/v1/entitlements/check', array(), array( 'uuid' => $site['uuid'], 'secret' => str_repeat( 'f', 40 ) ) );
-		$this->assertApiError( 401, 'invalid_request_signature', $this->dispatch( $forged ) );
+		$this->assertApiError( 401, 'activation_not_found', $this->dispatch( $forged ) );
 		// The slot is free.
 		$this->assertSame( 200, $this->activate_via_api( $license['key'] )['response']->get_status() );
 	}

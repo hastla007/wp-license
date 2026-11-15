@@ -16,7 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Without configuration only REMOTE_ADDR is used. A forwarding header is
  * honored only when WPLC_TRUSTED_PROXY_HEADER names it and the direct peer is
- * listed in WPLC_TRUSTED_PROXIES (or that list is not defined at all).
+ * listed in WPLC_TRUSTED_PROXIES. A header without a proxy list is ignored:
+ * otherwise every client could choose its own rate-limit bucket (P-42).
  */
 final class ClientIp {
 
@@ -50,20 +51,58 @@ final class ClientIp {
 	}
 
 	/**
+	 * Rate-limit bucket of the current request's client.
+	 *
+	 * A request without a resolvable address lands in a shared bucket instead
+	 * of failing for everyone.
+	 *
+	 * @return string Bucket identifier, `unknown` when no address is known.
+	 */
+	public static function current_bucket(): string {
+		$bucket = self::rate_limit_bucket( self::current() );
+
+		return '' === $bucket ? 'unknown' : $bucket;
+	}
+
+	/**
+	 * Configuration problem of the proxy settings, for the diagnostics page (P-42).
+	 *
+	 * @param string|null $header  Header name; null reads WPLC_TRUSTED_PROXY_HEADER.
+	 * @param mixed       $proxies Proxy list; null reads WPLC_TRUSTED_PROXIES (undefined counts as missing).
+	 * @return string Warning text, or an empty string when the configuration is consistent.
+	 */
+	public static function configuration_warning( ?string $header = null, $proxies = null ): string {
+		if ( null === $header ) {
+			$header = defined( 'WPLC_TRUSTED_PROXY_HEADER' ) ? (string) constant( 'WPLC_TRUSTED_PROXY_HEADER' ) : '';
+			$proxies = defined( 'WPLC_TRUSTED_PROXIES' ) ? constant( 'WPLC_TRUSTED_PROXIES' ) : null;
+		}
+		if ( '' === trim( $header ) || ( is_array( $proxies ) && array() !== $proxies ) ) {
+			return '';
+		}
+
+		return sprintf(
+			/* translators: 1: constant name WPLC_TRUSTED_PROXY_HEADER, 2: constant name WPLC_TRUSTED_PROXIES. */
+			__( '%1$s is set, but %2$s does not list your proxies. The header is ignored and every request is rate-limited by the proxy address, so all customers behind the proxy share one limit. Add the addresses of your proxies to %2$s.', 'wp-license' ),
+			'WPLC_TRUSTED_PROXY_HEADER',
+			'WPLC_TRUSTED_PROXIES'
+		);
+	}
+
+	/**
 	 * Resolve the client address from a server array.
 	 *
 	 * @param array<string,mixed> $server Server variables.
 	 * @param string $trusted_header Header name (`HTTP_X_FORWARDED_FOR` or `X-Forwarded-For`); empty disables proxies.
-	 * @param array<int,mixed>|null $trusted_proxies IPs/CIDRs allowed to set the header; null trusts every peer.
+	 * @param array<int,mixed>|null $trusted_proxies IPs/CIDRs allowed to set the header; null (list not configured) ignores the header.
 	 * @return string Valid IP address, or an empty string.
 	 */
 	public static function resolve( array $server, string $trusted_header = '', ?array $trusted_proxies = null ): string {
 		$remote = self::normalize( self::server_value( $server, 'REMOTE_ADDR' ) );
 		$key = self::header_key( $trusted_header );
-		if ( '' === $key ) {
+		if ( '' === $key || null === $trusted_proxies ) {
 			return $remote;
 		}
-		if ( null !== $trusted_proxies && ( '' === $remote || ! self::matches_any( $remote, $trusted_proxies ) ) ) {
+		if ( '' === $remote || ! self::matches_any( $remote, $trusted_proxies ) ) {
 			return $remote;
 		}
 
@@ -80,7 +119,7 @@ final class ClientIp {
 			if ( '' === $ip ) {
 				return $remote;
 			}
-			if ( null !== $trusted_proxies && self::matches_any( $ip, $trusted_proxies ) ) {
+			if ( self::matches_any( $ip, $trusted_proxies ) ) {
 				continue;
 			}
 			return $ip;

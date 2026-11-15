@@ -586,8 +586,9 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 
 		$this->assertContractError( 'DELETE', $path_template, 401, 'invalid_request_signature', $this->dispatch( $this->api_request( 'DELETE', $route ) ) );
 
+		// A wrong signature gets the answer of an unknown installation (P-41).
 		$forged = $this->api_request( 'DELETE', $route, null, array( 'uuid' => $first['uuid'], 'secret' => str_repeat( 'f', 40 ) ) );
-		$this->assertContractError( 'DELETE', $path_template, 401, 'invalid_request_signature', $this->dispatch( $forged ) );
+		$this->assertContractError( 'DELETE', $path_template, 401, 'activation_not_found', $this->dispatch( $forged ) );
 
 		// Another installation of the same license cannot deactivate this one.
 		$foreign = $this->api_request( 'DELETE', $route, null, $second );
@@ -708,7 +709,7 @@ final class RestConformanceIntegrationTest extends WPLC_Integration_TestCase {
 		// Body changed after signing.
 		$tampered = $this->api_request( 'POST', $route, array( 'product_version' => '1.0.0' ), $site );
 		$tampered->set_body( '{"product_version":"9.9.9"}' );
-		$this->assertContractError( 'POST', '/entitlements/check', 401, 'invalid_request_signature', $this->dispatch( $tampered ) );
+		$this->assertContractError( 'POST', '/entitlements/check', 401, 'activation_not_found', $this->dispatch( $tampered ) );
 
 		// Unknown installation.
 		$unknown = $this->api_request( 'POST', $route, array(), array( 'uuid' => wp_generate_uuid4(), 'secret' => $site['secret'] ) );

@@ -25,6 +25,26 @@ final class Authenticator {
 	/** @var int Authenticated requests per installation and minute. */
 	public const REQUESTS_PER_INSTALLATION = 120;
 
+	/** @var int Seconds a request timestamp may differ from the server clock, in both directions. */
+	public const TIMESTAMP_WINDOW = 300;
+
+	/**
+	 * @var int Seconds a used nonce is kept: longer than the whole time a request is
+	 *          accepted (twice the window), so a nonce never expires while its
+	 *          request could still be replayed (P-40).
+	 */
+	public const NONCE_TTL = 2 * self::TIMESTAMP_WINDOW + 60;
+
+	/**
+	 * @var int Failed authentications (unknown installation, wrong signature) per
+	 *          client address and minute before the address is refused without a
+	 *          database lookup (P-41).
+	 */
+	public const AUTH_FAILURES_PER_IP = 100;
+
+	/** @var string[] Query parameters WordPress itself may need on a signed route (plain permalinks, method override). */
+	private const ALLOWED_QUERY_PARAMS = array( 'rest_route', '_method' );
+
 	/** @var int Days after which rate-limit buckets and API error counters are deleted. */
 	private const LIMIT_RETENTION_DAYS = 2;
 
@@ -63,8 +83,25 @@ final class Authenticator {
 			return new \WP_Error( 'invalid_request_signature', 'Request authentication headers are invalid.', array( 'status' => 401 ) );
 		}
 
-		if ( abs( time() - (int) $timestamp ) > 300 ) {
+		if ( abs( time() - (int) $timestamp ) > self::TIMESTAMP_WINDOW ) {
 			return new \WP_Error( 'request_expired', 'Request timestamp is outside the allowed window.', array( 'status' => 401, 'server_time' => time() ) );
+		}
+
+		// Only the body is signed: parameters from the query string or a body
+		// WordPress parses as a form would be unsigned input (P-12).
+		if ( ! self::parameters_are_signed( $request ) ) {
+			return new \WP_Error( 'request_parameters_unsigned', 'Signed requests must send their parameters as a JSON body (Content-Type: application/json) and no query parameters.', array( 'status' => 400 ) );
+		}
+
+		// Cheap refusal before any lookup or decryption: one address that keeps
+		// failing authentication is answered from one indexed read (P-41).
+		$failure_limiter = self::limiter_hash( 'auth-failure-ip', ClientIp::current_bucket() );
+		$failures = self::current_rate_limit( $failure_limiter );
+		if ( false === $failures ) {
+			return new \WP_Error( 'rate_limit_store_unavailable', 'Request rate limiting is temporarily unavailable.', array( 'status' => 503 ) );
+		}
+		if ( $failures >= self::AUTH_FAILURES_PER_IP ) {
+			return new \WP_Error( 'rate_limited', 'Too many failed requests from this address.', array( 'status' => 429, 'retry_after' => 60 ) );
 		}
 
 		$tables = Schema::table_names();
@@ -76,12 +113,16 @@ final class Authenticator {
 			ARRAY_A
 		);
 
+		// An unknown installation and a wrong signature get the same answer, so
+		// the API does not tell which installation IDs exist (P-41). For a real
+		// client both mean the same: its credential is not valid here, activate again.
 		if ( ! is_array( $activation ) ) {
-			return new \WP_Error( 'activation_not_found', 'The installation is not known to this server.', array( 'status' => 401 ) );
+			return self::authentication_failed( $failure_limiter );
 		}
 
 		$secret = SecretCrypto::decrypt( (string) $activation['installation_secret_encrypted'] );
 		if ( false === $secret || ! hash_equals( (string) $activation['installation_secret_hash'], hash( 'sha256', $secret ) ) ) {
+			// A server-side key problem (encryption key missing on this node), not something a caller can cause.
 			return new \WP_Error( 'installation_secret_invalid', 'The installation credential is invalid.', array( 'status' => 401 ) );
 		}
 
@@ -94,7 +135,7 @@ final class Authenticator {
 			(string) $request->get_body()
 		);
 		if ( ! hash_equals( $expected_signature, $provided_signature ) ) {
-			return new \WP_Error( 'invalid_request_signature', 'Request signature is invalid.', array( 'status' => 401 ) );
+			return self::authentication_failed( $failure_limiter );
 		}
 
 		// Limit before the nonce is stored: a throttled installation must not
@@ -107,23 +148,23 @@ final class Authenticator {
 			return new \WP_Error( 'rate_limited', 'Too many requests for this installation.', array( 'status' => 429, 'retry_after' => 60 ) );
 		}
 
+		// One statement instead of DELETE + INSERT (P-50): a new nonce is
+		// inserted (1 row affected), an expired row of the same nonce is
+		// overwritten (2), a nonce that is still valid stays untouched (0).
 		$nonce_hash = hash( 'sha256', $nonce );
 		$now = gmdate( 'Y-m-d H:i:s' );
-		$wpdb->query(
-			$wpdb->prepare(
-				"DELETE FROM {$tables['request_nonces']} WHERE activation_id = %d AND nonce_hash = %s AND expires_at <= %s",
-				(int) $activation['id'],
-				$nonce_hash,
-				$now
-			)
-		);
+		$expires_at = gmdate( 'Y-m-d H:i:s', time() + self::NONCE_TTL );
 		$nonce_inserted = $wpdb->query(
 			$wpdb->prepare(
-				"INSERT IGNORE INTO {$tables['request_nonces']} (activation_id,nonce_hash,expires_at,created_at) VALUES (%d,%s,%s,%s)",
+				"INSERT INTO {$tables['request_nonces']} (activation_id,nonce_hash,expires_at,created_at) VALUES (%d,%s,%s,%s) ON DUPLICATE KEY UPDATE created_at = IF(expires_at <= %s, %s, created_at), expires_at = IF(expires_at <= %s, %s, expires_at)",
 				(int) $activation['id'],
 				$nonce_hash,
-				gmdate( 'Y-m-d H:i:s', time() + 10 * MINUTE_IN_SECONDS ),
-				$now
+				$expires_at,
+				$now,
+				$now,
+				$now,
+				$now,
+				$expires_at
 			)
 		);
 
@@ -165,6 +206,57 @@ final class Authenticator {
 		}
 
 		return $activation;
+	}
+
+	/**
+	 * Read one parameter of an authenticated request (P-12).
+	 *
+	 * Only the JSON body is covered by the signature, so only the JSON body
+	 * is read; authenticate() has refused query parameters and other content
+	 * types before.
+	 *
+	 * @param \WP_REST_Request $request REST request.
+	 * @param string           $name    Parameter name.
+	 * @return mixed Null when the body does not carry the parameter.
+	 */
+	public static function signed_param( \WP_REST_Request $request, string $name ) {
+		$params = $request->get_json_params();
+
+		return is_array( $params ) && array_key_exists( $name, $params ) ? $params[ $name ] : null;
+	}
+
+	/**
+	 * Whether every parameter of a request is covered by its signature (P-12).
+	 *
+	 * The body must be JSON (a form body or text/plain would leave WordPress
+	 * reading the parameters from somewhere else) and the query string may
+	 * only carry what WordPress needs for routing. An empty body needs no
+	 * content type.
+	 *
+	 * @param \WP_REST_Request $request REST request.
+	 * @return bool
+	 */
+	public static function parameters_are_signed( \WP_REST_Request $request ): bool {
+		if ( array() !== array_diff( array_keys( (array) $request->get_query_params() ), self::ALLOWED_QUERY_PARAMS ) ) {
+			return false;
+		}
+		if ( '' === trim( (string) $request->get_body() ) ) {
+			return true;
+		}
+
+		return $request->is_json_content_type() && is_array( $request->get_json_params() );
+	}
+
+	/**
+	 * Count a failed authentication of the client address and build the uniform answer (P-41).
+	 *
+	 * @param string $failure_limiter Bucket of the client address.
+	 * @return \WP_Error
+	 */
+	private static function authentication_failed( string $failure_limiter ): \WP_Error {
+		self::increment_rate_limit( $failure_limiter );
+
+		return new \WP_Error( 'activation_not_found', 'The installation is not known to this server or the request signature is invalid.', array( 'status' => 401 ) );
 	}
 
 	/**
@@ -219,7 +311,7 @@ final class Authenticator {
 	 * or is derived from the WordPress auth salt; changing it only resets the
 	 * running buckets.
 	 *
-	 * @param string $scope Kind of bucket (`installation`, `activation-ip`, `activation-key`).
+	 * @param string $scope Kind of bucket (`installation`, `auth-failure-ip`, `activation-ip`, `activation-key-ip`, `activation-license`).
 	 * @param string $value Identifier inside the scope.
 	 * @return string 64 hex characters.
 	 */
@@ -279,12 +371,13 @@ final class Authenticator {
 	}
 
 	/**
-	 * Read a per-minute request bucket without counting.
+	 * Read a request bucket without counting.
 	 *
-	 * @param string $limiter_hash SHA-256 limiter key.
+	 * @param string      $limiter_hash SHA-256 limiter key.
+	 * @param string|null $bucket       UTC start of the bucket; null for the current minute.
 	 * @return int|false Current hit count (0 without a row), or false on database failure.
 	 */
-	public static function current_rate_limit( string $limiter_hash ) {
+	public static function current_rate_limit( string $limiter_hash, ?string $bucket = null ) {
 		global $wpdb;
 
 		$tables = Schema::table_names();
@@ -292,7 +385,7 @@ final class Authenticator {
 			$wpdb->prepare(
 				"SELECT hits FROM {$tables['request_limits']} WHERE limiter_hash = %s AND bucket_start = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
 				$limiter_hash,
-				gmdate( 'Y-m-d H:i:00' )
+				null === $bucket ? gmdate( 'Y-m-d H:i:00' ) : $bucket
 			)
 		);
 		if ( null === $hits ) {

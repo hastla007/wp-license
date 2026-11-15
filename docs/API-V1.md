@@ -49,7 +49,7 @@ The client generates and keeps the installation ID and secret. The server stores
 ### Environments and limits
 
 - **production**: counts against the live-site limit of the license (`site_limit`). Over the limit: `409 site_limit` with `data.site_limit` and `data.site_count`.
-- **staging**: one staging site per live activation, free of charge, linked through `staging_parent_installation_id`. The host of the staging site must be plausible for a copy of the live site: the same registrable domain as the live site (`staging.example.com` for `www.example.com`, also a subdirectory), a local host, a host with a staging label (`staging`, `stage`, `stg`, `dev`, `test`, `testing`, `preprod`, `preview`, `sandbox`, `uat` as one of its labels) or a staging domain of a hosting provider (`*.wpengine.com`, `*.kinsta.cloud`, `*.pantheonsite.io`, ...). **A staging request for any other host is not refused but counted as a live site**: the activation is stored with `environment: production`, uses a live slot (or fails with `409 site_limit`, `data.requested_environment: staging`), and the signed response says `"environment": "production"`. Clients should show the returned `environment`. Shop owners can extend the rule with the filter `wplc_is_staging_host` (and `wplc_registrable_domain`). A second staging site: `409 staging_limit`.
+- **staging**: one staging site per live activation, free of charge, linked through `staging_parent_installation_id`. The host of the staging site must be plausible for a copy of the live site: the same registrable domain as the live site (`staging.example.com` or `dev.example.com` for `www.example.com`, also a subdirectory), a local host or a staging domain of a hosting provider (`*.wpengine.com`, `*.kinsta.cloud`, `*.pantheonsite.io`, ...). A staging label on another domain (`staging.agency.example`, `dev.other-shop.com`) or the public TLD `.dev` (`other-shop.dev`) does not make a host a staging copy. **A staging request for any other host is not refused but counted as a live site**: the activation is stored with `environment: production`, uses a live slot (or fails with `409 site_limit`, `data.requested_environment: staging`), and the signed response says `"environment": "production"`. Clients should show the returned `environment`. Shop owners can extend the rule with the filter `wplc_is_staging_host` (and `wplc_registrable_domain`). A second staging site: `409 staging_limit`.
 - **development**: does not use a live slot. Only for local hosts: `localhost`, single-label names, `*.localhost`, `*.test`, `*.local`, `*.internal`, `*.lan`, `*.home.arpa`, `*.localdomain`, `*.ddev.site`, `*.lndo.site`, loopback, private (`10/8`, `172.16/12`, `192.168/16`, `fc00::/7`) and link-local addresses; otherwise `400 development_site_invalid` (filter `wplc_is_local_development_url`). The number of active development activations per license is capped at twice the live-site limit, at least 5 (filter `wplc_development_site_limit`); beyond it `409 development_limit` with `data.development_limit` and `data.development_count`. Unused development sites can be released in the customer account, the admin, through `DELETE`, or with `wp wplc activation release --license=<id> --environment=development`.
 
 ### site_url rules
@@ -196,7 +196,7 @@ Whether two addresses are **the same site** is decided by a comparison key that 
 
 The client keeps its installation ID and secret in one option. If valid credentials are already stored, `LicenseClient::activate()` first calls `/entitlements/check` and returns that result instead of creating a second activation; pass `true` as the fourth argument (`$force`) to request a new activation regardless.
 
-Repeating `POST /activations` with a known `installation_id`, the same secret and the same license is idempotent and returns the current data. A changed `site_url` is stored (audit action `site_url_changed`); a staging activation cannot move to a host that is unrelated to its live site (`409 staging_site_invalid`). Another secret or license: `409 installation_conflict`. A released installation ID: `409 activation_deactivated`; the client must generate a new installation ID.
+Repeating `POST /activations` with a known `installation_id`, the same secret and the same license is idempotent and returns the current data. A changed `site_url` is stored (audit action `site_url_changed`); a staging activation cannot move to a host that is unrelated to its live site (`409 staging_site_invalid`). A live activation cannot move to an address that looks like a copy: a local host, a hosting provider's staging domain, or a host with a staging label (`staging`, `stage`, `stg`, `dev`, `test`, `testing`, `preprod`, `preview`, `sandbox`, `uat`) left of its registrable domain (`staging.example.com`, not `example.dev`). Such a request is answered `409 site_move_refused` (`data.site_url` is the activated address) and changes nothing, unless the live activation already has such an address. A copy of the live site activates as a staging site with its own installation ID instead. Another secret or license: `409 installation_conflict`. A released installation ID: `409 activation_deactivated`; the client must generate a new installation ID.
 
 When a **new** installation ID activates the same site (same comparison key, same environment) as an existing active activation of the same license (lost options, database restore, migration, switch to HTTPS), the server replaces the old activation instead of counting a second site:
 
@@ -228,7 +228,7 @@ NONCE
 SHA256_OF_RAW_REQUEST_BODY
 ```
 
-`REST_ROUTE` is the route without the `/wp-json` prefix and without a query string, for example `/wplc/v1/entitlements/check`. Because only the body is signed, parameters of signed requests belong in the JSON body, not in the query string.
+`REST_ROUTE` is the route without the `/wp-json` prefix and without a query string, for example `/wplc/v1/entitlements/check`. Because only the body is signed, the server reads the parameters of signed requests **only from the JSON body**. A request with query parameters (other than `rest_route` for plain permalinks and `_method`) or with a non-empty body that is not `Content-Type: application/json` is refused with `400 request_parameters_unsigned`. A body-less `DELETE` needs no content type.
 
 Order of the checks and their answers:
 
@@ -236,15 +236,17 @@ Order of the checks and their answers:
 | --- | --- |
 | Headers malformed or missing | `401 invalid_request_signature` |
 | Timestamp more than five minutes off | `401 request_expired`; `data.server_time` is the Unix time of the server, so a client can detect a wrong clock |
+| Query parameters, or a body that is not JSON | `400 request_parameters_unsigned` |
+| 100 or more failed authentications (unknown installation, wrong signature) from the client address (IPv6: /64) in the current minute | `429 rate_limited`, answered without looking up the installation |
 | Installation ID unknown | `401 activation_not_found` |
 | Stored credential unreadable | `401 installation_secret_invalid` |
-| Signature wrong | `401 invalid_request_signature` |
+| Signature wrong | `401 activation_not_found` (the same answer as an unknown installation, so the API does not reveal which installation IDs exist) |
 | More than 120 requests per installation and minute | `429 rate_limited` |
-| Nonce already used within ten minutes | `409 request_replayed` |
+| Nonce already used within the last eleven minutes | `409 request_replayed` |
 | Limit or replay store unavailable | `503 rate_limit_store_unavailable`, `503 replay_store_unavailable` |
 | Activation was released | signed refusal, see below |
 
-Requests that fail before the nonce check do not consume the nonce.
+Requests that fail before the nonce check do not consume the nonce. A nonce is kept for eleven minutes, longer than the ten minutes during which a timestamp can be accepted, so a recorded request cannot be replayed at the edge of the window.
 
 ### Released installations
 
@@ -260,7 +262,7 @@ A client that verifies such an answer must drop its cached rights and its stored
 
 `POST /entitlements/check`
 
-Optional JSON body: `product_version`, `wp_version`, `php_version` (stored up to 30 characters; an omitted or empty value keeps the stored one) and `site_url`.
+Optional JSON body: `product_version`, `wp_version`, `php_version` (stored up to 30 characters; an omitted or empty value keeps the stored one) and `site_url`. The activation's `last_seen_at` is written at most once per hour, or together with a changed version; a check that changes nothing writes nothing to the activation.
 
 When the client sends its current `site_url`, the signed data contains `site_match`: `true` when it is the activated site (comparison key, see [Site address](#site-address)), `false` when the installation runs under another address, for example a copy of the site that carries the copied credentials. The server does not refuse such a request yet; it fires the action `wplc/activation_site_mismatch`. Clients should send `site_url` and treat `site_match: false` as "this copy is not the activated site".
 
@@ -284,7 +286,11 @@ Signed `data`:
 | --- | --- |
 | No release is published for the product | `{"update_available": false, "reason": "package_unavailable"}` |
 | The reported version is the newest | `{"update_available": false, "current_version": "<as reported>"}` |
-| Update available | `update_available: true`, `product_key`, `version`, `package_url` (one-use URL of `GET /updates/download/{token}`), `sha256` (lowercase hex of the ZIP), `requires_php`, `requires_wp`, `tested_wp`, `release_notes` (HTML, filtered with `wp_kses_post`), `download_expires_at` (UTC, ten minutes after the check) |
+| Update available | `update_available: true`, `product_key`, `version`, `package_url` (one-use URL of `GET /updates/download/{token}`), `sha256` (lowercase hex of the ZIP), `requires_php`, `requires_wp`, `tested_wp`, `release_notes` (HTML, filtered with `wp_kses_post`), `download_expires_at` (UTC, five minutes after the check) |
+
+Whether a release is newer is decided against the higher of `current_version` and the `product_version` the installation reported last (activation or entitlement check); a check with `current_version: "0"` does not get a package for a version the installation already reported. An older version is requested explicitly with `target_version`.
+
+A check with `download: true` creates a grant. An installation holds at most two unused grants per package: a further check replaces the oldest one, so the URL of that older check stops working. Ask for the grant right before downloading and use the URL of the latest check. Unused grants are deleted as soon as they expire (hourly); used grants are kept for `wplc_download_grant_retention_days` (default 7).
 
 Errors: `403 license_inactive` (the license grants no access or belongs to another product), `403 activation_deactivated` (see above), `503 package_configuration_invalid` (the release has no trusted HTTPS URL or checksum), `503 download_token_error`.
 
@@ -301,10 +307,11 @@ The product client must verify the signatures of the metadata and the SHA-256 of
 | `staging_parent_required` | 400 | activations | `environment: staging` without a valid `staging_parent_installation_id`. |
 | `rest_missing_callback_param` | 400 | all | A required parameter is missing (WordPress). |
 | `rest_invalid_param` | 400 | all | A parameter has the wrong type, for example an array instead of a string (WordPress). |
+| `request_parameters_unsigned` | 400 | signed | The request carries query parameters or a body that is not `application/json`; only the JSON body is signed. Send the parameters in the JSON body. |
 | `invalid_key` | 401 | activations | The license key is unknown. Ask the user to check the key. |
-| `invalid_request_signature` | 401 | signed | Authentication headers missing, malformed or wrong. |
+| `invalid_request_signature` | 401 | signed | Authentication headers missing or malformed. |
 | `request_expired` | 401 | signed | Timestamp outside five minutes; compare the clock with `data.server_time`. Not a license problem. |
-| `activation_not_found` | 401 | signed | The installation ID is unknown to the server. Activate again. |
+| `activation_not_found` | 401 | signed | The installation ID is unknown to the server, or the signature does not match its credential (both get the same answer). Activate again. |
 | `installation_secret_invalid` | 401 | signed | The server cannot read the stored credential (server-side key problem). Retry later; do not drop local rights. |
 | `product_mismatch` | 403 | activations | The key belongs to another product. |
 | `license_expired` | 403 | activations | Paid period and grace period are over. Offer renewal. |
@@ -319,6 +326,7 @@ The product client must verify the signatures of the metadata and the SHA-256 of
 | `development_limit` | 409 | activations | Too many development activations; `data.development_limit`, `data.development_count`. |
 | `staging_parent_invalid` | 409 | activations | The named live activation is not an active live site of this license. |
 | `staging_site_invalid` | 409 | activations | A staging activation tried to move to a host unrelated to its live site. |
+| `site_move_refused` | 409 | activations | A live activation tried to move to a staging, local or hosting-staging address; `data.site_url` is the activated address. Activate the copy as a staging site with a new installation ID. |
 | `installation_conflict` | 409 | activations | The installation ID exists with another secret, license or environment. Generate a new one. |
 | `activation_conflict` | 409 | activations | The installation ID was taken at the same moment. Retry with a new one. |
 | `site_mismatch` | 409 | deactivation | The `site_url` of the request is not the activated site; nothing was deactivated. |
@@ -342,18 +350,21 @@ Errors of the signed routes (`DELETE /activations/{activation_id}`, `POST /entit
 
 | Status | Code | When |
 | --- | --- | --- |
-| 401 | `invalid_request_signature` | Headers missing or malformed, or the signature does not match |
+| 400 | `request_parameters_unsigned` | Query parameters, or a body that is not `application/json` |
+| 401 | `invalid_request_signature` | Headers missing or malformed |
 | 401 | `request_expired` | Timestamp more than five minutes off |
-| 401 | `activation_not_found`, `installation_secret_invalid` | Installation not active, or its stored credential cannot be read |
-| 409 | `request_replayed` | Nonce already used by this installation in the last ten minutes; sign again with a new nonce |
-| 429 | `rate_limited` | More than 120 requests by this installation within the current minute |
+| 401 | `activation_not_found`, `installation_secret_invalid` | Installation unknown or signature wrong, or its stored credential cannot be read |
+| 409 | `request_replayed` | Nonce already used by this installation in the last eleven minutes; sign again with a new nonce |
+| 429 | `rate_limited` | More than 120 requests by this installation within the current minute, or 100 failed authentications from the client address |
 | 503 | `replay_store_unavailable`, `rate_limit_store_unavailable` | Replay protection or rate limiting could not be recorded; retry later |
 
 Route-specific errors on top: `DELETE /activations/{activation_id}` answers `403 activation_mismatch`, `409 deactivation_failed` and `503 retry_later` (license busy); `POST /entitlements/check` answers `404 license_not_found`; `POST /updates/check` answers `400` for missing arguments, `403 license_inactive` and `503 package_configuration_invalid` or `download_token_error`. `docs/openapi-v1.json` declares all of them.
 
 ## Rate limits behind a proxy or CDN
 
-Failed anonymous activation attempts (unknown key, invalid request) are counted per client address (IPv6: per /64) and per license-key prefix (the first 13 characters of the normalized key). Successful activations are not counted. After 30 failures per address or 20 per prefix within a minute, unknown keys and invalid requests are answered `429 rate_limited`, while a recognized key is still accepted; after another 30 (address) or 20 (prefix) requests in the same minute every request returns `429 rate_limited`. The reasoning is in `docs/SECURITY-OPERATIONS.md` (T-142). A request whose address cannot be determined is counted in one shared bucket.
+Failed anonymous activation attempts (unknown key, invalid request) are counted per client address (IPv6: per /64) and per license-key prefix (the first 13 characters of the normalized key) **from that address**. After 30 failures per address or 20 per prefix and address within a minute, unknown keys and invalid requests are answered `429 rate_limited`, while a recognized key is still accepted; after another 30 (address) or 20 (prefix and address) requests in the same minute every request from that address returns `429 rate_limited`. The prefix is shown in mails and in the customer account, so there is no bucket per prefix alone: failures from one address never block the same key from another address. Guessing gains nothing from many addresses either, because after the prefix a key carries the rest of the license UUID and a 256-bit HMAC. The reasoning is in `docs/SECURITY-OPERATIONS.md` (T-142, P-09). A request whose address cannot be determined is counted in one shared bucket.
+
+Successful activations of **new** installation IDs are limited per license and UTC hour: twice the live-site limit, at least 10 (filter `wplc_new_activations_per_hour`, `0` disables it). Past the limit the answer is `429 rate_limited` with `Retry-After` set to the start of the next hour. Repeated activations of a known installation ID are not counted and never refused by this limit.
 
 The buckets are stored as HMAC-SHA-256 with a server-side key (`WPLC_RATE_LIMIT_KEY` in `wp-config.php`, otherwise derived from the WordPress auth salt), so the table does not contain reversible hashes of addresses, key prefixes or installation IDs.
 
@@ -366,7 +377,7 @@ define( 'WPLC_TRUSTED_PROXIES', array( '173.245.48.0/20', '2400:cb00::/32' ) ); 
 
 - The header is used only when `REMOTE_ADDR` matches an entry of `WPLC_TRUSTED_PROXIES` (single IPs or CIDR ranges, IPv4 and IPv6). IPv4-mapped IPv6 entries such as `::ffff:10.0.0.0/104` are understood as their IPv4 range (`10.0.0.0/8`).
 - For a list header such as `X-Forwarded-For` the right-most address that is not a trusted proxy is used; anything further left is supplied by the client and ignored.
-- If `WPLC_TRUSTED_PROXIES` is not defined, the header is trusted from every peer. That is only safe when the origin server cannot be reached directly (firewall restricted to the proxy); otherwise anyone can send the header and choose their own bucket. With `X-Forwarded-For` and no proxy list the right-most entry is used, which is correct for exactly one proxy in front of the origin.
+- If `WPLC_TRUSTED_PROXIES` is not defined (or empty), the header is **ignored** and `REMOTE_ADDR` is used: otherwise anyone who reaches the origin directly could send the header and choose their own bucket. The diagnostics page warns about a header without a proxy list. List the addresses of your proxies to use the header.
 - The filter `wplc_client_ip` receives the resolved address (or an empty string) for custom setups.
 
 ## Routes
@@ -393,12 +404,13 @@ define( 'WPLC_TRUSTED_PROXIES', array( '173.245.48.0/20', '2400:cb00::/32' ) ); 
 | `wplc_client_ip` | filter | Client address used for the activation limit. |
 | `wplc_log_api_rejection` | filter | Whether a rejected request is written to the log. |
 | `wplc_download_reuse_seconds` | filter | Reuse window of download tokens (default 0: strict single use). |
+| `wplc_new_activations_per_hour` | filter | New installation IDs one license may activate per hour (default: twice the live-site limit, at least 10; `0` disables the limit). |
 | `wplc/api_request_rejected` | action | Every error answer: code, status, method, route. |
 | `wplc/activation_site_mismatch` | action | An installation reported another address than the activated one. |
 | `wplc/response_signing_key_created` | action | The server created its signing key (first use without the constant). |
 | `wplc/response_signing_key_unavailable` | action | Responses cannot be signed with the server key; argument: reason. |
 
-Rejected requests are counted per error code and UTC day (`\WPLC\Api\V1\ApiLog::counts()`, kept two days) and written to the WooCommerce log `wplc-api` (the first 20 per code and day, then every hundredth). The log contains the code, status, method and route, never an address, key or site.
+Rejected requests are counted per error code and UTC minute and read as daily sums (`\WPLC\Api\V1\ApiLog::counts()`, kept two days); above 100 rejections of a code in one minute the counter is sampled (one write per ten rejections), so a flood does not queue on one row. They are written to the WooCommerce log `wplc-api` (the first per code and minute, then every hundredth). The log contains the code, status, method and route, never an address, key or site.
 
 ## Credential rotation and recovery
 

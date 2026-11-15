@@ -444,6 +444,7 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( array( 'redirect', $signed ), array( $halt->kind, $halt->location ) );
 	}
 
+	/** P-11: unused grants are deleted as soon as they expire, used ones after the retention period. */
 	public function test_expired_and_consumed_grants_are_purged_after_the_retention_period(): void {
 		global $wpdb;
 		$tables  = $this->tables();
@@ -454,6 +455,9 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 			'old-expired'    => array( 'expires_at' => $old, 'consumed_at' => null ),
 			'old-consumed'   => array( 'expires_at' => $old, 'consumed_at' => $old ),
 			'recent-expired' => array( 'expires_at' => $recent, 'consumed_at' => null ),
+			'just-expired'   => array( 'expires_at' => gmdate( 'Y-m-d H:i:s', time() - 1 ), 'consumed_at' => null ),
+			'recent-used'    => array( 'expires_at' => $recent, 'consumed_at' => $recent ),
+			'open'           => array( 'expires_at' => gmdate( 'Y-m-d H:i:s', time() + 60 ), 'consumed_at' => null ),
 		);
 		foreach ( $rows as $label => $row ) {
 			$wpdb->insert(
@@ -472,8 +476,8 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 
 		\WPLC\Api\V1\UpdateService::purge_expired_grants();
 
-		$left = $wpdb->get_col( "SELECT token_hash FROM {$tables['download_tokens']}" );
-		$this->assertSame( array( hash( 'sha256', 'recent-expired' ) ), $left );
+		$left = $wpdb->get_col( "SELECT token_hash FROM {$tables['download_tokens']} ORDER BY id" );
+		$this->assertSame( array( hash( 'sha256', 'recent-used' ), hash( 'sha256', 'open' ) ), $left );
 	}
 
 	// ------------------------------------------------------------------
