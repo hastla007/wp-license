@@ -205,9 +205,7 @@ final class LicenseBulkActions {
 	 * @return void
 	 */
 	public static function handle(): void {
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_die( esc_html__( 'You do not have permission to change licenses.', 'wp-license' ), '', array( 'response' => 403 ) );
-		}
+		Capabilities::require_cap( 'manage_licenses', __( 'You do not have permission to change licenses.', 'wp-license' ) );
 		check_admin_referer( self::ACTION );
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Every field is sanitized below.
@@ -465,6 +463,9 @@ final class LicenseBulkActions {
 	 * @return void
 	 */
 	public static function render_form( array $filters ): void {
+		if ( ! Capabilities::can( 'manage_licenses' ) ) {
+			return;
+		}
 		echo '<form method="post" id="wplc-bulk-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-wplc-confirm="' . esc_attr__( 'Apply the selected action to every selected license?', 'wp-license' ) . '">';
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '">';
 		echo '<input type="hidden" name="bulk_token" value="' . esc_attr( self::new_token() ) . '">';
@@ -491,6 +492,9 @@ final class LicenseBulkActions {
 	 * @return void
 	 */
 	public static function render_controls(): void {
+		if ( ! Capabilities::can( 'manage_licenses' ) ) {
+			return;
+		}
 		echo '<div class="alignleft actions bulkactions wplc-bulk-controls">';
 		echo '<label class="screen-reader-text" for="wplc-bulk-action">' . esc_html__( 'Bulk action', 'wp-license' ) . '</label>';
 		echo '<select id="wplc-bulk-action" name="bulk_action" form="wplc-bulk-form"><option value="">' . esc_html__( 'Bulk actions', 'wp-license' ) . '</option>';
@@ -525,12 +529,17 @@ final class LicenseBulkActions {
 		$class   = $result['skipped'] ? 'notice-warning' : 'notice-success';
 
 		echo '<div class="notice ' . esc_attr( $class ) . ' inline wplc-bulk-result"><p><strong>' . esc_html( $label ) . ':</strong> ';
+		$done_count    = count( $result['done'] );
+		$skipped_count = count( $result['skipped'] );
 		echo esc_html(
 			sprintf(
-				/* translators: 1: number of changed licenses, 2: number of skipped licenses. */
-				__( '%1$d done, %2$d skipped.', 'wp-license' ),
-				count( $result['done'] ),
-				count( $result['skipped'] )
+				/* translators: %s: number of changed licenses. */
+				_n( '%s done', '%s done', $done_count, 'wp-license' ),
+				number_format_i18n( $done_count )
+			) . ', ' . sprintf(
+				/* translators: %s: number of skipped licenses. */
+				_n( '%s skipped.', '%s skipped.', $skipped_count, 'wp-license' ),
+				number_format_i18n( $skipped_count )
 			)
 		);
 		echo '</p>';

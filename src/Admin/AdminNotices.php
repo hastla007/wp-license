@@ -89,6 +89,8 @@ final class AdminNotices {
 			'key_resend_requested'    => array( 'success', __( 'The email with the license key was requested for the customer.', 'wp-license' ) ),
 			'key_resend_failed'       => array( 'error', __( 'The key email was not requested. A reason is required, the license needs a customer, and the key must be verifiable with the configured secret.', 'wp-license' ) ),
 			'owner_changed'           => array( 'success', __( 'The license now belongs to the new customer. Automatic renewal was switched off because the stored payment method belongs to the previous owner.', 'wp-license' ) ),
+			'owner_changed_new_key'   => array( 'success', __( 'The license now belongs to the new customer and has a new key; the previous key no longer works. Automatic renewal was switched off because the stored payment method belongs to the previous owner.', 'wp-license' ) ),
+			'owner_changed_key_kept'  => array( 'error', __( 'The license now belongs to the new customer, but no new key could be issued. The previous owner can still use the old key: issue a new key below.', 'wp-license' ) ),
 			'owner_missing_input'     => array( 'error', __( 'A license, the new customer and a reason are required.', 'wp-license' ) ),
 			'owner_unknown_customer'  => array( 'error', __( 'No user account was found for this user ID or email address.', 'wp-license' ) ),
 			'owner_stale'             => array( 'error', __( 'The owner was not changed: the license was changed after you opened the page. Check it and try again.', 'wp-license' ) ),
@@ -100,10 +102,10 @@ final class AdminNotices {
 			'restore_failed'          => array( 'error', __( 'The license was not restored. Check the license status and the end date.', 'wp-license' ) ),
 			'restore_forbidden'       => array( 'error', __( 'Restoring a revoked license needs an administrator.', 'wp-license' ) ),
 			/* translators: 1: number of extended licenses, 2: number of skipped licenses. */
-			'bulk_extended'           => array( 'success', __( 'Terms extended: %1$d. Skipped: %2$d (suspended, revoked, changed in the meantime or with a payment in progress).', 'wp-license' ) ),
+			'bulk_extended'           => array( 'success', __( 'Terms extended: %1$s. Skipped: %2$s (suspended, revoked, changed in the meantime or with a payment in progress).', 'wp-license' ) ),
 			'bulk_extend_missing_input' => array( 'error', __( 'Select at least one license and enter the number of days (1 to 3650) and a reason.', 'wp-license' ) ),
 			/* translators: 1: number of created licenses. */
-			'order_licenses_issued'   => array( 'success', __( 'Licenses created for the order: %1$d. If this is 0, the order already has all its licenses or contains no license product.', 'wp-license' ) ),
+			'order_licenses_issued'   => array( 'success', __( 'Licenses created for the order: %1$s. If this is 0, the order already has all its licenses or contains no license product.', 'wp-license' ) ),
 			'order_issue_failed'      => array( 'error', __( 'No licenses were issued. Enter the number of a paid order and a reason.', 'wp-license' ) ),
 		);
 	}
@@ -230,7 +232,8 @@ final class AdminNotices {
 		}
 
 		$class = 'success' === $message[0] ? 'notice-success' : 'notice-error';
-		$text  = false !== strpos( $message[1], '%1$d' ) ? sprintf( $message[1], $first, $second ) : $message[1];
+		// Counts are shown in the "Label: number" form, which needs no plural, with localized digits.
+		$text  = false !== strpos( $message[1], '%1$' ) ? sprintf( $message[1], number_format_i18n( $first ), number_format_i18n( $second ) ) : $message[1];
 		echo '<div class="notice ' . esc_attr( $class ) . ' is-dismissible"><p>' . esc_html( $text ) . '</p></div>';
 	}
 

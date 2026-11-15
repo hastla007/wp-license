@@ -35,6 +35,11 @@ final class SupportActions {
 	public const RESULT_FAILED     = 'failed';
 
 	/**
+	 * Owner changed, but the requested new key could not be issued (P-38).
+	 */
+	public const RESULT_KEY_KEPT = 'key_kept';
+
+	/**
 	 * Longest reason stored with a status (licenses.status_reason is varchar(255)).
 	 */
 	public const REASON_MAX_LENGTH = 255;
@@ -82,7 +87,7 @@ final class SupportActions {
 			return false;
 		}
 
-		$uuid   = wp_generate_uuid4();
+		$uuid   = LicenseIssuer::new_uuid();
 		$key_id = LicenseKey::current_key_id();
 		$key    = LicenseKey::for_uuid( $uuid, $key_id );
 		if ( '' === $key ) {
@@ -189,14 +194,21 @@ final class SupportActions {
 	 * renewal is switched off and open automatic renewals are cancelled. The new
 	 * owner can renew manually or opt in again with the next payment.
 	 *
+	 * The previous owner knows the key (account, emails). With $new_key the
+	 * license gets a new key right after the hand-over (reissue_key(), so the
+	 * new owner is the one told about it) and the old key stops working; with
+	 * $release_sites every activated site is released as well (P-38).
+	 *
 	 * @param int    $license_id        License ID.
 	 * @param int    $new_customer_id   New owner (existing user).
 	 * @param string $reason            Required reason.
 	 * @param int    $actor_user_id     Acting user.
 	 * @param int    $expected_customer Owner the administrator saw; -1 skips the comparison.
-	 * @return string One of the RESULT_* constants.
+	 * @param bool   $new_key           Also issue a new key.
+	 * @param bool   $release_sites     With $new_key: also release every active site.
+	 * @return string One of the RESULT_* constants; RESULT_KEY_KEPT when the owner changed but no new key could be issued.
 	 */
-	public static function change_owner( int $license_id, int $new_customer_id, string $reason, int $actor_user_id, int $expected_customer = -1 ): string {
+	public static function change_owner( int $license_id, int $new_customer_id, string $reason, int $actor_user_id, int $expected_customer = -1, bool $new_key = false, bool $release_sites = false ): string {
 		global $wpdb;
 
 		$reason  = self::limit_reason( $reason );
@@ -273,6 +285,10 @@ final class SupportActions {
 		 * @param int $actor_user_id   Acting user.
 		 */
 		do_action( 'wplc/license_owner_changed', $license_id, $old_customer, $new_customer_id, $actor_user_id );
+
+		if ( $new_key && ! self::reissue_key( $license_id, $reason, $actor_user_id, $release_sites ) ) {
+			return self::RESULT_KEY_KEPT;
+		}
 
 		return self::RESULT_OK;
 	}

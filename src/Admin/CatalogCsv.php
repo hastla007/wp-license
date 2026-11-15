@@ -119,7 +119,7 @@ final class CatalogCsv {
 		$failed = (int) ( $result['failed'] ?? 0 );
 		echo '<div class="notice ' . ( $failed || ! empty( $result['error'] ) ? 'notice-warning' : 'notice-success' ) . '"><p>';
 		/* translators: 1: number of imported rows, 2: number of rejected rows. */
-		echo esc_html( sprintf( __( 'Imported: %1$d. Skipped or invalid: %2$d.', 'wp-license' ), (int) ( $result['imported'] ?? 0 ), $failed ) );
+		echo esc_html( sprintf( __( 'Imported: %1$s. Skipped or invalid: %2$s.', 'wp-license' ), number_format_i18n( (int) ( $result['imported'] ?? 0 ) ), number_format_i18n( $failed ) ) );
 		echo '</p>';
 		if ( ! empty( $result['error'] ) ) {
 			echo '<p><strong>' . esc_html( self::reason_message( (string) $result['error'] ) ) . '</strong></p>';
@@ -138,8 +138,9 @@ final class CatalogCsv {
 			}
 			echo '</tbody></table>';
 			if ( $failed > count( $errors ) ) {
-				/* translators: %d: number of further rejected rows. */
-				echo '<p>' . esc_html( sprintf( __( '… and %d more rejected rows.', 'wp-license' ), $failed - count( $errors ) ) ) . '</p>';
+				$more = $failed - count( $errors );
+				/* translators: %s: number of further rejected rows. */
+				echo '<p>' . esc_html( sprintf( _n( '… and %s more rejected row.', '… and %s more rejected rows.', $more, 'wp-license' ), number_format_i18n( $more ) ) ) . '</p>';
 			}
 		}
 		echo '</div>';

@@ -1231,16 +1231,25 @@ final class CustomerPortal {
 	}
 
 	/**
-	 * Print a POST form to deactivate a site (used by the license template).
+	 * Print a POST form to deactivate a site (license template and the Sites page).
 	 *
 	 * @param int    $activation_id Activation ID.
 	 * @param string $site_url      Site URL, for the confirmation question.
+	 * @param string $form_url      Page the form posts to and returns to; the current form URL when empty.
 	 * @return void
 	 */
-	public static function render_deactivate_form( int $activation_id, string $site_url = '' ): void {
+	public static function render_deactivate_form( int $activation_id, string $site_url = '', string $form_url = '' ): void {
 		/* translators: %s: site URL. */
 		$question = sprintf( __( 'Deactivate %s? The site loses updates and premium features until it is activated again.', 'wp-license' ), $site_url );
-		self::open_form( 'wplc_deactivate_site', array( 'activation_id' => (string) $activation_id ), 'wplc_deactivate_site_' . $activation_id, $question, 'wplc-inline' );
+		$previous = self::$form_url;
+		if ( '' !== $form_url ) {
+			self::$form_url = $form_url;
+		}
+		try {
+			self::open_form( 'wplc_deactivate_site', array( 'activation_id' => (string) $activation_id ), 'wplc_deactivate_site_' . $activation_id, $question, 'wplc-inline' );
+		} finally {
+			self::$form_url = $previous;
+		}
 		echo '<button type="submit" class="button">' . esc_html__( 'Deactivate', 'wp-license' );
 		/* translators: %s: site URL. */
 		echo '<span class="screen-reader-text"> ' . esc_html( sprintf( __( 'site %s', 'wp-license' ), $site_url ) ) . '</span></button>';

@@ -654,9 +654,7 @@ final class Diagnostics {
 
 	/** Forget the cached package storage probe and return to the page. */
 	public static function handle_storage_recheck(): void {
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_die( esc_html__( 'You do not have permission to view diagnostics.', 'wp-license' ), '', array( 'response' => 403 ) );
-		}
+		Capabilities::require_cap( 'view_diagnostics', __( 'You do not have permission to view diagnostics.', 'wp-license' ) );
 		check_admin_referer( 'wplc_storage_recheck' );
 		PackageStorageCheck::forget();
 		wp_safe_redirect( admin_url( 'admin.php?page=wplc-diagnostics' ) );
@@ -928,7 +926,7 @@ final class Diagnostics {
 		$add(
 			__( 'License keys verifiable with the current secret', 'wp-license' ),
 			/* translators: 1: number of verifiable keys, 2: number of checked keys. */
-			sprintf( __( '%1$d of the %2$d most recent keys', 'wp-license' ), $sample['verified'], $sample['checked'] ),
+			sprintf( _n( '%1$s of the %2$s most recent key', '%1$s of the %2$s most recent keys', $sample['checked'], 'wp-license' ), number_format_i18n( $sample['verified'] ), number_format_i18n( $sample['checked'] ) ),
 			$sample['verified'] === $sample['checked'] ? 'ok' : 'warning',
 			$sample['verified'] === $sample['checked'] ? '' : __( 'The secret or the salts were changed. Customers with these keys see "not available" and their sites cannot be activated again. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS.', 'wp-license' )
 		);

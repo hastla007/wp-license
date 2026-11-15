@@ -118,9 +118,14 @@ final class KeyConfigurationNotice {
 			echo esc_html(
 				sprintf(
 					/* translators: 1: number of keys that cannot be verified, 2: number of checked keys. */
-					__( '%1$d of the %2$d most recent license keys cannot be reproduced. These customers see "not available" instead of their key, and their keys are rejected on activation. The secret in wp-config.php or the WordPress salts were changed.', 'wp-license' ),
-					$keys['failed'],
-					$keys['checked']
+					_n(
+						'%1$s of the %2$s most recent license key cannot be reproduced. These customers see "not available" instead of their key, and their keys are rejected on activation. The secret in wp-config.php or the WordPress salts were changed.',
+						'%1$s of the %2$s most recent license keys cannot be reproduced. These customers see "not available" instead of their key, and their keys are rejected on activation. The secret in wp-config.php or the WordPress salts were changed.',
+						(int) $keys['checked'],
+						'wp-license'
+					),
+					number_format_i18n( (int) $keys['failed'] ),
+					number_format_i18n( (int) $keys['checked'] )
 				)
 			);
 			echo '</p>';
