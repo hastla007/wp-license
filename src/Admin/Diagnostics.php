@@ -10,6 +10,7 @@ namespace WPLC\Admin;
 use WPLC\Api\V1\ClientIp;
 use WPLC\Compatibility\Requirements;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\Infrastructure\Database\SiteCleanupHelper;
 use WPLC\License\LicenseLifecycle;
 use WPLC\Update\LocalPackageStorage;
 use WPLC\Update\PackageStorageCheck;
@@ -900,6 +901,9 @@ final class Diagnostics {
 			$missing ? 'warning' : 'ok',
 			$missing ? __( 'These tables are missing. Deactivate and reactivate the plugin.', 'wp-license' ) : ''
 		);
+		if ( is_multisite() ) {
+			self::add_site_cleanup_row( $add );
+		}
 		// Target/actual comparison of every column (Schema::status()).
 		$structure = Schema::status()['problems'];
 		$add(
@@ -1187,6 +1191,35 @@ final class Diagnostics {
 		$received = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(received_at) FROM %i WHERE source = %s", $tables['event_inbox'], 'stripe' ) );
 
 		return is_string( $received ) && '' !== $received ? Format::date( $received, true ) : __( 'None received yet', 'wp-license' );
+	}
+
+	/**
+	 * Multisite: whether a deleted site's tables are dropped also without the plugin (P-32).
+	 *
+	 * @param callable $add Row callback of rows().
+	 * @return void
+	 */
+	private static function add_site_cleanup_row( callable $add ): void {
+		$label  = __( 'Site cleanup helper (must-use)', 'wp-license' );
+		$status = SiteCleanupHelper::status();
+		if ( SiteCleanupHelper::STATUS_INSTALLED === $status ) {
+			$add( $label, __( 'Installed', 'wp-license' ), 'ok' );
+			return;
+		}
+		if ( SiteCleanupHelper::STATUS_OUTDATED === $status ) {
+			$add( $label, __( 'Older copy installed', 'wp-license' ), 'warning', __( 'Run wp wplc schema install-mu-helper to replace it with the version shipped with this plugin.', 'wp-license' ) );
+			return;
+		}
+		if ( SiteCleanupHelper::STATUS_FOREIGN === $status ) {
+			/* translators: %s: file name. */
+			$add( $label, sprintf( __( 'Another file named %s is in the must-use directory', 'wp-license' ), SiteCleanupHelper::FILE_NAME ), 'warning' );
+			return;
+		}
+		if ( function_exists( 'is_plugin_active_for_network' ) && defined( 'WPLC_FILE' ) && is_plugin_active_for_network( plugin_basename( WPLC_FILE ) ) ) {
+			$add( $label, __( 'Not installed (not needed while the plugin is network-activated)', 'wp-license' ) );
+			return;
+		}
+		$add( $label, __( 'Not installed', 'wp-license' ), 'warning', __( 'If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/MULTISITE.md).', 'wp-license' ) );
 	}
 
 	/**

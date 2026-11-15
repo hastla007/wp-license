@@ -8,13 +8,14 @@
 namespace WPLC\CLI;
 
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\Infrastructure\Database\SiteCleanupHelper;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * `wp wplc schema`: structure check and leftover tables of deleted network sites (P-32, P-53).
+ * `wp wplc schema`: structure check, leftover tables of deleted network sites and the site cleanup helper (P-32, P-53).
  */
 final class SchemaCommand {
 
@@ -117,5 +118,84 @@ final class SchemaCommand {
 				number_format_i18n( count( $tables ) )
 			)
 		);
+	}
+
+	/**
+	 * Install the must-use helper that drops a deleted site's wplc_* tables (multisite).
+	 *
+	 * Copies mu-plugins/wplc-site-cleanup.php from the plugin into wp-content/mu-plugins/
+	 * (replacing an older copy). Needed only when the plugin is active on single sites of a
+	 * network: WordPress does not load it in the request that deletes such a site.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--yes]
+	 * : Do not ask for confirmation.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp wplc schema install-mu-helper --yes
+	 *
+	 * @subcommand install-mu-helper
+	 *
+	 * @param array<int,string>   $args       Positional arguments.
+	 * @param array<string,mixed> $assoc_args Options.
+	 * @return void
+	 */
+	public function install_mu_helper( array $args, array $assoc_args ): void {
+		if ( ! is_multisite() ) {
+			\WP_CLI::warning( __( 'Not a multisite network: the helper is not needed.', 'wp-license' ) );
+		}
+		$target = SiteCleanupHelper::target();
+		if ( SiteCleanupHelper::STATUS_INSTALLED === SiteCleanupHelper::status() ) {
+			/* translators: %s: file path. */
+			\WP_CLI::success( sprintf( __( 'The helper is already installed: %s', 'wp-license' ), $target ) );
+			return;
+		}
+		\WP_CLI::confirm(
+			/* translators: %s: file path. */
+			sprintf( __( 'Install %s? From then on, deleting a network site also drops its wplc_* tables with all license data.', 'wp-license' ), $target ),
+			$assoc_args
+		);
+		$error = SiteCleanupHelper::install();
+		if ( '' !== $error ) {
+			\WP_CLI::error( $error );
+		}
+		/* translators: %s: file path. */
+		\WP_CLI::success( sprintf( __( 'Installed %s.', 'wp-license' ), $target ) );
+	}
+
+	/**
+	 * Remove the must-use helper installed with install-mu-helper.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--yes]
+	 * : Do not ask for confirmation.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp wplc schema remove-mu-helper --yes
+	 *
+	 * @subcommand remove-mu-helper
+	 *
+	 * @param array<int,string>   $args       Positional arguments.
+	 * @param array<string,mixed> $assoc_args Options.
+	 * @return void
+	 */
+	public function remove_mu_helper( array $args, array $assoc_args ): void {
+		$target = SiteCleanupHelper::target();
+		if ( SiteCleanupHelper::STATUS_MISSING === SiteCleanupHelper::status() ) {
+			\WP_CLI::success( __( 'The helper is not installed.', 'wp-license' ) );
+			return;
+		}
+		/* translators: %s: file path. */
+		\WP_CLI::confirm( sprintf( __( 'Delete %s?', 'wp-license' ), $target ), $assoc_args );
+		$error = SiteCleanupHelper::remove();
+		if ( '' !== $error ) {
+			\WP_CLI::error( $error );
+		}
+		/* translators: %s: file path. */
+		\WP_CLI::success( sprintf( __( 'Removed %s.', 'wp-license' ), $target ) );
 	}
 }
