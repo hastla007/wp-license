@@ -241,6 +241,7 @@
           "Updates"
         ],
         "summary": "Consume a short-lived, one-use update grant",
+        "description": "The package_url returned by POST /updates/check. The token is a random single-use value (stored only as SHA-256) with no relation to the license key or installation secret. It is valid for five minutes (download_expires_at), bound to the installation that requested it, and used up by the first request that presents it, also when that request fails (404); clients request a fresh grant with a new update check right before downloading. The URL format is unchanged since 1.0.",
         "operationId": "downloadUpdate",
         "security": [],
         "parameters": [
@@ -277,7 +278,7 @@
             }
           },
           "404": {
-            "description": "Grant is invalid, expired, consumed, or no longer entitled."
+            "description": "Grant is invalid, expired, already presented once, or no longer entitled (license without access, installation deactivated)."
           }
         }
       }
@@ -353,6 +354,7 @@
           "Updates"
         ],
         "summary": "Stream a locally stored release package for a short-lived, one-use token",
+        "description": "Only reached as the redirect target of GET /updates/download/{token}. The token is valid for 60 seconds and used up by the first request that presents it, whatever the outcome.",
         "operationId": "streamPackage",
         "security": [],
         "parameters": [
@@ -368,10 +370,10 @@
         ],
         "responses": {
           "200": {
-            "description": "The package ZIP (application/zip). Sent with Cache-Control: no-store."
+            "description": "The package ZIP (application/zip). Sent with Cache-Control: no-store and Referrer-Policy: no-referrer."
           },
           "404": {
-            "description": "Unknown, expired or already used token."
+            "description": "Unknown, expired or already presented token, or the license no longer has access."
           }
         }
       }

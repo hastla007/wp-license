@@ -71,12 +71,22 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
 		$property->setAccessible( true );
 		$steps = $property->getValue();
-		$this->assertSame( '15', Schema::VERSION );
 		$this->assertArrayHasKey( '15', $steps );
 		$this->assertSame( 'step_15_list_indexes', $steps['15'][1] );
-		// An install on schema 14 runs only the new step; one on 13 runs 14 and 15.
-		$this->assertSame( array( '15' ), Schema::pending_step_versions( '14', Schema::VERSION, array_keys( $steps ) ) );
-		$this->assertSame( array( '14', '15' ), Schema::pending_step_versions( '13', Schema::VERSION, array_keys( $steps ) ) );
+		// An install on schema 14 runs 15; one on 13 runs 14 and 15.
+		$this->assertSame( array( '15' ), Schema::pending_step_versions( '14', '15', array_keys( $steps ) ) );
+		$this->assertSame( array( '14', '15' ), Schema::pending_step_versions( '13', '15', array_keys( $steps ) ) );
+	}
+
+	public function test_schema_16_adds_the_grant_activation_step(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$property->setAccessible( true );
+		$steps = $property->getValue();
+		$this->assertSame( '16', Schema::VERSION );
+		$this->assertArrayHasKey( '16', $steps );
+		$this->assertSame( 'step_16_grant_activation_column', $steps['16'][1] );
+		$this->assertSame( array( '16' ), Schema::pending_step_versions( '15', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '15', '16' ), Schema::pending_step_versions( '14', Schema::VERSION, array_keys( $steps ) ) );
 	}
 
 	public function test_each_successful_step_is_recorded_in_order(): void {

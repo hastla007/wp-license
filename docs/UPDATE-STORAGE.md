@@ -54,7 +54,7 @@ location ^~ /wp-content/uploads/wplc-packages/ { deny all; }
 2. When the client redeems its grant, `UpdateService::download()` applies `wplc_resolve_update_package_url`. `WPLC\Update\PackageStream::resolve()` recognizes the placeholder, stores a stream grant in `{prefix}wplc_package_streams` (only the SHA-256 of the token) and returns `…/wp-json/wplc/v1/packages/{token}`.
 3. That route checks the grant, the license and the release, marks the grant as consumed with one conditional `UPDATE` (so two parallel requests cannot both succeed), and streams the file with `Content-Type: application/zip`, `Content-Length`, `Content-Disposition`, `X-Content-Type-Options: nosniff` and `Cache-Control: no-store`.
 
-A stream link is valid for 5 minutes and for one request. An interrupted download needs a new update check. Old grants are deleted by the daily `wplc_daily_lifecycle` job.
+A stream link is valid for 60 seconds and for one request: the first request that presents it uses it up, also when it fails. It is only handed out as a redirect target that the client follows at once. An interrupted download needs a new update check. Customer downloads from the account page do not use stream links; the ZIP is sent in the response to the POST form. Old grants are deleted by the daily `wplc_daily_lifecycle` job.
 
 Requirements: the shop must be reachable over **HTTPS on the standard port**, because the update API only redirects to such URLs. The shop host is always kept in `wplc_update_package_hosts`.
 

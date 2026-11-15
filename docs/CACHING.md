@@ -22,12 +22,13 @@ Rules of thumb for the cache configuration:
 
 `POST /wp-json/wplc/v1/updates/check` returns a `package_url` that points to `GET /wp-json/wplc/v1/updates/download/{token}`. Although it is a `GET`, it is not cacheable:
 
-- the token is valid for a short time and is consumed by the first request; the second request for the same URL is rejected by design;
+- the token is valid for five minutes and is consumed by the first request that presents it, even when that request fails; the second request for the same URL is rejected by design (the same holds for the 60-second `/wp-json/wplc/v1/packages/{token}` stream link the download may redirect to);
 - the response is a redirect to the package host, and the license is checked again at that moment.
 
 Consequences:
 
-- A cache, link scanner, "preload/prefetch" feature, uptime monitor or security proxy that requests the URL first uses the grant up, and the customer's update then fails. Exclude `/wp-json/wplc/v1/updates/download/` from every component that issues its own requests.
+- A cache, link scanner, "preload/prefetch" feature, uptime monitor or security proxy that requests the URL first uses the grant up, and the customer's update then fails. Exclude `/wp-json/wplc/v1/updates/download/` and `/wp-json/wplc/v1/packages/` from every component that issues its own requests.
+- Access logs and proxies may record these URLs: a recorded token has already been used by the request that was logged (see [UPDATES.md](UPDATES.md#download-tokens-in-urls-t-108)).
 - Do not cache the redirect response. A cached redirect would hand the package location to requests without a valid grant.
 - Clients must not retry the same URL; they request a new grant with another update check.
 

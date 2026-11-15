@@ -16,10 +16,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Serves premium update metadata to activated installations.
+ *
+ * The WordPress updater downloads `package` with a plain GET and no custom headers, so the grant has to be in the
+ * URL and reaches access logs and proxies (T-108). The URL therefore carries only a random, single-use value that
+ * is stored as a SHA-256 hash and has no relation to the license key or the installation secret. It is valid for
+ * five minutes, bound to the installation that asked for it (it stops working when that activation ends) and used
+ * up by the first request that presents it, whatever that request's outcome: a value seen in a log is useless.
  */
 final class UpdateService {
-	/** @var int Short-lived download grant lifetime. */
-	private const TOKEN_TTL = 600;
+	/** @var int Short-lived download grant lifetime. Clients ask for a fresh grant right before downloading. */
+	public const TOKEN_TTL = 300;
 
 	/**
 	 * Return the current update for one active product installation.
@@ -69,13 +75,14 @@ final class UpdateService {
 			$tables['download_tokens'],
 			array(
 				'license_id' => (int) $license['id'],
+				'activation_id' => (int) $activation['id'],
 				'token_hash' => $token_hash,
 				'package_url' => $url,
 				'expires_at' => $expires_at,
 				'consumed_at' => null,
 				'created_at' => $now,
 			),
-			array( '%d', '%s', '%s', '%s', '%s', '%s' )
+			array( '%d', '%d', '%s', '%s', '%s', '%s', '%s' )
 		);
 		if ( false === $inserted ) {
 			return new \WP_Error( 'download_token_error', __( 'A secure package download could not be prepared.', 'wp-license' ), array( 'status' => 503 ) );
@@ -99,6 +106,10 @@ final class UpdateService {
 	/**
 	 * Consume a one-time grant and redirect to the trusted package host.
 	 *
+	 * The grant is used up before anything else is checked (T-108). A request that fails afterwards (license without
+	 * access, installation deactivated, storage hook returning a URL that is not allowed) has still consumed it; the
+	 * client asks for a fresh grant with a new update check.
+	 *
 	 * @param \WP_REST_Request $request REST request.
 	 * @return void
 	 */
@@ -121,25 +132,34 @@ final class UpdateService {
 		$now = gmdate( 'Y-m-d H:i:s' );
 		$grant = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT dt.package_url, dt.license_id, l.status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end FROM {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id WHERE dt.token_hash = %s AND dt.consumed_at IS NULL AND dt.expires_at > %s LIMIT 1",
+				"SELECT dt.package_url, dt.license_id, dt.activation_id, l.status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end FROM {$tables['download_tokens']} dt INNER JOIN {$tables['licenses']} l ON l.id = dt.license_id WHERE dt.token_hash = %s AND dt.consumed_at IS NULL AND dt.expires_at > %s LIMIT 1",
 				$token_hash,
 				$now
 			),
 			ARRAY_A
 		);
-		if ( is_array( $grant ) && ! LicenseLifecycle::has_access( $grant ) ) {
-			$grant = null;
-		}
-		if ( ! is_array( $grant ) || ! self::trusted_package_url( (string) $grant['package_url'] ) ) {
+		if ( ! is_array( $grant ) ) {
 			status_header( 404 );
 			exit;
 		}
-		// T-142: resolve and validate the target before the grant is consumed, so
-		// a storage hook returning a URL that is not allowed leaves the grant
-		// usable once the hook is fixed. The resolved URL is handed out only
-		// after the atomic consume below; a request that loses that race
-		// discards it (a stream token issued by PackageStream::resolve() then
-		// simply expires unused).
+		// T-108: single use on first presentation. Only one concurrent request can flip consumed_at, and it does so
+		// before any other check, so the value in the URL never works a second time, also not after a failure.
+		$consumed = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$tables['download_tokens']} SET consumed_at = %s, package_url = '' WHERE token_hash = %s AND consumed_at IS NULL AND expires_at > %s",
+				$now,
+				$token_hash,
+				$now
+			)
+		);
+		if ( 1 !== (int) $consumed
+			|| ! LicenseLifecycle::has_access( $grant )
+			|| ! self::activation_is_active( (int) $grant['activation_id'], (int) $grant['license_id'] )
+			|| ! self::trusted_package_url( (string) $grant['package_url'] )
+		) {
+			status_header( 404 );
+			exit;
+		}
 		$download_url = apply_filters(
 			'wplc_resolve_update_package_url',
 			(string) $grant['package_url'],
@@ -149,20 +169,35 @@ final class UpdateService {
 			status_header( 404 );
 			exit;
 		}
-		$consumed = $wpdb->query(
-			$wpdb->prepare(
-				"UPDATE {$tables['download_tokens']} SET consumed_at = %s, package_url = '' WHERE token_hash = %s AND consumed_at IS NULL AND expires_at > %s",
-				$now,
-				$token_hash,
-				$now
-			)
-		);
-		if ( 1 !== (int) $consumed ) {
-			status_header( 404 );
-			exit;
-		}
 		wp_redirect( $download_url, 302, 'WP License Captain' );
 		exit;
+	}
+
+	/**
+	 * Whether the installation a grant was issued to is still active for that license.
+	 *
+	 * Grants issued before schema 16 carry no activation (0) and are only bound to the license.
+	 *
+	 * @param int $activation_id Activation ID from the grant.
+	 * @param int $license_id    License ID from the grant.
+	 * @return bool
+	 */
+	private static function activation_is_active( int $activation_id, int $license_id ): bool {
+		global $wpdb;
+
+		if ( 0 === $activation_id ) {
+			return true;
+		}
+		$tables = Schema::table_names();
+
+		return 1 === (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$tables['activations']} WHERE id = %d AND license_id = %d AND status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+				$activation_id,
+				$license_id,
+				'active'
+			)
+		);
 	}
 
 	/**

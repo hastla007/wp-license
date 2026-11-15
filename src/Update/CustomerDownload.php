@@ -20,7 +20,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * The update feed needs an activated installation, so the very first ZIP is
  * delivered here: from the customer account, to the owner of a license with
- * access, through the same single-use stream as updates.
+ * access. A local package is sent in the response to the POST form, so no
+ * download token appears in a URL (T-108); an external package is a redirect
+ * to the resolved, allow-listed URL.
  */
 final class CustomerDownload {
 	const ACTION = 'wplc_download_package';
@@ -113,16 +115,16 @@ final class CustomerDownload {
 			self::fail( __( 'No download is available for this product yet.', 'wp-license' ), 404 );
 		}
 
-		if ( ReleaseRegistry::STORAGE_LOCAL === $release['storage'] ) {
-			$token = PackageStream::issue( $release, $license_id, PackageStream::SOURCE_CUSTOMER );
-			$target = '' === $token ? '' : PackageStream::stream_url( $token );
-			$token_hash = '' === $token ? '' : hash( 'sha256', $token );
+		$local = ReleaseRegistry::STORAGE_LOCAL === $release['storage'];
+		if ( $local ) {
+			// T-108: the file is sent in the response to this POST request; no download token ever appears in a URL.
+			$target = null === LocalPackageStorage::path_for_key( (string) $release['package_url'] ) ? '' : 'local';
 		} else {
 			$target = apply_filters( 'wplc_resolve_update_package_url', (string) $release['package_url'], $license_id );
 			$target = is_string( $target ) && PackageStream::is_trusted_url( $target ) ? $target : '';
-			// Recorded as an already consumed grant: it only feeds the hourly limit.
-			$token_hash = '' === $target ? '' : self::record_external_download( (int) $release['id'], $license_id );
 		}
+		// Recorded as an already consumed grant: it only feeds the hourly limit.
+		$token_hash = '' === $target ? '' : self::record_download( (int) $release['id'], $license_id );
 		if ( '' === $target || '' === $token_hash ) {
 			self::fail( __( 'The download could not be prepared. Please try again later.', 'wp-license' ), 503 );
 		}
@@ -149,7 +151,13 @@ final class CustomerDownload {
 		);
 
 		nocache_headers();
-		// The target is either this site's streaming route or a host from the explicit allow-list.
+		if ( $local ) {
+			if ( ! PackageStream::deliver( $release ) ) {
+				self::fail( __( 'The download could not be prepared. Please try again later.', 'wp-license' ), 503 );
+			}
+			exit;
+		}
+		// The target is a host from the explicit allow-list.
 		wp_redirect( $target, 302, 'WP License Captain' ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
 		exit;
 	}
@@ -198,13 +206,13 @@ final class CustomerDownload {
 	}
 
 	/**
-	 * Record a download that is served by an external host.
+	 * Record a customer download as an already consumed stream row (it only feeds the hourly limit).
 	 *
 	 * @param int $release_id Release ID.
 	 * @param int $license_id License ID.
 	 * @return string Row token hash, or an empty string on failure.
 	 */
-	private static function record_external_download( int $release_id, int $license_id ): string {
+	private static function record_download( int $release_id, int $license_id ): string {
 		global $wpdb;
 
 		$tables = Schema::table_names();

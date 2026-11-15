@@ -4,8 +4,20 @@
 
 1. A shop manager adds a release under **WooCommerce → License releases** and publishes it.
 2. The license client signs `POST /wp-json/wplc/v1/updates/check` with the installation HMAC headers and sends `product_key` and `current_version`.
-3. The server answers with the highest published version of that product. The signed response contains the SHA-256 of the package and a ten-minute, one-use `package_url` on the license server.
-4. The client downloads through that URL. The server consumes the grant with one conditional database update, checks the license again and redirects to the package: a pre-signed storage URL, a plain HTTPS URL, or the local streaming route (see [UPDATE-STORAGE.md](UPDATE-STORAGE.md)).
+3. The server answers with the highest published version of that product. The signed response contains the SHA-256 of the package and a five-minute, one-use `package_url` on the license server, bound to the requesting installation.
+4. The client downloads through that URL. The server consumes the grant with one conditional database update, checks the license and the installation again and redirects to the package: a pre-signed storage URL, a plain HTTPS URL, or the local streaming route (see [UPDATE-STORAGE.md](UPDATE-STORAGE.md)).
+
+### Download tokens in URLs (T-108)
+
+The WordPress updater downloads the `package` URL with a plain `GET` and cannot send headers, so the grant has to be part of the URL and reaches web server access logs, reverse proxies and CDN logs. The design makes sure that whatever these logs record is useless:
+
+- **Not a secret of anything else.** The token is 32 random bytes, stored only as SHA-256, with no relation to the license key or the installation secret.
+- **Used up on first presentation.** The first request that names a live grant consumes it with one conditional update, *before* any other check. A request that then fails (license without access, installation deactivated, storage hook returning a host that is not allowed) has still used it up and answers `404`. The logged request is the one that used the token. (Until T-108 a failed storage hook left the grant usable, T-142; the client now simply asks for a fresh grant.)
+- **Short and bound.** Valid for five minutes (`download_expires_at`), and only while the installation that asked for it is still active for that license.
+- **Second hop.** For local storage the redirect target `/packages/{token}` carries its own, separate token: valid for 60 seconds, used up on first presentation the same way, sent with `Cache-Control: no-store` and `Referrer-Policy: no-referrer`. Pre-signed storage URLs are governed by the storage provider; keep their lifetime short (see [UPDATE-STORAGE.md](UPDATE-STORAGE.md)).
+- **Customer downloads carry no token in a URL.** The account page's POST form gets the ZIP in its response (local storage).
+
+Clients therefore must request a fresh grant with `POST /updates/check` right before downloading and must not retry a failed download with the same URL. The add-on starter (`examples/premium-addon-starter`) does this in `upgrader_pre_download`. The URL format and the response fields are unchanged, so clients in the field keep working; a client that downloads a URL stored hours earlier fails as before and has to refresh.
 5. The client must verify the response HMAC and compare the SHA-256 of the downloaded ZIP with the returned checksum before installing.
 
 ## Release registry
@@ -83,7 +95,7 @@ add_filter( 'wplc_update_packages', function ( $packages, $product_key ) {
 
 The update feed needs an activated installation, so the first ZIP comes from the customer account. `WPLC\Update\CustomerDownload::render_button( $license_row )` prints a "Download version x.y.z" button when the logged-in user owns the license, the license has access and a published release exists; otherwise it prints nothing.
 
-The button posts to `admin-post.php?action=wplc_download_package`. The handler checks the nonce, the owner (`customer_id`), `LicenseLifecycle::has_access()` and the latest published release, then redirects to a single-use streaming link (local storage) or to the resolved, allow-listed HTTPS URL. Downloads are limited to 10 per license and hour (`wplc_customer_download_hourly_limit`) and audited as `package_downloaded`.
+The button posts to `admin-post.php?action=wplc_download_package`. The handler checks the nonce, the owner (`customer_id`), `LicenseLifecycle::has_access()` and the latest published release, then sends the ZIP in the response to the POST request (local storage; no download token ever appears in a URL) or redirects to the resolved, allow-listed HTTPS URL. Downloads are limited to 10 per license and hour (`wplc_customer_download_hourly_limit`) and audited as `package_downloaded`.
 
 ## Building this plugin's own release
 

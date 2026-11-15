@@ -21,9 +21,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  * (release_url()). After UpdateService has consumed its own download grant it
  * applies `wplc_resolve_update_package_url`; resolve() then issues a stream
  * token and returns the streaming route, which serves the file through PHP.
+ *
+ * The stream token is in the URL path, so it reaches access logs and proxies
+ * (T-108). It is only ever handed out as the target of a redirect that the
+ * client follows at once, so it lives for one minute, and the first request
+ * that presents it uses it up, whatever the outcome: a logged value is useless.
+ * Customer downloads from the account page do not use stream URLs at all;
+ * deliver() sends the file in the response to the POST form.
  */
 final class PackageStream {
-	const TTL = 300;
+	const TTL = 60;
 	const SOURCE_UPDATE = 'update';
 	const SOURCE_CUSTOMER = 'customer';
 	const REST_NAMESPACE = 'wplc/v1';
@@ -204,23 +211,11 @@ final class PackageStream {
 			),
 			ARRAY_A
 		);
-		if ( ! is_array( $grant ) || ! LicenseLifecycle::has_access( $grant ) ) {
+		if ( ! is_array( $grant ) ) {
 			return $not_found;
 		}
-		$release = ReleaseRegistry::get( (int) $grant['release_id'] );
-		if ( null === $release
-			|| ReleaseRegistry::STATUS_PUBLISHED !== $release['status']
-			|| ReleaseRegistry::STORAGE_LOCAL !== $release['storage']
-		) {
-			return $not_found;
-		}
-		$path = LocalPackageStorage::path_for_key( (string) $release['package_url'] );
-		$size = null === $path ? false : filesize( $path );
-		if ( null === $path || false === $size ) {
-			return $not_found;
-		}
-
-		// Atomic single use: only one concurrent request can flip consumed_at.
+		// Atomic single use: only one concurrent request can flip consumed_at. The token is used up before
+		// anything else is checked, so a value that appeared in a log never works again (T-108).
 		$consumed = $wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$tables['package_streams']} SET consumed_at = %s WHERE token_hash = %s AND consumed_at IS NULL AND expires_at > %s",
@@ -229,12 +224,39 @@ final class PackageStream {
 				$now
 			)
 		);
-		if ( 1 !== (int) $consumed ) {
+		if ( 1 !== (int) $consumed || ! LicenseLifecycle::has_access( $grant ) ) {
 			return $not_found;
 		}
-
-		self::send_file( $path, (int) $size, self::download_name( $release ) );
+		$release = ReleaseRegistry::get( (int) $grant['release_id'] );
+		if ( null === $release || ! self::deliver( $release ) ) {
+			return $not_found;
+		}
 		exit;
+	}
+
+	/**
+	 * Send a published local release to the current request.
+	 *
+	 * Callers check access and record the download first. Returns only when the release is not a published local
+	 * package or its file is missing; otherwise it has sent the file and the caller must exit.
+	 *
+	 * @param array<string,mixed> $release Release row.
+	 * @return bool False when nothing was sent.
+	 */
+	public static function deliver( array $release ): bool {
+		if ( ReleaseRegistry::STATUS_PUBLISHED !== (string) ( $release['status'] ?? '' )
+			|| ReleaseRegistry::STORAGE_LOCAL !== (string) ( $release['storage'] ?? '' )
+		) {
+			return false;
+		}
+		$path = LocalPackageStorage::path_for_key( (string) ( $release['package_url'] ?? '' ) );
+		$size = null === $path ? false : filesize( $path );
+		if ( null === $path || false === $size ) {
+			return false;
+		}
+		self::send_file( $path, (int) $size, self::download_name( $release ) );
+
+		return true;
 	}
 
 	/**
@@ -337,6 +359,7 @@ final class PackageStream {
 		if ( function_exists( 'set_time_limit' ) ) {
 			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged
 		}
+		status_header( 200 );
 		// Compression would invalidate Content-Length.
 		@ini_set( 'zlib.output_compression', 'Off' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.IniSet.Risky
 		while ( ob_get_level() > 0 ) {
@@ -346,12 +369,12 @@ final class PackageStream {
 			header_remove( 'Content-Encoding' );
 			header_remove( 'Link' );
 		}
-		status_header( 200 );
 		header( 'Content-Type: application/zip' );
 		header( 'Content-Length: ' . $size );
 		header( 'Content-Disposition: attachment; filename="' . $download_name . '"' );
 		header( 'X-Content-Type-Options: nosniff' );
-		header( 'Cache-Control: no-store' );
+		header( 'Cache-Control: no-store, private' );
+		header( 'Referrer-Policy: no-referrer' );
 		header( 'X-Robots-Tag: noindex, nofollow' );
 		readfile( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
 	}
