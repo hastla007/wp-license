@@ -515,9 +515,7 @@ final class DailyRunner {
 	public static function record_failure( string $job, \Throwable $error ): void {
 		$message = get_class( $error ) . ': ' . $error->getMessage() . ' (' . basename( $error->getFile() ) . ':' . $error->getLine() . ')';
 		try {
-			if ( function_exists( 'wc_get_logger' ) ) {
-				wc_get_logger()->error( 'Job "' . $job . '" failed and was skipped: ' . $message, array( 'source' => 'wp-license' ) );
-			}
+			\WPLC\Infrastructure\Log::write( 'error', 'Job "' . $job . '" failed and was skipped: ' . $message, array( 'job' => $job ) );
 			$failures         = self::failures();
 			$failures[ $job ] = array(
 				'time'    => time(),

@@ -616,12 +616,6 @@ final class GapReconciler {
 	 * @return void
 	 */
 	private static function log( string $message ): void {
-		try {
-			if ( function_exists( 'wc_get_logger' ) ) {
-				wc_get_logger()->info( $message, array( 'source' => 'wp-license' ) );
-			}
-		} catch ( \Throwable $error ) {
-			unset( $error );
-		}
+		\WPLC\Infrastructure\Log::write( 'info', $message, array( 'component' => 'gap_reconciler' ) );
 	}
 }

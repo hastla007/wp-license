@@ -650,12 +650,6 @@ final class Retention {
 	 * @return void
 	 */
 	private static function log( string $level, string $message ): void {
-		try {
-			if ( function_exists( 'wc_get_logger' ) ) {
-				wc_get_logger()->log( $level, $message, array( 'source' => 'wp-license' ) );
-			}
-		} catch ( \Throwable $error ) {
-			unset( $error );
-		}
+		\WPLC\Infrastructure\Log::write( $level, $message, array( 'component' => 'retention' ) );
 	}
 }

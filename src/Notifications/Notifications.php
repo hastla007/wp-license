@@ -1210,19 +1210,7 @@ final class Notifications {
 	 * @return void
 	 */
 	public static function log( string $level, string $message, int $license_id = 0 ): void {
-		try {
-			if ( ! function_exists( 'wc_get_logger' ) ) {
-				return;
-			}
-			// Mailer errors can quote the recipient; addresses do not belong in a log file.
-			$message = (string) preg_replace( '/[^\s<>"\'(),;:]+@[^\s<>"\'(),;:]+/', '[email]', $message );
-			$context = array( 'source' => 'wp-license' );
-			if ( $license_id > 0 ) {
-				$context['license_id'] = $license_id;
-			}
-			wc_get_logger()->log( in_array( $level, array( 'error', 'warning', 'info', 'notice', 'debug' ), true ) ? $level : 'info', $message, $context );
-		} catch ( \Throwable $error ) {
-			unset( $error );
-		}
+		// Log::write() masks addresses: mailer errors can quote the recipient.
+		\WPLC\Infrastructure\Log::write( $level, $message, $license_id > 0 ? array( 'license_id' => $license_id ) : array() );
 	}
 }

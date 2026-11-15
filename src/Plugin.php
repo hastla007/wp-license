@@ -331,6 +331,8 @@ final class Plugin {
 		// Last: wraps the job callbacks registered above (isolation, pause gate, heartbeat).
 		DailyRunner::register_hooks();
 		SiteGuard::remember();
+		// A-133: each queued action gets its own correlation ID in the log, even when one runner request handles several.
+		add_action( 'action_scheduler_before_execute', array( self::class, 'begin_log_correlation' ), 0, 0 );
 
 		/**
 		 * Fires after WP License Captain has confirmed its WooCommerce dependency.
@@ -338,6 +340,15 @@ final class Plugin {
 		 * @since 0.1.0
 		 */
 		do_action( 'wplc/loaded' );
+	}
+
+	/**
+	 * Start a new log correlation ID for the next queued action (A-133).
+	 *
+	 * @return void
+	 */
+	public static function begin_log_correlation(): void {
+		\WPLC\Infrastructure\Log::begin();
 	}
 
 	/**
