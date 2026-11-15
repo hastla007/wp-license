@@ -387,9 +387,9 @@ final class RecurringConsent {
 	/**
 	 * Tell the customer where to find the license key, and that an opt-in was not possible.
 	 *
-	 * @param \WC_Order $order         Order.
-	 * @param bool      $sent_to_admin Whether the email goes to the admin.
-	 * @param bool      $plain_text    Whether the email is plain text.
+	 * @param mixed $order         Order (WC_Order).
+	 * @param bool  $sent_to_admin Whether the email goes to the admin.
+	 * @param bool  $plain_text    Whether the email is plain text.
 	 * @return void
 	 */
 	public static function render_email_hint( $order, $sent_to_admin = false, $plain_text = false ): void {

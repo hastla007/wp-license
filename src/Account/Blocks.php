@@ -69,7 +69,7 @@ final class Blocks {
 		register_block_type(
 			'wplc/licenses',
 			array(
-				'api_version' => 3,
+				'api_version' => '3',
 				'title' => __( 'My licenses', 'wp-license' ),
 				'category' => 'widgets',
 				'editor_script_handles' => array( 'wplc-blocks' ),
@@ -83,7 +83,7 @@ final class Blocks {
 		register_block_type(
 			'wplc/changelog',
 			array(
-				'api_version' => 3,
+				'api_version' => '3',
 				'title' => __( 'Changelog', 'wp-license' ),
 				'category' => 'widgets',
 				'editor_script_handles' => array( 'wplc-blocks' ),
@@ -133,7 +133,7 @@ final class Blocks {
 	/**
 	 * Block `wplc/changelog`.
 	 *
-	 * @param array<string,mixed> $attributes Block attributes.
+	 * @param mixed $attributes Block attributes.
 	 * @return string
 	 */
 	public static function render_changelog_block( $attributes = array() ): string {

@@ -305,9 +305,9 @@ final class Format {
 		 *
 		 * @param array<string,string> $labels Action code => label.
 		 */
-		$filtered = apply_filters( 'wplc_audit_action_labels', $labels );
+		$filtered = (array) apply_filters( 'wplc_audit_action_labels', $labels );
 
-		return is_array( $filtered ) ? $filtered : $labels;
+		return $filtered ? $filtered : $labels;
 	}
 
 	/**

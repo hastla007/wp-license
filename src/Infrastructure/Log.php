@@ -85,7 +85,7 @@ final class Log {
 	 * Build the line and its context. Pure apart from the correlation ID.
 	 *
 	 * @param string              $message Message; must not contain keys or secrets.
-	 * @param array<string,mixed> $context Object IDs and other scalar facts.
+	 * @param array<int|string,mixed> $context Object IDs and other scalar facts.
 	 * @return array{0:string,1:array<string,mixed>}
 	 */
 	public static function prepare( string $message, array $context = array() ): array {

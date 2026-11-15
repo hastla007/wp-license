@@ -96,9 +96,6 @@ final class SyncEntitlementsCommand {
 
 		while ( 0 === $max_rows || $inspected < $max_rows ) {
 			if ( $license_id ) {
-				if ( $inspected > 0 ) {
-					break;
-				}
 				$ids = array( $license_id );
 			} else {
 				$ids = EntitlementSync::license_ids( $product, $plan, $last_id, 0 === $max_rows ? 250 : min( 250, $max_rows - $inspected ) );

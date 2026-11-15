@@ -138,7 +138,7 @@ final class Plugin {
 			false,
 			dirname( plugin_basename( WPLC_FILE ) ) . '/languages'
 		);
-		if ( ! is_textdomain_loaded( 'wp-license' ) ) {
+		if ( ! is_textdomain_loaded( 'wp-license' ) ) { // @phpstan-ignore booleanNot.alwaysTrue (the stub assumes a loaded domain; it is not loaded without a file for the locale)
 			// B-120: Austrian and Swiss German fall back to the German translation.
 			$fallback = self::fallback_locale( function_exists( 'determine_locale' ) ? determine_locale() : get_locale() );
 			if ( '' !== $fallback ) {

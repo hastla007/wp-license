@@ -193,14 +193,14 @@ final class Diagnostics {
 	 * @return string[]
 	 */
 	public static function disabled_license_emails(): array {
-		if ( ! function_exists( 'WC' ) || ! is_object( WC() ) || ! method_exists( WC(), 'mailer' ) ) {
+		if ( ! function_exists( 'WC' ) ) {
 			return array();
 		}
 		$disabled = array();
 		try {
 			foreach ( (array) WC()->mailer()->get_emails() as $registry_key => $email ) {
-				if ( 0 === strpos( (string) $registry_key, 'WPLC_Email_' ) && is_object( $email ) && method_exists( $email, 'is_enabled' ) && ! $email->is_enabled() ) {
-					$disabled[] = method_exists( $email, 'get_title' ) ? wp_strip_all_tags( (string) $email->get_title() ) : (string) $registry_key;
+				if ( 0 === strpos( (string) $registry_key, 'WPLC_Email_' ) && ! $email->is_enabled() ) {
+					$disabled[] = wp_strip_all_tags( (string) $email->get_title() );
 				}
 			}
 		} catch ( \Throwable $error ) {

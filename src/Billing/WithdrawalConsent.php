@@ -131,9 +131,9 @@ final class WithdrawalConsent {
 		 *
 		 * @param string $text Default wording.
 		 */
-		$filtered = apply_filters( 'wplc_withdrawal_consent_text', $text );
+		$filtered = (string) apply_filters( 'wplc_withdrawal_consent_text', $text );
 
-		return is_string( $filtered ) && '' !== trim( $filtered ) ? $filtered : $text;
+		return '' !== trim( $filtered ) ? $filtered : $text;
 	}
 
 	/**
@@ -173,7 +173,7 @@ final class WithdrawalConsent {
 	 * Classic checkout: refuse the order without the consent.
 	 *
 	 * @param array<string,mixed> $data   Posted checkout data.
-	 * @param \WP_Error           $errors Validation errors.
+	 * @param mixed               $errors Validation errors (WP_Error).
 	 * @return void
 	 */
 	public static function validate_classic( $data, $errors ): void {
@@ -188,7 +188,7 @@ final class WithdrawalConsent {
 	/**
 	 * Classic checkout: record the consent on the order.
 	 *
-	 * @param \WC_Order           $order Order being created.
+	 * @param mixed               $order Order being created (WC_Order).
 	 * @param array<string,mixed> $data  Posted checkout data.
 	 * @return void
 	 */
@@ -273,8 +273,8 @@ final class WithdrawalConsent {
 	/**
 	 * Block checkout: record the consent when the order is placed.
 	 *
-	 * @param \WC_Order        $order   Draft order.
-	 * @param \WP_REST_Request $request Store API request.
+	 * @param mixed $order   Draft order (WC_Order).
+	 * @param mixed $request Store API request (WP_REST_Request).
 	 * @return void
 	 */
 	public static function save_block( $order, $request ): void {
@@ -288,7 +288,7 @@ final class WithdrawalConsent {
 	/**
 	 * Block checkout: refuse an order with a license but without the consent, before the payment.
 	 *
-	 * @param \WC_Order $order Order about to be paid.
+	 * @param mixed $order Order about to be paid (WC_Order).
 	 * @return void
 	 * @throws \Exception When the consent is missing.
 	 */
@@ -309,7 +309,7 @@ final class WithdrawalConsent {
 	/**
 	 * Confirmation of the consent for the customer, or an empty string.
 	 *
-	 * @param \WC_Order $order Order.
+	 * @param mixed $order Order (WC_Order).
 	 * @return string
 	 */
 	public static function confirmation_text( $order ): string {

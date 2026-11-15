@@ -2094,7 +2094,7 @@ final class RenewalProcessor {
 			}
 			$closed = 0;
 			foreach ( $ids as $order_id ) {
-				$order = wc_get_order( (int) $order_id );
+				$order = wc_get_order( absint( $order_id ) );
 				if ( ! $order instanceof \WC_Order || RenewalOrder::CREATED_VIA !== $order->get_created_via() || $order->is_paid() || $order->get_date_paid() ) {
 					continue;
 				}

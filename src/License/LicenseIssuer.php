@@ -182,8 +182,8 @@ final class LicenseIssuer {
 	 * The license list follows the issued units; the period is written once and keeps
 	 * the first term even after later renewals moved the end date of the license.
 	 *
-	 * @param \WC_Order_Item_Product $item Order item.
-	 * @param int[]                  $license_ids Licenses issued for the item.
+	 * @param \WC_Order_Item $item Order item.
+	 * @param int[]          $license_ids Licenses issued for the item.
 	 * @return void
 	 */
 	public static function describe_item( $item, array $license_ids ): void {
