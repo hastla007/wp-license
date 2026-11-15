@@ -278,7 +278,10 @@ final class AdminSupportWave2IntegrationTest extends WPLC_Integration_TestCase {
 			return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$tables['licenses']} WHERE {$query['where']} ORDER BY id ASC", $query['params'] ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- Test query.
 		};
 		$this->assertContains( $issued, $find( (string) $order->get_id() ) );
-		$this->assertNotContains( $other, $find( (string) $order->get_id() ) );
+		if ( $other !== $order->get_id() ) {
+			// A number also matches a license ID; only assert when the IDs don't collide (they can on multisite).
+			$this->assertNotContains( $other, $find( (string) $order->get_id() ) );
+		}
 		$this->assertContains( $other, $find( (string) $renewal_order->get_id() ) );
 
 		$this->assertSame( array( $issued ), array_map( 'intval', array_column( OrderLicensesBox::licenses_for( $order ), 'id' ) ) );
