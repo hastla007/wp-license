@@ -154,6 +154,58 @@ Eight reviewers (security admin/frontend, REST pentest, billing QA, client QA, p
   - P-34: `signing-key --rotate` and `activation release --license` ask for confirmation.
   - P-51 / P-52 / P-54 / P-56 / P-57: yesterday's API counters are kept, less admin overhead, uninstall removes cron events with arguments, the PHPCS gate compares per source line, readme says schema 22.
 
+### Open items from the 13 Nov audits (15 Nov 2026, wave 2)
+
+- **Renewals and orders:**
+  - Every renewal status change writes its own audit entry (A-73), including on owner changes.
+  - Removing a line from a paid order, or lowering its quantity, suspends the surplus licenses. The suspension is reversible; switch it off with the filter `wplc_suspend_license_on_order_item_change` (B-36).
+  - Orphaned unpaid renewal orders are closed daily (B-190).
+  - A period that ends in a shorter month runs until 23:59:59 UTC of its last day. A later purchase never ends earlier than an earlier one (B-178).
+- **Catalog and keys:**
+  - `wp wplc sync-entitlements` copies changed plan entitlements to existing licenses. It is a dry run by default, and reductions only happen with `--allow-reductions` (A-23).
+  - `wp wplc rekey-licenses --from=<key-id>` re-keys all licenses issued under a leaked key secret (B-155).
+  - "URL" releases without a resolver are no longer delivered, so the filter `wplc_require_package_resolver` now defaults to true (A-32).
+  - WooCommerce Subscriptions products can't be mapped as license products (P-20).
+- **Checkout and EU law:**
+  - Licence products ask for consent to immediate performance (withdrawal right for digital content). The consent is required by default, stored on the order with time and wording, confirmed in the order emails, and off when Germanized or German Market is active (B-39). The legal wording is the shop owner's decision.
+  - First orders show "License" and "Service period (UTC)" on the line item (B-42).
+  - Checkout boxes stay ticked when WooCommerce reloads the payment section (A-118).
+  - The block opt-in no longer repeats its long label in the confirmation and emails (B-114).
+  - New block "My licenses", plus the shortcode `[wplc_changelog]` and a "Changelog" block (B-117).
+- **Admin and support:**
+  - Support can lower the renewal amount (A-11).
+  - Support can cancel automatic renewal at the end of the term, and withdraw the cancellation (A-21).
+  - Rejected Stripe signatures are counted and raise an alert (A-72).
+  - New "Getting started" checklist (A-121).
+  - Readable audit action names, with the timezone shown (A-122).
+  - The search finds order numbers, and orders link to their licenses. The manual-license form keeps its input and lets you skip the email. Suspending a license and releasing a site ask for confirmation (A-123).
+  - Diagnostics name switched-off license emails (A-132) and warn about read/write-splitting database layers (B-24).
+  - A notice appears for new releases of this plugin. It reads GitHub, is cached for 12 h, never installs anything, and is switched off with `WPLC_DISABLE_UPDATE_CHECK` (A-42).
+- **Quality and operations:**
+  - Unified logging with a `request_id` per request or action, masked emails and `WPLC_DEBUG` (A-133).
+  - `docs/EXTENSION-POINTS.md` lists every action and filter and is kept current by a test (A-134).
+  - The grace period is defined in one place, with the filter `wplc_renewal_grace_days` (A-135).
+  - Stress runs report pass or fail through the exit code (B-196).
+  - Flaky API tests are fixed: rate limits count per calendar minute, and that boundary caused the failures (B-195, T-148).
+  - The output-buffer loop in downloads is fixed (B-104).
+  - No file-wide `phpcs:disable` remains; the baseline is down to 56 entries (P-56).
+  - de_AT, de_CH and other German variants without their own file use the German translation (B-120).
+
+### Behaviour changes in 0.2.0 (B-197)
+
+Compared with 0.1.0:
+- Charges only happen after the advance notice.
+- An unknown payment result waits for up to 12 h in `reconciling` and then goes to review.
+- Downloads are single-use by default.
+- Signed routes only read the signed JSON body.
+- A wrong request signature answers like an unknown installation.
+- A paid order that is cancelled without a refund suspends its licenses.
+- Plan changes are priced from the contract price.
+- Period ends at month ends move to the end of the last day.
+- "URL" releases need a resolver.
+- Licence products require the withdrawal consent at checkout.
+- Client library 2.0.2 requires the v2 response signature.
+
 ### Known limitations
 
 - Automatic renewal works only with the classic checkout and the WooCommerce Stripe gateway, and is not verified against Stripe yet.
