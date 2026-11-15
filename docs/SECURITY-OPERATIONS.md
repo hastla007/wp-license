@@ -126,6 +126,14 @@ The address is `REMOTE_ADDR` unless `WPLC_TRUSTED_PROXY_HEADER` names a forwardi
 
 The key prefix is shown in the customer account and in the admin. Since P-09 knowing it only lets someone throttle that prefix from their own address; the owner activates from another address unaffected.
 
+### Public cancellation page
+
+The shortcode `[wplc_cancel]` cancels an automatic renewal without login (e-mail address plus license reference, full key or order number, then a confirmation page). Since P-08 and P-37:
+
+- **Who matches:** only addresses of the current owner: the account email, the license email recipient, and the billing email of the source order while that order belongs to the owner. After an owner change the previous owner's order address no longer cancels.
+- **Rate limits:** atomic hourly counters in the `request_limits` table (`INSERT … ON DUPLICATE KEY UPDATE`, the same store and HMAC bucket keys as the API), 5 per hour by default (`wplc_public_cancel_hourly_limit`): per client address, per reference, and per e-mail address only for order-number references. Order numbers are easy to guess, so they are limited per address; the license reference (32 random bits) and the full key are not, so flooding a customer's address cannot block the reference printed in their license emails. Over a limit, or when the counter cannot be written, the page answers "too many requests" and processes nothing.
+- **No timing oracle:** the confirmation email is sent by an Action Scheduler job (`wplc_public_cancel_confirmation`), not during the request; the page answers identically, and about as fast, whether or not the details matched. A refused email is retried by the notification retry job.
+
 ### Response signatures
 
 Signed responses carry `payload` (the exact signed JSON, containing the data and the request nonce) and `payload_signature` (HMAC with the installation secret). The client verifies the received bytes and the echoed nonce, so a recorded response cannot be replayed for a later request and verification no longer depends on both sides encoding JSON identically.

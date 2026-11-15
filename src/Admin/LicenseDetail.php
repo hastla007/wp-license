@@ -397,8 +397,15 @@ final class LicenseDetail {
 		echo '<input type="text" id="wplc-owner-customer" name="customer" required>';
 		echo '<label for="wplc-owner-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
 		echo '<input type="text" id="wplc-owner-reason" name="reason" required maxlength="255">';
+		$can_reissue = 'revoked' !== (string) $license['status'];
+		if ( $can_reissue ) {
+			// Checked by default: the previous owner knows the current key (P-38).
+			echo '<label><input type="checkbox" name="new_key" value="1" checked> ' . esc_html__( 'Issue a new key (the previous key stops working)', 'wp-license' ) . '</label> ';
+			echo '<label><input type="checkbox" name="release_sites" value="1"> ' . esc_html__( 'Also release all activated sites', 'wp-license' ) . '</label> ';
+		}
 		echo '<button class="button" type="submit">' . esc_html__( 'Change owner', 'wp-license' ) . '</button></form>';
-		echo '<p class="description">' . esc_html__( 'The new customer sees the license and its key in their account; the previous owner no longer does. Automatic renewal is switched off, because the stored payment method belongs to the previous owner. Activated sites stay connected.', 'wp-license' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'The new customer sees the license and its key in their account; the previous owner no longer sees it there. Automatic renewal is switched off, because the stored payment method belongs to the previous owner.', 'wp-license' ) . ' ';
+		echo esc_html__( 'The previous owner still knows the current key from their emails and could activate further sites with it. Keep "Issue a new key" ticked unless both sides agree otherwise; the new owner then gets the new key. Activated sites stay connected unless you release them.', 'wp-license' ) . '</p>';
 	}
 
 	/**
@@ -621,10 +628,10 @@ final class LicenseDetail {
 			'renewal'    => __( 'Renewal', 'wp-license' ),
 		);
 
-		/* translators: %d: maximum number of entries. */
-		echo '<p class="description">' . esc_html( sprintf( __( 'Latest %d entries, newest first.', 'wp-license' ), self::AUDIT_LIMIT ) );
+		/* translators: %s: maximum number of entries. */
+		echo '<p class="description">' . esc_html( sprintf( _n( 'Latest %s entry, newest first.', 'Latest %s entries, newest first.', self::AUDIT_LIMIT, 'wp-license' ), number_format_i18n( self::AUDIT_LIMIT ) ) );
 		if ( Capabilities::can( 'view_diagnostics' ) ) {
-			echo ' <a href="' . esc_url( AuditLogPage::url( array( 'license' => $license_id ) ) ) . '">' . esc_html__( 'Open the complete audit log of this license', 'wp-license' ) . '</a>';
+			echo ' <a href="' . esc_url( AuditLogAdmin::url( array( 'license' => $license_id ) ) ) . '">' . esc_html__( 'Open the complete audit log of this license', 'wp-license' ) . '</a>';
 		}
 		echo '</p>';
 		echo '<table class="widefat striped"><thead><tr>';

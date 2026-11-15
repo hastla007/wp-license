@@ -147,6 +147,10 @@ final class PublicCancellationIntegrationTest extends WPLC_Portal_TestCase {
 		$this->assertSame( 'active', $this->license( $license['id'] )['status'], 'The license stays valid until the end of the paid period.' );
 		$this->assertSame( array( 'cancellation_scheduled' ), $this->audit_actions( 'license', $license['id'] ) );
 
+		// P-37: the confirmation is sent by a background job, not during the request.
+		$this->assertSame( array(), $this->mails(), 'The response must not wait for the mailer.' );
+		$this->assertSame( 1, $this->run_confirmations() );
+
 		// Confirmation in text form with time stamp and end date.
 		$mails = $this->mails();
 		$this->assertCount( 1, $mails );
@@ -183,6 +187,7 @@ final class PublicCancellationIntegrationTest extends WPLC_Portal_TestCase {
 
 		$this->assertSame( 'done', $result['done']['view'] );
 		$this->assertSame( 1, (int) $this->license( $license['id'] )['cancel_at_period_end'], $kind . ' / ' . $email );
+		$this->run_confirmations();
 		$this->assertCount( 1, $this->mails() );
 	}
 
@@ -232,6 +237,7 @@ final class PublicCancellationIntegrationTest extends WPLC_Portal_TestCase {
 		}
 		$this->assertSame( 0, (int) $this->license( $license['id'] )['cancel_at_period_end'] );
 		$this->assertSame( 0, (int) $this->license( $other['id'] )['cancel_at_period_end'] );
+		$this->assertSame( 0, $this->run_confirmations() );
 		$this->assertSame( array(), $this->mails(), 'No email for a combination that does not match.' );
 
 		// The matching combination gets exactly the same page.
@@ -300,7 +306,7 @@ final class PublicCancellationIntegrationTest extends WPLC_Portal_TestCase {
 		$this->assertStringContainsString( 'name="wplc_cancel_step" value="review"', $html );
 	}
 
-	public function test_B40_requests_are_rate_limited_per_client_and_per_address(): void {
+	public function test_B40_requests_are_rate_limited_per_client_and_per_reference(): void {
 		$license = $this->seed_auto_license();
 		$email   = $license['order']->get_billing_email();
 		$limit   = PublicCancellation::DEFAULT_HOURLY_LIMIT;
@@ -314,21 +320,114 @@ final class PublicCancellationIntegrationTest extends WPLC_Portal_TestCase {
 		$blocked = $this->cancel_through_the_page( $email, $license['prefix'] );
 		$this->assertSame( 'limited', $blocked['done']['view'] );
 		$this->assertSame( 0, (int) $this->license( $license['id'] )['cancel_at_period_end'], 'Over the limit even a correct combination is not processed.' );
+		$this->assertSame( 0, $this->run_confirmations() );
 		$this->assertSame( array(), $this->mails() );
 
-		// Many clients trying one address.
-		$victim = 'victim-' . strtolower( wp_generate_password( 6, false ) ) . '@example.test';
+		// Many clients trying one reference with different addresses (P-08).
 		for ( $attempt = 1; $attempt <= $limit; ++$attempt ) {
 			$_SERVER['REMOTE_ADDR'] = '192.0.2.' . ( 100 + $attempt );
-			$this->assertSame( 'done', $this->cancel_through_the_page( $victim, 'WPLC-1111111' . $attempt )['done']['view'] );
+			$this->assertSame( 'done', $this->cancel_through_the_page( 'other' . $attempt . '@example.test', 'WPLC-33333333' )['done']['view'] );
 		}
-		$_SERVER['REMOTE_ADDR'] = '192.0.2.200';
-		$this->assertSame( 'limited', $this->cancel_through_the_page( $victim, 'WPLC-22222222' )['done']['view'] );
+		$_SERVER['REMOTE_ADDR'] = '192.0.2.150';
+		$this->assertSame( 'limited', $this->cancel_through_the_page( 'other9@example.test', 'WPLC-33333333' )['done']['view'] );
 
-		// Another client and address are not affected.
+		// Another client and reference are not affected.
 		$_SERVER['REMOTE_ADDR'] = '192.0.2.201';
 		$this->assertSame( 'done', $this->cancel_through_the_page( $email, $license['prefix'] )['done']['view'] );
 		$this->assertSame( 1, (int) $this->license( $license['id'] )['cancel_at_period_end'] );
+	}
+
+	/**
+	 * P-08: guessing order numbers for one address is limited, but flooding the
+	 * address cannot lock its owner out of the license reference.
+	 */
+	public function test_P08_flooding_an_address_does_not_block_the_license_reference(): void {
+		$license = $this->seed_auto_license();
+		$email   = $license['order']->get_billing_email();
+		$limit   = PublicCancellation::DEFAULT_HOURLY_LIMIT;
+
+		// Distributed guessing of order numbers for the victim's address.
+		for ( $attempt = 1; $attempt <= $limit; ++$attempt ) {
+			$_SERVER['REMOTE_ADDR'] = '198.18.0.' . $attempt;
+			$this->assertSame( 'done', $this->cancel_through_the_page( $email, (string) ( 900000 + $attempt ) )['done']['view'] );
+		}
+		$_SERVER['REMOTE_ADDR'] = '198.18.0.50';
+		$this->assertSame( 'limited', $this->cancel_through_the_page( $email, (string) $license['order']->get_id() )['done']['view'], 'Order numbers for this address are limited now.' );
+		$this->assertSame( 0, (int) $this->license( $license['id'] )['cancel_at_period_end'] );
+
+		// The customer still cancels with the reference from the license e-mail.
+		$_SERVER['REMOTE_ADDR'] = '198.18.0.60';
+		$this->assertSame( 'done', $this->cancel_through_the_page( $email, $license['prefix'] )['done']['view'] );
+		$this->assertSame( 1, (int) $this->license( $license['id'] )['cancel_at_period_end'] );
+	}
+
+	/**
+	 * P-08: the counters are atomic rows of the request_limits table, not transients.
+	 */
+	public function test_P08_counters_are_stored_in_the_request_limits_table(): void {
+		global $wpdb;
+
+		$tables = \WPLC\Infrastructure\Database\Schema::table_names();
+		$before = (int) $wpdb->get_var( "SELECT COALESCE(SUM(hits),0) FROM {$tables['request_limits']}" );
+		$_SERVER['REMOTE_ADDR'] = '192.0.2.250';
+		$this->cancel_through_the_page( 'counter@example.test', 'WPLC-44444444' );
+		$after = (int) $wpdb->get_var( "SELECT COALESCE(SUM(hits),0) FROM {$tables['request_limits']}" );
+
+		$this->assertSame( 2, $after - $before, 'One hit for the client address and one for the reference.' );
+		$this->assertSame( 0, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_wplc\\_cancel\\_%'" ) );
+	}
+
+	/**
+	 * P-08: after an owner change the billing address of the previous owner's order no longer matches.
+	 */
+	public function test_P08_previous_owner_cannot_cancel_after_an_owner_change(): void {
+		$license   = $this->seed_auto_license();
+		$old_email = $license['order']->get_billing_email();
+		$new_email = 'new-owner-' . strtolower( wp_generate_password( 6, false ) ) . '@example.test';
+		$new_owner = self::factory()->user->create(
+			array(
+				'role'       => 'customer',
+				'user_email' => $new_email,
+			)
+		);
+		$this->assertSame( \WPLC\Admin\SupportActions::RESULT_OK, \WPLC\Admin\SupportActions::change_owner( $license['id'], $new_owner, 'Handed over', 1 ) );
+		// The new owner switches automatic renewal on again.
+		global $wpdb;
+		$wpdb->update( $this->tables()['licenses'], array( 'renewal_enabled' => 1 ), array( 'id' => $license['id'] ) );
+
+		foreach ( array( $old_email, $this->account_email ) as $index => $previous ) {
+			$_SERVER['REMOTE_ADDR'] = '203.0.113.' . ( 10 + $index );
+			foreach ( array( $license['prefix'], (string) $license['order']->get_id() ) as $reference ) {
+				$this->assertSame( 'done', $this->cancel_through_the_page( $previous, $reference )['done']['view'] );
+			}
+		}
+		$this->assertSame( 0, (int) $this->license( $license['id'] )['cancel_at_period_end'], 'The previous owner must not cancel the new owner\'s renewal.' );
+
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.30';
+		$this->cancel_through_the_page( $new_email, $license['prefix'] );
+		$this->assertSame( 1, (int) $this->license( $license['id'] )['cancel_at_period_end'] );
+	}
+
+	/**
+	 * Run the queued confirmation e-mails (P-37) like Action Scheduler would.
+	 *
+	 * @return int Number of jobs run.
+	 */
+	private function run_confirmations(): int {
+		$actions = as_get_scheduled_actions(
+			array(
+				'hook'     => PublicCancellation::CONFIRMATION_HOOK,
+				'status'   => ActionScheduler_Store::STATUS_PENDING,
+				'group'    => 'wplc',
+				'per_page' => 50,
+			)
+		);
+		foreach ( $actions as $action ) {
+			do_action_ref_array( PublicCancellation::CONFIRMATION_HOOK, $action->get_args() );
+		}
+		as_unschedule_all_actions( PublicCancellation::CONFIRMATION_HOOK, array(), 'wplc' );
+
+		return count( $actions );
 	}
 
 	// ------------------------------------------------------------------

@@ -11,8 +11,8 @@ The plugin has its own capabilities (`src/Admin/Capabilities.php`). Nothing is w
 | Capability | Allows | Granted by default to users with |
 | --- | --- | --- |
 | `wplc_view_licenses` | License list, license detail, CSV export of licenses | `manage_woocommerce` (shop manager, administrator) |
-| `wplc_manage_licenses` | Suspend, revoke, reactivate, change term, release a site, new key, send key email again, change owner, restore a suspended license | `manage_woocommerce` |
-| `wplc_grant_licenses` | Add a license manually, extend several licenses at once, issue missing licenses for an order | `manage_woocommerce` |
+| `wplc_manage_licenses` | Suspend, revoke, reactivate, change term, release a site, new key, send key email again, change owner, restore a suspended license, bulk actions, renewals to review | `manage_woocommerce` |
+| `wplc_grant_licenses` | Add a license manually, extend several licenses at once, issue missing licenses for an order, book a renewal under review | `manage_woocommerce` |
 | `wplc_restore_licenses` | Restore a **revoked** license | `manage_options` (administrator) |
 | `wplc_manage_catalog` | License fields of products, catalog CSV | `manage_woocommerce` |
 | `wplc_publish_releases` | Publish, withdraw and delete releases | `manage_options` |
@@ -21,6 +21,8 @@ The plugin has its own capabilities (`src/Admin/Capabilities.php`). Nothing is w
 | `wplc_manage_package_hosts` | Trusted package hosts in the settings | `manage_options` |
 
 Releases and package hosts decide which code reaches every customer site, and restoring a revoked license gives access back; these three therefore need an administrator.
+
+Every screen and handler checks these capabilities, never `manage_woocommerce` directly (P-07): a capability stored as denied on a role takes effect everywhere, and a support role without shop access can use everything its capabilities allow. Users without `wplc_manage_licenses` do not see the bulk controls and checkboxes of the license list.
 
 **A support role without full shop access:** create a role and give it `read`, `wplc_view_licenses` and `wplc_manage_licenses` (for example with a role editor plugin or `wp role create` / `wp cap add`). Such a user does not see the WooCommerce menu; the license list then appears as its own top-level menu "Licenses". To take one capability away from shop managers, store it as denied on the role: `wp cap add shop_manager wplc_grant_licenses --grant=false`.
 
@@ -41,24 +43,24 @@ add_filter( 'wplc_capability', function ( $capability, $action ) {
 | Search and filter licenses, reports | Licenses | `wplc_view_licenses` | – | – (read only) |
 | Export licenses as CSV | Licenses → Export as CSV | `wplc_view_licenses` | – | `licenses_exported` |
 | View license details | Licenses → a license | `wplc_view_licenses` | – | – (read only) |
-| Bulk: suspend, reactivate, revoke, release all site activations | Licenses (list) | `manage_woocommerce` | yes, one for the batch | per license as for the single action (`admin_status_change`; `admin_site_released` per activation plus `admin_sites_released` on the license), plus one `admin_bulk_action` summary (object ID 0) |
-| Bulk: extend the term by a number of days | Licenses (list) | `wplc_grant_licenses` | yes, one for the batch | `admin_extend` per license, plus the `admin_bulk_action` summary |
+| Bulk: suspend, reactivate, revoke, release all site activations | Licenses (list) | `wplc_manage_licenses` | yes, one for the batch | per license as for the single action (`admin_status_change`; `admin_site_released` per activation plus `admin_sites_released` on the license), plus one `admin_bulk_action` summary (object ID 0) |
+| Bulk: extend the term by a number of days | Licenses (list) | `wplc_manage_licenses` and `wplc_grant_licenses` | yes, one for the batch | `admin_extend` per license, plus the `admin_bulk_action` summary |
 | Suspend, revoke, reactivate | License detail | `wplc_manage_licenses` | yes | `admin_status_change` |
 | Change term | License detail | `wplc_manage_licenses` | yes | `admin_extend` |
 | Change plan (now / with the next renewal, withdraw) | License detail | `manage_woocommerce` | yes | `admin_plan_change`, `plan_change_scheduled`, `plan_change_cancelled` |
 | Restore with a new end date | License detail (suspended with ended term, or revoked) | `wplc_manage_licenses`; revoked: `wplc_restore_licenses` | yes | `admin_restore` |
 | Issue new key | License detail | `wplc_manage_licenses` | yes | `license_key_reissued` |
 | Send key email again | License detail | `wplc_manage_licenses` | yes | `license_key_resend_requested` |
-| Change owner | License detail | `wplc_manage_licenses` | yes | `license_owner_changed` |
+| Change owner (by default with a new key) | License detail | `wplc_manage_licenses` | yes | `license_owner_changed`, with a new key also `license_key_reissued` |
 | Release a site activation | License detail | `wplc_manage_licenses` | yes | `admin_site_released` |
 | Add license manually | Licenses → Add license manually | `wplc_grant_licenses` | yes | `license_issued_manually` |
 | Issue missing licenses for an order | Licenses, below the list | `wplc_grant_licenses` | yes | `admin_issue_for_order` |
-| Book a renewal under review | Renewals to review | `manage_woocommerce` | yes | `renewal_review_booked` (renewal), `renewal_booked_after_review` (license) |
-| Mark a renewal under review as not paid | Renewals to review | `manage_woocommerce` | yes | `renewal_result_resolved` |
-| Close a review without booking | Renewals to review | `manage_woocommerce` | yes | `renewal_review_closed` |
+| Book a renewal under review | Renewals to review | `wplc_manage_licenses` and `wplc_grant_licenses` | yes | `renewal_review_booked` (renewal), `renewal_booked_after_review` (license) |
+| Mark a renewal under review as not paid | Renewals to review | `wplc_manage_licenses` | yes | `renewal_result_resolved` |
+| Close a review without booking | Renewals to review | `wplc_manage_licenses` | yes | `renewal_review_closed` |
 | Create, import, publish, withdraw, delete releases | License releases | `wplc_publish_releases` | only for withdraw | `release_created`, `release_updated`, `release_deleted`, and one entry per status change |
 | Read diagnostics | License diagnostics | `wplc_view_diagnostics` | – | – (read only) |
-| Read and export the audit log | License audit log | `wplc_view_diagnostics` | – | – (read only) |
+| Read and export the audit log | License audit log | `wplc_view_diagnostics` | – | export: `audit_log_exported` (with the filters) |
 | Change settings | License settings | `wplc_manage_settings`; package hosts: `wplc_manage_package_hosts` | – | `settings_updated` |
 | Export / import catalog CSV | License catalog CSV | `wplc_manage_catalog` (import also `edit_post` on each product) | – | import: `catalog_csv_imported`; export: not audited |
 
@@ -110,6 +112,8 @@ Each report can be combined with the filters and exported.
 ### Export as CSV
 
 Exports the current list (search, filters and report applied) with license ID, key prefix, customer ID and email, product, plan, status, renewal mode, dates (UTC) and source order. License keys and UUIDs are never exported. The file contains personal data (email addresses); the export is written to the audit log.
+
+The file is streamed in batches of 500 licenses; only the email address of each customer is read (no user meta), so large shops do not run out of memory (P-28). An export holds at most 100,000 licenses. A larger list ends with a last line `# Export truncated after 100,000 rows …`, and the next license screen shows a notice: narrow the filters and export the rest separately.
 
 ### Extend the selected licenses
 
@@ -191,9 +195,11 @@ Requests the email with the license key for the customer again (`wplc/license_ke
 
 Hands the license over to another existing user account (user ID or email), for example from an agency to its client.
 
-- The new owner sees the license, its key and its sites in the account; the previous owner no longer does.
+- **Issue a new key** is ticked by default (P-38): the previous owner knows the current key from the account and the license emails and could otherwise keep activating sites on the new owner's quota. With it, the license gets a new key right after the hand-over, exactly as with *Issue new key* below (the old key stops working, `wplc/license_key_reissued` is fired for the new owner); tick "Also release all activated sites" to disconnect the existing sites as well. A revoked license cannot get a new key: the owner is changed and the notice says that the old key still works. Untick it only when both sides agree.
+- The new owner sees the license and its sites in the account; the previous owner no longer sees it there.
 - **Automatic renewal is switched off** and open automatic attempts are cancelled, because the stored payment method belongs to the previous owner. The new owner renews manually or opts in again when paying.
-- Activated sites stay connected. Issue a new key as well if the previous owner must not be able to activate further sites.
+- Activated sites stay connected unless "Also release all activated sites" is ticked.
+- The public cancellation page accepts only the new owner's addresses: the billing address of the source order stops counting once the order belongs to someone else.
 - The source order stays with the previous owner's order history.
 
 ### Change plan
@@ -258,11 +264,12 @@ While a renewal of a license is in review, the daily job and the grace-end job d
 
 ## Audit log
 
-WooCommerce → License audit log. Read-only list of all audit entries, newest first: licenses, activations, renewals, releases, settings, catalog imports, key rotations (object type `system`) and bulk-action summaries.
+WooCommerce → License audit log (page `wplc-audit-log`, capability `wplc_view_diagnostics`). Read-only list of all audit entries, newest first: licenses, activations, renewals, releases, settings, catalog imports, key rotations (object type `system`) and bulk-action summaries. It is the only audit screen: the former second page `wplc-audit` was removed (P-27), and its old URLs (for example bookmarks of "Open the complete audit log of this license") redirect here with their filters.
 
-- **Filters:** object type, object ID (0 = system-wide entries), action (exact code, e.g. `settings_updated`), actor (user ID, email, login, or `system`), date range (days in the site timezone, both inclusive).
-- **Columns:** date, action code, object (linked: a license to its detail screen; an activation or renewal to the detail screen of its license; releases, settings and catalog entries to their screens), acting user ("System" for jobs and webhooks), reason (system reason codes translated, as on the license detail screen), change summary ("field: old → new") with the full before/after snapshots under "Details".
-- **Redaction:** reasons and snapshots are redacted when written (license keys, emails, site URLs, tokens, secrets). The screen applies the same redaction again before showing a row, so older rows or rows written by add-ons cannot show such values either.
+- **Filters:** license ID (the license with its site activations and renewals; the link on the license detail screen sets it), object type, object ID (0 = system-wide entries), action (exact code, e.g. `settings_updated`), actor (user ID, email, login, or `system`), date range (days in the site timezone, both inclusive). The date range is mapped to an ID range and the license filter reads the IDs of the activations and renewals first, so no filter scans the table.
+- **Columns:** date, action code, object (linked: a license to its detail screen; an activation or renewal to the detail screen of its license; releases, settings and catalog entries to their screens), acting user as login and user ID, for example `anna (#17)` ("System" for jobs and webhooks), reason (system reason codes translated, as on the license detail screen), change summary ("field: old → new") with the full before/after snapshots under "Details".
+- **Redaction:** reasons and snapshots are redacted when written (license keys, emails, tokens, secrets). The screen applies the same redaction again before showing a row, so older rows or rows written by add-ons cannot show such values either. Site addresses of activations are kept (A-77) until a privacy erasure removes them.
+- **Export as CSV:** the filtered list with ID, time (UTC), action, object, actor ID and login, reason and the before/after snapshots, redacted exactly like the screen. It is streamed in batches (newest first, keyset paging) and holds at most 50,000 entries; a larger selection ends with a `# Export truncated …` line and the next visit of the screen shows a notice. Every export is recorded as `audit_log_exported` (object type `export`, ID 0) with the acting user and the filters.
 
 Entries cannot be edited or deleted here. Old entries are removed by the data retention job (730 days by default, see [MONITORING.md](MONITORING.md)).
 

@@ -102,7 +102,9 @@ final class AuditLogAdminIntegrationTest extends WPLC_Integration_TestCase {
 
 		$this->assertStringContainsString( 'settings_updated', $html );
 		$this->assertStringContainsString( 'grace_days: 14 → 7', $html );
-		$this->assertStringContainsString( 'Manny Manager', $html );
+		// Login and ID as on the license screen (B-135), not the editable display name.
+		$this->assertStringContainsString( get_userdata( $this->manager )->user_login . ' (#' . $this->manager . ')', $html );
+		$this->assertStringNotContainsString( 'Manny Manager', $html );
 		$this->assertStringContainsString( esc_html( AuditReason::label( AuditReason::SIGNING_KEY_ROTATED ) ), $html );
 		$this->assertStringNotContainsString( '>signing_key_rotated<', $html );
 		$this->assertStringContainsString( 'page=wplc-settings', $html );

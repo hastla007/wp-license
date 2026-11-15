@@ -173,16 +173,10 @@ final class AuditLogTable extends \WP_List_Table {
 	 */
 	protected function column_actor( $item ) {
 		$actor_id = (int) $item['actor_user_id'];
-		if ( ! $actor_id ) {
-			return esc_html__( 'System', 'wp-license' );
-		}
-		$actor = get_userdata( $actor_id );
-		if ( ! $actor ) {
-			/* translators: %d: user ID. */
-			return esc_html( sprintf( __( 'Deleted user #%d', 'wp-license' ), $actor_id ) );
-		}
+		$actor    = $actor_id > 0 ? get_userdata( $actor_id ) : false;
 
-		return esc_html( (string) $actor->display_name );
+		// Login and ID, which a user cannot change (B-135), as on the license detail screen.
+		return esc_html( LicenseDetail::actor_label( $actor_id, $actor ? (string) $actor->user_login : '' ) );
 	}
 
 	/**

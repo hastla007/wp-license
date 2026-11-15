@@ -60,6 +60,13 @@ final class SiteOverview {
 	private const DAY = 86400;
 
 	/**
+	 * URL of the page being rendered, which the deactivation forms post to.
+	 *
+	 * @var string
+	 */
+	private static $form_url = '';
+
+	/**
 	 * Version of the rewrite rules of this endpoint; a change flushes them once.
 	 */
 	public const RULES_VERSION = '1';
@@ -229,6 +236,9 @@ final class SiteOverview {
 		$page  = min( $pages, max( 1, absint( is_scalar( $endpoint_value ) ? $endpoint_value : 0 ) ) );
 		$shown = array_slice( $visible, ( $page - 1 ) * self::PER_PAGE, self::PER_PAGE, true );
 
+		// Deactivation posts back to this page with its selection (P-39, B-17).
+		self::$form_url = self::current_url( $page, $filter, $search );
+
 		echo '<table class="shop_table shop_table_responsive wplc-sites"><thead><tr>';
 		foreach ( self::columns() as $column ) {
 			echo '<th scope="col">' . esc_html( $column ) . '</th>';
@@ -240,6 +250,7 @@ final class SiteOverview {
 			}
 		}
 		echo '</tbody></table>';
+		self::$form_url = '';
 
 		self::render_pagination( $page, $pages, $filter, $search );
 	}
@@ -335,23 +346,36 @@ final class SiteOverview {
 	}
 
 	/**
-	 * Print the deactivation form; it posts to the handler of the license page.
+	 * Print the deactivation form: the same front-end handler as the license
+	 * page (CustomerPortal::handle_front_post()), posting to and returning to
+	 * this page instead of wp-admin/admin-post.php (P-39).
 	 *
 	 * @param int    $activation_id Activation ID.
 	 * @param string $site_url      Site URL, for the confirmation question.
 	 * @return void
 	 */
 	private static function render_deactivate_form( int $activation_id, string $site_url ): void {
-		/* translators: %s: site URL. */
-		$question = sprintf( __( 'Deactivate %s? The site loses updates and premium features until it is activated again.', 'wp-license' ), $site_url );
-		echo '<form method="post" class="wplc-inline" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-wplc-confirm="' . esc_attr( $question ) . '">';
-		echo '<input type="hidden" name="action" value="wplc_deactivate_site">';
-		echo '<input type="hidden" name="activation_id" value="' . esc_attr( (string) $activation_id ) . '">';
-		echo '<input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( 'wplc_deactivate_site_' . $activation_id ) ) . '">';
-		echo '<button type="submit" class="button">' . esc_html__( 'Deactivate', 'wp-license' );
-		/* translators: %s: site URL. */
-		echo '<span class="screen-reader-text"> ' . esc_html( sprintf( __( 'site %s', 'wp-license' ), $site_url ) ) . '</span></button>';
-		echo '</form>';
+		CustomerPortal::render_deactivate_form( $activation_id, $site_url, '' !== self::$form_url ? self::$form_url : self::page_url() );
+	}
+
+	/**
+	 * URL of the current page of this endpoint with its selection.
+	 *
+	 * @param int    $page   Page number.
+	 * @param string $filter Selected filter.
+	 * @param string $search Search text.
+	 * @return string
+	 */
+	private static function current_url( int $page, string $filter, string $search ): string {
+		$args = array();
+		if ( 'all' !== $filter ) {
+			$args['wplc_filter'] = $filter;
+		}
+		if ( '' !== $search ) {
+			$args['wplc_site'] = $search;
+		}
+
+		return $args ? add_query_arg( array_map( 'rawurlencode', $args ), self::page_url( $page ) ) : self::page_url( $page );
 	}
 
 	/**

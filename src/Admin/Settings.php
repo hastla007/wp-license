@@ -612,7 +612,7 @@ final class Settings {
 			$rows[] = array(
 				'label' => __( 'License keys verifiable with the current secret', 'wp-license' ),
 				/* translators: 1: number of verifiable keys, 2: number of checked keys. */
-				'value' => sprintf( __( '%1$d of the %2$d most recent keys', 'wp-license' ), $sample['verified'], $sample['checked'] ),
+				'value' => sprintf( _n( '%1$s of the %2$s most recent key', '%1$s of the %2$s most recent keys', $sample['checked'], 'wp-license' ), number_format_i18n( $sample['verified'] ), number_format_i18n( $sample['checked'] ) ),
 				'state' => $sample['verified'] === $sample['checked'] ? 'ok' : 'warning',
 				'help'  => $sample['verified'] === $sample['checked'] ? '' : __( 'Some customers see "not available" instead of their key. The secret or the salts were changed. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS, or run "wp wplc recover-license-key-ids".', 'wp-license' ),
 			);

@@ -93,7 +93,7 @@ final class LicenseListTable extends \WP_List_Table {
 	 * @return array<string,string>
 	 */
 	public function get_columns() {
-		return array(
+		$columns = array(
 			'cb'         => '<input type="checkbox" form="wplc-bulk-form">',
 			'license'    => __( 'License', 'wp-license' ),
 			'customer'   => __( 'Customer', 'wp-license' ),
@@ -104,6 +104,12 @@ final class LicenseListTable extends \WP_List_Table {
 			'renewal'    => __( 'Renewal', 'wp-license' ),
 			'created'    => __( 'Created', 'wp-license' ),
 		);
+		if ( ! Capabilities::can( 'manage_licenses' ) ) {
+			// Read-only support: no bulk form to bind the checkboxes to (P-07).
+			unset( $columns['cb'] );
+		}
+
+		return $columns;
 	}
 
 	/**
@@ -367,8 +373,8 @@ final class LicenseListTable extends \WP_List_Table {
 	 */
 	public static function expiry_filter_labels(): array {
 		return array(
-			/* translators: %d: number of days. */
-			'soon'    => sprintf( __( 'Expires within %d days', 'wp-license' ), self::EXPIRY_WINDOW_DAYS ),
+			/* translators: %s: number of days. */
+			'soon'    => sprintf( _n( 'Expires within %s day', 'Expires within %s days', self::EXPIRY_WINDOW_DAYS, 'wp-license' ), number_format_i18n( self::EXPIRY_WINDOW_DAYS ) ),
 			'expired' => __( 'Paid period ended', 'wp-license' ),
 		);
 	}

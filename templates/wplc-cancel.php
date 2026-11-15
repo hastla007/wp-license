@@ -62,6 +62,7 @@ $account_url = isset( $account_url ) ? (string) $account_url : '';
 	<?php elseif ( 'limited' === $state['view'] ) : ?>
 
 		<p class="wplc-cancel-limited" role="alert"><?php esc_html_e( 'Too many cancellation requests were sent in a short time. Please try again in an hour.', 'wp-license' ); ?></p>
+		<p><?php esc_html_e( 'If you entered an order number, you can also use the license reference from your license e-mail (it starts with WPLC-) or cancel in your customer account.', 'wp-license' ); ?></p>
 
 	<?php elseif ( 'review' === $state['view'] ) : ?>
 
