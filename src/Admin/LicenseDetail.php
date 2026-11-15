@@ -688,7 +688,7 @@ final class LicenseDetail {
 		}
 		echo '</p>';
 		echo '<table class="widefat striped"><thead><tr>';
-		foreach ( array( Format::date_heading(), __( 'Action', 'wp-license' ), __( 'Object', 'wp-license' ), __( 'By', 'wp-license' ), __( 'Reason', 'wp-license' ), __( 'Change', 'wp-license' ) ) as $heading ) {
+		foreach ( array( Format::date_heading(), __( 'Action', 'wp-license' ), __( 'Object', 'wp-license' ), __( 'By', 'wp-license' ), __( 'Source', 'wp-license' ), __( 'Reason', 'wp-license' ), __( 'Change', 'wp-license' ) ) as $heading ) {
 			echo '<th scope="col">' . esc_html( $heading ) . '</th>';
 		}
 		echo '</tr></thead><tbody>';
@@ -702,6 +702,7 @@ final class LicenseDetail {
 			echo '<td>' . Format::audit_action_html( (string) $entry['action'] ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in Format::audit_action_html().
 			echo '<td>' . esc_html( ( isset( $object_labels[ $type ] ) ? $object_labels[ $type ] : $type ) . ' #' . (int) $entry['object_id'] ) . '</td>';
 			echo '<td>' . esc_html( $actor_name ) . '</td>';
+			echo '<td>' . esc_html( AuditLogAdmin::source_label( isset( $entry['source'] ) ? (string) $entry['source'] : '' ) ) . '</td>';
 			echo '<td>' . esc_html( AuditReason::label( (string) $entry['reason'] ) ) . '</td>';
 			echo '<td>' . esc_html( self::change_summary( $entry['before_json'], $entry['after_json'] ) ) . '</td></tr>';
 		}

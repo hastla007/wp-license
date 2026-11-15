@@ -362,6 +362,7 @@ final class Plugin {
 		// (usually the main site) may not run WooCommerce, but the deleted site's
 		// wplc_* tables must still be dropped with it.
 		Schema::register_hooks();
+		\WPLC\License\AuditLog::register_hooks();
 		// A-42: release notification for the plugin itself (no automatic install).
 		\WPLC\Infrastructure\SelfUpdateCheck::register_hooks();
 

@@ -122,7 +122,7 @@ final class AuditLogAdmin {
 			return null;
 		}
 		$args = array();
-		foreach ( array( 'license', 'object_type', 'object_id', 'audit_action', 'actor', 'from', 'to', 'paged' ) as $key ) {
+		foreach ( array( 'license', 'object_type', 'object_id', 'audit_action', 'actor', 'from', 'to', 'source', 'paged' ) as $key ) {
 			if ( isset( $get[ $key ] ) && is_string( $get[ $key ] ) && '' !== trim( $get[ $key ] ) ) {
 				$args[ $key ] = sanitize_text_field( $get[ $key ] );
 			}
@@ -176,9 +176,41 @@ final class AuditLogAdmin {
 	}
 
 	/**
+	 * Sources of an entry with labels (A-76); an entry without a source predates schema 23.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function source_labels(): array {
+		return array(
+			'admin'    => __( 'Admin', 'wp-license' ),
+			'customer' => __( 'Customer', 'wp-license' ),
+			'rest'     => __( 'License API', 'wp-license' ),
+			'webhook'  => __( 'Stripe webhook', 'wp-license' ),
+			'cron'     => __( 'Scheduled task', 'wp-license' ),
+			'cli'      => __( 'WP-CLI', 'wp-license' ),
+			'system'   => __( 'Internal', 'wp-license' ),
+		);
+	}
+
+	/**
+	 * Label of a stored source: the known label, the stored key, or "Unknown" for an empty one.
+	 *
+	 * @param string $source Stored source.
+	 * @return string
+	 */
+	public static function source_label( string $source ): string {
+		if ( '' === $source ) {
+			return __( 'Unknown', 'wp-license' );
+		}
+		$labels = self::source_labels();
+
+		return isset( $labels[ $source ] ) ? $labels[ $source ] : $source;
+	}
+
+	/**
 	 * Filters from the request.
 	 *
-	 * @return array{license:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string}
+	 * @return array{license:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string,source:string}
 	 */
 	public static function request_filters(): array {
 		$read = static function ( string $key ): string {
@@ -199,7 +231,23 @@ final class AuditLogAdmin {
 			'actor'       => $read( 'actor' ),
 			'from'        => 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) ? $from : '',
 			'to'          => 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) ? $to : '',
+			'source'      => self::source_filter( $read( 'source' ) ),
 		);
+	}
+
+	/**
+	 * Source filter value: a stored source key, "unknown" for entries without one, or ''.
+	 *
+	 * @param string $input Filter input.
+	 * @return string
+	 */
+	public static function source_filter( string $input ): string {
+		$input = sanitize_key( $input );
+		if ( '' === $input ) {
+			return '';
+		}
+
+		return 'unknown' === $input ? 'unknown' : AuditLog::normalize_source( $input, '' );
 	}
 
 	/**
@@ -213,7 +261,10 @@ final class AuditLogAdmin {
 	 * its renewals) reads the activation and renewal IDs first, so the audit
 	 * query is a few object_history ranges instead of a subquery per row.
 	 *
-	 * @param array{license?:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string} $filters Filters.
+	 * The source filter uses source_entries (schema 23); "unknown" matches the
+	 * entries written before the source was stored.
+	 *
+	 * @param array{license?:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string,source?:string} $filters Filters.
 	 * @return array{sql:string,params:array<int,mixed>}
 	 */
 	public static function where( array $filters ): array {
@@ -257,6 +308,11 @@ final class AuditLogAdmin {
 				$conditions[] = 'actor_user_id = %d';
 				$params[]     = $actor;
 			}
+		}
+		$source = isset( $filters['source'] ) ? (string) $filters['source'] : '';
+		if ( '' !== $source && AuditLog::source_column_installed() ) {
+			$conditions[] = 'source = %s';
+			$params[]     = 'unknown' === $source ? '' : $source;
 		}
 		$timezone = wp_timezone();
 		if ( '' !== $filters['from'] ) {
@@ -432,6 +488,17 @@ final class AuditLogAdmin {
 		echo '<input type="text" id="wplc-audit-action" name="audit_action" value="' . esc_attr( $filters['action'] ) . '" placeholder="settings_updated"> ';
 		echo '<label for="wplc-audit-actor">' . esc_html__( 'By', 'wp-license' ) . '</label> ';
 		echo '<input type="text" id="wplc-audit-actor" name="actor" value="' . esc_attr( $filters['actor'] ) . '" placeholder="' . esc_attr__( 'User ID, email or "system"', 'wp-license' ) . '"> ';
+		echo '<label for="wplc-audit-source">' . esc_html__( 'Source', 'wp-license' ) . '</label> ';
+		echo '<select id="wplc-audit-source" name="source"><option value="">' . esc_html__( 'All sources', 'wp-license' ) . '</option>';
+		$sources            = self::source_labels();
+		$sources['unknown'] = __( 'Unknown (older entries)', 'wp-license' );
+		if ( '' !== $filters['source'] && ! isset( $sources[ $filters['source'] ] ) ) {
+			$sources[ $filters['source'] ] = $filters['source'];
+		}
+		foreach ( $sources as $source => $label ) {
+			echo '<option value="' . esc_attr( $source ) . '"' . selected( $filters['source'], $source, false ) . '>' . esc_html( $label ) . '</option>';
+		}
+		echo '</select> ';
 		echo '<label for="wplc-audit-from">' . esc_html__( 'From', 'wp-license' ) . '</label> ';
 		echo '<input type="date" id="wplc-audit-from" name="from" value="' . esc_attr( $filters['from'] ) . '"> ';
 		echo '<label for="wplc-audit-to">' . esc_html__( 'To', 'wp-license' ) . '</label> ';
@@ -485,8 +552,8 @@ final class AuditLogAdmin {
 	/**
 	 * Build the CSV for a set of filters as a string (tests, small logs).
 	 *
-	 * @param array{license?:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string} $filters Filters.
-	 * @param int                                                                                                           $limit   Row cap.
+	 * @param array{license?:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string,source?:string} $filters Filters.
+	 * @param int                                                                                                                          $limit   Row cap.
 	 * @return string
 	 */
 	public static function export_csv( array $filters, int $limit = self::EXPORT_LIMIT ): string {
@@ -507,9 +574,9 @@ final class AuditLogAdmin {
 	 *
 	 * Reasons and snapshots are redacted as on the screen.
 	 *
-	 * @param array{license?:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string} $filters Filters.
-	 * @param resource                                                                                                      $handle  Output stream.
-	 * @param int                                                                                                           $limit   Row cap.
+	 * @param array{license?:string,object_type:string,object_id:string,action:string,actor:string,from:string,to:string,source?:string} $filters Filters.
+	 * @param resource                                                                                                                     $handle  Output stream.
+	 * @param int                                                                                                                          $limit   Row cap.
 	 * @return array{rows:int,truncated:bool}
 	 */
 	public static function write_csv( array $filters, $handle, int $limit = self::EXPORT_LIMIT ): array {
@@ -528,7 +595,7 @@ final class AuditLogAdmin {
 			$encoded = wp_json_encode( AuditLog::redact_for_display( json_decode( $json, true ) ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 			return false === $encoded ? '' : $encoded;
 		};
-		CsvExport::write( $handle, array( 'id', 'created_at_utc', 'action', 'object_type', 'object_id', 'actor_user_id', 'actor_login', 'reason', 'before', 'after' ) );
+		CsvExport::write( $handle, array( 'id', 'created_at_utc', 'action', 'object_type', 'object_id', 'actor_user_id', 'actor_login', 'source', 'reason', 'before', 'after' ) );
 		do {
 			$batch_size = min( self::EXPORT_BATCH, $limit - $total + 1 );
 			$sql        = "SELECT * FROM {$table}" . ( '' !== $where['sql'] ? $where['sql'] . ' AND' : ' WHERE' ) . ' id < %d ORDER BY id DESC LIMIT %d';
@@ -554,6 +621,7 @@ final class AuditLogAdmin {
 						(int) $row['object_id'],
 						$actor,
 						$logins[ $actor ] ?? '',
+						isset( $row['source'] ) ? (string) $row['source'] : '',
 						AuditLog::redact_text_for_display( (string) $row['reason'] ),
 						$redact( $row['before_json'] ),
 						$redact( $row['after_json'] ),

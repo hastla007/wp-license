@@ -64,7 +64,7 @@ final class Schema {
 	 *     source on the diagnostics page), added by dbDelta (P-31, P-53). From this version
 	 *     on the daily structure check also compares the declared indexes.
 	 */
-	public const VERSION = '22';
+	public const VERSION = '23';
 
 	/**
 	 * Option in which ReminderLog records the layout of its table.
@@ -129,6 +129,7 @@ final class Schema {
 		'19' => array( self::class, 'step_19_one_heartbeat_store' ),
 		'21' => array( self::class, 'step_21_merged_schema' ),
 		'22' => array( self::class, 'step_22_lookup_indexes' ),
+		'23' => array( self::class, 'step_23_audit_source' ),
 	);
 
 	/**
@@ -1037,9 +1038,11 @@ final class Schema {
 				before_json longtext DEFAULT NULL,
 				after_json longtext DEFAULT NULL,
 				created_at datetime NOT NULL,
+				source varchar(20) NOT NULL DEFAULT '',
 				PRIMARY KEY  (id),
 				KEY object_history (object_type,object_id,created_at),
-				KEY actor_history (actor_user_id,created_at)
+				KEY actor_history (actor_user_id,created_at),
+				KEY source_entries (source)
 			) {$charset_collate};",
 			"CREATE TABLE {$tables['releases']} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -1479,6 +1482,34 @@ final class Schema {
 	 */
 	private static function step_22_lookup_indexes(): bool { // @phpstan-ignore method.unused (called through self::$steps)
 		return self::indexes_exist( self::LOOKUP_INDEXES );
+	}
+
+	/**
+	 * Schema 23: audit_log.source with its index (A-76).
+	 *
+	 * AuditLog::record() stores where an entry came from (cli, cron, webhook,
+	 * rest, admin, customer, system). dbDelta adds the column and the index
+	 * `source_entries (source)`, which the source filter of the audit screen
+	 * uses (InnoDB appends the primary key, so the list stays ordered by ID).
+	 * Older entries keep the empty default: their source is unknown and is
+	 * shown as such. No data changes; the step checks that column and index
+	 * exist, because dbDelta reports no errors, and is retried otherwise.
+	 *
+	 * @return bool
+	 */
+	private static function step_23_audit_source(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		global $wpdb;
+
+		$tables = self::table_names();
+		$exists = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+				$tables['audit_log'],
+				'source'
+			)
+		);
+
+		return 1 === (int) $exists && self::indexes_exist( array( 'audit_log' => array( 'source_entries' ) ) );
 	}
 
 	/**

@@ -60,6 +60,7 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc_account_license_view` | `src/Account/CustomerPortal.php` | Filter the display values of one license in the customer account. |
 | `wplc_admin_can_raise_renewal_amount` | `src/Admin/SupportActions.php` | Filters whether an administrator may raise the automatic renewal amount of a license. |
 | `wplc_audit_action_labels` | `src/Admin/Format.php` | Filters the readable names of audit actions on the admin screens. |
+| `wplc_audit_source` | `src/License/AuditLog.php` | Filter the source stored with an audit entry (A-76). |
 | `wplc_billing_paused` | `src/Maintenance/SiteGuard.php` | Filter whether billing is paused on this installation. |
 | `wplc_block_checkout_consent_enabled` | `src/Billing/BlockCheckoutConsent.php` | Filters whether the automatic renewal opt-in is offered in the block checkout. |
 | `wplc_block_checkout_consent_without_rule` | `src/Billing/BlockCheckoutConsent.php` | Filters whether the block checkout offers the automatic renewal opt-in when |
