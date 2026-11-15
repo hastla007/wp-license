@@ -271,6 +271,7 @@ final class ApiAbuseLimitsIntegrationTest extends WPLC_Integration_TestCase {
 
 	public function test_an_address_with_many_failed_authentications_is_refused_before_the_lookup(): void {
 		global $wpdb;
+		$this->wait_for_minute_headroom( 10 ); // The seeded bucket is the current minute.
 		$license = $this->seed_license();
 		$site    = $this->activate_via_api( $license['key'] );
 

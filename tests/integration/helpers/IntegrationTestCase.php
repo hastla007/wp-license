@@ -396,6 +396,23 @@ abstract class WPLC_Integration_TestCase extends WP_UnitTestCase {
 	// ---------------------------------------------------------------------
 
 	/**
+	 * Wait for the next UTC minute when fewer than $seconds remain in the current one (B-195, T-148).
+	 *
+	 * The request limits count per calendar minute (`bucket_start` = `Y-m-d H:i:00`).
+	 * A test that sends a burst and expects the limit to bite must not straddle a minute
+	 * boundary: the second half would land in a fresh bucket and pass (401 instead of 429).
+	 *
+	 * @param int $seconds Seconds the burst needs, with headroom.
+	 * @return void
+	 */
+	protected function wait_for_minute_headroom( int $seconds ): void {
+		$left = 60 - (int) gmdate( 's' );
+		if ( $left < $seconds ) {
+			sleep( $left + 1 );
+		}
+	}
+
+	/**
 	 * A nonce that is unique within this test.
 	 *
 	 * @return string

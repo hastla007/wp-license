@@ -313,6 +313,7 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 	}
 
 	public function test_a_throttled_installation_does_not_store_nonces(): void {
+		$this->wait_for_minute_headroom( 10 ); // The seeded bucket is the current minute.
 		global $wpdb;
 		$tables  = $this->tables();
 		$license = $this->seed_license();
