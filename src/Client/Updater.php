@@ -384,7 +384,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 					return new \WP_Error( 'wplc_update_insecure', $messages->get( 'update.insecure' ) );
 				}
 				$file = wp_tempnam( 'wplc-update' );
-				if ( ! is_string( $file ) || '' === $file ) {
+				if ( '' === $file ) {
 					return new \WP_Error( 'wplc_update_failed', sprintf( $messages->get( 'update.failed' ), 'tmp' ) );
 				}
 				$args     = array(
@@ -408,7 +408,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 					if ( '' === $location ) {
 						return new \WP_Error( 'wplc_update_failed', sprintf( $messages->get( 'update.failed' ), 'HTTP ' . $code ) );
 					}
-					$url = class_exists( 'WP_Http' ) && method_exists( 'WP_Http', 'make_absolute_url' ) ? (string) \WP_Http::make_absolute_url( $location, $url ) : $location;
+					$url = class_exists( 'WP_Http' ) ? (string) \WP_Http::make_absolute_url( $location, $url ) : $location;
 					continue;
 				}
 				if ( 200 !== $code ) {

@@ -585,7 +585,6 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 							'update_site_meta_cache' => false,
 						)
 					);
-					$sites = is_array( $sites ) ? $sites : array();
 					foreach ( $sites as $site_id ) {
 						switch_to_blog( (int) $site_id );
 						$this->uninstall_site( $started );
