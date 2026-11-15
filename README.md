@@ -2,6 +2,8 @@
 
 WooCommerce plugin that turns a shop into a license server for premium WordPress plugins: it sells licenses, tracks site activations, tells product plugins which features a customer has paid for, renews licenses and delivers updates.
 
+**Product boundary:** WP License Captain is an independent server plugin sold separately; it is not part of any Captain Pro plan. A software vendor can implement the client directly in its WordPress product against the documented API or use the PHP client library in `src/Client/`. A dedicated client plugin, such as the License Captain Client we use for our own products, is another integration option. Captain Pro add-ons carry a client component only to validate our own PRO licenses; this internal implementation detail is not a customer-facing PRO benefit. Buyers of Captain Pro do not need to operate their own License Captain Server.
+
 > **Status: preview. Not ready to sell with.** Unit and integration tests pass in CI, and an end-to-end harness (`tests/e2e/`) runs purchases, manual and automatic renewals (with a test payment adapter), updates and the admin and account pages in a real WordPress/WooCommerce installation. Not verified yet: anything against Stripe (test mode), the screens in a browser (JavaScript, block checkout, emails in a mail client), the product add-ons talking to the server, and concurrent requests. Open work: [docs/TODO.md](docs/TODO.md). Release gates: [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
 ## Features
