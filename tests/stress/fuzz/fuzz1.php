@@ -98,13 +98,13 @@ foreach ( array( 'pending', 'active', 'past_due', 'suspended', 'expired', 'revok
 } } } }
 $GLOBALS['ha'] = $ha;
 
-// ---- RenewalScheduler::period_end
+// ---- RenewalScheduler::period_end (B-178: a clamped period ends at 23:59:59 of the last day)
 $bad = 0; $drift = array();
 foreach ( array( 'month', 'year', '', 'week', 'MONTH' ) as $iv ) {
 	for ( $y = 2024; $y < 2044; $y++ ) { for ( $m = 1; $m <= 12; $m++ ) { $dim = cal_days_in_month( CAL_GREGORIAN, $m, $y ); for ( $d = 1; $d <= $dim; $d++ ) { foreach ( array( '00:00:00', '23:59:59', '02:30:00' ) as $tm ) {
 		$ts = strtotime( sprintf( '%04d-%02d-%02d %s UTC', $y, $m, $d, $tm ) ); $e = RenewalScheduler::period_end( $ts, $iv ); C( 'RenewalScheduler::period_end' );
 		$len = $e - $ts; $exp_min = 'month' === $iv ? 28 * 86400 : 365 * 86400; $exp_max = 'month' === $iv ? 31 * 86400 : 366 * 86400;
-		if ( $len < $exp_min || $len > $exp_max || gmdate( 'H:i:s', $e ) !== $tm ) { $bad++; if ( $bad < 5 ) { F( 'RenewalScheduler', "period_end($y-$m-$d $tm, '$iv') len=" . ( $len / 86400 ) ); } }
+		if ( $len < $exp_min || $len > $exp_max || gmdate( 'H:i:s', $e ) !== ( $d > (int) gmdate( 't', $e ) ? '23:59:59' : $tm ) ) { $bad++; if ( $bad < 5 ) { F( 'RenewalScheduler', "period_end($y-$m-$d $tm, '$iv') len=" . ( $len / 86400 ) ); } }
 	} } } }
 }
 // monotonic

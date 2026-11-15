@@ -80,6 +80,9 @@ final class LicenseLifecycle {
 		// B-36: a paid order that is cancelled or fails afterwards (bounced debit).
 		add_action( 'woocommerce_order_status_cancelled', array( self::class, 'handle_order_cancelled' ), 20, 1 );
 		add_action( 'woocommerce_order_status_failed', array( self::class, 'handle_order_cancelled' ), 20, 1 );
+		// B-36: a line of a paid order is removed, or its quantity lowered, after the licenses were issued.
+		add_action( 'woocommerce_before_delete_order_item', array( self::class, 'handle_order_item_deleted' ), 20, 1 );
+		add_action( 'woocommerce_update_order_item', array( self::class, 'handle_order_item_updated' ), 20, 2 );
 		// B-60: a paid renewal order the gateway cancelled because the payment was refunded at the provider.
 		add_action( 'wplc/renewal_order_voided', array( self::class, 'handle_renewal_order_voided' ), 10, 1 );
 		// A-25: a deleted customer account is handled by Maintenance\Orphans::on_user_deleted().
@@ -674,6 +677,109 @@ final class LicenseLifecycle {
 	}
 
 	/**
+	 * A line of a paid order was deleted after its licenses were issued (B-36).
+	 *
+	 * @param mixed $item_id Order item ID.
+	 * @return void
+	 */
+	public static function handle_order_item_deleted( $item_id ): void {
+		$item_id = absint( $item_id );
+		if ( $item_id ) {
+			self::suspend_units_beyond( $item_id, 0 );
+		}
+	}
+
+	/**
+	 * A line of a paid order was saved; licenses above its new quantity are suspended (B-36).
+	 *
+	 * Refunds do not change the quantity of the original line (WooCommerce
+	 * records them on the refund), so this only reacts to an edited order.
+	 *
+	 * @param mixed $item_id Order item ID.
+	 * @param mixed $item Order item.
+	 * @return void
+	 */
+	public static function handle_order_item_updated( $item_id, $item = null ): void {
+		if ( ! $item instanceof \WC_Order_Item_Product ) {
+			return;
+		}
+		self::suspend_units_beyond( absint( $item_id ), max( 0, (int) $item->get_quantity() ) );
+	}
+
+	/**
+	 * Suspend the active licenses of an order line whose unit index is at or above a quantity.
+	 *
+	 * Reversible, like a cancelled order: the shop reviews and reactivates in the admin.
+	 *
+	 * @param int $item_id Order item ID.
+	 * @param int $quantity Units the line still has; zero for a deleted line.
+	 * @return void
+	 */
+	private static function suspend_units_beyond( int $item_id, int $quantity ): void {
+		global $wpdb;
+
+		if ( ! $item_id ) {
+			return;
+		}
+		$tables = Schema::table_names();
+		$rows = (array) $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, source_order_id FROM %i WHERE source_order_item_id = %d AND unit_index >= %d AND status IN ('active','past_due') ORDER BY unit_index ASC",
+				$tables['licenses'],
+				$item_id,
+				$quantity
+			),
+			ARRAY_A
+		);
+		if ( ! $rows ) {
+			return;
+		}
+		$order_id = (int) $rows[0]['source_order_id'];
+		$order = $order_id && function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+		/**
+		 * Filters whether licenses are suspended when their order line is removed or its quantity lowered.
+		 *
+		 * @param bool            $suspend Default true.
+		 * @param int[]           $license_ids Licenses above the new quantity.
+		 * @param \WC_Order|false $order Order the licenses were issued from.
+		 * @param int             $quantity New quantity of the line, zero when the line was deleted.
+		 */
+		if ( ! apply_filters( 'wplc_suspend_license_on_order_item_change', true, array_map( 'intval', wp_list_pluck( $rows, 'id' ) ), $order, $quantity ) ) {
+			return;
+		}
+		$reason = 0 === $quantity
+			? sprintf(
+				/* translators: %d: order ID. */
+				__( 'The order line of this license was removed from order #%d after the license was paid; review before reactivating', 'wp-license' ),
+				$order_id
+			)
+			: sprintf(
+				/* translators: 1: order ID, 2: new quantity of the order line. */
+				__( 'The quantity of the order line of this license in order #%1$d was lowered to %2$d after the license was paid; review before reactivating', 'wp-license' ),
+				$order_id,
+				$quantity
+			);
+		$suspended = array();
+		foreach ( $rows as $row ) {
+			$license_id = (int) $row['id'];
+			if ( self::transition( $license_id, 'suspended', $reason, 'order_cancelled', get_current_user_id() ) ) {
+				$suspended[] = $license_id;
+				/** This action is documented in src/License/LicenseLifecycle.php */
+				do_action( 'wplc/license_needs_review', $license_id, $reason );
+			}
+		}
+		if ( $suspended && $order instanceof \WC_Order ) {
+			$order->add_order_note(
+				sprintf(
+					/* translators: %s: comma-separated license IDs. */
+					__( 'WP License Captain suspended license(s) #%s because the order line was removed or its quantity lowered. Reactivate them in the license admin if this was intended.', 'wp-license' ),
+					implode( ', #', $suspended )
+				)
+			);
+		}
+	}
+
+	/**
 	 * Switch automatic renewal off for good and close open automatic renewals.
 	 *
 	 * Delegates to WPLC\Maintenance\RenewalSwitch::off(), the single writer of this change
@@ -1036,6 +1142,16 @@ final class LicenseLifecycle {
 				continue;
 			}
 			++$cancelled;
+			// A-73: every status change of a renewal leaves its own audit entry with the reason.
+			AuditLog::record(
+				'renewal_cancelled',
+				'renewal',
+				(int) $row['id'],
+				substr( sanitize_key( $code ), 0, 100 ),
+				array( 'status' => (string) $row['status'] ),
+				array( 'status' => 'cancelled', 'reason' => substr( sanitize_key( $code ), 0, 100 ) ),
+				get_current_user_id()
+			);
 			if ( ! empty( $row['renewal_order_id'] ) && class_exists( '\\WPLC\\Billing\\RenewalOrder' ) ) {
 				\WPLC\Billing\RenewalOrder::close_unpaid( (int) $row['renewal_order_id'], $order_note );
 			}

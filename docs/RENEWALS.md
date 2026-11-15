@@ -199,7 +199,7 @@ All run on `wplc_daily_lifecycle`. Each one is isolated by `WPLC\Maintenance\Dai
 | `repair_missing_schedules` | Creates the renewal row of the next period for renewing licenses that have none. |
 | `reconcile_unbooked_paid_orders` | Books paid renewal orders whose booking job was lost (also orders paid while the plugin was inactive). |
 | `requeue_pending_stripe_events` | Queues verified Stripe events again that were never processed. |
-| `cleanup_stale_renewals` | Cancels manual renewals nobody paid once their window has passed, and open automatic renewals whose license ended or whose period is no longer current, together with their unpaid orders. |
+| `cleanup_stale_renewals` | Cancels manual renewals nobody paid once their window has passed, and open automatic renewals whose license ended or whose period is no longer current, together with their unpaid orders. Then closes unpaid renewal orders (older than a day, unchanged for an hour) that no renewal can accept any more: their renewal row is gone, the renewal ended or was paid with another order, or it is linked to another order. They are cancelled with a note; an order on hold only gets a note (audit action `renewal_order_orphaned`). |
 | `reconcile_plan_upgrades` | Plan upgrade orders: applies paid ones that were never applied, reverts applied ones that were cancelled or failed later, cancels unpaid ones whose quote no longer applies (see "Plan changes"). |
 
 ### Grace period
@@ -234,7 +234,7 @@ The customer can cancel at period end in the account and withdraw the cancellati
 - **Billing address:** with taxes enabled, a renewal cannot be started without a billing country; the customer is sent to "edit billing address".
 - **Same key:** the license, its key and its activations stay; only `paid_until` moves.
 - **New period:** one rule for every way of paying. While the license has not expired and the payment arrives within the grace period (14 days after `paid_until`), the new period continues from the old due date, like an automatic renewal: paying late gifts no days. For an expired license, or after the grace period, the period starts at the payment time: the gap without access is not billed.
-- **Billing day:** a period that ends on the last day of a short month only because of clamping (31 January to 28 February) returns to the day of month the license started on (31 March).
+- **Billing day:** a period that ends on the last day of a short month only because of clamping (31 January to 28 February) returns to the day of month the license started on (31 March). A clamped period ends at 23:59:59 UTC of that last day, so a later purchase never ends earlier than an earlier one (29 and 30 January both end on 28 February at 23:59:59).
 - **Expired licenses:** a manual renewal payment is the only payment that reactivates an `expired` license, and only inside the window.
 - **Automatic renewal setting:** unchanged. A manual renewal does not switch automatic renewal on and does not remove a scheduled cancellation.
 - **Booking:** `RenewalProcessor::handle_paid_order()` reacts to `woocommerce_payment_complete` and the status changes to processing/completed. The license is extended first (compare-and-set on `paid_until`), then the renewal is marked paid; duplicate hooks are harmless.
@@ -316,6 +316,8 @@ The order line always uses the bought product (or, if it is gone, the plan's pro
 
 `last_error` holds the reason code of the last change, `last_attempt_at` the start of the last charge attempt, `gateway_attempt_id` the gateway transaction of a successful charge (`last_error` and `last_attempt_at` since schema 12).
 
+Every change of a renewal's status writes an audit entry for the renewal whose new values name the new status (A-73), for example `renewal_failed`, `renewal_manual_action_required`, `renewal_cancelled` (also when a license change cancels its open renewals), `renewal_rescheduled` (a cancelled or manual row becomes automatic again) and `renewal_paid`. Only the short claim `processing` has no entry of its own; it always ends in one of the audited results, and the stuck-renewal sweep audits a claim that never ended. (Exception outside the billing code: a license handed over to another customer cancels its open renewals inside the owner change, audited once as `license_owner_changed`.)
+
 ## Refund of a renewal order
 
 A **full** refund of a paid renewal order (`woocommerce_order_fully_refunded`, status `refunded`):
@@ -338,6 +340,7 @@ A refund of the original purchase order revokes the license (per refunded unit, 
 
 - A renewal order with an open review case that is set to `cancelled` closes the case (see "Review").
 - A paid order that is set to `cancelled` or `failed` afterwards (bounced debit) **suspends** the licenses issued from it, or the license a paid renewal order extended, and fires `wplc/license_needs_review`. Suspension is reversible in the admin. Filter `wplc_suspend_license_on_order_status` (return false to keep the license active).
+- When a line of a paid order is removed, or its quantity is lowered, after the licenses were issued, the licenses above the new quantity (all of them for a removed line) are **suspended** the same way, with a note on the order. A refund does not count: WooCommerce books it on the refund, not on the original line. Filter `wplc_suspend_license_on_order_item_change` (arguments: license IDs, order, new quantity; return false to keep them active).
 - When a customer account is deleted, automatic renewal is switched off for its licenses.
 
 ## Administrator actions
