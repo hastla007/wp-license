@@ -50,7 +50,7 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 ## Requirements
 
 - WordPress 6.5 or later
-- WooCommerce (active); the tested version range is not determined yet
+- WooCommerce 8.9 or later, active (the CI integration matrix runs 8.9.3, 9.4.3 and 11.2.2, see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md))
 - PHP 7.4 or later
 - MySQL/MariaDB with a single writable primary (the renewal locks use `GET_LOCK`)
 - A working cron (system cron for `wp-cron.php` recommended)

@@ -54,7 +54,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Declared minimum: WordPress 6.5, the last WooCommerce line that supports it, PHP 7.4.
+          # Declared WooCommerce minimum (`WC requires at least: 8.9` in wp-license.php, Requirements::MIN_WC):
+          # the last 8.9 release with the declared WordPress and PHP minimums. WooCommerce 8.9 itself needs WP 6.4+.
+          - { wp: "6.5", wc: "8.9.3", php: "7.4", hpos: "1" }
+          - { wp: "6.5", wc: "8.9.3", php: "7.4", hpos: "0" }
+          # Declared WordPress minimum: WordPress 6.5, the last WooCommerce line that supports it, PHP 7.4.
           - { wp: "6.5", wc: "9.4.3", php: "7.4", hpos: "1" }
           - { wp: "6.5", wc: "9.4.3", php: "7.4", hpos: "0" }
           # Current: latest WordPress, pinned recent WooCommerce (keep in sync with bin/install-test-env.sh).
