@@ -2227,15 +2227,16 @@ final class LicenseLifecycle {
 	 * Ownership must be checked by the caller. Only active and past-due
 	 * licenses qualify; an active license must not have passed its paid period.
 	 *
-	 * @param int $license_id License ID.
-	 * @param int $actor_user_id User who withdraws the cancellation.
+	 * @param int    $license_id License ID.
+	 * @param int    $actor_user_id User who withdraws the cancellation.
+	 * @param string $reason Audit reason; empty for the standard reason (customer action).
 	 * @return bool
 	 */
-	public static function resume_renewal( int $license_id, int $actor_user_id ): bool {
+	public static function resume_renewal( int $license_id, int $actor_user_id, string $reason = '' ): bool {
 		return (bool) self::with_license_lock(
 			$license_id,
-			static function () use ( $license_id, $actor_user_id ) {
-				return self::resume_renewal_locked( $license_id, $actor_user_id );
+			static function () use ( $license_id, $actor_user_id, $reason ) {
+				return self::resume_renewal_locked( $license_id, $actor_user_id, $reason );
 			}
 		);
 	}
@@ -2245,7 +2246,7 @@ final class LicenseLifecycle {
 	 *
 	 * @see self::resume_renewal()
 	 */
-	private static function resume_renewal_locked( int $license_id, int $actor_user_id ): bool {
+	private static function resume_renewal_locked( int $license_id, int $actor_user_id, string $reason = '' ): bool {
 		global $wpdb;
 
 		$license = self::get_license( $license_id );
@@ -2279,7 +2280,7 @@ final class LicenseLifecycle {
 			'cancellation_withdrawn',
 			'license',
 			$license_id,
-			AuditReason::CANCELLATION_WITHDRAWN,
+			'' !== $reason ? $reason : AuditReason::CANCELLATION_WITHDRAWN,
 			array( 'status' => $license['status'], 'cancel_at_period_end' => 1 ),
 			array( 'status' => $license['status'], 'cancel_at_period_end' => 0 ),
 			$actor_user_id

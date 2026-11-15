@@ -83,6 +83,7 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 			'wplc_schema_last_error',
 			'wplc_schema_error',
 			'wplc_last_run',
+			'wplc_webhook_rejected',
 			'wplc_schema_verified',
 		);
 		foreach ( $working_state as $option ) {

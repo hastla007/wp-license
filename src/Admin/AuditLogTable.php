@@ -48,7 +48,7 @@ final class AuditLogTable extends \WP_List_Table {
 	 */
 	public function get_columns() {
 		return array(
-			'created_at' => __( 'Date', 'wp-license' ),
+			'created_at' => Format::date_heading(),
 			'action'     => __( 'Action', 'wp-license' ),
 			'object'     => __( 'Object', 'wp-license' ),
 			'actor'      => __( 'By', 'wp-license' ),
@@ -146,13 +146,13 @@ final class AuditLogTable extends \WP_List_Table {
 	}
 
 	/**
-	 * Action code.
+	 * Action name and code (A-122).
 	 *
 	 * @param array<string,mixed> $item Audit row.
 	 * @return string
 	 */
 	protected function column_action( $item ) {
-		return '<code>' . esc_html( (string) $item['action'] ) . '</code>';
+		return Format::audit_action_html( (string) $item['action'] );
 	}
 
 	/**

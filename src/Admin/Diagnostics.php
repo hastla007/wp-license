@@ -22,8 +22,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** Displays environment facts without exposing license or payment secrets. */
 final class Diagnostics {
 
-	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Only table names from Schema::table_names() and $wpdb are interpolated; every value goes through prepare().
-
 	/**
 	 * Admin page slug.
 	 */
@@ -33,6 +31,11 @@ final class Diagnostics {
 	 * Option with the heartbeat of the background jobs: job name => UTC timestamp.
 	 */
 	public const LAST_RUN_OPTION = 'wplc_last_run';
+
+	/**
+	 * Option with rejected Stripe webhook requests per UTC hour (A-72): 'YmdH' => minutes.
+	 */
+	public const WEBHOOK_REJECTED_OPTION = 'wplc_webhook_rejected';
 
 	/**
 	 * Heartbeat names written by this class.
@@ -130,7 +133,81 @@ final class Diagnostics {
 			asort( $runs );
 			$runs = array_slice( $runs, -60, null, true );
 		}
-		update_option( self::LAST_RUN_OPTION, $runs, false );
+		// Autoloaded (P-52): the admin notice reads it on every shop screen, and it holds
+		// at most 60 small entries. An option stored as not autoloaded by an older
+		// version switches over on its next write.
+		update_option( self::LAST_RUN_OPTION, $runs, true );
+	}
+
+	/**
+	 * Count a Stripe webhook request with an invalid signature (A-72).
+	 *
+	 * The caller throttles to one call a minute (the request is unauthenticated,
+	 * so every call must not cost a database write); the count is therefore the
+	 * number of minutes with at least one rejected request. Kept per UTC hour for 24 hours.
+	 *
+	 * @param int|null $now Current Unix time.
+	 * @return void
+	 */
+	public static function count_rejected_webhook( ?int $now = null ): void {
+		$now     = null === $now ? time() : $now;
+		$buckets = self::rejected_webhook_buckets( $now );
+		$hour    = gmdate( 'YmdH', $now );
+		$buckets[ $hour ] = ( $buckets[ $hour ] ?? 0 ) + 1;
+		update_option( self::WEBHOOK_REJECTED_OPTION, $buckets, false );
+	}
+
+	/**
+	 * Minutes with rejected Stripe webhook requests in the last 24 hours (A-72).
+	 *
+	 * @param int|null $now Current Unix time.
+	 * @return int
+	 */
+	public static function rejected_webhook_minutes( ?int $now = null ): int {
+		return (int) array_sum( self::rejected_webhook_buckets( null === $now ? time() : $now ) );
+	}
+
+	/**
+	 * Stored hourly buckets of the last 24 hours.
+	 *
+	 * @param int $now Current Unix time.
+	 * @return array<string,int>
+	 */
+	private static function rejected_webhook_buckets( int $now ): array {
+		$stored  = get_option( self::WEBHOOK_REJECTED_OPTION, array() );
+		$oldest  = gmdate( 'YmdH', $now - 23 * HOUR_IN_SECONDS );
+		$buckets = array();
+		foreach ( is_array( $stored ) ? $stored : array() as $hour => $count ) {
+			$hour = (string) $hour;
+			if ( 1 === preg_match( '/^\d{10}$/', $hour ) && $hour >= $oldest && is_numeric( $count ) && (int) $count > 0 ) {
+				$buckets[ $hour ] = (int) $count;
+			}
+		}
+
+		return $buckets;
+	}
+
+	/**
+	 * Titles of the license emails that are switched off in the WooCommerce email settings (A-132).
+	 *
+	 * @return string[]
+	 */
+	public static function disabled_license_emails(): array {
+		if ( ! function_exists( 'WC' ) || ! is_object( WC() ) || ! method_exists( WC(), 'mailer' ) ) {
+			return array();
+		}
+		$disabled = array();
+		try {
+			foreach ( (array) WC()->mailer()->get_emails() as $registry_key => $email ) {
+				if ( 0 === strpos( (string) $registry_key, 'WPLC_Email_' ) && is_object( $email ) && method_exists( $email, 'is_enabled' ) && ! $email->is_enabled() ) {
+					$disabled[] = method_exists( $email, 'get_title' ) ? wp_strip_all_tags( (string) $email->get_title() ) : (string) $registry_key;
+				}
+			}
+		} catch ( \Throwable $error ) {
+			return array();
+		}
+
+		return $disabled;
 	}
 
 	/**
@@ -274,28 +351,33 @@ final class Diagnostics {
 		$tables = Schema::table_names();
 		$now    = gmdate( 'Y-m-d H:i:s' );
 		$stuck  = gmdate( 'Y-m-d H:i:s', time() - self::STUCK_PROCESSING_SECONDS );
-		$review = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status IN (%s,%s)", \WPLC\Billing\RenewalProcessor::STATUS_REVIEW, \WPLC\Billing\RenewalProcessor::LEGACY_STATUS_REVIEW ) );
+		$review = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status IN (%s,%s)", $tables['renewals'], \WPLC\Billing\RenewalProcessor::STATUS_REVIEW, \WPLC\Billing\RenewalProcessor::LEGACY_STATUS_REVIEW ) );
 
 		return array(
-			'pending_webhooks'           => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['event_inbox']} WHERE source = %s AND outcome = %s", 'stripe', 'pending_reconciliation' ) ),
-			'manual_review_webhooks'     => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['event_inbox']} WHERE source = %s AND outcome = %s AND processed_at >= %s", 'stripe', 'manual_review', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) ),
+			'pending_webhooks'           => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE source = %s AND outcome = %s", $tables['event_inbox'], 'stripe', 'pending_reconciliation' ) ),
+			'manual_review_webhooks'     => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE source = %s AND outcome = %s AND processed_at >= %s", $tables['event_inbox'], 'stripe', 'manual_review', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) ),
 			'overdue_renewals'           => self::count_stuck_renewals( $tables['renewals'], time() ),
 			'review_required_renewals'   => $review,
 			// Former name of the same metric on one development line; kept for existing alert filters.
 			'payment_review_renewals'    => $review,
-			'expired_download_grants'    => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['download_tokens']} WHERE consumed_at IS NULL AND expires_at <= %s", $now ) ),
-			'stuck_processing_renewals'  => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['renewals']} WHERE status = %s AND updated_at <= %s", 'processing', $stuck ) ),
+			'expired_download_grants'    => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE consumed_at IS NULL AND expires_at <= %s", $tables['download_tokens'], $now ) ),
+			'stuck_processing_renewals'  => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status = %s AND updated_at <= %s", $tables['renewals'], 'processing', $stuck ) ),
 			'renewing_without_renewal'   => (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COUNT(*) FROM {$tables['licenses']} l WHERE l.renewal_enabled = 1 AND l.cancel_at_period_end = 0 AND l.status IN ('active','past_due') AND NOT EXISTS ( SELECT 1 FROM {$tables['renewals']} r WHERE r.license_id = l.id AND r.status IN ('scheduled','processing','failed','manual_action_required','reconciling','review_required','payment_review') ) AND l.updated_at <= %s",
+					"SELECT COUNT(*) FROM %i l WHERE l.renewal_enabled = 1 AND l.cancel_at_period_end = 0 AND l.status IN ('active','past_due') AND NOT EXISTS ( SELECT 1 FROM %i r WHERE r.license_id = l.id AND r.status IN ('scheduled','processing','failed','manual_action_required','reconciling','review_required','payment_review') ) AND l.updated_at <= %s",
+					$tables['licenses'],
+					$tables['renewals'],
 					gmdate( 'Y-m-d H:i:s', time() - 600 )
 				)
 			),
 			'paid_without_extension'     => (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COUNT(*) FROM {$tables['renewals']} r INNER JOIN {$tables['licenses']} l ON l.id = r.license_id WHERE r.status = %s AND l.status <> %s AND ( l.paid_until IS NULL OR l.paid_until < r.period_end ) AND r.id = ( SELECT MAX( r2.id ) FROM {$tables['renewals']} r2 WHERE r2.license_id = r.license_id AND r2.status = %s )",
+					"SELECT COUNT(*) FROM %i r INNER JOIN %i l ON l.id = r.license_id WHERE r.status = %s AND l.status <> %s AND ( l.paid_until IS NULL OR l.paid_until < r.period_end ) AND r.id = ( SELECT MAX( r2.id ) FROM %i r2 WHERE r2.license_id = r.license_id AND r2.status = %s )",
+					$tables['renewals'],
+					$tables['licenses'],
 					'paid',
 					'revoked',
+					$tables['renewals'],
 					'paid'
 				)
 			),
@@ -304,6 +386,7 @@ final class Diagnostics {
 			'failed_jobs'                => count( \WPLC\Maintenance\DailyRunner::failures( DAY_IN_SECONDS ) ),
 			'release_problems'           => count( \WPLC\Update\ReleaseRegistry::problems( false ) ),
 			'unmapped_license_products'  => self::unmapped_license_products(),
+			'rejected_webhook_minutes'   => self::rejected_webhook_minutes(),
 		);
 	}
 
@@ -539,6 +622,7 @@ final class Diagnostics {
 				'orders_with_issuance_problem' => 1,
 				'failed_jobs'               => 1,
 				'release_problems'          => 1,
+				'rejected_webhook_minutes'  => 5,
 			)
 		);
 
@@ -571,10 +655,11 @@ final class Diagnostics {
 
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE"
+				"SELECT COUNT(*) FROM %i WHERE"
 				. ' ( status IN (%s,%s,%s) AND retry_at IS NOT NULL AND retry_at <= %s )'
 				. ' OR ( status = %s AND updated_at <= %s )'
 				. ' OR ( status IN (%s,%s,%s) AND retry_at IS NULL AND ( grace_ends_at <= %s OR ( grace_ends_at IS NULL AND period_start <= %s ) ) )',
+				$table,
 				'scheduled',
 				'failed',
 				'reconciling',
@@ -883,6 +968,14 @@ final class Diagnostics {
 			$stripe['ok'] ? ( '' !== $stripe['reason'] ? $stripe['reason'] : __( 'Available', 'wp-license' ) ) : $stripe['reason'],
 			$stripe['ok'] ? 'ok' : 'warning'
 		);
+		// A-132: an email that never went out is either not due yet or switched off; this row tells which.
+		$disabled = self::disabled_license_emails();
+		$add(
+			__( 'License emails switched off', 'wp-license' ),
+			$disabled ? implode( ', ', $disabled ) : __( 'None', 'wp-license' ),
+			$disabled ? 'warning' : 'ok',
+			$disabled ? __( 'These emails are switched off under WooCommerce → Settings → Emails and are not sent to customers (each skipped email is logged under the source wp-license).', 'wp-license' ) : ''
+		);
 		$add( __( 'Stripe gateway version', 'wp-license' ), defined( 'WC_STRIPE_VERSION' ) ? (string) WC_STRIPE_VERSION : __( 'Not loaded', 'wp-license' ) );
 		$secret = \WPLC\Api\V1\StripeWebhook::is_configured();
 		$add( __( 'Stripe webhook secret', 'wp-license' ), $secret ? __( 'Set', 'wp-license' ) : __( 'Not set. Stripe events are rejected.', 'wp-license' ), $secret ? 'ok' : 'warning' );
@@ -901,6 +994,7 @@ final class Diagnostics {
 				__( 'A request to the webhook URL had no valid signature. If this repeats, the signing secret in wp-config.php does not match the endpoint in the Stripe dashboard (live and test mode have different secrets).', 'wp-license' )
 			);
 		}
+		$count( __( 'Minutes with rejected Stripe webhook requests (24 hours)', 'wp-license' ), $metrics['rejected_webhook_minutes'], __( 'Requests to the webhook URL without a valid signature, counted at most once a minute. A few can be scans of the URL; many mean that the signing secret does not match the endpoint in the Stripe dashboard.', 'wp-license' ) );
 		$count( __( 'Pending Stripe events', 'wp-license' ), $metrics['pending_webhooks'], __( 'Events that were received but not processed yet. They are retried by the background queue.', 'wp-license' ) );
 		$count( __( 'Stripe events needing review (24 hours)', 'wp-license' ), $metrics['manual_review_webhooks'], __( 'The event could not be matched to a renewal. Compare the payment in the Stripe dashboard with the renewal order.', 'wp-license' ) );
 		$count( __( 'Stuck renewals (job not run, grace period over)', 'wp-license' ), $metrics['overdue_renewals'], __( 'Renewals whose queued attempt or check should have run more than an hour ago, or whose grace period ended without the license being expired. Renewals waiting for their next retry are not counted.', 'wp-license' ) );
@@ -1030,7 +1124,7 @@ final class Diagnostics {
 
 		// Only events with a valid signature reach the inbox.
 		$tables   = Schema::table_names();
-		$received = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(received_at) FROM {$tables['event_inbox']} WHERE source = %s", 'stripe' ) );
+		$received = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(received_at) FROM %i WHERE source = %s", $tables['event_inbox'], 'stripe' ) );
 
 		return is_string( $received ) && '' !== $received ? Format::date( $received, true ) : __( 'None received yet', 'wp-license' );
 	}
@@ -1094,7 +1188,8 @@ final class Diagnostics {
 		$tables = Schema::table_names();
 		$events = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, source_event_id, event_type, received_at, processed_at, outcome FROM {$tables['event_inbox']} WHERE source = %s AND outcome IN (%s, %s) ORDER BY id DESC LIMIT 50",
+				"SELECT id, source_event_id, event_type, received_at, processed_at, outcome FROM %i WHERE source = %s AND outcome IN (%s, %s) ORDER BY id DESC LIMIT 50",
+				$tables['event_inbox'],
 				'stripe',
 				'manual_review',
 				'pending_reconciliation'

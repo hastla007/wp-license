@@ -42,7 +42,8 @@ final class LicenseSearch {
 	 *
 	 * - A complete pasted license key is matched by its hash only.
 	 * - "#123" addresses a license ID.
-	 * - A plain number may be a license ID, a customer ID or part of a key prefix.
+	 * - A plain number may be a license ID, a customer ID, an order ID (source or
+	 *   renewal order) or part of a key prefix.
 	 * - Anything containing "@" is an email address (fragment).
 	 * - A UUID is a license UUID or the installation ID of an activated site.
 	 * - Other text matches key prefix, product key, plan key, a customer email fragment

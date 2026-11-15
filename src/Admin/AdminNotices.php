@@ -51,6 +51,7 @@ final class AdminNotices {
 			'extend_failed'           => array( 'error', __( 'The license term was not changed. Check the license status and try again.', 'wp-license' ) ),
 			'extend_unavailable'      => array( 'error', __( 'Changing the term is not available in this installation.', 'wp-license' ) ),
 			'license_created'         => array( 'success', __( 'The license was created. The customer finds the key in their account.', 'wp-license' ) ),
+			'license_created_no_email' => array( 'success', __( 'The license was created without an email. The customer finds the key in their account; use "Send key email again" to send it later.', 'wp-license' ) ),
 			'create_missing_input'    => array( 'error', __( 'Customer, plan, end date and reason are required.', 'wp-license' ) ),
 			'create_unknown_customer' => array( 'error', __( 'No user account was found for this user ID or email address.', 'wp-license' ) ),
 			'create_unknown_plan'     => array( 'error', __( 'The selected plan is not an active plan in the catalog.', 'wp-license' ) ),
@@ -108,6 +109,19 @@ final class AdminNotices {
 			/* translators: 1: number of created licenses. */
 			'order_licenses_issued'   => array( 'success', __( 'Licenses created for the order: %1$s. If this is 0, the order already has all its licenses or contains no license product.', 'wp-license' ) ),
 			'order_issue_failed'      => array( 'error', __( 'No licenses were issued. Enter the number of a paid order and a reason.', 'wp-license' ) ),
+			// A-21: automatic renewal on behalf of the customer.
+			'renewal_cancelled_by_admin'      => array( 'success', __( 'The automatic renewal was cancelled for the end of the paid period. The customer gets a confirmation email.', 'wp-license' ) ),
+			'renewal_already_cancelled'       => array( 'error', __( 'The automatic renewal of this license was already cancelled.', 'wp-license' ) ),
+			'renewal_cancel_failed'           => array( 'error', __( 'The automatic renewal was not cancelled. Only active or past-due licenses with automatic renewal can be cancelled.', 'wp-license' ) ),
+			'cancellation_withdrawn_by_admin' => array( 'success', __( 'The cancellation was withdrawn. The license renews automatically again.', 'wp-license' ) ),
+			'cancellation_not_pending'        => array( 'error', __( 'This license has no cancellation to withdraw.', 'wp-license' ) ),
+			'cancellation_withdraw_failed'    => array( 'error', __( 'The cancellation was not withdrawn. Once the paid period has ended, the customer renews in their account.', 'wp-license' ) ),
+			// A-11: amount of the next automatic renewals.
+			'renewal_amount_changed'          => array( 'success', __( 'The renewal amount was changed. It applies to the next automatic renewals; existing renewal orders keep their amount.', 'wp-license' ) ),
+			'renewal_amount_missing_input'    => array( 'error', __( 'A license, a valid amount above zero and a reason are required.', 'wp-license' ) ),
+			'renewal_amount_stale'            => array( 'error', __( 'The renewal amount was not changed: it changed after you opened the page. Reload and decide again.', 'wp-license' ) ),
+			'renewal_amount_increase_refused' => array( 'error', __( 'The renewal amount can only be lowered. The customer agreed to automatic charges of the current amount; a higher amount needs their consent.', 'wp-license' ) ),
+			'renewal_amount_failed'           => array( 'error', __( 'The renewal amount was not changed. It can be changed for active and past-due licenses only.', 'wp-license' ) ),
 		);
 	}
 

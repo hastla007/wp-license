@@ -249,6 +249,98 @@ final class Format {
 	}
 
 	/**
+	 * Readable names of the audit actions support meets most often (A-122).
+	 *
+	 * Other actions are made readable from their code; the code itself stays
+	 * visible next to the label for searching and filtering.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function audit_action_labels(): array {
+		$labels = array(
+			'license_issued'                  => __( 'License issued', 'wp-license' ),
+			'license_issued_manually'         => __( 'License added manually', 'wp-license' ),
+			'admin_status_change'             => __( 'Status changed by support', 'wp-license' ),
+			'admin_extend'                    => __( 'Term changed by support', 'wp-license' ),
+			'admin_restore'                   => __( 'License restored', 'wp-license' ),
+			'admin_site_released'             => __( 'Site released by support', 'wp-license' ),
+			'admin_sites_released'            => __( 'All sites released by support', 'wp-license' ),
+			'admin_bulk_action'               => __( 'Bulk action', 'wp-license' ),
+			'admin_issue_for_order'           => __( 'Missing licenses issued for an order', 'wp-license' ),
+			'admin_plan_change'               => __( 'Plan changed by support', 'wp-license' ),
+			'admin_renewal_amount_changed'    => __( 'Renewal amount changed by support', 'wp-license' ),
+			'plan_change_scheduled'           => __( 'Plan change scheduled', 'wp-license' ),
+			'plan_change_cancelled'           => __( 'Plan change withdrawn', 'wp-license' ),
+			'license_key_reissued'            => __( 'New key issued', 'wp-license' ),
+			'license_key_resend_requested'    => __( 'Key email sent again', 'wp-license' ),
+			'license_owner_changed'           => __( 'Owner changed', 'wp-license' ),
+			'cancellation_scheduled'          => __( 'Cancelled for the end of the term', 'wp-license' ),
+			'cancellation_withdrawn'          => __( 'Cancellation withdrawn', 'wp-license' ),
+			'renewal_enabled'                 => __( 'Automatic renewal switched on', 'wp-license' ),
+			'renewal_disabled'                => __( 'Automatic renewal switched off', 'wp-license' ),
+			'renewal_succeeded'               => __( 'Renewal paid', 'wp-license' ),
+			'renewal_failed'                  => __( 'Renewal payment failed', 'wp-license' ),
+			'renewal_review_required'         => __( 'Renewal needs review', 'wp-license' ),
+			'renewal_review_booked'           => __( 'Reviewed renewal booked', 'wp-license' ),
+			'renewal_review_closed'           => __( 'Renewal review closed', 'wp-license' ),
+			'renewal_refunded'                => __( 'Renewal refunded', 'wp-license' ),
+			'renewal_cancelled'               => __( 'Renewal cancelled', 'wp-license' ),
+			'manual_renewal_started'          => __( 'Manual renewal started', 'wp-license' ),
+			'manual_renewal_paid'             => __( 'Manual renewal paid', 'wp-license' ),
+			'site_activated'                  => __( 'Site activated', 'wp-license' ),
+			'site_deactivated'                => __( 'Site deactivated', 'wp-license' ),
+			'site_url_changed'                => __( 'Site address changed', 'wp-license' ),
+			'chargeback_received'             => __( 'Chargeback received', 'wp-license' ),
+			'payment_method_changed'          => __( 'Payment method changed', 'wp-license' ),
+			'package_downloaded'              => __( 'Package downloaded', 'wp-license' ),
+			'settings_updated'                => __( 'Settings changed', 'wp-license' ),
+			'licenses_exported'               => __( 'Licenses exported', 'wp-license' ),
+			'audit_log_exported'              => __( 'Audit log exported', 'wp-license' ),
+			'license_erased'                  => __( 'Personal data erased', 'wp-license' ),
+			'license_anonymized'              => __( 'License anonymized', 'wp-license' ),
+		);
+
+		/**
+		 * Filters the readable names of audit actions on the admin screens.
+		 *
+		 * @param array<string,string> $labels Action code => label.
+		 */
+		$filtered = apply_filters( 'wplc_audit_action_labels', $labels );
+
+		return is_array( $filtered ) ? $filtered : $labels;
+	}
+
+	/**
+	 * Readable name of an audit action.
+	 *
+	 * @param string $action Stored action code.
+	 * @return string
+	 */
+	public static function audit_action_label( string $action ): string {
+		return self::label_from( self::audit_action_labels(), $action );
+	}
+
+	/**
+	 * Escaped table cell of an audit action: readable name, code below it.
+	 *
+	 * @param string $action Stored action code.
+	 * @return string HTML.
+	 */
+	public static function audit_action_html( string $action ): string {
+		return esc_html( self::audit_action_label( $action ) ) . '<br><code>' . esc_html( $action ) . '</code>';
+	}
+
+	/**
+	 * Heading of a date column whose values are shown in the site timezone (A-122).
+	 *
+	 * @return string
+	 */
+	public static function date_heading(): string {
+		/* translators: %s: site timezone, for example Europe/Berlin or +02:00. */
+		return sprintf( __( 'Date (%s)', 'wp-license' ), wp_timezone_string() );
+	}
+
+	/**
 	 * Look up a label; unknown values are made readable instead of shown raw.
 	 *
 	 * @param array<string,string> $labels Label map.

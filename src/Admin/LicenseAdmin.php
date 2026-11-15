@@ -7,6 +7,7 @@
 
 namespace WPLC\Admin;
 
+use WPLC\Billing\Money;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
 use WPLC\License\LicenseIssuer;
@@ -59,6 +60,9 @@ final class LicenseAdmin {
 		add_action( 'admin_post_wplc_admin_resend_key', array( self::class, 'handle_resend_key' ) );
 		add_action( 'admin_post_wplc_admin_change_owner', array( self::class, 'handle_change_owner' ) );
 		add_action( 'admin_post_wplc_admin_restore_license', array( self::class, 'handle_restore' ) );
+		add_action( 'admin_post_wplc_admin_cancel_renewal', array( self::class, 'handle_cancel_renewal' ) );
+		add_action( 'admin_post_wplc_admin_withdraw_cancellation', array( self::class, 'handle_withdraw_cancellation' ) );
+		add_action( 'admin_post_wplc_admin_renewal_amount', array( self::class, 'handle_renewal_amount' ) );
 		add_action( 'admin_post_wplc_admin_bulk_extend', array( self::class, 'handle_bulk_extend' ) );
 		add_action( 'admin_post_wplc_admin_export_licenses', array( self::class, 'handle_export' ) );
 		add_action( 'admin_post_wplc_admin_issue_for_order', array( self::class, 'handle_issue_for_order' ) );
@@ -69,6 +73,7 @@ final class LicenseAdmin {
 		LicenseBulkActions::register_hooks();
 		AuditLogAdmin::register_hooks();
 		SubscriptionsNotice::register_hooks();
+		OrderLicensesBox::register_hooks();
 	}
 
 	/**
@@ -284,7 +289,7 @@ final class LicenseAdmin {
 		echo '<input type="search" id="wplc-license-search-input" name="s" value="' . esc_attr( $value ) . '" autocomplete="off">';
 		submit_button( $label, '', '', false, array( 'id' => 'search-submit' ) );
 		echo '</p>';
-		echo '<p class="description">' . esc_html__( 'Search by key prefix, product, plan, customer ID, customer email, #license ID, site address or installation ID, or paste a complete license key.', 'wp-license' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Search by key prefix, product, plan, customer ID, order number, customer email, #license ID, site address or installation ID, or paste a complete license key.', 'wp-license' ) . '</p>';
 		echo '</form>';
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only: the result is stored per user.
@@ -466,7 +471,7 @@ final class LicenseAdmin {
 		global $wpdb;
 		$tables     = Schema::table_names();
 		$activation = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$tables['activations']} WHERE id = %d LIMIT 1", $activation_id ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['activations'], $activation_id ),
 			ARRAY_A
 		);
 		if ( ! is_array( $activation ) || 'active' !== $activation['status'] ) {
@@ -602,6 +607,17 @@ final class LicenseAdmin {
 		$date     = isset( $_POST['paid_until'] ) ? sanitize_text_field( wp_unslash( $_POST['paid_until'] ) ) : '';
 		$reason   = self::posted_reason();
 		$form_url = self::add_url();
+		$send     = empty( $_POST['skip_email'] );
+		// A-123: a refused form comes back with what was entered.
+		self::remember_add_form(
+			array(
+				'customer'   => $customer,
+				'plan_id'    => $plan_id,
+				'paid_until' => $date,
+				'reason'     => $reason,
+				'send_email' => $send,
+			)
+		);
 		if ( '' === $customer || ! $plan_id || '' === $date || '' === $reason ) {
 			AdminNotices::redirect( 'create_missing_input', $form_url );
 		}
@@ -614,7 +630,7 @@ final class LicenseAdmin {
 		global $wpdb;
 		$tables = Schema::table_names();
 		$plan   = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$tables['plans']} WHERE id = %d AND active = 1 LIMIT 1", $plan_id ),
+			$wpdb->prepare( "SELECT * FROM %i WHERE id = %d AND active = 1 LIMIT 1", $tables['plans'], $plan_id ),
 			ARRAY_A
 		);
 		if ( ! is_array( $plan ) ) {
@@ -639,16 +655,26 @@ final class LicenseAdmin {
 			$existing = (int) get_transient( $memo_key );
 			if ( $existing > 0 ) {
 				$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+				delete_transient( self::add_form_transient() );
 				AdminNotices::redirect_to( 'create_duplicate', self::detail_url( $existing ) );
 			}
 		}
 
+		// A-123: the license email (with the key) is optional; the customer also finds the key in their account.
+		$mail_hook = array( 'WPLC\\Notifications\\Notifications', 'on_license_issued' );
+		$mail_prio = $send ? false : has_action( 'wplc/license_issued', $mail_hook );
+		if ( false !== $mail_prio ) {
+			remove_action( 'wplc/license_issued', $mail_hook, (int) $mail_prio );
+		}
 		try {
 			$license_id = LicenseIssuer::issue_manual( $customer_id, $plan, $paid_until, get_current_user_id(), $reason );
 			if ( $license_id && '' !== $memo_key ) {
 				set_transient( $memo_key, (int) $license_id, DAY_IN_SECONDS );
 			}
 		} finally {
+			if ( false !== $mail_prio ) {
+				add_action( 'wplc/license_issued', $mail_hook, (int) $mail_prio, 3 );
+			}
 			if ( '' !== $lock_name ) {
 				$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
 			}
@@ -657,7 +683,48 @@ final class LicenseAdmin {
 			AdminNotices::redirect( 'create_failed', $form_url );
 		}
 
-		AdminNotices::redirect_to( 'license_created', self::detail_url( $license_id ) );
+		delete_transient( self::add_form_transient() );
+		AdminNotices::redirect_to( $send ? 'license_created' : 'license_created_no_email', self::detail_url( $license_id ) );
+	}
+
+	/**
+	 * Transient that keeps the entries of a refused "Add license manually" form for its user.
+	 *
+	 * @return string
+	 */
+	public static function add_form_transient(): string {
+		return 'wplc_add_form_' . get_current_user_id();
+	}
+
+	/**
+	 * Keep the entries of the "Add license manually" form for ten minutes (A-123).
+	 *
+	 * @param array<string,mixed> $values Entered values.
+	 * @return void
+	 */
+	private static function remember_add_form( array $values ): void {
+		set_transient( self::add_form_transient(), $values, 10 * MINUTE_IN_SECONDS );
+	}
+
+	/**
+	 * Entries of a refused "Add license manually" form, read once.
+	 *
+	 * @return array{customer:string,plan_id:int,paid_until:string,reason:string,send_email:bool}|null
+	 */
+	public static function take_add_form(): ?array {
+		$values = get_transient( self::add_form_transient() );
+		delete_transient( self::add_form_transient() );
+		if ( ! is_array( $values ) ) {
+			return null;
+		}
+
+		return array(
+			'customer'   => isset( $values['customer'] ) ? (string) $values['customer'] : '',
+			'plan_id'    => isset( $values['plan_id'] ) ? (int) $values['plan_id'] : 0,
+			'paid_until' => isset( $values['paid_until'] ) ? (string) $values['paid_until'] : '',
+			'reason'     => isset( $values['reason'] ) ? (string) $values['reason'] : '',
+			'send_email' => ! empty( $values['send_email'] ),
+		);
 	}
 
 	/**
@@ -760,6 +827,92 @@ final class LicenseAdmin {
 			SupportActions::RESULT_FAILED     => 'restore_failed',
 		);
 		AdminNotices::redirect( $codes[ $result ], $fallback );
+	}
+
+	/**
+	 * Cancel the automatic renewal for the end of the paid period on behalf of the customer (A-21).
+	 *
+	 * @return void
+	 */
+	public static function handle_cancel_renewal(): void {
+		self::require_capability();
+
+		$license_id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
+		check_admin_referer( 'wplc_admin_cancel_renewal_' . $license_id );
+		$reason   = self::posted_reason();
+		$fallback = $license_id ? self::detail_url( $license_id ) : '';
+		if ( ! $license_id || '' === $reason ) {
+			AdminNotices::redirect( 'status_missing_input', $fallback );
+		}
+
+		$result = SupportActions::cancel_renewal( $license_id, $reason, get_current_user_id() );
+		$codes  = array(
+			SupportActions::RESULT_OK     => 'renewal_cancelled_by_admin',
+			SupportActions::RESULT_STALE  => 'renewal_already_cancelled',
+			SupportActions::RESULT_FAILED => 'renewal_cancel_failed',
+		);
+		AdminNotices::redirect( $codes[ $result ] ?? 'renewal_cancel_failed', $fallback );
+	}
+
+	/**
+	 * Withdraw a cancellation at the end of the paid period (A-21).
+	 *
+	 * @return void
+	 */
+	public static function handle_withdraw_cancellation(): void {
+		self::require_capability();
+
+		$license_id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
+		check_admin_referer( 'wplc_admin_withdraw_cancellation_' . $license_id );
+		$reason   = self::posted_reason();
+		$fallback = $license_id ? self::detail_url( $license_id ) : '';
+		if ( ! $license_id || '' === $reason ) {
+			AdminNotices::redirect( 'status_missing_input', $fallback );
+		}
+
+		$result = SupportActions::withdraw_cancellation( $license_id, $reason, get_current_user_id() );
+		$codes  = array(
+			SupportActions::RESULT_OK     => 'cancellation_withdrawn_by_admin',
+			SupportActions::RESULT_STALE  => 'cancellation_not_pending',
+			SupportActions::RESULT_FAILED => 'cancellation_withdraw_failed',
+		);
+		AdminNotices::redirect( $codes[ $result ] ?? 'cancellation_withdraw_failed', $fallback );
+	}
+
+	/**
+	 * Change the amount of the next automatic renewals (A-11).
+	 *
+	 * @return void
+	 */
+	public static function handle_renewal_amount(): void {
+		self::require_capability();
+
+		$license_id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
+		check_admin_referer( 'wplc_admin_renewal_amount_' . $license_id );
+		$reason   = self::posted_reason();
+		$fallback = $license_id ? self::detail_url( $license_id ) : '';
+		$amount   = isset( $_POST['amount'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['amount'] ) ) ) : '';
+		global $wpdb;
+		$decimals = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT renewal_currency_decimals FROM %i WHERE id = %d', Schema::table_names()['licenses'], $license_id ) );
+		// The shop's decimal separator is accepted as well as the point.
+		$separator = function_exists( 'wc_get_price_decimal_separator' ) ? (string) wc_get_price_decimal_separator() : '.';
+		if ( '' !== $separator && '.' !== $separator ) {
+			$amount = str_replace( $separator, '.', $amount );
+		}
+		$minor = '' !== $amount ? Money::to_minor_units( $amount, $decimals ) : null;
+		if ( ! $license_id || '' === $reason || ! isset( $_POST['expected_minor'] ) || ! is_int( $minor ) || $minor <= 0 ) {
+			AdminNotices::redirect( 'renewal_amount_missing_input', $fallback );
+		}
+
+		$result = SupportActions::change_renewal_amount( $license_id, (int) $minor, absint( $_POST['expected_minor'] ), $reason, get_current_user_id() );
+		$codes  = array(
+			SupportActions::RESULT_OK               => 'renewal_amount_changed',
+			SupportActions::RESULT_STALE            => 'renewal_amount_stale',
+			SupportActions::RESULT_PROCESSING       => 'extend_processing',
+			SupportActions::RESULT_INCREASE_REFUSED => 'renewal_amount_increase_refused',
+			SupportActions::RESULT_FAILED           => 'renewal_amount_failed',
+		);
+		AdminNotices::redirect( $codes[ $result ] ?? 'renewal_amount_failed', $fallback );
 	}
 
 	/**
