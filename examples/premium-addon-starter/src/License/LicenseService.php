@@ -139,11 +139,15 @@ final class LicenseService {
 	/**
 	 * Release this site's activation on the server and delete the local credentials and cache.
 	 *
+	 * The client library already deletes its credentials when the server's refusal
+	 * is signed (status removed_locally). An unsigned "activation not found" could be
+	 * forged by anyone on the network path, so the credentials are kept then.
+	 *
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public function deactivate() {
 		$result = $this->client->deactivate();
-		if ( is_wp_error( $result ) && ! in_array( $result->get_error_code(), self::GONE_ERRORS, true ) ) {
+		if ( is_wp_error( $result ) && 'wplc_not_activated' !== $result->get_error_code() ) {
 			$this->save_state( array( 'last_error' => $this->error_text( $result ) ) );
 			return $result;
 		}

@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 38513cff231c0807620ba99342b00b4189f33fd70c22b0d98560ee565976e9e7). Do not edit: change the server copy and re-vendor.
+ * (source sha256 e8ca7a3198e2d37fb9aa883c0a0fa8112e4189630acd0785ad37be80658ab78b). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -212,6 +212,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'ui.activate_copy'                    => __( 'Activate this address', 'premium-addon-starter' ),
 				'ui.move'                             => __( 'The site moved here: transfer the activation', 'premium-addon-starter' ),
 				'ui.forget'                           => __( 'Remove the copied activation data from this site', 'premium-addon-starter' ),
+				'ui.forget_local'                     => __( 'Remove the license data from this site only', 'premium-addon-starter' ),
 				'ui.status'                           => __( 'Status', 'premium-addon-starter' ),
 				'ui.paid_until'                       => __( 'Paid until', 'premium-addon-starter' ),
 				'ui.access_until'                     => __( 'Premium features until', 'premium-addon-starter' ),
@@ -228,6 +229,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'ui.saved.activated'                  => __( 'The license was activated for this site.', 'premium-addon-starter' ),
 				'ui.saved.deactivated'                => __( 'The license was removed from this site.', 'premium-addon-starter' ),
 				'ui.saved.deactivated_locally'        => __( 'The activation data was removed from this site. The activation of the original site was not changed.', 'premium-addon-starter' ),
+				'ui.saved.forgotten'                  => __( 'The license data was removed from this site without asking the license server. If the server still lists this activation, release it in your customer account.', 'premium-addon-starter' ),
 				'ui.saved.checked'                    => __( 'The license was checked.', 'premium-addon-starter' ),
 				'ui.saved.moved'                      => __( 'The activation was transferred to this address.', 'premium-addon-starter' ),
 				'ui.forbidden'                        => __( 'You are not allowed to manage the license of this plugin.', 'premium-addon-starter' ),

@@ -321,10 +321,13 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$this->assertTrue( $manager->is_entitled( 'feature.export' ), 'An unsigned 401 is no proof that the license ended.' );
 		$this->assertTrue( $manager->status()->needs_reactivation );
 
-		// "Remove license": the server knows nothing, the local data goes.
-		$result = $manager->deactivate();
-		$this->assertSame( 'removed_locally', $result['status'] );
+		// "Remove license": the unsigned refusal could be forged, so the data stays ...
+		$this->assertSame( 'activation_not_found', $manager->deactivate()->get_error_code() );
+		$this->assertTrue( $manager->client()->is_activated() );
+		// ... until the admin explicitly removes it from this site only.
+		$this->assertSame( 'success', $manager->run_form_action( 'forget' )['type'] );
 		$this->assertFalse( $manager->client()->is_activated() );
+		$this->assertFalse( $manager->is_entitled( 'feature.export' ) );
 
 		// Entering the key creates a new installation.
 		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->activate( $license['key'] )->state );

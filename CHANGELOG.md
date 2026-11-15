@@ -94,7 +94,7 @@ Consolidation of all earlier development branches into one code base. Preview: c
   - The offline window is measured from the signed `server_time` inside the verified payload only; a stored `fetched_at` in the future voids the snapshot and triggers a new check, so editing the option no longer keeps features unlocked for good.
   - The server signature of the stored snapshot is checked on every read; the unsigned `verified_at` no longer skips it for 12 hours without ext-sodium. A PHP with no Ed25519 implementation at all accepts nothing (`wplc_ed25519_unavailable`).
   - Update packages are only downloaded over HTTPS (also after redirects; `http://` only for localhost) and are capped at 100 MB (filter `{prefix}_license_max_package_bytes`).
-  - `deactivate()` keeps the credentials on an unsigned `site_mismatch` or `activation_not_found`; only a signed refusal removes them.
+  - `deactivate()` keeps the credentials on an unsigned `site_mismatch` or `activation_not_found`; only a signed refusal removes them. When the server really no longer knows the installation, the settings screen offers "Remove the license data from this site only" (`LicenseManager::forget_locally()`). The add-on starter follows the same rule.
   - The filter `{prefix}_license_public_keys` (and the starter's `<prefix>_server_public_keys`) only works when `{PREFIX}_LICENSE_DEV` is defined, so another plugin cannot pin a key.
   - Uninstall cleans every site of a multisite in batches (was capped at 500); the privacy text names the product key and the environment that are sent.
   - Texts are built once per request; `is_activated()` and the other state checks no longer create a `WP_Error`.

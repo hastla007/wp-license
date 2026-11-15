@@ -136,6 +136,14 @@ final class LicenseServiceTest extends TestCase {
 		$this->assertTrue( $service->is_activated(), 'kept, so the slot can still be released later' );
 	}
 
+	public function test_an_unsigned_activation_not_found_keeps_the_credentials(): void {
+		Fixtures::store_credentials();
+		$this->server->errors['DELETE /wplc/v1/activations/{id}'] = array( 404, 'activation_not_found' );
+		$service = Fixtures::service( Fixtures::time( 60 ) );
+		$this->assertInstanceOf( WP_Error::class, $service->deactivate() );
+		$this->assertTrue( $service->is_activated(), 'an unsigned refusal could be forged' );
+	}
+
 	public function test_another_key_releases_the_old_activation_first(): void {
 		$service = Fixtures::service( Fixtures::time( 60 ) );
 		$service->activate( 'FIRST-KEY-0001' );

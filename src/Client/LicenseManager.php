@@ -434,6 +434,25 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		}
 
 		/**
+		 * Delete the credentials and the cached rights of this site without asking the server.
+		 *
+		 * For an explicit admin action only: deactivate() keeps the credentials on an
+		 * unsigned refusal, which leaves this as the way out when the server really
+		 * no longer knows the installation.
+		 *
+		 * @return void
+		 */
+		public function forget_locally(): void {
+			$before = $this->status()->state;
+			$this->client->forget();
+			$this->client->store()->delete( $this->state_option() );
+			$this->snapshot = null;
+			$this->updater()->flush();
+			$this->ensure_schedule();
+			$this->changed( $before );
+		}
+
+		/**
 		 * Ask the server for the current status ("Check now", daily check).
 		 *
 		 * @param bool $force False respects the back-off after failed attempts.
@@ -701,6 +720,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				echo '<p>';
 				$this->button( 'check', $this->text( 'ui.check_now' ), true );
 				$this->button( 'deactivate', $this->text( 'ui.deactivate' ) );
+				if ( $status->needs_reactivation ) {
+					$this->button( 'forget', $this->text( 'ui.forget_local' ) );
+				}
 				echo '</p><p class="description">' . esc_html( $this->text( 'ui.key_hidden' ) ) . '</p>';
 				echo '<p>' . wp_kses( $label . $key_input, $allowed ) . ' ';
 				$this->button( 'activate', $this->text( 'ui.activate' ) );
@@ -736,7 +758,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Execute one action of the license form.
 		 *
-		 * @param string $action      `activate`, `move`, `deactivate` or `check`.
+		 * @param string $action      `activate`, `move`, `deactivate`, `forget` or `check`.
 		 * @param string $license_key Key from the form.
 		 * @return array{type:string,text:string} Message for the next page view.
 		 */
@@ -751,6 +773,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			} elseif ( 'deactivate' === $action ) {
 				$result = $this->deactivate();
 				$saved  = is_array( $result ) && 'removed_locally' === ( $result['status'] ?? '' ) && 'wplc_site_changed' === ( $result['reason'] ?? '' ) ? 'ui.saved.deactivated_locally' : 'ui.saved.deactivated';
+			} elseif ( 'forget' === $action ) {
+				$this->forget_locally();
+				$result = array();
+				$saved  = 'ui.saved.forgotten';
 			} else {
 				$result = $this->refresh( true );
 			}
