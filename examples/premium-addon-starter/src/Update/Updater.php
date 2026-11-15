@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * - Detection: check() asks /wplc/v1/updates/check (signed) from the daily cron and whenever WordPress rebuilds the
  *   update_plugins transient (also from cron) and the stored result is older than 12 hours. No capability check:
  *   detection must not depend on a logged-in admin.
- * - Download: the package URL is one-time and valid for ten minutes, so upgrader_pre_download asks for a fresh one
+ * - Download: the package URL is used up by its first request and valid for five minutes, so upgrader_pre_download asks for a fresh one
  *   right before downloading, follows redirects by hand (HTTPS, allow-listed hosts only), enforces the size limit and
  *   compares the SHA-256 from the signed answer before WordPress unpacks anything. Any failure returns a WP_Error;
  *   WordPress then aborts and the installed version stays untouched.

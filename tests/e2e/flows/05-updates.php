@@ -153,9 +153,9 @@ $account       = e2e_http( 'GET', wc_get_account_endpoint_url( 'wplc-licenses' )
 $download_form = e2e_form( $account['body'], array( 'wplc-download-package', 'name="license_id" value="' . (int) $license['id'] . '"' ) );
 e2e_ok( is_array( $download_form ) && false !== strpos( $account['body'], 'Download version 1.1.0' ), 'account page offers "Download version 1.1.0" for the license' );
 $started = e2e_submit( (array) $download_form, $alice_cookies );
-e2e_eq( 302, $started['code'], 'owner: download handler redirects to a one-time stream URL', substr( wp_strip_all_tags( $started['body'] ), 0, 200 ) );
-$stream = e2e_http( 'GET', $started['location'] );
-e2e_ok( 200 === $stream['code'] && hash( 'sha256', $stream['body'] ) === $release['sha256'], 'owner: the stream delivers the package with the registry checksum (no login needed for the one-time URL)', $stream['code'] );
+e2e_eq( 200, $started['code'], 'owner: the download form answers with the package itself (T-108: no token URL)', substr( wp_strip_all_tags( $started['body'] ), 0, 200 ) );
+e2e_ok( '' === (string) $started['location'] && hash( 'sha256', $started['body'] ) === $release['sha256'], 'owner: the POST response delivers the package with the registry checksum, no redirect', $started['location'] );
+e2e_ok( false !== strpos( (string) ( $started['headers']['content-disposition'] ?? '' ), 'attachment' ) && false !== strpos( (string) ( $started['headers']['cache-control'] ?? '' ), 'no-store' ), 'owner: sent as a ZIP attachment with Cache-Control: no-store', $started['headers'] ?? null );
 e2e_ok( count( e2e_rows( 'audit_log', "action = 'package_downloaded' AND object_id = " . (int) $license['id'] ) ) >= 1, 'customer download is in the audit log' );
 
 // Another customer cannot download with this license, even with a valid nonce of their own session.

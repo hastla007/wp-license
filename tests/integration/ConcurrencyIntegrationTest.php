@@ -104,7 +104,7 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( array( 'status', 404 ), array( $second->kind, $second->status ) );
 	}
 
-	public function test_grant_is_refused_after_the_license_was_revoked_and_stays_unconsumed(): void {
+	public function test_grant_is_refused_after_the_license_was_revoked_and_is_used_up(): void {
 		global $wpdb;
 		$tables  = $this->tables();
 		$license = $this->seed_license();
@@ -115,7 +115,41 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 
 		$halt = $this->download( $token );
 		$this->assertSame( array( 'status', 404 ), array( $halt->kind, $halt->status ) );
-		$this->assertNull( $this->grant( $token )['consumed_at'] );
+		// T-108: the first presentation uses the grant up, whatever the outcome.
+		$this->assertNotNull( $this->grant( $token )['consumed_at'] );
+		$this->assertSame( '', $this->grant( $token )['package_url'] );
+	}
+
+	public function test_grant_is_bound_to_the_installation_that_asked_for_it(): void {
+		global $wpdb;
+		$tables  = $this->tables();
+		$license = $this->seed_license();
+		$site    = $this->activate_via_api( $license['key'] );
+		$token   = $this->request_grant( $site );
+
+		$activation_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$tables['activations']} WHERE installation_uuid = %s", $site['uuid'] ) );
+		$grant         = $this->grant( $token );
+		$this->assertGreaterThan( 0, $activation_id );
+		$this->assertSame( (string) $activation_id, (string) $grant['activation_id'] );
+		$this->assertLessThanOrEqual( time() + \WPLC\Api\V1\UpdateService::TOKEN_TTL, strtotime( $grant['expires_at'] . ' UTC' ) );
+
+		// Deactivated after the check: the grant no longer works, although the license still has access.
+		$wpdb->update( $tables['activations'], array( 'status' => 'deactivated' ), array( 'id' => $activation_id ) );
+		$halt = $this->download( $token );
+		$this->assertSame( array( 'status', 404 ), array( $halt->kind, $halt->status ) );
+		$this->assertNotNull( $this->grant( $token )['consumed_at'] );
+	}
+
+	public function test_grant_issued_before_schema_16_is_only_bound_to_the_license(): void {
+		global $wpdb;
+		$tables  = $this->tables();
+		$license = $this->seed_license();
+		$site    = $this->activate_via_api( $license['key'] );
+		$token   = $this->request_grant( $site );
+		$wpdb->update( $tables['download_tokens'], array( 'activation_id' => 0 ), array( 'token_hash' => hash( 'sha256', $token ) ) );
+
+		$first = $this->download( $token );
+		$this->assertSame( array( 'redirect', $this->package_url() ), array( $first->kind, $first->location ) );
 	}
 
 	public function test_grant_is_refused_after_the_paid_period_ended(): void {
@@ -161,7 +195,7 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 
 		$halt = $this->download( $token );
 		$this->assertSame( array( 'status', 404 ), array( $halt->kind, $halt->status ) );
-		$this->assertNull( $this->grant( $token )['consumed_at'] );
+		$this->assertNotNull( $this->grant( $token )['consumed_at'] );
 	}
 
 	public function test_storage_resolver_returning_an_untrusted_url_never_redirects(): void {
@@ -176,21 +210,20 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 
 		$halt = $this->download( $token );
 		$this->assertSame( array( 'status', 404 ), array( $halt->kind, $halt->status ) );
-		// T-142: the target is validated before the grant is consumed.
+		// T-108 (replaces the T-142 rule that kept the grant): the value in the URL is used up on first
+		// presentation, so a logged URL is useless. Once the hook is fixed, a fresh update check gets a new grant.
 		$grant = $this->grant( $token );
-		$this->assertNull( $grant['consumed_at'] );
-		$this->assertSame( $this->package_url(), $grant['package_url'] );
+		$this->assertNotNull( $grant['consumed_at'] );
+		$this->assertSame( '', $grant['package_url'] );
 
-		// Once the storage hook is fixed, the same grant works exactly once.
 		remove_filter( 'wplc_resolve_update_package_url', $resolver );
-		$fixed = $this->download( $token );
-		$this->assertSame( array( 'redirect', $this->package_url() ), array( $fixed->kind, $fixed->location ) );
-		$this->assertNotNull( $this->grant( $token )['consumed_at'] );
-		$second = $this->download( $token );
-		$this->assertSame( array( 'status', 404 ), array( $second->kind, $second->status ) );
+		$again = $this->download( $token );
+		$this->assertSame( array( 'status', 404 ), array( $again->kind, $again->status ) );
+		$fresh = $this->download( $this->request_grant( $site ) );
+		$this->assertSame( array( 'redirect', $this->package_url() ), array( $fresh->kind, $fresh->location ) );
 	}
 
-	public function test_storage_resolver_returning_a_non_string_keeps_the_grant(): void {
+	public function test_storage_resolver_returning_a_non_string_uses_the_grant_up(): void {
 		$license = $this->seed_license();
 		$site    = $this->activate_via_api( $license['key'] );
 		$token   = $this->request_grant( $site );
@@ -199,7 +232,87 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 
 		$halt = $this->download( $token );
 		$this->assertSame( array( 'status', 404 ), array( $halt->kind, $halt->status ) );
-		$this->assertNull( $this->grant( $token )['consumed_at'] );
+		$this->assertNotNull( $this->grant( $token )['consumed_at'] );
+	}
+
+	/**
+	 * Published local release with a stored file.
+	 *
+	 * @return array<string,mixed> Release row.
+	 */
+	private function seed_local_release(): array {
+		global $wpdb;
+		$tables = $this->tables();
+		$this->assertTrue( \WPLC\Update\LocalPackageStorage::ensure_dir() );
+		$key = \WPLC\Update\LocalPackageStorage::build_key( 'test-product', '2.0.0', bin2hex( random_bytes( 16 ) ) );
+		file_put_contents( \WPLC\Update\LocalPackageStorage::base_dir() . '/' . $key, 'PK-test-package' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$wpdb->insert(
+			$tables['releases'],
+			array(
+				'product_key'   => 'test-product',
+				'version'       => '2.0.0',
+				'channel'       => 'stable',
+				'package_url'   => $key,
+				'storage'       => 'local',
+				'sha256'        => hash( 'sha256', 'PK-test-package' ),
+				'release_notes' => '',
+				'status'        => 'published',
+				'published_at'  => $now,
+				'created_at'    => $now,
+				'updated_at'    => $now,
+			)
+		);
+
+		return \WPLC\Update\ReleaseRegistry::get( (int) $wpdb->insert_id );
+	}
+
+	public function test_customer_download_of_a_local_package_is_sent_without_a_token_url(): void {
+		global $wpdb;
+		$tables   = $this->tables();
+		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
+		$license  = $this->seed_license( array( 'customer_id' => $customer ) );
+		$release  = $this->seed_local_release();
+		wp_set_current_user( $customer );
+		$_SERVER['REQUEST_METHOD'] = 'POST';
+
+		$served = $this->run_admin_post(
+			\WPLC\Update\CustomerDownload::ACTION,
+			array(
+				'license_id' => $license['id'],
+				'_wpnonce'   => wp_create_nonce( \WPLC\Update\CustomerDownload::nonce_action( $license['id'] ) ),
+			)
+		);
+		// T-108: the file is sent in the POST response (status 200), no redirect to a stream URL.
+		$this->assertSame( array( 'status', 200, '' ), array( $served['outcome'], $served['status'], $served['location'] ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT source, consumed_at FROM {$tables['package_streams']} WHERE license_id = %d", $license['id'] ), ARRAY_A );
+		$this->assertCount( 1, $rows, 'One row feeds the hourly limit.' );
+		$this->assertSame( 'customer', $rows[0]['source'] );
+		$this->assertNotNull( $rows[0]['consumed_at'], 'The row is no usable token.' );
+		\WPLC\Update\LocalPackageStorage::delete( (string) $release['package_url'] );
+	}
+
+	public function test_stream_token_is_used_up_by_its_first_presentation(): void {
+		global $wpdb;
+		$tables  = $this->tables();
+		$license = $this->seed_license();
+		$release = $this->seed_local_release();
+
+		$token = \WPLC\Update\PackageStream::issue( $release, (int) $license['id'], \WPLC\Update\PackageStream::SOURCE_UPDATE );
+		$this->assertMatchesRegularExpression( '/^[a-f0-9]{64}$/', $token );
+		$expires = (string) $wpdb->get_var( $wpdb->prepare( "SELECT expires_at FROM {$tables['package_streams']} WHERE token_hash = %s", hash( 'sha256', $token ) ) );
+		$this->assertLessThanOrEqual( time() + 60, strtotime( $expires . ' UTC' ), 'Stream tokens live for one minute.' );
+
+		// Refused (license revoked meanwhile), and still used up.
+		$wpdb->update( $tables['licenses'], array( 'status' => 'revoked' ), array( 'id' => $license['id'] ) );
+		$refused = $this->dispatch( new WP_REST_Request( 'GET', '/wplc/v1/packages/' . $token ) );
+		$this->assertSame( 404, $refused->get_status() );
+		$this->assertNotNull( $wpdb->get_var( $wpdb->prepare( "SELECT consumed_at FROM {$tables['package_streams']} WHERE token_hash = %s", hash( 'sha256', $token ) ) ) );
+
+		$wpdb->update( $tables['licenses'], array( 'status' => 'active' ), array( 'id' => $license['id'] ) );
+		$again = $this->dispatch( new WP_REST_Request( 'GET', '/wplc/v1/packages/' . $token ) );
+		$this->assertSame( 404, $again->get_status() );
+		\WPLC\Update\LocalPackageStorage::delete( (string) $release['package_url'] );
 	}
 
 	public function test_customer_download_with_an_untrusted_resolved_url_uses_no_download_allowance(): void {

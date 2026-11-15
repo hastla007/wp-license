@@ -149,7 +149,7 @@ define( 'WPLC_TRUSTED_PROXIES', array( '173.245.48.0/20', '2400:cb00::/32' ) ); 
 | DELETE | `/activations/{activation_id}` | Deactivate the authenticated installation |
 | POST | `/entitlements/check` | Return current status and feature rights |
 | POST | `/updates/check` | Return signed release metadata and a short-lived package grant |
-| GET | `/updates/download/{token}` | Consume a one-use grant and redirect to the allow-listed package host (`Cache-Control: no-store`, `Referrer-Policy: no-referrer`) |
+| GET | `/updates/download/{token}` | Consume a one-use grant and redirect to the allow-listed package host (`Cache-Control: no-store`, `Referrer-Policy: no-referrer`). The grant is valid for five minutes, bound to the requesting installation and used up by the first request that presents it, also when that request fails; request a fresh one with `/updates/check` right before downloading (see [UPDATES.md](UPDATES.md#download-tokens-in-urls-t-108)) |
 
 ## Credential rotation and recovery
 

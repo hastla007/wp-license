@@ -107,14 +107,16 @@ final class RotateInstallationSecretsCommand {
 				$secret = SecretCrypto::decrypt( $old_envelope );
 				if ( false === $secret || ! hash_equals( (string) $row['installation_secret_hash'], hash( 'sha256', $secret ) ) ) {
 					++$failed;
-					\WP_CLI::warning( sprintf( 'Could not verify activation ID %d; row was not changed.', $last_id ) );
+					/* translators: %d: activation ID. */
+					\WP_CLI::warning( sprintf( __( 'Could not verify activation ID %d; row was not changed.', 'wp-license' ), $last_id ) );
 					continue;
 				}
 
 				$new_envelope = SecretCrypto::encrypt( $secret );
 				if ( false === $new_envelope ) {
 					++$failed;
-					\WP_CLI::warning( sprintf( 'Could not encrypt activation ID %d; row was not changed.', $last_id ) );
+					/* translators: %d: activation ID. */
+					\WP_CLI::warning( sprintf( __( 'Could not encrypt activation ID %d; row was not changed.', 'wp-license' ), $last_id ) );
 					continue;
 				}
 
@@ -148,17 +150,40 @@ final class RotateInstallationSecretsCommand {
 			}
 		}
 
-		\WP_CLI::log( sprintf( 'Mode: %s', $apply ? 'apply' : 'dry-run' ) );
-		\WP_CLI::log( sprintf( 'Inspected: %d; %s: %d; already current: %d; changed concurrently: %d; failed: %d; last ID: %d', $inspected, $apply ? 'rotated' : 'needing rotation', $rotated, $already_current, $stale_rows, $failed, $last_id ) );
+		/* translators: %s: "apply" or "dry-run". */
+		\WP_CLI::log( sprintf( __( 'Mode: %s', 'wp-license' ), $apply ? __( 'apply', 'wp-license' ) : __( 'dry-run', 'wp-license' ) ) );
+		\WP_CLI::log(
+			$apply
+				? sprintf(
+					/* translators: 1: inspected rows, 2: rotated rows, 3: rows already current, 4: rows changed concurrently, 5: failed rows, 6: last inspected activation ID (resume with --after-id). */
+					__( 'Inspected: %1$d; rotated: %2$d; already current: %3$d; changed concurrently: %4$d; failed: %5$d; last ID: %6$d', 'wp-license' ),
+					$inspected,
+					$rotated,
+					$already_current,
+					$stale_rows,
+					$failed,
+					$last_id
+				)
+				: sprintf(
+					/* translators: 1: inspected rows, 2: rows needing rotation, 3: rows already current, 4: rows changed concurrently, 5: failed rows, 6: last inspected activation ID (resume with --after-id). */
+					__( 'Inspected: %1$d; needing rotation: %2$d; already current: %3$d; changed concurrently: %4$d; failed: %5$d; last ID: %6$d', 'wp-license' ),
+					$inspected,
+					$rotated,
+					$already_current,
+					$stale_rows,
+					$failed,
+					$last_id
+				)
+		);
 		if ( $failed > 0 ) {
-			\WP_CLI::warning( 'Some rows need manual investigation. No failed row was modified.' );
+			\WP_CLI::warning( __( 'Some rows need manual investigation. No failed row was modified.', 'wp-license' ) );
 		}
 
 		// The stored response signing keys are encrypted with the same key ring. Without this step an old
 		// encryption key looked unused after the activations were done, and removing it silently disabled the
 		// Ed25519 response signature, so every client that pins the public key rejected the server.
 		$signing_failed = false;
-		foreach ( array( ResponseSigner::OPTION => 'Response signing key', ResponseSigner::NEXT_OPTION => 'Prepared next signing key' ) as $option => $label ) {
+		foreach ( array( ResponseSigner::OPTION => __( 'Response signing key', 'wp-license' ), ResponseSigner::NEXT_OPTION => __( 'Prepared next signing key', 'wp-license' ) ) as $option => $label ) {
 			$status = ResponseSigner::reencrypt_option( $option, $apply );
 			if ( 'rotated' === $status ) {
 				AuditLog::record(
@@ -172,11 +197,12 @@ final class RotateInstallationSecretsCommand {
 			}
 			$signing_failed = $signing_failed || 'undecryptable' === $status;
 			if ( 'empty' !== $status || ResponseSigner::OPTION === $option ) {
-				\WP_CLI::log( sprintf( '%s: %s', $label, self::status_text( $status ) ) );
+				/* translators: 1: "Response signing key" or "Prepared next signing key", 2: status, for example "already current". */
+				\WP_CLI::log( sprintf( __( '%1$s: %2$s', 'wp-license' ), $label, self::status_text( $status ) ) );
 			}
 		}
 		if ( $signing_failed ) {
-			\WP_CLI::warning( 'A stored response signing key cannot be decrypted with the configured key ring. Put the previous encryption key back into WPLC_INSTALLATION_ENCRYPTION_KEYS; until then responses carry no Ed25519 signature and clients that pin the public key reject them.' );
+			\WP_CLI::warning( __( 'A stored response signing key cannot be decrypted with the configured key ring. Put the previous encryption key back into WPLC_INSTALLATION_ENCRYPTION_KEYS; until then responses carry no Ed25519 signature and clients that pin the public key reject them.', 'wp-license' ) );
 		}
 	}
 
@@ -187,12 +213,12 @@ final class RotateInstallationSecretsCommand {
 	 */
 	private static function status_text( string $status ): string {
 		$texts = array(
-			'constant'      => 'from WPLC_RESPONSE_SIGNING_KEY, nothing stored',
-			'empty'         => 'not stored yet',
-			'current'       => 'already current',
-			'rotate'        => 'needs rotation',
-			'rotated'       => 'rotated',
-			'undecryptable' => 'CANNOT BE DECRYPTED',
+			'constant'      => __( 'from WPLC_RESPONSE_SIGNING_KEY, nothing stored', 'wp-license' ),
+			'empty'         => __( 'not stored yet', 'wp-license' ),
+			'current'       => __( 'already current', 'wp-license' ),
+			'rotate'        => __( 'needs rotation', 'wp-license' ),
+			'rotated'       => __( 'rotated', 'wp-license' ),
+			'undecryptable' => __( 'CANNOT BE DECRYPTED', 'wp-license' ),
 		);
 		return $texts[ $status ] ?? $status;
 	}

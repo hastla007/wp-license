@@ -27,8 +27,11 @@ final class Schema {
 	 *     variation whose regular price renews the license (T-132).
 	 * 14: renewals.review_reason and renewals.review_at, the reason and start of
 	 *     an open review case (T-154, T-137); existing cases are backfilled.
+	 * 15: indexes for the license list, the account page and diagnostics (T-89).
+	 * 16: download_tokens.activation_id, the installation an update grant was
+	 *     issued to (T-108); older grants keep 0 and expire within minutes.
 	 */
-	public const VERSION = '15';
+	public const VERSION = '16';
 
 	/**
 	 * Option in which ReminderLog recorded its self-installed table (up to schema 11).
@@ -62,6 +65,7 @@ final class Schema {
 		'13' => array( self::class, 'step_13_renewal_product_column' ),
 		'14' => array( self::class, 'step_14_renewal_review_columns' ),
 		'15' => array( self::class, 'step_15_list_indexes' ),
+		'16' => array( self::class, 'step_16_grant_activation_column' ),
 	);
 
 	/**
@@ -352,6 +356,7 @@ final class Schema {
 			"CREATE TABLE {$tables['download_tokens']} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				license_id bigint(20) unsigned NOT NULL,
+				activation_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				token_hash char(64) NOT NULL,
 				package_url text NOT NULL,
 				expires_at datetime NOT NULL,
@@ -703,6 +708,30 @@ final class Schema {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Schema 16: download_tokens.activation_id (T-108).
+	 *
+	 * dbDelta adds the column; existing grants keep 0 (not bound, they expire
+	 * within minutes). The step checks that the column exists, because the
+	 * update check cannot issue grants without it.
+	 *
+	 * @return bool
+	 */
+	private static function step_16_grant_activation_column(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		global $wpdb;
+
+		$tables = self::table_names();
+		$exists = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+				$tables['download_tokens'],
+				'activation_id'
+			)
+		);
+
+		return 1 === (int) $exists;
 	}
 
 	/**
