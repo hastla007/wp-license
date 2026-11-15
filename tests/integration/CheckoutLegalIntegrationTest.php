@@ -164,7 +164,7 @@ final class CheckoutLegalIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( '', (string) $plain->get_meta( WithdrawalConsent::META_CONSENT_AT, true ) );
 	}
 
-	/** B-39: the block field is shown and required only for carts with a license (WooCommerce 9.9+). */
+	/** B-39: the block field is shown and required only for carts with a license (WooCommerce 9.9+; optional and enforced at payment before). */
 	public function test_b39_block_field_is_registered_with_a_visibility_rule(): void {
 		$product = $this->create_license_product();
 		$fields  = \Automattic\WooCommerce\Blocks\Package::container()->get( \Automattic\WooCommerce\Blocks\Domain\Services\CheckoutFields::class );
@@ -173,9 +173,15 @@ final class CheckoutLegalIntegrationTest extends WPLC_Integration_TestCase {
 			$field = $fields->get_additional_fields()[ WithdrawalConsent::FIELD_ID ] ?? null;
 			$this->assertIsArray( $field, 'WooCommerce accepted the field.' );
 			$this->assertSame( 'checkbox', $field['type'] );
-			$this->assertTrue( $field['required'] );
 			$this->assertFalse( $field['show_in_order_confirmation'] );
-			$this->assertContains( $product->get_id(), $field['hidden']['cart']['properties']['items']['not']['contains']['enum'] );
+			if ( \WPLC\Compatibility\Requirements::supports_conditional_checkout_fields() ) {
+				$this->assertTrue( $field['required'] );
+				$this->assertContains( $product->get_id(), $field['hidden']['cart']['properties']['items']['not']['contains']['enum'] );
+			} else {
+				// Before WooCommerce 9.9 the field can't be hidden: optional for WooCommerce, enforced by validate_block_order().
+				$this->assertFalse( $field['required'] );
+				$this->assertArrayNotHasKey( 'cart', (array) ( $field['hidden'] ?? array() ) );
+			}
 		} finally {
 			$fields->deregister_checkout_field( WithdrawalConsent::FIELD_ID );
 		}
