@@ -3,6 +3,12 @@ use PHPUnit\Framework\TestCase;
 use WPLC\Api\V1\ActivationService;
 use WPLC\Api\V1\ClientIp;
 
+if ( ! function_exists( '__' ) ) {
+	function __( $text, $domain = 'default' ) {
+		return $text;
+	}
+}
+
 final class ClientIpTest extends TestCase {
 	public function test_uses_remote_addr_and_ignores_forwarding_headers_without_configuration(): void {
 		$server = array(
@@ -29,10 +35,21 @@ final class ClientIpTest extends TestCase {
 		$this->assertSame( '173.245.48.10', ClientIp::resolve( $server, 'HTTP_CF_CONNECTING_IP', array() ) );
 	}
 
-	public function test_undefined_proxy_list_trusts_the_header_from_any_peer(): void {
+	/** P-42: a header without a proxy list would let every client choose its own bucket. */
+	public function test_undefined_proxy_list_ignores_the_header(): void {
 		$server = array( 'REMOTE_ADDR' => '192.0.2.50', 'HTTP_CF_CONNECTING_IP' => '198.51.100.2' );
 
-		$this->assertSame( '198.51.100.2', ClientIp::resolve( $server, 'HTTP_CF_CONNECTING_IP', null ) );
+		$this->assertSame( '192.0.2.50', ClientIp::resolve( $server, 'HTTP_CF_CONNECTING_IP', null ) );
+		$this->assertSame( '192.0.2.50', ClientIp::resolve( array( 'REMOTE_ADDR' => '192.0.2.50', 'HTTP_X_FORWARDED_FOR' => '1.1.1.1, 198.51.100.9' ), 'HTTP_X_FORWARDED_FOR', null ) );
+	}
+
+	/** P-42: the diagnostics page warns about a header without a proxy list. */
+	public function test_configuration_warning_names_a_header_without_proxy_list(): void {
+		$this->assertStringContainsString( 'WPLC_TRUSTED_PROXIES', ClientIp::configuration_warning( 'HTTP_X_FORWARDED_FOR', null ) );
+		$this->assertNotSame( '', ClientIp::configuration_warning( 'HTTP_X_FORWARDED_FOR', array() ) );
+		$this->assertNotSame( '', ClientIp::configuration_warning( 'HTTP_X_FORWARDED_FOR', 'not-a-list' ) );
+		$this->assertSame( '', ClientIp::configuration_warning( 'HTTP_X_FORWARDED_FOR', array( '10.0.0.0/8' ) ) );
+		$this->assertSame( '', ClientIp::configuration_warning( '', null ) );
 	}
 
 	public function test_forwarded_for_takes_the_right_most_untrusted_address(): void {
@@ -43,8 +60,8 @@ final class ClientIpTest extends TestCase {
 
 		// 1.1.1.1 is client-supplied and must not win.
 		$this->assertSame( '198.51.100.9', ClientIp::resolve( $server, 'HTTP_X_FORWARDED_FOR', array( '10.0.0.0/8' ) ) );
-		// Without a proxy list the address appended by the nearest proxy wins.
-		$this->assertSame( '10.0.0.8', ClientIp::resolve( $server, 'HTTP_X_FORWARDED_FOR', null ) );
+		// Without a proxy list the header is ignored (P-42).
+		$this->assertSame( '10.0.0.5', ClientIp::resolve( $server, 'HTTP_X_FORWARDED_FOR', null ) );
 	}
 
 	public function test_forwarded_for_falls_back_to_remote_addr_when_unusable(): void {
@@ -131,16 +148,29 @@ final class ClientIpTest extends TestCase {
 	}
 
 	public function test_key_limiter_uses_only_the_first_thirteen_normalized_characters(): void {
-		$first = ActivationService::key_limiter_hash( 'WPLC-1A2B3C4D-AAAA-BBBB' );
+		$ip    = '203.0.113.7';
+		$first = ActivationService::key_limiter_hash( 'WPLC-1A2B3C4D-AAAA-BBBB', $ip );
 
 		$this->assertMatchesRegularExpression( '/^[a-f0-9]{64}$/', $first );
-		$this->assertSame( $first, ActivationService::key_limiter_hash( '  wplc-1a2b3c4d-ffff-0000 ' ) );
-		$this->assertNotSame( $first, ActivationService::key_limiter_hash( 'WPLC-1A2B3C4E-AAAA-BBBB' ) );
+		$this->assertSame( $first, ActivationService::key_limiter_hash( '  wplc-1a2b3c4d-ffff-0000 ', $ip ) );
+		$this->assertNotSame( $first, ActivationService::key_limiter_hash( 'WPLC-1A2B3C4E-AAAA-BBBB', $ip ) );
 		// B-130: an HMAC with a server-side key, not a bare hash that can be reversed by trying candidates.
-		$this->assertNotSame( hash( 'sha256', 'activation-key:WPLC-1A2B3C4D' ), $first );
-		$this->assertSame( \WPLC\Api\V1\Authenticator::limiter_hash( 'activation-key', 'WPLC-1A2B3C4D' ), $first );
+		$this->assertNotSame( hash( 'sha256', 'activation-key-ip:WPLC-1A2B3C4D|' . $ip ), $first );
+		$this->assertSame( \WPLC\Api\V1\Authenticator::limiter_hash( 'activation-key-ip', 'WPLC-1A2B3C4D|' . $ip ), $first );
 		// B-173: pasted keys with typographic dashes and invisible characters share the bucket.
-		$this->assertSame( $first, ActivationService::key_limiter_hash( "WPLC\u{2013}1A2B\u{200B}3C4D\u{00A0}-AAAA" ) );
+		$this->assertSame( $first, ActivationService::key_limiter_hash( "WPLC\u{2013}1A2B\u{200B}3C4D\u{00A0}-AAAA", $ip ) );
+	}
+
+	/** P-09: failures from one address never fill the bucket of the same key prefix seen from another address. */
+	public function test_key_limiter_is_scoped_to_the_client_address(): void {
+		$this->assertNotSame(
+			ActivationService::key_limiter_hash( 'WPLC-1A2B3C4D-AAAA', '203.0.113.7' ),
+			ActivationService::key_limiter_hash( 'WPLC-1A2B3C4D-AAAA', '198.51.100.9' )
+		);
+		$this->assertNotSame(
+			ActivationService::key_limiter_hash( 'WPLC-1A2B3C4D-AAAA', '2001:db8:1::/64' ),
+			ActivationService::key_limiter_hash( 'WPLC-1A2B3C4D-AAAA', '2001:db8:2::/64' )
+		);
 	}
 
 	/** B-130 */

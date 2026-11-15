@@ -30,7 +30,8 @@ final class SiteUrl {
 	private static $use_intl = null;
 
 	/**
-	 * Host labels that mark a staging copy on any domain.
+	 * Subdomain labels that mark a staging copy. Only labels left of the
+	 * registrable domain count: `.dev` is a public TLD with live shops (P-13).
 	 */
 	private const STAGING_LABELS = array( 'staging', 'stage', 'stg', 'dev', 'test', 'testing', 'preprod', 'preview', 'sandbox', 'uat' );
 
@@ -381,8 +382,10 @@ final class SiteUrl {
 	 * Whether a host is plausible for the staging copy of a live site (B-157).
 	 *
 	 * True when the host is local, shares the registrable domain of the live
-	 * site, carries a staging label (`staging.`, `dev.`, ...) or belongs to a
-	 * hosting provider's staging domain.
+	 * site or belongs to a hosting provider's staging domain. A staging label
+	 * (`staging.`, `dev.`, ...) alone is not enough: on a foreign domain
+	 * (`dev.other-shop.com`) or as TLD (`other-shop.dev`) it would turn every
+	 * second live shop into a "staging" site (P-13).
 	 *
 	 * @param string $staging_url Staging site URL.
 	 * @param string $parent_url  Site URL of the live activation.
@@ -396,10 +399,7 @@ final class SiteUrl {
 			$allowed = self::is_local_host( $host )
 				|| ( '' !== $parent_host && self::registrable_domain( $host ) === self::registrable_domain( $parent_host ) && false === filter_var( $host, FILTER_VALIDATE_IP ) )
 				|| ( '' !== $parent_host && $host === $parent_host )
-				|| array() !== array_intersect( explode( '.', $host ), self::STAGING_LABELS );
-			foreach ( self::STAGING_SUFFIXES as $suffix ) {
-				$allowed = $allowed || substr( $host, -strlen( $suffix ) ) === $suffix;
-			}
+				|| self::has_staging_suffix( $host );
 		}
 
 		if ( function_exists( 'apply_filters' ) ) {
@@ -417,6 +417,52 @@ final class SiteUrl {
 		}
 
 		return $allowed;
+	}
+
+	/**
+	 * Whether an address looks like a copy of a site rather than a live site (P-22).
+	 *
+	 * True for local hosts, hosting providers' staging domains and hosts with
+	 * a staging label left of their registrable domain (`staging.shop.com`,
+	 * `dev.shop.co.uk`); not for a TLD such as `.dev`.
+	 *
+	 * @param string $url Site URL.
+	 * @return bool
+	 */
+	public static function looks_like_staging( string $url ): bool {
+		$host = self::host( $url );
+		if ( '' === $host ) {
+			return false;
+		}
+		if ( self::is_local_host( $host ) || self::has_staging_suffix( $host ) ) {
+			return true;
+		}
+		if ( false !== filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			return false;
+		}
+		$domain = self::registrable_domain( $host );
+		if ( $domain === $host || substr( $host, -strlen( '.' . $domain ) ) !== '.' . $domain ) {
+			return false;
+		}
+		$subdomain = substr( $host, 0, -strlen( '.' . $domain ) );
+
+		return array() !== array_intersect( explode( '.', $subdomain ), self::STAGING_LABELS );
+	}
+
+	/**
+	 * Whether a host belongs to a hosting provider's staging or temporary domain.
+	 *
+	 * @param string $host Lower-case host.
+	 * @return bool
+	 */
+	private static function has_staging_suffix( string $host ): bool {
+		foreach ( self::STAGING_SUFFIXES as $suffix ) {
+			if ( substr( $host, -strlen( $suffix ) ) === $suffix ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

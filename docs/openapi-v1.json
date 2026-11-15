@@ -95,7 +95,7 @@
             "$ref": "#/components/responses/ApiError"
           }
         },
-        "description": "Not HMAC-authenticated; possession of the license key authorizes it. Error codes: 400 invalid_activation (data.fields lists the rejected fields), development_site_invalid, staging_parent_required, rest_missing_callback_param, rest_invalid_param; 401 invalid_key; 403 product_mismatch, license_expired, license_suspended, license_revoked, license_inactive (data.license_status); 409 site_limit (data.site_limit, data.site_count), staging_limit, development_limit (data.development_limit, data.development_count), staging_parent_invalid, staging_site_invalid, installation_conflict, activation_deactivated, activation_conflict; 429 rate_limited; 500 activation_failed, server_configuration; 503 retry_later, rate_limit_store_unavailable."
+        "description": "Not HMAC-authenticated; possession of the license key authorizes it. Error codes: 400 invalid_activation (data.fields lists the rejected fields), development_site_invalid, staging_parent_required, rest_missing_callback_param, rest_invalid_param; 401 invalid_key; 403 product_mismatch, license_expired, license_suspended, license_revoked, license_inactive (data.license_status); 409 site_limit (data.site_limit, data.site_count), staging_limit, development_limit (data.development_limit, data.development_count), staging_parent_invalid, staging_site_invalid, site_move_refused (a live activation may not move to a staging or local address; data.site_url is the activated address), installation_conflict, activation_deactivated, activation_conflict; 429 rate_limited (failed attempts per address, or too many new installations of the license in the current hour; Retry-After); 500 activation_failed, server_configuration; 503 retry_later, rate_limit_store_unavailable."
       }
     },
     "/activations/{activation_id}": {
@@ -170,7 +170,7 @@
             "$ref": "#/components/responses/ApiError"
           }
         },
-        "description": "Error codes: 401 invalid_request_signature, request_expired, activation_not_found, installation_secret_invalid; 403 activation_mismatch; 409 site_mismatch (the site_url in the body is not the activated site; nothing was deactivated), deactivation_failed, request_replayed; 429 rate_limited; 503 retry_later, rate_limit_store_unavailable, replay_store_unavailable.",
+        "description": "Parameters are read only from the signed JSON body. Error codes: 400 request_parameters_unsigned (query parameters, or a body that is not application/json); 401 invalid_request_signature, request_expired, activation_not_found (unknown installation or wrong signature), installation_secret_invalid; 403 activation_mismatch; 409 site_mismatch (the site_url in the body is not the activated site; nothing was deactivated), deactivation_failed, request_replayed; 429 rate_limited; 503 retry_later, rate_limit_store_unavailable, replay_store_unavailable.",
         "requestBody": {
           "required": false,
           "content": {
@@ -254,7 +254,7 @@
             "$ref": "#/components/responses/ApiError"
           }
         },
-        "description": "Error codes: 400 rest_invalid_param; 401 invalid_request_signature, request_expired, activation_not_found, installation_secret_invalid; 404 license_not_found; 409 request_replayed; 429 rate_limited; 503 rate_limit_store_unavailable, replay_store_unavailable."
+        "description": "Parameters are read only from the signed JSON body. Error codes: 400 rest_invalid_param, request_parameters_unsigned; 401 invalid_request_signature, request_expired, activation_not_found (unknown installation or wrong signature), installation_secret_invalid; 404 license_not_found; 409 request_replayed; 429 rate_limited; 503 rate_limit_store_unavailable, replay_store_unavailable."
       }
     },
     "/updates/check": {
@@ -328,7 +328,7 @@
             "$ref": "#/components/responses/ApiError"
           }
         },
-        "description": "Missing or non-string product_key/current_version are rejected with 400 rest_missing_callback_param or rest_invalid_param before the request is authenticated. Error codes: 401 invalid_request_signature, request_expired, activation_not_found, installation_secret_invalid; 403 license_inactive (no access, or the license belongs to another product), activation_deactivated (data.signed carries a SignedEnvelope with DeactivatedData); 409 request_replayed; 429 rate_limited; 503 package_configuration_invalid, download_token_error, rate_limit_store_unavailable, replay_store_unavailable."
+        "description": "Missing or non-string product_key/current_version are rejected with 400 rest_missing_callback_param or rest_invalid_param before the request is authenticated. Parameters are read only from the signed JSON body. A check with download=true replaces the oldest of two unused grants of the same installation and package (its URL stops working). Error codes: 400 request_parameters_unsigned; 401 invalid_request_signature, request_expired, activation_not_found (unknown installation or wrong signature), installation_secret_invalid; 403 license_inactive (no access, or the license belongs to another product), activation_deactivated (data.signed carries a SignedEnvelope with DeactivatedData); 409 request_replayed; 429 rate_limited; 503 package_configuration_invalid, download_token_error, rate_limit_store_unavailable, replay_store_unavailable."
       }
     },
     "/updates/download/{token}": {
@@ -925,6 +925,7 @@
           "staging_parent_required",
           "rest_missing_callback_param",
           "rest_invalid_param",
+          "request_parameters_unsigned",
           "invalid_key",
           "invalid_request_signature",
           "request_expired",
@@ -943,6 +944,7 @@
           "development_limit",
           "staging_parent_invalid",
           "staging_site_invalid",
+          "site_move_refused",
           "installation_conflict",
           "activation_conflict",
           "site_mismatch",

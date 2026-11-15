@@ -29,8 +29,20 @@ final class ActivationService {
 	/** @var int Failed anonymous activation attempts per client address and minute. */
 	public const ATTEMPTS_PER_IP = 30;
 
-	/** @var int Failed activation attempts per license-key prefix and minute. */
+	/**
+	 * @var int Failed activation attempts per license-key prefix, client address and minute.
+	 *
+	 * The prefix is a public reference (mails, customer account, cancellation
+	 * page), so a bucket per prefix alone would let anybody lock the owner out
+	 * of activating (P-09). Guessing does not need a per-prefix bucket either:
+	 * after the prefix a key carries the rest of the license UUID and a 256-bit
+	 * HMAC, so trying keys from many addresses gets nowhere; the per-address
+	 * limits bound the work one client can cause.
+	 */
 	public const ATTEMPTS_PER_KEY = 20;
+
+	/** @var int Default minimum of new installations a license may activate per hour (P-10). */
+	public const NEW_ACTIVATIONS_PER_HOUR = 10;
 
 	/** @var int Length of the normalized key prefix (`WPLC-` plus eight characters). */
 	private const KEY_PREFIX_LENGTH = 13;
@@ -64,8 +76,8 @@ final class ActivationService {
 		$parent_uuid = strtolower( trim( self::string_param( $request, 'staging_parent_installation_id' ) ) );
 
 		// T-142: only failed attempts count, per client address and per key
-		// prefix (one key cannot be hammered from many addresses). A valid key
-		// is not blocked by other people's failures; see ActivationRateLimit.
+		// prefix from that address (P-09). A valid key is not blocked by other
+		// people's failures; see ActivationRateLimit.
 		$limiters   = self::attempt_limiters( $license_key );
 		$rate_state = ActivationRateLimit::check( $limiters );
 		if ( ActivationRateLimit::UNAVAILABLE === $rate_state ) {
@@ -269,6 +281,25 @@ final class ActivationService {
 			}
 		}
 
+		// A valid key must not create installations without end (P-10):
+		// every new installation ID adds rows to activations and the audit log.
+		$hourly_limit = self::new_activations_per_hour( $license, $limit );
+		$hourly_bucket = gmdate( 'Y-m-d H:00:00' );
+		$hourly_hash = Authenticator::limiter_hash( 'activation-license', (string) $license_id );
+		if ( $hourly_limit > 0 ) {
+			$created = Authenticator::current_rate_limit( $hourly_hash, $hourly_bucket );
+			if ( false === $created ) {
+				return self::rate_limit_unavailable();
+			}
+			if ( $created >= $hourly_limit ) {
+				return new \WP_Error(
+					'rate_limited',
+					'This license has activated too many new installations in the current hour. Try again later.',
+					array( 'status' => 429, 'retry_after' => max( 1, HOUR_IN_SECONDS - ( time() % HOUR_IN_SECONDS ) ) )
+				);
+			}
+		}
+
 		$encrypted_secret = SecretCrypto::encrypt( $secret );
 		if ( false === $encrypted_secret ) {
 			return new \WP_Error( 'server_configuration', 'The license server could not securely store the installation credential.', array( 'status' => 500 ) );
@@ -306,6 +337,10 @@ final class ActivationService {
 		}
 
 		$activation_id = (int) $wpdb->insert_id;
+		if ( $hourly_limit > 0 ) {
+			// Counted under the license lock, so parallel requests cannot pass the limit together.
+			Authenticator::increment_bucket( $hourly_hash, $hourly_bucket );
+		}
 		foreach ( $replaced as $replaced_id ) {
 			// The staging copy of a replaced live site moves to the new activation (B-167).
 			$reparent_to = 'production' === $environment ? $activation_id : 0;
@@ -366,6 +401,20 @@ final class ActivationService {
 		if ( 'staging' === $existing['environment'] && ! $staging_allowed && (string) $existing['site_url'] !== $input['site_url'] ) {
 			return new \WP_Error( 'staging_site_invalid', 'A staging activation cannot move to a host that is unrelated to its live site.', array( 'status' => 409 ) );
 		}
+		// A copy of the live site (staging or local clone with the copied
+		// credentials) must not take the live activation with it (P-22). The
+		// copy activates with its own installation ID instead.
+		if ( 'production' === $existing['environment']
+			&& SiteUrl::comparison_key( (string) $existing['site_url'] ) !== SiteUrl::comparison_key( $input['site_url'] )
+			&& SiteUrl::looks_like_staging( $input['site_url'] )
+			&& ! SiteUrl::looks_like_staging( (string) $existing['site_url'] )
+		) {
+			return new \WP_Error(
+				'site_move_refused',
+				'A live activation cannot move to a staging or development address. Activate the copy as a staging site with a new installation ID.',
+				array( 'status' => 409, 'site_url' => (string) $existing['site_url'] )
+			);
+		}
 
 		$changes = array( 'site_url' => $input['site_url'], 'last_seen_at' => gmdate( 'Y-m-d H:i:s' ) );
 		foreach ( array( 'product_version', 'wp_version', 'php_version' ) as $version_field ) {
@@ -412,7 +461,7 @@ final class ActivationService {
 		if ( is_wp_error( $activation ) ) {
 			return $activation;
 		}
-		if ( (int) $activation['id'] !== absint( $request->get_param( 'activation_id' ) ) ) {
+		if ( (int) $activation['id'] !== absint( $request->get_url_params()['activation_id'] ?? 0 ) ) {
 			return new \WP_Error( 'activation_mismatch', 'The authenticated installation does not match this activation.', array( 'status' => 403 ) );
 		}
 
@@ -433,7 +482,7 @@ final class ActivationService {
 		// A copy of the site (staging clone with the copied credentials) must
 		// not end the activation of the original: when the client states its
 		// address, it has to be the activated one (B-69).
-		$reported_url = $request->get_param( 'site_url' );
+		$reported_url = Authenticator::signed_param( $request, 'site_url' );
 		if ( is_string( $reported_url ) && '' !== $reported_url ) {
 			$reported_key = SiteUrl::comparison_key( $reported_url );
 			if ( '' === $reported_key || SiteUrl::comparison_key( (string) $activation['site_url'] ) !== $reported_key ) {
@@ -554,6 +603,30 @@ final class ActivationService {
 	}
 
 	/**
+	 * New installations a license may activate per hour (P-10).
+	 *
+	 * Repeated activations of a known installation ID do not count. The
+	 * default allows twice the live-site limit, at least
+	 * NEW_ACTIVATIONS_PER_HOUR, so an agency can still set up all its sites.
+	 *
+	 * @param array<string,mixed> $license    License row.
+	 * @param int                 $site_limit Live-site limit of the license.
+	 * @return int Zero or less disables the limit.
+	 */
+	public static function new_activations_per_hour( array $license, int $site_limit ): int {
+		$limit = max( self::NEW_ACTIVATIONS_PER_HOUR, 2 * $site_limit );
+
+		/**
+		 * Filter how many new installations one license may activate per hour.
+		 *
+		 * @param int                 $limit      Default: twice the live-site limit, at least ten. Zero disables the limit.
+		 * @param array<string,mixed> $license    License row.
+		 * @param int                 $site_limit Live-site limit.
+		 */
+		return (int) apply_filters( 'wplc_new_activations_per_hour', $limit, $license, $site_limit );
+	}
+
+	/**
 	 * Resolve the live site limit from a license entitlement.
 	 *
 	 * @param int $license_id License ID.
@@ -607,18 +680,18 @@ final class ActivationService {
 	 * resolvable address lands in a shared bucket instead of failing for
 	 * everyone.
 	 *
+	 * The key bucket is per prefix and address: failures from one address
+	 * never throttle the same key from another address (P-09).
+	 *
 	 * @param string $license_key Normalized license key.
 	 * @return array<string,int> Limiter hash => failures allowed per minute.
 	 */
 	private static function attempt_limiters( string $license_key ): array {
-		$bucket = ClientIp::rate_limit_bucket( ClientIp::current() );
-		if ( '' === $bucket ) {
-			$bucket = 'unknown';
-		}
+		$bucket = ClientIp::current_bucket();
 
 		$limiters = array( Authenticator::limiter_hash( 'activation-ip', $bucket ) => self::ATTEMPTS_PER_IP );
 		if ( '' !== $license_key ) {
-			$limiters[ self::key_limiter_hash( $license_key ) ] = self::ATTEMPTS_PER_KEY;
+			$limiters[ self::key_limiter_hash( $license_key, $bucket ) ] = self::ATTEMPTS_PER_KEY;
 		}
 
 		return $limiters;
@@ -663,12 +736,13 @@ final class ActivationService {
 	}
 
 	/**
-	 * Limiter key for a license-key prefix; never stores key material.
+	 * Limiter key for a license-key prefix seen from one client address; never stores key material.
 	 *
 	 * @param string $license_key License key.
+	 * @param string $ip_bucket   ClientIp::rate_limit_bucket() of the client.
 	 * @return string Limiter hash.
 	 */
-	public static function key_limiter_hash( string $license_key ): string {
-		return Authenticator::limiter_hash( 'activation-key', substr( LicenseKey::normalize( $license_key ), 0, self::KEY_PREFIX_LENGTH ) );
+	public static function key_limiter_hash( string $license_key, string $ip_bucket ): string {
+		return Authenticator::limiter_hash( 'activation-key-ip', substr( LicenseKey::normalize( $license_key ), 0, self::KEY_PREFIX_LENGTH ) . '|' . $ip_bucket );
 	}
 }

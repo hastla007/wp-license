@@ -261,7 +261,9 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		$wpdb->insert( $tables['request_nonces'], array( 'activation_id' => 1, 'nonce_hash' => hash( 'sha256', 'valid' ), 'expires_at' => $future, 'created_at' => $now ) );
 		$wpdb->insert( $tables['request_limits'], array( 'limiter_hash' => hash( 'sha256', 'valid' ), 'bucket_start' => $now, 'hits' => 1, 'created_at' => $now ) );
 		$wpdb->insert( $tables['download_tokens'], array( 'license_id' => $license['id'], 'token_hash' => hash( 'sha256', 'old' ), 'package_url' => 'https://example.test/a.zip', 'expires_at' => $this->past( 8 ), 'created_at' => $this->past( 8 ) ) );
-		$wpdb->insert( $tables['download_tokens'], array( 'license_id' => $license['id'], 'token_hash' => hash( 'sha256', 'new' ), 'package_url' => 'https://example.test/a.zip', 'expires_at' => $this->past( 1 ), 'created_at' => $this->past( 1 ) ) );
+		// A used grant inside the retention period stays; unused expired grants go at once (P-11).
+		$wpdb->insert( $tables['download_tokens'], array( 'license_id' => $license['id'], 'token_hash' => hash( 'sha256', 'new' ), 'package_url' => 'https://example.test/a.zip', 'expires_at' => $this->past( 1 ), 'consumed_at' => $this->past( 1 ), 'created_at' => $this->past( 1 ) ) );
+		$wpdb->insert( $tables['download_tokens'], array( 'license_id' => $license['id'], 'token_hash' => hash( 'sha256', 'unused' ), 'package_url' => 'https://example.test/a.zip', 'expires_at' => $this->past( 1 ), 'created_at' => $this->past( 1 ) ) );
 		$wpdb->insert( $tables['package_streams'], array( 'token_hash' => hash( 'sha256', 'old' ), 'release_id' => 1, 'license_id' => $license['id'], 'expires_at' => $this->past( 2 ), 'created_at' => $this->past( 2 ) ) );
 		$wpdb->insert( $tables['package_streams'], array( 'token_hash' => hash( 'sha256', 'new' ), 'release_id' => 1, 'license_id' => $license['id'], 'expires_at' => $future, 'created_at' => $now ) );
 
