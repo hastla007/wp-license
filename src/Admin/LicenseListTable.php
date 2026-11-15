@@ -29,7 +29,7 @@ final class LicenseListTable extends \WP_List_Table {
 	/**
 	 * GET arguments of the list filters (kept across search, sort and bulk actions).
 	 */
-	public const FILTER_ARGS = array( 'status', 'product', 'order_id', 'renewal', 'mode', 'expiry' );
+	public const FILTER_ARGS = array( 'status', 'product', 'order_id', 'renewal', 'mode', 'expiry', 'report' );
 
 	/**
 	 * Renewal statuses that count as an open renewal (not paid, closed or refunded).
@@ -126,13 +126,14 @@ final class LicenseListTable extends \WP_List_Table {
 	 * carries an opaque token that LicenseSearchStore resolves for the current
 	 * user. A legacy "s" query argument is ignored.
 	 *
-	 * @return array{search:array{type:string,value:string,label:string}|null,search_token:string,search_expired:bool,status:string,product:string,order_id:int,renewal:string,mode:string,expiry:string,orderby:string,order:string}
+	 * @return array{search:array{type:string,value:string,label:string}|null,search_token:string,search_expired:bool,status:string,product:string,order_id:int,renewal:string,mode:string,expiry:string,report:string,orderby:string,order:string}
 	 */
 	public static function request_filters(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list filters.
 		$token   = isset( $_GET[ LicenseSearchStore::QUERY_ARG ] ) ? sanitize_key( wp_unslash( $_GET[ LicenseSearchStore::QUERY_ARG ] ) ) : '';
 		$status  = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
 		$product = isset( $_GET['product'] ) ? sanitize_key( wp_unslash( $_GET['product'] ) ) : '';
+		$report  = isset( $_GET['report'] ) ? sanitize_key( wp_unslash( $_GET['report'] ) ) : '';
 		$orderby = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : '';
 		$order   = isset( $_GET['order'] ) ? sanitize_key( wp_unslash( $_GET['order'] ) ) : '';
 		$order_id = isset( $_GET['order_id'] ) ? absint( $_GET['order_id'] ) : 0;
@@ -155,6 +156,9 @@ final class LicenseListTable extends \WP_List_Table {
 		if ( ! isset( self::expiry_filter_labels()[ $expiry ] ) ) {
 			$expiry = '';
 		}
+		if ( ! isset( self::reports()[ $report ] ) ) {
+			$report = '';
+		}
 		if ( ! in_array( $orderby, array( 'created', 'paid_until', 'status' ), true ) ) {
 			$orderby = 'created';
 			$order   = '' === $order ? 'desc' : $order;
@@ -170,9 +174,97 @@ final class LicenseListTable extends \WP_List_Table {
 			'renewal'        => $renewal,
 			'mode'           => $mode,
 			'expiry'         => $expiry,
+			'report'         => $report,
 			'orderby'        => $orderby,
 			'order'          => 'asc' === $order ? 'asc' : 'desc',
 		);
+	}
+
+	/**
+	 * Reports offered above the list (A-61).
+	 *
+	 * @return array<string,string> Report key => label.
+	 */
+	public static function reports(): array {
+		return array(
+			'upcoming_renewals' => __( 'Automatic renewals in the next 30 days', 'wp-license' ),
+			'ending_soon'       => __( 'Ending in the next 30 days without automatic renewal', 'wp-license' ),
+			'payment_failures'  => __( 'Payment overdue', 'wp-license' ),
+			'cancellations'     => __( 'Cancelled to the end of the term', 'wp-license' ),
+		);
+	}
+
+	/**
+	 * Translate list filters into the WHERE conditions of the license query.
+	 *
+	 * @param array<string,mixed> $filters Filters from request_filters().
+	 * @return array{where:string,params:array<int,mixed>} Conditions without the WHERE keyword ('' for none).
+	 */
+	public static function query_parts( array $filters ): array {
+		$conditions = array();
+		$params     = array();
+		if ( ! empty( $filters['status'] ) ) {
+			$conditions[] = 'status = %s';
+			$params[]     = $filters['status'];
+		}
+		if ( ! empty( $filters['product'] ) ) {
+			$conditions[] = 'product_key = %s';
+			$params[]     = $filters['product'];
+		}
+
+		$now  = gmdate( 'Y-m-d H:i:s' );
+		$soon = gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS );
+		switch ( isset( $filters['report'] ) ? $filters['report'] : '' ) {
+			case 'upcoming_renewals':
+				$conditions[] = "status = 'active' AND renewal_enabled = 1 AND cancel_at_period_end = 0 AND next_payment_at IS NOT NULL AND next_payment_at <= %s";
+				$params[]     = $soon;
+				break;
+			case 'ending_soon':
+				$conditions[] = "status = 'active' AND ( renewal_enabled = 0 OR cancel_at_period_end = 1 ) AND paid_until > %s AND paid_until <= %s";
+				$params[]     = $now;
+				$params[]     = $soon;
+				break;
+			case 'payment_failures':
+				$conditions[] = "status = 'past_due'";
+				break;
+			case 'cancellations':
+				$conditions[] = "cancel_at_period_end = 1 AND status IN ('active','past_due')";
+				break;
+		}
+
+		foreach ( self::filter_conditions( $filters ) as $condition ) {
+			$conditions[] = $condition['sql'];
+			$params       = array_merge( $params, $condition['params'] );
+		}
+
+		$search = self::search_condition( isset( $filters['search'] ) && is_array( $filters['search'] ) ? $filters['search'] : null );
+		if ( null !== $search ) {
+			$conditions[] = $search['sql'];
+			$params       = array_merge( $params, $search['params'] );
+		}
+
+		return array(
+			'where'  => $conditions ? '(' . implode( ') AND (', $conditions ) . ')' : '',
+			'params' => $params,
+		);
+	}
+
+	/**
+	 * Report links above the table.
+	 *
+	 * @return array<string,string>
+	 */
+	protected function get_views() {
+		$current = self::request_filters()['report'];
+		$base    = LicenseAdmin::list_url();
+		$views   = array(
+			'all' => '<a href="' . esc_url( $base ) . '"' . ( '' === $current ? ' class="current" aria-current="page"' : '' ) . '>' . esc_html__( 'All licenses', 'wp-license' ) . '</a>',
+		);
+		foreach ( self::reports() as $key => $label ) {
+			$views[ $key ] = '<a href="' . esc_url( add_query_arg( 'report', $key, $base ) ) . '"' . ( $key === $current ? ' class="current" aria-current="page"' : '' ) . '>' . esc_html( $label ) . '</a>';
+		}
+
+		return $views;
 	}
 
 	/**
@@ -192,26 +284,9 @@ final class LicenseListTable extends \WP_List_Table {
 			$this->products[ (string) $row['product_key'] ] = (string) $row['display_name'];
 		}
 
-		$conditions = array();
-		$params     = array();
-		if ( '' !== $filters['status'] ) {
-			$conditions[] = 'status = %s';
-			$params[]     = $filters['status'];
-		}
-		if ( '' !== $filters['product'] ) {
-			$conditions[] = 'product_key = %s';
-			$params[]     = $filters['product'];
-		}
-		foreach ( self::filter_conditions( $filters ) as $condition ) {
-			$conditions[] = $condition['sql'];
-			$params       = array_merge( $params, $condition['params'] );
-		}
-		$search = self::search_condition( $filters['search'] );
-		if ( null !== $search ) {
-			$conditions[] = $search['sql'];
-			$params       = array_merge( $params, $search['params'] );
-		}
-		$where = $conditions ? ' WHERE ' . implode( ' AND ', $conditions ) : '';
+		$query  = self::query_parts( $filters );
+		$params = $query['params'];
+		$where  = '' !== $query['where'] ? ' WHERE ' . $query['where'] : '';
 
 		$order_columns = array(
 			'created'    => 'created_at',
@@ -427,6 +502,7 @@ final class LicenseListTable extends \WP_List_Table {
 	private static function search_condition( ?array $search ): ?array {
 		global $wpdb;
 
+		$tables = Schema::table_names();
 		if ( null === $search ) {
 			return null;
 		}
@@ -460,17 +536,25 @@ final class LicenseListTable extends \WP_List_Table {
 					'params' => $params,
 				);
 
+			case LicenseSearch::TYPE_UUID:
+				// License UUID or the installation ID a customer site reports.
+				return array(
+					'sql'    => "(license_uuid = %s OR id IN (SELECT license_id FROM {$tables['activations']} WHERE installation_uuid = %s))",
+					'params' => array( $search['value'], $search['value'] ),
+				);
+
 			case LicenseSearch::TYPE_EMAIL:
-				$user_ids = self::user_ids_by_email( $search['value'] );
-				if ( ! $user_ids ) {
+				$fragment = self::email_fragment( $search['value'] );
+				if ( '' === $fragment ) {
 					return array(
 						'sql'    => '1 = 0',
 						'params' => array(),
 					);
 				}
+				// B-119: a subquery instead of the first 200 matching user IDs.
 				return array(
-					'sql'    => 'customer_id IN (' . implode( ',', array_fill( 0, count( $user_ids ), '%d' ) ) . ')',
-					'params' => $user_ids,
+					'sql'    => "customer_id IN (SELECT ID FROM {$wpdb->users} WHERE user_email LIKE %s)",
+					'params' => array( '%' . $wpdb->esc_like( $fragment ) . '%' ),
 				);
 		}
 
@@ -485,10 +569,14 @@ final class LicenseListTable extends \WP_List_Table {
 				$params  = array_merge( $params, $part['params'] );
 			}
 		}
-		$user_ids = self::user_ids_by_email( $search['value'] );
-		if ( $user_ids ) {
-			$parts[] = 'customer_id IN (' . implode( ',', array_fill( 0, count( $user_ids ), '%d' ) ) . ')';
-			$params  = array_merge( $params, $user_ids );
+		if ( '' !== self::email_fragment( $search['value'] ) ) {
+			$like = '%' . $wpdb->esc_like( $search['value'] ) . '%';
+			// B-119: a subquery instead of the first 200 matching user IDs.
+			$parts[]  = "customer_id IN (SELECT ID FROM {$wpdb->users} WHERE user_email LIKE %s)";
+			$params[] = $like;
+			// A-76: the address of an activated site.
+			$parts[]  = "id IN (SELECT license_id FROM {$tables['activations']} WHERE site_url LIKE %s)";
+			$params[] = $like;
 		}
 		if ( ! $parts ) {
 			return array(
@@ -600,27 +688,15 @@ final class LicenseListTable extends \WP_List_Table {
 	}
 
 	/**
-	 * Find users whose email address contains a fragment.
+	 * Fragment that is long enough for a substring search.
 	 *
-	 * @param string $fragment Email address or part of it.
-	 * @return int[]
+	 * @param string $fragment Email address, site address or part of one.
+	 * @return string Empty when the fragment is too short.
 	 */
-	private static function user_ids_by_email( string $fragment ): array {
+	private static function email_fragment( string $fragment ): string {
 		$fragment = trim( str_replace( '*', '', $fragment ) );
-		if ( strlen( $fragment ) < 3 ) {
-			return array();
-		}
-		$ids = get_users(
-			array(
-				'search'         => '*' . $fragment . '*',
-				'search_columns' => array( 'user_email' ),
-				'fields'         => 'ID',
-				'number'         => 200,
-				'orderby'        => 'ID',
-			)
-		);
 
-		return array_values( array_filter( array_map( 'intval', is_array( $ids ) ? $ids : array() ) ) );
+		return strlen( $fragment ) < 3 ? '' : $fragment;
 	}
 
 	/**

@@ -46,6 +46,13 @@ final class EntitlementCatalogTest extends TestCase {
 		$this->assertSame( array( 'affiliate' ), EntitlementCatalog::groups_for_product_key( 'Affiliate-Captain' ) );
 		$this->assertSame( array( 'pass' ), EntitlementCatalog::groups_for_product_key( 'wp-pass-captain' ) );
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'something-else' ) );
+		// The three add-on product keys (decision of 14 Nov 2026) each select exactly their feature group.
+		$this->assertSame( array( 'voucher' ), EntitlementCatalog::groups_for_product_key( 'voucher-captain-pro' ) );
+		$this->assertSame( array( 'pass' ), EntitlementCatalog::groups_for_product_key( 'pass-captain-pro' ) );
+		$this->assertSame( array( 'affiliate' ), EntitlementCatalog::groups_for_product_key( 'affiliate-captain-pro' ) );
+		foreach ( array( 'voucher-captain-pro', 'pass-captain-pro', 'affiliate-captain-pro' ) as $addon_key ) {
+			$this->assertTrue( \WPLC\Catalog\Catalog::is_valid_product_key( $addon_key ), $addon_key );
+		}
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( '' ) );
 	}
 

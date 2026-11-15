@@ -14,7 +14,7 @@ $t           = e2e_tables();
 $license_ids = (array) e2e_get( 'license_ids' );
 $license     = e2e_license( (int) $license_ids[0] );
 $server      = 'https://shop.test';
-$client      = new LicenseClient( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_c' );
+$client      = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_c' );
 $error_of    = static function ( $result ) {
 	return is_wp_error( $result ) ? $result->get_error_code() . ': ' . $result->get_error_message() : 'no error';
 };
@@ -51,8 +51,17 @@ $follow = static function ( string $url, array $args = array() ) {
 	return $response;
 };
 
+// The client of site C: its credentials are bound to that site address, and a package is only
+// granted when the check asks for one (download true, as the updater does right before installing).
+$check_update = static function ( $update_client, bool $download = false ) {
+	e2e_as_site( 'https://site-c.example' );
+	$answer = $update_client->check_update( $download );
+	e2e_as_site( '' );
+	return $answer;
+};
+
 // --- No release yet. ---
-$result = $client->check_update();
+$result = $check_update( $client );
 e2e_ok( is_array( $result ) && false === ( $result['update_available'] ?? null ), 'update check without any release: update_available = false', $error_of( $result ) );
 
 // --- Create a draft with an uploaded ZIP through the admin form. ---
@@ -88,7 +97,7 @@ $result_page = e2e_http( 'GET', $created['location'], array( 'cookies' => $admin
 e2e_ok( 200 === $result_page['code'] && false !== strpos( $result_page['body'], 'Draft release created' ) && false !== strpos( $result_page['body'], '1.1.0' ), 'releases screen shows the notice and the draft', $result_page['code'] );
 
 // A draft is not delivered.
-$result = $client->check_update();
+$result = $check_update( $client );
 e2e_ok( is_array( $result ) && false === ( $result['update_available'] ?? null ), 'a draft release is not offered to installations', $error_of( $result ) );
 
 // Uploading something that is not a ZIP is rejected and leaves nothing behind.
@@ -100,12 +109,15 @@ e2e_ok( null === $wpdb->get_row( "SELECT id FROM {$t['releases']} WHERE version 
 // --- Publish through the row form. ---
 $publish_form = e2e_form( $result_page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $release['id'] . '"' ) );
 e2e_ok( is_array( $publish_form ), 'draft row has a publish form' );
-$published = e2e_submit( (array) $publish_form, $admin_cookies );
+// B-137: publishing needs a reason.
+$published = e2e_submit( (array) $publish_form, $admin_cookies, array( 'reason' => 'e2e: first release' ) );
 $release   = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['releases']} WHERE id = %d", (int) $release['id'] ), ARRAY_A );
 e2e_ok( 302 === $published['code'] && 'published' === $release['status'] && ! empty( $release['published_at'] ), 'release is published', array( $published['code'], $release['status'] ) );
 
 // --- Client: update offered, metadata signed. ---
-$update = $client->check_update();
+$metadata = $check_update( $client );
+e2e_ok( is_array( $metadata ) && true === ( $metadata['update_available'] ?? null ) && '' === (string) ( $metadata['package_url'] ?? '' ), 'the periodic check (download false) reports the update without a download grant', is_array( $metadata ) ? ( $metadata['package_url'] ?? null ) : $error_of( $metadata ) );
+$update = $check_update( $client, true );
 e2e_ok( is_array( $update ) && true === ( $update['update_available'] ?? null ), 'client check_update() reports an update', $error_of( $update ) );
 $update = is_array( $update ) ? $update : array();
 e2e_eq( array( '1.1.0', $release['sha256'], '7.4', '6.5', '6.8', 'voucher-captain' ), array( $update['version'] ?? null, $update['sha256'] ?? null, $update['requires_php'] ?? null, $update['requires_wp'] ?? null, $update['tested_wp'] ?? null, $update['product_key'] ?? null ), 'update metadata: version, checksum, requirements' );
@@ -132,19 +144,23 @@ if ( $opened ) {
 }
 unlink( $tmp );
 
-// Second use of the same token and of the stream URL fails.
+// B-19: a second fetch inside the reuse window (120 s) is served; afterwards the token is dead.
 $second = $follow( $package_url );
-e2e_eq( 404, $second['code'], 'second use of the same download token fails (404)' );
+e2e_eq( 200, $second['code'], 'a second fetch of the same download URL inside the reuse window is served' );
+$wpdb->query( $wpdb->prepare( "UPDATE {$t['download_tokens']} SET consumed_at = %s WHERE consumed_at IS NOT NULL", gmdate( 'Y-m-d H:i:s', time() - 300 ) ) );
+$wpdb->query( $wpdb->prepare( "UPDATE {$t['package_streams']} SET consumed_at = %s WHERE consumed_at IS NOT NULL", gmdate( 'Y-m-d H:i:s', time() - 300 ) ) );
+$late = $follow( $package_url );
+e2e_eq( 404, $late['code'], 'after the reuse window the download token fails (404)' );
 if ( isset( $download['hops'][1] ) ) {
 	$stream_again = e2e_http( 'GET', $download['hops'][1]['url'] );
-	e2e_eq( 404, $stream_again['code'], 'second use of the stream URL fails (404)' );
+	e2e_eq( 404, $stream_again['code'], 'after the reuse window the stream URL fails (404)' );
 }
 $unknown = e2e_http( 'GET', $server . '/wp-json/wplc/v1/updates/download/' . str_repeat( 'ab', 32 ) );
 e2e_eq( 404, $unknown['code'], 'an unknown download token answers 404' );
 
 // A client that already runs the published version gets no update.
-$current_client = new LicenseClient( $server, 'voucher-captain', '1.1.0', 'wplc_e2e_client_site_c' );
-$result         = $current_client->check_update();
+$current_client = e2e_client( $server, 'voucher-captain', '1.1.0', 'wplc_e2e_client_site_c' );
+$result         = $check_update( $current_client );
 e2e_ok( is_array( $result ) && false === ( $result['update_available'] ?? null ), 'an installation on 1.1.0 is not offered 1.1.0 again', $error_of( $result ) );
 
 // --- Customer account download. ---
@@ -186,8 +202,8 @@ $upload        = e2e_multipart( array_merge( $fields, array( '_wpnonce' => (stri
 e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $admin_cookies, 'headers' => $upload['headers'], 'body' => $upload['body'] ) );
 $release_120 = $wpdb->get_row( "SELECT * FROM {$t['releases']} WHERE product_key = 'voucher-captain' AND version = '1.2.0'", ARRAY_A );
 $page        = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
-e2e_submit( (array) e2e_form( $page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $release_120['id'] . '"' ) ), $admin_cookies );
-$update = $client->check_update();
+e2e_submit( (array) e2e_form( $page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $release_120['id'] . '"' ) ), $admin_cookies, array( 'reason' => 'e2e: second release' ) );
+$update = $check_update( $client, true );
 e2e_ok( is_array( $update ) && '1.2.0' === ( $update['version'] ?? null ) && hash( 'sha256', $zip_120 ) === ( $update['sha256'] ?? null ), 'after publishing 1.2.0 the client is offered 1.2.0', $error_of( $update ) );
 // Duplicate version is refused.
 $page   = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
@@ -200,7 +216,7 @@ $withdraw_form = e2e_form( $page['body'], array( 'value="wplc_release_withdraw"'
 e2e_ok( is_array( $withdraw_form ), 'published row has a withdraw form' );
 e2e_submit( (array) $withdraw_form, $admin_cookies, array( 'reason' => 'e2e: broken build' ) );
 e2e_eq( 'withdrawn', (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$t['releases']} WHERE id = %d", (int) $release_120['id'] ) ), 'release 1.2.0 is withdrawn' );
-$update = $client->check_update();
+$update = $check_update( $client );
 e2e_ok( is_array( $update ) && '1.1.0' === ( $update['version'] ?? null ), 'after withdrawing 1.2.0 the client is offered 1.1.0 again', is_array( $update ) ? ( $update['version'] ?? $update ) : $error_of( $update ) );
 // A grant issued before the withdrawal... (1.2.0 token from above) must not deliver the withdrawn package.
 // Manifest import (JSON pasted) for a remote package on an allowed host.
@@ -219,7 +235,7 @@ $remote   = $wpdb->get_row( "SELECT * FROM {$t['releases']} WHERE product_key = 
 e2e_ok( is_array( $remote ) && 'url' === $remote['storage'] && 'draft' === $remote['status'], 'manifest import creates a draft with remote storage', array( $imported['location'], $remote ) );
 if ( is_array( $remote ) ) {
 	$page = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
-	$done = e2e_submit( (array) e2e_form( $page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $remote['id'] . '"' ) ), $admin_cookies );
+	$done = e2e_submit( (array) e2e_form( $page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $remote['id'] . '"' ) ), $admin_cookies, array( 'reason' => 'e2e: remote release' ) );
 	e2e_eq( 'draft', (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$t['releases']} WHERE id = %d", (int) $remote['id'] ) ), 'publishing a release whose host is not on the allow-list is refused' );
 	$after = e2e_http( 'GET', $done['location'], array( 'cookies' => $admin_cookies ) );
 	e2e_ok( false !== strpos( $after['body'], 'notice-error' ), 'the refusal is shown as an error notice' );
@@ -228,10 +244,11 @@ e2e_login( 0 );
 
 // --- A license without access gets neither update metadata nor a download. ---
 $wpdb->update( $t['licenses'], array( 'status' => 'suspended' ), array( 'id' => (int) $license['id'] ) );
-$result = $client->check_update();
-e2e_ok( is_wp_error( $result ) && 'license_inactive' === $result->get_error_code(), 'suspended license: update check is refused (license_inactive)', $error_of( $result ) );
+$result = $check_update( $client );
+// B-140: signed answer with the reason instead of a bare 403; never a package.
+e2e_ok( is_array( $result ) && false === ( $result['license_active'] ?? null ) && 'license_suspended' === ( $result['reason'] ?? null ) && '' === ( $result['package_url'] ?? '' ), 'suspended license: update check names the reason and offers no package', $error_of( $result ) );
 $wpdb->update( $t['licenses'], array( 'status' => 'active' ), array( 'id' => (int) $license['id'] ) );
-$update = $client->check_update();
+$update = $check_update( $client, true );
 $wpdb->update( $t['licenses'], array( 'status' => 'suspended' ), array( 'id' => (int) $license['id'] ) );
 $blocked = $follow( (string) ( $update['package_url'] ?? '' ) );
 e2e_eq( 404, $blocked['code'], 'a grant issued while active is worthless once the license is suspended (404)' );

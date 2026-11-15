@@ -216,10 +216,125 @@ final class ReleaseRegistryTest extends TestCase {
 		$release = array_merge( self::valid_input(), array( 'id' => 7, 'sha256' => strtoupper( str_repeat( 'a', 64 ) ) ) );
 		$package = ReleaseRegistry::to_update_package( $release, 'https://shop.example.test/x.zip' );
 		$this->assertSame(
-			array( 'version', 'package_url', 'sha256', 'requires_php', 'requires_wp', 'tested_wp', 'release_notes' ),
+			// B-52, B-141, B-142: the entry also carries what the details view and the compatibility check need.
+			array( 'release_id', 'version', 'channel', 'package_url', 'sha256', 'requires_php', 'requires_wp', 'tested_wp', 'requires_core', 'slug', 'plugin', 'last_updated', 'release_notes' ),
 			array_keys( $package )
 		);
+		$this->assertSame( 7, $package['release_id'] );
 		$this->assertSame( 'https://shop.example.test/x.zip', $package['package_url'] );
 		$this->assertSame( str_repeat( 'a', 64 ), $package['sha256'] );
+	}
+
+	// B-54: only suffixes that version_compare() sorts below the plain version are accepted.
+	public function test_version_pattern_accepts_only_alpha_beta_rc_suffixes(): void {
+		foreach ( array( '1.2.3', '10.20.30', '2.0.0-alpha1', '2.0.0-beta2', '2.0.0-rc10' ) as $version ) {
+			$input = array_merge( self::valid_input(), array( 'version' => $version ) );
+			$this->assertSame( array(), ReleaseRegistry::validate( $input )['errors'], $version );
+		}
+		foreach ( array( '2.0.0-pre1', '2.0.0-hotfix1', '2.0.0+build5', '2.0.0-beta', '2.0.0-beta.1', '2.0.0-RC1', '2.0', '2.0.0.1', 'v2.0.0', '' ) as $version ) {
+			$input = array_merge( self::valid_input(), array( 'version' => $version ) );
+			$this->assertContains( 'invalid_version', ReleaseRegistry::validate( $input )['errors'], var_export( $version, true ) );
+		}
+		// The accepted suffixes sort the way WordPress compares versions.
+		$this->assertTrue( version_compare( '2.0.0-alpha1', '2.0.0-beta1', '<' ) );
+		$this->assertTrue( version_compare( '2.0.0-beta1', '2.0.0-rc1', '<' ) );
+		$this->assertTrue( version_compare( '2.0.0-rc1', '2.0.0', '<' ) );
+	}
+
+	// B-174: every key the catalog can store (sanitize_key) can get a release.
+	public function test_product_key_pattern_matches_the_catalog(): void {
+		foreach ( array( 'x', '_pro', '-pro', 'voucher-captain', str_repeat( 'a', 100 ) ) as $key ) {
+			$input = array_merge( self::valid_input(), array( 'product_key' => $key ) );
+			$this->assertNotContains( 'invalid_product_key', ReleaseRegistry::validate( $input )['errors'], $key );
+		}
+		foreach ( array( '', 'Voucher', 'a b', str_repeat( 'a', 101 ) ) as $key ) {
+			$input = array_merge( self::valid_input(), array( 'product_key' => $key ) );
+			$this->assertContains( 'invalid_product_key', ReleaseRegistry::validate( $input )['errors'], var_export( $key, true ) );
+		}
+	}
+
+	// A-112, B-142: platform versions fit their 20-character columns; requires_core is validated like them.
+	public function test_platform_versions_are_limited_to_the_column_width(): void {
+		$long = str_repeat( '1', 19 ) . '.1';
+		foreach ( array( 'requires_php', 'requires_wp', 'tested_wp', 'requires_core' ) as $field ) {
+			$this->assertContains( 'invalid_' . $field, ReleaseRegistry::validate( array_merge( self::valid_input(), array( $field => $long ) ) )['errors'], $field );
+			$this->assertContains( 'invalid_' . $field, ReleaseRegistry::validate( array_merge( self::valid_input(), array( $field => '1.x' ) ) )['errors'], $field );
+		}
+		$valid = ReleaseRegistry::validate( array_merge( self::valid_input(), array( 'requires_core' => '2.1.0' ) ) );
+		$this->assertSame( array(), $valid['errors'] );
+		$this->assertSame( '2.1.0', $valid['data']['requires_core'] );
+	}
+
+	// A-116, B-142: requirements are compared with what the installation reported.
+	public function test_unmet_requirements_compare_reported_versions_only(): void {
+		$release = array(
+			'requires_php'  => '8.1',
+			'requires_wp'   => '6.5',
+			'requires_core' => '2.1.0',
+		);
+		$this->assertSame( array(), ReleaseRegistry::unmet_requirements( $release, array() ), 'Nothing reported: compatible.' );
+		$this->assertSame(
+			array(),
+			ReleaseRegistry::unmet_requirements(
+				$release,
+				array(
+					'php_version'  => '8.2.18-1+deb12u1',
+					'wp_version'   => '6.5',
+					'core_version' => '2.1.0',
+				)
+			)
+		);
+		$this->assertSame(
+			array( 'requires_php', 'requires_wp', 'requires_core' ),
+			ReleaseRegistry::unmet_requirements(
+				$release,
+				array(
+					'php_version'  => '7.4.33',
+					'wp_version'   => '6.4.3',
+					'core_version' => '2.0.9',
+				)
+			)
+		);
+		$this->assertSame( array(), ReleaseRegistry::unmet_requirements( $release, array( 'php_version' => array( '7.4' ), 'core_version' => 'unknown' ) ) );
+		$this->assertSame( array(), ReleaseRegistry::unmet_requirements( array( 'requires_core' => '' ), array( 'core_version' => '0.1' ) ) );
+	}
+
+	// Publishing a version that is not above the highest published one is flagged.
+	public function test_not_newer_than_reports_the_highest_published_version(): void {
+		$published = array( self::row( 1, '1.4.0' ), self::row( 2, '1.5.0' ), self::row( 3, '9.0.0', 'draft' ) );
+		$this->assertSame( '', ReleaseRegistry::not_newer_than( '1.5.1', $published ) );
+		$this->assertSame( '1.5.0', ReleaseRegistry::not_newer_than( '1.5.0', $published ) );
+		$this->assertSame( '1.5.0', ReleaseRegistry::not_newer_than( '1.4.5', $published ) );
+		$this->assertSame( '1.5.0', ReleaseRegistry::not_newer_than( '1.5.0-rc1', $published ) );
+		// Publishing 1.5.0 again after a withdrawal: its own row does not count.
+		$this->assertSame( '', ReleaseRegistry::not_newer_than( '1.5.0', $published, 2 ) );
+		$this->assertSame( '', ReleaseRegistry::not_newer_than( '1.0.0', array() ) );
+	}
+
+	// B-141: the changelog covers the versions an installation skips.
+	public function test_changelog_ids_cover_the_skipped_versions(): void {
+		$index = array( self::row( 1, '1.0.0' ), self::row( 2, '1.1.0' ), self::row( 3, '1.2.0' ), self::row( 4, '1.3.0' ), self::row( 5, '2.0.0-beta1' ) );
+		$this->assertSame( array( 4, 3, 2 ), ReleaseRegistry::changelog_ids( $index, '1.0.0', '1.3.0' ) );
+		$this->assertSame( array( 3 ), ReleaseRegistry::changelog_ids( $index, '1.1.0', '1.2.0' ) );
+		// Up to date: the most recent versions instead of nothing.
+		$this->assertSame( array( 4, 3, 2, 1 ), ReleaseRegistry::changelog_ids( $index, '1.3.0', '1.3.0' ) );
+		// Unknown installed version: not the whole history.
+		$this->assertCount( 5, ReleaseRegistry::changelog_ids( array_merge( $index, array( self::row( 6, '0.9.0' ), self::row( 7, '0.8.0' ) ) ), 'garbage', '' ) );
+		$this->assertSame( array( 4, 3 ), ReleaseRegistry::changelog_ids( $index, '1.0.0', '1.3.0', 2 ) );
+	}
+
+	public function test_beta_channel_includes_stable_releases(): void {
+		$this->assertSame( array( 'stable' ), ReleaseRegistry::channels_for( 'stable' ) );
+		$this->assertSame( array( 'stable', 'beta' ), ReleaseRegistry::channels_for( 'beta' ) );
+		$this->assertSame( 'beta', ReleaseRegistry::normalize_channel( ' BETA ' ) );
+		$this->assertSame( 'stable', ReleaseRegistry::normalize_channel( 'nightly' ) );
+		$this->assertSame( 'stable', ReleaseRegistry::normalize_channel( '' ) );
+	}
+
+	// B-137: reasons are one line of at most 255 characters.
+	public function test_reason_is_normalized(): void {
+		$this->assertSame( 'broken build', ReleaseRegistry::normalize_reason( "  broken \n build " ) );
+		$this->assertSame( '', ReleaseRegistry::normalize_reason( " \n\t " ) );
+		$this->assertSame( 255, strlen( ReleaseRegistry::normalize_reason( str_repeat( 'a', 400 ) ) ) );
 	}
 }

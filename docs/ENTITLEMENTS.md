@@ -1,14 +1,49 @@
-# Entitlement catalog — version 1 proposal
+# Entitlements
 
-This catalog gives feature gates stable identifiers shared by the server and product clients. Labels are presentation only; integrations must authorize by identifier. An absent entitlement denies the new premium feature. Existing free/legacy features remain available as documented in the product plan.
+Entitlements are the feature rights a license grants. The server stores them per license and sends them, signed, in the `entitlements` object of an activation and of every entitlement check ([API-V1.md](API-V1.md)). A premium add-on asks `LicenseManager::is_entitled( 'voucher.qr_redemption' )` ([CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md)).
 
 ## Core plugins are free and ungated
 
-Decision of 13 Nov 2026: the core plugin of each product stays completely free, with no license check and no locked features, so it can be published on WordPress.org. Consequences for this catalog:
+Decision of 13 Nov 2026: the core plugin of each product stays completely free, with no license check and no locked features, so it can be published on WordPress.org. Consequences:
 
 - Core features have **no** entitlement keys. Nothing in a core plugin asks the license server for anything.
-- Entitlement keys exist only for features that ship in the separate premium add-on plugin.
-- An expired or missing license can only switch off add-on features. It never changes what the core plugin does.
+- Entitlement keys exist only for features that ship in the separate premium add-on.
+- An expired or missing license can only switch add-on features off. It never changes what the core plugin does, and it never removes or hides data the customer already created (vouchers sold, tickets issued, partners, reports).
+
+## What the server delivers
+
+`entitlements` is a JSON object: key → value. It is **empty whenever the license grants no access** (`access: false`: expired after the grace period, suspended, revoked, pending, released installation).
+
+| Value | Example | How a client reads it |
+| --- | --- | --- |
+| `true` | `"voucher.qr_redemption": true` | The feature is granted. This is what a ticked feature of a plan becomes. |
+| number | `"sites.live_limit": 3` | A limit. `is_entitled()` is true for a number above zero; read the number with `status()->entitlement( $key )`. |
+| string | `"support.level": "standard"` | Information. `is_entitled()` is false for a string; read it with `entitlement()`. |
+| `false`, `0`, `null`, absent key | | Not granted. |
+
+Two keys are part of every plan and are not feature gates:
+
+- `sites.live_limit` (number): live-site limit of the plan. The limit that is enforced is `site_limit` of the signed data; do not count sites in the add-on.
+- `support.level` (string): support level of the plan.
+
+Values that cannot be encoded as JSON (a number that is too large) are refused when a plan is saved and left out of the answer.
+
+A client must **fail closed**: an absent key, an unexpected type or data without `access: true` means "not granted". It must authorize by key, never by the label of a feature or by the name of a plan.
+
+## How long a client may rely on them: the offline window
+
+A client may keep the last signed answer and use it while the server cannot be reached. That snapshot is valid until its signed **`cache_expires_at`**: 14 days after the answer (`server_time`), but never later than `access_until`, the time at which the license stops granting access if nothing changes. This is the only definition of the "maximum offline window"; there is no separate setting on the client.
+
+- The deadline is taken from the signed data of the stored snapshot. It is not restarted by later, failed requests.
+- A client must not cut it down to `paid_until` on its own: during the renewal grace period `access_until` is later than `paid_until`, and an honest customer would be locked out.
+- After the deadline the client treats the license as without access until it receives a new signed answer.
+- Only a signed answer may take rights away before the deadline.
+
+The shop can change the 14 days with the filter `wplc_offline_cache_days`.
+
+## Dates
+
+All date-time values of the API (`paid_until`, `access_until`, `grace_until`, `server_time`, `cache_expires_at`, `deactivated_at`) are **UTC** in the form `YYYY-MM-DD HH:MM:SS`, without a time zone suffix. Parse them as UTC (`strtotime( $value . ' UTC' )`) and convert for display. `paid_until`, `access_until` and `grace_until` can be `null`.
 
 ## Product keys (decided 14 Nov 2026, T-158)
 
@@ -29,6 +64,7 @@ The product editor suggests these keys. The plan key (for example `solo`, `busin
 - Server plans return a boolean or a documented numeric limit. Clients fail closed for new premium features when an entitlement is absent or invalid.
 - Plan key/SKU assignment is a separate configuration step; the table below is the proposed entitlement mapping, not live catalog data.
 - Site counts are license limits, not feature entitlements. Staging does not consume another live site.
+- The keys the shop offers as tick boxes in the product editor come from `WPLC\Catalog\EntitlementCatalog` (filter `wplc_entitlement_catalog`). Further keys and numeric limits can be entered as JSON.
 - A license stores a snapshot of its plan's entitlements. A plan change (upgrade, downgrade at the next renewal, administrator change) replaces the whole snapshot with the new plan's entitlements; clients see the change at their next entitlement check, without re-activation. A lower live site limit deactivates no site, it only blocks new activations (see [RENEWALS.md](RENEWALS.md#plan-changes)).
 
 ## Proposed plan mapping
@@ -51,14 +87,32 @@ Add-on identifiers must be assigned from the eventual product SKU catalog and mu
 
 ## Contract examples
 
-Boolean feature:
+Signed data of a license with access:
+
 ```json
-{ "affiliate.recurring_commissions": true }
+{
+  "access": true,
+  "license_status": "active",
+  "entitlements": {
+    "voucher.qr_redemption": true,
+    "voucher.reports": true,
+    "sites.live_limit": 5,
+    "support.level": "standard"
+  },
+  "server_time": "2026-11-12 00:00:00",
+  "cache_expires_at": "2026-11-26 00:00:00"
+}
 ```
 
-Numeric quota:
+The same license after its paid period and grace period:
+
 ```json
-{ "affiliate.program_limit": 3 }
+{
+  "access": false,
+  "license_status": "expired",
+  "entitlements": {},
+  "access_until": null
+}
 ```
 
 Clients may cache only a verified signed entitlement response under the separately specified maximum offline window. Entitlements must not disable existing customer data or already purchased vouchers/tickets when a license expires.

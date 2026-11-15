@@ -237,3 +237,10 @@ function wp_remote_retrieve_body( $response ) {
 function wp_remote_retrieve_header( $response, $header ) {
 	return is_array( $response ) ? (string) ( $response['headers'][ strtolower( $header ) ] ?? '' ) : '';
 }
+function maybe_serialize( $data ) {
+	return is_array( $data ) || is_object( $data ) ? serialize( $data ) : $data; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize
+}
+function wp_strip_all_tags( $text, $remove_breaks = false ) {
+	$text = trim( strip_tags( (string) $text ) );
+	return $remove_breaks ? (string) preg_replace( '/[\r\n\t ]+/', ' ', $text ) : $text;
+}

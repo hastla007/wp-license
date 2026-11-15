@@ -18,6 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * WP-CLI command for the public key that product builds pin (e.g. VCAP_LICENSE_PUBLIC_KEY in Voucher Captain).
  */
 final class SigningKeyCommand {
+
 	/**
 	 * Register the command when WP-CLI is active.
 	 *
@@ -26,18 +27,22 @@ final class SigningKeyCommand {
 	public static function register(): void {
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			\WP_CLI::add_command( 'wplc signing-key', self::class );
+			// Until Plugin::boot() calls Commands::register() itself, the support commands register here.
+			Commands::register();
 		}
 	}
 
 	/**
 	 * Print the public response signing key (base64) and its key id.
 	 *
-	 * Creates the key on first use when WPLC_RESPONSE_SIGNING_KEY is not set in wp-config.php.
+	 * Creates the key on first use when WPLC_RESPONSE_SIGNING_KEY is not set in wp-config.php. A stored key that
+	 * was lost or cannot be decrypted any more is never replaced on its own: the command then ends with an error
+	 * that names the reason, and --rotate creates a new key deliberately.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [--field=<field>]
-	 * : Print only "public_key", "key_id", "source", "next_public_key" or "next_key_id".
+	 * : Print only "public_key", "key_id", "source", "state", "next_public_key" or "next_key_id".
 	 *
 	 * [--prepare]
 	 * : Create the next stored key without using it and print its public key (next_public_key). Ship product
@@ -45,8 +50,12 @@ final class SigningKeyCommand {
 	 * prepared key. Not possible while the key comes from the constant.
 	 *
 	 * [--rotate]
-	 * : Switch to the prepared next key (or, without one, to a new key). Clients that do not pin the new public
-	 * key reject the server until they are updated. Not possible while the key comes from the constant.
+	 * : Switch to the prepared next key (or, without one, create a new key). Clients that do not pin the new public
+	 * key reject the server until they are updated – rotate only together with a product release. Not possible
+	 * while the key comes from the constant.
+	 *
+	 * [--generate]
+	 * : Print a new random value for WPLC_RESPONSE_SIGNING_KEY and its public key without storing anything.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -54,6 +63,7 @@ final class SigningKeyCommand {
 	 *     wp wplc signing-key --field=public_key
 	 *     wp wplc signing-key --prepare --field=next_public_key
 	 *     wp wplc signing-key --rotate
+	 *     wp wplc signing-key --generate
 	 *
 	 * @param array<int,string>   $args       Positional arguments.
 	 * @param array<string,mixed> $assoc_args Options.
@@ -67,34 +77,44 @@ final class SigningKeyCommand {
 			\WP_CLI::error( __( 'Use --prepare and --rotate in separate steps, with a product release in between.', 'wp-license' ) );
 		}
 		if ( ! empty( $assoc_args['prepare'] ) && null === ResponseSigner::prepare_next() ) {
-			\WP_CLI::error( __( 'The key comes from WPLC_RESPONSE_SIGNING_KEY, or the prepared key could not be stored or decrypted.', 'wp-license' ) );
+			\WP_CLI::error( __( 'The key comes from WPLC_RESPONSE_SIGNING_KEY, or the prepared key could not be stored encrypted or decrypted.', 'wp-license' ) );
 		}
+
+		if ( ! empty( $assoc_args['generate'] ) ) {
+			$seed = base64_encode( random_bytes( 32 ) );
+			$secret = ResponseSigner::secret_key_from( $seed );
+			\WP_CLI::line( "define( 'WPLC_RESPONSE_SIGNING_KEY', '" . $seed . "' );" );
+			\WP_CLI::line( 'public_key: ' . ResponseSigner::public_key_of( (string) $secret ) );
+			\WP_CLI::line( 'key_id: ' . ResponseSigner::key_id_of( ResponseSigner::public_key_of( (string) $secret ) ) );
+			return;
+		}
+
 		if ( ! empty( $assoc_args['rotate'] ) ) {
-			$old = ResponseSigner::public_key();
-			if ( '' === $old && '' !== (string) get_option( ResponseSigner::OPTION, '' ) ) {
-				\WP_CLI::error( __( 'The stored signing key cannot be decrypted. Restore the previous encryption key in WPLC_INSTALLATION_ENCRYPTION_KEYS instead of replacing the key that clients pin.', 'wp-license' ) );
-			}
+			$old = ResponseSigner::status();
 			ResponseSigner::reset();
 			if ( null === ResponseSigner::rotate() ) {
-				\WP_CLI::error( __( 'The key comes from WPLC_RESPONSE_SIGNING_KEY, or the new key could not be stored (or the prepared key cannot be decrypted); rotate a constant in wp-config.php.', 'wp-license' ) );
+				\WP_CLI::error( __( 'The key comes from WPLC_RESPONSE_SIGNING_KEY, or the new key could not be stored encrypted (or the prepared key cannot be decrypted); rotate a constant in wp-config.php.', 'wp-license' ) );
 			}
-			AuditLog::record( 'response_signing_key_rotated', 'system', 0, \WPLC\License\AuditReason::SIGNING_KEY_ROTATED, array( 'key_id' => ResponseSigner::key_id_of( $old ) ), array( 'key_id' => ResponseSigner::key_id_of( ResponseSigner::public_key() ) ) );
+			AuditLog::record( 'response_signing_key_rotated', 'system', 0, \WPLC\License\AuditReason::SIGNING_KEY_ROTATED, array( 'key_id' => $old['key_id'] ), array( 'key_id' => ResponseSigner::key_id_of( ResponseSigner::public_key() ) ) );
 		}
-		$public = ResponseSigner::public_key();
-		if ( '' === $public ) {
-			\WP_CLI::error( '' !== (string) get_option( ResponseSigner::OPTION, '' ) ? __( 'The stored signing key cannot be decrypted with WPLC_INSTALLATION_ENCRYPTION_KEYS; responses carry no Ed25519 signature. Restore the previous encryption key.', 'wp-license' ) : __( 'No response signing key could be created.', 'wp-license' ) );
+
+		$status = ResponseSigner::status();
+		$field = isset( $assoc_args['field'] ) ? (string) $assoc_args['field'] : '';
+		if ( 'ok' !== $status['state'] && 'state' !== $field ) {
+			\WP_CLI::error( self::state_message( $status['state'] ) );
 		}
+
 		$fields = array(
-			'public_key' => $public,
-			'key_id'     => ResponseSigner::key_id_of( $public ),
-			'source'     => ResponseSigner::uses_constant() ? 'constant' : 'option',
+			'public_key' => $status['public_key'],
+			'key_id'     => $status['key_id'],
+			'source'     => $status['source'],
+			'state'      => $status['state'],
 		);
 		$next = ResponseSigner::next_secret_key();
 		if ( null !== $next ) {
 			$fields['next_public_key'] = ResponseSigner::public_key_of( $next );
 			$fields['next_key_id']     = ResponseSigner::key_id_of( $fields['next_public_key'] );
 		}
-		$field = isset( $assoc_args['field'] ) ? (string) $assoc_args['field'] : '';
 		if ( '' !== $field ) {
 			if ( ! isset( $fields[ $field ] ) ) {
 				\WP_CLI::error( __( 'Unknown field.', 'wp-license' ) );
@@ -105,5 +125,25 @@ final class SigningKeyCommand {
 		foreach ( $fields as $name => $value ) {
 			\WP_CLI::line( $name . ': ' . $value );
 		}
+	}
+
+	/**
+	 * Explain why no signing key is usable.
+	 *
+	 * @param string $state State from ResponseSigner::status().
+	 * @return string
+	 */
+	public static function state_message( string $state ): string {
+		$messages = array(
+			'constant_invalid' => 'WPLC_RESPONSE_SIGNING_KEY is not a valid key: it must be the base64 of a 32-byte seed or of a 64-byte Ed25519 secret key. Responses are sent without a server signature until it is corrected.',
+			'undecryptable' => 'The stored signing key cannot be decrypted with the configured encryption keys or salts. Restore the previous key ring, or create a new key with --rotate (clients that pin the old public key then reject this server).',
+			'corrupt' => 'The stored signing key is damaged. Restore it from a backup, or create a new key with --rotate.',
+			'missing' => 'The stored signing key is gone although this server had one. Restore the option wplc_response_signing_key from a backup, or create a new key with --rotate.',
+			'encryption_unavailable' => 'The signing key cannot be encrypted (no usable encryption key or no OpenSSL) and is therefore not stored. Configure WPLC_INSTALLATION_ENCRYPTION_KEYS or set WPLC_RESPONSE_SIGNING_KEY.',
+			'storage_failed' => 'The signing key could not be written to the options table.',
+			'busy' => 'Another request is creating the signing key. Try again.',
+		);
+
+		return $messages[ $state ] ?? 'No response signing key is available (' . $state . ').';
 	}
 }

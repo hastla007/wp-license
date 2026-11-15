@@ -2,8 +2,13 @@
     "data": {
         "activation_id": 4711,
         "installation_id": "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b",
+        "activation_status": "active",
+        "product_key": "starter-product",
         "license_status": "active",
+        "access": true,
         "paid_until": "2027-11-01 00:00:00",
+        "access_until": "2027-11-15 00:00:00",
+        "grace_until": "2027-11-15 00:00:00",
         "site_limit": 5,
         "site_count": 1,
         "environment": "production",
@@ -17,9 +22,10 @@
         "server_time": "2026-11-01 00:00:00",
         "cache_expires_at": "2026-11-15 00:00:00"
     },
-    "signature": "a61c46c39b94a0bee54c7838cb9780c9b35670461b5bbad636f2b6b04d502e97",
-    "payload": "{\"data\":{\"activation_id\":4711,\"installation_id\":\"6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b\",\"license_status\":\"active\",\"paid_until\":\"2027-11-01 00:00:00\",\"site_limit\":5,\"site_count\":1,\"environment\":\"production\",\"entitlements\":{\"starter.pdf_templates\":true,\"starter.reports\":true,\"starter.disabled\":false,\"starter.monthly_limit\":500,\"other.feature\":true},\"server_time\":\"2026-11-01 00:00:00\",\"cache_expires_at\":\"2026-11-15 00:00:00\"},\"nonce\":\"fixture-nonce-0123456789abcdef\"}",
-    "payload_signature": "4ccfbd90392d72e7685237d80dcc8401b7565019d71645de257e46f13b017c4a",
-    "signature_ed25519": "4KWOuamYNk6VRfEvwRiloTqJvHm6YaRwqJThneQpOFTpKqci8a2Yzb65a8057PY3Dui3hS1BBSeHwPzuitf/Dw==",
+    "signature": "627575f27d92b98333cd3f45bfb4b433dbc2dfe24895299f91c1b156f88d52d3",
+    "payload": "{\"data\":{\"activation_id\":4711,\"installation_id\":\"6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b\",\"activation_status\":\"active\",\"product_key\":\"starter-product\",\"license_status\":\"active\",\"access\":true,\"paid_until\":\"2027-11-01 00:00:00\",\"access_until\":\"2027-11-15 00:00:00\",\"grace_until\":\"2027-11-15 00:00:00\",\"site_limit\":5,\"site_count\":1,\"environment\":\"production\",\"entitlements\":{\"starter.pdf_templates\":true,\"starter.reports\":true,\"starter.disabled\":false,\"starter.monthly_limit\":500,\"other.feature\":true},\"server_time\":\"2026-11-01 00:00:00\",\"cache_expires_at\":\"2026-11-15 00:00:00\"},\"nonce\":\"fixture-nonce-0123456789abcdef\"}",
+    "payload_signature": "10e0e0929f9a74c167c89a658a1f83c9412208490befcc120172be148ceec0a9",
+    "signature_ed25519": "4HPrOcYzUML90YAMedH3lqqa2I7Zh5/wtXT+NUoQun77oJIPgoAdhGlVV5yx6xfC2AaqD4Q4vdyHwPlg4kkLCA==",
+    "payload_signature_ed25519": "y12Mb7pikBnYcDOxLqIfsCPY4bTo5cosFgEMG8xItur+JHxP2yXKAve4pPUuvzXZbOj6zzNVsgGXR44wpZtVDg==",
     "key_id": "10ba682c8ad13513"
 }

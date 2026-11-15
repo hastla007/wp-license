@@ -92,7 +92,7 @@ final class Updater {
 	 */
 	public function check() {
 		$now    = (int) call_user_func( $this->clock );
-		$result = $this->client->check_update();
+		$result = $this->client->check_update( true );
 		if ( is_wp_error( $result ) ) {
 			$stored = $this->stored();
 			// Without access (license_inactive, activation gone) no update is offered any more.
@@ -200,7 +200,7 @@ final class Updater {
 			return $reply;
 		}
 		// The URL in the transient may be used or expired: ask for a fresh grant and checksum.
-		$fresh = $this->client->check_update();
+		$fresh = $this->client->check_update( true );
 		if ( is_wp_error( $fresh ) ) {
 			return $fresh;
 		}

@@ -80,6 +80,7 @@ final class Format {
 			'reconciling'            => __( 'Checking payment result', 'wp-license' ),
 			'review_required'        => __( 'Review required', 'wp-license' ),
 			'closed'                 => __( 'Review closed without booking', 'wp-license' ),
+			'payment_review'         => __( 'Payment result unclear – check manually', 'wp-license' ),
 			'cancelled'              => __( 'Cancelled', 'wp-license' ),
 			'manual'                 => __( 'Awaiting customer payment', 'wp-license' ),
 			'refunded'               => __( 'Refunded', 'wp-license' ),

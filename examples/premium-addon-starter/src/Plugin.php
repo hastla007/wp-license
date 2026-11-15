@@ -118,7 +118,7 @@ final class Plugin {
 
 	/** Client configured from Config. */
 	public static function client( string $version = '' ): LicenseClient {
-		return new LicenseClient( Config::server_url(), Config::PRODUCT_KEY, $version, Config::credentials_option(), Config::server_public_keys() );
+		return new LicenseClient( Config::server_url(), Config::PRODUCT_KEY, $version, Config::credentials_option(), array( 'public_keys' => Config::server_public_keys(), 'text_domain' => 'premium-addon-starter' ) );
 	}
 
 	/** License service. */

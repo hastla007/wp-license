@@ -91,11 +91,10 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
 		$property->setAccessible( true );
 		$steps = $property->getValue();
-		$this->assertSame( '17', Schema::VERSION );
 		$this->assertArrayHasKey( '17', $steps );
 		$this->assertSame( 'step_17_plan_change_columns', $steps['17'][1] );
-		$this->assertSame( array( '17' ), Schema::pending_step_versions( '16', Schema::VERSION, array_keys( $steps ) ) );
-		$this->assertSame( array( '16', '17' ), Schema::pending_step_versions( '15', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '17' ), Schema::pending_step_versions( '16', '17', array_keys( $steps ) ) );
+		$this->assertSame( array( '16', '17' ), Schema::pending_step_versions( '15', '17', array_keys( $steps ) ) );
 	}
 
 	public function test_each_successful_step_is_recorded_in_order(): void {
@@ -180,7 +179,7 @@ final class SchemaMigrationStepsTest extends TestCase {
 	public function test_table_names_are_stable_per_site_prefix(): void {
 		$tables = Schema::table_names_for_prefix( 'wp_2_' );
 		$this->assertSame(
-			array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'reminder_log' ),
+			array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log' ),
 			array_keys( $tables )
 		);
 		$this->assertSame( 'wp_2_wplc_licenses', $tables['licenses'] );
@@ -221,11 +220,46 @@ final class SchemaMigrationStepsTest extends TestCase {
 				'reminder_type varchar(40) NOT NULL,',
 				'period_end datetime NOT NULL,',
 				'sent_at datetime NOT NULL,',
+				'status varchar(10) NOT NULL DEFAULT \'sent\',',
 				'PRIMARY KEY  (id),',
 				'UNIQUE KEY license_reminder (license_id,reminder_type,period_end),',
 				'KEY sent_at (sent_at)',
 			),
 			$lines
 		);
+	}
+
+	/**
+	 * Both development lines used 12 to 20; step 21 runs every step of both again.
+	 */
+	public function test_schema_21_merges_both_development_lines(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$property->setAccessible( true );
+		$steps = $property->getValue();
+
+		$this->assertSame( '21', Schema::VERSION );
+		$this->assertSame( 'step_21_merged_schema', $steps['21'][1] );
+		$this->assertSame( 'step_18_adopt_reminder_log', $steps['18'][1] );
+		$this->assertSame( 'step_19_one_heartbeat_store', $steps['19'][1] );
+		// An install recorded at 17 (line A) runs the steps of line B and the merge step.
+		$this->assertSame( array( '18', '19', '21' ), Schema::pending_step_versions( '17', Schema::VERSION, array_keys( $steps ) ) );
+		// An install recorded at 20 (line B) runs only the merge step, which repeats every data step.
+		$this->assertSame( array( '21' ), Schema::pending_step_versions( '20', Schema::VERSION, array_keys( $steps ) ) );
+
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		$this->assertSame( 1, preg_match( '/function step_21_merged_schema\(\).*?\n\t}\n/s', $source, $match ) );
+		foreach ( array_keys( $steps ) as $version ) {
+			if ( '21' === (string) $version ) {
+				continue;
+			}
+			$this->assertStringContainsString( "'" . $steps[ $version ][1] . "'", $match[0], 'Step 21 does not repeat step ' . $version );
+		}
+	}
+
+	public function test_create_statements_contain_the_columns_of_both_lines(): void {
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		foreach ( array( 'renewal_product_id', 'pending_plan_key', 'pending_product_id', 'plan_order_id', 'review_reason', 'review_at', 'activation_id bigint', 'renewal_amount_includes_tax', 'gateway_customer_ref', 'gateway_method_ref', 'gateway_mode', 'last_error', 'last_attempt_at', 'requires_core', 'plugin_file', 'KEY source_order', 'KEY customer_created', 'KEY status_deactivated', 'KEY outcome_processed' ) as $needle ) {
+			$this->assertStringContainsString( $needle, $source, $needle );
+		}
 	}
 }

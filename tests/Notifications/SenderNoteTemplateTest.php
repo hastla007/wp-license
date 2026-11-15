@@ -94,7 +94,7 @@ final class SenderNoteTemplateTest extends TestCase {
 		$checked   = 0;
 
 		foreach ( $templates as $file ) {
-			if ( in_array( basename( $file ), array( 'wplc-license-details.php', 'wplc-sender-note.php' ), true ) ) {
+			if ( in_array( basename( $file ), array( 'wplc-license-details.php', 'wplc-sender-note.php', 'wplc-install-steps.php', 'wplc-renewal-terms.php' ), true ) ) {
 				continue;
 			}
 			$source  = (string) file_get_contents( $file );
@@ -104,6 +104,6 @@ final class SenderNoteTemplateTest extends TestCase {
 			++$checked;
 		}
 
-		$this->assertSame( 12, $checked );
+		$this->assertSame( 18, $checked, 'Nine license emails, HTML and plain.' );
 	}
 }

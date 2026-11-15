@@ -68,6 +68,8 @@ final class PlanUpgrade {
 		add_action( 'woocommerce_order_fully_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
 		add_action( 'woocommerce_order_status_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
 		add_action( 'woocommerce_order_partially_refunded', array( self::class, 'handle_partial_refund' ), 20, 2 );
+		// The account template prints the plan change section next to the renewal (T-110).
+		add_action( 'wplc_account_license_renewal', array( self::class, 'render_account_section' ), 20, 1 );
 	}
 
 	/**
@@ -266,7 +268,7 @@ final class PlanUpgrade {
 					RenewalOrder::set_addresses( $order, $license );
 				}
 				$order->set_currency( $quote['currency'] );
-				if ( ! RenewalOrder::set_line( $order, $target['product'], $quote['amount_minor'], $quote['decimals'] ) ) {
+				if ( ! RenewalOrder::set_plain_line( $order, $target['product'], $quote['amount_minor'], $quote['decimals'] ) ) {
 					return $unavailable;
 				}
 				foreach ( $order->get_items( 'line_item' ) as $item ) {

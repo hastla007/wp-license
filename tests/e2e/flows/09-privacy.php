@@ -64,7 +64,18 @@ for ( $page = 1; $page <= 10 && ! $done; $page++ ) {
 }
 e2e_ok( $done, 'exporter reports done' );
 $alice_licenses = e2e_rows( 'licenses', 'customer_id = ' . $alice_id );
-e2e_eq( count( $alice_licenses ), count( $items ), 'export contains one item per license of the customer (' . count( $alice_licenses ) . ')' );
+$license_items = array_values(
+	array_filter(
+		$items,
+		static function ( $item ) {
+			return 'wp-license-captain' === ( $item['group_id'] ?? '' );
+		}
+	)
+);
+e2e_eq( count( $alice_licenses ), count( $license_items ), 'export contains one license item per license of the customer (' . count( $alice_licenses ) . ')' );
+$groups = array_values( array_unique( array_column( $items, 'group_id' ) ) );
+sort( $groups );
+e2e_ok( in_array( 'wp-license-captain-history', $groups, true ) && in_array( 'wp-license-captain-emails', $groups, true ), 'export also contains the license history and the email log (' . implode( ', ', $groups ) . ')' );
 $flat = wp_json_encode( $items );
 e2e_ok( false !== strpos( $flat, $alice_licenses[0]['key_prefix'] ) && false !== strpos( $flat, 'voucher-captain' ), 'export shows license reference and product' );
 e2e_ok( false !== strpos( $flat, 'site-c.example' ) || false !== strpos( $flat, 'site-b.example' ), 'export contains the activated site URLs of the customer', substr( $flat, 0, 400 ) );
@@ -112,7 +123,18 @@ $response      = e2e_http(
 $json = json_decode( $response['body'], true );
 e2e_ok( is_array( $json ) && ! empty( $json['success'] ) && ! empty( $json['data']['done'] ), 'eraser AJAX call succeeds and reports done', substr( $response['body'], 0, 300 ) );
 e2e_eq( array( true, true ), array( (bool) ( $json['data']['items_removed'] ?? false ), (bool) ( $json['data']['items_retained'] ?? false ) ), 'eraser reports removed AND retained items' );
-e2e_ok( 2 === count( (array) ( $json['data']['messages'] ?? array() ) ), 'eraser explains what was retained and what was detached', $json['data']['messages'] ?? null );
+$messages = implode( ' | ', (array) ( $json['data']['messages'] ?? array() ) );
+e2e_ok( false !== strpos( $messages, 'detached from the account' ) && false !== strpos( $messages, 'was retained' ) && false !== strpos( $messages, 'Automatic renewal was switched off' ), 'eraser explains what was detached, what was retained and that automatic renewal was switched off', $json['data']['messages'] ?? null );
+$dave_running = array_values(
+	array_filter(
+		e2e_rows( 'licenses', 'customer_id = ' . $dave_id ),
+		static function ( $license ) {
+			return ! in_array( $license['status'], array( 'expired', 'revoked', 'cancelled' ), true );
+		}
+	)
+);
+e2e_eq( array(), array_filter( array_column( $dave_running, 'renewal_enabled' ) ), 'no retained license of the erased customer renews automatically any more' );
+e2e_eq( array(), array_filter( array_column( $dave_running, 'payment_token_id' ) ), 'the payment method reference is removed from the retained licenses' );
 $after = e2e_rows( 'licenses', 'id IN (' . implode( ',', array_map( 'intval', array_column( $dave_licenses, 'id' ) ) ) . ')' );
 $detached = 0;
 $kept     = 0;

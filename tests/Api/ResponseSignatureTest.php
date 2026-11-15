@@ -36,6 +36,34 @@ final class ResponseSignatureTest extends TestCase {
 		$this->assertSame( '0c2d2070b327f0013c71659e1df3984135c26866fcc91771373f05eaa5bf5c1e', $envelope['payload_signature'] );
 	}
 
+	/**
+	 * B-179: data that cannot be encoded must not be answered with a signature over an empty string.
+	 *
+	 * @return array<string,array{0:array<string,mixed>}>
+	 */
+	public function data_unencodable(): array {
+		return array(
+			'INF'          => array( array( 'limit' => INF ) ),
+			'NAN'          => array( array( 'limit' => NAN ) ),
+			'nested INF'   => array( array( 'entitlements' => array( 'limits.codes' => 1e999 ) ) ),
+			'invalid UTF8' => array( array( 'site' => "caf\xE9" ) ),
+		);
+	}
+
+	/**
+	 * @dataProvider data_unencodable
+	 *
+	 * @param array<string,mixed> $data Data.
+	 */
+	public function test_unencodable_data_is_never_signed( array $data ): void {
+		$envelope = Response::envelope( $data, self::SECRET, self::NONCE );
+
+		$this->assertSame( '', $envelope['payload'] );
+		$this->assertSame( '', $envelope['signature'], 'No HMAC over the empty string.' );
+		$this->assertSame( '', $envelope['payload_signature'] );
+		$this->assertNotSame( hash_hmac( 'sha256', '', self::SECRET ), $envelope['signature'] );
+	}
+
 	public function test_client_accepts_a_server_envelope_and_returns_the_signed_data(): void {
 		$envelope = Response::envelope( self::data(), self::SECRET, self::NONCE );
 
@@ -105,15 +133,19 @@ final class ResponseSignatureTest extends TestCase {
 		$this->assertSame( 'wplc_response_invalid', LicenseClient::verified_data( $envelope, self::SECRET ) );
 	}
 
-	public function test_legacy_envelope_is_accepted_only_when_no_payload_is_present_or_required(): void {
+	/**
+	 * B-158: the client no longer accepts the legacy members `data` + `signature` in place of the payload.
+	 */
+	public function test_b158_legacy_envelope_is_never_accepted_by_the_client(): void {
 		$envelope = Response::envelope( self::data(), self::SECRET, self::NONCE );
 		$legacy = array( 'data' => $envelope['data'], 'signature' => $envelope['signature'] );
 
-		$this->assertSame( self::data(), LicenseClient::verified_data( $legacy, self::SECRET, self::NONCE ) );
-		$this->assertSame( 'wplc_signature_invalid', LicenseClient::verified_data( $legacy, self::SECRET, self::NONCE, true ) );
-
-		$legacy['data']['site_limit'] = 99;
+		// The server still sends a valid legacy signature for old client copies...
+		$this->assertSame( hash_hmac( 'sha256', (string) json_encode( self::data(), JSON_UNESCAPED_SLASHES ), self::SECRET ), $legacy['signature'] );
+		// ...but the bundled client refuses an answer without the signed payload, with or without the old flag argument.
 		$this->assertSame( 'wplc_signature_invalid', LicenseClient::verified_data( $legacy, self::SECRET, self::NONCE ) );
+		$this->assertSame( 'wplc_signature_invalid', LicenseClient::verified_data( $legacy, self::SECRET, self::NONCE, true ) );
+		$this->assertSame( 'wplc_signature_invalid', LicenseClient::verified_data( $legacy, self::SECRET ) );
 
 		// Stripping only the payload signature must not fall back to the legacy check.
 		$stripped = $envelope;

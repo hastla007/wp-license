@@ -62,7 +62,11 @@ final class PlaceholdersTest extends TestCase {
 		$this->assertSame( 'renewed', Notifications::email_for_transition( 'active', 'active', 'renewal_succeeded' ) );
 		$this->assertSame( 'renewed', Notifications::email_for_transition( 'past_due', 'active', 'renewal_succeeded' ) );
 		$this->assertSame( 'renewed', Notifications::email_for_transition( 'expired', 'active', 'renewal_succeeded' ) );
-		$this->assertSame( '', Notifications::email_for_transition( 'active', 'revoked', 'order_refund' ) );
+		// B-152: suspension and revocation are announced to the customer.
+		$this->assertSame( 'revoked', Notifications::email_for_transition( 'active', 'revoked', 'order_refund' ) );
+		$this->assertSame( 'suspended', Notifications::email_for_transition( 'active', 'suspended', 'chargeback' ) );
+		$this->assertSame( 'revoked', Notifications::email_for_transition( 'suspended', 'revoked', 'admin_status_change' ) );
+		$this->assertSame( '', Notifications::email_for_transition( 'suspended', 'suspended', 'admin_status_change' ) );
 		$this->assertSame( '', Notifications::email_for_transition( 'suspended', 'active', 'admin_status_change' ) );
 	}
 

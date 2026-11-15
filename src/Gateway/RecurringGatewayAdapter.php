@@ -48,21 +48,35 @@ interface RecurringGatewayAdapter {
 	 * Failure codes with a meaning for the retry logic:
 	 * - `renewal_manual_action_required`: the customer must authenticate; retries stop.
 	 * - `renewal_result_unknown`: it is not known whether the charge went through
-	 *   (timeout, network or gateway server error). This is not a decline: the
-	 *   license is not touched and the renewal waits for reconciliation. Checks
-	 *   call charge() again with the SAME key for up to 12 hours after the first
-	 *   request, so the adapter must pass the key to the gateway unchanged and the
-	 *   gateway must replay the first result for a known key. After that the
-	 *   renewal goes to administrator review; a new key is never used before the
-	 *   outcome is known.
+	 *   (timeout, network or gateway server error). This is not a decline: no
+	 *   attempt is counted, the license is not touched and the renewal waits for
+	 *   reconciliation. Checks call charge() again with the SAME
+	 *   `$idempotency_key` for up to 12 hours after the first request. The
+	 *   adapter must derive the gateway's key from it deterministically and
+	 *   should look the payment up at the gateway before sending the charge
+	 *   again. After that the renewal goes to administrator review; a new key is
+	 *   never used before the outcome is known.
+	 * - `renewal_configuration_error` (or another shop-side code, see
+	 *   RenewalProcessor::SHOP_SIDE_ERRORS): the shop has to act. No attempt is
+	 *   counted, the customer gets no mail, `wplc/renewal_blocked` fires. The error
+	 *   data may name the cause in `reason`; it is stored on the renewal.
+	 * Error data with a meaning:
+	 * - `wait` (seconds): nothing failed, look again after that time (the customer
+	 *   is paying the order, the payment is still being processed, the gateway
+	 *   limits requests). No attempt is counted, no mail, no alert.
+	 * - `retryable => false`: a definite decline that must not be tried again
+	 *   (lost or stolen card, do-not-retry advice). Retries stop.
 	 * Every other error is a definite decline; the next attempt gets a new key.
+	 *
+	 * On success the array may also carry `payment_intent_id`. The transaction ID
+	 * must be the reference the gateway itself would store on the order.
 	 *
 	 * Adapters should store the gateway payment reference on the order (meta
 	 * `_wplc_payment_intent_id`) as soon as it is known.
 	 *
 	 * @param \WC_Order $order Renewal order.
-	 * @param int $token_id Saved WooCommerce payment token ID.
-	 * @param string $idempotency_key Key of this attempt: `{renewal key}:{attempt_count}`.
+	 * @param int       $token_id Saved WooCommerce payment token ID.
+	 * @param string    $idempotency_key Key of this attempt: `{renewal key}:{attempt_count}`.
 	 * @return array|\WP_Error
 	 */
 	public function charge( $order, int $token_id, string $idempotency_key );

@@ -82,18 +82,24 @@ final class LicenseBulkActions {
 	 *
 	 * Reactivation is offered because it follows the same rules as on the
 	 * detail screen (only from past due, suspended or expired, and only while
-	 * the paid period has not ended). Changing the term or issuing licenses is
-	 * deliberately not available in bulk.
+	 * the paid period has not ended). Extending the term by a number of days
+	 * (A-61) uses SupportActions::bulk_extend() and is offered to users who may
+	 * grant licenses. Issuing licenses is not available in bulk.
 	 *
 	 * @return array<string,string>
 	 */
 	public static function actions(): array {
-		return array(
+		$actions = array(
 			'suspend'       => __( 'Suspend', 'wp-license' ),
 			'reactivate'    => __( 'Reactivate', 'wp-license' ),
 			'revoke'        => __( 'Revoke (final)', 'wp-license' ),
 			'release_sites' => __( 'Release all site activations', 'wp-license' ),
 		);
+		if ( Capabilities::can( 'grant_licenses' ) ) {
+			$actions['extend'] = __( 'Extend the term by the number of days', 'wp-license' );
+		}
+
+		return $actions;
 	}
 
 	/**
@@ -212,8 +218,9 @@ final class LicenseBulkActions {
 		$token   = isset( $post['bulk_token'] ) && is_string( $post['bulk_token'] ) ? sanitize_key( $post['bulk_token'] ) : '';
 		$raw_ids = isset( $post['license_ids'] ) && is_array( $post['license_ids'] ) ? $post['license_ids'] : array();
 		$ids     = array_values( array_unique( array_filter( array_map( 'absint', $raw_ids ) ) ) );
+		$days    = isset( $post['bulk_days'] ) && is_scalar( $post['bulk_days'] ) ? absint( $post['bulk_days'] ) : 0;
 
-		if ( ! isset( self::actions()[ $action ] ) || '' === $reason || ! $ids || ! self::is_token( $token ) ) {
+		if ( ! isset( self::actions()[ $action ] ) || '' === $reason || ! $ids || ! self::is_token( $token ) || ( 'extend' === $action && ( $days < 1 || $days > 3650 ) ) ) {
 			AdminNotices::redirect_to( 'bulk_missing_input', $return );
 		}
 		if ( count( $ids ) > self::MAX_LICENSES ) {
@@ -221,7 +228,7 @@ final class LicenseBulkActions {
 		}
 
 		$user_id = get_current_user_id();
-		$outcome = self::run_batch( $user_id, $token, $action, $ids, $reason );
+		$outcome = self::run_batch( $user_id, $token, $action, $ids, $reason, $days );
 		if ( 'busy' === $outcome ) {
 			AdminNotices::redirect_to( 'bulk_in_progress', $return );
 		}
@@ -238,9 +245,10 @@ final class LicenseBulkActions {
 	 * @param string $action  Bulk action key.
 	 * @param int[]  $ids     License IDs.
 	 * @param string $reason  Reason for every license.
+	 * @param int    $days    Days to add for the action `extend`.
 	 * @return string done, repeated (token already used: stored result kept) or busy (the same batch is running).
 	 */
-	public static function run_batch( int $user_id, string $token, string $action, array $ids, string $reason ): string {
+	public static function run_batch( int $user_id, string $token, string $action, array $ids, string $reason, int $days = 0 ): string {
 		global $wpdb;
 
 		$lock   = 'wplc_lbulk_' . substr( hash( 'sha256', Schema::lock_scope() . '|bulk:' . $user_id . ':' . $token ), 0, 48 );
@@ -253,7 +261,7 @@ final class LicenseBulkActions {
 			if ( null !== self::load_result( $user_id, $token ) ) {
 				return 'repeated';
 			}
-			$result = self::apply( $action, $ids, $reason, $user_id );
+			$result = self::apply( $action, $ids, $reason, $user_id, $days );
 			set_transient( self::transient_name( $user_id, $token ), $result, self::RESULT_TTL );
 		} finally {
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock ) );
@@ -269,9 +277,10 @@ final class LicenseBulkActions {
 	 * @param int[]  $ids     License IDs.
 	 * @param string $reason  Reason for every license.
 	 * @param int    $user_id Acting administrator.
+	 * @param int    $days    Days to add for the action `extend`.
 	 * @return array{action:string,done:int[],skipped:array<int,array{id:int,code:string,status:string}>}
 	 */
-	public static function apply( string $action, array $ids, string $reason, int $user_id ): array {
+	public static function apply( string $action, array $ids, string $reason, int $user_id, int $days = 0 ): array {
 		$done    = array();
 		$skipped = array();
 		foreach ( $ids as $license_id ) {
@@ -280,6 +289,8 @@ final class LicenseBulkActions {
 				$code = 'not_found';
 			} elseif ( 'release_sites' === $action ) {
 				$code = self::release_sites( $license, $reason, $user_id );
+			} elseif ( 'extend' === $action ) {
+				$code = 1 === SupportActions::bulk_extend( array( (int) $license_id ), $days, $reason, $user_id )['extended'] ? '' : 'not_applied';
 			} else {
 				$code = self::change_status( $license, self::target_statuses()[ $action ], $reason, $user_id );
 			}
@@ -488,6 +499,10 @@ final class LicenseBulkActions {
 		}
 		echo '</select> ';
 		echo '<label class="screen-reader-text" for="wplc-bulk-reason">' . esc_html__( 'Reason for the bulk action', 'wp-license' ) . '</label>';
+		if ( isset( self::actions()['extend'] ) ) {
+			echo '<label class="screen-reader-text" for="wplc-bulk-days">' . esc_html__( 'Days to add (for "Extend the term")', 'wp-license' ) . '</label>';
+			echo '<input type="number" id="wplc-bulk-days" name="bulk_days" form="wplc-bulk-form" min="1" max="3650" step="1" class="small-text" placeholder="' . esc_attr__( 'Days', 'wp-license' ) . '"> ';
+		}
 		echo '<input type="text" id="wplc-bulk-reason" name="bulk_reason" form="wplc-bulk-form" maxlength="250" placeholder="' . esc_attr__( 'Reason (required, stored in the audit log)', 'wp-license' ) . '"> ';
 		echo '<button type="submit" class="button action" form="wplc-bulk-form" id="wplc-bulk-apply">' . esc_html__( 'Apply', 'wp-license' ) . '</button>';
 		echo '</div>';

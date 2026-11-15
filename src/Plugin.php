@@ -35,6 +35,11 @@ use WPLC\Gateway\StripeRecurringAdapter;
 use WPLC\Privacy\PersonalData;
 use WPLC\Notifications\Notifications;
 use WPLC\Maintenance\Retention;
+use WPLC\Maintenance\SiteGuard;
+use WPLC\Maintenance\GapGuard;
+use WPLC\Maintenance\GapReconciler;
+use WPLC\Maintenance\DailyRunner;
+use WPLC\Maintenance\Orphans;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -46,15 +51,41 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Plugin {
 
 	/**
+	 * Option with the unix time of the last deactivation (start of a processing gap).
+	 */
+	public const DEACTIVATED_OPTION = 'wplc_deactivated_at';
+
+	/**
+	 * Cron hooks of the plugin.
+	 *
+	 * @var string[]
+	 */
+	private const CRON_HOOKS = array( 'wplc_daily_lifecycle', 'wplc_cleanup_security_rows', 'wplc_send_reminders' );
+
+	/**
+	 * Action Scheduler hooks that are withdrawn on deactivation: continuation runs and mail
+	 * retries. They would be used up without effect while the plugin is off, and a mail must
+	 * not be sent late after reactivation. Renewal, grace-end and Stripe jobs stay queued;
+	 * what is used up meanwhile is queued again by the daily run and the gap reconciliation.
+	 *
+	 * @var string[]
+	 */
+	private const QUEUED_HOOKS = array(
+		'wplc_send_reminders',
+		'wplc_retry_license_email',
+		'wplc_expire_due_licenses',
+	);
+
+	/**
 	 * Validate activation requirements before enabling the plugin.
 	 *
+	 * @param bool $network_wide Whether the plugin is activated for the whole network.
 	 * @return void
 	 */
-	public static function activate(): void {
+	public static function activate( $network_wide = false ): void {
 		// Activation runs after plugins_loaded, so on_plugins_loaded() has not loaded
 		// the translations yet; the messages below must not appear in English.
 		self::load_textdomain();
-
 		if ( version_compare( PHP_VERSION, '7.4', '<' ) ) {
 			wp_die( esc_html__( 'WP License Captain requires PHP 7.4 or later.', 'wp-license' ) );
 		}
@@ -63,8 +94,19 @@ final class Plugin {
 			wp_die( esc_html__( 'Please activate WooCommerce before activating WP License Captain.', 'wp-license' ) );
 		}
 
-		Schema::migrate();
-		LicenseLifecycle::schedule_daily_event();
+		if ( ! Requirements::woocommerce_is_supported() ) {
+			wp_die(
+				esc_html(
+					sprintf(
+						/* translators: %s: minimum WooCommerce version. */
+						__( 'WP License Captain requires WooCommerce %s or later.', 'wp-license' ),
+						Requirements::MIN_WC
+					)
+				)
+			);
+		}
+
+		self::for_each_site( (bool) $network_wide, array( self::class, 'activate_site' ) );
 		CustomerPortal::register_endpoint();
 		SiteOverview::register_endpoint();
 		flush_rewrite_rules();
@@ -89,39 +131,91 @@ final class Plugin {
 	}
 
 	/**
+	 * Per-site activation: schema, schedule, gap detection.
+	 *
+	 * @return void
+	 */
+	public static function activate_site(): void {
+		if ( function_exists( 'ms_is_switched' ) && ms_is_switched() && false === get_option( 'wplc_schema_version', false ) ) {
+			// Network activation: a site that never used the plugin gets its tables on first use.
+			return;
+		}
+		Schema::migrate();
+		LicenseLifecycle::schedule_daily_event();
+		SiteGuard::remember();
+
+		// Orders paid and refunds made while the plugin was off are caught up; renewals that
+		// became due in that time must not expire before they were attempted.
+		$now            = time();
+		$deactivated_at = (int) get_option( self::DEACTIVATED_OPTION, 0 );
+		$last_daily_run = DailyRunner::last_run();
+		if ( $deactivated_at > 0 ) {
+			GapGuard::record( $deactivated_at, $now, 'deactivation' );
+			delete_option( self::DEACTIVATED_OPTION );
+		} elseif ( $last_daily_run > 0 && $now - $last_daily_run >= DailyRunner::MISSED_RUN_SECONDS ) {
+			GapGuard::record( $last_daily_run, $now, 'daily_run_missed' );
+		}
+		GapReconciler::schedule();
+	}
+
+	/**
 	 * Deactivation clears scheduled work but preserves license and order data.
 	 *
 	 * A network deactivation clears the events of every site of the network, not
 	 * only of the site the request runs on (cron events are stored per site).
 	 *
-	 * @param bool $network_wide True when WordPress deactivates the plugin for the whole network.
+	 * @param bool $network_wide Whether the plugin is deactivated for the whole network.
 	 * @return void
 	 */
-	public static function deactivate( bool $network_wide = false ): void {
-		if ( ! $network_wide || ! is_multisite() ) {
-			self::clear_scheduled_events();
+	public static function deactivate( $network_wide = false ): void {
+		self::for_each_site( (bool) $network_wide, array( self::class, 'deactivate_site' ) );
+	}
+
+	/**
+	 * Per-site deactivation.
+	 *
+	 * @return void
+	 */
+	public static function deactivate_site(): void {
+		foreach ( self::CRON_HOOKS as $hook ) {
+			wp_clear_scheduled_hook( $hook );
+		}
+		// A cursor left behind by an unfinished reminder run would skip licenses after reactivation.
+		delete_option( 'wplc_reminder_cursor' );
+		if ( function_exists( 'as_unschedule_all_actions' ) && \ActionScheduler::is_initialized() ) {
+			foreach ( self::QUEUED_HOOKS as $hook ) {
+				as_unschedule_all_actions( $hook, array(), 'wplc' );
+				as_unschedule_all_actions( $hook );
+			}
+		}
+		if ( false === get_option( 'wplc_schema_version', false ) ) {
+			return;
+		}
+		update_option( self::DEACTIVATED_OPTION, time(), false );
+	}
+
+	/**
+	 * Run a callback for this site, or for every site of the network.
+	 *
+	 * @param bool     $network_wide Whether to loop over the network.
+	 * @param callable $callback     Callback without arguments.
+	 * @return void
+	 */
+	private static function for_each_site( bool $network_wide, callable $callback ): void {
+		if ( ! $network_wide || ! is_multisite() || ! function_exists( 'get_sites' ) ) {
+			call_user_func( $callback );
 			return;
 		}
 
+		// Every site of the network (T-61): cron events and options are stored per site.
 		foreach ( self::network_site_ids() as $site_id ) {
-			switch_to_blog( $site_id );
+			switch_to_blog( (int) $site_id );
 			try {
-				self::clear_scheduled_events();
+				call_user_func( $callback );
 			} finally {
 				restore_current_blog();
 			}
 		}
-	}
-
-	/**
-	 * Remove the plugin's recurring WP-Cron events of the current site.
-	 *
-	 * @return void
-	 */
-	public static function clear_scheduled_events(): void {
-		wp_clear_scheduled_hook( 'wplc_daily_lifecycle' );
-		wp_clear_scheduled_hook( 'wplc_cleanup_security_rows' );
-		wp_clear_scheduled_hook( 'wplc_send_reminders' );
 	}
 
 	/**
@@ -171,12 +265,15 @@ final class Plugin {
 		RotateInstallationSecretsCommand::register();
 		RecoverLicenseKeyIdsCommand::register();
 		SigningKeyCommand::register();
+		\WPLC\CLI\ReleaseCommand::register();
+		\WPLC\CLI\Commands::register();
 		Schema::maybe_upgrade();
 		ReleaseRegistry::register_hooks();
 		PackageStream::register_hooks();
 		CustomerDownload::register_hooks();
 		ReleaseAdmin::register_hooks();
 		ProductEditor::register_hooks();
+		\WPLC\Catalog\TermDisplay::register_hooks();
 		LicenseIssuer::register_hooks();
 		LicenseLifecycle::register_hooks();
 		Routes::register_hooks();
@@ -196,6 +293,12 @@ final class Plugin {
 		PersonalData::register_hooks();
 		Notifications::register_hooks();
 		Retention::register_hooks();
+		Orphans::register_hooks();
+		SiteGuard::register_hooks();
+		GapReconciler::register_hooks();
+		// Last: wraps the job callbacks registered above (isolation, pause gate, heartbeat).
+		DailyRunner::register_hooks();
+		SiteGuard::remember();
 
 		/**
 		 * Fires after WP License Captain has confirmed its WooCommerce dependency.

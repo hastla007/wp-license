@@ -90,8 +90,9 @@ final class UpdaterTest extends TestCase {
 	}
 
 	public function test_update_data_for_another_product_or_host_is_refused(): void {
+		// Client 2.0 refuses signed data of another product itself.
 		$this->server->update = array_merge( $this->update, array( 'product_key' => 'other-product' ) );
-		$this->assertSame( 'update_metadata_invalid', $this->updater()->check()->get_error_code() );
+		$this->assertSame( 'wplc_product_mismatch', $this->updater()->check()->get_error_code() );
 		$this->server->update = array_merge( $this->update, array( 'package_url' => 'https://evil.example/x.zip' ) );
 		$this->assertSame( 'update_metadata_invalid', $this->updater()->check()->get_error_code() );
 		$this->server->update = array_merge( $this->update, array( 'package_url' => 'http://shop.example/wp-json/wplc/v1/updates/download/x' ) );

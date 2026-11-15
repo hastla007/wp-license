@@ -136,6 +136,59 @@ final class ClientIpTest extends TestCase {
 		$this->assertMatchesRegularExpression( '/^[a-f0-9]{64}$/', $first );
 		$this->assertSame( $first, ActivationService::key_limiter_hash( '  wplc-1a2b3c4d-ffff-0000 ' ) );
 		$this->assertNotSame( $first, ActivationService::key_limiter_hash( 'WPLC-1A2B3C4E-AAAA-BBBB' ) );
-		$this->assertSame( hash( 'sha256', 'activation-key:WPLC-1A2B3C4D' ), $first );
+		// B-130: an HMAC with a server-side key, not a bare hash that can be reversed by trying candidates.
+		$this->assertNotSame( hash( 'sha256', 'activation-key:WPLC-1A2B3C4D' ), $first );
+		$this->assertSame( \WPLC\Api\V1\Authenticator::limiter_hash( 'activation-key', 'WPLC-1A2B3C4D' ), $first );
+		// B-173: pasted keys with typographic dashes and invisible characters share the bucket.
+		$this->assertSame( $first, ActivationService::key_limiter_hash( "WPLC\u{2013}1A2B\u{200B}3C4D\u{00A0}-AAAA" ) );
+	}
+
+	/** B-130 */
+	public function test_limiter_hashes_are_keyed_and_scoped(): void {
+		$hash = \WPLC\Api\V1\Authenticator::limiter_hash( 'installation', 'a1b2c3d4-0000-4000-8000-000000000001' );
+
+		$this->assertMatchesRegularExpression( '/^[a-f0-9]{64}$/', $hash );
+		$this->assertNotSame( hash( 'sha256', 'installation:a1b2c3d4-0000-4000-8000-000000000001' ), $hash );
+		$this->assertNotSame( $hash, \WPLC\Api\V1\Authenticator::limiter_hash( 'activation-ip', 'a1b2c3d4-0000-4000-8000-000000000001' ) );
+		$this->assertSame( $hash, \WPLC\Api\V1\Authenticator::limiter_hash( 'installation', 'a1b2c3d4-0000-4000-8000-000000000001' ) );
+	}
+
+	/**
+	 * B-180: IPv4-mapped CIDR entries in WPLC_TRUSTED_PROXIES.
+	 *
+	 * @return array<string,array{0:string,1:string,2:bool}>
+	 */
+	public function data_mapped_ranges(): array {
+		return array(
+			'mapped /104 is an IPv4 /8'      => array( '10.0.0.1', '::ffff:10.0.0.0/104', true ),
+			'outside the mapped /104'        => array( '11.0.0.1', '::ffff:10.0.0.0/104', false ),
+			'mapped /96 is all of IPv4'      => array( '10.0.0.1', '::ffff:0:0/96', true ),
+			'mapped /128 is one address'     => array( '10.0.0.1', '::ffff:10.0.0.1/128', true ),
+			'mapped /128, other address'     => array( '10.0.0.2', '::ffff:10.0.0.1/128', false ),
+			'mapped /120 is an IPv4 /24'     => array( '192.168.7.9', '::ffff:192.168.7.0/120', true ),
+			'mapped client, IPv4 range'      => array( '::ffff:10.0.0.1', '10.0.0.0/8', true ),
+			'mapped client, mapped range'    => array( '::ffff:10.0.0.1', '::ffff:10.0.0.0/104', true ),
+			'plain IPv4 range is unchanged'  => array( '10.1.2.3', '10.0.0.0/8', true ),
+			'plain IPv6 range is unchanged'  => array( '2001:db8::5', '2001:db8::/32', true ),
+			'IPv4 is not in an IPv6 range'   => array( '1.2.3.4', '::/0', false ),
+			'mapped single address'          => array( '10.0.0.1', '::ffff:10.0.0.1', true ),
+		);
+	}
+
+	/**
+	 * @dataProvider data_mapped_ranges
+	 *
+	 * @param string $ip       Address.
+	 * @param string $range    Range.
+	 * @param bool   $expected Expected result.
+	 */
+	public function test_ipv4_mapped_ranges( string $ip, string $range, bool $expected ): void {
+		$this->assertSame( $expected, ClientIp::in_range( $ip, $range ) );
+	}
+
+	public function test_a_mapped_proxy_range_is_honored_when_resolving_the_client(): void {
+		$server = array( 'REMOTE_ADDR' => '10.0.0.7', 'HTTP_X_FORWARDED_FOR' => '203.0.113.9' );
+
+		$this->assertSame( '203.0.113.9', ClientIp::resolve( $server, 'X-Forwarded-For', array( '::ffff:10.0.0.0/104' ) ) );
 	}
 }

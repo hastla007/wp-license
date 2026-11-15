@@ -70,7 +70,8 @@ final class LicenseServiceTest extends TestCase {
 		Fixtures::store_credentials();
 		$this->assertIsArray( Fixtures::service( Fixtures::time( 60 ) )->refresh() );
 
-		foreach ( array( array( 0, 'http_request_failed' ), array( 503, 'replay_store_unavailable' ), array( 429, 'rate_limited' ) ) as $error ) {
+		// Client 2.0 reports a transport failure as wplc_connection_failed.
+		foreach ( array( array( 0, 'wplc_connection_failed' ), array( 503, 'replay_store_unavailable' ), array( 429, 'rate_limited' ) ) as $error ) {
 			$this->server->errors['POST /wplc/v1/entitlements/check'] = $error;
 			$service = Fixtures::service( Fixtures::time( 10 * 86400 ) );
 			$this->assertInstanceOf( WP_Error::class, $service->refresh() );
