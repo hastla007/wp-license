@@ -986,7 +986,7 @@ final class AdminSupportIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertCount( 0, $entries( array( 'license' => (string) $license, 'to' => gmdate( 'Y-m-d', time() - 3 * DAY_IN_SECONDS ) ) ) );
 
 		$csv = AuditLogAdmin::export_csv( array( 'license' => (string) $license, 'object_type' => '', 'object_id' => '', 'action' => '', 'actor' => '', 'from' => '', 'to' => '' ) );
-		$this->assertStringContainsString( '"admin_status_change","license","' . $license . '","' . $actor . '","clerk_anna","Check"', $csv );
+		$this->assertMatchesRegularExpression( '/"admin_status_change","license","' . $license . '","' . $actor . '","clerk_anna","[a-z]+","Check"/', $csv );
 
 		set_current_screen( 'woocommerce_page_' . AuditLogAdmin::PAGE );
 		$_GET = array(
@@ -1100,6 +1100,98 @@ final class AdminSupportIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'audit_log_exported', end( $rows )['action'] );
 		$this->assertSame( (string) $this->manager, (string) end( $rows )['actor_user_id'] );
 		$this->assertStringContainsString( '"license":"' . $license . '"', (string) end( $rows )['after_json'] );
+	}
+
+	public function test_a76_audit_entries_store_and_show_their_source(): void {
+		global $wpdb;
+		$license = $this->seed_license( array( 'customer_id' => $this->customer ) )['id'];
+		$latest  = function () use ( $license ): string {
+			$rows = $this->audit_rows( 'license', $license );
+			return (string) end( $rows )['source'];
+		};
+
+		wp_set_current_user( 0 );
+		\WPLC\License\AuditLog::record( 'a76_system', 'license', $license );
+		$this->assertSame( 'system', $latest() );
+
+		wp_set_current_user( $this->customer );
+		\WPLC\License\AuditLog::record( 'a76_customer', 'license', $license, '', null, null, $this->customer );
+		$this->assertSame( 'customer', $latest(), 'A logged-in customer on the front end.' );
+
+		set_current_screen( 'dashboard' );
+		try {
+			\WPLC\License\AuditLog::record( 'a76_customer_admin_post', 'license', $license, '', null, null, $this->customer );
+			$this->assertSame( 'customer', $latest(), 'A customer through admin-post.php is still a customer.' );
+			wp_set_current_user( $this->manager );
+			\WPLC\License\AuditLog::record( 'a76_admin', 'license', $license, 'Checked', null, null, $this->manager );
+			$this->assertSame( 'admin', $latest() );
+		} finally {
+			$GLOBALS['current_screen'] = null;
+		}
+
+		$route = new WP_REST_Request( 'POST', '/wplc/v1/webhooks/stripe' );
+		\WPLC\License\AuditLog::begin_rest_request( null, null, $route );
+		\WPLC\License\AuditLog::record( 'a76_webhook', 'license', $license );
+		$this->assertSame( 'webhook', $latest() );
+		do_action( 'action_scheduler_begin_execute', 123 );
+		\WPLC\License\AuditLog::record( 'a76_cron', 'license', $license );
+		$this->assertSame( 'cron', $latest(), 'An Action Scheduler action counts as cron.' );
+		do_action( 'action_scheduler_after_execute', 123 );
+		\WPLC\License\AuditLog::end_rest_request( null );
+
+		add_filter(
+			'wplc_audit_source',
+			static function ( $source, $action ) {
+				return 'a76_partner' === $action ? 'partner_sync' : $source;
+			},
+			10,
+			2
+		);
+		\WPLC\License\AuditLog::record( 'a76_partner', 'license', $license );
+		remove_all_filters( 'wplc_audit_source' );
+		$this->assertSame( 'partner_sync', $latest() );
+
+		// An entry from before schema 23 has no source.
+		$wpdb->insert( $this->tables()['audit_log'], array( 'action' => 'a76_old', 'object_type' => 'license', 'object_id' => $license, 'reason' => '', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+
+		$filters = array( 'license' => (string) $license, 'object_type' => '', 'object_id' => '', 'action' => '', 'actor' => '', 'from' => '', 'to' => '' );
+		$count   = function ( string $source ) use ( $filters ): int {
+			global $wpdb;
+			$where = AuditLogAdmin::where( array_merge( $filters, array( 'source' => $source ) ) );
+			$table = $this->tables()['audit_log'];
+			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table}{$where['sql']}", $where['params'] ) );
+		};
+		$this->assertSame( 2, $count( 'customer' ) );
+		$this->assertSame( 1, $count( 'webhook' ) );
+		$this->assertSame( 1, $count( 'unknown' ) );
+		$this->assertSame( 8, $count( '' ) );
+
+		$csv = AuditLogAdmin::export_csv( array_merge( $filters, array( 'source' => 'admin' ) ) );
+		$this->assertStringContainsString( '"id","created_at_utc","action","object_type","object_id","actor_user_id","actor_login","source","reason"', $csv );
+		$this->assertStringContainsString( '"a76_admin","license","' . $license . '","' . $this->manager . '",', $csv );
+		$this->assertStringContainsString( ',"admin","Checked"', $csv );
+		$this->assertStringNotContainsString( 'a76_webhook', $csv );
+
+		wp_set_current_user( $this->manager );
+		$detail = $this->render_detail( $license );
+		$this->assertStringContainsString( '<th scope="col">Source</th>', $detail );
+		$this->assertStringContainsString( '<td>Stripe webhook</td>', $detail );
+		$this->assertStringContainsString( '<td>Unknown</td>', $detail );
+
+		set_current_screen( 'woocommerce_page_' . AuditLogAdmin::PAGE );
+		$_GET = array(
+			'page'    => AuditLogAdmin::PAGE,
+			'license' => (string) $license,
+			'source'  => 'webhook',
+		);
+		ob_start();
+		AuditLogAdmin::render();
+		$page = (string) ob_get_clean();
+		$_GET = array();
+		$this->assertStringContainsString( 'name="source"', $page );
+		$this->assertStringContainsString( 'a76_webhook', $page );
+		$this->assertStringNotContainsString( 'a76_customer', $page );
+		$this->assertStringContainsString( 'source=webhook', html_entity_decode( $page ), 'The CSV export keeps the source filter.' );
 	}
 
 	public function test_p28_license_export_streams_emails_only_and_reports_the_cap(): void {

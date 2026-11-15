@@ -241,6 +241,7 @@ licenses, 30 000 renewals, 150 000 audit rows). No new index was needed:
 | source order ID | the order's items from `woocommerce_order_items.order_id`, then `order_unit` | 2 |
 | audit log, no filter | primary key, newest first | 50 |
 | audit log, object type (rare) / object ID alone | `object_history` ranges (the stored types are read with a loose index scan) | ≤ matches |
+| audit log, source (schema 23) | `source_entries (source)`; InnoDB appends the primary key, so the newest matches are read in index order | 50 |
 | audit log, date range | binary search over the primary key (IDs grow with `created_at`, as the retention job assumes) turns the range into an ID range | ~17 lookups + 50 |
 
 The licenses table has no index on `source_order_id`; a filter for an order

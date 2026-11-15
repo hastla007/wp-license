@@ -30,6 +30,7 @@ final class AuditReason {
 	public const DEACTIVATED_BY_INSTALLATION    = 'deactivated_by_installation';
 	public const DEACTIVATED_BY_OWNER           = 'deactivated_by_owner';
 	public const STAGING_DEACTIVATED_WITH_LIVE  = 'staging_deactivated_with_live';
+	public const SITE_MOVED_BY_OWNER            = 'site_moved_by_owner';
 	public const REFUNDED_ORDER_UNIT            = 'refunded_order_unit';
 	public const ORDER_REFUNDED                 = 'order_refunded';
 	public const ORDER_NUMBER_REFUNDED          = 'order_number_refunded';
@@ -209,6 +210,8 @@ final class AuditReason {
 			self::DEACTIVATED_BY_INSTALLATION    => array( __( 'Deactivated by the installation owner.', 'wp-license' ), array() ),
 			self::DEACTIVATED_BY_OWNER           => array( __( 'Deactivated by the license owner.', 'wp-license' ), array() ),
 			self::STAGING_DEACTIVATED_WITH_LIVE  => array( __( 'Staging site deactivated together with its live site.', 'wp-license' ), array() ),
+			/* translators: 1: ID of the license the site left, 2: ID of the license it moved to. */
+			self::SITE_MOVED_BY_OWNER            => array( __( 'Moved by the license owner from license #%1$d to license #%2$d.', 'wp-license' ), array( 'from', 'to' ) ),
 			// License lifecycle.
 			self::REFUNDED_ORDER_UNIT            => array( __( 'The order unit of this license was refunded.', 'wp-license' ), array() ),
 			self::ORDER_REFUNDED                 => array( __( 'The order was refunded in full.', 'wp-license' ), array() ),

@@ -13,7 +13,7 @@ Whether a *product* plugin (the license client) supports multisite, and whether 
 | Activation on a single site of a network | Tables are created for that site (`{site prefix}wplc_*`). Recommended. |
 | Network activation | The schema is created for the site the activation ran on, and updated on every other site of the network that already has plugin tables. A site that never used the plugin creates its tables on its first admin, WP-Cron or WP-CLI request, and only if WooCommerce is active there (`Schema::maybe_upgrade()` on `plugins_loaded`). Front-end and API requests never create tables. Sites without WooCommerce get no tables, routes or events; only the `wpmu_drop_tables` filter is registered there. |
 | New site in the network | Nothing at creation time. Tables appear on the first admin or cron request as above, so no `wp_initialize_site` handling is needed. |
-| Site is deleted | WordPress drops the site's tables; the plugin adds that site's `wplc_*` tables (all 15, including `wplc_reminder_log` and `wplc_consents`) to the list (`wpmu_drop_tables`), so no orphan tables stay behind. The filter is registered by `wp-license.php` itself as soon as the plugin file is loaded (on every site where the plugin is active or network-activated, also without WooCommerce and before `plugins_loaded`), because the deleting request usually runs on the main site. Besides the 15 schema tables it adds every other `{site prefix}wplc_*` table of that site, e.g. one left by an older version. This is the only place where license data is removed automatically — deleting a site is an explicit decision to delete its data. Export licenses first if they are still needed. |
+| Site is deleted | WordPress drops the site's tables; the plugin adds that site's `wplc_*` tables (all 15, including `wplc_reminder_log` and `wplc_consents`) to the list (`wpmu_drop_tables`), so no orphan tables stay behind. The filter is registered by `wp-license.php` itself as soon as the plugin file is loaded (on every site where the plugin is active or network-activated, also without WooCommerce and before `plugins_loaded`), because the deleting request usually runs on the main site. Besides the 15 schema tables it adds every other `{site prefix}wplc_*` table of that site, e.g. one left by an older version. This is the only place where license data is removed automatically — deleting a site is an explicit decision to delete its data. Export licenses first if they are still needed. If the plugin is active on that site only, see [Site cleanup helper](#site-cleanup-helper-must-use). |
 | Site is archived, deactivated or marked as spam | Nothing is changed or deleted. |
 | Plugin is deactivated on one site | The plugin's recurring events (`wplc_daily_lifecycle`, `wplc_cleanup_security_rows`, `wplc_send_reminders` and the other plugin hooks) are removed and the deactivation time is stored on that site only. |
 | Plugin is network-deactivated | The same is done on every site of the network that has plugin tables. Tables stay. |
@@ -39,6 +39,23 @@ define( 'WPLC_STRIPE_WEBHOOK_SECRETS', array(
 - Every PaymentIntent the plugin creates carries the site identifier in its metadata, and an event that belongs to another site or to the other mode (live/test) is refused instead of ending in manual review. Details: [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md).
 - The settings page and the diagnostics page of each site show whether a secret is configured for that site (`StripeWebhook::is_configured()`), and the time of the last valid event per mode.
 
+## Site cleanup helper (must-use)
+
+Optional, for networks on which the plugin is active on single sites only. The plugin ships `mu-plugins/wplc-site-cleanup.php`. Once it is in `wp-content/mu-plugins/` WordPress loads it in every request, so deleting a site drops that site's `wplc_*` tables even when the plugin itself is not loaded in that request.
+
+```
+wp wplc schema install-mu-helper          # asks for confirmation; --yes skips it
+wp wplc schema remove-mu-helper --yes
+```
+
+Copying the file by hand into `wp-content/mu-plugins/` (or `WPMU_PLUGIN_DIR`) works the same way.
+
+- It hooks `wpmu_drop_tables` and adds only tables whose name is exactly the deleted site's prefix followed by `wplc_` (`wp_2_wplc_licenses` for site 2, never `wp_22_wplc_licenses`). It does nothing for the main site, on a single site, or when another plugin passes no list.
+- It has no other dependency on the plugin: it keeps working when the plugin is deactivated or deleted (tables stay on uninstall unless `WPLC_REMOVE_ALL_DATA` is set). With the plugin loaded as well, both filters run and the list is de-duplicated.
+- Installing it is a decision to delete license data together with a site, like the plugin's own filter. Export licenses of a site before deleting it if they are still needed.
+- `install-mu-helper` replaces an older copy of the helper after an update of the plugin and never overwrites another file of that name; `remove-mu-helper` deletes only the helper (recognised by its header line `WPLC MU Helper: site-cleanup`). The helper is not updated automatically.
+- The diagnostics page of each site on a network shows the state: installed, older copy, missing (a warning unless the plugin is network-activated) or another file with that name.
+
 ## Verified
 
 Verified on 2026-11-14 with WordPress 7.1.4, WooCommerce 11.2.2, PHP 8.3, MariaDB, subdirectory network (before the two development lines were merged; the network deactivation now also stores the deactivation time per site):
@@ -50,7 +67,7 @@ Defects found and fixed during verification: network deactivation and uninstall 
 
 ## Known limits
 
-- `wpmu_drop_tables` only runs in a request where the plugin is loaded. If the plugin is active on a sub-site only (not network-activated, not active on the main site) and that site is deleted from the network admin, WordPress does not load the plugin file at all in that request, so no code of the plugin can add the tables, and they stay. Network-activate the plugin, or activate it on the main site as well, to avoid this. Leftovers are listed by `wp wplc schema orphans` (tables `{base prefix}{id}_wplc_*` of site IDs that no longer exist) and dropped with `wp wplc schema orphans --drop` after a confirmation. Nothing is dropped automatically: another installation sharing the database could use a prefix such as `wp_7_`.
+- `wpmu_drop_tables` only runs in a request where the plugin is loaded. If the plugin is active on a sub-site only (not network-activated, not active on the main site) and that site is deleted from the network admin, WordPress does not load the plugin file at all in that request, so the plugin's own filter cannot add the tables, and they stay. Install the optional must-use helper (see [Site cleanup helper](#site-cleanup-helper-must-use)), network-activate the plugin, or activate it on the main site as well. Leftovers are listed by `wp wplc schema orphans` (tables `{base prefix}{id}_wplc_*` of site IDs that no longer exist) and dropped with `wp wplc schema orphans --drop` after a confirmation. Nothing is dropped automatically: another installation sharing the database could use a prefix such as `wp_7_`.
 - Uploaded packages of a deleted site are removed by WordPress together with the site's upload directory. A directory moved with `wplc_package_storage_dir` is not touched.
 - Network activation creates the schema only for the site it runs on and for sites that already have plugin tables; every other site creates its tables on its first admin or cron request. Until then a site has no tables (nothing is lost: there is no data yet either).
 - The staging guard compares per site. Changing the domain of one site of the network pauses billing on that site until an administrator of the site (capability `manage_options`) confirms it.

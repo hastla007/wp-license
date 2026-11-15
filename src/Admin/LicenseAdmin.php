@@ -245,7 +245,7 @@ final class LicenseAdmin {
 		$table->prepare_items();
 		$filters = LicenseListTable::request_filters();
 
-		echo '<div class="wrap">';
+		echo '<div class="wrap wplc-license-list">';
 		echo '<h1 class="wp-heading-inline">' . esc_html__( 'Licenses', 'wp-license' ) . '</h1> ';
 		if ( Capabilities::can( 'grant_licenses' ) ) {
 			echo '<a href="' . esc_url( self::add_url() ) . '" class="page-title-action">' . esc_html__( 'Add license manually', 'wp-license' ) . '</a> ';

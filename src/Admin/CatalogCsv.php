@@ -83,7 +83,7 @@ final class CatalogCsv {
 			wp_die( esc_html__( 'You do not have permission to manage license mappings.', 'wp-license' ), '', array( 'response' => 403 ) );
 		}
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'License catalog CSV', 'wp-license' ) . '</h1>';
+		echo '<div class="wrap wplc-catalog-csv"><h1>' . esc_html__( 'License catalog CSV', 'wp-license' ) . '</h1>';
 		self::render_result();
 		echo '<p>' . esc_html__( 'CSV contains product IDs, variation IDs, SKU, plan keys, billing interval, site limit, support level, and entitlements. It never contains license keys or customer data. Import matches both IDs and SKU to avoid applying another shop’s mapping accidentally.', 'wp-license' ) . '</p>';
 

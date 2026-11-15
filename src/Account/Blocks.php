@@ -21,6 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   the editor shows a placeholder, because the list belongs to the visitor.
  * - Shortcode `[wplc_changelog product="…" limit="10"]` and block `wplc/changelog`:
  *   the release notes of the published stable versions of a product, highest first.
+ * - Shortcode `[wplc_pricing product="…" highlight="…" show_features="yes"]` and block
+ *   `wplc/pricing`: the plans of a product with prices and a buy link (PricingTable).
  *
  * The editor script needs no build step and contains no translatable strings;
  * the labels come from PHP (wp_add_inline_script()).
@@ -45,10 +47,11 @@ final class Blocks {
 	public static function register_hooks(): void {
 		add_action( 'init', array( self::class, 'register_blocks' ) );
 		add_shortcode( 'wplc_changelog', array( self::class, 'changelog_shortcode' ) );
+		add_shortcode( 'wplc_pricing', array( PricingTable::class, 'shortcode' ) );
 	}
 
 	/**
-	 * Register the editor script and the two dynamic blocks.
+	 * Register the editor script and the dynamic blocks.
 	 *
 	 * @return void
 	 */
@@ -101,6 +104,31 @@ final class Blocks {
 				'render_callback' => array( self::class, 'render_changelog_block' ),
 			)
 		);
+		register_block_type(
+			'wplc/pricing',
+			array(
+				'api_version' => '3',
+				'title' => __( 'Pricing table', 'wp-license' ),
+				'category' => 'widgets',
+				'editor_script_handles' => array( 'wplc-blocks' ),
+				'supports' => array( 'html' => false ),
+				'attributes' => array(
+					'product' => array(
+						'type' => 'string',
+						'default' => '',
+					),
+					'highlight' => array(
+						'type' => 'string',
+						'default' => '',
+					),
+					'showFeatures' => array(
+						'type' => 'boolean',
+						'default' => true,
+					),
+				),
+				'render_callback' => array( PricingTable::class, 'render_block' ),
+			)
+		);
 	}
 
 	/**
@@ -118,6 +146,10 @@ final class Blocks {
 			'changelogProduct' => __( 'Product key', 'wp-license' ),
 			'changelogLimit' => __( 'Number of versions', 'wp-license' ),
 			'changelogPlaceholder' => __( 'Enter the product key in the block settings.', 'wp-license' ),
+			'pricingTitle' => __( 'Pricing table', 'wp-license' ),
+			'pricingDescription' => __( 'The plans of a license product with prices, sites, features and a buy button.', 'wp-license' ),
+			'pricingHighlight' => __( 'Highlighted plan key', 'wp-license' ),
+			'pricingFeatures' => __( 'Show features', 'wp-license' ),
 		);
 	}
 

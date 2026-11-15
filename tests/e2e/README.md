@@ -165,7 +165,8 @@ executed through the Action Scheduler runner regardless of their scheduled date
 - Real mail delivery (mails are captured before sending) and mail client rendering.
 - Anything that needs a browser: JavaScript of the product editor and account page, the block
   checkout, the classic checkout form POST (orders are created through `WC_Checkout::create_order()`
-  with the real hooks), WooCommerce settings screens.
+  with the real hooks), WooCommerce settings screens. These are covered by the separate browser
+  pass on top of this site, `tests/browser/run-browser.sh` (see docs/BROWSER-ACCEPTANCE.md).
 - Multisite, object caches, real web servers (Apache/nginx rules for the package directory).
 
 ## CI

@@ -76,11 +76,11 @@ final class EntitlementCatalogTest extends TestCase {
 				'voucher.location_limit'  => 3,
 				'voucher.multi_location'  => true,
 				'affiliate.program_limit' => 3,
-				'pass.pos'                => true,
+				'pass.card_terminal'      => true,
 			)
 		);
 
-		$this->assertSame( array( 'voucher.qr_redemption', 'pass.pos' ), $split['checked'] );
+		$this->assertSame( array( 'voucher.qr_redemption', 'pass.card_terminal' ), $split['checked'] );
 		$this->assertSame(
 			array(
 				'voucher.reports'         => false,
@@ -144,8 +144,8 @@ final class EntitlementCatalogTest extends TestCase {
 	}
 
 	public function test_unticking_a_box_removes_the_entitlement(): void {
-		$split   = EntitlementCatalog::split( array( 'pass.pos' => true, 'pass.seating' => true ) );
-		$checked = array_values( array_diff( $split['checked'], array( 'pass.pos' ) ) );
+		$split   = EntitlementCatalog::split( array( 'pass.card_terminal' => true, 'pass.seating' => true ) );
+		$checked = array_values( array_diff( $split['checked'], array( 'pass.card_terminal' ) ) );
 
 		$this->assertSame( array( 'pass.seating' => true ), EntitlementCatalog::merge( $checked, $split['advanced'] ) );
 	}

@@ -52,6 +52,7 @@ final class AuditLogTable extends \WP_List_Table {
 			'action'     => __( 'Action', 'wp-license' ),
 			'object'     => __( 'Object', 'wp-license' ),
 			'actor'      => __( 'By', 'wp-license' ),
+			'source'     => __( 'Source', 'wp-license' ),
 			'reason'     => __( 'Reason', 'wp-license' ),
 			'change'     => __( 'Change', 'wp-license' ),
 		);
@@ -177,6 +178,16 @@ final class AuditLogTable extends \WP_List_Table {
 
 		// Login and ID, which a user cannot change (B-135), as on the license detail screen.
 		return esc_html( LicenseDetail::actor_label( $actor_id, $actor ? (string) $actor->user_login : '' ) );
+	}
+
+	/**
+	 * Where the entry came from (A-76).
+	 *
+	 * @param array<string,mixed> $item Audit row.
+	 * @return string
+	 */
+	protected function column_source( $item ) {
+		return esc_html( AuditLogAdmin::source_label( isset( $item['source'] ) ? (string) $item['source'] : '' ) );
 	}
 
 	/**

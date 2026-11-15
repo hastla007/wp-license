@@ -14,6 +14,7 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 
 | Hook | Where | Summary |
 | --- | --- | --- |
+| `wplc/activation_transferred` | `src/License/ActivationTransfer.php` | Fires after a customer moved a site activation to another of their licenses (A-22). |
 | `wplc/api_request_rejected` | `src/Api/V1/ApiLog.php` | Fires for every error answer of the license API. |
 | `wplc/auto_renewal_disabled` | `src/Maintenance/RenewalSwitch.php` | Fires after automatic renewal was switched off because its basis is gone. |
 | `wplc/cancellation_scheduled` | `src/Notifications/Notifications.php` |  |
@@ -60,6 +61,7 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc_account_license_view` | `src/Account/CustomerPortal.php` | Filter the display values of one license in the customer account. |
 | `wplc_admin_can_raise_renewal_amount` | `src/Admin/SupportActions.php` | Filters whether an administrator may raise the automatic renewal amount of a license. |
 | `wplc_audit_action_labels` | `src/Admin/Format.php` | Filters the readable names of audit actions on the admin screens. |
+| `wplc_audit_source` | `src/License/AuditLog.php` | Filter the source stored with an audit entry (A-76). |
 | `wplc_billing_paused` | `src/Maintenance/SiteGuard.php` | Filter whether billing is paused on this installation. |
 | `wplc_block_checkout_consent_enabled` | `src/Billing/BlockCheckoutConsent.php` | Filters whether the automatic renewal opt-in is offered in the block checkout. |
 | `wplc_block_checkout_consent_without_rule` | `src/Billing/BlockCheckoutConsent.php` | Filters whether the block checkout offers the automatic renewal opt-in when |
@@ -103,6 +105,7 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc_package_storage_probe` | `src/Update/PackageStorageCheck.php` | Filters whether the package directory may be probed over HTTP. |
 | `wplc_payment_token_id_for_order` | `src/License/LicenseIssuer.php` |  |
 | `wplc_plan_label` | `src/Notifications/Notifications.php` | Filter the plan name shown to customers. |
+| `wplc_pricing_table_plans` | `src/Account/PricingTable.php` | Filters the plans of the pricing table (block `wplc/pricing`, shortcode `[wplc_pricing]`). |
 | `wplc_product_docs_url` | `src/Notifications/Notifications.php` | Filter the documentation URL shown with the installation steps. |
 | `wplc_public_cancel_hourly_limit` | `src/Account/PublicCancellation.php` | Filter how many public cancellation requests are accepted per hour, |
 | `wplc_public_cancel_order_id` | `src/Account/PublicCancellation.php` | Filter the order ID for an order number typed on the public cancellation |
@@ -111,6 +114,7 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc_release_product_slug` | `src/Update/ReleaseRegistry.php` | Filters the plugin folder a product's packages must contain. |
 | `wplc_reminder_lead_days` | `src/Notifications/Notifications.php` | Filter the days before paid_until on which expiry reminders are sent. |
 | `wplc_reminder_time_budget` | `src/Notifications/Notifications.php` | Filter the seconds a reminder run may take before it continues in a later run. |
+| `wplc_renew_instead_notice` | `src/Billing/RenewInsteadNotice.php` | Filter the "Renew instead" notice for one license in the cart (A-22). |
 | `wplc_renewal_charge_allowed` | `src/Billing/RenewalProcessor.php` | Filters whether a due renewal may be charged now (B-41). |
 | `wplc_renewal_display_amount` | `src/Notifications/RenewalTerms.php` | Filter the displayed amount of the next renewal. |
 | `wplc_renewal_grace_days` | `src/License/LicenseLifecycle.php` | Filters the renewal grace period in days (A-135). |

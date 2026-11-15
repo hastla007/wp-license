@@ -10,6 +10,7 @@ namespace WPLC\Admin;
 use WPLC\Api\V1\ClientIp;
 use WPLC\Compatibility\Requirements;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\Infrastructure\Database\SiteCleanupHelper;
 use WPLC\License\LicenseLifecycle;
 use WPLC\Update\LocalPackageStorage;
 use WPLC\Update\PackageStorageCheck;
@@ -77,6 +78,7 @@ final class Diagnostics {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ), 30 );
 		add_action( 'admin_notices', array( self::class, 'render_daily_run_notice' ) );
 		add_action( 'admin_post_wplc_storage_recheck', array( self::class, 'handle_storage_recheck' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 		// The heartbeat brackets of the daily chain (mark_daily_started/_finished) are written by
 		// Maintenance\DailyRunner, which also isolates the jobs and writes one heartbeat per job.
 		// The alarm runs after the work it reports on.
@@ -85,6 +87,21 @@ final class Diagnostics {
 		foreach ( array_keys( self::EVENT_ALERTS ) as $hook ) {
 			add_action( $hook, array( self::class, 'forward_event_alert' ), 99, 0 );
 		}
+	}
+
+	/**
+	 * Load the license screen stylesheet on the diagnostics page, so its tables scroll inside
+	 * themselves on narrow screens (A-126).
+	 *
+	 * @return void
+	 */
+	public static function enqueue_assets(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Screen detection only.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		if ( self::PAGE !== $page ) {
+			return;
+		}
+		wp_enqueue_style( 'wplc-admin', plugins_url( 'assets/css/wplc-admin.css', WPLC_FILE ), array(), \WPLC\Account\CustomerPortal::asset_version( 'assets/css/wplc-admin.css' ) );
 	}
 
 	/**
@@ -900,6 +917,9 @@ final class Diagnostics {
 			$missing ? 'warning' : 'ok',
 			$missing ? __( 'These tables are missing. Deactivate and reactivate the plugin.', 'wp-license' ) : ''
 		);
+		if ( is_multisite() ) {
+			self::add_site_cleanup_row( $add );
+		}
 		// Target/actual comparison of every column (Schema::status()).
 		$structure = Schema::status()['problems'];
 		$add(
@@ -1190,6 +1210,35 @@ final class Diagnostics {
 	}
 
 	/**
+	 * Multisite: whether a deleted site's tables are dropped also without the plugin (P-32).
+	 *
+	 * @param callable $add Row callback of rows().
+	 * @return void
+	 */
+	private static function add_site_cleanup_row( callable $add ): void {
+		$label  = __( 'Site cleanup helper (must-use)', 'wp-license' );
+		$status = SiteCleanupHelper::status();
+		if ( SiteCleanupHelper::STATUS_INSTALLED === $status ) {
+			$add( $label, __( 'Installed', 'wp-license' ), 'ok' );
+			return;
+		}
+		if ( SiteCleanupHelper::STATUS_OUTDATED === $status ) {
+			$add( $label, __( 'Older copy installed', 'wp-license' ), 'warning', __( 'Run wp wplc schema install-mu-helper to replace it with the version shipped with this plugin.', 'wp-license' ) );
+			return;
+		}
+		if ( SiteCleanupHelper::STATUS_FOREIGN === $status ) {
+			/* translators: %s: file name. */
+			$add( $label, sprintf( __( 'Another file named %s is in the must-use directory', 'wp-license' ), SiteCleanupHelper::FILE_NAME ), 'warning' );
+			return;
+		}
+		if ( function_exists( 'is_plugin_active_for_network' ) && defined( 'WPLC_FILE' ) && is_plugin_active_for_network( plugin_basename( WPLC_FILE ) ) ) {
+			$add( $label, __( 'Not installed (not needed while the plugin is network-activated)', 'wp-license' ) );
+			return;
+		}
+		$add( $label, __( 'Not installed', 'wp-license' ), 'warning', __( 'If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/MULTISITE.md).', 'wp-license' ) );
+	}
+
+	/**
 	 * Plugin tables that do not exist.
 	 *
 	 * @return string[]
@@ -1211,7 +1260,7 @@ final class Diagnostics {
 	public static function render(): void {
 		Capabilities::require_cap( 'view_diagnostics', __( 'You do not have permission to view diagnostics.', 'wp-license' ) );
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'WP License Captain diagnostics', 'wp-license' ) . '</h1>';
+		echo '<div class="wrap wplc-diagnostics"><h1>' . esc_html__( 'WP License Captain diagnostics', 'wp-license' ) . '</h1>';
 		echo '<p>' . esc_html__( 'Read-only environment details for support. No license key, installation secret, token, or payment credential is displayed.', 'wp-license' ) . '</p>';
 		echo '<table class="widefat striped"><tbody>';
 		foreach ( self::rows() as $row ) {

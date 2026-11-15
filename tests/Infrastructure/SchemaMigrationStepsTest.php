@@ -264,16 +264,36 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$property->setAccessible( true );
 		$steps = $property->getValue();
 
-		$this->assertSame( '22', Schema::VERSION );
 		$this->assertSame( 'step_22_lookup_indexes', $steps['22'][1] );
-		$this->assertSame( array( '22' ), Schema::pending_step_versions( '21', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '22' ), Schema::pending_step_versions( '21', '22', array_keys( $steps ) ) );
 		// Installs of either development line run the merge step and step 22.
-		$this->assertSame( array( '21', '22' ), Schema::pending_step_versions( '20', Schema::VERSION, array_keys( $steps ) ) );
-		$this->assertSame( array( '18', '19', '21', '22' ), Schema::pending_step_versions( '17', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '21', '22' ), Schema::pending_step_versions( '20', '22', array_keys( $steps ) ) );
+		$this->assertSame( array( '18', '19', '21', '22' ), Schema::pending_step_versions( '17', '22', array_keys( $steps ) ) );
 
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
 		$this->assertStringContainsString( 'KEY payment_token (payment_token_id)', $source );
 		$this->assertStringContainsString( 'KEY source_received (source,received_at)', $source );
+	}
+
+	/**
+	 * A-76: schema 23 stores the source of every audit entry; installs on 22 run only step 23.
+	 */
+	public function test_schema_23_adds_the_audit_source_step(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$property->setAccessible( true );
+		$steps = $property->getValue();
+
+		$this->assertSame( '23', Schema::VERSION );
+		$this->assertSame( \WPLC\License\AuditLog::SOURCE_SCHEMA, Schema::VERSION );
+		$this->assertSame( 'step_23_audit_source', $steps['23'][1] );
+		$this->assertSame( array( '23' ), Schema::pending_step_versions( '22', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '22', '23' ), Schema::pending_step_versions( '21', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '21', '22', '23' ), Schema::pending_step_versions( '20', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '18', '19', '21', '22', '23' ), Schema::pending_step_versions( '17', Schema::VERSION, array_keys( $steps ) ) );
+
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		$this->assertStringContainsString( "source varchar(20) NOT NULL DEFAULT ''", $source );
+		$this->assertStringContainsString( 'KEY source_entries (source)', $source );
 	}
 
 	public function test_create_statements_contain_the_columns_of_both_lines(): void {

@@ -12,7 +12,7 @@ The work items themselves live in [TODO.md](TODO.md), the single task list. This
 - [ ] CI green on the release commit: lint, unit tests, integration tests, coding standards, static analysis (T-80).
 - [ ] Release ZIP built by CI, installed on a clean WordPress with WooCommerce, activated without errors or notices (T-95).
 - [ ] Update from the previous schema version runs without data loss (T-60).
-- [ ] The declared WooCommerce minimum (8.9) has run the integration suite once, or the minimum is raised to the oldest version CI runs (9.4). Versions 8.9 to 9.3 have never run (A-91).
+- [ ] The declared minimums (WordPress 6.5, WooCommerce 8.9, PHP 7.4; `wp-license.php`, `Requirements::MIN_WC`) pass the integration suite in CI: the matrix cell WordPress 6.5 / WooCommerce 8.9.3 / PHP 7.4 (HPOS and legacy orders) is green on the release commit. If it cannot be made green, the minimum is raised to the oldest version that is (A-91).
 - [ ] German and English admin and customer texts checked on screen; `languages/` is in the ZIP (T-76).
 - [ ] The plugin header keeps `Update URI: https://github.com/hastla007/wp-license` (P-33). WordPress then never asks WordPress.org for updates of this plugin, so a foreign plugin with the slug `wp-license` can never be offered as an update. The URI identifies the vendor's repository; WordPress itself fetches nothing from it. The plugin itself answers `update_plugins_github.com` for its own file with the latest GitHub release, without a package (A-42): the shop sees that an update exists and installs the verified ZIP by hand (docs/PRODUCTION-OPERATIONS.md, "Updating the license server plugin itself").
 
@@ -59,7 +59,7 @@ The work items themselves live in [TODO.md](TODO.md), the single task list. This
 
 - [ ] Every remaining [KRITISCH] and [WICHTIG] task in TODO.md is closed or explicitly accepted as a known limitation in the release notes.
 - [ ] LAUNCH-EVIDENCE.md filled in (T-96).
-- [ ] Version, changelog and `readme.txt` updated; release owner has signed off.
+- [ ] Version (0.2.0 in `wp-license.php` header, `WPLC_VERSION` and `readme.txt` stable tag), schema number in the `readme.txt` changelog (`Schema::VERSION`), changelog and `readme.txt` updated; release owner has signed off.
 
 ## Rule
 

@@ -94,9 +94,9 @@ wp wplc sync-entitlements --product=voucher-captain-pro --plan=business --apply 
 | Voucher Captain Business | Solo plus `voucher.qr_redemption`, `voucher.partial_balance`, `voucher.staff_roles`, `voucher.scheduled_delivery`, `voucher.bulk_import_export`, `voucher.reports`; live sites: 5 |
 | Voucher Captain Agency | Business plus `voucher.white_label`, `voucher.priority_support`; live sites: 25 |
 | WP Pass Captain (core, free on WordPress.org) | No entitlements. Every core feature works without a license, a key or a server call. |
-| WP Pass Captain Pro | Core plus `pass.woocommerce_sales`, `pass.membership_passes`, `pass.campaign_codes`, `pass.waitlist`, `pass.csv_export`; live sites: 1 |
-| WP Pass Captain Business | Pro plus `pass.seating`, `pass.service_slots`, `pass.pos`, `pass.offline_checkin`, `pass.advanced_reports`, `pass.api_webhooks`; live sites: 5 |
-| WP Pass Captain Agency | Business plus `pass.white_label`, `pass.priority_support`; live sites: 25 |
+| WP Pass Captain Pro | Core plus `pass.e_invoicing`, `pass.card_terminal`, `pass.white_label`, `pass.waiting_room`, `pass.write_api`; live sites: 1 |
+| WP Pass Captain Business | Same Pro functions; live sites: 5 |
+| WP Pass Captain Agency | Same Pro functions plus `pass.priority_support`; live sites: 25 |
 
 **Open for Affiliate Captain (A-90, depends on T-42):** the Starter keys `affiliate.partner_portal`, `affiliate.coupon_attribution`, `affiliate.order_refund_handling`, `affiliate.basic_commissions` and `affiliate.manual_payout_csv` name functions that look like core functions of the free plugin, and they are still offered as tick boxes in the product editor (`EntitlementCatalog`). Under the rule above, a core function is never license-gated. Until the catalog is decided, the core plugin must not check these keys, an add-on checks only keys of functions it ships itself, and no plan should differ from another only by one of them. Once decided, keys that turn out to be core functions are removed from the catalog and listed under [Removed keys](#removed-keys).
 
@@ -144,4 +144,5 @@ Removed on 14 Nov 2026 by decision of the owner. Licenses that stored one of the
 | `pass.client_license_management` | Same as above. | Customer account → **Sites**. |
 | `pass.team_assignment` | Ships in the free core: seven staff roles and per-event check-in staff. | Pass Captain (core). |
 | `affiliate.bonuses` | Ships in the free core: monthly tier bonuses (marginal or retroactive). | Affiliate Captain (core). |
+| `pass.woocommerce_sales`, `pass.membership_passes`, `pass.campaign_codes`, `pass.waitlist`, `pass.csv_export`, `pass.seating`, `pass.service_slots`, `pass.pos`, `pass.offline_checkin`, `pass.advanced_reports`, `pass.api_webhooks` | Pass Pro was re-cut on 14 Nov 2026 (captain-pro `docs/PASS-PRO.md`): these functions ship in the free Pass core; Pass Pro sells e-invoicing, card terminal, white label, waiting room and write API, in every plan (plans differ by sites). | Pass Captain (core). |
 

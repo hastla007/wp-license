@@ -161,12 +161,28 @@ final class SiteOverview {
 	 * @return void
 	 */
 	public static function enqueue_assets(): void {
-		if ( ! function_exists( 'is_wc_endpoint_url' ) || ! is_wc_endpoint_url( self::ENDPOINT ) || ! defined( 'WPLC_FILE' ) ) {
+		if ( ! self::is_current_page() ) {
 			return;
 		}
-		$version = defined( 'WPLC_VERSION' ) ? WPLC_VERSION : false;
-		wp_enqueue_style( 'wplc-account', plugins_url( 'assets/css/wplc-account.css', WPLC_FILE ), array(), $version );
-		wp_enqueue_script( 'wplc-ui', plugins_url( 'assets/js/wplc-ui.js', WPLC_FILE ), array(), $version, true );
+		CustomerPortal::enqueue_now();
+	}
+
+	/**
+	 * Whether the current request shows the site overview.
+	 *
+	 * Not is_wc_endpoint_url(): that only knows endpoints registered as WooCommerce query vars,
+	 * and this one is a plain rewrite endpoint. Found by tests/browser: the page was rendered
+	 * without its stylesheet and without the confirmation script of the Deactivate button.
+	 *
+	 * @return bool
+	 */
+	public static function is_current_page(): bool {
+		global $wp;
+		if ( ! defined( 'WPLC_FILE' ) || ! function_exists( 'is_account_page' ) || ! is_account_page() ) {
+			return false;
+		}
+
+		return isset( $wp ) && is_object( $wp ) && is_array( $wp->query_vars ) && array_key_exists( self::ENDPOINT, $wp->query_vars );
 	}
 
 	// ------------------------------------------------------------------

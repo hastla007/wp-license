@@ -12,8 +12,8 @@
  *
  * @var array<string,mixed> $view Display values, see CustomerPortal::license_view(): id, license (database row), title,
  *                                plan, reference, status, status_label, status_help, key, valid_until, sites_text,
- *                                running, renewal_text, renewal_terms, pay_url, can_renew, activations, download_hint,
- *                                install_steps, docs_url.
+ *                                running, renewal_text, renewal_terms, pay_url, can_renew, activations, transfer_targets,
+ *                                download_hint, install_steps, docs_url.
  */
 
 use WPLC\Account\CustomerPortal;
@@ -145,7 +145,11 @@ do_action( 'wplc_before_account_license', $wplc_license, $view );
 						<td data-title="<?php esc_attr_e( 'Site', 'wp-license' ); ?>"><?php echo esc_html( (string) $wplc_site['site_url'] ); ?></td>
 						<td data-title="<?php esc_attr_e( 'Environment', 'wp-license' ); ?>"><?php echo esc_html( (string) $wplc_site['environment'] ); ?></td>
 						<td data-title="<?php esc_attr_e( 'Activated', 'wp-license' ); ?>"><?php echo esc_html( (string) $wplc_site['activated'] ); ?></td>
-						<td data-title="<?php esc_attr_e( 'Actions', 'wp-license' ); ?>"><?php CustomerPortal::render_deactivate_form( (int) $wplc_site['id'], (string) $wplc_site['site_url'] ); ?></td>
+						<td data-title="<?php esc_attr_e( 'Actions', 'wp-license' ); ?>"><?php
+						CustomerPortal::render_deactivate_form( (int) $wplc_site['id'], (string) $wplc_site['site_url'] );
+						// A-22: move the site to a newer license of the same product.
+						CustomerPortal::render_transfer_forms( $wplc_site, $view );
+						?></td>
 					</tr>
 				<?php endforeach; ?>
 			</tbody>

@@ -205,5 +205,37 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( array(), Schema::verify() );
 		$plan = $wpdb->get_results( $wpdb->prepare( "EXPLAIN SELECT id FROM {$tables['licenses']} WHERE payment_token_id = %d", 42 ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
 		$this->assertSame( 'payment_token', (string) $plan[0]['key'], 'The token lookup uses the index.' );
+
+		// Schema 23 (A-76): the source of every audit entry; older rows keep the empty default.
+		$this->assertTrue( Schema::run_registered_step( '23' ), 'Step 23 finds column and index.' );
+		$this->assertTrue( Schema::run_registered_step( '23' ), 'Step 23 is repeatable.' );
+		$wpdb->insert( $tables['audit_log'], array( 'action' => 'old_row', 'object_type' => 'license', 'object_id' => 0, 'reason' => '', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+		$old_row = (int) $wpdb->insert_id;
+		$this->assertSame( '', (string) $wpdb->get_var( $wpdb->prepare( "SELECT source FROM {$tables['audit_log']} WHERE id = %d", $old_row ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		\WPLC\License\AuditLog::record( 'schema_test', 'license', 0 );
+		$this->assertSame( 'system', (string) $wpdb->get_var( $wpdb->prepare( "SELECT source FROM {$tables['audit_log']} WHERE action = %s ORDER BY id DESC LIMIT 1", 'schema_test' ) ), 'record() fills the source.' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['audit_log']} WHERE action IN ( %s, %s )", 'old_row', 'schema_test' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		$wpdb->query( "ALTER TABLE {$tables['audit_log']} DROP INDEX source_entries" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name from Schema.
+		$this->assertFalse( Schema::run_registered_step( '23' ), 'Step 23 reports the missing index.' );
+		$wpdb->query( "ALTER TABLE {$tables['audit_log']} DROP COLUMN source" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name from Schema.
+		$this->assertFalse( Schema::run_registered_step( '23' ), 'Step 23 reports the missing column.' );
+		$this->assertNotSame( array(), Schema::verify(), 'The structure check sees the lost column.' );
+		// Until the column is back, a request that does not migrate still records (without the source).
+		// (The stored version is only filtered: DDL commits the test transaction, so a changed option would stay.)
+		$schema_22 = static function () {
+			return '22';
+		};
+		add_filter( 'pre_option_' . Schema::VERSION_OPTION, $schema_22 );
+		\WPLC\License\AuditLog::record( 'schema_test', 'license', 0 );
+		remove_filter( 'pre_option_' . Schema::VERSION_OPTION, $schema_22 );
+		$this->assertSame( '', $wpdb->last_error, 'An entry before schema 23 is written without the source column.' );
+		$this->assertSame( '1', (string) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['audit_log']} WHERE action = %s", 'schema_test' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['audit_log']} WHERE action = %s", 'schema_test' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		$this->assertTrue( Schema::migrate(), 'dbDelta adds column and index again.' );
+		$this->assertSame( Schema::VERSION, (string) get_option( Schema::VERSION_OPTION ) );
+		$this->assertTrue( Schema::run_registered_step( '23' ) );
+		$this->assertSame( array(), Schema::verify() );
+		$plan = $wpdb->get_results( $wpdb->prepare( "EXPLAIN SELECT id FROM {$tables['audit_log']} WHERE source = %s ORDER BY id DESC LIMIT 50", 'webhook' ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		$this->assertSame( 'source_entries', (string) $plan[0]['key'], 'The source filter uses the index.' );
 	}
 }

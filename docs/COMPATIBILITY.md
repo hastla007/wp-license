@@ -6,14 +6,17 @@ These are the combinations the integration suite runs against in CI (`.github/wo
 
 | WordPress | WooCommerce | PHP | Order storage | Installation |
 |---|---|---|---|---|
+| 6.5 (latest 6.5.x) | 8.9.3 | 7.4 | HPOS | single site |
+| 6.5 (latest 6.5.x) | 8.9.3 | 7.4 | legacy posts | single site |
 | 6.5 (latest 6.5.x) | 9.4.3 | 7.4 | HPOS | single site |
 | 6.5 (latest 6.5.x) | 9.4.3 | 7.4 | legacy posts | single site |
 | latest stable | 11.2.2 | 8.3 | HPOS | single site |
 | latest stable | 11.2.2 | 8.3 | legacy posts | single site |
 | latest stable | 11.2.2 | 8.3 | HPOS | multisite (subdirectory network) |
 
-- WordPress 6.5 and PHP 7.4 are the minimums declared in `wp-license.php`.
-- WooCommerce 9.4.3 declares WordPress 6.5 as its own minimum and is the oldest WooCommerce version the plugin is tested with; the pinned recent version (11.2.2) declares WordPress 7.0, which is why it is paired with the latest WordPress. The plugin header does not declare a WooCommerce minimum yet; until it does, treat 9.4 as the minimum.
+- WordPress 6.5, PHP 7.4 and WooCommerce 8.9 are the minimums declared in `wp-license.php` (`WC requires at least: 8.9`, checked at run time by `Requirements::MIN_WC`).
+- WooCommerce 8.9.3 is the last release of the declared minimum line (it needs WordPress 6.4 or later). The 8.9.3 cells were added to the matrix without a local run (the download was not reachable in the development environment); until CI has passed them once, 8.9 is a declared but unproven minimum.
+- WooCommerce 9.4.3 declares WordPress 6.5 as its own minimum and is the newest WooCommerce line that still supports it; the pinned recent version (11.2.2) declares WordPress 7.0, which is why it is paired with the latest WordPress.
 - "latest stable" WordPress is resolved at run time; the WooCommerce version is pinned in the workflow matrix and in `bin/install-test-env.sh` and must be raised by hand.
 - Database in CI: MySQL 8.0.
 - Unit tests and the syntax check additionally run on PHP 7.4, 8.1, 8.2 and 8.3 without WordPress.
@@ -22,7 +25,7 @@ These are the combinations the integration suite runs against in CI (`.github/wo
 
 - Multisite: the multisite cell runs the whole suite on a network plus `MultisiteIntegrationTest.php`; behavior and limits are in [MULTISITE.md](MULTISITE.md).
 
-Not part of the matrix and therefore unverified: multisite with WordPress 6.5 or legacy order storage (the latter passed locally), subdomain networks, MariaDB, PHP 8.4 and newer, WooCommerce versions between 9.4 and the pinned recent version, the WooCommerce Stripe gateway plugin, and a live Stripe account.
+Not part of the matrix and therefore unverified: multisite with WordPress 6.5 or legacy order storage (the latter passed locally), subdomain networks, MariaDB, PHP 8.4 and newer, WooCommerce versions between 8.9.3 and 9.4.3 and between 9.4.3 and the pinned recent version, the WooCommerce Stripe gateway plugin, and a live Stripe account.
 
 How to run a cell locally: see [QUALITY-GATES.md](QUALITY-GATES.md#integration-tests).
 

@@ -191,6 +191,21 @@ Eight reviewers (security admin/frontend, REST pentest, billing QA, client QA, p
   - No file-wide `phpcs:disable` remains; the baseline is down to 56 entries (P-56).
   - de_AT, de_CH and other German variants without their own file use the German translation (B-120).
 
+### Remaining items without owner decisions (15 Nov 2026, wave 3)
+
+- **Audit source (A-76):** every audit entry stores where it came from: CLI, cron/Action Scheduler, Stripe webhook, REST, admin, customer or internal (filter `wplc_audit_source`). The source can be filtered in the audit log and appears in the CSV export and in the license history. Database schema 23.
+- **Moving sites (A-22):** customers can move a site from an ended or ending license to a newer license of the same product in their account. The plugin keeps working without a new key, and the limits apply. Cart and checkout show a "Renew instead" hint to customers who already have an active or recently expired license. Nothing is moved automatically.
+- **Pricing table (B-117):** new block and shortcode `[wplc_pricing product="…"]` listing a product's plans with price (following the shop's tax display), term, site limit, features and a buy button.
+- **Pass Captain Pro catalog:** e-invoicing, card terminal, waiting room, write API and white label, in every plan; plans differ by number of sites. This follows the owner decision of 14 Nov 2026, and the former Pass keys moved to the free core.
+- **Browser acceptance (T-130, partly):** `tests/browser/run-browser.sh` runs Chromium through checkout, the account, all admin pages and the product editor at 1280/375 px and right-to-left.
+  - It fixed overflowing admin tables on phones (A-126).
+  - The "Sites" page now loads its stylesheet and the confirmation before "Deactivate".
+  - Long site addresses now wrap on phones.
+- **Multisite (P-32):** an optional must-use helper (`wp wplc schema install-mu-helper`) drops a deleted site's tables even when the plugin was only active there.
+- **Release checks (A-91):** CI also runs the declared minimum WordPress 6.5 / WooCommerce 8.9.3 / PHP 7.4. Version statements across README, readme.txt and the docs are consistent and checked by a test.
+- **Scheduling:** recurring events are no longer rescheduled once the plugin is inactive in the database. Before, a request that loaded the plugin before an uninstall could bring them back.
+- **Cleanup:** unused methods, constants and imports from the merged branches removed (A-136, partly).
+
 ### Behaviour changes in 0.2.0 (B-197)
 
 Compared with 0.1.0:

@@ -17,7 +17,7 @@ WP License Captain turns a WooCommerce shop into a license server for premium Wo
 
 **This version is not production-ready. Do not use it to sell licenses, charge renewals or distribute paid updates.**
 
-The code has unit tests for its pure logic, but it has not been accepted in a real shop: payment flows have not passed a gateway sandbox, the emails and scheduled jobs have only run in an automated test shop (WordPress with WooCommerce 11.2, see `tests/e2e/`), not in a live one. WordPress 6.5 and WooCommerce 8.9 are the declared minimums; WooCommerce versions between 8.9 and 9.3 have never been run. That is why this readme declares neither "Tested up to" nor a WooCommerce version range. The open work is tracked in `docs/TODO.md`.
+The code has unit tests for its pure logic, but it has not been accepted in a real shop: payment flows have not passed a gateway sandbox, the emails and scheduled jobs have only run in an automated test shop (WordPress with WooCommerce 11.2, see `tests/e2e/`), not in a live one. WordPress 6.5, WooCommerce 8.9 and PHP 7.4 are the declared minimums; the CI integration matrix runs WooCommerce 8.9.3, 9.4.3 and 11.2.2 (`docs/COMPATIBILITY.md`), WooCommerce versions in between have never been run. That is why this readme declares neither "Tested up to" nor a WooCommerce version range. The open work is tracked in `docs/TODO.md`.
 
 = What is implemented =
 
@@ -48,7 +48,7 @@ The code has unit tests for its pure logic, but it has not been accepted in a re
 
 * WordPress 6.5 or later
 * PHP 7.4 or later
-* WooCommerce 8.9 or later, active (tested with 9.4 and 11.2)
+* WooCommerce 8.9 or later, active (CI integration matrix: 8.9.3, 9.4.3 and 11.2.2)
 * HTTPS for the site, and a working WP-Cron (a system cron is recommended)
 
 == Installation ==
@@ -93,7 +93,7 @@ Scheduled jobs and the plugin's working state are removed. The `wplc_` database 
 = 0.2.0 =
 * Engineering preview, second consolidation: client library with pinned server key and WordPress updater, signed "deactivated" answers, release registry with package checks, Stripe payment references and webhook secrets per mode and site, staging guard, retention and privacy tools, customer account forms on the front end, graded admin capabilities.
 * An automatic renewal is only charged after its advance notice was sent; when the saved card is gone no other card is charged and the customer is told by email.
-* Database schema 22. Not production-ready.
+* Database schema 23. Not production-ready.
 
 = 0.1.0 =
 * Engineering preview: catalog mapping, license issuance and lifecycle, customer account page, admin tools, signed REST API, update delivery, opt-in renewal contract with an unvalidated Stripe adapter, customer emails, privacy exporter and eraser, data retention job, PHP client.
