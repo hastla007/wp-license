@@ -50,12 +50,24 @@ final class LicenseIssuer {
 	const PENDING_GRACE = 900;
 
 	/**
+	 * Visible order item meta (B-42): which licenses the line paid for. Shown on the order,
+	 * in emails and on invoices; the label is translated at display time (display_meta_key()).
+	 */
+	const ITEM_META_LICENSE = 'wplc_license';
+
+	/**
+	 * Visible order item meta (B-42): the first service period of the line, `Y-m-d – Y-m-d` (UTC).
+	 */
+	const ITEM_META_PERIOD = 'wplc_service_period';
+
+	/**
 	 * Register WooCommerce payment and paid-order hooks.
 	 *
 	 * @return void
 	 */
 	public static function register_hooks(): void {
 		add_action( 'woocommerce_payment_complete', array( self::class, 'maybe_issue_order' ), 20 );
+		add_filter( 'woocommerce_order_item_display_meta_key', array( self::class, 'display_meta_key' ), 10, 2 );
 		add_action( 'woocommerce_order_status_processing', array( self::class, 'maybe_issue_order' ), 20 );
 		add_action( 'woocommerce_order_status_completed', array( self::class, 'maybe_issue_order' ), 20 );
 		add_action( self::RETRY_HOOK, array( self::class, 'maybe_issue_order' ) );
@@ -152,12 +164,85 @@ final class LicenseIssuer {
 			if ( $issued ) {
 				// Read the complete list back: concurrent hooks for the same order each store
 				// every license of the item, so neither overwrites the other with a subset.
-				$item->update_meta_data( '_wplc_license_ids', self::issued_for_item( (int) $item_id, $issued ) );
+				$all_ids = self::issued_for_item( (int) $item_id, $issued );
+				$item->update_meta_data( '_wplc_license_ids', $all_ids );
+				self::describe_item( $item, $all_ids );
 				$item->save_meta_data();
 			}
 		}
 
 		self::record_outcome( $order, array_keys( $problems ) );
+	}
+
+	/**
+	 * B-42: write license reference and service period as visible item meta, so the
+	 * order, its emails and invoices say what the line paid for (renewal orders get the
+	 * same from RenewalOrder). Does not save the item.
+	 *
+	 * The license list follows the issued units; the period is written once and keeps
+	 * the first term even after later renewals moved the end date of the license.
+	 *
+	 * @param \WC_Order_Item_Product $item Order item.
+	 * @param int[]                  $license_ids Licenses issued for the item.
+	 * @return void
+	 */
+	public static function describe_item( $item, array $license_ids ): void {
+		global $wpdb;
+
+		$license_ids = array_values( array_filter( array_map( 'intval', $license_ids ) ) );
+		if ( ! $license_ids ) {
+			return;
+		}
+		$tables       = Schema::table_names();
+		$placeholders = implode( ',', array_fill( 0, count( $license_ids ), '%d' ) );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- table name from Schema::table_names() and a generated list of %d placeholders.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, key_prefix, starts_at, paid_until FROM {$tables['licenses']} WHERE id IN ({$placeholders}) ORDER BY unit_index ASC, id ASC",
+				$license_ids
+			),
+			ARRAY_A
+		);
+		// phpcs:enable
+		if ( ! is_array( $rows ) || ! $rows ) {
+			return;
+		}
+
+		$labels = array();
+		$starts = array();
+		$ends   = array();
+		foreach ( $rows as $row ) {
+			$labels[] = trim( sprintf( '#%d %s', (int) $row['id'], (string) $row['key_prefix'] ) );
+			if ( ! empty( $row['starts_at'] ) ) {
+				$starts[] = substr( (string) $row['starts_at'], 0, 10 );
+			}
+			if ( ! empty( $row['paid_until'] ) ) {
+				$ends[] = substr( (string) $row['paid_until'], 0, 10 );
+			}
+		}
+		$item->update_meta_data( self::ITEM_META_LICENSE, implode( ', ', $labels ) );
+		if ( $starts && $ends && '' === (string) $item->get_meta( self::ITEM_META_PERIOD, true ) ) {
+			$item->update_meta_data( self::ITEM_META_PERIOD, min( $starts ) . ' – ' . max( $ends ) );
+		}
+	}
+
+	/**
+	 * Translate the keys of the visible item meta when they are displayed.
+	 *
+	 * @param mixed $display_key Key as WooCommerce would show it.
+	 * @param mixed $meta        Meta object with a `key` property.
+	 * @return mixed
+	 */
+	public static function display_meta_key( $display_key, $meta = null ) {
+		$key = is_object( $meta ) && isset( $meta->key ) ? (string) $meta->key : '';
+		if ( self::ITEM_META_LICENSE === $key ) {
+			return __( 'License', 'wp-license' );
+		}
+		if ( self::ITEM_META_PERIOD === $key ) {
+			return __( 'Service period (UTC)', 'wp-license' );
+		}
+
+		return $display_key;
 	}
 
 	/**

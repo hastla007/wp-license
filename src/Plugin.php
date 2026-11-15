@@ -27,6 +27,7 @@ use WPLC\Update\PackageStream;
 use WPLC\Update\CustomerDownload;
 use WPLC\Billing\RecurringConsent;
 use WPLC\Billing\BlockCheckoutConsent;
+use WPLC\Billing\WithdrawalConsent;
 use WPLC\Compatibility\Requirements;
 use WPLC\Billing\ManualRenewal;
 use WPLC\Billing\PlanUpgrade;
@@ -318,6 +319,7 @@ final class Plugin {
 		Requirements::register_hooks();
 		RecurringConsent::register_hooks();
 		BlockCheckoutConsent::register_hooks();
+		WithdrawalConsent::register_hooks();
 		RenewalProcessor::register_hooks();
 		ManualRenewal::register_hooks();
 		PlanUpgrade::register_hooks();

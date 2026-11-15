@@ -111,6 +111,7 @@ final class CustomerPortal {
 
 		PaymentMethods::register_hooks();
 		PublicCancellation::register_hooks();
+		Blocks::register_hooks();
 	}
 
 	/**

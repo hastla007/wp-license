@@ -91,6 +91,11 @@ final class BlockCheckoutConsent {
 			return;
 		}
 
+		$with_rule = Requirements::supports_conditional_checkout_fields() && count( $product_ids ) <= self::MAX_RULE_PRODUCTS;
+		if ( ! self::offer_without_rule( $with_rule ) ) {
+			return;
+		}
+
 		$field = array(
 			'id'       => self::FIELD_ID,
 			// One wording for both checkouts. The renewal price of every license stands in the
@@ -99,13 +104,13 @@ final class BlockCheckoutConsent {
 			'location' => 'order',
 			'type'     => 'checkbox',
 			'required' => false,
-			// Deliberately shown on the order confirmation and in the order emails: "yes" there is the
-			// customer's own record of the consent. save_consent() resets the value when nothing will renew.
-			'show_in_order_confirmation' => true,
+			// B-114: the full wording belongs next to the checkbox only. Order confirmation and
+			// order emails print a short line of their own for both checkouts instead
+			// (RecurringConsent::granted_text()), so the long label is not repeated there.
+			'show_in_order_confirmation' => false,
 		);
-		// Before WooCommerce 9.9 a field cannot be hidden; it is then shown for every cart
-		// as soon as the shop sells license products. The value is ignored for other orders.
-		if ( Requirements::supports_conditional_checkout_fields() && count( $product_ids ) <= self::MAX_RULE_PRODUCTS ) {
+		// Before WooCommerce 9.9 a field cannot be hidden; see offer_without_rule().
+		if ( $with_rule ) {
 			$field['hidden'] = self::hidden_rule( $product_ids );
 		}
 
@@ -115,6 +120,34 @@ final class BlockCheckoutConsent {
 			// Registration problems must never break the shop; the checkout then simply has no opt-in.
 			return;
 		}
+	}
+
+	/**
+	 * Whether the field is registered although it cannot be limited to carts with a license.
+	 *
+	 * B-114: WooCommerce 8.9 to 9.8 (and shops with more than MAX_RULE_PRODUCTS license
+	 * products) cannot hide an additional field, so it would stand in every cart. The shop
+	 * decides with the filter: the default keeps the opt-in (its value is ignored for orders
+	 * without a license); returning false offers no automatic renewal in the block checkout
+	 * on those versions.
+	 *
+	 * @param bool $with_rule Whether a visibility rule is attached.
+	 * @return bool
+	 */
+	public static function offer_without_rule( bool $with_rule ): bool {
+		if ( $with_rule ) {
+			return true;
+		}
+
+		/**
+		 * Filters whether the block checkout offers the automatic renewal opt-in when
+		 * WooCommerce cannot hide it in carts without a license product (before 9.9).
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param bool $offer Default true.
+		 */
+		return (bool) apply_filters( 'wplc_block_checkout_consent_without_rule', true );
 	}
 
 	/**
