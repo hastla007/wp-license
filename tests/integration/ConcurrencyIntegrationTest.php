@@ -13,6 +13,12 @@ use WPLC\License\LicenseLifecycle;
 
 final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 
+	public function set_up(): void {
+		parent::set_up();
+		// These tests cover grants, not A-32: allow the redirect to the unchanged stored URL (default since A-32: refused).
+		add_filter( 'wplc_require_package_resolver', '__return_false' );
+	}
+
 	/**
 	 * Trusted package URL on the shop's own host.
 	 *
@@ -420,12 +426,13 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( array( 'redirect', $this->package_url() ), array( $served['outcome'], $served['location'] ) );
 	}
 
-	// A-32: with wplc_require_package_resolver a permanent package URL is never handed to a client.
+	// A-32: by default a permanent package URL is never handed to a client.
 	public function test_strict_mode_refuses_to_redirect_to_the_permanent_package_url(): void {
 		$license = $this->seed_license();
 		$site    = $this->activate_via_api( $license['key'] );
 		$token   = $this->request_grant( $site );
-		add_filter( 'wplc_require_package_resolver', '__return_true' );
+		remove_filter( 'wplc_require_package_resolver', '__return_false' );
+		$this->assertTrue( \WPLC\Api\V1\UpdateService::requires_package_resolver(), 'Strict mode is the default.' );
 		// A refused grant stays usable only with a reuse window; the default is strict single use (T-108).
 		add_filter( 'wplc_download_reuse_seconds', static function () { return 120; } );
 

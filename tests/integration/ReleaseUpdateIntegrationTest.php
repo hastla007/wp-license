@@ -943,6 +943,7 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 		// Merge of both lines: strict single use is the default (T-108); this covers the reuse window (B-19).
 		add_filter( 'wplc_download_reuse_seconds', array( $this, 'reuse_window' ) );
 		add_filter( 'wplc_verify_url_release_on_publish', '__return_false' );
+		add_filter( 'wplc_require_package_resolver', '__return_false' );
 		$installation = $this->installation();
 		$id           = $this->url_release( '1.1.0', str_repeat( 'a', 64 ) );
 		$this->assertTrue( ReleaseRegistry::publish( $id, 0, 'test' ) );
@@ -1234,6 +1235,12 @@ final class ReleaseUpdateIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertTrue( ReleaseRegistry::publish( $this->url_release( '1.1.0', str_repeat( 'a', 64 ) ), 0, 'test' ) );
 		$this->assertFalse( UpdateService::has_package_resolver() );
 
+		// Default since A-32: such releases are not delivered at all.
+		ob_start();
+		ReleaseAdmin::render();
+		$this->assertStringContainsString( 'Releases with a package URL are not delivered', (string) ob_get_clean() );
+
+		add_filter( 'wplc_require_package_resolver', '__return_false' );
 		ob_start();
 		ReleaseAdmin::render();
 		$this->assertStringContainsString( 'learns the permanent address', (string) ob_get_clean() );
