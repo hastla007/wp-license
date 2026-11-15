@@ -85,15 +85,7 @@ e2e_eq( '0', e2e_license( (int) $license_a['id'] )['cancel_at_period_end'], 'ano
 e2e_login( 0 );
 
 // --- Partial refund revokes exactly one license (the highest unit). ---
-$GLOBALS['wplc_e2e_home'] = 'https://carol-site.example';
-add_filter(
-	'home_url',
-	static function ( $url, $path ) {
-		return '' !== $GLOBALS['wplc_e2e_home'] && ( '' === $path || '/' === $path ) ? $GLOBALS['wplc_e2e_home'] : $url;
-	},
-	10,
-	2
-);
+e2e_as_site( 'https://carol-site.example' );
 delete_option( 'wplc_e2e_client_carol3' );
 $client_carol3 = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_carol3' );
 $activated     = $client_carol3->activate( e2e_key( $licenses[2] ) );

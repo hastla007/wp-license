@@ -633,6 +633,22 @@ function e2e_as_site( string $home ): void {
 		10,
 		2
 	);
+	// The client reads the unfiltered `home` option (P-24), so the simulated site must change it
+	// too - but only for the client's OptionStore: shop URLs built in this process stay on the shop.
+	add_filter(
+		'option_home',
+		static function ( $value ) {
+			if ( '' === $GLOBALS['wplc_e2e_home'] ) {
+				return $value;
+			}
+			foreach ( debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 6 ) as $frame ) { // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace -- test harness.
+				if ( isset( $frame['class'] ) && 'OptionStore' === substr( (string) $frame['class'], -11 ) ) {
+					return $GLOBALS['wplc_e2e_home'];
+				}
+			}
+			return $value;
+		}
+	);
 }
 
 /**

@@ -48,6 +48,9 @@ final class RenewalReviewAdmin {
 	public static function register_hooks(): void {
 		// After LicenseAdmin (priority 10), so the entry sits below "Licenses".
 		add_action( 'admin_menu', array( self::class, 'register_menu' ), 11 );
+		// The cached menu count must follow new and closed cases at once.
+		add_action( 'wplc/renewal_needs_review', array( self::class, 'flush_count' ) );
+		add_action( 'wplc/review_case_changed', array( self::class, 'flush_count' ) );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 		add_action( 'admin_post_wplc_admin_renewal_review', array( self::class, 'handle_action' ) );
 	}
@@ -75,6 +78,15 @@ final class RenewalReviewAdmin {
 		}
 
 		return $title . ' <span class="awaiting-mod count-' . (int) $count . '"><span class="pending-count">' . (int) $count . '</span></span>';
+	}
+
+	/**
+	 * Drop the cached menu count when a case opens or closes.
+	 *
+	 * @return void
+	 */
+	public static function flush_count(): void {
+		delete_transient( self::COUNT_TRANSIENT );
 	}
 
 	/**

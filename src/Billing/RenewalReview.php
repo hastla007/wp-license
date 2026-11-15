@@ -405,6 +405,7 @@ final class RenewalReview {
 				}
 				if ( $order ) {
 					$order->update_meta_data( self::META_CLOSED, $order->is_paid() ? 'paid' : 'unpaid' );
+				do_action( 'wplc/review_case_changed' );
 					$order->save();
 					$order->add_order_note(
 						sprintf(
@@ -477,6 +478,7 @@ final class RenewalReview {
 			}
 			$code = AuditReason::REVIEW_ORDER_CANCELLED === $reason ? 'cancelled' : 'refunded';
 			$order->update_meta_data( self::META_CLOSED, $code );
+			do_action( 'wplc/review_case_changed' );
 			$order->save();
 			$order->add_order_note( __( 'WP License Captain: the renewal review was closed because this order was refunded or cancelled. The license was not extended.', 'wp-license' ) );
 			AuditLog::record(

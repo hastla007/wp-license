@@ -19,20 +19,9 @@ $license     = e2e_license( (int) $license_ids[0] );
 $key         = e2e_key( $license );
 $server      = 'https://shop.test';
 
-$GLOBALS['wplc_e2e_home'] = '';
-add_filter(
-	'home_url',
-	static function ( $url, $path ) {
-		if ( '' !== $GLOBALS['wplc_e2e_home'] && ( '' === $path || '/' === $path ) ) {
-			return $GLOBALS['wplc_e2e_home'];
-		}
-		return $url;
-	},
-	10,
-	2
-);
+e2e_as_site( '' );
 $as_site = static function ( string $home ) {
-	$GLOBALS['wplc_e2e_home'] = $home;
+	e2e_as_site( $home );
 };
 $activations = static function ( int $license_id ) {
 	return e2e_rows( 'activations', 'license_id = ' . $license_id . ' ORDER BY id ASC' );
