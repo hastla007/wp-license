@@ -802,7 +802,9 @@ final class LicenseIssuer {
 			return 0;
 		}
 
-		$stored = self::store_license(
+		// From here a failure is a failed insert, unless store_license() names the key ID instead.
+		self::$last_failure = self::FAILED_STORE;
+		$stored             = self::store_license(
 			$plan,
 			array(
 				'customer_id' => $customer_id,
@@ -819,9 +821,6 @@ final class LicenseIssuer {
 			)
 		);
 		if ( ! $stored ) {
-			if ( self::FAILED_KEY_ID !== self::$last_failure ) {
-				self::$last_failure = self::FAILED_STORE;
-			}
 			return 0;
 		}
 		self::$last_failure = '';
