@@ -401,15 +401,114 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
 	}
 
-	public function test_a109_a_constantly_wrong_clock_does_not_matter(): void {
-		// The customer server lives ten years in the past.
-		$this->kit->now -= 3650 * DAY_IN_SECONDS;
+	public function test_a109_a_constantly_wrong_clock_does_not_matter_up_to_the_tolerance(): void {
+		// AL-1 (decision of 16 Nov 2026): a clock that is behind, or ahead by at most the tolerance of one day, keeps
+		// the full signed window of 14 days; the customer server may even live ten years in the past.
+		foreach ( array( -3650 * DAY_IN_SECONDS, -DAY_IN_SECONDS, 0, LicenseManager::OFFLINE_TOLERANCE ) as $offset ) {
+			$this->kit       = new WPLC_Client_Test_Kit();
+			$this->kit->now += $offset;
+			$manager         = $this->activated();
+			$this->assertTrue( $manager->is_entitled( 'feature.flag' ), 'offset ' . $offset );
+			$this->kit->advance( 14 * DAY_IN_SECONDS - 1 );
+			$this->assertTrue( $manager->is_entitled( 'feature.flag' ), 'offset ' . $offset );
+			$this->kit->advance( 1 );
+			$this->assertFalse( $manager->is_entitled( 'feature.flag' ), 'offset ' . $offset );
+			$this->assertSame( '', $manager->status()->reason, 'The signed window ended first.' );
+		}
+	}
+
+	public function test_al1_a_clock_ahead_by_more_than_the_tolerance_shortens_the_window(): void {
+		// Ten days ahead: the absolute limit (cache_expires_at + 1 day, local time) is reached after five days offline.
+		$this->kit->now += 10 * DAY_IN_SECONDS;
 		$manager         = $this->activated();
 		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
-		$this->kit->advance( 14 * DAY_IN_SECONDS - 1 );
+		$this->kit->advance( 5 * DAY_IN_SECONDS );
 		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
 		$this->kit->advance( 1 );
+		$status = $manager->status();
+		$this->assertFalse( $status->access );
+		$this->assertSame( LicenseStatus::STATE_STALE, $status->state );
+		$this->assertSame( LicenseStatus::REASON_CLOCK_AHEAD, $status->reason );
+
+		// More than 14 + 1 days ahead: stale right after every signed answer.
+		$this->kit       = new WPLC_Client_Test_Kit();
+		$this->kit->now += 15 * DAY_IN_SECONDS + 1;
+		$manager         = $this->activated();
 		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+		$this->assertSame( LicenseStatus::REASON_CLOCK_AHEAD, $manager->status()->reason );
+		$this->assertSame( LicenseStatus::STATE_STALE, $manager->refresh()->state );
+		$notice = $manager->notice();
+		$this->assertSame( 'error', $notice['type'] );
+		$this->assertStringContainsString( 'the clock of this site is ahead, or the offline period has expired', $notice['text'] );
+	}
+
+	public function test_al1_resetting_the_unsigned_clock_fields_on_day_20_does_not_unlock_the_old_snapshot(): void {
+		$manager = $this->activated();
+
+		// Offline for twenty days (the reproduction of the audit of 16 Nov 2026).
+		$this->kit->advance( 20 * DAY_IN_SECONDS );
+		$this->kit->server->queue = array( new WP_Error( 'http_request_failed', 'blocked' ) );
+		$manager->refresh();
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+		$this->assertSame( LicenseStatus::STATE_STALE, $manager->status()->state );
+
+		// Someone with write access to the options resets fetched_at, clock_high and server_time_max.
+		// Up to client 2.0.3 this made the genuinely signed snapshot active again for 14 days.
+		$state                                              = $this->kit->store->data['test_addon_license_state'];
+		$state['fetched_at']                                = $this->kit->now;
+		$state['clock_high']                                = $this->kit->now;
+		$state['server_time_max']                           = 0;
+		$this->kit->store->data['test_addon_license_state'] = $state;
+
+		$reset  = $this->kit->manager();
+		$status = $reset->status();
+		$this->assertFalse( $reset->is_entitled( 'feature.flag' ) );
+		$this->assertSame( LicenseStatus::STATE_STALE, $status->state );
+		$this->assertSame( LicenseStatus::REASON_CLOCK_AHEAD, $status->reason );
+
+		// A filter cannot stretch the tolerance beyond seven days: from day 21 on no reset helps.
+		$GLOBALS['wplc_test_filters']['test_addon_license_offline_tolerance'][] = static function () {
+			return 30 * DAY_IN_SECONDS;
+		};
+		$this->assertSame( LicenseManager::MAX_OFFLINE_TOLERANCE, $reset->offline_tolerance() );
+		$this->kit->now                                    += DAY_IN_SECONDS + 1;
+		$state['fetched_at']                                = $this->kit->now;
+		$state['clock_high']                                = $this->kit->now;
+		$this->kit->store->data['test_addon_license_state'] = $state;
+		$this->assertFalse( $this->kit->manager()->is_entitled( 'feature.flag' ) );
+		unset( $GLOBALS['wplc_test_filters'] );
+
+		// Only a new signed answer restores the rights.
+		$this->assertSame( LicenseStatus::STATE_ACTIVE, $reset->refresh()->state );
+		$this->assertTrue( $reset->is_entitled( 'feature.flag' ) );
+	}
+
+	public function test_al1_the_tolerance_filter_is_limited_to_zero_to_seven_days(): void {
+		$manager = $this->kit->manager();
+		$this->assertSame( DAY_IN_SECONDS, $manager->offline_tolerance() );
+
+		$GLOBALS['wplc_test_filters']['test_addon_license_offline_tolerance'] = array(
+			static function () {
+				return -5;
+			},
+		);
+		$this->assertSame( 0, $manager->offline_tolerance() );
+
+		$GLOBALS['wplc_test_filters']['test_addon_license_offline_tolerance'] = array(
+			static function () {
+				return 3 * DAY_IN_SECONDS;
+			},
+		);
+		$this->assertSame( 3 * DAY_IN_SECONDS, $manager->offline_tolerance() );
+
+		// With a tolerance of zero, a clock one second past the signed deadline (and the window not used up) is stale.
+		$GLOBALS['wplc_test_filters']['test_addon_license_offline_tolerance'] = array(
+			static function () {
+				return 0;
+			},
+		);
+		$this->kit->now += 14 * DAY_IN_SECONDS + 1;
+		$this->assertSame( LicenseStatus::REASON_CLOCK_AHEAD, $this->activated()->status()->reason );
 	}
 
 	public function test_a30_an_older_signed_answer_is_not_accepted_again(): void {
@@ -584,7 +683,7 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertSame( 'success', $manager->run_form_action( 'activate', self::KEY )['type'] );
 		$this->assertNotFalse( wp_next_scheduled( 'test_addon_license_check' ), 'The daily check is scheduled with the activation.' );
 		$this->assertSame( 'success', $manager->run_form_action( 'check' )['type'] );
-		$this->assertSame( 'success', $manager->run_form_action( 'deactivate' )['type'] );
+		$this->assertSame( 'success', $manager->run_form_action( 'deactivate', '', true )['type'] );
 		$this->assertFalse( wp_next_scheduled( 'test_addon_license_check' ) );
 		$this->assertSame( LicenseStatus::STATE_UNLICENSED, $manager->status()->state );
 		$this->assertArrayNotHasKey( 'test_addon_license_state', $this->kit->store->data );
@@ -600,119 +699,77 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
 	}
 
-	// R-26 / R-27 (client 2.1.0): storage is confirmed, a failed write never leaves more rights behind.
-
-	public function test_r26_a_signed_withdrawal_that_cannot_be_stored_does_not_leave_the_older_rights_in_charge(): void {
-		foreach ( array( 'suspended', 'revoked', 'expired' ) as $license_status ) {
-			$this->kit       = new WPLC_Client_Test_Kit();
-			$manager         = $this->activated();
-			$server          = $this->kit->server;
-			$server->queue[] = $server->signed( $server->entitlement( array( 'license_status' => $license_status, 'access' => false, 'entitlements' => array() ) ) );
-			$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
-
-			$this->kit->store->fail = true;
-			$result                 = $manager->refresh();
-
-			$this->assertInstanceOf( WP_Error::class, $result, $license_status );
-			$this->assertSame( 'wplc_state_not_saved', $result->get_error_code() );
-			$this->assertFalse( $manager->is_entitled( 'feature.flag' ), 'The request that received the answer follows it.' );
-			$this->assertFalse( $manager->status()->access );
-			$this->assertSame( $license_status, $manager->status()->license_status );
-
-			// A later request (new object, same database): the older snapshot that granted access is gone.
-			$this->kit->store->fail = false;
-			$later                  = $this->kit->manager();
-			$this->assertFalse( $later->is_entitled( 'feature.flag' ), $license_status );
-			$this->assertSame( LicenseStatus::STATE_STALE, $later->status()->state );
-			$this->assertArrayNotHasKey( 'test_addon_license_state', $this->kit->store->data );
-
-			// The next answer that can be stored applies normally.
-			$server->queue[] = $server->signed( $server->entitlement( array( 'license_status' => $license_status, 'access' => false, 'entitlements' => array() ) ) );
-			$this->assertFalse( $later->refresh()->access );
-			$this->assertArrayHasKey( 'envelope', $this->kit->store->data['test_addon_license_state'] );
-		}
-	}
-
-	public function test_r26_a_withdrawn_right_that_cannot_be_stored_is_not_granted_from_the_older_state(): void {
-		$manager         = $this->activated();
-		$server          = $this->kit->server;
-		$server->queue[] = $server->signed( $server->entitlement( array( 'entitlements' => array( 'other.flag' => true ) ) ) );
-
-		$this->kit->store->fail = true;
-		$this->assertSame( 'wplc_state_not_saved', $manager->refresh()->get_error_code() );
-		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
-		$this->assertTrue( $manager->is_entitled( 'other.flag' ) );
-
-		$this->kit->store->fail = false;
-		$this->assertFalse( $this->kit->manager()->is_entitled( 'feature.flag' ) );
-	}
-
-	public function test_r26_an_unstored_answer_with_the_same_rights_keeps_the_older_state(): void {
-		$manager         = $this->activated();
-		$server          = $this->kit->server;
-		$before          = $this->kit->store->data['test_addon_license_state'];
-		$server->queue[] = $server->signed( $server->entitlement() );
-
-		$this->kit->store->fail = true;
-		$this->assertSame( 'wplc_state_not_saved', $manager->refresh()->get_error_code() );
+	/**
+	 * Add-on audit 16 Nov 2026, item 9 (captain-pro docs/AUDIT-LIZENZ-PRS.md): a signed answer that cannot be
+	 * stored must not leave the older snapshot (and its rights) in place.
+	 */
+	public function test_audit16_a_signed_answer_that_cannot_be_stored_drops_the_old_snapshot(): void {
+		$manager = $this->activated();
+		$server  = $this->kit->server;
 		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
 
-		// Nothing was taken away, so a database hiccup does not switch a paid add-on off.
-		$this->kit->store->fail = false;
-		$this->assertSame( $before, $this->kit->store->data['test_addon_license_state'] );
-		$this->assertTrue( $this->kit->manager()->is_entitled( 'feature.flag' ) );
-
-		// A failed request (kept cache) that cannot be recorded changes nothing either.
-		$this->kit->store->fail     = true;
-		$this->kit->server->queue[] = new WP_Error( 'http_request_failed', 'down' );
-		$this->assertSame( 'wplc_connection_failed', $manager->refresh()->get_error_code() );
-		$this->assertSame( $before, $this->kit->store->data['test_addon_license_state'] );
-		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
-	}
-
-	public function test_r26_a_database_that_refuses_write_and_delete_is_reported_and_the_request_follows_the_answer(): void {
-		$manager         = $this->activated();
-		$server          = $this->kit->server;
-		$server->queue[] = $server->signed( $server->entitlement( array( 'license_status' => 'revoked', 'access' => false, 'entitlements' => array() ) ) );
-
-		$this->kit->store->fail        = true;
-		$this->kit->store->fail_delete = true;
-		$this->assertSame( 'wplc_state_not_saved', $manager->refresh()->get_error_code() );
-		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
-		$this->assertSame( LicenseStatus::STATE_REVOKED, $manager->status()->state );
-	}
-
-	public function test_r27_deactivation_reports_credentials_the_database_kept(): void {
-		// Released on the server, but the credentials cannot be deleted.
-		$manager                       = $this->activated();
-		$this->kit->server->queue[]    = $this->kit->server->signed( array( 'status' => 'deactivated' ) );
-		$this->kit->store->fail_delete = true;
-
-		$result = $manager->deactivate();
+		$server->queue[]        = $server->signed( $server->entitlement( array( 'license_status' => 'revoked', 'access' => false, 'entitlements' => array(), 'access_until' => null ) ) );
+		$this->kit->store->fail = true;
+		$result                 = $manager->refresh();
 
 		$this->assertInstanceOf( WP_Error::class, $result );
-		$this->assertSame( 'wplc_credentials_not_removed', $result->get_error_code() );
-		$this->assertSame( array( 'status' => 'deactivated' ), array_intersect_key( (array) $result->get_error_data()['result'], array( 'status' => true ) ) );
-		$this->assertTrue( $manager->client()->is_activated(), 'The credentials are still there, and the result says so.' );
-
-		$message = $manager->run_form_action( 'forget' );
+		$this->assertSame( 'wplc_credentials_not_saved', $result->get_error_code() );
+		$this->assertTrue( $result->get_error_data()['snapshot_removed'] );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ), 'The revoked license grants nothing, although its answer could not be stored.' );
+		$this->assertSame( LicenseStatus::STATE_STALE, $manager->status()->state );
+		$this->assertTrue( $manager->client()->is_activated(), 'The credentials stay: the next answer can be stored again.' );
+		$message = $manager->run_form_action( 'check' );
 		$this->assertSame( 'error', $message['type'] );
-		$this->assertStringContainsString( 'wplc_credentials_not_removed', $message['text'] );
-		$this->assertFalse( $manager->forget_locally() );
+		$this->assertStringContainsString( '(wplc_credentials_not_saved)', $message['text'] );
 
-		// Once the database works again the admin action removes them.
+		$this->kit->store->fail = false;
+		$this->kit->advance( 60 );
+		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->refresh()->state );
+		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+
+		// The signed refusal (lock) cannot be stored either: nothing keeps running.
+		$this->kit->server->queue[] = $this->signed_refusal();
+		$this->kit->store->fail     = true;
+		$this->assertSame( 'wplc_credentials_not_saved', $manager->refresh()->get_error_code() );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+	}
+
+	public function test_audit16_when_the_state_can_neither_be_written_nor_deleted_the_error_says_so(): void {
+		$manager                       = $this->activated();
+		$server                        = $this->kit->server;
+		$server->queue[]               = $server->signed( $server->entitlement( array( 'license_status' => 'expired', 'access' => false, 'entitlements' => array() ) ) );
+		$this->kit->store->fail        = true;
+		$this->kit->store->fail_delete = true;
+
+		$result = $manager->refresh();
+
+		$this->assertSame( 'wplc_credentials_not_saved', $result->get_error_code() );
+		$this->assertFalse( $result->get_error_data()['snapshot_removed'], 'Reported, not hidden: the old snapshot is still stored.' );
+	}
+
+	/**
+	 * Add-on audit 16 Nov 2026, item 10: "removed" is only reported when the credentials are gone.
+	 */
+	public function test_audit16_deactivation_reports_credentials_that_cannot_be_removed(): void {
+		$manager                       = $this->activated();
+		$this->kit->store->fail_delete = true;
+
+		$message = $manager->run_form_action( 'deactivate', '', true );
+
+		$this->assertSame( 'error', $message['type'] );
+		$this->assertStringContainsString( '(wplc_credentials_not_removed)', $message['text'] );
+		$this->assertTrue( $manager->client()->is_activated(), 'The credentials could not be deleted.' );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ), 'The server released the site, so the stored rights are dropped anyway.' );
+		$this->assertArrayNotHasKey( 'envelope', $this->kit->store->data['test_addon_license_state'], 'The state could not be deleted and was emptied instead.' );
+
+		$forget = $manager->run_form_action( 'forget' );
+		$this->assertSame( 'error', $forget['type'] );
+		$this->assertStringContainsString( '(wplc_credentials_not_removed)', $forget['text'] );
+
 		$this->kit->store->fail_delete = false;
 		$this->assertTrue( $manager->forget_locally() );
-		$this->assertFalse( $manager->client()->is_activated() );
-		$this->assertArrayNotHasKey( 'test_addon_license_state', $this->kit->store->data );
-
-		// The normal case still reports the answer of the server.
-		$this->kit                  = new WPLC_Client_Test_Kit();
-		$manager                    = $this->activated();
-		$this->kit->server->queue[] = $this->kit->server->signed( array( 'status' => 'deactivated' ) );
-		$result                     = $manager->deactivate();
-		$this->assertIsArray( $result );
 		$this->assertSame( 'success', $manager->run_form_action( 'forget' )['type'] );
+		$this->assertFalse( $manager->client()->is_activated() );
 	}
 
 	public function test_privacy_text_names_the_server_and_what_is_sent(): void {
@@ -824,7 +881,7 @@ final class LicenseManagerTest extends TestCase {
 			$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
 		}
 		$this->kit->server->queue[] = WPLC_Test_Server::error( 409, 'site_mismatch' );
-		$message                    = $manager->run_form_action( 'deactivate' );
+		$message                    = $manager->run_form_action( 'deactivate', '', true );
 		$this->assertSame( 'error', $message['type'], 'The error is reported.' );
 		$this->assertStringContainsString( '(site_mismatch)', $message['text'] );
 
@@ -1008,6 +1065,128 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
 		$this->assertSame( LicenseStatus::STATE_STALE, $manager->status()->state );
 		$this->assertSame( 'wplc_server_signature_invalid', $this->kit->manager()->client()->verified_snapshot_data( $state['envelope'] ) );
+	}
+
+	// ------------------------------------------------------------------
+	// AL-4, AL-5, AL-6 and the early texts (decisions of 16 Nov 2026, client 2.1.0).
+	// ------------------------------------------------------------------
+
+	public function test_al5_releasing_the_site_needs_a_confirmation(): void {
+		$manager = $this->activated();
+
+		$message = $manager->run_form_action( 'deactivate' );
+		$this->assertSame( 'error', $message['type'] );
+		$this->assertStringContainsString( 'Confirm that this site gives up its license', $message['text'] );
+		$this->assertSame( array(), $this->kit->server->requests, 'Nothing is sent without the confirmation.' );
+		$this->assertTrue( $manager->client()->is_activated() );
+		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+
+		$message = $manager->run_form_action( 'deactivate', '', true );
+		$this->assertSame( 'success', $message['type'] );
+		$this->assertSame( array( 'DELETE' ), array_column( $this->kit->server->requests, 'method' ) );
+		$this->assertFalse( $manager->client()->is_activated() );
+
+		// deactivate() itself (the API for code) is unchanged.
+		$manager = $this->activated();
+		$this->assertSame( 'deactivated', $manager->deactivate()['status'] );
+	}
+
+	public function test_al6_a_signed_site_mismatch_removes_only_the_local_data(): void {
+		$server = $this->kit->server;
+		$answer = static function ( array $overrides = array(), array $options = array() ) use ( $server ): Closure {
+			return static function ( array $request ) use ( $server, $overrides, $options ) {
+				$data = array_merge(
+					array(
+						'activation_id'     => 41,
+						'installation_id'   => '',
+						'activation_status' => 'active',
+						'site_match'        => false,
+						'server_time'       => gmdate( 'Y-m-d H:i:s', $server->now ),
+					),
+					$overrides
+				);
+				return WPLC_Test_Server::error( 409, 'site_mismatch', array( 'signed' => $server->envelope( $request, $data, $options ) ) );
+			};
+		};
+		$manager = $this->activated();
+
+		// Not enough: another key, another request, or data that does not say site_match: false.
+		$attacker = new WPLC_Test_Server( str_repeat( "\x09", 32 ) );
+		foreach ( array( $answer( array(), array( 'secret_key' => $attacker->secret_key ) ), $answer( array(), array( 'nonce' => str_repeat( 'a', 32 ) ) ), $answer( array( 'site_match' => true ) ) ) as $forged ) {
+			$this->kit->server->queue[] = $forged;
+			$result                     = $manager->deactivate();
+			$this->assertSame( 'site_mismatch', $result->get_error_code() );
+			$this->assertFalse( LicenseClient::is_signed_site_mismatch( $result ) );
+			$this->assertTrue( $manager->client()->is_activated() );
+			$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+		}
+
+		// Verified: the activation belongs to the other address. Nothing was released there; this site forgets it.
+		$this->kit->server->requests = array();
+		$this->kit->server->queue[]  = $answer();
+		$message                     = $manager->run_form_action( 'deactivate', '', true );
+		$this->assertSame( 'success', $message['type'] );
+		$this->assertStringContainsString( 'original site was not changed', $message['text'] );
+		$this->assertCount( 1, $this->kit->server->requests );
+		$this->assertFalse( $manager->client()->is_activated() );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+		$this->assertSame( LicenseStatus::STATE_UNLICENSED, $manager->status()->state );
+		$this->assertArrayNotHasKey( 'test_addon_license_state', $this->kit->store->data );
+
+		$client                     = $this->activated()->client();
+		$this->kit->server->queue[] = $answer();
+		$this->assertSame( array( 'status' => 'removed_locally', 'reason' => 'site_mismatch' ), $client->deactivate() );
+	}
+
+	public function test_al4_site_health_shows_the_license_without_secrets(): void {
+		$info = $this->kit->manager()->debug_information( array( 'wp-core' => array( 'label' => 'WordPress' ) ) );
+		$this->assertArrayHasKey( 'wp-core', $info, 'Other sections stay.' );
+		$this->assertSame( 'unlicensed', $info['test_addon_license']['fields']['state']['debug'] );
+		$this->assertSame( 'never', $info['test_addon_license']['fields']['last_checked']['debug'] );
+
+		$manager                  = $this->activated();
+		$this->kit->server->queue = array( new WP_Error( 'http_request_failed', 'down' ) );
+		$this->kit->advance( 3600 );
+		$manager->refresh();
+
+		$section = $manager->debug_information( array() )['test_addon_license'];
+		$fields  = $section['fields'];
+		$this->assertSame( 'Test Add-on – License', $section['label'] );
+		$this->assertSame( array( 'state', 'last_checked', 'last_error', 'offline_until', 'environment', 'installation', 'server', 'signature', 'keys', 'version' ), array_keys( $fields ) );
+		$this->assertSame( 'active', $fields['state']['debug'] );
+		$this->assertSame( gmdate( 'Y-m-d H:i:s', $this->kit->now - 3600 ) . ' UTC', $fields['last_checked']['debug'] );
+		$this->assertSame( 'wplc_connection_failed, ' . gmdate( 'Y-m-d H:i:s', $this->kit->now ) . ' UTC', $fields['last_error']['debug'] );
+		$this->assertStringContainsString( 'could not be reached', $fields['last_error']['value'] );
+		$this->assertSame( gmdate( 'Y-m-d H:i:s', $this->kit->now - 3600 + 14 * DAY_IN_SECONDS ) . ' UTC', $fields['offline_until']['debug'] );
+		$this->assertSame( 'production', $fields['environment']['debug'] );
+		$this->assertSame( 'license.example', $fields['server']['value'] );
+		$this->assertSame( '2.1.0', $fields['version']['value'] );
+		$this->assertSame( substr( hash( 'sha256', base64_decode( $this->kit->server->public_key ) ), 0, 16 ), $fields['keys']['debug'] );
+		$this->assertContains( $fields['signature']['debug'], array( 'native', 'compat' ) );
+
+		// Masked: the installation ID is shortened; secret, key and snapshot never appear.
+		$credentials = $this->kit->credentials();
+		$this->assertSame( substr( $credentials['installation_id'], 0, 8 ) . '…', $fields['installation']['value'] );
+		$json = (string) json_encode( $section, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+		foreach ( array( $credentials['installation_secret'], $credentials['installation_id'], $credentials['license_key_hash'], self::KEY, 'payload' ) as $secret ) {
+			$this->assertStringNotContainsString( $secret, $json );
+		}
+
+		// A clock ahead names its reason.
+		$this->kit       = new WPLC_Client_Test_Kit();
+		$this->kit->now += 16 * DAY_IN_SECONDS;
+		$fields          = $this->activated()->debug_information( array() )['test_addon_license']['fields'];
+		$this->assertSame( 'stale (clock_ahead)', $fields['state']['debug'] );
+		$this->assertSame( 'Could not be verified for too long – The clock of this site is ahead, or the offline period has expired.', $fields['state']['value'] );
+	}
+
+	public function test_audit16_errors_shown_by_the_form_are_translated_when_shown(): void {
+		$manager = $this->kit->manager();
+		// An error created before init carries its code as message; the form looks the text up.
+		$early = new WP_Error( 'wplc_not_activated', 'wplc_not_activated' );
+		$this->assertSame( 'This site has not been activated with a license key yet.', $manager->error_text( $early ) );
+		$this->assertSame( 'The license server could not be reached. Premium features keep working; the check is repeated automatically.', $manager->error_text( new WP_Error( 'wplc_backoff', 'wplc_backoff' ) ) );
+		$this->assertSame( 'Kept as it is.', $manager->error_text( new WP_Error( 'wplc_update_failed', 'Kept as it is.' ) ) );
 	}
 
 	public function test_p48_the_server_url_filter_counts_when_added_after_the_add_on_was_loaded(): void {

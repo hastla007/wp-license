@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/OptionStore.php
- * (source sha256 06adc26e80fdb18660ed49137e6192054fb7f8bdf9fc413f3ed443033f8ea373). Do not edit: change the server copy and re-vendor.
+ * (source sha256 03d674d9c13d6a9d9fbe389ac375e19dd8c1f9b2df25f160a41ca86e9e0878a2). Do not edit: change the server copy and re-vendor.
  *
  * Storage of the license client: per-site options or network options.
  *
@@ -96,10 +96,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\OptionStore', false ) ) {
 		/**
 		 * Delete a value and confirm that it is gone.
 		 *
-		 * @since 2.1.0 Returns the result; before, it returned nothing.
+		 * @since 2.0.3 Returns whether the option is gone (was void).
 		 *
 		 * @param string $name Option name.
-		 * @return bool Whether no value is stored under the name afterwards.
+		 * @return bool Whether the option no longer exists afterwards.
 		 */
 		public function delete( string $name ): bool {
 			if ( $this->network ) {
@@ -108,7 +108,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\OptionStore', false ) ) {
 				delete_option( $name );
 			}
 
-			// delete_option() also returns false for an option that did not exist, so read back instead.
+			// delete_option() also returns false for a missing option, so read back instead.
 			return null === $this->get( $name, null );
 		}
 

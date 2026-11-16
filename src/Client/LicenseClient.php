@@ -144,6 +144,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		private $verifier;
 
 		/**
+		 * Whether the host of the server address may resolve to a local or private address (development servers).
+		 *
+		 * @var bool
+		 */
+		private $allow_local_server = false;
+
+		/**
 		 * Hashes of snapshot signatures verified in this request (shared by all instances; see verified_snapshot_data()).
 		 *
 		 * @var array<string,bool>
@@ -169,8 +176,15 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 *     @type int         $timeout        Timeout in seconds for every request.
 		 *     @type bool        $network        Multisite: one activation for the network (network options).
 		 *     @type bool        $allow_insecure Accept an `http://` server address (local development only).
+		 *     @type bool        $allow_local_server Since 2.1.0: let the host of the server addresses resolve to a
+		 *                                       local or private IP address (development servers). Requests go
+		 *                                       through wp_safe_remote_request(), which refuses such addresses;
+		 *                                       with this setting only the hosts of the configured server
+		 *                                       addresses are let through (filter `http_request_host_is_external`,
+		 *                                       and their port through `http_allowed_safe_ports`), for the
+		 *                                       duration of each request. Default false.
 		 *     @type OptionStore $store          Storage (tests).
-		 *     @type callable    $transport      Replacement for wp_remote_request() (tests).
+		 *     @type callable    $transport      Replacement for wp_safe_remote_request() (tests).
 		 *     @type callable    $clock          Replacement for time() (tests).
 		 *     @type callable|false $signature_verifier Replacement for sodium_crypto_sign_verify_detached(); false
 		 *                                       simulates a PHP without any Ed25519 implementation (tests).
@@ -201,6 +215,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			$this->transport       = isset( $args['transport'] ) && is_callable( $args['transport'] ) ? $args['transport'] : null;
 			$this->clock           = isset( $args['clock'] ) && is_callable( $args['clock'] ) ? $args['clock'] : null;
 			$this->timeout         = isset( $args['timeout'] ) ? max( 0, (int) $args['timeout'] ) : 0;
+			$this->allow_local_server = ! empty( $args['allow_local_server'] );
 			$this->verifier        = self::default_verifier();
 			if ( array_key_exists( 'signature_verifier', $args ) && null !== $args['signature_verifier'] ) {
 				$this->verifier = is_callable( $args['signature_verifier'] ) ? $args['signature_verifier'] : null;
@@ -520,6 +535,26 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		}
 
 		/**
+		 * Whether an error is a verified, signed `site_mismatch` of the server (since 2.1.0).
+		 *
+		 * The server answers the release (`DELETE /activations/{id}`) of an activation whose stored
+		 * address differs from the address this site sends with a `409 site_mismatch`. Newer servers
+		 * add `data.signed`, an envelope bound to the request with `site_match: false`. Only that
+		 * signed answer makes deactivate() remove the local credentials (the activation belongs to
+		 * the other address and stays active there); an unsigned 409 of an older server keeps them.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param \WP_Error $error Error.
+		 * @return bool
+		 */
+		public static function is_signed_site_mismatch( \WP_Error $error ): bool {
+			$data = $error->get_error_data();
+
+			return 'site_mismatch' === $error->get_error_code() && is_array( $data ) && ! empty( $data['wplc_signed'] );
+		}
+
+		/**
 		 * Send one activation request with a pending (or new) installation ID.
 		 *
 		 * @param string $license_key Normalized key.
@@ -619,11 +654,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			if ( is_wp_error( $data ) ) {
 				return $data;
 			}
-			if ( strtolower( (string) ( $data['installation_id'] ?? '' ) ) !== strtolower( $body['installation_id'] ) || empty( $data['activation_id'] ) ) {
+			// The ID is stored and later used in the route of the deactivation: only a positive integer is accepted.
+			if ( strtolower( (string) ( $data['installation_id'] ?? '' ) ) !== strtolower( $body['installation_id'] ) || 0 === self::positive_id( $data['activation_id'] ?? null ) ) {
 				return $this->error( 'wplc_response_invalid' );
 			}
 
-			return $this->check_product( $data );
+			return $this->check_product( $data, false );
 		}
 
 		/**
@@ -641,7 +677,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				array(
 					'installation_id'     => $installation_id,
 					'installation_secret' => $secret,
-					'activation_id'       => (int) $data['activation_id'],
+					'activation_id'       => self::positive_id( $data['activation_id'] ?? null ),
 					'license_key_hash'    => $key_hash,
 					'product_key'         => $this->product_key,
 					'site_url'            => $this->store->site_url(),
@@ -705,11 +741,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			if ( is_wp_error( $data ) ) {
 				return $data;
 			}
-			if ( isset( $data['product_key'] ) && strtolower( (string) $data['product_key'] ) !== $this->product_key ) {
-				return $this->error( 'wplc_product_mismatch' );
-			}
 
-			return $data;
+			return $this->check_product( $data, false );
 		}
 
 		/**
@@ -719,17 +752,17 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * - after the signed confirmation of the server,
 		 * - without any request when this is a copy of the activated site,
 		 * - on a signed refusal (`activation_deactivated` with an envelope that
-		 *   verifies against the pinned keys): the activation is already released.
-		 * In the last two cases the result is `status: removed_locally`.
+		 *   verifies against the pinned keys): the activation is already released;
+		 * - on a signed `site_mismatch` (since 2.1.0, see is_signed_site_mismatch()):
+		 *   the activation belongs to another address and stays active there.
+		 * In the last three cases the result is `status: removed_locally` with the
+		 * `reason` `wplc_site_changed`, `activation_deactivated` or `site_mismatch`.
 		 * Every other error keeps the credentials and is returned, also an
 		 * unsigned `site_mismatch` or `activation_not_found` (anyone between the
 		 * site and the server could send those); use forget() to drop them anyway.
-		 *
-		 * When the credentials should be dropped but the database still holds them
-		 * afterwards, the result is the error `wplc_credentials_not_removed` (its
-		 * data `result` carries what would have been returned). The activation is
-		 * then already released on the server; the next signed request locks the
-		 * add-on, and forget() can be repeated.
+		 * When the credentials cannot be removed from the database the result is
+		 * `wplc_credentials_not_removed` (data `released`: whether the server
+		 * released the activation), never a success.
 		 *
 		 * @return array<string,mixed>|\WP_Error
 		 */
@@ -739,11 +772,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				return $credentials;
 			}
 			if ( ! $this->site_matches() ) {
-				return $this->forgotten(
-					array(
-						'status' => 'removed_locally',
-						'reason' => 'wplc_site_changed',
-					)
+				if ( ! $this->forget() ) {
+					return $this->error( 'wplc_credentials_not_removed', array( 'released' => false ) );
+				}
+				return array(
+					'status' => 'removed_locally',
+					'reason' => 'wplc_site_changed',
 				);
 			}
 
@@ -758,47 +792,38 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				}
 			}
 			if ( is_wp_error( $data ) ) {
-				if ( self::is_signed_refusal( $data ) ) {
-					return $this->forgotten(
-						array(
-							'status' => 'removed_locally',
-							'reason' => $data->get_error_code(),
-						)
+				if ( self::is_signed_refusal( $data ) || self::is_signed_site_mismatch( $data ) ) {
+					// After a signed refusal interpret() already tried to forget; this attempt tells whether the data is gone.
+					// After a signed site_mismatch nothing was released: the activation stays with the other address.
+					if ( ! $this->forget() ) {
+						return $this->error( 'wplc_credentials_not_removed', array( 'released' => self::is_signed_refusal( $data ) ) );
+					}
+					return array(
+						'status' => 'removed_locally',
+						'reason' => $data->get_error_code(),
 					);
 				}
 				return $data;
 			}
+			if ( ! $this->forget() ) {
+				return $this->error( 'wplc_credentials_not_removed', array( 'released' => true ) );
+			}
 
-			return $this->forgotten( $data );
+			return $data;
 		}
 
 		/**
 		 * Remove the stored credentials without contacting the server.
 		 *
-		 * @since 2.1.0 Returns the result; before, it returned nothing.
+		 * @since 2.0.3 Returns whether they are gone (was void).
 		 *
-		 * @return bool Whether neither the credentials nor a pending activation are stored afterwards.
+		 * @return bool Whether neither the credentials nor a pending activation remain stored.
 		 */
 		public function forget(): bool {
 			$credentials = $this->store->delete( $this->option_key );
 			$pending     = $this->store->delete( $this->option_key . '_pending' );
 
 			return $credentials && $pending;
-		}
-
-		/**
-		 * Result of deactivate() after the credentials were dropped: an error when they are still stored.
-		 *
-		 * @param array<string,mixed> $result Result to return when the credentials are gone.
-		 * @return array<string,mixed>|\WP_Error
-		 */
-		private function forgotten( array $result ) {
-			if ( $this->forget() ) {
-				return $result;
-			}
-
-			// The server (or the copy rule) released this site, but the database kept the credentials.
-			return $this->error( 'wplc_credentials_not_removed', array( 'result' => $result ) );
 		}
 
 		/**
@@ -845,7 +870,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				return $data;
 			}
 
-			return isset( $data['product_key'] ) && strtolower( (string) $data['product_key'] ) !== $this->product_key ? 'wplc_product_mismatch' : $data;
+			$problem = $this->product_problem( $data, true );
+
+			return '' === $problem ? $data : $problem;
 		}
 
 		/**
@@ -1233,13 +1260,17 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				}
 				$signed = $data['signed'] ?? null;
 				unset( $data['signed'], $data['wplc_signed'], $data['verified'] );
-				if ( $authenticated && 'activation_deactivated' === $code && is_array( $signed ) ) {
+				if ( $authenticated && in_array( $code, array( 'activation_deactivated', 'site_mismatch' ), true ) && is_array( $signed ) ) {
 					$verified = self::verify( $signed, $secret, $nonce, $this->public_keys, $installation_id, $this->keys_given, $this->verifier );
-					if ( is_array( $verified ) && 'deactivated' === ( $verified['activation_status'] ?? '' ) ) {
+					if ( is_array( $verified ) && 'activation_deactivated' === $code && 'deactivated' === ( $verified['activation_status'] ?? '' ) ) {
 						// Only this signed refusal may end the activation; an unsigned 4xx never does.
 						$data['wplc_signed'] = true;
 						$data['verified']    = $verified;
 						$this->forget();
+					} elseif ( is_array( $verified ) && 'site_mismatch' === $code && false === ( $verified['site_match'] ?? null ) ) {
+						// Signed: the activation belongs to another address (since 2.1.0). deactivate() decides what follows.
+						$data['wplc_signed'] = true;
+						$data['verified']    = $verified;
 					}
 				}
 
@@ -1304,7 +1335,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			);
 			$error = null;
 			foreach ( $this->api_bases as $base ) {
-				$http = null === $this->transport ? wp_remote_request( $base . $route, $args ) : call_user_func( $this->transport, $base . $route, $args );
+				$http = null === $this->transport ? $this->safe_request( $base . $route, $args ) : call_user_func( $this->transport, $base . $route, $args );
 				if ( is_wp_error( $http ) ) {
 					$error = $http;
 					continue;
@@ -1332,22 +1363,100 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			);
 		}
 
+		/**
+		 * Send one request with wp_safe_remote_request() (since 2.1.0; was wp_remote_request()).
+		 *
+		 * WordPress refuses hosts that resolve to a local or private IP address and ports other
+		 * than 80, 443 and 8080, also after a DNS change of the server host. With
+		 * `allow_local_server` only the host (and port) of this URL is let through, while this
+		 * request runs.
+		 *
+		 * @param string              $url  Full URL.
+		 * @param array<string,mixed> $args Arguments of the WordPress HTTP API.
+		 * @return array<string,mixed>|\WP_Error
+		 */
+		private function safe_request( string $url, array $args ) {
+			$host  = strtolower( trim( (string) wp_parse_url( $url, PHP_URL_HOST ), '[]' ) );
+			$port  = (int) wp_parse_url( $url, PHP_URL_PORT );
+			$allow = $this->allow_local_server && '' !== $host && function_exists( 'add_filter' ) && function_exists( 'remove_filter' );
+			if ( ! $allow ) {
+				return wp_safe_remote_request( $url, $args );
+			}
+			$external = static function ( $is_external, $request_host = '' ) use ( $host ) {
+				return (bool) $is_external || strtolower( trim( (string) $request_host, '[]' ) ) === $host;
+			};
+			$ports    = static function ( $allowed, $request_host = '' ) use ( $host, $port ) {
+				$allowed = (array) $allowed;
+				if ( $port > 0 && strtolower( trim( (string) $request_host, '[]' ) ) === $host ) {
+					$allowed[] = $port;
+				}
+				return $allowed;
+			};
+			add_filter( 'http_request_host_is_external', $external, 10, 2 );
+			add_filter( 'http_allowed_safe_ports', $ports, 10, 2 );
+			try {
+				return wp_safe_remote_request( $url, $args );
+			} finally {
+				remove_filter( 'http_request_host_is_external', $external, 10 );
+				remove_filter( 'http_allowed_safe_ports', $ports, 10 );
+			}
+		}
+
 		// ------------------------------------------------------------------
 		// Helpers.
 		// ------------------------------------------------------------------
 
 		/**
-		 * Reject signed data that was issued for another product.
+		 * Reject signed data that was issued for another product or names none.
 		 *
-		 * @param array<string,mixed> $data Signed data.
+		 * @param array<string,mixed> $data          Signed data.
+		 * @param bool                $allow_refusal Accept a signed "deactivated" answer without product key (entitlement check).
 		 * @return array<string,mixed>|\WP_Error
 		 */
-		private function check_product( array $data ) {
-			if ( isset( $data['product_key'] ) && strtolower( (string) $data['product_key'] ) !== $this->product_key ) {
-				return $this->error( 'wplc_product_mismatch' );
+		private function check_product( array $data, bool $allow_refusal = true ) {
+			$problem = $this->product_problem( $data, $allow_refusal );
+
+			return '' === $problem ? $data : $this->error( $problem );
+		}
+
+		/**
+		 * Why signed data does not belong to this add-on; empty when it does.
+		 *
+		 * Since 2.0.3 `product_key` is required: the server sends it in every activation, entitlement and
+		 * update answer, and signed data without it is `wplc_response_invalid`. The one exception (with
+		 * `$allow_refusal`) is the signed "deactivated" answer of the entitlement check, which carries no
+		 * product key and grants nothing. Builds no texts (used by verified_snapshot_data()).
+		 *
+		 * @param array<string,mixed> $data          Signed data.
+		 * @param bool                $allow_refusal Accept `activation_status: deactivated` without access and without product key.
+		 * @return string Error code or ''.
+		 */
+		private function product_problem( array $data, bool $allow_refusal ): string {
+			$product = $data['product_key'] ?? null;
+			if ( ! is_string( $product ) || '' === $product ) {
+				$refusal = 'deactivated' === ( $data['activation_status'] ?? '' ) && true !== ( $data['access'] ?? null );
+
+				return $allow_refusal && $refusal ? '' : 'wplc_response_invalid';
 			}
 
-			return $data;
+			return strtolower( $product ) === $this->product_key ? '' : 'wplc_product_mismatch';
+		}
+
+		/**
+		 * A positive integer ID from signed data; 0 for anything else.
+		 *
+		 * @param mixed $value Value of the answer (JSON integer, or a decimal string without leading zero).
+		 * @return int
+		 */
+		private static function positive_id( $value ): int {
+			if ( is_int( $value ) ) {
+				return $value > 0 ? $value : 0;
+			}
+			if ( is_string( $value ) && preg_match( '/^[1-9][0-9]{0,17}$/D', $value ) ) {
+				return (int) $value;
+			}
+
+			return 0;
 		}
 
 		/**
@@ -1400,12 +1509,15 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Build an error with the client's own text for the code.
 		 *
+		 * Since 2.1.0 no text is built before `init` (Messages::ready()): the message is then the
+		 * code itself and the text is looked up when it is shown (LicenseManager::error_text()).
+		 *
 		 * @param string              $code Error code.
 		 * @param array<string,mixed> $data Error data.
 		 * @return \WP_Error
 		 */
 		private function error( string $code, array $data = array() ): \WP_Error {
-			return new \WP_Error( $code, $this->messages->error( $code ), $data );
+			return new \WP_Error( $code, Messages::ready() ? $this->messages->error( $code ) : $code, $data );
 		}
 
 		/**

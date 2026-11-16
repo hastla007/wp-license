@@ -41,6 +41,14 @@ A client may keep the last signed answer and use it while the server cannot be r
 
 The shop can change the 14 days with the filter `wplc_offline_cache_days`.
 
+**The clock of the customer site** (client library 2.1.0, decision of 16 Nov 2026). The client measures the window from the signed `server_time` plus the local time that passed since the answer was stored, so a wrong time zone or a clock that is behind does not shorten it. On top of that there is an absolute limit that does not depend on anything stored next to the snapshot: the snapshot is void (state `stale`, reason `clock_ahead`) as soon as the local UTC time (`time()`) is later than the signed `cache_expires_at` plus a **tolerance of one day**. The tolerance is the constant `LicenseManager::OFFLINE_TOLERANCE`; an add-on can change it with the filter `{prefix}_license_offline_tolerance` (seconds), but never beyond seven days (`LicenseManager::MAX_OFFLINE_TOLERANCE`) or below zero. Consequences:
+
+- A clock that is constantly wrong does not matter as long as it is behind, or ahead by at most the tolerance.
+- A clock that is ahead by more than the tolerance shortens the offline window by the difference. A clock that is ahead by more than 14 + 1 days makes every snapshot `stale` right after the check that stored it; the license screen and the notice then say "the clock of this site is ahead, or the offline period has expired".
+- Someone who can write the options of the site can no longer extend the window by resetting the unsigned fields `fetched_at`, `clock_high` and `server_time_max` (audit of 16 Nov 2026): once the local time is past `cache_expires_at` plus the tolerance, only a new signed answer, or a system clock that is set back, makes the snapshot usable again.
+
+**Released activations and the retention of their rows.** A released activation (customer account, admin, replacement, end of the license) keeps its row with `status = deactivated`; every signed request of that installation is answered with a signed refusal, and the client locks at once. Only when the row is deleted does the server answer an unsigned `401 activation_not_found`, which the client may not trust and which therefore leaves the snapshot in force until its `cache_expires_at`. Keep the retention of deactivated activations (settings `activations` and `inactive_activations` of the data retention, default 365 days) **never shorter than the offline window** (14 days, or the value of `wplc_offline_cache_days`).
+
 ## Dates
 
 All date-time values of the API (`paid_until`, `access_until`, `grace_until`, `server_time`, `cache_expires_at`, `deactivated_at`) are **UTC** in the form `YYYY-MM-DD HH:MM:SS`, without a time zone suffix. Parse them as UTC (`strtotime( $value . ' UTC' )`) and convert for display. `paid_until`, `access_until` and `grace_until` can be `null`.
@@ -101,7 +109,7 @@ The keys below are the ones the product editor offers as tick boxes (`WPLC\Catal
 |---|---|---|
 | Affiliate Captain Pro (`affiliate-captain-pro`) | `affiliate.extended_api`, `affiliate.automated_payouts`, `affiliate.white_label_portal`, `affiliate.webhooks` | Built. |
 | Pass Captain Pro (`pass-captain-pro`) | `pass.e_invoicing`, `pass.card_terminal`, `pass.waiting_room`, `pass.write_api`, `pass.white_label` | Built. `pass.e_invoicing` delivers XRechnung 3.0 XML (UBL and CII) and, since captain-pro `e54eda9` (16 Nov 2026), a ZUGFeRD PDF/A-3 with the CII XML embedded; the external validations of the PDF are still open there (captain-pro `docs/PASS-E-INVOICE.md`). |
-| Voucher Captain Pro (`voucher-captain-pro`) | none yet | No premium function is built; the add-on is a skeleton. Nothing can be sold for it yet. |
+| Voucher Captain Pro (`voucher-captain-pro`) | none yet | No premium function is built. The cut of 16 Nov 2026 (owner decision) plans company orders, wallet passes, SMS delivery and white label (status `planned`, next section). Nothing can be sold for it yet. |
 | Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`), Course Captain Pro (`course-captain-pro`) | none yet | Planned (product status `planned` in the catalog file). The product keys resolve to the prefixes `workflow.`, `form.`, `review.`, `course.`; the product editor does not suggest them and offers no key for them. Six `workflow.*` keys are reserved (next section). |
 
 Support is the plan attribute `support.level` (`standard` or `priority`) and nothing else (owner decision of 16 Nov 2026, R-24). The three former keys `*.priority_support` (one each for `affiliate.`, `voucher.` and `pass.`), which no add-on checked, are no longer in the catalog. A plan or license that still stores one keeps it in the advanced JSON field; it has no effect.
@@ -119,7 +127,10 @@ These keys are reserved for functions that are planned but that no released add-
 | `affiliate.leaderboard` | Leaderboard and milestone emails |
 | `affiliate.multi_tier` | Multi-tier commissions |
 | `affiliate.multiple_programs` | Multiple programs |
-| `voucher.white_label` | White label for Voucher Captain Pro (not described yet) |
+| `voucher.bulk_orders` | Voucher Captain Pro: company orders (many vouchers from a CSV list) |
+| `voucher.wallet_passes` | Voucher Captain Pro: Apple and Google Wallet passes |
+| `voucher.sms_delivery` | Voucher Captain Pro: voucher link by SMS |
+| `voucher.white_label` | Voucher Captain Pro: white label, same scope as Pass Captain Pro (owner decision E2 of 16 Nov 2026) |
 | `workflow.suite_integrations` | Workflow Captain Pro: integrations with the other Captain plugins |
 | `workflow.webhooks` | Workflow Captain Pro: webhooks |
 | `workflow.event_correlation` | Workflow Captain Pro: event correlation |

@@ -93,10 +93,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\OptionStore', false ) ) {
 		/**
 		 * Delete a value and confirm that it is gone.
 		 *
-		 * @since 2.1.0 Returns the result; before, it returned nothing.
+		 * @since 2.0.3 Returns whether the option is gone (was void).
 		 *
 		 * @param string $name Option name.
-		 * @return bool Whether no value is stored under the name afterwards.
+		 * @return bool Whether the option no longer exists afterwards.
 		 */
 		public function delete( string $name ): bool {
 			if ( $this->network ) {
@@ -105,7 +105,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\OptionStore', false ) ) {
 				delete_option( $name );
 			}
 
-			// delete_option() also returns false for an option that did not exist, so read back instead.
+			// delete_option() also returns false for a missing option, so read back instead.
 			return null === $this->get( $name, null );
 		}
 

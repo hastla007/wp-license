@@ -32,6 +32,19 @@ Comma and semicolon separated files are both accepted, with or without a UTF-8 b
 
 Prices and currency are read from the WooCommerce product at import time; the CSV cannot set a price. The customer-facing name of a license product is not part of the file and is not changed by an import.
 
+## Example: Voucher Captain Pro
+
+The three plans of the decision of 16 Nov 2026 (`docs/ENTITLEMENTS.md`, "Proposed plan mapping"): every plan has the same Pro functions, plans differ by live sites, and Agency adds priority support. Product IDs and SKUs are those of your shop. `sites.live_limit` and `support.level` come from their own columns and are not repeated in the JSON.
+
+```csv
+product_id,variation_id,sku,product_key,plan_key,billing_interval,live_site_limit,support_level,entitlements_json
+120,121,VCP-SINGLE,voucher-captain-pro,single,year,1,standard,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true}"
+120,122,VCP-BUSINESS,voucher-captain-pro,business,year,5,standard,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true}"
+120,123,VCP-AGENCY,voucher-captain-pro,agency,year,25,priority,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true,""voucher.priority_support"":true}"
+```
+
+Importing this file changes the plans for new licenses only; existing licenses keep the keys they stored (see "Changing a plan that licenses already use" in `docs/ENTITLEMENTS.md`).
+
 ## Export
 
 The export is read from the license catalog (table `wplc_plans`), one line per active plan. Cells that start with `=`, `+`, `-`, `@`, a tab or a carriage return get a leading apostrophe, so a spreadsheet program does not run them as formulas. The import removes that apostrophe again.

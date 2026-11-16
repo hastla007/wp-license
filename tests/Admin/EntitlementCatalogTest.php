@@ -65,7 +65,7 @@ final class EntitlementCatalogTest extends TestCase {
 		}
 		sort( $planned );
 		$this->assertSame(
-			array( 'affiliate.leaderboard', 'affiliate.multi_tier', 'affiliate.multiple_programs', 'affiliate.store_credit', 'affiliate.stripe_connect', 'voucher.white_label', 'workflow.advanced_logic', 'workflow.event_correlation', 'workflow.extended_logs', 'workflow.recipe_templates', 'workflow.suite_integrations', 'workflow.webhooks' ),
+			array( 'affiliate.leaderboard', 'affiliate.multi_tier', 'affiliate.multiple_programs', 'affiliate.store_credit', 'affiliate.stripe_connect', 'voucher.bulk_orders', 'voucher.sms_delivery', 'voucher.wallet_passes', 'voucher.white_label', 'workflow.advanced_logic', 'workflow.event_correlation', 'workflow.extended_logs', 'workflow.recipe_templates', 'workflow.suite_integrations', 'workflow.webhooks' ),
 			$planned
 		);
 		$this->assertSame( $this->documented_keys( '## Planned, not deliverable yet', '## Contract examples' ), $planned );

@@ -56,6 +56,17 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		const CLOCK_SKEW = 300;
 
 		/**
+		 * Seconds the local clock may run past the signed `cache_expires_at` before the snapshot is `stale` whatever
+		 * the stored clock fields say (since 2.1.0). Filter `{prefix}_license_offline_tolerance`.
+		 */
+		const OFFLINE_TOLERANCE = 86400;
+
+		/**
+		 * Upper bound of the filtered tolerance: seven days.
+		 */
+		const MAX_OFFLINE_TOLERANCE = 604800;
+
+		/**
 		 * Seconds between two background checks scheduled because the clock went back.
 		 */
 		const RECHECK_LOCK = 900;
@@ -99,13 +110,6 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @var array<string,mixed>|null
 		 */
 		private $snapshot;
-
-		/**
-		 * State of this request that the database did not take (see write()); null when the stored one counts.
-		 *
-		 * @var array<string,mixed>|null
-		 */
-		private $unsaved;
 
 		/**
 		 * Constructor.
@@ -212,6 +216,22 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$public_keys = (array) apply_filters( $prefix . '_license_public_keys', $public_keys ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- prefixed with the add-on's own prefix.
 			}
 
+			$allow_local = self::is_dev_build( $prefix );
+			if ( '' !== $prefix && function_exists( 'apply_filters' ) ) {
+				/**
+				 * Filters whether the license server may have a local or private address (since 2.1.0).
+				 *
+				 * Requests to the license server go through wp_safe_remote_request(), which refuses
+				 * hosts that resolve to a loopback or private IP address and ports other than 80, 443
+				 * and 8080. For a development or test server on such an address, return true: only the
+				 * host and port of the configured server addresses are then let through, nothing else.
+				 * Default: true in a development build (`{PREFIX}_LICENSE_DEV`), false otherwise.
+				 *
+				 * @param bool $allow Whether the server host may resolve to a local or private address.
+				 */
+				$allow_local = (bool) apply_filters( $prefix . '_license_allow_local_server', $allow_local ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- prefixed with the add-on's own prefix.
+			}
+
 			return new LicenseClient(
 				$server_url,
 				$product_key,
@@ -228,6 +248,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 					'transport'          => $config['transport'] ?? null,
 					'clock'              => $config['clock'] ?? null,
 					'signature_verifier' => $config['signature_verifier'] ?? null,
+					'allow_local_server' => $allow_local,
 				)
 			);
 		}
@@ -249,6 +270,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			}
 			add_action( 'admin_init', array( $this, 'catch_up' ) );
 			add_action( 'admin_init', array( $this, 'add_privacy_text' ) );
+			add_filter( 'debug_information', array( $this, 'debug_information' ) );
 			add_action( 'admin_post_' . $this->prefix . '_license', array( $this, 'handle_settings_form' ) );
 			add_action( $this->config['network'] ? 'network_admin_notices' : 'admin_notices', array( $this, 'render_notice' ) );
 			if ( false !== $this->config['settings_parent'] && '' !== $this->config['settings_parent'] ) {
@@ -393,7 +415,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 
 			$server_now = $this->server_now( $state, $data );
 			$expires    = self::utc( $status->cache_expires_at );
-			if ( PHP_INT_MAX === $server_now && (int) ( $state['fetched_at'] ?? 0 ) > $this->client()->now() + self::CLOCK_SKEW ) {
+			$local_now  = $this->client()->now();
+			if ( PHP_INT_MAX === $server_now && (int) ( $state['fetched_at'] ?? 0 ) > $local_now + self::CLOCK_SKEW ) {
 				// The clock was turned back (NTP correction) or the option was edited: ask the server
 				// in the background right away instead of waiting for the next daily check.
 				$this->schedule_recheck();
@@ -401,6 +424,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			if ( 0 === $expires || $server_now >= $expires ) {
 				// The signed offline window is used up; only a new signed answer restores the rights.
 				$status->state = LicenseStatus::STATE_STALE;
+				return $status;
+			}
+			if ( $local_now > $expires + $this->offline_tolerance() ) {
+				// Absolute limit (since 2.1.0): the local clock is past the signed deadline. Resetting the unsigned
+				// clock fields of the option does not change this; only a new signed answer (or a clock turned back) does.
+				$status->state  = LicenseStatus::STATE_STALE;
+				$status->reason = LicenseStatus::REASON_CLOCK_AHEAD;
 				return $status;
 			}
 			if ( array_key_exists( 'site_match', $data ) && false === $data['site_match'] ) {
@@ -424,6 +454,36 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			$status->state = $map[ $status->license_status ] ?? LicenseStatus::STATE_INACTIVE;
 
 			return $status;
+		}
+
+		/**
+		 * Seconds the local clock may run past the signed `cache_expires_at` (since 2.1.0).
+		 *
+		 * Default OFFLINE_TOLERANCE (one day), filter `{prefix}_license_offline_tolerance`,
+		 * limited to 0 … MAX_OFFLINE_TOLERANCE (seven days).
+		 *
+		 * @return int
+		 */
+		public function offline_tolerance(): int {
+			$tolerance = self::OFFLINE_TOLERANCE;
+			if ( '' !== $this->prefix && function_exists( 'apply_filters' ) ) {
+				/**
+				 * Filters how long the local clock may run past the signed end of the offline window.
+				 *
+				 * A stored snapshot is `stale` (reason `clock_ahead`) as soon as the local time is later
+				 * than its signed `cache_expires_at` plus this tolerance, whatever the unsigned clock
+				 * fields next to it say. A site whose clock is ahead by more than the offline window plus
+				 * the tolerance therefore loses the premium features after every check. Values outside
+				 * 0 … 604800 (seven days) are limited to that range.
+				 *
+				 * @since 2.1.0
+				 *
+				 * @param int $tolerance Seconds. Default 86400.
+				 */
+				$tolerance = (int) apply_filters( $this->prefix . '_license_offline_tolerance', $tolerance ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- prefixed with the add-on's own prefix.
+			}
+
+			return max( 0, min( self::MAX_OFFLINE_TOLERANCE, $tolerance ) );
 		}
 
 		// ------------------------------------------------------------------
@@ -460,20 +520,24 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Release the activation of this site (or only forget copied credentials on a copy).
 		 *
+		 * The stored rights are dropped whenever the server released the activation, also when the
+		 * credentials could not be removed (`wplc_credentials_not_removed`, returned as the error).
+		 * A success is returned only when credentials and stored state are both gone.
+		 *
 		 * @return array<string,mixed>|\WP_Error Result of LicenseClient::deactivate().
 		 */
 		public function deactivate() {
 			$before = $this->status()->state;
 			$result = $this->client()->deactivate();
-			// "Not removed" means: released on the server, but the credentials are still in the database.
-			// The cached rights are dropped in that case too.
-			if ( ! is_wp_error( $result ) || 'wplc_credentials_not_removed' === $result->get_error_code() ) {
+			$gone   = ! is_wp_error( $result )
+				|| ( 'wplc_credentials_not_removed' === $result->get_error_code() && ! empty( ( (array) $result->get_error_data() )['released'] ) );
+			if ( $gone ) {
 				$removed = $this->drop_state();
 				$this->updater()->flush();
 				$this->ensure_schedule();
 				$this->changed( $before );
 				if ( ! $removed && ! is_wp_error( $result ) ) {
-					$result = new \WP_Error( 'wplc_credentials_not_removed', $this->client()->messages()->error( 'wplc_credentials_not_removed' ), array( 'result' => $result ) );
+					$result = $this->error( 'wplc_credentials_not_removed', array( 'released' => true ) );
 				}
 			}
 
@@ -487,19 +551,19 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * unsigned refusal, which leaves this as the way out when the server really
 		 * no longer knows the installation.
 		 *
-		 * @since 2.1.0 Returns the result; before, it returned nothing.
+		 * @since 2.0.3 Returns whether the data is gone (was void).
 		 *
-		 * @return bool Whether the credentials and the cached rights are gone from the database.
+		 * @return bool Whether credentials and stored state are both removed.
 		 */
 		public function forget_locally(): bool {
-			$before    = $this->status()->state;
-			$forgotten = $this->client()->forget();
-			$removed   = $this->drop_state();
+			$before      = $this->status()->state;
+			$credentials = $this->client()->forget();
+			$state       = $this->drop_state();
 			$this->updater()->flush();
 			$this->ensure_schedule();
 			$this->changed( $before );
 
-			return $forgotten && $removed;
+			return $credentials && $state;
 		}
 
 		/**
@@ -510,12 +574,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 */
 		public function refresh( bool $force = true ) {
 			if ( ! $this->client()->is_activated() ) {
-				return new \WP_Error( 'wplc_not_activated', $this->client()->messages()->error( 'wplc_not_activated' ) );
+				return $this->error( 'wplc_not_activated' );
 			}
 			$state = $this->state();
 			$now   = $this->client()->now();
 			if ( ! $force && $now < (int) ( $state['next_attempt'] ?? 0 ) && $now >= (int) ( $state['last_attempt'] ?? 0 ) ) {
-				return new \WP_Error( 'wplc_backoff', $this->client()->messages()->error( 'wplc_connection_failed' ), array( 'next_attempt' => (int) $state['next_attempt'] ) );
+				return $this->error( 'wplc_backoff', array( 'next_attempt' => (int) $state['next_attempt'] ), 'wplc_connection_failed' );
 			}
 			$before = $this->status()->state;
 			$result = $this->client()->check_entitlements();
@@ -748,6 +812,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 
 			echo '<table class="form-table" role="presentation"><tbody>';
 			$this->row( $this->text( 'ui.status' ), $this->text( 'state.' . $status->state ) );
+			if ( '' !== $status->reason ) {
+				$this->row( $this->text( 'ui.reason' ), $this->text( 'reason.' . $status->reason ) );
+			}
 			if ( '' !== $status->license_status ) {
 				$this->row( $this->text( 'ui.paid_until' ), '' === $status->paid_until ? $this->text( 'ui.no_end' ) : $this->date( $status->paid_until ) );
 				if ( $status->access && '' !== $status->access_until && $status->access_until !== $status->paid_until ) {
@@ -815,10 +882,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			} elseif ( '' !== $status->installation_id ) {
 				echo '<p>';
 				$this->button( 'check', $this->text( 'ui.check_now' ), true );
-				$this->button( 'deactivate', $this->text( 'ui.deactivate' ) );
 				if ( $status->needs_reactivation ) {
 					$this->button( 'forget', $this->text( 'ui.forget_local' ) );
 				}
+				// Releasing gives up the site slot and switches the features off at once: only after an explicit confirmation.
+				echo '</p><p><label><input type="checkbox" name="wplc_confirm_deactivate" value="1"> ' . esc_html( $this->text( 'ui.deactivate_confirm' ) ) . '</label></p><p>';
+				$this->button( 'deactivate', $this->text( 'ui.deactivate' ) );
 				echo '</p><p class="description">' . esc_html( $this->text( 'ui.key_hidden' ) ) . '</p>';
 				echo '<p>' . wp_kses( $label . $key_input, $allowed ) . ' ';
 				$this->button( 'activate', $this->text( 'ui.activate' ) );
@@ -844,7 +913,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			$do     = isset( $_POST['wplc_do'] ) ? sanitize_key( wp_unslash( $_POST['wplc_do'] ) ) : '';
 			$field  = $this->prefix . '_license_key';
 			$key    = isset( $_POST[ $field ] ) ? sanitize_text_field( wp_unslash( $_POST[ $field ] ) ) : '';
-			$result = $this->run_form_action( $do, $key, ! empty( $_POST['wplc_confirm_move'] ) );
+			// Each action that gives something up has its own confirmation field: `move`, and since 2.1.0 `deactivate`.
+			$confirm = 'deactivate' === $do ? 'wplc_confirm_deactivate' : 'wplc_confirm_move';
+			$result  = $this->run_form_action( $do, $key, ! empty( $_POST[ $confirm ] ) );
 
 			set_transient( $this->flash_key(), $result, 60 );
 			$target = $this->settings_url();
@@ -862,9 +933,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Execute one action of the license form.
 		 *
+		 * Since 2.1.0 `deactivate` needs `$confirmed = true` as well, like `move`, whenever it would
+		 * release the activation on the server (activated site under its activated address).
+		 * Without it nothing is sent and an error message is returned. On a copy of the site
+		 * (`site_changed`) `deactivate` only removes the copied data and needs no confirmation.
+		 * Code that calls this without the form confirms explicitly: `run_form_action( 'deactivate', '', true )`.
+		 *
 		 * @param string $action      `activate`, `move`, `deactivate`, `forget` or `check`.
-		 * @param string $license_key Key from the form.
+		 * @param string $license_key Key from the form (`activate`, `move`).
 		 * @param bool   $confirmed   For `move`: the administrator confirmed that the site moved (the old address loses the license).
+		 *                            For `deactivate` (since 2.1.0): the administrator confirmed that this site gives up its license.
 		 * @return array{type:string,text:string} Message for the next page view.
 		 */
 		public function run_form_action( string $action, string $license_key = '', bool $confirmed = false ): array {
@@ -882,10 +960,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$result = $this->move( $license_key );
 				$saved  = 'ui.saved.moved';
 			} elseif ( 'deactivate' === $action ) {
+				if ( ! $confirmed && $this->client()->is_activated() && $this->client()->site_matches() ) {
+					return array(
+						'type' => 'error',
+						'text' => $this->text( 'ui.deactivate_unconfirmed' ),
+					);
+				}
 				$result = $this->deactivate();
-				$saved  = is_array( $result ) && 'removed_locally' === ( $result['status'] ?? '' ) && 'wplc_site_changed' === ( $result['reason'] ?? '' ) ? 'ui.saved.deactivated_locally' : 'ui.saved.deactivated';
+				$saved  = is_array( $result ) && 'removed_locally' === ( $result['status'] ?? '' ) && in_array( $result['reason'] ?? '', array( 'wplc_site_changed', 'site_mismatch' ), true ) ? 'ui.saved.deactivated_locally' : 'ui.saved.deactivated';
 			} elseif ( 'forget' === $action ) {
-				$result = $this->forget_locally() ? array() : new \WP_Error( 'wplc_credentials_not_removed', $this->client()->messages()->error( 'wplc_credentials_not_removed' ) );
+				$result = $this->forget_locally() ? array() : $this->error( 'wplc_credentials_not_removed' );
 				$saved  = 'ui.saved.forgotten';
 			} else {
 				$result = $this->refresh( true );
@@ -893,7 +977,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			if ( is_wp_error( $result ) ) {
 				return array(
 					'type' => 'error',
-					'text' => $result->get_error_message() . ' (' . $result->get_error_code() . ')',
+					'text' => $this->error_text( $result ) . ' (' . $result->get_error_code() . ')',
 				);
 			}
 
@@ -973,7 +1057,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				case LicenseStatus::STATE_STALE:
 				case LicenseStatus::STATE_MISCONFIGURED:
 					$type = in_array( $status->state, array( LicenseStatus::STATE_SITE_CHANGED, LicenseStatus::STATE_DEACTIVATED ), true ) ? 'warning' : 'error';
-					$text = sprintf( $this->text( 'notice.' . $status->state ), $name );
+					$key  = LicenseStatus::REASON_CLOCK_AHEAD === $status->reason ? 'notice.stale_clock_ahead' : 'notice.' . $status->state;
+					$text = sprintf( $this->text( $key ), $name );
 					break;
 			}
 			if ( '' === $text ) {
@@ -988,6 +1073,136 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				'text'  => $text,
 				'state' => $status->state,
 			);
+		}
+
+		/**
+		 * Translated text of an error of the library, for display.
+		 *
+		 * Errors created before `init` carry their code as message, because no translation may be
+		 * loaded that early (Messages::ready()); this looks the text up when it is shown. Any other
+		 * message is returned as it is. Add-ons that print errors of the library use this instead
+		 * of `get_error_message()`.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param \WP_Error $error Error of LicenseManager, LicenseClient or Updater.
+		 * @return string
+		 */
+		public function error_text( \WP_Error $error ): string {
+			$code    = (string) $error->get_error_code();
+			$message = (string) $error->get_error_message();
+			if ( '' !== $message && $message !== $code ) {
+				return $message;
+			}
+
+			return $this->client()->messages()->error( 'wplc_backoff' === $code ? 'wplc_connection_failed' : $code );
+		}
+
+		/**
+		 * Section of this add-on under Tools → Site Health → Info (filter `debug_information`).
+		 *
+		 * State with its reason, last successful check, last error with its time, end of the offline
+		 * window, environment, a shortened installation ID, server host, how signatures are checked,
+		 * fingerprints of the pinned keys and the library version. Never the license key (it is not
+		 * stored), the installation secret or the snapshot.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param array<string,mixed> $info Sections of Site Health.
+		 * @return array<string,mixed>
+		 */
+		public function debug_information( $info ) {
+			$info   = is_array( $info ) ? $info : array();
+			$status = $this->status();
+			$client = $this->client();
+			$none   = $this->text( 'debug.none' );
+			$utc    = static function ( int $time ): string {
+				return gmdate( 'Y-m-d H:i:s', $time ) . ' UTC';
+			};
+
+			$state_text = $this->text( 'state.' . $status->state );
+			if ( '' !== $status->reason ) {
+				$state_text .= ' – ' . $this->text( 'reason.' . $status->reason );
+			}
+			$error_text  = $none;
+			$error_debug = 'none';
+			if ( '' !== $status->last_error ) {
+				$error_text  = $client->messages()->error( $status->last_error ) . ' (' . $status->last_error . ', ' . $this->date( gmdate( 'Y-m-d H:i:s', $status->last_error_at ) ) . ')';
+				$error_debug = $status->last_error . ', ' . $utc( $status->last_error_at );
+			}
+			$signature = 'none';
+			if ( $client->can_verify_server_signature() ) {
+				$signature = $client->uses_native_ed25519() ? 'native' : 'compat';
+			}
+			$fingerprints = array();
+			foreach ( (array) $this->config['public_keys'] as $key ) {
+				$binary = is_string( $key ) ? base64_decode( trim( $key ), true ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- decodes a public key.
+				if ( is_string( $binary ) && 32 === strlen( $binary ) ) {
+					$fingerprints[] = substr( hash( 'sha256', $binary ), 0, 16 );
+				}
+			}
+			// Shortened: enough for support to find the activation, not the full identifier.
+			$installation = '' === $status->installation_id ? '' : substr( $status->installation_id, 0, 8 ) . '…';
+			$host         = $client->server_host();
+
+			$fields = array(
+				'state'         => array(
+					'label' => $this->text( 'ui.status' ),
+					'value' => $state_text,
+					'debug' => $status->state . ( '' === $status->reason ? '' : ' (' . $status->reason . ')' ),
+				),
+				'last_checked'  => array(
+					'label' => $this->text( 'ui.last_checked' ),
+					'value' => 0 === $status->last_checked ? $this->text( 'ui.never' ) : $this->date( gmdate( 'Y-m-d H:i:s', $status->last_checked ) ),
+					'debug' => 0 === $status->last_checked ? 'never' : $utc( $status->last_checked ),
+				),
+				'last_error'    => array(
+					'label' => $this->text( 'ui.last_error' ),
+					'value' => $error_text,
+					'debug' => $error_debug,
+				),
+				'offline_until' => array(
+					'label' => $this->text( 'debug.offline_until' ),
+					'value' => '' === $status->cache_expires_at ? $none : $this->date( $status->cache_expires_at ),
+					'debug' => '' === $status->cache_expires_at ? 'none' : $status->cache_expires_at . ' UTC',
+				),
+				'environment'   => array(
+					'label' => $this->text( 'ui.environment' ),
+					'value' => '' === $status->environment ? $none : $this->text( 'ui.environment.' . $status->environment ),
+					'debug' => '' === $status->environment ? 'none' : $status->environment,
+				),
+				'installation'  => array(
+					'label' => $this->text( 'debug.installation' ),
+					'value' => '' === $installation ? $none : $installation,
+					'debug' => '' === $installation ? 'none' : $installation,
+				),
+				'server'        => array(
+					'label' => $this->text( 'debug.server' ),
+					'value' => '' === $host ? $none : $host,
+					'debug' => '' === $host ? 'none' : $host,
+				),
+				'signature'     => array(
+					'label' => $this->text( 'debug.signature' ),
+					'value' => $this->text( 'debug.signature.' . $signature ),
+					'debug' => $signature,
+				),
+				'keys'          => array(
+					'label' => $this->text( 'debug.keys' ),
+					'value' => empty( $fingerprints ) ? $none : implode( ', ', $fingerprints ),
+					'debug' => empty( $fingerprints ) ? 'none' : implode( ', ', $fingerprints ),
+				),
+				'version'       => array(
+					'label' => $this->text( 'debug.version' ),
+					'value' => self::VERSION,
+				),
+			);
+
+			$info[ $this->prefix . '_license' ] = array(
+				'label'  => sprintf( '%s – %s', (string) $this->config['name'], $this->text( 'ui.title' ) ),
+				'fields' => $fields,
+			);
+
+			return $info;
 		}
 
 		/**
@@ -1054,10 +1269,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			if ( ! is_wp_error( $result ) ) {
 				$server_time = self::utc( (string) ( $result['server_time'] ?? '' ) );
 				if ( 0 === $server_time || empty( $this->client()->last_envelope() ) ) {
-					$result = new \WP_Error( 'wplc_response_invalid', $this->client()->messages()->error( 'wplc_response_invalid' ) );
+					$result = $this->error( 'wplc_response_invalid' );
 				} elseif ( $server_time < (int) ( $state['server_time_max'] ?? 0 ) - 300 ) {
 					// An answer older than one already seen is a replay, whatever it says.
-					$result = new \WP_Error( 'wplc_response_stale', $this->client()->messages()->error( 'wplc_response_stale' ) );
+					$result = $this->error( 'wplc_response_stale' );
 				}
 			}
 
@@ -1079,7 +1294,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 					$state['envelope'] = $this->client()->last_envelope();
 				}
 				if ( ! $this->write( $state ) ) {
-					return new \WP_Error( 'wplc_state_not_saved', $this->client()->messages()->error( 'wplc_state_not_saved' ) );
+					return $this->not_saved();
 				}
 
 				return null;
@@ -1096,7 +1311,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$state['error_streak']    = 0;
 				$state['next_attempt']    = 0;
 				unset( $state['envelope'] );
-				$this->write( $state );
+				if ( ! $this->write( $state ) ) {
+					return $this->not_saved();
+				}
 
 				return $result;
 			}
@@ -1178,7 +1395,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * The base is only the signed `server_time` inside the verified payload.
 		 * The local clock measures the time since the snapshot was stored
 		 * (`fetched_at`), so a wrong time zone or a constant offset does not
-		 * matter. The unsigned stored fields can only make the result later,
+		 * shift the deadline. Since 2.1.0 status() adds an absolute limit on
+		 * top: the local time must not be later than `cache_expires_at` plus
+		 * offline_tolerance(), whatever the unsigned fields below say. The unsigned stored fields can only make the result later,
 		 * never earlier: `clock_high` (highest local time seen, so turning the
 		 * clock back does not extend the offline window) and `server_time_max`
 		 * (highest signed server time seen). A `fetched_at` more than CLOCK_SKEW
@@ -1208,9 +1427,6 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @return array<string,mixed>
 		 */
 		private function state(): array {
-			if ( null !== $this->unsaved ) {
-				return $this->unsaved;
-			}
 			$state = $this->client()->store()->get( $this->state_option(), array() );
 
 			return is_array( $state ) ? $state : array();
@@ -1219,47 +1435,42 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Write the state and forget the memoized snapshot.
 		 *
-		 * A state the database did not take must not leave the older one in
-		 * charge when that one grants more: a signed answer that withdraws the
-		 * access or a right would otherwise stay without effect until the offline
-		 * window of the older answer ends. In that case the stored state is
-		 * deleted (the add-on then reports "stale", without rights, until an
-		 * answer can be stored). An older state that grants the same is kept.
-		 * For the rest of the request the new state is used from memory either
-		 * way. A database that accepts neither the write nor the delete keeps the
-		 * old state; the daily check repeats the request.
-		 *
 		 * @param array<string,mixed> $state State.
-		 * @return bool Whether the state is stored.
+		 * @return bool Whether the state was stored (read back by OptionStore::set()).
 		 */
 		private function write( array $state ): bool {
-			$this->unsaved  = null;
+			$saved          = $this->client()->store()->set( $this->state_option(), $state );
 			$this->snapshot = null;
-			if ( $this->client()->store()->set( $this->state_option(), $state ) ) {
-				return true;
-			}
 
-			$stored         = $this->status();
-			$this->unsaved  = $state;
-			$this->snapshot = null;
-			$current        = $this->status();
-			if ( $stored->access && ( ! $current->access || $stored->entitlements !== $current->entitlements ) ) {
-				$this->client()->store()->delete( $this->state_option() );
-			}
-
-			return false;
+			return $saved;
 		}
 
 		/**
-		 * Delete the stored state (cached rights) of this add-on.
+		 * Remove the stored state with its snapshot; when the option cannot be deleted, overwrite it with an empty state.
 		 *
-		 * @return bool Whether it is gone from the database.
+		 * @return bool Whether no snapshot is stored any more.
 		 */
 		private function drop_state(): bool {
-			$this->unsaved  = null;
+			$removed = $this->client()->store()->delete( $this->state_option() ) || $this->write( array() );
+
 			$this->snapshot = null;
 
-			return $this->client()->store()->delete( $this->state_option() );
+			return $removed;
+		}
+
+		/**
+		 * A signed answer could not be stored: drop the stored state with its snapshot.
+		 *
+		 * Otherwise the rights of the older snapshot would outlive the signed answer that
+		 * replaced them (for example a revocation) until its `cache_expires_at`. Without a
+		 * snapshot the add-on is `stale` until the next answer can be stored.
+		 *
+		 * @return \WP_Error `wplc_credentials_not_saved`; data `snapshot_removed` says whether the old snapshot is gone.
+		 */
+		private function not_saved(): \WP_Error {
+			$removed = $this->drop_state();
+
+			return $this->error( 'wplc_credentials_not_saved', array( 'snapshot_removed' => $removed ) );
 		}
 
 		/**
@@ -1297,6 +1508,18 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 */
 		private function text( string $code ): string {
 			return $this->client()->messages()->get( $code );
+		}
+
+		/**
+		 * Error of the manager; before `init` its message is the code (no text is built, see Messages::ready()).
+		 *
+		 * @param string              $code      Error code.
+		 * @param array<string,mixed> $data      Error data.
+		 * @param string              $text_code Code whose text is used, when it differs.
+		 * @return \WP_Error
+		 */
+		private function error( string $code, array $data = array(), string $text_code = '' ): \WP_Error {
+			return new \WP_Error( $code, $this->client()->messages()->error_message( '' === $text_code ? $code : $text_code ), $data );
 		}
 
 		/**

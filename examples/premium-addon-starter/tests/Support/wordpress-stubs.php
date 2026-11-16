@@ -243,6 +243,10 @@ function wp_safe_remote_get( $url, $args = array() ) {
 	$args['method'] = 'GET';
 	return wp_remote_request( $url, $args );
 }
+// The license client sends its API requests with wp_safe_remote_request() (client 2.1.0).
+function wp_safe_remote_request( $url, $args = array() ) {
+	return wp_remote_request( $url, $args );
+}
 function wp_remote_retrieve_response_code( $response ) {
 	return is_array( $response ) ? $response['response']['code'] : '';
 }

@@ -106,7 +106,7 @@ foreach ( $licenses as $index => $license ) {
 	e2e_ok( abs( $paid_until - strtotime( '+1 year' ) ) < 2 * DAY_IN_SECONDS, 'license ' . ( $index + 1 ) . ': paid_until is one year ahead', $license['paid_until'] );
 	$entitlements = e2e_rows( 'entitlements', 'license_id = ' . (int) $license['id'] . ' ORDER BY entitlement_key' );
 	e2e_eq(
-		array( 'sites.live_limit', 'support.level', 'voucher.custom_branding', 'voucher.monthly_limit', 'voucher.pdf_templates' ),
+		array( 'sites.live_limit', 'support.level', 'voucher.bulk_orders', 'voucher.monthly_limit', 'voucher.wallet_passes' ),
 		array_column( $entitlements, 'entitlement_key' ),
 		'license ' . ( $index + 1 ) . ': 5 entitlement rows copied from the plan'
 	);

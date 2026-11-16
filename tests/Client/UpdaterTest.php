@@ -211,6 +211,55 @@ final class UpdaterTest extends TestCase {
 		$this->assertArrayNotHasKey( 'test_addon_update_meta', $this->kit->store->data );
 	}
 
+	/**
+	 * Add-on audit 16 Nov 2026, item 2 (P11, captain-pro docs/AUDIT-LIZENZ-PRS.md): a failed check no longer
+	 * replaces the last valid offer; it is kept until its own expiry and the error is remembered next to it.
+	 */
+	public function test_audit16_a_failed_check_keeps_the_last_offer_until_it_expires(): void {
+		$updater         = $this->manager->updater();
+		$server          = $this->kit->server;
+		$server->queue[] = static function ( array $request ) use ( $server ) {
+			return WPLC_Test_Server::json( 200, $server->envelope( $request, array( 'update_available' => true, 'version' => '1.1.0', 'current_version' => '1.0.0', 'product_key' => 'test-addon', 'license_active' => true, 'package_url' => '', 'package' => '' ) ) );
+		};
+		$this->assertSame( '1.1.0', $updater->metadata( true )['version'] );
+
+		// WordPress checks again two hours later (cron or "Check again"); the server cannot be reached.
+		$this->kit->advance( 2 * HOUR_IN_SECONDS );
+		$server->queue[] = new WP_Error( 'http_request_failed', 'down' );
+		$meta            = $updater->metadata( true );
+		$this->assertArrayNotHasKey( 'error', $meta, 'The offer is still there.' );
+		$this->assertSame( '1.1.0', $meta['version'] );
+		$this->assertTrue( $meta['update_available'] );
+		$this->assertSame( 'wplc_connection_failed', $meta['last_error'] );
+		$this->assertArrayNotHasKey( 'package_url', $meta, 'Never a link in the cache.' );
+
+		// The failure is cached for an hour only, then the check is repeated.
+		$requests = count( $server->requests );
+		$this->kit->advance( 30 * MINUTE_IN_SECONDS );
+		$this->assertSame( '1.1.0', $updater->metadata()['version'] );
+		$this->assertCount( $requests, $server->requests );
+		$this->kit->advance( 31 * MINUTE_IN_SECONDS );
+		$server->queue[] = WPLC_Test_Server::error( 503, 'retry_later' );
+		$this->assertSame( 'retry_later', $updater->metadata()['last_error'] );
+		$this->assertCount( $requests + 1, $server->requests );
+
+		// Twelve hours after the successful check the offer has expired: the error replaces it.
+		$this->kit->advance( 9 * HOUR_IN_SECONDS );
+		$server->queue[] = new WP_Error( 'http_request_failed', 'down' );
+		$this->assertSame( array( 'error' => 'wplc_connection_failed' ), $updater->metadata() );
+
+		// A signed refusal ends the activation: no offer is kept.
+		$server->queue[] = static function ( array $request ) use ( $server ) {
+			return WPLC_Test_Server::json( 200, $server->envelope( $request, array( 'update_available' => true, 'version' => '1.2.0', 'current_version' => '1.0.0', 'product_key' => 'test-addon', 'license_active' => true ) ) );
+		};
+		$this->assertSame( '1.2.0', $updater->metadata( true )['version'] );
+		$server->queue[] = static function ( array $request ) use ( $server ) {
+			$data = array( 'activation_id' => 41, 'installation_id' => '', 'activation_status' => 'deactivated', 'server_time' => gmdate( 'Y-m-d H:i:s', $server->now ) );
+			return WPLC_Test_Server::error( 403, 'activation_deactivated', array( 'signed' => $server->envelope( $request, $data ) ) );
+		};
+		$this->assertSame( array( 'error' => 'activation_deactivated' ), $updater->metadata( true ) );
+	}
+
 	public function test_audit3_allowed_package_addresses(): void {
 		foreach ( array( 'https://storage.example/pkg.zip', 'HTTPS://Storage.example/x', 'http://localhost/pkg.zip', 'http://127.0.0.1:8080/pkg.zip', 'http://[::1]/pkg.zip', 'http://addon.localhost/pkg.zip' ) as $url ) {
 			$this->assertTrue( Updater::is_allowed_package_url( $url ), $url );

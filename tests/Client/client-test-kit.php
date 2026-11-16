@@ -207,9 +207,9 @@ final class WPLC_Test_Store extends OptionStore {
 	public $data = array();
 	/** @var string */
 	public $site = 'https://shop.example';
-	/** @var bool */
+	/** @var bool Refuse every write. */
 	public $fail = false;
-	/** @var bool Deletes are refused too (a database that takes no writes at all). */
+	/** @var bool Refuse every delete (the value stays). */
 	public $fail_delete = false;
 
 	public function __construct() {
