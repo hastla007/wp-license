@@ -125,3 +125,20 @@ The only database errors in `debug.log` are WooCommerce's own on a new site befo
 9. **Restore from the dump.** With the key ring of the end of the rehearsal: 0 of 99 keys shown, 0 of 20 secrets decrypt, signing key `undecryptable`; `rotate-installation-secrets` warns, exit code 1; `signing-key` refuses with the restore hint. With the backed-up `wp-config.php`: counts and both checksums as at baseline, 99 of 99 keys with the baseline digest, 20 of 20 secrets, signing key `ok` with key ID `4e6e437a9716e903`, dry run exit code 0. A restored database needs the key ring of its time; the runbook in docs/SECURITY-OPERATIONS.md says so.
 
 No entry in `wp-content/debug.log` names a file of the plugin.
+
+### R-25 (interim 2): T-95 repeated on schema 25
+
+Run on 16 Nov 2026 on the working branch, commit `1774567` (wave 4: project products, client 2.1.1, client package; not a release commit, no tag). Same procedure as the T-95 repetition above. It does not replace the repetition with the release commit and the real tag push (R-25).
+
+| Item | Value |
+|---|---|
+| Source | `git archive` of commit `1774567`, plugin version 0.2.0 |
+| Build | `bin/build-zip.sh 0.2.0`, PHP 8.3 CLI, Composer 2 |
+| Target | Fresh WordPress 7.1.4 (`wp core install`, new database), WooCommerce 11.2.2 activated, served by `php -S` with `tests/e2e/router.php` over plain HTTP |
+| Result | **Pass** for build, contents, activation, schema, admin pages and uninstall. Not covered, as before: a tag push on GitHub (release creation and upload) and the PHP 7.4 steps of the release job. |
+
+1. **Build:** `Version: 0.2.0 / plugin header: 0.2.0 / WPLC_VERSION: 0.2.0 / readme.txt Stable tag: 0.2.0`, `Generated optimized autoload files containing 139 classes`, `138 classes of src/ in the class map`, `wp-license-captain-0.2.0.zip: OK`, 236 entries. New since the last run: the same build also writes `license-client-2.1.1.zip` with its `.sha256` (PROD-08; 11 files: `src/Client` with six classes and `load.php`, `bin/export-client.php`, `bin/client-contract-test.php`, `README.md`, `CHANGELOG-CLIENT.md`), checksum `OK`. `bin/build-zip.sh 0.2.1` against version 0.2.0 fails with exit code 1.
+2. **Contents:** one top-level `wp-license/` with `wp-license.php`, `uninstall.php`, `readme.txt`, `src/`, `catalogs/`, `mu-plugins/`, `assets/`, `templates/`, `languages/` and `vendor/`; no `tests/`, `docs/`, `bin/`, dotfiles, `composer.json` or tool configuration. SHA-256 of this local build, for reference only: `dc44c938e7a396556a9cdccf019e426ed8b2635f7479a7930e55787901574a1b`.
+3. **Installation:** `wp plugin install wp-license-captain-0.2.0.zip --activate` → `Plugin 'wp-license' activated.` Schema: 16 `wp_wplc_*` tables, `wplc_schema_version` = 25, `wp wplc schema status`: `Schema installed: 25; expected: 25`, `Every table, column and index exists.` REST namespace `wplc/v1` with 7 routes. No entry in `wp-content/debug.log` names a file of the plugin.
+4. **Admin pages** as logged-in administrator over HTTP: `wplc-licenses`, `wplc-releases`, `wplc-renewal-review`, `wplc-settings`, `wplc-catalog-csv`, `wplc-catalog-files`, `wplc-diagnostics`, `wplc-audit-log`, `plugins.php` and the product editor answer HTTP 200 without a PHP error in the page. (The very first admin request answered with WooCommerce's one-time redirect after activation; the same page then answered 200.)
+5. **Deactivate and uninstall:** `Deactivated 1 of 1 plugins.`, `Uninstalled 1 of 1 plugins.`; plugin directory removed, no `wplc_*` cron event left, no entry in `debug.log`. Kept by design (the list in `uninstall.php`): the 16 tables and the options `wplc_entitlement_catalog`, `wplc_reminder_log_version`, `wplc_response_signing_key`, `wplc_response_signing_key_id`, `wplc_rewrite_version`, `wplc_schema_version`, `wplc_site_fingerprint`, `wplc_sites_endpoint_rules`.
