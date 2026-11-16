@@ -35,7 +35,7 @@ Größe: **S** bis etwa ein Arbeitstag, **M** einige Tage, **L** ein bis zwei Wo
 | Nr. | Paket | Größe | Hängt ab von | Wann (E8b) | Stand |
 | --- | --- | --- | --- | --- | --- |
 | PROD-01 | Katalog als Daten | M | – | vor dem Verkaufsstart | erledigt am 16.11.2026 |
-| PROD-02 | Captain-Katalog kommt aus captain-pro | S | PROD-01, captain-pro | vor dem Verkaufsstart | offen (captain-pro liefert drei Dateien) |
+| PROD-02 | Captain-Katalog kommt aus captain-pro | S | PROD-01, captain-pro | vor dem Verkaufsstart | Pakete tragen die Datei, Import mit echten Paketen belegt; offen: erste Releases im Shop, dann `catalogs/` löschen |
 | PROD-03 | Katalogdatei mit dem Release einspielen | M | PROD-01 | vor dem Verkaufsstart (PROD-Q8) | erledigt am 16.11.2026 |
 | PROD-04 | Herstellerneutrale Texte, Platzhalter und Beispiele | M | PROD-01 | nach dem Verkaufsstart | offen |
 | PROD-05 | Name, Marke und Kennungen des Produkts | S | Entscheidung | nach dem Verkaufsstart (der Produktschlüssel schon vorher, INH-07) | offen |
@@ -57,6 +57,7 @@ Größe: **S** bis etwa ein Arbeitstag, **M** einige Tage, **L** ein bis zwei Wo
 
 ### PROD-02 · Captain-Katalog kommt aus captain-pro
 
+- **Stand 16.11.2026:** Der Build von captain-pro (`af5a1cd`) legt die Datei in den Plugin-Ordner jedes Pakets. Mit den drei echten Paketen geprüft: Ein Release aus dem Paket spielt den Katalog ein (Pass fünf verfügbare Rechte; Affiliate vier verfügbare und fünf vorgemerkte; Voucher Produktstatus „vorgemerkt“ mit vier vorgemerkten Rechten). In captain-pro ist dafür nichts mehr zu ändern.
 - Der Build von captain-pro erzeugt je Add-on eine `wplc-catalog.json` im Wurzelordner des Add-ons (Format wie in [CATALOG-FILE.md](CATALOG-FILE.md); der Agent von captain-pro arbeitet parallel daran) und prüft sie gegen das Schema.
 - Im Shop wird die Datei mit jedem Release eines Add-ons eingespielt (bis PROD-03 von Hand oder mit `wp wplc catalog import`).
 - Danach entfallen der Ordner `catalogs/` in diesem Repository und der automatische Import der mitgelieferten Dateien für neue Installationen. Eine bestehende Installation behält ihren Katalog (PROD-12).
@@ -143,7 +144,7 @@ Captain-spezifisch und kein Teil des Servers sind:
 Technisch braucht der erste Verkauf der Captain-Add-ons keines dieser Pakete: Der Server verkaufte und prüfte die drei Add-ons auch mit den festen Listen. Der Inhaber hat am 16.11.2026 entschieden (E8 und E8b), was trotzdem vorher fertig sein muss:
 
 - **Vor dem ersten Verkauf der Add-ons:**
-  - Stufe 1, die Trennung der Captain-Daten vom Server: PROD-01 (erledigt), PROD-03 (erledigt: die Katalogdatei kommt mit dem Release-Paket), PROD-02 (captain-pro legt die Datei in den Plugin-Ordner seiner Pakete; drei Dateien liegen vor und sind gültig, vier fehlen) und PROD-12 (Teil 1 erledigt). Die Kopien unter `catalogs/` verschwinden so: Mit dem ersten Release eines Add-ons, das die Datei trägt, ersetzt das Paket den mitgelieferten Eintrag dieses Produkts; ist das für jedes verkaufte Add-on geschehen, wird der Ordner gelöscht.
+  - Stufe 1, die Trennung der Captain-Daten vom Server: PROD-01 (erledigt), PROD-03 (erledigt: die Katalogdatei kommt mit dem Release-Paket), PROD-02 (die Pakete von captain-pro tragen die Datei bereits im Plugin-Ordner; mit den echten Paketen für Pass, Affiliate und Voucher am 16.11.2026 geprüft, der Katalog wird ohne Ablehnung eingespielt; für Form, Review, Course und Workflow gibt es noch keine Pakete) und PROD-12 (Teil 1 erledigt). Die Kopien unter `catalogs/` verschwinden so: Mit dem ersten Release eines Add-ons, das die Datei trägt, ersetzt das Paket den mitgelieferten Eintrag dieses Produkts; ist das für jedes verkaufte Add-on geschehen, wird der Ordner gelöscht.
   - Der eigene Update- und Lizenzweg des Servers: PROD-06 (technischer Teil gebaut), PROD-07 (Lizenzmodell, Entscheidung) und PROD-13 (Release des Servers im eigenen Shop). Offen sind dafür vier Antworten des Inhabers (INH-07 bis INH-10) und der Produktivserver (T-90), auf dem der öffentliche Schlüssel entsteht.
 - **Nach dem Verkaufsstart:** PROD-04, -05, -08, -09, -10 und -11 (neutrale Texte, Name und Marke, Client-Paket, Einstieg und Handbuch für Hersteller, Auslagern des Captain-spezifischen).
 - Unabhängig davon bleiben die bekannten Voraussetzungen des ersten Verkaufs: Stripe-Test (T-12), Abnahme im Browser (T-130), Produktivserver (T-90), Hostname (B-15), Preise (T-42).

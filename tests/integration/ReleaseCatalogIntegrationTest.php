@@ -249,4 +249,61 @@ final class ReleaseCatalogIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( CatalogStore::SOURCE_RELEASE, CatalogStore::get( 'pass-captain-pro' )['source'] );
 		$this->assertCount( 6, CatalogStore::get( 'pass-captain-pro' )['entitlements'] );
 	}
+
+	/**
+	 * PROD-02: the real add-on packages of captain-pro bring their catalog.
+	 *
+	 * Needs the built ZIPs: set WPLC_CAPTAIN_PRO_DIST to the dist/ folder of a captain-pro build
+	 * (`affiliate-captain-pro-<version>.zip` and so on). Skipped without it, so CI of this
+	 * repository does not depend on another repository.
+	 */
+	public function test_the_real_captain_pro_packages_bring_their_catalog(): void {
+		global $wpdb;
+
+		$dist = (string) getenv( 'WPLC_CAPTAIN_PRO_DIST' );
+		if ( '' === $dist || ! is_dir( $dist ) ) {
+			$this->markTestSkipped( 'Set WPLC_CAPTAIN_PRO_DIST to the dist/ folder of a captain-pro build.' );
+		}
+		$now      = gmdate( 'Y-m-d H:i:s' );
+		$expected = array(
+			'pass-captain-pro'      => array( 'available', 5, 0 ),
+			'affiliate-captain-pro' => array( 'available', 4, 5 ),
+			'voucher-captain-pro'   => array( 'planned', 0, 4 ),
+		);
+		foreach ( $expected as $product => $want ) {
+			$zips = (array) glob( rtrim( $dist, '/' ) . '/' . $product . '-*.zip' );
+			$this->assertCount( 1, $zips, $product . ': exactly one built package' );
+			$this->assertSame( 1, preg_match( '/-(\d+\.\d+\.\d+)\.zip$/', (string) $zips[0], $match ) );
+			// The release needs its own copy: the storage moves nothing out of the build folder.
+			$copy          = sys_get_temp_dir() . '/wplc-rc-' . bin2hex( random_bytes( 6 ) ) . '.zip';
+			$this->files[] = $copy;
+			copy( (string) $zips[0], $copy );
+			$wpdb->insert( $this->tables()['products'], array( 'product_key' => $product, 'display_name' => $product, 'active' => 1, 'created_at' => $now, 'updated_at' => $now ) );
+
+			$id = ReleaseRegistry::create_with_package( array( 'product_key' => $product, 'version' => $match[1], 'release_notes' => 'x' ), $copy, 1 );
+			$this->assertIsInt( $id, $product . ': ' . ( is_wp_error( $id ) ? $id->get_error_code() . ' ' . $id->get_error_message() : '' ) );
+			$result = ReleaseCatalog::last_result();
+			$this->assertSame( ReleaseCatalog::STATUS_IMPORTED, $result['status'], $product . ': ' . wp_json_encode( $result ) );
+
+			$stored = CatalogStore::get( $product );
+			$this->assertSame( CatalogStore::SOURCE_RELEASE, $stored['source'], $product );
+			$this->assertSame( $want[0], $stored['status'], $product );
+			$statuses = array_count_values( array_column( $stored['entitlements'], 'status' ) );
+			$this->assertSame( $want[1], (int) ( $statuses['available'] ?? 0 ), $product . ' available keys' );
+			$this->assertSame( $want[2], (int) ( $statuses['planned'] ?? 0 ), $product . ' planned keys' );
+			foreach ( $stored['entitlements'] as $entitlement ) {
+				$this->assertSame( array( 'en', 'de_DE', 'de_DE_formal' ), array_keys( $entitlement['label'] ), $entitlement['key'] );
+			}
+			$this->assertArrayNotHasKey( 'generator', $stored, 'Extra fields of the build are not stored.' );
+		}
+
+		// What the product editor offers afterwards.
+		$this->assertSame(
+			array( 'affiliate.webhooks', 'affiliate.automated_payouts', 'affiliate.white_label_portal', 'affiliate.extended_api', 'pass.e_invoicing', 'pass.card_terminal', 'pass.white_label', 'pass.waiting_room', 'pass.write_api' ),
+			EntitlementCatalog::known_keys()
+		);
+		$this->assertSame( array( 'affiliate-captain-pro', 'pass-captain-pro' ), array_keys( EntitlementCatalog::known_product_keys() ), 'Voucher Captain Pro is planned in its package: not suggested.' );
+		$this->assertArrayHasKey( 'voucher-captain-pro', EntitlementCatalog::planned_product_keys() );
+		$this->assertCount( 0, $this->audit( 'catalog_release_import_refused' ) );
+	}
 }
