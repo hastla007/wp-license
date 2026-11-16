@@ -179,7 +179,7 @@ final class SchemaMigrationStepsTest extends TestCase {
 	public function test_table_names_are_stable_per_site_prefix(): void {
 		$tables = Schema::table_names_for_prefix( 'wp_2_' );
 		$this->assertSame(
-			array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log' ),
+			array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log', 'license_members' ),
 			array_keys( $tables )
 		);
 		$this->assertSame( 'wp_2_wplc_licenses', $tables['licenses'] );
@@ -316,13 +316,38 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$property->setAccessible( true );
 		$steps = $property->getValue();
 
-		$this->assertSame( '25', Schema::VERSION );
 		$this->assertSame( 'step_25_price_change_columns', $steps['25'][1] );
-		$this->assertSame( array( '25' ), Schema::pending_step_versions( '24', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '25' ), Schema::pending_step_versions( '24', '25', array_keys( $steps ) ) );
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
 		foreach ( array( 'price_change_amount_minor bigint(20) unsigned DEFAULT NULL', 'price_change_effective_at datetime DEFAULT NULL', 'price_change_announced_at datetime DEFAULT NULL', 'price_change_notified_at datetime DEFAULT NULL', 'price_change_notice_days smallint(5) unsigned DEFAULT NULL' ) as $column ) {
 			$this->assertStringContainsString( $column, $source );
 		}
+	}
+
+	/**
+	 * B-139: schema 26 adds the table of co-users and invitations; installs on 25 run only that step.
+	 */
+	public function test_schema_26_adds_the_license_members_table(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$property->setAccessible( true );
+		$steps = $property->getValue();
+
+		$this->assertSame( '26', Schema::VERSION );
+		$this->assertSame( 'step_26_license_members', $steps['26'][1] );
+		$this->assertSame( array( '26' ), Schema::pending_step_versions( '25', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( 'wp_3_wplc_license_members', Schema::table_names_for_prefix( 'wp_3_' )['license_members'] );
+
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		$this->assertSame( 1, preg_match( "/CREATE TABLE \\{\\\$tables\\['license_members'\\]\\} \\((.*?)\\) \\{\\\$charset_collate\\};/s", $source, $match ) );
+		$parsed = Schema::expected_columns( 'CREATE TABLE wp_wplc_license_members (' . $match[1] . ')' );
+		$this->assertSame( array( 'id', 'license_id', 'kind', 'status', 'user_id', 'email', 'token_hash', 'invited_by', 'created_at', 'expires_at', 'accepted_at' ), array_keys( $parsed['columns'] ) );
+		$indexes = Schema::expected_indexes( 'CREATE TABLE wp_wplc_license_members (' . $match[1] . ')' );
+		foreach ( array( 'token_hash', 'license_member', 'user_status', 'email_status', 'status_expires', 'invited_by' ) as $index ) {
+			$this->assertContains( $index, $indexes );
+		}
+		// Only a hash of an invitation token is ever stored.
+		$this->assertStringContainsString( 'token_hash char(64) DEFAULT NULL', $match[1] );
+		$this->assertStringNotContainsString( ' token ', $match[1] );
 	}
 
 	public function test_create_statements_contain_the_columns_of_both_lines(): void {

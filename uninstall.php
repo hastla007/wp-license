@@ -114,7 +114,7 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 			return;
 		}
 
-		$tables = array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log' );
+		$tables = array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log', 'license_members' );
 		foreach ( $tables as $table ) {
 			$name = $wpdb->prefix . 'wplc_' . $table;
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- fixed table names, explicit opt-in.

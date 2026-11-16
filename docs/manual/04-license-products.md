@@ -108,7 +108,8 @@ The license detail screen shows customer, plan, status, dates, activations, rene
 | Restore with a new end date | Brings back a suspended license with ended term, or (administrators) a revoked one. |
 | Issue new key | The old key stops working for new activations; activated sites keep working unless you release them too. |
 | Send key email again | Re-sends the license email. |
-| Change owner | Hands the license to another account, by default with a new key; automatic renewal is switched off. |
+| Change owner | Hands the license to another account, by default with a new key; automatic renewal is switched off; co-users and open invitations are removed. |
+| Remove a co-user | Below the site activations: the co-users, open invitations and an open transfer started by the customer (chapter 7). |
 | Change plan | See above. |
 | Cancel / withdraw cancellation of automatic renewal | As the customer can in the account. |
 | Change renewal amount | Lowers the amount of future renewals. Raising it needs an announced price change (chapter 8). |

@@ -100,6 +100,16 @@ final class AuditReason {
 	public const PLAN_UPGRADE_CANCELLED         = 'plan_upgrade_cancelled';
 	public const UPGRADE_QUOTE_EXPIRED          = 'upgrade_quote_expired';
 	public const LEGACY_PAYMENT_REVIEW          = 'payment_review';
+	// Co-users and transfers by the customer (B-139).
+	public const DEACTIVATED_BY_CO_USER         = 'deactivated_by_co_user';
+	public const MEMBER_INVITED                 = 'member_invited';
+	public const MEMBER_ACCEPTED                = 'member_accepted';
+	public const MEMBER_REMOVED_BY_OWNER        = 'member_removed_by_owner';
+	public const MEMBER_LEFT                    = 'member_left';
+	public const MEMBERS_REMOVED_WITH_OWNER     = 'members_removed_with_owner';
+	public const TRANSFER_STARTED               = 'transfer_started';
+	public const TRANSFER_CANCELLED             = 'transfer_cancelled';
+	public const LICENSE_TRANSFERRED_BY_CUSTOMER = 'license_transferred_by_customer';
 
 	/**
 	 * Build the stored form of a reason.
@@ -291,6 +301,16 @@ final class AuditReason {
 			self::PLAN_UPGRADE_CANCELLED         => array( __( 'Plan upgrade order #%1$d was set to "%2$s" after it had been paid.', 'wp-license' ), array( 'order', 'status' ) ),
 			self::UPGRADE_QUOTE_EXPIRED          => array( __( 'The upgrade price was calculated too long ago; start the upgrade again for a new price.', 'wp-license' ), array() ),
 			self::LEGACY_PAYMENT_REVIEW          => array( __( 'Taken over from an earlier version: the payment result was unclear or the payment could not be applied. Compare the renewal order with the payment at the provider.', 'wp-license' ), array() ),
+			// Co-users and transfers by the customer (B-139).
+			self::DEACTIVATED_BY_CO_USER         => array( __( 'Deactivated by a co-user of the license.', 'wp-license' ), array() ),
+			self::MEMBER_INVITED                 => array( __( 'The license owner invited a co-user by email.', 'wp-license' ), array() ),
+			self::MEMBER_ACCEPTED                => array( __( 'A co-user accepted the invitation in their account.', 'wp-license' ), array() ),
+			self::MEMBER_REMOVED_BY_OWNER        => array( __( 'The license owner removed a co-user or withdrew an invitation.', 'wp-license' ), array() ),
+			self::MEMBER_LEFT                    => array( __( 'A co-user left the license.', 'wp-license' ), array() ),
+			self::MEMBERS_REMOVED_WITH_OWNER     => array( __( 'Co-users and open invitations were removed because the license has a new owner.', 'wp-license' ), array() ),
+			self::TRANSFER_STARTED               => array( __( 'The license owner started a transfer to another customer. It takes effect when the recipient accepts it.', 'wp-license' ), array() ),
+			self::TRANSFER_CANCELLED             => array( __( 'The license owner cancelled the open transfer.', 'wp-license' ), array() ),
+			self::LICENSE_TRANSFERRED_BY_CUSTOMER => array( __( 'Transferred by the previous owner; the recipient accepted the transfer in their account.', 'wp-license' ), array() ),
 			// Automatic renewals and payment events.
 			self::RENEWAL_ALREADY_PAID           => array( __( 'The renewal order was already paid.', 'wp-license' ), array() ),
 			self::RENEWAL_CONFIRMED_BY_ADAPTER   => array( __( 'The payment gateway confirmed the renewal.', 'wp-license' ), array() ),

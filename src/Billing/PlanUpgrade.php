@@ -775,7 +775,8 @@ final class PlanUpgrade {
 	public static function render_account_section( array $license ): void {
 		$license_id = (int) $license['id'];
 		$running    = in_array( (string) $license['status'], array( 'active', 'past_due' ), true );
-		if ( ! $running ) {
+		// B-139: a co-user sees a shared license, but only its owner changes the plan.
+		if ( ! $running || (int) ( $license['customer_id'] ?? 0 ) !== get_current_user_id() ) {
 			return;
 		}
 		$pending = PlanChange::pending_target( $license );

@@ -388,6 +388,7 @@ final class Plugin {
 		\WPLC\Catalog\TermDisplay::register_hooks();
 		LicenseIssuer::register_hooks();
 		LicenseLifecycle::register_hooks();
+		\WPLC\License\LicenseMembers::register_hooks();
 		Routes::register_hooks();
 		CustomerPortal::register_hooks();
 		SiteOverview::register_hooks();

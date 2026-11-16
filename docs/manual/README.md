@@ -16,7 +16,7 @@ Throughout the manual the examples use an invented vendor, **Acme Plugins**, tha
 | [4. License products and plans](04-license-products.md) | Turning WooCommerce products into license plans, the catalog CSV, licenses issued by hand. |
 | [5. Releases and updates](05-releases-and-updates.md) | Uploading packages, package storage, nginx, how an update reaches a site. |
 | [6. Integrating the client library](06-client-integration.md) | Embedding the client library in your add-on, the contract test and the API v1 promise. |
-| [7. Customer account and emails](07-customer-account-and-emails.md) | What your customers see: account page, shortcodes and blocks, the twelve emails. |
+| [7. Customer account and emails](07-customer-account-and-emails.md) | What your customers see: account page, shortcodes and blocks, co-users and transfers, the fifteen emails. |
 | [8. Renewals and Stripe](08-renewals-and-stripe.md) | Manual and automatic renewal, grace period, price changes, the Stripe webhook. |
 | [9. Operations](09-operations.md) | Backups and restore, key rotation, monitoring, caching, multisite, privacy. |
 | [10. WP-CLI reference](10-wp-cli.md) | Every `wp wplc` command with its options. |

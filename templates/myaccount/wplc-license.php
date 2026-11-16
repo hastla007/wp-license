@@ -6,14 +6,16 @@
  *
  * The action forms are printed through the `wplc_account_license_actions`
  * hook, the payment method of the automatic renewal through
- * `wplc_account_license_renewal`.
+ * `wplc_account_license_renewal`, co-users and the transfer through
+ * `wplc_account_license_sharing` (a template copied before B-139 lacks this hook:
+ * add it to show the co-user and transfer forms).
  *
  * @package WPLC
  *
  * @var array<string,mixed> $view Display values, see CustomerPortal::license_view(): id, license (database row), title,
  *                                plan, reference, status, status_label, status_help, key, valid_until, sites_text,
  *                                running, renewal_text, renewal_terms, pay_url, can_renew, activations, transfer_targets,
- *                                download_hint, install_steps, docs_url.
+ *                                download_hint, install_steps, docs_url, role ('owner' or 'member' for a shared license).
  */
 
 use WPLC\Account\CustomerPortal;
@@ -155,6 +157,17 @@ do_action( 'wplc_before_account_license', $wplc_license, $view );
 			</tbody>
 		</table>
 	<?php endif; ?>
+
+	<?php
+	/**
+	 * Prints the co-users and the transfer of one license (B-139): invite, remove and
+	 * transfer for the owner, "Leave license" for a co-user.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param array<string,mixed> $view    Display values.
+	 */
+	do_action( 'wplc_account_license_sharing', $wplc_license, $view );
+	?>
 </section>
 <?php
 /**

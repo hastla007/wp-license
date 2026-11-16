@@ -88,6 +88,7 @@ final class LicenseDetail {
 			self::render_support_actions( $license );
 		}
 		self::render_activations( $activations );
+		self::render_members( $license_id );
 		self::render_renewals( $renewals );
 		self::render_entitlements( $entitlements );
 		self::render_audit_log( $license_id, $activations, $renewals );
@@ -581,6 +582,57 @@ final class LicenseDetail {
 			echo '</td></tr>';
 		}
 		echo '</tbody></table>';
+	}
+
+	/**
+	 * Co-users, open invitations and an open transfer (B-139).
+	 *
+	 * @param int $license_id License ID.
+	 * @return void
+	 */
+	private static function render_members( int $license_id ): void {
+		$rows = \WPLC\License\LicenseMembers::for_license( $license_id );
+		echo '<h2>' . esc_html__( 'Co-users and transfer', 'wp-license' ) . '</h2>';
+		if ( ! $rows ) {
+			echo '<p>' . esc_html__( 'The owner has not shared this license and has not offered a transfer.', 'wp-license' ) . '</p>';
+			return;
+		}
+
+		echo '<table class="widefat striped"><thead><tr>';
+		foreach ( array( __( 'Person', 'wp-license' ), __( 'Role', 'wp-license' ), __( 'Since / valid until', 'wp-license' ), __( 'Actions', 'wp-license' ) ) as $heading ) {
+			echo '<th scope="col">' . esc_html( $heading ) . '</th>';
+		}
+		echo '</tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			$member_id = (int) $row['id'];
+			$active    = \WPLC\License\LicenseMembers::STATUS_ACTIVE === $row['status'];
+			$transfer  = \WPLC\License\LicenseMembers::KIND_TRANSFER === $row['kind'];
+			if ( $transfer ) {
+				$role = __( 'Transfer offered, waiting for the recipient', 'wp-license' );
+			} else {
+				$role = $active ? __( 'Co-user', 'wp-license' ) : __( 'Co-user invitation, not accepted yet', 'wp-license' );
+			}
+			$person = $active ? LicenseAdmin::customer_html( (int) $row['user_id'] ) : esc_html( (string) $row['email'] );
+			$when   = $active ? Format::date( $row['accepted_at'], true ) : Format::date( $row['expires_at'], true );
+
+			echo '<tr><td>' . wp_kses_post( $person ) . '</td><td>' . esc_html( $role ) . '</td><td>' . esc_html( $when ) . '</td><td>';
+			if ( ! $transfer && Capabilities::can( 'manage_licenses' ) ) {
+				$field_id = 'wplc-member-reason-' . $member_id;
+				echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-wplc-confirm="' . esc_attr__( 'Remove this co-user? The license disappears from their account.', 'wp-license' ) . '">';
+				echo '<input type="hidden" name="action" value="wplc_admin_remove_member">';
+				echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
+				echo '<input type="hidden" name="member_id" value="' . esc_attr( (string) $member_id ) . '">';
+				self::nonce_input( 'wplc_admin_remove_member_' . $license_id );
+				echo '<label class="screen-reader-text" for="' . esc_attr( $field_id ) . '">' . esc_html__( 'Reason for removing the co-user', 'wp-license' ) . '</label>';
+				echo '<input type="text" id="' . esc_attr( $field_id ) . '" name="reason" required maxlength="255" placeholder="' . esc_attr__( 'Reason', 'wp-license' ) . '">';
+				echo '<button class="button" type="submit">' . esc_html__( 'Remove', 'wp-license' ) . '</button></form>';
+			} else {
+				echo '—';
+			}
+			echo '</td></tr>';
+		}
+		echo '</tbody></table>';
+		echo '<p class="description">' . esc_html__( 'Co-users see the license, its key, sites and downloads in their account and can release sites; only the owner pays, renews, cancels or transfers. A transfer takes effect when the recipient accepts it; changing the owner here removes co-users and open invitations.', 'wp-license' ) . '</p>';
 	}
 
 	/**
