@@ -28,7 +28,7 @@ Die früheren 37 gestapelten `codex/*`-Branches sind in einem Integrationsstand 
 - Die Kern-Plugins brauchen keinen Lizenzschlüssel. Die Preise sind noch nicht bestätigt ([TODO.md](TODO.md), „Offene Entscheidungen“, T-42).
 - Je Live-Site ist eine verknüpfte Staging-Site ohne zusätzlichen Platz enthalten.
 - Die bestehenden öffentlichen Funktionen der drei Produkte bleiben verfügbar. Neue Premiumrechte werden nur für neu entwickelte Funktionen verwendet.
-- Lizenzserver zunächst als Plugin im WooCommerce-Verkaufsshop; kein WooCommerce Subscriptions. (Die Bestätigung nach dem Stripe-Test steht aus, T-121.)
+- Lizenzserver zunächst als Plugin im WooCommerce-Verkaufsshop; kein WooCommerce Subscriptions. (Entschieden vom Inhaber am 16.11.2026, T-121; er bestätigt es nach dem Stripe-Test endgültig, T-12.)
 - Automatische Verlängerung zum Start nur mit Karte über Stripe (Entscheidung vom 14.11.2026); PayPal, SEPA-Lastschrift und andere Zahlarten verlängern manuell. Fehlt die gespeicherte Karte, wird keine andere Karte belastet. Zahlungskartendaten oder CVV werden nicht im Lizenzserver gespeichert.
 - Wiederholungsversuche bei fehlgeschlagener Zahlung: Tag 1, 3 und 7; Kulanzzeit: 14 Tage.
 - Kündigung beendet die Lizenz am Ende der bezahlten Laufzeit. Bis dahin bleiben die Rechte aktiv.

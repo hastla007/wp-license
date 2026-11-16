@@ -81,6 +81,8 @@ Error messages are fixed English text and are not translated; `code` is the cont
 
 ## Reconciliation
 
+The webhook is the authoritative reconciliation of payment events (owner decision of 16 Nov 2026, T-122): when the result the adapter returned and the event Stripe sends disagree, the event decides. The adapter result is still used at once so that a paid renewal extends the license without waiting; a second successful payment for the same renewal goes to manual review.
+
 Runs asynchronously (Action Scheduler group `wplc`, WP-Cron as fallback) under the same per-renewal lock as charging. The inbox row ends with one of these outcomes:
 
 | Outcome | Meaning |
