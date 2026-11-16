@@ -8,6 +8,7 @@
 namespace WPLC\License;
 
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\Events\AfterCommit;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -43,13 +44,6 @@ final class LicenseLifecycle {
 	 * @var array<int,bool>
 	 */
 	private static $held_locks = array();
-
-	/**
-	 * `wplc/license_status_changed` events raised while a lock was held.
-	 *
-	 * @var array<int,array{0:int,1:string,2:string,3:string}>
-	 */
-	private static $pending_events = array();
 
 	/**
 	 * Default grace period after the paid period during which a renewing license keeps its rights.
@@ -1204,21 +1198,25 @@ final class LicenseLifecycle {
 	 * @return void
 	 */
 	private static function fire_status_changed( int $license_id, string $old_status, string $new_status, string $action ): void {
-		if ( self::$held_locks ) {
-			// Listeners run after the lock is released: they may take other locks (lock order is
-			// renewal lock, then license lock) or call back into this class.
-			self::$pending_events[] = array( $license_id, $old_status, $new_status, $action );
-			return;
-		}
-		/**
-		 * Fires after every successful license status transition and renewal.
-		 *
-		 * @param int    $license_id License ID.
-		 * @param string $old_status Previous status.
-		 * @param string $new_status New status.
-		 * @param string $action Lifecycle action.
-		 */
-		do_action( 'wplc/license_status_changed', $license_id, $old_status, $new_status, $action );
+		// Listeners run after the change is committed and the lock is released (WFC-LIC-07): they
+		// may take other locks (lock order is renewal lock, then license lock) or call back into
+		// this class. A change that was rolled back never gets here.
+		AfterCommit::run(
+			static function () use ( $license_id, $old_status, $new_status, $action ): void {
+				/**
+				 * Fires after every successful license status transition and renewal.
+				 *
+				 * Fires after the change is committed and the license lock is released; never for a
+				 * change that was refused or rolled back.
+				 *
+				 * @param int    $license_id License ID.
+				 * @param string $old_status Previous status.
+				 * @param string $new_status New status.
+				 * @param string $action Lifecycle action.
+				 */
+				do_action( 'wplc/license_status_changed', $license_id, $old_status, $new_status, $action );
+			}
+		);
 	}
 
 	/**
@@ -1680,9 +1678,10 @@ final class LicenseLifecycle {
 		// A renewal never touches cancel_at_period_end: a manual renewal must not silently re-enable
 		// an automatic renewal the customer cancelled, and a cancellation made while an automatic
 		// charge was running (the charge only starts while no cancellation is pending) must stand.
+		// AfterCommit holds the status event back until the commit and drops it on a rollback.
 		$transaction = function_exists( 'wc_transaction_query' );
 		if ( $transaction ) {
-			wc_transaction_query( 'start' );
+			AfterCommit::begin();
 		}
 		$updated = $wpdb->query(
 			$wpdb->prepare(
@@ -1700,7 +1699,7 @@ final class LicenseLifecycle {
 		);
 		if ( false === $updated || 0 === $updated ) {
 			if ( $transaction ) {
-				wc_transaction_query( 'rollback' );
+				AfterCommit::rollback();
 			}
 			return false;
 		}
@@ -1714,14 +1713,14 @@ final class LicenseLifecycle {
 		);
 		if ( false === $entitlements_updated ) {
 			if ( $transaction ) {
-				wc_transaction_query( 'rollback' );
+				AfterCommit::rollback();
 				return false;
 			}
 			// Without a transaction the license is extended; put the entitlements right on the next run.
 			self::log_error( 'Entitlements of license ' . $license_id . ' could not be extended.' );
 		}
 		if ( $transaction ) {
-			wc_transaction_query( 'commit' );
+			AfterCommit::commit();
 		}
 
 		AuditLog::record(
@@ -2184,6 +2183,15 @@ final class LicenseLifecycle {
 	}
 
 	/**
+	 * Whether this request holds the per-license lock of any license.
+	 *
+	 * @return bool
+	 */
+	public static function holds_any_license_lock(): bool {
+		return (bool) self::$held_locks;
+	}
+
+	/**
 	 * Run a callback while holding the per-license lock (re-entrant within one request).
 	 *
 	 * @param int      $license_id License ID.
@@ -2214,12 +2222,9 @@ final class LicenseLifecycle {
 			unset( self::$held_locks[ $license_id ] );
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', self::lock_name( $license_id ) ) );
 		}
-		if ( ! self::$held_locks ) {
-			while ( self::$pending_events ) {
-				$event = array_shift( self::$pending_events );
-				self::fire_status_changed( $event[0], $event[1], $event[2], $event[3] );
-			}
-		}
+		// Status, plan and license events raised under the lock run now (unless another lock or a
+		// transaction is still open).
+		AfterCommit::flush();
 
 		return $result;
 	}

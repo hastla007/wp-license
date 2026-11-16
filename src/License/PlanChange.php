@@ -1008,18 +1008,29 @@ final class PlanChange {
 	}
 
 	/**
-	 * Announce a plan change (after all locks are released).
+	 * Announce a plan change.
+	 *
+	 * Callers call this after the plan change returned; AfterCommit still holds
+	 * the action back while this request holds a license lock or an open
+	 * transaction (WFC-LIC-07), e.g. when the change was made re-entrantly.
 	 *
 	 * @param int $license_id License ID.
 	 * @return void
 	 */
 	public static function fire_changed( int $license_id ): void {
-		/**
-		 * Fires after the plan of a license changed (upgrade, downgrade at renewal, administrator change, revert).
-		 *
-		 * @param int $license_id License ID.
-		 */
-		do_action( 'wplc/license_plan_changed', $license_id );
+		\WPLC\Events\AfterCommit::run(
+			static function () use ( $license_id ): void {
+				/**
+				 * Fires after the plan of a license changed (upgrade, downgrade at renewal, administrator change, revert).
+				 *
+				 * Fires after the change is committed and the license lock is released; never for a
+				 * change that was refused or rolled back.
+				 *
+				 * @param int $license_id License ID.
+				 */
+				do_action( 'wplc/license_plan_changed', $license_id );
+			}
+		);
 	}
 
 	/**

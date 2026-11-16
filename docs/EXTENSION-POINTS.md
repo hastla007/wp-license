@@ -10,6 +10,21 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 - **`wplc/license_issued` passes the plaintext license key** (arguments: license ID, key, order ID). It exists so the key email can be sent; the key is never stored in plaintext. Listeners that do not need the key must use `wplc/license_issued_followup` (license ID, order ID), which also runs when the issuing request ended early. Never log or store the key argument.
 - Hooks not listed here are internal (WordPress, WooCommerce or Action Scheduler hooks the plugin listens to) and can change without notice.
 
+## License event contract (version 1.0.0)
+
+For plugins that run in the shop next to the server (the workflow add-on is the intended receiver), the server publishes a **versioned, stable** event contract; the full description is [LICENSE-EVENTS.md](LICENSE-EVENTS.md).
+
+- **Version:** constant `WPLC_EVENT_CONTRACT_VERSION` (plugin file; `WPLC\Events\LicenseEvents::CONTRACT_VERSION`), currently `1.0.0`, semantic versioning. **Stability promise:** within a major version no event and no field is removed, renamed or changes its meaning; new events and new fields may be added (minor version). Every envelope carries `contract` and its own `version`.
+- **Hooks:** `wplc/event` receives every event; `wplc/event/{event}` (for example `wplc/event/license.site.activated`) the same envelope for one event. Events: `license.license.issued`, `license.license.status_changed`, `license.license.plan_changed`, `license.site.activated`, `license.site.deactivated`, `license.site.limit_reached`, `license.release.published`, `license.release.withdrawn`.
+- **Envelope:** scalar values only: `event_id` (UUID), `event`, `version`, `contract`, `occurred_at` (UTC, ISO 8601) and, for license and site events, `license` (public reference `WPLC-XXXXXXXX`), `product_key`, `plan_key`, `status` and `customer_user_id`. Never a license key, token, secret, email address, site address, payment data or database ID.
+- **Once, after the commit:** each event fires exactly once, after the change is committed and the license and activation locks are released, at the latest at `shutdown`; a refused or rolled-back change fires nothing. The server stores and repeats nothing; the receiver keeps its own queue. A listener that throws is reported through `wplc/job_failed` (`license_event:<event>`) and does not stop the license operation.
+- **After the commit also for three existing actions:** `wplc/license_issued_followup`, `wplc/license_status_changed` and `wplc/license_plan_changed` fire after the change is committed and after the license lock is released, and never for a change that was rolled back (`WPLC\Events\AfterCommit`; `LicenseEventsAfterCommitIntegrationTest` reads the committed state through a second database connection inside each action). Their arguments are unchanged.
+- **Never attach a receiver to** `wplc/license_issued`, `wplc/license_key_reissued` or `wplc/license_key_resend_requested`: they pass the plaintext key.
+
+### Read-only facade `WPLC\Events\LicenseReader`
+
+To look up more than an event carries, by the public reference from the event: `get( $reference, $customer_user_id = 0 )` (summary: license, product_key, plan_key, status, access, expires_at, access_until, customer_user_id), `status()`, `plan()`, `expires_at()`, `entitlements()` (granted now; empty without access), `is_entitled( $reference, $key )` and `for_user( $user_id, $product_key = '' )`. Every method runs SELECT queries only and returns no key, key hash, email address, secret or database ID; an unknown or ambiguous reference returns null (pass the owner's user ID to narrow it). Changing a license stays behind the capabilities `wplc_*` and nonces of the plugin's own screens and APIs.
+
 ## Catalog files instead of filters
 
 Products, entitlement keys and their labels are data: an add-on ships a catalog file (`wplc-catalog.json`) and the shop imports it ([CATALOG-FILE.md](CATALOG-FILE.md)). This is the supported way to make a product and its entitlements known to the product editor. The filters `wplc_entitlement_catalog`, `wplc_known_product_keys` and `wplc_offer_planned_entitlements` remain for shops that adjust what the editor offers in code; they receive what the imported catalog offers.
@@ -32,6 +47,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc/dispute_closed` | `src/Gateway/StripeEventHandler.php` | Fires when a dispute about a license payment was closed without being won. |
 | `wplc/dispute_funds_reinstated` | `src/Gateway/StripeEventHandler.php` | Fires when Stripe returned the money of a dispute. |
 | `wplc/dispute_won` | `src/Gateway/StripeEventHandler.php` | Fires when a dispute about a license payment was decided for the shop. |
+| `wplc/event` | `src/Events/LicenseEvents.php` | Fires once for every license event of the versioned event contract (docs/LICENSE-EVENTS.md). |
 | `wplc/gap_detected` | `src/Maintenance/GapGuard.php` | Fires when a processing gap was recorded. |
 | `wplc/health_alert` | `src/Admin/Diagnostics.php` |  |
 | `wplc/job_failed` | `src/Maintenance/DailyRunner.php` | Fires after a scheduled job threw. Errors of listeners are ignored. |
