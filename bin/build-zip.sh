@@ -6,8 +6,11 @@
 # Used by .github/workflows/release.yml (tag builds) and by the "Package" workflow on pull
 # requests, so every pull request exercises exactly the release build. It copies an
 # allow-list of runtime files (wp-license.php, uninstall.php, readme.txt, src/, mu-plugins/, catalogs/,
-# languages/, assets/, templates/) into build/wp-license/, generates vendor/ there and writes
-# dist/wp-license-captain-<version>.zip (one top-level wp-license/ folder) plus a .sha256 file.
+# languages/, assets/, templates/) and the vendor manual (docs/manual/*.md plus the catalog file
+# schema docs/catalog-file.schema.json it links to; PROD-10) into build/wp-license/, generates vendor/
+# there and writes dist/wp-license-captain-<version>.zip (one top-level wp-license/ folder) plus a
+# .sha256 file. No other document of docs/ is copied: the to-do list, plans, reviews and evidence
+# are internal. bin/check-zip-contents.php verifies the entries.
 # It also writes the client library package for vendors, dist/license-client-<library version>.zip
 # with its .sha256 (bin/package-client.php, PROD-08).
 # The checkout itself is not modified; everything happens in build/ and dist/.
@@ -48,6 +51,11 @@ for OPTIONAL in languages assets templates; do
 		cp -R "${OPTIONAL}" "${STAGE}/"
 	fi
 done
+# The vendor manual for buyers of the server (PROD-10) and the JSON schema of the catalog file it
+# links to (../catalog-file.schema.json). Nothing else of docs/ is shipped.
+mkdir -p "${STAGE}/docs/manual"
+cp docs/manual/*.md "${STAGE}/docs/manual/"
+cp docs/catalog-file.schema.json "${STAGE}/docs/"
 
 # Runtime dependencies and the autoloader are created inside the stage, so a local run never
 # touches the development vendor/ of the checkout. composer.lock is not committed, so
@@ -101,24 +109,16 @@ find "${STAGE}" -type f -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
 
 # Verify the package contents.
 unzip -Z1 "dist/${ZIP}" > build/contents.txt
-for REQUIRED in wp-license/wp-license.php wp-license/uninstall.php wp-license/readme.txt wp-license/vendor/autoload.php wp-license/src/Plugin.php wp-license/mu-plugins/wplc-site-cleanup.php wp-license/catalogs/pass-captain-pro.json; do
-	if ! grep -qx "${REQUIRED}" build/contents.txt; then
-		echo "::error::The ZIP is missing ${REQUIRED}."
-		exit 1
-	fi
-done
-if [ -d languages ] && ! grep -Eq '^wp-license/languages/[^/]+\.mo$' build/contents.txt; then
-	echo "::error::The ZIP contains no compiled translations (languages/*.mo)."
-	exit 1
+# Required runtime files and manual chapters, compiled translations, catalog files, one top-level
+# folder, no development files and no internal documents (rules in bin/check-zip-contents.php).
+CHECK_ARGS=(--manual-dir=docs/manual)
+if [ -d languages ]; then
+	CHECK_ARGS+=(--require-mo)
 fi
-if grep -Ev '^wp-license/' build/contents.txt; then
-	echo "::error::The ZIP contains entries outside the wp-license/ folder."
-	exit 1
+if [ -d catalogs ]; then
+	CHECK_ARGS+=(--require-catalogs)
 fi
-if grep -E '^wp-license/(tests|docs|tools|bin)/|/\.[^/]+(/|$)|^wp-license/(composer\.(json|lock)|phpunit[^/]*|phpstan[^/]*|phpcs[^/]*|README\.md|CHANGELOG\.md)$' build/contents.txt; then
-	echo "::error::The ZIP contains development files."
-	exit 1
-fi
+php bin/check-zip-contents.php build/contents.txt "${CHECK_ARGS[@]}"
 (cd dist && sha256sum -c "${ZIP}.sha256")
 # The client library for vendors (PROD-08). Fails when the client classes disagree on VERSION or
 # packaging/client/CHANGELOG-CLIENT.md has no section for it.

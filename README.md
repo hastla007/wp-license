@@ -80,6 +80,7 @@ Coding standard and static analysis: `composer phpcs:blocking`, `composer phpsta
 
 Start here:
 
+- [Vendor manual](docs/manual/README.md) (for buyers of the server; ships in the plugin ZIP, English, a German edition follows)
 - [To-do list (single task list)](docs/TODO.md)
 - [Release readiness checklist](docs/RELEASE-READINESS.md)
 - [Changelog](CHANGELOG.md)

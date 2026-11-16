@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/hastla007/wp-license/blob/main/docs/catalog-file.schema.json",
+  "$id": "urn:wplc:catalog-file:1",
   "title": "WP License Captain catalog file (wplc-catalog.json), format 1",
-  "description": "One license product of a vendor: product key, entitlement prefix, name and the entitlements its add-on checks. See docs/CATALOG-FILE.md. Unknown fields are ignored by the server.",
+  "description": "One license product of a vendor: product key, entitlement prefix, name and the entitlements its add-on checks. See docs/manual/03-catalog-files.md. Unknown fields are ignored by the server.",
   "type": "object",
   "required": ["format", "product_key", "name", "entitlements"],
   "properties": {

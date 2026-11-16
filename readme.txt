@@ -56,13 +56,17 @@ The code has unit tests for its pure logic, but it has not been accepted in a re
 Install it in a staging or test shop only.
 
 1. Install and activate WooCommerce.
-2. Define the secret constants described in `docs/SECURITY-OPERATIONS.md` in `wp-config.php` before issuing the first license, and keep them stable.
+2. Define the secret constants described in chapter 2 of the vendor manual (`docs/manual/02-installation-and-keys.md`) in `wp-config.php` before issuing the first license, and keep them stable.
 3. Upload the WP License Captain ZIP and activate the plugin.
 4. Edit a WooCommerce product and map it to a license product and plan.
 5. Place a test order and check the license under My Account → Licenses.
-6. Exclude the API and account pages from page and CDN caches as described in `docs/CACHING.md`.
+6. Exclude the API and account pages from page and CDN caches as described in chapter 9 of the vendor manual (`docs/manual/09-operations.md`).
 
 == Frequently Asked Questions ==
+
+= Where is the documentation? =
+
+The vendor manual ships in the plugin folder under `docs/manual/`; start with `docs/manual/README.md`. It is in English; a German edition will follow.
 
 = Can I use this in my live shop? =
 
@@ -78,11 +82,11 @@ Subjects, headings and additional text are edited under WooCommerce → Settings
 
 = What data does the plugin store? =
 
-Licenses linked to the customer account, activated site URLs with product, WordPress and PHP versions, renewal records, an audit log and a log of sent notifications. It never stores card numbers. See `docs/PRIVACY-DATA-FLOWS.md` for the inventory and the retention periods.
+Licenses linked to the customer account, activated site URLs with product, WordPress and PHP versions, renewal records, an audit log and a log of sent notifications. It never stores card numbers. See chapter 9 of the vendor manual (`docs/manual/09-operations.md`) for the inventory and the retention periods.
 
 = How do I update the plugin? Does it contact other servers? =
 
-WordPress shows when a new release is published: during its normal update check the plugin asks the GitHub API (`api.github.com`) for the latest release of `hastla007/wp-license`. No site data is sent. Updates are never installed automatically: download the release ZIP and its `.sha256`, compare the checksum and upload the ZIP (see "Updating the license server plugin itself" in `docs/PRODUCTION-OPERATIONS.md`). To switch the check off, add `define( 'WPLC_DISABLE_UPDATE_CHECK', true );` to `wp-config.php`.
+WordPress shows when a new release is published: during its normal update check the plugin asks the GitHub API (`api.github.com`) for the latest release of `hastla007/wp-license`. No site data is sent. Updates are never installed automatically: download the release ZIP and its `.sha256`, compare the checksum and upload the ZIP (see chapter 12 of the vendor manual, `docs/manual/12-upgrading.md`). To switch the check off, add `define( 'WPLC_DISABLE_UPDATE_CHECK', true );` to `wp-config.php`.
 
 = What happens to the data when I delete the plugin? =
 
