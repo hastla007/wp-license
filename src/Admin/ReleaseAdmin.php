@@ -500,7 +500,7 @@ final class ReleaseAdmin {
 		// With object storage the field also takes s3://bucket/key with a raw key, which a browser may refuse in a URL field.
 		self::render_text_row( 'package_url', __( 'or package URL', 'wp-license' ), 'https://downloads.example.com/product-1.2.3.zip', false, $url_help, 'configured' === $object_storage['state'] ? 'text' : 'url', $value( 'package_url' ) );
 		self::render_text_row( 'sha256', __( 'SHA-256', 'wp-license' ), '', false, __( 'Required for a package URL: 64 hexadecimal characters. Compute it with "sha256sum file.zip" (Linux), "shasum -a 256 file.zip" (macOS) or "Get-FileHash file.zip" (Windows PowerShell).', 'wp-license' ), 'text', $value( 'sha256' ) );
-		self::render_text_row( 'requires_php', __( 'Requires PHP', 'wp-license' ), '7.4', false, __( 'Empty: taken from the plugin header of an uploaded ZIP.', 'wp-license' ), 'text', $value( 'requires_php' ) );
+		self::render_text_row( 'requires_php', __( 'Requires PHP', 'wp-license' ), '8.5', false, __( 'Empty: taken from the plugin header of an uploaded ZIP.', 'wp-license' ), 'text', $value( 'requires_php' ) );
 		self::render_text_row( 'requires_wp', __( 'Requires WordPress', 'wp-license' ), '6.5', false, __( 'Empty: taken from the plugin header of an uploaded ZIP.', 'wp-license' ), 'text', $value( 'requires_wp' ) );
 		self::render_text_row( 'tested_wp', __( 'Tested up to WordPress', 'wp-license' ), '6.8', false, '', 'text', $value( 'tested_wp' ) );
 		self::render_text_row( 'requires_core', __( 'Requires core plugin', 'wp-license' ), '2.1.0', false, __( 'Minimum version of the free core plugin this add-on release needs. Installations that report an older core plugin are not offered this release.', 'wp-license' ), 'text', $value( 'requires_core' ) );

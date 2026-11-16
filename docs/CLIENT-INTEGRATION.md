@@ -1,6 +1,6 @@
 # Integrating a premium add-on with the license server
 
-This is the guide for the developer of a premium add-on. Everything the add-on needs is in `src/Client/` of this repository: a small library for PHP 7.4 and WordPress 6.5 that needs neither WooCommerce nor any other class of the license server. The server side of the contract is specified in [API-V1.md](API-V1.md) and [UPDATES.md](UPDATES.md).
+This is the guide for the developer of a premium add-on. Everything the add-on needs is in `src/Client/` of this repository: a small library for PHP 8.5 and WordPress 6.5 (PHP 8.5 since client 2.2.0, MINVER-1; 2.1.x ran on PHP 7.4) that needs neither WooCommerce nor any other class of the license server. The server side of the contract is specified in [API-V1.md](API-V1.md) and [UPDATES.md](UPDATES.md).
 
 > **Server and client are separate.** WP License Captain Server is a separately sold product for vendors who want to license their own software. A WordPress product can implement the client directly against the API in [API-V1.md](API-V1.md), or use the PHP library in `src/Client/`; a dedicated client plugin such as License Captain Client is also an option. The client library used in Captain Pro add-ons serves only our own license checks and does not include or replace the server product. (Stated by the owner on 15 Nov 2026 and not worked out yet: today only this plugin and the library in `src/Client/` exist; there is no "License Captain Client" plugin, and the questions about selling the server to other vendors are open, see R-21 in [TODO.md](TODO.md).)
 
@@ -59,7 +59,7 @@ It copies `src/Client/*.php`, replaces `namespace WPLC\Client;` by the given nam
 **Without the script: an unchanged copy.** Every class is declared inside `if ( ! class_exists( ... ) )`, so two add-ons with the same unchanged files do not end in "Cannot declare class". The limits of this way:
 
 - The copy that is loaded **first** is used by all add-ons, also when it is the older one. WordPress loads plugins in the alphabetical order of their folders.
-- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.1.1`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.2.0', '<' )`) and show a message; it cannot replace a class that is already declared.
+- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.2.0`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.3.0', '<' )`) and show a message; it cannot replace a class that is already declared.
 - The strings keep the text domain `wp-license`. They are translated through the `text_domain` setting only if the add-on's language files contain them; `make-pot` does not find them on its own.
 
 Use the unchanged copy for experiments only.
@@ -94,7 +94,7 @@ return array(
  * Plugin Name: Voucher Captain Pro
  * Version: 1.0.0
  * Requires at least: 6.5
- * Requires PHP: 7.4
+ * Requires PHP: 8.5
  * Text Domain: voucher-captain-pro
  * Update URI: https://licenses.example.com/voucher-captain-pro
  */

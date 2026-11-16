@@ -20,11 +20,17 @@ final class PluginPartsTest extends TestCase {
 	}
 
 	public function test_core_check_bails_out_on_missing_or_old_core(): void {
-		$this->assertStringContainsString( 'needs the free plugin Core', CoreCheck::problem( 'STARTER_TEST_NO_CORE', '1.0.0', 'Core' ) );
+		// The PHP version is passed explicitly, so the test also runs on a development PHP below Config::MIN_PHP.
+		$php = Config::MIN_PHP . '.0';
+		$this->assertStringContainsString( 'needs the free plugin Core', CoreCheck::problem( 'STARTER_TEST_NO_CORE', '1.0.0', 'Core', $php ) );
 		define( 'STARTER_TEST_CORE_OLD', '1.1.0' );
-		$this->assertStringContainsString( 'installed: 1.1.0', CoreCheck::problem( 'STARTER_TEST_CORE_OLD', '1.2.0', 'Core' ) );
-		$this->assertSame( '', CoreCheck::problem( 'STARTER_TEST_CORE_OLD', '1.1.0', 'Core' ) );
-		$this->assertSame( array( false, false, true ), array( CoreCheck::passes( 'STARTER_TEST_NO_CORE', '1.0.0' ), CoreCheck::passes( 'STARTER_TEST_CORE_OLD', '1.2.0' ), CoreCheck::passes( 'STARTER_TEST_CORE_OLD', '1.1.0' ) ) );
+		$this->assertStringContainsString( 'installed: 1.1.0', CoreCheck::problem( 'STARTER_TEST_CORE_OLD', '1.2.0', 'Core', $php ) );
+		$this->assertSame( '', CoreCheck::problem( 'STARTER_TEST_CORE_OLD', '1.1.0', 'Core', $php ) );
+		$this->assertSame( array( false, false, true ), array( CoreCheck::passes( 'STARTER_TEST_NO_CORE', '1.0.0', $php ), CoreCheck::passes( 'STARTER_TEST_CORE_OLD', '1.2.0', $php ), CoreCheck::passes( 'STARTER_TEST_CORE_OLD', '1.1.0', $php ) ) );
+		// MINVER-1: below the PHP minimum (8.5) the add-on stays off, whatever the core version.
+		$this->assertSame( '8.5', Config::MIN_PHP );
+		$this->assertFalse( CoreCheck::passes( 'STARTER_TEST_CORE_OLD', '1.1.0', '8.4.15' ) );
+		$this->assertStringContainsString( 'needs PHP 8.5 or newer; this site runs PHP 8.4.15', CoreCheck::problem( 'STARTER_TEST_CORE_OLD', '1.1.0', 'Core', '8.4.15' ) );
 	}
 
 	public function test_settings_operations_map_to_the_service(): void {

@@ -14,6 +14,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// TEST-ONLY (MINVER-1): let the plugin boot on a development machine whose PHP is older than
+// Requirements::MIN_PHP (tests/e2e/bin/run-e2e.sh also lowers `Requires PHP` in the site copy there).
+if ( ! defined( 'WPLC_TESTS_IGNORE_PHP_MINIMUM' ) ) {
+	define( 'WPLC_TESTS_IGNORE_PHP_MINIMUM', true );
+}
+
 /*
  * 0. Attribute PHP notices, warnings and deprecations to the plugin.
  *    WordPress reports many problems from core files (kses.php, functions.php) although plugin

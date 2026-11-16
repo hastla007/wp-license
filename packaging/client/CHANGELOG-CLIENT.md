@@ -4,6 +4,10 @@ Changes of the library in `src/Client` (namespace `WPLC\Client`), by library ver
 
 Every version works with every server that answers API v1 (see "Compatibility" in `README.md`). A line marked **Action** needs a change in the add-on.
 
+## 2.2.0
+
+- **Action:** the library needs PHP 8.5 or later, the newest PHP release line (2.1.1 ran on PHP 7.4). Raise `Requires PHP` of the add-on to at least 8.5 before you ship it with this version. No change of behaviour or of the API; works with every server that answers API v1, as before.
+
 ## 2.1.1
 
 - Site Health test "License check" (`{prefix}_license_check`, Tools → Site Health → Status), added by `LicenseManager::register()`: *good* while the last successful check is at most 36 hours old, *recommended* when the last check failed, the check is overdue, the server no longer knows the activation, the site address changed or less than three days of the offline window are left, *critical* when the stored answer is `stale` or a signed answer released the activation. No key, secret or snapshot in the result. New public methods `LicenseManager::site_status_tests()` and `site_health_test()`, constant `LicenseManager::HEALTH_LOW_WINDOW`.

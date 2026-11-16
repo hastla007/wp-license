@@ -4,7 +4,7 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 
 **Product boundary (stated by the owner on 15 Nov 2026, not worked out yet):** WP License Captain is an independent server plugin sold separately; it is not part of any Captain Pro plan. A software vendor can implement the client directly in its WordPress product against the documented API or use the PHP client library in `src/Client/`. A dedicated client plugin, such as the License Captain Client we use for our own products, is another integration option. Captain Pro add-ons carry a client component only to validate our own PRO licenses; this internal implementation detail is not a customer-facing PRO benefit. Buyers of Captain Pro do not need to operate their own License Captain Server. What exists today is this plugin and the library in `src/Client/`, which the add-ons bundle; a "License Captain Client" plugin does not exist, and selling the server to other vendors has no tasks, price or support model yet. The open questions are listed under "Offene Entscheidungen" in [docs/TODO.md](docs/TODO.md) (R-21).
 
-> **Status: preview. Not ready to sell with.** In CI, on every pull request and push to `main`: unit tests on PHP 7.4 to 8.5, integration tests in eight WordPress/WooCommerce combinations (WooCommerce 8.9.3, 9.4.3 and 11.2.2, HPOS and legacy order storage, one multisite cell, one cell on PHP 8.5), an end-to-end run (`tests/e2e/`, 15 flows: purchases, manual and automatic renewals with a test payment adapter, updates, admin and account pages, and concurrent requests against a real database with eight server processes), PHPStan, the blocking PHPCS rules and the release ZIP. Run locally only, with headless Chromium: a browser pass over the classic checkout, the account, the admin pages and the product editor (`tests/browser/`, [docs/BROWSER-ACCEPTANCE.md](docs/BROWSER-ACCEPTANCE.md)). Not verified yet: anything against Stripe (the adapter and the webhook are tested against a fake of the Stripe API only), the block checkout in a browser (covered through the Store API only), a person looking at the screens and at the ten emails in a mail client, the premium add-ons talking to a deployed server, and a production server. Open work: [docs/TODO.md](docs/TODO.md). Release gates: [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
+> **Status: preview. Not ready to sell with.** In CI, on every pull request and push to `main`: unit tests on PHP 8.5 (plus PHP 8.6 as an experimental cell), integration tests in eight WordPress/WooCommerce combinations on PHP 8.5 with MySQL 9.7 and MariaDB 12.3 (WooCommerce 8.9.3, 9.4.3 and 11.2.2, HPOS and legacy order storage, one multisite cell) plus an experimental cell on PHP 8.6, an end-to-end run (`tests/e2e/`, 15 flows: purchases, manual and automatic renewals with a test payment adapter, updates, admin and account pages, and concurrent requests against a real database with eight server processes), PHPStan, the blocking PHPCS rules and the release ZIP. Run locally only, with headless Chromium: a browser pass over the classic checkout, the account, the admin pages and the product editor (`tests/browser/`, [docs/BROWSER-ACCEPTANCE.md](docs/BROWSER-ACCEPTANCE.md)). Not verified yet: anything against Stripe (the adapter and the webhook are tested against a fake of the Stripe API only), the block checkout in a browser (covered through the Store API only), a person looking at the screens and at the ten emails in a mail client, the premium add-ons talking to a deployed server, and a production server. Open work: [docs/TODO.md](docs/TODO.md). Release gates: [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
 ## Features
 
@@ -53,8 +53,8 @@ WooCommerce plugin that turns a shop into a license server for premium WordPress
 
 - WordPress 6.5 or later
 - WooCommerce 8.9 or later, active (the CI integration matrix runs 8.9.3, 9.4.3 and 11.2.2, see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md))
-- PHP 7.4 or later
-- MySQL/MariaDB with a single writable primary (the renewal locks use `GET_LOCK`)
+- PHP 8.5 or later (below 8.5 the plugin shows an admin notice and does not load)
+- MySQL 9.7 or later or MariaDB 12.3 or later, with a single writable primary (the renewal locks use `GET_LOCK`); an older server gets a warning in Site Health and on the diagnostics page, nothing is blocked
 - A working cron (system cron for `wp-cron.php` recommended)
 - For automatic renewals: the official WooCommerce Stripe gateway and the classic checkout
 - In `wp-config.php` for production: `WPLC_LICENSE_KEY_SECRETS`, `WPLC_INSTALLATION_ENCRYPTION_KEYS`, and `WPLC_STRIPE_WEBHOOK_SECRET` when Stripe is used ([docs/SECURITY-OPERATIONS.md](docs/SECURITY-OPERATIONS.md))
@@ -75,6 +75,8 @@ WP_TESTS_DIR=/tmp/wordpress-tests-lib WP_CORE_DIR=/tmp/wordpress composer test:i
 ```
 
 Coding standard and static analysis: `composer phpcs:blocking`, `composer phpstan`. See [docs/QUALITY-GATES.md](docs/QUALITY-GATES.md).
+
+The suites also run on a development machine with a PHP older than 8.5: `composer.json` resolves the dependencies for PHP 8.5 (`config.platform.php`), and the test bootstraps define the test-only constant `WPLC_TESTS_IGNORE_PHP_MINIMUM`, the only way past the PHP check of `wp-license.php`. Never define it on a real site. CI runs everything on PHP 8.5 itself.
 
 ## Documentation
 

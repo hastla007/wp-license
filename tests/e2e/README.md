@@ -22,7 +22,9 @@ A full run takes about five minutes after the first setup.
 
 ### Requirements
 
-- PHP CLI (7.4+; mysqli, curl, zip), `curl`, `tar`, a `mysql`/`mariadb` client.
+- PHP CLI (mysqli, curl, zip), `curl`, `tar`, a `mysql`/`mariadb` client. The plugin requires PHP 8.5; on an older
+  development PHP the driver lowers `Requires PHP` in its site copy and the e2e mu-plugin defines the test-only
+  constant `WPLC_TESTS_IGNORE_PHP_MINIMUM`, so the flows still run (MINVER-1). Never do either on a real site.
 - A MySQL/MariaDB server. The database named by `WPLC_E2E_DB_NAME` (default `wplc_e2e`)
   is **dropped and recreated** on every run without `WPLC_E2E_KEEP_DB=1`.
 - Network access to wordpress.org, or `composer` and `git` for the fallback sources (below).
@@ -173,10 +175,10 @@ executed through the Action Scheduler runner regardless of their scheduled date
 ## CI
 
 `.github/workflows/e2e.yml` runs the full driver on every pull request, on pushes to `main`
-and on demand (`workflow_dispatch`), as one job `e2e (WP latest, WC 11.2.2, PHP 8.3)`:
+and on demand (`workflow_dispatch`), as one job `e2e (WP latest, WC 11.2.2, PHP 8.5)`:
 
-- `mysql:8.0` service (root/root on 127.0.0.1:3306, same as the integration job in `phpunit.yml`);
-- PHP 8.3 via `shivammathur/setup-php` with mysqli, curl, zip (plus intl, mbstring, openssl,
+- `mysql:9.7` service, the minimum MySQL server (root/root on 127.0.0.1:3306, like the MySQL cells of the integration job in `phpunit.yml`);
+- PHP 8.5, the minimum, via `shivammathur/setup-php` with mysqli, curl, zip (plus intl, mbstring, openssl,
   sodium like the other jobs), Composer only for the fallback sources;
 - `default-mysql-client` and `psmisc` (`fuser`) from apt;
 - no `composer install`: the driver copies the plugin without `vendor/` anyway, and downloads

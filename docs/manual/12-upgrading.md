@@ -18,7 +18,7 @@ WP License Captain never installs updates of itself. Plan every update like a de
 
 ## Installing an update
 
-1. Read the changelog of the new version (`readme.txt`, section "Changelog", and the release notes).
+1. Read the changelog of the new version (`readme.txt`, section "Changelog", and the release notes), and compare its requirements with your server (see "PHP and database requirements" below).
 2. Download `wp-license-captain-<version>.zip` and its `.zip.sha256`; check with `sha256sum -c wp-license-captain-<version>.zip.sha256`.
 3. Back up database, package directory and secrets together (chapter 9).
 4. Install on staging first and run through your test checklist: activation, entitlement check, update download, a renewal with a test card.
@@ -26,6 +26,14 @@ WP License Captain never installs updates of itself. Plan every update like a de
 6. Open **WooCommerce → License diagnostics** and check the schema version and the scheduled jobs.
 
 The client library is versioned separately: a server update never requires new add-on releases (API v1 promise, chapter 6). When you want a newer library in an add-on, read `CHANGELOG-CLIENT.md` of the new client package for entries marked **Action**, export it again and ship an add-on release.
+
+## PHP and database requirements
+
+Since the release after 0.2.0 the plugin requires **PHP 8.5** and supports **MySQL 9.7** and **MariaDB 12.3** or later; 0.2.0 required PHP 7.4.
+
+- Check before the update: **Tools → Site Health → Info → Server** shows the PHP version and the database server. Ask your host to switch the site to PHP 8.5 first, on staging as well.
+- WordPress refuses to install or activate a ZIP whose `Requires PHP` is higher than the running PHP. If PHP is lowered later, the plugin shows the notice "WP License Captain requires PHP 8.5 or later; this site runs PHP …" and loads nothing else: no API, no renewals, no customer pages, until PHP is updated again. The data stays untouched.
+- An older database server is not blocked: activation, the API and renewals keep working. Site Health (test "WP License Captain: PHP and database versions") and the diagnostics rows "PHP" and "Database" show each version with its minimum and a warning for an older server.
 
 ## Database migrations
 

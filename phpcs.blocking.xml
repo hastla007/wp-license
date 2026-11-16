@@ -19,7 +19,7 @@
 	<arg value="sp"/>
 
 	<config name="minimum_wp_version" value="6.5"/>
-	<config name="testVersion" value="7.4-"/>
+	<config name="testVersion" value="8.5-"/>
 
 	<!-- Escaping, nonce verification, input sanitization, safe redirects. -->
 	<rule ref="WordPress.Security">

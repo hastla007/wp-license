@@ -19,12 +19,13 @@ permissions:
 
 jobs:
   e2e:
-    name: e2e (WP latest, WC 11.2.2, PHP 8.3)
+    name: e2e (WP latest, WC 11.2.2, PHP 8.5)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
       mysql:
-        image: mysql:8.0
+        # The minimum MySQL server (MINVER-1); MariaDB 12.3 runs in the integration matrix.
+        image: mysql:9.7
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_ROOT_HOST: "%"
@@ -47,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.3"
+          php-version: "8.5"
           extensions: mysqli, curl, zip, intl, mbstring, openssl, sodium
           # composer is only used by the driver's fallback sources (wordpress.org unreachable).
           tools: composer:v2

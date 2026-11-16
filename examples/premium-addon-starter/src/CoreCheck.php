@@ -22,9 +22,10 @@ final class CoreCheck {
 	 *
 	 * @param string $constant    Constant with the core plugin's version.
 	 * @param string $min_version Lowest supported core version.
+	 * @param string $php_version PHP version to check; the running one by default (tests pass another one).
 	 */
-	public static function passes( string $constant = Config::CORE_VERSION_CONSTANT, string $min_version = Config::CORE_MIN_VERSION ): bool {
-		return version_compare( PHP_VERSION, Config::MIN_PHP, '>=' ) && defined( $constant ) && version_compare( (string) constant( $constant ), $min_version, '>=' );
+	public static function passes( string $constant = Config::CORE_VERSION_CONSTANT, string $min_version = Config::CORE_MIN_VERSION, string $php_version = PHP_VERSION ): bool {
+		return version_compare( $php_version, Config::MIN_PHP, '>=' ) && defined( $constant ) && version_compare( (string) constant( $constant ), $min_version, '>=' );
 	}
 
 	/**
@@ -33,11 +34,12 @@ final class CoreCheck {
 	 * @param string $constant    Constant with the core plugin's version.
 	 * @param string $min_version Lowest supported core version.
 	 * @param string $core_name   Core plugin name for the message.
+	 * @param string $php_version PHP version to check; the running one by default (tests pass another one).
 	 */
-	public static function problem( string $constant = Config::CORE_VERSION_CONSTANT, string $min_version = Config::CORE_MIN_VERSION, string $core_name = Config::CORE_NAME ): string {
-		if ( version_compare( PHP_VERSION, Config::MIN_PHP, '<' ) ) {
+	public static function problem( string $constant = Config::CORE_VERSION_CONSTANT, string $min_version = Config::CORE_MIN_VERSION, string $core_name = Config::CORE_NAME, string $php_version = PHP_VERSION ): string {
+		if ( version_compare( $php_version, Config::MIN_PHP, '<' ) ) {
 			/* translators: 1: required PHP version, 2: running PHP version. */
-			return sprintf( __( 'This add-on needs PHP %1$s or newer; this site runs PHP %2$s. Premium features are off.', 'premium-addon-starter' ), Config::MIN_PHP, PHP_VERSION );
+			return sprintf( __( 'This add-on needs PHP %1$s or newer; this site runs PHP %2$s. Premium features are off.', 'premium-addon-starter' ), Config::MIN_PHP, $php_version );
 		}
 		if ( ! defined( $constant ) ) {
 			/* translators: %s: core plugin name. */

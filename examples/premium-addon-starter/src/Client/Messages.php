@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 95a24e4b46fd3e701ec08458c054bb9600a8319d834a82a49193cf8830ac1ca0). Do not edit: change the server copy and re-vendor.
+ * (source sha256 ac20065f62c91338585a974469bc6ddf7378b4c2ebf9941013aab6f2d2c621e4). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -33,7 +33,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.1.1';
+		const VERSION = '2.2.0';
 
 		/**
 		 * Text domain literal used in this file.

@@ -4,12 +4,15 @@
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "require": {
-    "php": ">=7.4"
+    "php": ">=8.5"
   },
   "require-dev": {
     "phpunit/phpunit": "^9.6"
   },
   "config": {
+    "platform": {
+      "php": "8.5"
+    },
     "sort-packages": true
   },
   "scripts": {

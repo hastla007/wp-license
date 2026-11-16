@@ -1,5 +1,7 @@
 <?php
 define( 'ABSPATH', dirname( __DIR__ ) . '/' );
+// TEST-ONLY (MINVER-1): the suites also run on a development machine with a PHP older than Requirements::MIN_PHP.
+define( 'WPLC_TESTS_IGNORE_PHP_MINIMUM', true );
 define( 'WPLC_LICENSE_KEY_SECRET', 'unit-test-only-stable-secret' );
 define( 'WPLC_LICENSE_KEY_SECRETS', array( 'test-2026' => 'test-current-license-key', 'test-2025' => 'test-previous-license-key' ) );
 define( 'WPLC_LICENSE_KEY_ID', 'test-2026' );

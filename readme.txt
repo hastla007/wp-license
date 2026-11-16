@@ -2,7 +2,7 @@
 Contributors: hastla007
 Tags: woocommerce, license-manager, software-updates
 Requires at least: 6.5
-Requires PHP: 7.4
+Requires PHP: 8.5
 Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -17,7 +17,7 @@ WP License Captain turns a WooCommerce shop into a license server for premium Wo
 
 **This version is not production-ready. Do not use it to sell licenses, charge renewals or distribute paid updates.**
 
-The code has unit tests for its pure logic, but it has not been accepted in a real shop: payment flows have not passed a gateway sandbox, the emails and scheduled jobs have only run in an automated test shop (WordPress with WooCommerce 11.2), not in a live one. WordPress 6.5, WooCommerce 8.9 and PHP 7.4 are the declared minimums; the CI integration matrix runs WooCommerce 8.9.3, 9.4.3 and 11.2.2, WooCommerce versions in between have never been run. That is why this readme declares neither "Tested up to" nor a WooCommerce version range.
+The code has unit tests for its pure logic, but it has not been accepted in a real shop: payment flows have not passed a gateway sandbox, the emails and scheduled jobs have only run in an automated test shop (WordPress with WooCommerce 11.2), not in a live one. WordPress 6.5, WooCommerce 8.9 and PHP 8.5 are the declared minimums, MySQL 9.7 and MariaDB 12.3 the supported database servers; the CI integration matrix runs WooCommerce 8.9.3, 9.4.3 and 11.2.2 on PHP 8.5 with MySQL 9.7 and MariaDB 12.3, WooCommerce versions in between have never been run. That is why this readme declares neither "Tested up to" nor a WooCommerce version range.
 
 = What is implemented =
 
@@ -47,7 +47,8 @@ The code has unit tests for its pure logic, but it has not been accepted in a re
 == Requirements ==
 
 * WordPress 6.5 or later
-* PHP 7.4 or later
+* PHP 8.5 or later (below 8.5 the plugin shows a notice and does not load)
+* MySQL 9.7 or later or MariaDB 12.3 or later (an older database server gets a warning in Site Health and on the diagnostics page; nothing is blocked)
 * WooCommerce 8.9 or later, active (CI integration matrix: 8.9.3, 9.4.3 and 11.2.2)
 * HTTPS for the site, and a working WP-Cron (a system cron is recommended)
 

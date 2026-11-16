@@ -15,7 +15,8 @@
  * - `@package WPLC` becomes the first segment of the namespace.
  *
  * Run it in the build step of the add-on (or once, and commit the result).
- * The script needs PHP only, no WordPress.
+ * The script needs PHP only, no WordPress. The exported library (client 2.2.0 and later)
+ * needs PHP 8.5, so the add-on declares at least `Requires PHP: 8.5`.
  *
  * @package WPLC
  */

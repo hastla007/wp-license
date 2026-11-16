@@ -33,13 +33,13 @@ It covers section "B. Premium-Add-on" (B1–B11) of the core plugins' TODO.md. E
 | `core-plugin-slug` (`Requires Plugins`) | slug of the core plugin on WordPress.org | `voucher-captain` | check: `pass-captain` (the TODO says `wp-passmaster`, the repository name) | `affiliate-captain` |
 | `Config::CORE_VERSION_CONSTANT` | core version constant | `VCAP_VERSION` | `WPCAP_VERSION` | `WPAC_VERSION` |
 | `Config::CORE_MIN_VERSION` | lowest supported core version | the first core release with the add-on hooks (A4) | same | same |
-| `Requires PHP`, `Config::MIN_PHP` | PHP minimum = the core plugin's | **8.1** | **8.2** | **7.4** |
+| `Requires PHP`, `Config::MIN_PHP` | PHP minimum = the core plugin's, at least 8.5 (the license client since 2.2.0) | **8.5** | **8.5** | **8.5** |
 | `Config::PRODUCT_KEY` | product key in the server catalog = add-on folder = text domain | `voucher-captain-pro` | `pass-captain-pro` | `affiliate-captain-pro` |
 | `Config::ENTITLEMENT_PREFIX` | entitlement key prefix | `voucher.` | `pass.` | `affiliate.` |
 | `Config::SERVER_URL`, `Update URI` | HTTPS URL of the shop running WP License Captain | | | |
 | `Config::SERVER_PUBLIC_KEYS` | pinned Ed25519 key(s) of the server | output of `wp wplc signing-key --field=public_key` on the license server | | |
 
-The starter code itself is PHP 7.4-compatible; raise `Requires PHP` to the core plugin's minimum.
+Owner decision of 16 Nov 2026 for all Captain plugins (MINVER-1): the minimum is the newest PHP version, 8.5, and the vendored license client (2.2.0) needs it. The starter therefore declares `Requires PHP: 8.5`; keep `Requires PHP` and `Config::MIN_PHP` equal to the core plugin's minimum and never below 8.5.
 
 ### Product key (decided 14.11.2026)
 
@@ -55,7 +55,7 @@ The product keys are `voucher-captain-pro`, `pass-captain-pro` and `affiliate-ca
      --name="Voucher Captain Pro" --slug=voucher-captain-pro --namespace='VCAP\Pro' --prefix=vcap_pro \
      --product-key=voucher-captain-pro --entitlement-prefix=voucher. \
      --core-name="Voucher Captain" --core-slug=voucher-captain --core-constant=VCAP_VERSION --core-min=1.1.0 \
-     --requires-php=8.1 --server-url=https://licenses.example.com \
+     --requires-php=8.5 --server-url=https://licenses.example.com \
      --public-key="$(wp wplc signing-key --field=public_key --path=/path/to/license-shop)"
    ```
 

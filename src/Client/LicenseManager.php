@@ -28,7 +28,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.1.1';
+		const VERSION = '2.2.0';
 
 		/**
 		 * A signed answer ended the activation: rights and credentials are dropped.

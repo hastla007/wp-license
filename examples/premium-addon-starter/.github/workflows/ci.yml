@@ -12,8 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # First entry = the add-on's minimum PHP ("Requires PHP"): 8.1 Voucher, 8.2 Pass, 7.4 Affiliate.
-        php: ['7.4', '8.3']
+        # The add-on's minimum PHP ("Requires PHP", 8.5 for every Captain add-on since MINVER-1).
+        # PHP 8.6 is released on 19 Nov 2026; add it here (as an experimental cell until setup-php lists it as stable).
+        php: ['8.5']
     steps:
       - uses: actions/checkout@v4
       - name: License server checkout (sync checks of client and fixtures)
@@ -43,7 +44,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           extensions: zip
       - name: Tag must equal the Version header
         run: |

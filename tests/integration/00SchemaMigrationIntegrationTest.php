@@ -203,7 +203,9 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( Schema::migrate(), 'dbDelta adds the index again.' );
 		$this->assertTrue( Schema::run_registered_step( '22' ) );
 		$this->assertSame( array(), Schema::verify() );
-		$plan = $wpdb->get_results( $wpdb->prepare( "EXPLAIN SELECT id FROM {$tables['licenses']} WHERE payment_token_id = %d", 42 ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		// MySQL 9.7 explains as TREE by default (explain_format); MariaDB has no such variable (MINVER-1).
+		$explain = $wpdb->get_row( "SHOW VARIABLES LIKE 'explain_format'" ) ? 'EXPLAIN FORMAT=TRADITIONAL' : 'EXPLAIN';
+		$plan    = $wpdb->get_results( $wpdb->prepare( "{$explain} SELECT id FROM {$tables['licenses']} WHERE payment_token_id = %d", 42 ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema, EXPLAIN keyword fixed above.
 		$this->assertSame( 'payment_token', (string) $plan[0]['key'], 'The token lookup uses the index.' );
 
 		// Schema 23 (A-76): the source of every audit entry; older rows keep the empty default.
@@ -235,7 +237,7 @@ final class SchemaMigrationIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( Schema::VERSION, (string) get_option( Schema::VERSION_OPTION ) );
 		$this->assertTrue( Schema::run_registered_step( '23' ) );
 		$this->assertSame( array(), Schema::verify() );
-		$plan = $wpdb->get_results( $wpdb->prepare( "EXPLAIN SELECT id FROM {$tables['audit_log']} WHERE source = %s ORDER BY id DESC LIMIT 50", 'webhook' ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
+		$plan = $wpdb->get_results( $wpdb->prepare( "{$explain} SELECT id FROM {$tables['audit_log']} WHERE source = %s ORDER BY id DESC LIMIT 50", 'webhook' ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema.
 		$this->assertSame( 'source_entries', (string) $plan[0]['key'], 'The source filter uses the index.' );
 	}
 }

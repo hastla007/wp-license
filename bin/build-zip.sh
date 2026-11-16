@@ -102,7 +102,7 @@ php -r '
 # Runtime files only: no VCS metadata, dotfiles, tests or docs from dependencies.
 find "${STAGE}" -mindepth 1 -name '.*' -prune -exec rm -rf {} +
 find "${STAGE}/vendor" -type d \( -name tests -o -name test -o -name docs \) -prune -exec rm -rf {} +
-# Syntax check with the running PHP (the release job runs the minimum version, 7.4).
+# Syntax check with the running PHP (the release job runs the minimum version, 8.5).
 find "${STAGE}" -type f -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
 (cd build && zip -r -q -X "../dist/${ZIP}" wp-license)
 (cd dist && sha256sum "${ZIP}" > "${ZIP}.sha256")

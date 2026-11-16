@@ -12,7 +12,7 @@ Decision of 13 Nov 2026 (`docs/IMPLEMENTATION-PLAN.md`): the three core plugins 
 
 The product keys are fixed (decision of 14 Nov 2026) and follow the rule "product key = folder of the add-on = text domain": `voucher-captain-pro`, `pass-captain-pro`, `affiliate-captain-pro`. The key in the add-on, in the catalog of the shop and the top-level folder of every release ZIP must be the same.
 
-The library is written for PHP 7.4 and WordPress 6.5, the lowest requirements among the products, and needs neither WooCommerce nor a class of the license server.
+The library is written for PHP 8.5 (since 2.2.0; the owner decided on 16 Nov 2026 that every Captain plugin requires the newest PHP version) and WordPress 6.5, and needs neither WooCommerce nor a class of the license server.
 
 ### Project connectors
 

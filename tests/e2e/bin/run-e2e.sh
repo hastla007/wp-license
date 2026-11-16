@@ -172,6 +172,15 @@ fi
 mkdir -p "$SITE/wp-content/plugins/wp-license"
 ( cd "$PLUGIN_DIR" && tar -cf - --exclude=./vendor --exclude=./.git --exclude=./tests --exclude=./node_modules --exclude=./.claude . ) | ( cd "$SITE/wp-content/plugins/wp-license" && tar -xf - ) || die "plugin copy failed"
 [ ! -e "$SITE/wp-content/plugins/wp-license/vendor" ] || die "vendor/ must not exist in the site copy"
+# MINVER-1, TEST-ONLY: on a development machine whose PHP is older than the plugin's minimum, the
+# site copy declares the running PHP so WordPress lets flow 1 activate it, and the e2e mu-plugin
+# defines WPLC_TESTS_IGNORE_PHP_MINIMUM so the plugin boots. On the minimum itself (CI) nothing changes.
+RUNNING_PHP="$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')"
+REQUIRED_PHP="$(sed -n 's/^ \* Requires PHP: *//p' "$SITE/wp-content/plugins/wp-license/wp-license.php" | head -n 1 | tr -d '\r')"
+if php -r 'exit( version_compare( $argv[1], $argv[2], "<" ) ? 0 : 1 );' "$RUNNING_PHP" "$REQUIRED_PHP"; then
+	sed -i "s/^ \* Requires PHP: .*/ * Requires PHP: ${RUNNING_PHP}/" "$SITE/wp-content/plugins/wp-license/wp-license.php"
+	echo "PHP ${RUNNING_PHP} is older than the plugin minimum ${REQUIRED_PHP}: the site copy declares PHP ${RUNNING_PHP} (test-only)."
+fi
 cp "$E2E_DIR/mu-plugins/"*.php "$SITE/wp-content/mu-plugins/"
 
 # ---------------------------------------------------------------------------

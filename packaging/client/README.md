@@ -1,6 +1,6 @@
 # License client library {{VERSION}}
 
-The PHP library a premium WordPress add-on embeds to talk to a WP License Captain server: activation with a license key, signed entitlement checks with an offline window, the feature gate, notices and a license screen, premium updates through the WordPress updater, and uninstall. It needs WordPress 6.0+, PHP 7.4+ and, for the signature check, the PHP sodium extension or the `sodium_compat` that WordPress ships.
+The PHP library a premium WordPress add-on embeds to talk to a WP License Captain server: activation with a license key, signed entitlement checks with an offline window, the feature gate, notices and a license screen, premium updates through the WordPress updater, and uninstall. It needs WordPress 6.0+, PHP 8.5+ (since 2.2.0; 2.1.x ran on PHP 7.4) and, for the signature check, the PHP sodium extension or the `sodium_compat` that WordPress ships.
 
 There is no separate client plugin: every add-on carries its own copy of this library.
 
@@ -59,7 +59,7 @@ The main file needs the header `Update URI: https://shop.example/my-addon` so th
 
 - The client of one major version (2.x) works with **every server that answers API v1** (`/wp-json/wplc/v1/…`). A new server version may add fields, error codes and routes; the client ignores what it does not know and treats an unknown error as "keep the stored rights".
 - A server never needs a newer client: a new server feature that needs client support is optional for the client and announced in the changelogs of both.
-- Minor and patch versions of the client (2.1.0 → 2.1.1) only add things or fix bugs. A change that needs work in the add-on is marked **Action** in `CHANGELOG-CLIENT.md`.
+- Minor and patch versions of the client (2.1.0 → 2.1.1) only add things or fix bugs; a minor version may also raise the minimum PHP version (2.2.0: PHP 8.5). A change that needs work in the add-on is marked **Action** in `CHANGELOG-CLIENT.md`.
 - A client that needs something the server cannot do (a new major API version) gets a new major version (3.0.0); API v1 then stays available on the server for the 2.x clients that are installed on customer sites.
 - What the client relies on: the response signature `wplc-response-v2` (HMAC over `payload` with the installation secret, Ed25519 over `wplc-response-v2\n{installation id}\n{payload}` with a pinned key), the request nonce in the payload, `product_key` in every signed activation, entitlement and update answer, and the error codes listed in `docs/API-V1.md`.
 

@@ -6,7 +6,7 @@
  * Version:           1.0.0
  * Requires at least: 6.5
  * Tested up to:      6.8
- * Requires PHP:      7.4
+ * Requires PHP:      8.5
  * Requires Plugins:  core-plugin-slug
  * Author:            Vendor
  * License:           GPL-2.0-or-later
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'PREMIUM_ADDON_STARTER_VERSION', '1.0.0' );
 
 // Keep this file PHP 5.6 parseable so an old PHP gets a notice instead of a fatal error.
-if ( version_compare( PHP_VERSION, '7.4', '<' ) ) {
+if ( version_compare( PHP_VERSION, '8.5', '<' ) ) {
 	add_action(
 		'admin_notices',
 		function () {

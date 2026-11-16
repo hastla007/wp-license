@@ -21,8 +21,8 @@
  * 5. deactivate (also when a step after the activation failed, so the test leaves nothing behind).
  *
  * Every answer must carry a valid Ed25519 signature of one of the pinned public keys
- * (`--public-key`, the key of the server: `wp wplc signing-key`), as in an add-on. Needs PHP 7.4+
- * with the sodium extension; curl is used when available. Exit code 0 when every step passed,
+ * (`--public-key`, the key of the server: `wp wplc signing-key`), as in an add-on. Needs PHP 8.5+
+ * (the minimum of the library since 2.2.0) with the sodium extension; curl is used when available. Exit code 0 when every step passed,
  * 1 when one failed, 2 for wrong arguments.
  *
  * This script talks to the network; it is not part of any CI run. Its argument parsing and the

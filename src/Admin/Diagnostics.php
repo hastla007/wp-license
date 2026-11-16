@@ -891,10 +891,24 @@ final class Diagnostics {
 		} else {
 			$add( __( 'Newest release', 'wp-license' ), $release['version'], 'ok' );
 		}
-		$add( __( 'PHP', 'wp-license' ), PHP_VERSION );
+		// MINVER-1: PHP and database server against the minimums; an older database server is a warning only.
+		$php_ok   = Requirements::php_meets_minimum();
+		$php_help = '';
+		if ( ! $php_ok ) {
+			/* translators: %s: minimum PHP version. */
+			$php_help = sprintf( __( 'WP License Captain requires PHP %s or later.', 'wp-license' ), Requirements::MIN_PHP );
+		}
+		/* translators: 1: running PHP version, 2: minimum PHP version. */
+		$add( __( 'PHP', 'wp-license' ), sprintf( __( '%1$s (minimum %2$s)', 'wp-license' ), PHP_VERSION, Requirements::MIN_PHP ), $php_ok ? 'ok' : 'warning', $php_help );
 		$add( __( 'WordPress', 'wp-license' ), get_bloginfo( 'version' ) );
 		$add( __( 'WooCommerce', 'wp-license' ), defined( 'WC_VERSION' ) ? WC_VERSION : __( 'Unavailable', 'wp-license' ) );
-		$add( __( 'Database', 'wp-license' ), method_exists( $wpdb, 'db_version' ) ? (string) $wpdb->db_version() : __( 'Unknown', 'wp-license' ) );
+		$database = Requirements::database_status();
+		if ( $database['known'] ) {
+			/* translators: 1: MySQL or MariaDB, 2: version of the database server, 3: minimum version. */
+			$add( __( 'Database', 'wp-license' ), sprintf( __( '%1$s %2$s (minimum %3$s)', 'wp-license' ), $database['name'], $database['version'], $database['minimum'] ), $database['ok'] ? 'ok' : 'warning', $database['message'] );
+		} else {
+			$add( __( 'Database', 'wp-license' ), method_exists( $wpdb, 'db_version' ) ? (string) $wpdb->db_version() : __( 'Unknown', 'wp-license' ) );
+		}
 
 		$schema    = (string) get_option( Schema::VERSION_OPTION, '0' );
 		$schema_ok = 0 === version_compare( $schema, Schema::VERSION );

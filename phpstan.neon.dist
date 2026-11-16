@@ -8,6 +8,8 @@ includes:
 
 parameters:
 	level: 5
+	# The PHP minimum (Requires PHP, Requirements::MIN_PHP; MINVER-1).
+	phpVersion: 80500
 	paths:
 		- src
 		- wp-license.php
@@ -33,6 +35,8 @@ parameters:
 		- WPLC_STRIPE_WEBHOOK_SECRET
 		- WPLC_RESPONSE_SIGNING_KEY
 		- WP_CLI
+		# Test-only opt-out of the PHP minimum (tests/bootstrap.php, tests/integration-bootstrap.php).
+		- WPLC_TESTS_IGNORE_PHP_MINIMUM
 	# Baseline entries that no longer match are reported by "composer phpstan:baseline" (regenerate),
 	# not by CI: several branches change src/ in parallel and must not break each other by fixing errors.
 	reportUnmatchedIgnoredErrors: false
