@@ -68,6 +68,10 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 
 		$working_state = array(
 			'wplc_reminder_cursor',
+			// E8b: the plugin's own license (client library, prefix wplc_vendor).
+			'wplc_vendor_license',
+			'wplc_vendor_license_state',
+			'wplc_vendor_update_meta',
 			'wplc_deactivated_at',
 			// Former heartbeat options, folded into wplc_last_run by schema step 19.
 			'wplc_last_daily_run',

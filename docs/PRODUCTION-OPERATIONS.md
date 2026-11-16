@@ -85,6 +85,25 @@ The plugin is not on WordPress.org and does not install its own updates (A-42). 
 - The check sends one HTTPS request without site data to `api.github.com` (the IP address of the server and the user agent `wp-license-captain`). Switch it off with `define( 'WPLC_DISABLE_UPDATE_CHECK', true );` or the filter `wplc_self_update_check_enabled`; then watch the repository's releases instead. A fork or mirror can point the check elsewhere with `wplc_self_update_release_api` (the answer must have the GitHub release format).
 - If the repository is private, the API answers 404 and the row stays "Not known yet"; nothing else changes.
 
+### Updates of the plugin from a license server (optional, off by default)
+
+A copy of this plugin can get its own updates from the license server of its vendor, through the client library it ships (`src/Infrastructure/SelfLicense.php`; owner decision E8b, PROD-06 in [PRODUCT-PLAN.md](PRODUCT-PLAN.md)). Nothing of this is active unless it is configured in `wp-config.php`:
+
+```php
+define( 'WPLC_VENDOR_SERVER_URL', 'https://licenses.vendor.example' ); // HTTPS, never this site
+define( 'WPLC_VENDOR_PRODUCT_KEY', 'product-key-of-the-server' );
+define( 'WPLC_VENDOR_PUBLIC_KEYS', array( 'key-id' => 'base64 public key of that server' ) );
+define( 'WPLC_VENDOR_ACCOUNT_URL', 'https://vendor.example/my-account/' ); // optional
+```
+
+(or the filter `wplc_vendor_license_config`, for a build that ships the values). The product key, the address and the public key of the server that will sell this plugin are not decided yet (INH-07 to INH-09 in [TODO.md](TODO.md)); until then there is nothing to enter and the feature stays off.
+
+- **Not configured:** no screen, no scheduled event, no option, no request. The release notification from GitHub (above) works as before.
+- **Configured:** the license screen of the client library appears under Settings (the key bought from the vendor is entered there), a daily check is scheduled (`wplc_vendor_license_check`), WordPress offers updates through the vendor's server, and the GitHub notification is switched off. Options and hooks use the prefix `wplc_vendor`, apart from the shop's data. The texts of that screen are in English for now.
+- **The own license never gates function.** With a missing, expired or revoked own license, or an unreachable vendor server, the plugin sells, checks and renews the licenses of the shop exactly as before; only updates of the plugin itself stop (`SelfLicenseIntegrationTest::test_the_shop_works_fully_without_a_valid_own_license`).
+- **No loop.** An address whose host is this site (also with or without `www.`, also set later through a filter) is refused: a server never updates itself from itself. The installation that sells the plugin runs it without this configuration.
+- An address without HTTPS, an invalid product key or missing public keys leave the feature off.
+
 ### Rolling back the plugin
 
 Installing an older plugin version over a newer database is detected: nothing is migrated backwards, administrators see a notice, and billing is paused until the newer version is installed again. Roll back the plugin only together with the database backup that belongs to it.

@@ -151,6 +151,7 @@ Products, entitlement keys and their labels are data: an add-on ships a catalog 
 | `wplc_update_packages` | `src/Api/V1/UpdateService.php` | Filters the update packages on offer. |
 | `wplc_update_product_homepage` | `src/Update/ReleaseRegistry.php` | Filters the homepage shown for a product in the WordPress update details. |
 | `wplc_update_product_icons` | `src/Update/ReleaseRegistry.php` | Filters the icons of a product, in the shape WordPress expects: array( '1x' => url, '2x' => url, 'svg' => url ). |
+| `wplc_vendor_license_config` | `src/Infrastructure/SelfLicense.php` | Filters where this plugin gets its own updates from (the license server of its vendor). |
 | `wplc_verify_url_release_on_publish` | `src/Update/ReleaseRegistry.php` | Filters whether a URL package is downloaded and verified when its release is published. |
 | `wplc_withdrawal_consent_enabled` | `src/Billing/WithdrawalConsent.php` | Filters whether the checkout asks for consent to the immediate start of the license. |
 | `wplc_withdrawal_consent_required` | `src/Billing/WithdrawalConsent.php` | Filters whether a license can only be bought with the consent to the immediate start. |

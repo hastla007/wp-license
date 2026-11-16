@@ -4,6 +4,8 @@ Stand: 16.11.2026. Grundlage sind die Entscheidungen des Inhabers vom selben Tag
 
 Dieses Dokument beschreibt, was dafür zu tun ist. Es ist ein Plan, keine Zusage: Größe und Reihenfolge sind Schätzungen aus dem Code vom 16.11.2026. Die Arbeitspakete stehen als Aufgaben PROD-01 bis PROD-13 in `docs/TODO.md`, Abschnitt 14.
 
+> **Nachtrag vom Abend des 16.11.2026 (Entscheidung E8b):** Frage 1 aus Abschnitt 5 ist beantwortet. Vor dem ersten Verkauf der Add-ons braucht der Server Stufe 1 (PROD-01, PROD-02, PROD-12) **und** seinen eigenen Update- und Lizenzweg (PROD-06 mit PROD-07 und PROD-13). Client-Paket, Handbuch für Hersteller und der Rest (PROD-03, -04, -05, -08, -09, -10, -11) folgen nach dem Verkaufsstart. Die Tabelle in Abschnitt 3 und Abschnitt 4 sind entsprechend angepasst. Der technische Teil von PROD-06, der keine weitere Entscheidung braucht, ist gebaut (siehe dort).
+
 ## 1. Ausgangslage
 
 - Der Lizenzserver ist ein WordPress-Plugin für einen WooCommerce-Shop. Eine Installation bedient genau einen Hersteller; mehrere Hersteller in einer Installation sind nicht vorgesehen und werden hier nicht geplant.
@@ -26,23 +28,23 @@ Dieses Dokument beschreibt, was dafür zu tun ist. Es ist ein Plan, keine Zusage
 
 ## 3. Arbeitspakete
 
-Größe: **S** bis etwa ein Arbeitstag, **M** einige Tage, **L** ein bis zwei Wochen; jeweils ohne die Zeit für Entscheidungen des Inhabers. „Blockiert“ sagt, was ohne das Paket nicht beginnen kann: **Add-ons** = der erste Verkauf der Captain-Add-ons, **Server** = der Verkauf des Servers an Dritte.
+Größe: **S** bis etwa ein Arbeitstag, **M** einige Tage, **L** ein bis zwei Wochen; jeweils ohne die Zeit für Entscheidungen des Inhabers. „Wann“ nennt die Einordnung nach der Entscheidung E8b: vor oder nach dem ersten Verkauf der Captain-Add-ons.
 
-| Nr. | Paket | Größe | Hängt ab von | Blockiert | Stand |
+| Nr. | Paket | Größe | Hängt ab von | Wann (E8b) | Stand |
 | --- | --- | --- | --- | --- | --- |
-| PROD-01 | Katalog als Daten | M | – | Add-ons (siehe 4) | erledigt am 16.11.2026 |
-| PROD-02 | Captain-Katalog kommt aus captain-pro | S | PROD-01, captain-pro | Add-ons (siehe 4) | offen |
-| PROD-03 | Katalogdatei mit dem Release einspielen | M | PROD-01 | Server | offen |
-| PROD-04 | Herstellerneutrale Texte, Platzhalter und Beispiele | M | PROD-01 | Server | offen |
-| PROD-05 | Name, Marke und Kennungen des Produkts | S | Entscheidung | Server | offen |
-| PROD-06 | Eigener Updateweg des Servers | L | PROD-07, PROD-13 | Server | offen |
-| PROD-07 | Lizenzmodell des Servers | S | Entscheidung | Server | offen |
-| PROD-08 | Eigenständiger Client für andere Hersteller | M | Entscheidung | Server | offen |
-| PROD-09 | Einstieg für einen neuen Hersteller | M | PROD-01, PROD-04 | Server | offen |
-| PROD-10 | Dokumentation für Hersteller | M | PROD-04, PROD-08, PROD-09 | Server | offen |
-| PROD-11 | Captain-spezifisches auslagern | M | PROD-02, PROD-04 | Server | offen |
-| PROD-12 | Migration der bestehenden Installation | S | PROD-01, PROD-02 | Add-ons (siehe 4) | Teil 1 erledigt |
-| PROD-13 | Release des Servers als Produkt | S | PROD-05 | Server | offen |
+| PROD-01 | Katalog als Daten | M | – | vor dem Verkaufsstart | erledigt am 16.11.2026 |
+| PROD-02 | Captain-Katalog kommt aus captain-pro | S | PROD-01, captain-pro | vor dem Verkaufsstart | offen (captain-pro liefert drei Dateien) |
+| PROD-03 | Katalogdatei mit dem Release einspielen | M | PROD-01 | nach dem Verkaufsstart | offen |
+| PROD-04 | Herstellerneutrale Texte, Platzhalter und Beispiele | M | PROD-01 | nach dem Verkaufsstart | offen |
+| PROD-05 | Name, Marke und Kennungen des Produkts | S | Entscheidung | nach dem Verkaufsstart (der Produktschlüssel schon vorher, INH-07) | offen |
+| PROD-06 | Eigener Updateweg des Servers | L | PROD-07, PROD-13 | vor dem Verkaufsstart | technischer Teil gebaut, Konfiguration offen |
+| PROD-07 | Lizenzmodell des Servers | S | Entscheidung | vor dem Verkaufsstart | offen (Entscheidung) |
+| PROD-08 | Eigenständiger Client für andere Hersteller | M | Entscheidung | nach dem Verkaufsstart | offen |
+| PROD-09 | Einstieg für einen neuen Hersteller | M | PROD-01, PROD-04 | nach dem Verkaufsstart | offen |
+| PROD-10 | Dokumentation für Hersteller | M | PROD-04, PROD-08, PROD-09 | nach dem Verkaufsstart | offen |
+| PROD-11 | Captain-spezifisches auslagern | M | PROD-02, PROD-04 | nach dem Verkaufsstart | offen |
+| PROD-12 | Migration der bestehenden Installation | S | PROD-01, PROD-02 | vor dem Verkaufsstart | Teil 1 erledigt |
+| PROD-13 | Release des Servers als Produkt | S | PROD-05 | vor dem Verkaufsstart | offen |
 
 ### PROD-01 · Katalog als Daten (erledigt)
 
@@ -84,7 +86,11 @@ Die Frage dahinter: Wer lizenziert den Server? Eine Lizenzprüfung des Servers g
 - **b) Der Server ist selbst ein lizenziertes Produkt im Shop des Inhabers** (empfohlen). Die verkaufte Kopie enthält die Client-Bibliothek, fest eingestellt auf den Lizenzserver des Inhabers, und holt darüber Updates wie jedes Add-on. Das ist nur für die Installation des Inhabers ein Zirkel; sie läuft ohne Lizenz (Entwicklungsstand aus dem Repository) und nimmt sich selbst von der Prüfung aus. Feste Regel: Die Lizenz des Servers steuert nur Updates und Support, **nie** seine Funktion. Ein Server, dessen eigene Lizenz abgelaufen oder nicht erreichbar ist, prüft und verlängert die Lizenzen seiner Kunden weiter wie bisher; sonst legte ein Ausfall beim Inhaber die Shops aller Käufer lahm.
 - **c) Updates über GitHub Releases** wie heute geprüft. Passt nur zu einem kostenlosen oder offen verteilten Server.
 
-Zu bauen bei b: Einbau der eigenen Client-Bibliothek in den Server (Lizenzseite, Updater), Ausnahme für die Installation des Herstellers selbst, öffentlicher Schlüssel und Adresse des Lizenzservers des Inhabers im Build (dieselbe Abhängigkeit wie B-15), `SelfUpdateCheck` ersetzen oder daneben behalten, Tests für „Lizenz weg, Funktion bleibt“. Braucht PROD-07 (Lizenzmodell) und PROD-13 (Release).
+**Stand 16.11.2026 (gebaut, soweit es keine weitere Entscheidung braucht):** `src/Infrastructure/SelfLicense.php` bindet die Client-Bibliothek für den Server selbst ein (Weg b). Alles Unentschiedene ist Konfiguration mit der Vorgabe „aus“: Adresse des Lizenzservers, Produktschlüssel, öffentliche Schlüssel und Konto-Adresse kommen aus den Konstanten `WPLC_VENDOR_*` in der `wp-config.php` oder aus dem Filter `wplc_vendor_license_config`. Ohne Konfiguration registriert der Server nichts und stellt keine neue Anfrage; mit Konfiguration erscheint die Lizenzseite der Bibliothek, WordPress bekommt Updates vom Lizenzserver, und die Meldung über GitHub entfällt. Die Regel „die Lizenz steuert nur Updates und Support, nie die Funktion“ ist durch die Bauweise erfüllt (nichts im Server fragt die eigene Lizenz ab) und getestet. Eine Adresse, die auf die eigene Installation zeigt, wird abgelehnt (keine Schleife). Einrichtung: `docs/PRODUCTION-OPERATIONS.md`. *Unit:* `SelfLicenseTest`; *Integration:* `SelfLicenseIntegrationTest` (5 Tests).
+
+**Offen bei PROD-06:** die Werte selbst (INH-07 Produktschlüssel und Name, INH-08 Adresse, INH-09 öffentlicher Schlüssel), das Lizenzmodell (PROD-07, INH-10), das Release des Servers im eigenen Shop (PROD-13), der Kopf `Update URI` des Plugins (zeigt auf GitHub; er wird mit PROD-05 auf die Adresse des Herstellers gestellt), die deutschen Texte der Lizenzseite im Server (die Texte der Bibliothek stehen nicht in der Textdomain des Servers) und ein Durchlauf gegen einen zweiten, echten Server (T-90).
+
+Ursprünglich zu bauen bei b: Einbau der eigenen Client-Bibliothek in den Server (Lizenzseite, Updater), Ausnahme für die Installation des Herstellers selbst, öffentlicher Schlüssel und Adresse des Lizenzservers des Inhabers im Build (dieselbe Abhängigkeit wie B-15), `SelfUpdateCheck` ersetzen oder daneben behalten, Tests für „Lizenz weg, Funktion bleibt“. Braucht PROD-07 (Lizenzmodell) und PROD-13 (Release).
 
 ### PROD-07 · Lizenzmodell des Servers
 
@@ -130,18 +136,18 @@ Captain-spezifisch und kein Teil des Servers sind:
 
 ## 4. Was das für die Reihenfolge kostet
 
-Technisch braucht der erste Verkauf der Captain-Add-ons keines dieser Pakete: Der Server verkaufte und prüfte die drei Add-ons auch mit den festen Listen. Der Inhaber hat den Umbau trotzdem vor den Verkaufsstart gelegt. Daraus folgt:
+Technisch braucht der erste Verkauf der Captain-Add-ons keines dieser Pakete: Der Server verkaufte und prüfte die drei Add-ons auch mit den festen Listen. Der Inhaber hat am 16.11.2026 entschieden (E8 und E8b), was trotzdem vorher fertig sein muss:
 
-- **Stufe 1, vor dem Verkaufsstart der Add-ons unvermeidlich**, weil sie das Datenformat festlegt, mit dem die Add-ons ausgeliefert werden: PROD-01 (erledigt), PROD-02 (captain-pro liefert die Dateien) und PROD-12. Wird ein Add-on ohne Katalogdatei verkauft, muss es später nachgerüstet werden; mit Datei ist die Trennung von Anfang an sauber. Aufwand: klein, aber abhängig von captain-pro.
-- **Stufe 2, nur für den Verkauf des Servers nötig:** PROD-03 bis PROD-11 und PROD-13, zusammen etwa fünf Pakete der Größe M, ein Paket der Größe L und vier der Größe S, dazu vier Entscheidungen des Inhabers (PROD-05, PROD-06, PROD-07, PROD-08). Legt der Inhaber auch diese Stufe vor den Verkaufsstart der Add-ons, verschiebt sich dieser um die ganze Stufe, obwohl kein Kunde eines Add-ons davon etwas merkt.
+- **Vor dem ersten Verkauf der Add-ons:**
+  - Stufe 1, die Trennung der Captain-Daten vom Server: PROD-01 (erledigt), PROD-02 (captain-pro liefert die Katalogdateien; drei liegen vor und sind gültig, vier fehlen) und PROD-12 (Teil 1 erledigt).
+  - Der eigene Update- und Lizenzweg des Servers: PROD-06 (technischer Teil gebaut), PROD-07 (Lizenzmodell, Entscheidung) und PROD-13 (Release des Servers im eigenen Shop). Offen sind dafür vier Antworten des Inhabers (INH-07 bis INH-10) und der Produktivserver (T-90), auf dem der öffentliche Schlüssel entsteht.
+- **Nach dem Verkaufsstart:** PROD-03, -04, -05, -08, -09, -10 und -11 (Katalog mit dem Release, neutrale Texte, Name und Marke, Client-Paket, Einstieg und Handbuch für Hersteller, Auslagern des Captain-spezifischen).
 - Unabhängig davon bleiben die bekannten Voraussetzungen des ersten Verkaufs: Stripe-Test (T-12), Abnahme im Browser (T-130), Produktivserver (T-90), Hostname (B-15), Preise (T-42).
-
-Die erste Frage an den Inhaber ist deshalb, ob „vor dem Verkaufsstart“ beide Stufen meint oder nur Stufe 1.
 
 ## 5. Fragen an den Inhaber
 
-1. **Umfang vor dem Verkaufsstart:** Müssen alle Pakete (auch eigener Updateweg, Client-Paket, Einstieg und Handbuch für fremde Hersteller) fertig sein, bevor die Captain-Add-ons verkauft werden, oder genügt Stufe 1 (Trennung der Captain-Daten vom Server)?
-2. **Lizenz des Servers:** Prüft der verkaufte Server eine eigene Lizenz gegen den Lizenzserver des Inhabers (Weg b), oder gibt es keine technische Prüfung (Weg a)? Bei b: Bestätigt der Inhaber die Regel, dass die Lizenz nur Updates und Support steuert und nie die Funktion?
+1. **Umfang vor dem Verkaufsstart:** beantwortet am 16.11.2026 (E8b): Stufe 1 und der eigene Update- und Lizenzweg vorher, der Rest danach.
+2. **Lizenz des Servers:** Der Weg ist entschieden und gebaut (der Server holt seine Updates über die eigene Client-Bibliothek; die Lizenz steuert nur Updates und Support). Offen sind die Werte: Produktschlüssel und Name (INH-07), Adresse des Lizenzservers (INH-08), öffentlicher Schlüssel (INH-09).
 3. **Lizenzmodell und Preis des Servers:** Welche Tarife, was zählt als Website, welcher Produktschlüssel, welche Laufzeit?
 4. **Client:** Genügt die Bibliothek als Paket mit Exportskript, oder soll es zusätzlich ein WordPress-Plugin „License Captain Client“ geben? (Empfehlung: nur die Bibliothek.)
 5. **Name und Marke:** Bleibt „WP License Captain“ der Name des verkauften Produkts, und unter welchem Autor erscheint es?

@@ -366,6 +366,8 @@ final class Plugin {
 		\WPLC\License\AuditLog::register_hooks();
 		// A-42: release notification for the plugin itself (no automatic install).
 		\WPLC\Infrastructure\SelfUpdateCheck::register_hooks();
+		// E8b: own updates from the vendor's license server; off unless configured.
+		\WPLC\Infrastructure\SelfLicense::register_hooks();
 
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			add_action( 'admin_notices', array( self::class, 'render_woocommerce_notice' ) );

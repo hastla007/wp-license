@@ -58,6 +58,10 @@ final class SelfUpdateCheck {
 	 * @return bool
 	 */
 	public static function enabled(): bool {
+		// E8b: when updates come from the vendor's license server, GitHub is not asked.
+		if ( SelfLicense::active() ) {
+			return false;
+		}
 		$enabled = ! ( defined( 'WPLC_DISABLE_UPDATE_CHECK' ) && constant( 'WPLC_DISABLE_UPDATE_CHECK' ) );
 		/**
 		 * Filters whether the plugin looks for new releases of itself (A-42).
