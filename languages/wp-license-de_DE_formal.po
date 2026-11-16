@@ -1621,6 +1621,18 @@ msgstr "Berichte"
 msgid "White label"
 msgstr "White Label"
 
+#: src/Catalog/EntitlementCatalog.php:60
+msgid "Company bulk orders"
+msgstr "Firmen-Sammelbestellungen"
+
+#: src/Catalog/EntitlementCatalog.php:61
+msgid "Wallet passes (Apple, Google)"
+msgstr "Wallet-Pässe (Apple, Google)"
+
+#: src/Catalog/EntitlementCatalog.php:62
+msgid "SMS delivery"
+msgstr "SMS-Zustellung"
+
 #: src/Catalog/EntitlementCatalog.php:101
 msgid "Affiliate Captain"
 msgstr "Affiliate Captain"

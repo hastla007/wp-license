@@ -5190,6 +5190,18 @@ msgstr ""
 msgid "White label"
 msgstr ""
 
+#: src/Catalog/EntitlementCatalog.php:60
+msgid "Company bulk orders"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:61
+msgid "Wallet passes (Apple, Google)"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:62
+msgid "SMS delivery"
+msgstr ""
+
 #: src/Catalog/EntitlementCatalog.php:73
 msgid "E-invoicing (XRechnung, ZUGFeRD)"
 msgstr ""
