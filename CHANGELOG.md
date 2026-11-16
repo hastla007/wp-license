@@ -24,6 +24,8 @@ Consolidation of all earlier development branches into one code base. Preview: c
 
 - **Ended licenses are anonymised after ten years by default (B-45).** Owner decision of 16 Nov 2026, the same rule as the other plugins of the suite: ten years from the end of the year in which the license ended (section 147 AO / section 257 HGB; Austria 7 years). The consent evidence is also counted from the end of the year. `wplc_retention_days` changes the period, 0 switches it off.
 
+- **Price changes need an administrator (T-94).** New capability `wplc_change_prices` (default `manage_options`) for announcing and withdrawing a renewal price; shop managers keep every support capability. Owner decision of 16 Nov 2026: support is done by a named shop manager, the administrator can do support as well.
+
 ### Fixed (16 Nov 2026, product isolation)
 
 - **A download token could deliver another product's URL package (PK-03).** `ReleaseRegistry::grant_is_deliverable()` now refuses a URL that matches only releases of other products, and `PackageStream::serve()` checks that the release belongs to the product of the license.

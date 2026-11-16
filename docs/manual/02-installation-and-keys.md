@@ -131,5 +131,6 @@ The plugin brings its own capabilities. They are not stored on roles; each one i
 | `wplc_view_diagnostics` | Diagnostics, complete audit log and its export | `manage_woocommerce` |
 | `wplc_manage_settings` | License settings except the package hosts | `manage_woocommerce` |
 | `wplc_manage_package_hosts` | Trusted package hosts | `manage_options` |
+| `wplc_change_prices` | Announce and withdraw a new renewal price | `manage_options` |
 
 A published release is code that runs on every customer site: give `wplc_publish_releases` to as few accounts as possible. A support role without shop access gets `read`, `wplc_view_licenses` and `wplc_manage_licenses` (for example `wp role create license_support "License support"` and `wp cap add license_support read wplc_view_licenses wplc_manage_licenses`); the license list then appears as its own menu "Licenses". To take a capability away from shop managers, store it as denied: `wp cap add shop_manager wplc_grant_licenses --grant=false`. Developers can change the mapping with the filter `wplc_capability` (arguments: capability, action name without `wplc_`).

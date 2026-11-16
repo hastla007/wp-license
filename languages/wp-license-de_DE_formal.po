@@ -7,8 +7,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T14:40:23+00:00\n"
-"PO-Revision-Date: 2026-11-16 14:40+0000\n"
+"POT-Creation-Date: 2026-11-16T14:43:08+00:00\n"
+"PO-Revision-Date: 2026-11-16 14:43+0000\n"
 "Language: de_DE_formal\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: wp-license\n"
@@ -600,10 +600,6 @@ msgstr "Lizenzen durchsuchen"
 
 #: src/Admin/LicenseAdmin.php:419
 #: src/Admin/LicenseBulkActions.php:208
-#: src/Admin/PriceChangeAdmin.php:150
-#: src/Admin/PriceChangeAdmin.php:263
-#: src/Admin/PriceChangeAdmin.php:286
-#: src/Admin/PriceChangeAdmin.php:306
 #: src/Admin/RenewalReviewAdmin.php:168
 #: src/Admin/RenewalReviewAdmin.php:303
 msgid "You do not have permission to change licenses."
@@ -3565,7 +3561,7 @@ msgstr "Als CSV exportieren"
 msgid "License ID"
 msgstr "Lizenz-ID"
 
-#: src/Admin/Capabilities.php:175
+#: src/Admin/Capabilities.php:179
 msgid "You do not have permission to do this."
 msgstr "Sie sind nicht berechtigt, dies zu tun."
 
@@ -8016,3 +8012,10 @@ msgid "%s day after the end of the year in which the license ended"
 msgid_plural "%s days after the end of the year in which the license ended"
 msgstr[0] "%s Tag nach Ende des Jahres, in dem die Lizenz endete"
 msgstr[1] "%s Tage nach Ende des Jahres, in dem die Lizenz endete"
+
+#: src/Admin/PriceChangeAdmin.php:150
+#: src/Admin/PriceChangeAdmin.php:263
+#: src/Admin/PriceChangeAdmin.php:286
+#: src/Admin/PriceChangeAdmin.php:306
+msgid "You do not have permission to change renewal prices."
+msgstr "Sie dürfen keine Verlängerungspreise ändern."

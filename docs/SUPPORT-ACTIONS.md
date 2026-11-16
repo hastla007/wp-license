@@ -19,8 +19,11 @@ The plugin has its own capabilities (`src/Admin/Capabilities.php`). Nothing is w
 | `wplc_view_diagnostics` | License diagnostics, complete audit log and its export | `manage_woocommerce` |
 | `wplc_manage_settings` | License settings except the package hosts | `manage_woocommerce` |
 | `wplc_manage_package_hosts` | Trusted package hosts in the settings | `manage_options` |
+| `wplc_change_prices` | Announce a higher renewal price with notice and withdraw it (license detail and the plan-wide screen) | `manage_options` |
 
-Releases and package hosts decide which code reaches every customer site, and restoring a revoked license gives access back; these three therefore need an administrator.
+Releases and package hosts decide which code reaches every customer site, restoring a revoked license gives access back, and a price change raises what customers pay; these four therefore need an administrator. Key rotation (`wp wplc rotate-installation-secrets`, `wp wplc signing-key`, `wp wplc rekey-licenses`) needs WP-CLI access to the server and is the administrator's as well.
+
+**Who does support (owner decision of 16 Nov 2026, T-94):** one named person with the WooCommerce role **Shop manager**. With the defaults above that role holds every support capability (view, manage and grant licenses, catalog, diagnostics, settings) but not price changes, releases, package hosts, restoring revoked licenses or key rotation. The administrator holds all capabilities and can do support as well.
 
 Every screen and handler checks these capabilities, never `manage_woocommerce` directly (P-07): a capability stored as denied on a role takes effect everywhere, and a support role without shop access can use everything its capabilities allow. Users without `wplc_manage_licenses` do not see the bulk controls and checkboxes of the license list.
 
@@ -50,7 +53,7 @@ add_filter( 'wplc_capability', function ( $capability, $action ) {
 | Change plan (now / with the next renewal, withdraw) | License detail | `manage_woocommerce` | yes | `admin_plan_change`, `plan_change_scheduled`, `plan_change_cancelled` |
 | Cancel automatic renewal at the end of the paid period, withdraw the cancellation | License detail | `wplc_manage_licenses` | yes | `cancellation_scheduled`, `cancellation_withdrawn` |
 | Change the renewal amount (lower only) | License detail | `wplc_manage_licenses` | yes | `admin_renewal_amount_changed` |
-| Announce a higher renewal price with notice, withdraw the announcement (INH-05) | License detail; WooCommerce → Renewal price change (whole plan); `wp wplc price-change` | `wplc_manage_licenses` | yes | `renewal_price_change_announced`, `renewal_price_change_withdrawn` |
+| Announce a higher renewal price with notice, withdraw the announcement (INH-05) | License detail; WooCommerce → Renewal price change (whole plan); `wp wplc price-change` | `wplc_change_prices` (WP-CLI: server access) | yes | `renewal_price_change_announced`, `renewal_price_change_withdrawn` |
 | Restore with a new end date | License detail (suspended with ended term, or revoked) | `wplc_manage_licenses`; revoked: `wplc_restore_licenses` | yes | `admin_restore` |
 | Issue new key | License detail | `wplc_manage_licenses` | yes | `license_key_reissued` |
 | Send key email again | License detail | `wplc_manage_licenses` | yes | `license_key_resend_requested` |

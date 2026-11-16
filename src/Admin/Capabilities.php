@@ -20,8 +20,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * - nothing is stored and the user holds the default capability from defaults().
  *
  * By default administrators and shop managers keep their previous access, except
- * for publishing releases, changing the trusted package hosts and restoring revoked
- * licenses: these deliver code or access to customers and need `manage_options`.
+ * for publishing releases, changing the trusted package hosts, restoring revoked
+ * licenses and announcing new renewal prices: these deliver code, access or a new
+ * price to customers and need `manage_options`.
  *
  * Other packages ask `apply_filters( 'wplc_capability', $default_cap, $action_slug )`;
  * this class answers with the matching `wplc_*` capability.
@@ -37,6 +38,7 @@ final class Capabilities {
 	public const VIEW_DIAGNOSTICS     = 'wplc_view_diagnostics';
 	public const MANAGE_SETTINGS      = 'wplc_manage_settings';
 	public const MANAGE_PACKAGE_HOSTS = 'wplc_manage_package_hosts';
+	public const CHANGE_PRICES        = 'wplc_change_prices';
 
 	/**
 	 * Register the capability filters.
@@ -67,6 +69,8 @@ final class Capabilities {
 			self::RESTORE_LICENSES     => 'manage_options',
 			self::PUBLISH_RELEASES     => 'manage_options',
 			self::MANAGE_PACKAGE_HOSTS => 'manage_options',
+			// Owner decision of 16 Nov 2026 (T-94): announcing a new renewal price stays with the administrator.
+			self::CHANGE_PRICES        => 'manage_options',
 		);
 	}
 
@@ -89,7 +93,7 @@ final class Capabilities {
 		 * @param string $cap  Capability to check.
 		 * @param string $slug Action slug, e.g. view_licenses, manage_licenses, grant_licenses,
 		 *                     restore_licenses, manage_catalog, publish_releases, view_diagnostics,
-		 *                     manage_settings, manage_package_hosts.
+		 *                     manage_settings, manage_package_hosts, change_prices.
 		 */
 		$filtered = (string) apply_filters( 'wplc_capability', $cap, $slug );
 
