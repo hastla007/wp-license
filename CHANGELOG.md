@@ -13,6 +13,9 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - **Client library 2.1.1 (AL-4):** a Site Health test "License check" per add-on (good while the last successful check is at most 36 hours old; recommended when a check failed, is overdue or the offline period runs low; critical when the license is no longer confirmed or was released). Without key or secret.
 - **Client library package (PROD-08).** `bin/package-client.php` builds `license-client-<version>.zip` with a checksum: the library, the export script, a README with the API v1 compatibility promise, its own changelog and a contract test (`bin/client-contract-test.php`) that vendors run against their server. `bin/build-zip.sh` builds it and the release workflow attaches it.
 
+- **Vendor-neutral code (PROD-04).** Placeholders, help texts, WP-CLI examples and comments use neutral examples such as `acme-pro` instead of the owner's products. `tests/Contract/VendorNeutralSourceTest.php` scans `src/` (except the add-on library `src/Client/`), `templates/` and `assets/` for every product key, name and entitlement of `catalogs/*.json`.
+- **Guided setup for a new vendor (PROD-09).** The "Getting started" checklist under License settings has seven steps (secrets, public key in `wp-config.php`, catalog file, license product, first release, test purchase, Stripe webhook), each with a hint and a link; its state is read from the site on every visit. A new E2E flow (`01-vendor-onboarding`) runs the steps with an invented vendor on an empty installation.
+
 ### Fixed (16 Nov 2026, product isolation)
 
 - **A download token could deliver another product's URL package (PK-03).** `ReleaseRegistry::grant_is_deliverable()` now refuses a URL that matches only releases of other products, and `PackageStream::serve()` checks that the release belongs to the product of the license.

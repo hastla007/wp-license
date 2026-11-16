@@ -7,8 +7,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T11:40:35+00:00\n"
-"PO-Revision-Date: 2026-11-16 11:40+0000\n"
+"POT-Creation-Date: 2026-11-16T12:17:01+00:00\n"
+"PO-Revision-Date: 2026-11-16 12:17+0000\n"
 "Language: de_DE\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: wp-license\n"
@@ -88,7 +88,7 @@ msgstr "Gültig bis:"
 #. translators: %s: date.
 #: src/Account/CustomerPortal.php:590
 #: src/Account/CustomerPortal.php:629
-#: src/Account/SiteOverview.php:320
+#: src/Account/SiteOverview.php:319
 #: src/Billing/RenewInsteadNotice.php:202
 #: src/Notifications/Notifications.php:943
 msgid "No expiry"
@@ -102,7 +102,7 @@ msgstr "Live-Websites:"
 msgid "Renewal:"
 msgstr "Verlängerung:"
 
-#: src/Account/SiteOverview.php:138
+#: src/Account/SiteOverview.php:137
 #: templates/myaccount/wplc-license.php:129
 msgid "Sites"
 msgstr "Websites"
@@ -111,14 +111,14 @@ msgstr "Websites"
 msgid "No sites are activated."
 msgstr "Es sind keine Websites aktiviert."
 
-#: src/Account/SiteOverview.php:281
+#: src/Account/SiteOverview.php:280
 #: src/Admin/LicenseDetail.php:546
 #: templates/myaccount/wplc-license.php:136
 #: templates/myaccount/wplc-license.php:145
 msgid "Site"
 msgstr "Website"
 
-#: src/Account/SiteOverview.php:283
+#: src/Account/SiteOverview.php:282
 #: src/Admin/LicenseDetail.php:546
 #: templates/myaccount/wplc-license.php:137
 #: templates/myaccount/wplc-license.php:146
@@ -131,7 +131,7 @@ msgstr "Umgebung"
 msgid "Activated"
 msgstr "Aktiviert"
 
-#: src/Account/SiteOverview.php:288
+#: src/Account/SiteOverview.php:287
 #: src/Admin/CatalogFileAdmin.php:80
 #: src/Admin/LicenseDetail.php:240
 #: src/Admin/ReleaseAdmin.php:129
@@ -165,19 +165,19 @@ msgstr "Dein Zahlungsanbieter fordert dich möglicherweise auf, die Zahlung zu b
 msgid "License pages"
 msgstr "Lizenzseiten"
 
-#: src/Account/SiteOverview.php:418
+#: src/Account/SiteOverview.php:417
 #: templates/myaccount/wplc-licenses.php:53
 msgid "Previous"
 msgstr "Zurück"
 
 #. translators: 1: current page, 2: number of pages.
-#: src/Account/SiteOverview.php:421
+#: src/Account/SiteOverview.php:420
 #: templates/myaccount/wplc-licenses.php:60
 #, php-format
 msgid "Page %1$d of %2$d"
 msgstr "Seite %1$d von %2$d"
 
-#: src/Account/SiteOverview.php:423
+#: src/Account/SiteOverview.php:422
 #: templates/myaccount/wplc-licenses.php:64
 msgid "Next"
 msgstr "Weiter"
@@ -427,12 +427,12 @@ msgstr "OpenSSL"
 #: src/Admin/Diagnostics.php:980
 #: src/Admin/Diagnostics.php:1024
 #: src/Admin/Diagnostics.php:1036
-#: src/Admin/Settings.php:767
+#: src/Admin/Settings.php:824
 msgid "Available"
 msgstr "Verfügbar"
 
 #: src/Admin/Diagnostics.php:1023
-#: src/Admin/Settings.php:766
+#: src/Admin/Settings.php:823
 msgid "Action Scheduler"
 msgstr "Action Scheduler"
 
@@ -609,7 +609,7 @@ msgstr "Lizenzen durchsuchen"
 msgid "You do not have permission to change licenses."
 msgstr "Du bist nicht berechtigt, Lizenzen zu ändern."
 
-#: src/Account/SiteOverview.php:286
+#: src/Account/SiteOverview.php:285
 #: src/Admin/AuditLogAdmin.php:168
 #: src/Admin/LicenseBulkActions.php:556
 #: src/Admin/LicenseDetail.php:52
@@ -650,7 +650,7 @@ msgstr "Keine (manuell hinzugefügt)"
 msgid "Customer"
 msgstr "Kunde"
 
-#: src/Account/SiteOverview.php:282
+#: src/Account/SiteOverview.php:281
 #: src/Admin/LicenseDetail.php:199
 #: src/Admin/ReleaseAdmin.php:467
 #: src/Privacy/PersonalData.php:361
@@ -1145,7 +1145,7 @@ msgstr "Lizenzierte Installationen erhalten die höchste veröffentlichte Versio
 msgid "No releases yet."
 msgstr "Noch keine Releases vorhanden."
 
-#: src/Account/SiteOverview.php:284
+#: src/Account/SiteOverview.php:283
 #: src/Admin/ReleaseAdmin.php:123
 #: src/Admin/ReleaseAdmin.php:473
 #: src/Update/CustomerDownload.php:137
@@ -1350,64 +1350,64 @@ msgstr "Du bist nicht berechtigt, die Lizenzeinstellungen zu ändern."
 msgid "Secrets are never stored in the database. Define them as constants in wp-config.php."
 msgstr "Geheimnisse werden niemals in der Datenbank gespeichert. Definiere sie als Konstanten in der wp-config.php."
 
-#: src/Admin/Settings.php:697
+#: src/Admin/Settings.php:754
 msgid "Database schema version"
 msgstr "Version des Datenbankschemas"
 
 #. translators: 1: installed schema version, 2: schema version expected by the code.
-#: src/Admin/Settings.php:699
+#: src/Admin/Settings.php:756
 #, php-format
 msgid "%1$s (expected: %2$s)"
 msgstr "%1$s (erwartet: %2$s)"
 
 #: src/Admin/Diagnostics.php:1049
-#: src/Admin/Settings.php:706
+#: src/Admin/Settings.php:763
 msgid "Stripe webhook secret"
 msgstr "Stripe-Webhook-Geheimnis"
 
-#: src/Admin/Settings.php:711
+#: src/Admin/Settings.php:768
 msgid "Stripe webhook URL"
 msgstr "Stripe-Webhook-URL"
 
-#: src/Admin/Settings.php:713
+#: src/Admin/Settings.php:770
 msgid "Enter this URL as the endpoint in the Stripe dashboard."
 msgstr "Trage diese URL im Stripe-Dashboard als Endpunkt ein."
 
-#: src/Admin/Settings.php:722
+#: src/Admin/Settings.php:779
 msgid "License key secret"
 msgstr "Geheimnis für Lizenzschlüssel"
 
-#: src/Admin/Settings.php:724
+#: src/Admin/Settings.php:781
 msgid "Not configured. Keys are derived from the WordPress salts; rotating the salts invalidates every issued key. Define WPLC_LICENSE_KEY_SECRETS."
 msgstr "Nicht konfiguriert. Die Schlüssel werden aus den WordPress-Salts abgeleitet; ein Wechsel der Salts macht jeden ausgestellten Schlüssel ungültig. Definiere WPLC_LICENSE_KEY_SECRETS."
 
-#: src/Admin/Settings.php:725
-#: src/Admin/Settings.php:738
+#: src/Admin/Settings.php:782
+#: src/Admin/Settings.php:795
 msgid "Configured through a constant."
 msgstr "Über eine Konstante konfiguriert."
 
-#: src/Admin/Settings.php:735
+#: src/Admin/Settings.php:792
 msgid "Installation secret encryption key"
 msgstr "Verschlüsselungsschlüssel für Installationsgeheimnisse"
 
-#: src/Admin/Settings.php:737
+#: src/Admin/Settings.php:794
 msgid "Not configured. The WordPress salts are used; define WPLC_INSTALLATION_ENCRYPTION_KEYS."
 msgstr "Nicht konfiguriert. Es werden die WordPress-Salts verwendet; definiere WPLC_INSTALLATION_ENCRYPTION_KEYS."
 
-#: src/Admin/Settings.php:780
+#: src/Admin/Settings.php:837
 msgid "Checkout type"
 msgstr "Art der Kasse"
 
-#: src/Admin/Settings.php:773
+#: src/Admin/Settings.php:830
 msgid "Classic checkout"
 msgstr "Klassischer Checkout"
 
-#: src/Admin/Settings.php:786
+#: src/Admin/Settings.php:843
 msgid "Renewal grace period"
 msgstr "Kulanzzeit bei Verlängerungen"
 
 #. translators: %d: number of days.
-#: src/Admin/Settings.php:788
+#: src/Admin/Settings.php:845
 #, php-format
 msgid "%d day"
 msgid_plural "%d days"
@@ -1415,16 +1415,16 @@ msgstr[0] "%d Tag"
 msgstr[1] "%d Tage"
 
 #. translators: %s: host name of this site.
-#: src/Admin/Settings.php:859
+#: src/Admin/Settings.php:916
 #, php-format
 msgid "One host name per line, for example downloads.example.com. Update packages are only delivered from HTTPS URLs on these hosts. This site (%s) is always trusted."
 msgstr "Ein Hostname pro Zeile, zum Beispiel downloads.example.com. Update-Pakete werden nur von HTTPS-URLs auf diesen Hosts ausgeliefert. Diese Website (%s) ist immer vertrauenswürdig."
 
-#: src/Admin/Settings.php:873
+#: src/Admin/Settings.php:930
 msgid "Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7."
 msgstr "Tage vor dem Ende des bezahlten Zeitraums, an denen eine Erinnerung gesendet wird, durch Kommas getrennt. Standard: 30,7."
 
-#: src/Admin/Settings.php:915
+#: src/Admin/Settings.php:972
 msgid "Optional short text that license emails may show below their content, for example a support contact."
 msgstr "Optionaler kurzer Text, den Lizenz-E-Mails unter ihrem Inhalt anzeigen können, zum Beispiel ein Support-Kontakt."
 
@@ -2173,15 +2173,15 @@ msgstr "Währung"
 msgid "Manage or cancel renewal"
 msgstr "Verlängerung verwalten oder kündigen"
 
-#: src/Admin/Settings.php:767
+#: src/Admin/Settings.php:824
 msgid "Unavailable. Scheduled work falls back to WP-Cron, which is less reliable."
 msgstr "Nicht verfügbar. Geplante Aufgaben laufen ersatzweise über WP-Cron, das weniger zuverlässig ist."
 
-#: src/Admin/Settings.php:776
+#: src/Admin/Settings.php:833
 msgid "Block checkout. The option for automatic renewal is offered as an additional checkout field."
 msgstr "Block-Checkout. Die Option für die automatische Verlängerung wird als zusätzliches Checkout-Feld angeboten."
 
-#: src/Admin/Settings.php:777
+#: src/Admin/Settings.php:834
 msgid "The checkout page uses the block checkout, but this WooCommerce version has no additional checkout fields. Licenses bought here never renew automatically."
 msgstr "Die Kassenseite verwendet den Block-Checkout, aber diese WooCommerce-Version kennt keine zusätzlichen Checkout-Felder. Hier gekaufte Lizenzen verlängern sich nie automatisch."
 
@@ -2806,121 +2806,121 @@ msgstr "WP License Captain: Stripe hat gemeldet, dass die Verlängerungszahlung 
 msgid "A verified failed Stripe payment of the attempt with unknown result was recorded as a decline."
 msgstr "Eine geprüfte fehlgeschlagene Stripe-Zahlung des Versuchs mit unklarem Ergebnis wurde als Ablehnung erfasst."
 
-#: src/Account/SiteOverview.php:200
-#: src/Account/SiteOverview.php:454
+#: src/Account/SiteOverview.php:199
+#: src/Account/SiteOverview.php:453
 msgid "Please sign in to view your sites."
 msgstr "Bitte melde dich an, um deine Websites anzuzeigen."
 
-#: src/Account/SiteOverview.php:207
+#: src/Account/SiteOverview.php:206
 msgid "Your sites"
 msgstr "Deine Websites"
 
-#: src/Account/SiteOverview.php:209
+#: src/Account/SiteOverview.php:208
 msgid "No site is activated with your licenses yet. Enter the license key in the plugin on your site to activate it."
 msgstr "Mit deinen Lizenzen ist noch keine Website aktiviert. Gib den Lizenzschlüssel im Plugin auf deiner Website ein, um sie zu aktivieren."
 
 #. translators: 1: number of sites, 2: number of live sites, 3: number of sites that need attention, 4: number of sites with an update.
-#: src/Account/SiteOverview.php:223
+#: src/Account/SiteOverview.php:222
 #, php-format
 msgid "Sites: %1$d (live: %2$d). Need attention: %3$d. Update available: %4$d."
 msgstr "Websites: %1$d (live: %2$d). Handlungsbedarf: %3$d. Update verfügbar: %4$d."
 
 #. translators: %d: maximum number of activations shown.
-#: src/Account/SiteOverview.php:233
+#: src/Account/SiteOverview.php:232
 #, php-format
 msgid "Only the first %d activations are shown. The CSV export contains the same selection."
 msgstr "Es werden nur die ersten %d Aktivierungen angezeigt. Der CSV-Export enthält dieselbe Auswahl."
 
-#: src/Account/SiteOverview.php:247
+#: src/Account/SiteOverview.php:246
 msgid "No site matches the selection."
 msgstr "Keine Website entspricht der Auswahl."
 
-#: src/Account/SiteOverview.php:285
+#: src/Account/SiteOverview.php:284
 msgid "Last contact"
 msgstr "Letzter Kontakt"
 
-#: src/Account/SiteOverview.php:287
-#: src/Account/SiteOverview.php:347
+#: src/Account/SiteOverview.php:286
+#: src/Account/SiteOverview.php:346
 msgid "Needs attention"
 msgstr "Handlungsbedarf"
 
 #. translators: %s: version number.
-#: src/Account/SiteOverview.php:314
+#: src/Account/SiteOverview.php:313
 #, php-format
 msgid "Update: %s"
 msgstr "Update: %s"
 
-#: src/Account/SiteOverview.php:317
+#: src/Account/SiteOverview.php:316
 msgid "never"
 msgstr "nie"
 
 #. translators: %s: date.
-#: src/Account/SiteOverview.php:320
+#: src/Account/SiteOverview.php:319
 #, php-format
 msgid "until %s"
 msgstr "bis %s"
 
-#: src/Account/SiteOverview.php:329
+#: src/Account/SiteOverview.php:328
 msgid "Nothing to do"
 msgstr "Nichts zu tun"
 
-#: src/Account/SiteOverview.php:346
+#: src/Account/SiteOverview.php:345
 msgid "All sites"
 msgstr "Alle Websites"
 
-#: src/Account/SiteOverview.php:348
+#: src/Account/SiteOverview.php:347
 msgid "Update available"
 msgstr "Update verfügbar"
 
-#: src/Account/SiteOverview.php:351
+#: src/Account/SiteOverview.php:350
 msgid "Site address contains"
 msgstr "Adresse der Website enthält"
 
-#: src/Account/SiteOverview.php:353
+#: src/Account/SiteOverview.php:352
 msgid "Show"
 msgstr "Anzeigen"
 
-#: src/Account/SiteOverview.php:358
+#: src/Account/SiteOverview.php:357
 #: src/Admin/LicenseBulkActions.php:511
 msgid "Apply"
 msgstr "Übernehmen"
 
-#: src/Account/SiteOverview.php:360
+#: src/Account/SiteOverview.php:359
 msgid "Download as CSV"
 msgstr "Als CSV herunterladen"
 
-#: src/Account/SiteOverview.php:416
+#: src/Account/SiteOverview.php:415
 msgid "Sites pages"
 msgstr "Seiten der Websites"
 
-#: src/Account/SiteOverview.php:478
+#: src/Account/SiteOverview.php:477
 msgid "Latest version"
 msgstr "Neueste Version"
 
 #. translators: %s: license status, e.g. "Expired".
-#: src/Account/SiteOverview.php:762
+#: src/Account/SiteOverview.php:761
 #, php-format
 msgid "License is not active (%s): no updates, premium features off."
 msgstr "Lizenz nicht aktiv (%s): keine Updates, Premium-Funktionen aus."
 
-#: src/Account/SiteOverview.php:764
+#: src/Account/SiteOverview.php:763
 msgid "Renewal payment is overdue."
 msgstr "Die Zahlung für die Verlängerung ist überfällig."
 
 #. translators: %s: date.
-#: src/Account/SiteOverview.php:767
+#: src/Account/SiteOverview.php:766
 #, php-format
 msgid "License ends on %s and does not renew."
 msgstr "Die Lizenz endet am %s und verlängert sich nicht."
 
 #. translators: %s: version number.
-#: src/Account/SiteOverview.php:770
+#: src/Account/SiteOverview.php:769
 #, php-format
 msgid "Version %s is available."
 msgstr "Version %s ist verfügbar."
 
 #. translators: %d: number of days.
-#: src/Account/SiteOverview.php:773
+#: src/Account/SiteOverview.php:772
 #, php-format
 msgid "No contact for more than %d days."
 msgstr "Seit mehr als %d Tagen kein Kontakt."
@@ -3667,7 +3667,7 @@ msgid "Until it runs again, licenses do not expire, failed payments are not retr
 msgstr "Bis er wieder läuft, laufen keine Lizenzen ab, fehlgeschlagene Zahlungen werden nicht wiederholt und Erinnerungen werden nicht gesendet. Prüfe WP-Cron oder den Cronjob des Servers und das PHP-Fehlerprotokoll."
 
 #: src/Admin/Diagnostics.php:334
-#: src/Admin/Settings.php:655
+#: src/Admin/Settings.php:666
 msgid "Open diagnostics"
 msgstr "Diagnose öffnen"
 
@@ -3846,7 +3846,7 @@ msgid "Open WooCommerce → Status → Scheduled Actions, filter by \"Failed\" a
 msgstr "Öffne WooCommerce → Status → Geplante Aktionen, filtere nach „Fehlgeschlagen“ und suche nach „wplc“, um den Fehler jeder Aktion zu sehen."
 
 #: src/Admin/Diagnostics.php:1035
-#: src/Admin/Settings.php:756
+#: src/Admin/Settings.php:813
 msgid "Automatic renewal (Stripe)"
 msgstr "Automatische Verlängerung (Stripe)"
 
@@ -3947,7 +3947,7 @@ msgid "Update packages"
 msgstr "Update-Pakete"
 
 #: src/Admin/Diagnostics.php:1089
-#: src/Admin/Settings.php:745
+#: src/Admin/Settings.php:802
 msgid "License keys verifiable with the current secret"
 msgstr "Mit dem aktuellen Geheimnis überprüfbare Lizenzschlüssel"
 
@@ -4508,33 +4508,33 @@ msgstr "Die vertrauenswürdigen Paket-Hosts wurden nicht geändert: Jemand ander
 msgid "Copying failed. Select the address and copy it by hand."
 msgstr "Kopieren fehlgeschlagen. Markiere die Adresse und kopiere sie von Hand."
 
-#: src/Admin/Settings.php:707
+#: src/Admin/Settings.php:764
 msgid "A webhook signing secret is configured in wp-config.php."
 msgstr "Ein Webhook-Signaturgeheimnis ist in der wp-config.php konfiguriert."
 
-#: src/Admin/Settings.php:707
+#: src/Admin/Settings.php:764
 msgid "No webhook signing secret is configured (WPLC_STRIPE_WEBHOOK_SECRET in wp-config.php). Stripe events are rejected."
 msgstr "Es ist kein Webhook-Signaturgeheimnis konfiguriert (WPLC_STRIPE_WEBHOOK_SECRET in der wp-config.php). Stripe-Ereignisse werden abgelehnt."
 
-#: src/Admin/Settings.php:749
+#: src/Admin/Settings.php:806
 msgid "Some customers see \"not available\" instead of their key. The secret or the salts were changed. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS, or run \"wp wplc recover-license-key-ids\"."
 msgstr "Einige Kunden sehen „nicht verfügbar“ statt ihres Schlüssels. Das Geheimnis oder die Salts wurden geändert. Stelle das vorherige Geheimnis als zusätzlichen Eintrag in WPLC_LICENSE_KEY_SECRETS wieder her, oder führe „wp wplc recover-license-key-ids“ aus."
 
-#: src/Admin/Settings.php:758
+#: src/Admin/Settings.php:815
 msgid "Available. Customers can opt in at checkout."
 msgstr "Verfügbar. Kunden können sie an der Kasse auswählen."
 
 #. translators: %s: reason, a full sentence.
-#: src/Admin/Settings.php:760
+#: src/Admin/Settings.php:817
 #, php-format
 msgid "Switched off. %s Customers are not offered automatic renewal and renew manually in their account."
 msgstr "Ausgeschaltet. %s Kunden wird keine automatische Verlängerung angeboten; sie verlängern manuell in ihrem Konto."
 
-#: src/Admin/Settings.php:850
+#: src/Admin/Settings.php:907
 msgid "Only an administrator may change the trusted package hosts, because update packages for all customer sites are delivered from them."
 msgstr "Nur ein Administrator darf die vertrauenswürdigen Paket-Hosts ändern, weil von ihnen Update-Pakete für alle Kunden-Websites ausgeliefert werden."
 
-#: src/Admin/Settings.php:905
+#: src/Admin/Settings.php:962
 msgid "Days before an automatic charge on which the customer is told the date and the amount. Default: 7. A license is only charged after this email was accepted for sending; otherwise the charge is postponed and reported under Diagnostics."
 msgstr "Tage vor einer automatischen Abbuchung, an denen der Kunde über Datum und Betrag informiert wird. Standard: 7. Eine Lizenz wird erst belastet, nachdem diese E-Mail zum Versand angenommen wurde; andernfalls wird die Abbuchung verschoben und unter Diagnose gemeldet."
 
@@ -4735,10 +4735,6 @@ msgstr "Der Schlüssel stammt aus WPLC_RESPONSE_SIGNING_KEY, oder der vorbereite
 msgid "The key comes from WPLC_RESPONSE_SIGNING_KEY, or the new key could not be stored encrypted (or the prepared key cannot be decrypted); rotate a constant in wp-config.php."
 msgstr "Der Schlüssel stammt aus WPLC_RESPONSE_SIGNING_KEY, oder der neue Schlüssel konnte nicht verschlüsselt gespeichert werden (oder der vorbereitete Schlüssel lässt sich nicht entschlüsseln); rotiere eine Konstante in wp-config.php."
 
-#: src/Catalog/Catalog.php:114
-msgid "The license product key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and needs 2 to 100 characters (for example voucher-captain)."
-msgstr "Der Produktschlüssel der Lizenz darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten, muss mit einem Buchstaben oder einer Ziffer beginnen und 2 bis 100 Zeichen lang sein (zum Beispiel voucher-captain)."
-
 #: src/Catalog/Catalog.php:116
 msgid "The license plan key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and may have up to 100 characters (for example business)."
 msgstr "Der Tarifschlüssel der Lizenz darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten, muss mit einem Buchstaben oder einer Ziffer beginnen und darf bis zu 100 Zeichen lang sein (zum Beispiel business)."
@@ -4772,10 +4768,6 @@ msgstr "Dieses Produkt stellt Lizenzen für %1$s (Tarif %2$s) aus. Nur Benutzer,
 #: src/Catalog/ProductEditor.php:204
 msgid "This product is marked as a license product but has no plan in the license catalog (for example after a copy or an import). Customers who buy it do not receive a license. Tick \"License product\" and save to create the plan."
 msgstr "Dieses Produkt ist als Lizenzprodukt gekennzeichnet, hat aber keinen Tarif im Lizenzkatalog (zum Beispiel nach einem Kopieren oder Import). Kunden, die es kaufen, erhalten keine Lizenz. Setze das Häkchen bei „Lizenzprodukt“ und speichere, um den Tarif anzulegen."
-
-#: src/Catalog/ProductEditor.php:224
-msgid "Stable product identifier. Must match the key of the premium add-on: voucher-captain-pro, pass-captain-pro or affiliate-captain-pro. Lowercase letters, digits and hyphens only."
-msgstr "Eindeutige, dauerhafte Produktkennung. Muss mit dem Schlüssel der Premium-Erweiterung übereinstimmen: voucher-captain-pro, pass-captain-pro oder affiliate-captain-pro. Nur Kleinbuchstaben, Ziffern und Bindestriche."
 
 #: src/Catalog/ProductEditor.php:246
 msgid "License product name"
@@ -5837,7 +5829,7 @@ msgstr[1] "Dein letzter Lizenzexport endete nach %s Lizenzen. Schränke die Filt
 
 #. translators: 1: number of verifiable keys, 2: number of checked keys.
 #: src/Admin/Diagnostics.php:1091
-#: src/Admin/Settings.php:747
+#: src/Admin/Settings.php:804
 #, php-format
 msgid "%1$s of the %2$s most recent key"
 msgid_plural "%1$s of the %2$s most recent keys"
@@ -6781,79 +6773,75 @@ msgid "Releases with a package URL are not delivered: without a resolver that re
 msgstr "Releases mit einer Paket-URL werden nicht ausgeliefert: Ohne einen Resolver, der eine kurzlebige signierte URL zurückgibt, würde jeder lizenzierte Kunde die dauerhafte Adresse erfahren und könnte sie auch nach Ende der Lizenz weiter nutzen. Lade stattdessen die ZIP-Datei hoch, oder füge einen Resolver hinzu (siehe docs/UPDATE-STORAGE.md)."
 
 #: src/Admin/Settings.php:69
-#: src/Admin/Settings.php:669
+#: src/Admin/Settings.php:724
 msgid "Getting started"
 msgstr "Erste Schritte"
 
-#: src/Admin/Settings.php:619
+#: src/Admin/Settings.php:663
 msgid "Define the secrets in wp-config.php"
 msgstr "Geheimnisse in der wp-config.php definieren"
 
-#: src/Admin/Settings.php:620
+#: src/Admin/Settings.php:664
 msgid "Set WPLC_LICENSE_KEY_SECRETS (with WPLC_LICENSE_KEY_ID) and WPLC_INSTALLATION_ENCRYPTION_KEYS before the first license is sold. Keys issued without them depend on the WordPress salts and stop working when the salts change."
 msgstr "Setze WPLC_LICENSE_KEY_SECRETS (mit WPLC_LICENSE_KEY_ID) und WPLC_INSTALLATION_ENCRYPTION_KEYS, bevor die erste Lizenz verkauft wird. Ohne sie ausgestellte Schlüssel hängen von den WordPress-Salts ab und funktionieren nicht mehr, wenn sich die Salts ändern."
 
-#: src/Admin/Settings.php:627
+#: src/Admin/Settings.php:681
 msgid "Turn a product into a license product"
 msgstr "Ein Produkt zu einem Lizenzprodukt machen"
 
-#: src/Admin/Settings.php:628
-msgid "Edit the WooCommerce product, tick \"License product\" and enter the license product key and a plan key. The product key is the identifier the premium add-on asks the server for (for example voucher-captain-pro); every plan of it (for example single or agency, one per product or variation) has its own plan key. Keep both unchanged once the product is sold."
-msgstr "Bearbeite das WooCommerce-Produkt, aktiviere „Lizenzprodukt“ und gib den Lizenzproduktschlüssel und einen Tarifschlüssel ein. Der Produktschlüssel ist die Kennung, die das Premium-Add-on beim Server abfragt (zum Beispiel voucher-captain-pro); jeder Tarif davon (zum Beispiel single oder agency, einer je Produkt oder Variante) hat einen eigenen Tarifschlüssel. Lass beide unverändert, sobald das Produkt verkauft ist."
-
-#: src/Admin/Settings.php:631
+#: src/Admin/Settings.php:684
 msgid "Open products"
 msgstr "Produkte öffnen"
 
-#: src/Admin/Settings.php:635
+#: src/Admin/Settings.php:699
 msgid "Connect the Stripe webhook"
 msgstr "Stripe-Webhook verbinden"
 
-#: src/Admin/Settings.php:636
+#: src/Admin/Settings.php:700
 msgid "In the Stripe dashboard, add an endpoint with the webhook URL shown under \"Status\" below and the events listed in the documentation (docs/STRIPE-WEBHOOKS.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected."
 msgstr "Füge im Stripe-Dashboard einen Endpunkt mit der unten unter „Status“ angezeigten Webhook-URL und den in der Dokumentation (docs/STRIPE-WEBHOOKS.md) aufgeführten Ereignissen hinzu, und trage dessen Signaturgeheimnis in WPLC_STRIPE_WEBHOOK_SECRET ein. Ohne dieses werden von Stripe gemeldete Verlängerungen, Erstattungen und Zahlungsanfechtungen abgewiesen."
 
-#: src/Admin/Settings.php:643
+#: src/Admin/Settings.php:687
 msgid "Publish the first release"
 msgstr "Erstes Release veröffentlichen"
 
-#: src/Admin/Settings.php:644
+#: src/Admin/Settings.php:688
 msgid "Upload the add-on package and publish it, so that licensed sites can download it and receive updates."
 msgstr "Lade das Add-on-Paket hoch und veröffentliche es, damit lizenzierte Websites es herunterladen und Updates erhalten können."
 
-#: src/Admin/Settings.php:647
+#: src/Admin/Settings.php:690
 msgid "Open license releases"
 msgstr "Lizenz-Releases öffnen"
 
-#: src/Admin/Settings.php:651
+#: src/Admin/Settings.php:693
 msgid "Make a test purchase"
 msgstr "Testkauf durchführen"
 
-#: src/Admin/Settings.php:652
+#: src/Admin/Settings.php:694
 msgid "Buy the product with a test customer, check the license under Licenses and activate it in the add-on on a test site. The diagnostics page shows whether the daily background run works."
 msgstr "Kaufe das Produkt mit einem Testkunden, prüfe die Lizenz unter „Lizenzen“ und aktiviere sie im Add-on auf einer Test-Website. Die Diagnoseseite zeigt, ob der tägliche Hintergrundlauf funktioniert."
 
-#: src/Admin/Settings.php:674
+#: src/Admin/Settings.php:731
 msgid "Done"
 msgstr "Erledigt"
 
-#: src/Admin/Settings.php:676
+#: src/Admin/Settings.php:733
 msgid "To do"
 msgstr "Offen"
 
-#: src/Admin/Settings.php:794
+#: src/Admin/Settings.php:851
 msgid "Anonymisation of ended licenses"
 msgstr "Anonymisierung beendeter Lizenzen"
 
 #. translators: %s: number of days.
-#: src/Admin/Settings.php:797
+#: src/Admin/Settings.php:854
 #, php-format
 msgid "%s day after the end of the license"
 msgid_plural "%s days after the end of the license"
 msgstr[0] "%s Tag nach dem Ende der Lizenz"
 msgstr[1] "%s Tage nach dem Ende der Lizenz"
 
-#: src/Admin/Settings.php:798
+#: src/Admin/Settings.php:855
 msgid "Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice with the filter wplc_retention_days (key anonymize_licenses)."
 msgstr "Aus. Beendete Lizenzen bleiben mit dem Kundenkonto verknüpft, bis eine Löschanfrage gestellt oder das Konto gelöscht wird. Lege mit dem Filter wplc_retention_days (Schlüssel anonymize_licenses) einen Zeitraum fest, der zu deiner Datenschutzerklärung passt."
 
@@ -7704,7 +7692,7 @@ msgstr "Je Absenden werden bis zu 500 Lizenzen bearbeitet. Bleiben weitere übri
 msgid "Price change notice period"
 msgstr "Ankündigungsfrist für Preisänderungen"
 
-#: src/Admin/Settings.php:895
+#: src/Admin/Settings.php:952
 msgid "Days between the email that announces a higher renewal price for an existing license and the first renewal at that price. Default: 60, at least 30. Have the period and the wording of the email checked by a lawyer."
 msgstr "Tage zwischen der E-Mail, die einen höheren Verlängerungspreis für eine bestehende Lizenz ankündigt, und der ersten Verlängerung zu diesem Preis. Vorgabe: 60, mindestens 30. Lass die Frist und den Wortlaut der E-Mail anwaltlich prüfen."
 
@@ -7878,11 +7866,11 @@ msgstr "Katalogimport hat Berechtigungen entfernt, die Tarife noch vergeben"
 msgid "Catalog file of release packages"
 msgstr "Katalogdatei aus Release-Paketen"
 
-#: src/Admin/Settings.php:884
+#: src/Admin/Settings.php:941
 msgid "Import the catalog file from release packages"
 msgstr "Die Katalogdatei aus Release-Paketen importieren"
 
-#: src/Admin/Settings.php:885
+#: src/Admin/Settings.php:942
 msgid "When a release is created from a ZIP, the file wplc-catalog.json in the plugin folder of the package is checked and imported into the license catalog. The release is created in any case; a file that is invalid or describes another product is not imported and reported. Plans and licenses are never changed."
 msgstr "Wird ein Release aus einer ZIP-Datei angelegt, wird die Datei wplc-catalog.json im Plugin-Ordner des Pakets geprüft und in den Lizenzkatalog importiert. Das Release wird in jedem Fall angelegt; eine Datei, die ungültig ist oder ein anderes Produkt beschreibt, wird nicht importiert und gemeldet. Tarife und Lizenzen werden nie geändert."
 
@@ -7974,3 +7962,49 @@ msgstr "Die Lizenz konnte nicht ausgestellt werden."
 #: templates/emails/wplc-expiry-reminder.php:45
 msgid "It does not renew automatically. Please contact us before that date if you want to keep using it."
 msgstr "Sie verlängert sich nicht automatisch. Bitte melde dich vor diesem Datum bei uns, wenn du sie weiter nutzen möchtest."
+
+#: src/Admin/Settings.php:669
+msgid "Pin the public key in your add-on"
+msgstr "Öffentlichen Schlüssel im Add-on hinterlegen"
+
+#: src/Admin/Settings.php:670
+msgid "Put the response signing key into wp-config.php as WPLC_RESPONSE_SIGNING_KEY (\"wp wplc signing-key --generate\") and give its public key to the license client of your add-on (option public_keys)."
+msgstr "Trage den Signaturschlüssel für Antworten als WPLC_RESPONSE_SIGNING_KEY in die wp-config.php ein („wp wplc signing-key --generate“) und gib seinen öffentlichen Schlüssel an den Lizenz-Client deines Add-ons weiter (Option public_keys)."
+
+#: src/Admin/Settings.php:672
+msgid "Show the public key"
+msgstr "Öffentlichen Schlüssel anzeigen"
+
+#: src/Admin/Settings.php:675
+msgid "Import your catalog file"
+msgstr "Katalogdatei importieren"
+
+#: src/Admin/Settings.php:676
+msgid "Describe your product and its entitlements in a wplc-catalog.json file (docs/CATALOG-FILE.md) and import it here, or ship it in the plugin folder of your release package."
+msgstr "Beschreibe dein Produkt und seine Berechtigungen in einer Datei wplc-catalog.json (docs/CATALOG-FILE.md) und importiere sie hier oder lege sie in den Plugin-Ordner deines Release-Pakets."
+
+#: src/Admin/Settings.php:678
+msgid "Open catalog files"
+msgstr "Katalogdateien öffnen"
+
+#: src/Admin/Settings.php:682
+msgid "Edit the WooCommerce product, tick \"License product\", enter the product key of your catalog file (for example acme-pro) and a plan key (for example single), and tick the entitlements of the plan. Keep both keys unchanged once the product is sold."
+msgstr "Bearbeite das WooCommerce-Produkt, setze den Haken bei „Lizenzprodukt“, trage den Produktschlüssel aus deiner Katalogdatei (zum Beispiel acme-pro) und einen Tarifschlüssel (zum Beispiel single) ein und hake die Berechtigungen des Tarifs an. Ändere beide Schlüssel nicht mehr, sobald das Produkt verkauft wird."
+
+#: src/Admin/Settings.php:696
+msgid "Open licenses"
+msgstr "Lizenzen öffnen"
+
+#. translators: 1: number of finished setup steps, 2: number of all setup steps.
+#: src/Admin/Settings.php:726
+#, php-format
+msgid "%1$s of %2$s steps done"
+msgstr "%1$s von %2$s Schritten erledigt"
+
+#: src/Catalog/Catalog.php:114
+msgid "The license product key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and needs 2 to 100 characters (for example acme-pro)."
+msgstr "Der Produktschlüssel der Lizenz darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten, muss mit einem Buchstaben oder einer Ziffer beginnen und 2 bis 100 Zeichen lang sein (zum Beispiel acme-pro)."
+
+#: src/Catalog/ProductEditor.php:224
+msgid "Stable product identifier. Must match the product key the premium add-on sends, for example acme-pro; the suggestions come from the imported catalog files. Lowercase letters, digits and hyphens only."
+msgstr "Dauerhafte Kennung des Produkts. Muss zum Produktschlüssel passen, den das Premium-Add-on sendet, zum Beispiel acme-pro; die Vorschläge kommen aus den importierten Katalogdateien. Nur Kleinbuchstaben, Ziffern und Bindestriche."
