@@ -14,6 +14,8 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 
 Products, entitlement keys and their labels are data: an add-on ships a catalog file (`wplc-catalog.json`) and the shop imports it ([CATALOG-FILE.md](CATALOG-FILE.md)). This is the supported way to make a product and its entitlements known to the product editor. The filters `wplc_entitlement_catalog`, `wplc_known_product_keys` and `wplc_offer_planned_entitlements` remain for shops that adjust what the editor offers in code; they receive what the imported catalog offers.
 
+Project products (connectors for one customer project, decision 17) use the catalog file too: it comes with the connector's first release package and makes product key, prefix and entitlements known ([CATALOG-FILE.md](CATALOG-FILE.md#project-products)). The filters `wplc_entitlement_catalog` and `wplc_known_product_keys` (and an MU plugin that sets them) are not needed for them (`ProjectProductsIntegrationTest::test_pk04_the_first_release_of_a_connector_brings_product_and_rights_into_the_catalog`). The product editor maps a product key to its group only through the catalog, never by substring; a group added with `wplc_entitlement_catalog` needs an entry in `wplc_known_product_keys` to be offered for a product key.
+
 ## Actions
 
 | Hook | Where | Summary |

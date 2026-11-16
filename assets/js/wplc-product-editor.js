@@ -1,29 +1,45 @@
 /**
  * WP License Captain: show the entitlement checklist of the product whose key is entered.
  *
- * Groups stay visible when they contain ticked boxes or when no group matches,
- * so nothing that will be saved is ever hidden. Without this script all groups are shown.
+ * The group of a key comes only from the catalog (the map in data-wplc-product-groups, product
+ * key => prefix); there is no match by substring (PK-01), so "learnboating-form-connector" is
+ * never offered the entitlements of "learnboating". With an empty key every group is shown; a key
+ * the catalog does not know is offered no group. Groups with ticked boxes always stay visible, so
+ * nothing that will be saved is ever hidden. Without this script the server-rendered state stays.
  */
 ( function () {
 	'use strict';
 
+	function groupMap( wrapper ) {
+		try {
+			var map = JSON.parse( wrapper.getAttribute( 'data-wplc-product-groups' ) || '{}' );
+			return map && 'object' === typeof map ? map : {};
+		} catch ( e ) {
+			return {};
+		}
+	}
+
 	function refresh( wrapper ) {
 		var scope = wrapper.closest( '.options_group, .form-row, .woocommerce_variation' ) || document;
 		var input = scope.querySelector( 'input[name^="_wplc_product_key"], input[name^="_wplc_variation_product_key"]' );
-		var key = input ? String( input.value ).toLowerCase() : '';
+		var key = input ? String( input.value ).trim().toLowerCase() : '';
+		var map = groupMap( wrapper );
+		var own = key && Object.prototype.hasOwnProperty.call( map, key ) ? String( map[ key ] ) : null;
 		var groups = wrapper.querySelectorAll( '[data-wplc-entitlement-group]' );
-		var matched = false;
+		var none = wrapper.querySelector( '[data-wplc-entitlement-none]' );
+		var visible = 0;
 		var i;
 
 		for ( i = 0; i < groups.length; i++ ) {
-			if ( key && key.indexOf( groups[ i ].getAttribute( 'data-wplc-entitlement-group' ) ) !== -1 ) {
-				matched = true;
+			var isOwn = null !== own && groups[ i ].getAttribute( 'data-wplc-entitlement-group' ) === own;
+			var hasChecked = !! groups[ i ].querySelector( 'input[type="checkbox"]:checked' );
+			groups[ i ].hidden = '' !== key && ! isOwn && ! hasChecked;
+			if ( ! groups[ i ].hidden ) {
+				visible++;
 			}
 		}
-		for ( i = 0; i < groups.length; i++ ) {
-			var isMatch = key.indexOf( groups[ i ].getAttribute( 'data-wplc-entitlement-group' ) ) !== -1;
-			var hasChecked = !! groups[ i ].querySelector( 'input[type="checkbox"]:checked' );
-			groups[ i ].hidden = matched && ! isMatch && ! hasChecked;
+		if ( none ) {
+			none.hidden = '' === key || visible > 0;
 		}
 	}
 

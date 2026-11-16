@@ -338,15 +338,24 @@ final class ProductEditor {
 		// Separate names: "x[]" on the parent and "x[0][]" on a variation would collide in one request.
 		$field_name = '' === $suffix ? '_wplc_entitlement_keys[]' : '_wplc_variation_entitlement_keys' . $suffix . '[]';
 
-		echo '<fieldset class="form-field wplc-entitlements">';
+		// The script resolves a typed key with the same map (catalog only, no substring match: PK-01).
+		$key_groups = wp_json_encode( (object) EntitlementCatalog::product_key_groups() );
+		$keyed      = '' !== $product_key;
+		$visible    = 0;
+
+		echo '<fieldset class="form-field wplc-entitlements" data-wplc-product-groups="' . esc_attr( false === $key_groups ? '{}' : $key_groups ) . '">';
 		echo '<legend>' . esc_html__( 'Entitlements', 'wp-license' ) . '</legend>';
 		foreach ( $catalog as $group => $entitlements ) {
 			if ( ! $entitlements ) {
 				continue;
 			}
 			$group_checked = array_intersect( array_column( $entitlements, 'key' ), $checked );
+			// With a product key only its own group is offered; a key the catalog does not know gets none.
 			// Never hide a group that carries saved values; the script applies the same rule while typing.
-			$hidden = $matching && ! in_array( $group, $matching, true ) && ! $group_checked;
+			$hidden = $keyed && ! in_array( $group, $matching, true ) && ! $group_checked;
+			if ( ! $hidden ) {
+				++$visible;
+			}
 			echo '<div class="wplc-entitlement-group" data-wplc-entitlement-group="' . esc_attr( $group ) . '"' . ( $hidden ? ' hidden' : '' ) . '>';
 			echo '<strong>' . esc_html( EntitlementCatalog::group_label( $group ) ) . '</strong><ul>';
 			foreach ( $entitlements as $entitlement ) {
@@ -358,6 +367,7 @@ final class ProductEditor {
 			}
 			echo '</ul></div>';
 		}
+		echo '<p class="description" data-wplc-entitlement-none' . ( $keyed && 0 === $visible ? '' : ' hidden' ) . '>' . esc_html__( 'The catalog offers no entitlements for this license product key. They come from the catalog file of the product: upload a release whose package contains it, or import it under License catalog files.', 'wp-license' ) . '</p>';
 		echo '</fieldset>';
 	}
 
