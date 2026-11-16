@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T09:09:27+00:00\n"
+"POT-Creation-Date: 2026-11-16T11:40:35+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -433,8 +433,8 @@ msgid "Undo cancellation"
 msgstr ""
 
 #: src/Account/CustomerPortal.php:1454
-#: templates/emails/plain/wplc-expiry-reminder.php:53
-#: templates/emails/wplc-expiry-reminder.php:53
+#: templates/emails/plain/wplc-expiry-reminder.php:61
+#: templates/emails/wplc-expiry-reminder.php:61
 msgid "Renew now"
 msgstr ""
 
@@ -585,7 +585,7 @@ msgstr ""
 #: src/Admin/ReleaseAdmin.php:467
 #: src/Privacy/PersonalData.php:361
 #: templates/emails/plain/wplc-cancellation-confirmed.php:39
-#: templates/emails/plain/wplc-expiry-reminder.php:46
+#: templates/emails/plain/wplc-expiry-reminder.php:54
 #: templates/emails/plain/wplc-license-blocked.php:40
 #: templates/emails/plain/wplc-license-expired.php:31
 #: templates/emails/plain/wplc-license-issued.php:40
@@ -596,7 +596,7 @@ msgstr ""
 #: templates/emails/plain/wplc-price-change.php:39
 #: templates/emails/plain/wplc-renewal-notice.php:45
 #: templates/emails/wplc-cancellation-confirmed.php:39
-#: templates/emails/wplc-expiry-reminder.php:46
+#: templates/emails/wplc-expiry-reminder.php:54
 #: templates/emails/wplc-license-blocked.php:40
 #: templates/emails/wplc-license-expired.php:31
 #: templates/emails/wplc-license-issued.php:40
@@ -1497,7 +1497,7 @@ msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:80
 #: src/Admin/LicenseDetail.php:622
-#: src/Catalog/ProductEditor.php:342
+#: src/Catalog/ProductEditor.php:347
 msgid "Entitlements"
 msgstr ""
 
@@ -3081,7 +3081,7 @@ msgstr ""
 #: src/Admin/LicenseDetail.php:865
 #: src/Privacy/PersonalData.php:362
 #: templates/emails/plain/wplc-cancellation-confirmed.php:40
-#: templates/emails/plain/wplc-expiry-reminder.php:47
+#: templates/emails/plain/wplc-expiry-reminder.php:55
 #: templates/emails/plain/wplc-license-blocked.php:41
 #: templates/emails/plain/wplc-license-expired.php:32
 #: templates/emails/plain/wplc-license-issued.php:41
@@ -3092,7 +3092,7 @@ msgstr ""
 #: templates/emails/plain/wplc-price-change.php:40
 #: templates/emails/plain/wplc-renewal-notice.php:46
 #: templates/emails/wplc-cancellation-confirmed.php:40
-#: templates/emails/wplc-expiry-reminder.php:47
+#: templates/emails/wplc-expiry-reminder.php:55
 #: templates/emails/wplc-license-blocked.php:41
 #: templates/emails/wplc-license-expired.php:32
 #: templates/emails/wplc-license-issued.php:41
@@ -3516,11 +3516,11 @@ msgid "Valid from"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:629
-#: templates/emails/plain/wplc-expiry-reminder.php:49
+#: templates/emails/plain/wplc-expiry-reminder.php:57
 #: templates/emails/plain/wplc-license-expired.php:34
 #: templates/emails/plain/wplc-license-issued.php:44
 #: templates/emails/plain/wplc-license-renewed.php:38
-#: templates/emails/wplc-expiry-reminder.php:49
+#: templates/emails/wplc-expiry-reminder.php:57
 #: templates/emails/wplc-license-expired.php:34
 #: templates/emails/wplc-license-issued.php:44
 #: templates/emails/wplc-license-renewed.php:38
@@ -4601,7 +4601,7 @@ msgstr[1] ""
 msgid "%1$s is set, but %2$s does not list your proxies. The header is ignored and every request is rate-limited by the proxy address, so all customers behind the proxy share one limit. Add the addresses of your proxies to %2$s."
 msgstr ""
 
-#: src/Billing/BlockCheckoutConsent.php:246
+#: src/Billing/BlockCheckoutConsent.php:239
 msgid "A customer account is required to buy a license. Please log in or create an account and try again."
 msgstr ""
 
@@ -4619,7 +4619,7 @@ msgstr ""
 
 #. translators: 1: license ID, 2: new paid-through date (UTC).
 #: src/Billing/ManualRenewal.php:325
-#: src/Billing/RenewalProcessor.php:813
+#: src/Billing/RenewalProcessor.php:807
 #, php-format
 msgid "WP License Captain renewed license #%1$d until %2$s (UTC)."
 msgstr ""
@@ -4846,98 +4846,98 @@ msgstr ""
 msgid "Service period (UTC)"
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:397
+#: src/Billing/RenewalProcessor.php:391
 #: src/License/AuditReason.php:319
 msgid "The payment gateway did not confirm the renewal."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:399
+#: src/Billing/RenewalProcessor.php:393
 msgid "The customer paid the renewal order while the automatic charge failed"
 msgstr ""
 
 #. translators: 1: transaction ID of the automatic charge, 2: transaction ID on the order.
-#: src/Billing/RenewalProcessor.php:443
+#: src/Billing/RenewalProcessor.php:437
 #, php-format
 msgid "The automatic charge %1$s succeeded although the order was already paid (%2$s). One of the two payments must be refunded. Refund the second payment %1$s in the payment gateway; a refund of this order in WooCommerce refunds %2$s and keeps the renewal, because the other payment still pays the period."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:569
-#: src/Billing/RenewalProcessor.php:654
+#: src/Billing/RenewalProcessor.php:563
+#: src/Billing/RenewalProcessor.php:648
 msgid "WP License Captain: this renewal is no longer due; the order is closed."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:781
+#: src/Billing/RenewalProcessor.php:775
 msgid "The license term was changed while the renewal was being paid; the payment was not applied"
 msgstr ""
 
 #. translators: %s: license status.
-#: src/Billing/RenewalProcessor.php:784
+#: src/Billing/RenewalProcessor.php:778
 #, php-format
 msgid "The license could not be extended because its status changed to \"%s\" while the payment was running; the payment was not applied. Refund the payment, or reactivate the license and extend its term by hand"
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:910
+#: src/Billing/RenewalProcessor.php:904
 msgid "This renewal requires customer authentication. Automatic retries have been stopped."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:911
+#: src/Billing/RenewalProcessor.php:905
 msgid "The payment method was declined for good. Automatic retries have been stopped; the customer has to pay this order."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:1011
+#: src/Billing/RenewalProcessor.php:1005
 msgid "The payment gateway did not return a definite result for this renewal payment; the payment may have been taken. The renewal is checked again with the same idempotency key and is not charged a second time. The customer was not told that the payment failed."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:1151
+#: src/Billing/RenewalProcessor.php:1145
 msgid "The result of the automatic renewal payment is still unknown and automatic attempts have stopped. Check the payment in the payment gateway: if it was taken, set this order to Processing or Completed to book the renewal; if it was not, set it to Failed to resume the automatic retries."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:1319
+#: src/Billing/RenewalProcessor.php:1313
 #: src/License/AuditReason.php:329
 msgid "The renewal order was set to failed after its payment result was checked."
 msgstr ""
 
 #. translators: 1: PaymentIntent of this event, 2: PaymentIntent that paid the order.
-#: src/Billing/RenewalProcessor.php:1561
+#: src/Billing/RenewalProcessor.php:1555
 #, php-format
 msgid "Stripe reports a second successful payment %1$s for a renewal order that was paid by %2$s. One of the two payments must be refunded. Refund the second payment %1$s in the payment gateway; a refund of this order in WooCommerce refunds %2$s and keeps the renewal, because the other payment still pays the period."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:1649
+#: src/Billing/RenewalProcessor.php:1643
 msgid "WP License Captain: Stripe reported that the renewal payment of this attempt failed; recorded as a decline."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:1757
+#: src/Billing/RenewalProcessor.php:1751
 msgid "Paid renewal order metadata did not match its license"
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:1769
+#: src/Billing/RenewalProcessor.php:1763
 msgid "WP License Captain: this renewal order was paid after its review had been closed. The renewal was not booked; it is back in the review list."
 msgstr ""
 
 #. translators: %s: renewal status.
-#: src/Billing/RenewalProcessor.php:1787
+#: src/Billing/RenewalProcessor.php:1781
 #, php-format
 msgid "The renewal was already closed (%s) when the payment arrived"
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:1797
+#: src/Billing/RenewalProcessor.php:1791
 msgid "Paid customer recovery order did not match the stored renewal amount"
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:1907
+#: src/Billing/RenewalProcessor.php:1901
 msgid "The renewal of the next period was missing and has been scheduled"
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:2128
+#: src/Billing/RenewalProcessor.php:2122
 msgid "WP License Captain: no license renewal can accept this order any more (the renewal was closed, paid with another order or no longer exists). Do not accept a payment for it without checking the license."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:2132
+#: src/Billing/RenewalProcessor.php:2126
 msgid "WP License Captain: no license renewal can accept this order any more (the renewal was closed, paid with another order or no longer exists); the order is closed."
 msgstr ""
 
-#: src/Billing/RenewalProcessor.php:2219
+#: src/Billing/RenewalProcessor.php:2213
 msgid "The renewal attempt did not finish and its result is unknown."
 msgstr ""
 
@@ -5130,26 +5130,30 @@ msgstr ""
 msgid "Optional JSON object for numeric limits and entitlement keys that are not in the list above. The live-site limit and support level are added automatically."
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:420
+#: src/Catalog/ProductEditor.php:370
+msgid "The catalog offers no entitlements for this license product key. They come from the catalog file of the product: upload a release whose package contains it, or import it under License catalog files."
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:430
 msgid "WP License Captain: the license fields (product key, plan, entitlements) are only available in the classic product editor. The new block-based product editor is switched on in this shop and does not show them. Switch it off under WooCommerce → Settings → Advanced → Features, or maintain the plans with the license catalog CSV."
 msgstr ""
 
 #. translators: %d: variation ID.
-#: src/Catalog/ProductEditor.php:586
+#: src/Catalog/ProductEditor.php:596
 #, php-format
 msgid "Variation #%d"
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:590
+#: src/Catalog/ProductEditor.php:600
 msgid "The advanced entitlements field must contain a valid JSON object. The license settings were not saved."
 msgstr ""
 
-#: src/Catalog/ProductEditor.php:629
+#: src/Catalog/ProductEditor.php:639
 msgid "The license settings were not saved."
 msgstr ""
 
 #. translators: 1: product name or variation, 2: error message.
-#: src/Catalog/ProductEditor.php:784
+#: src/Catalog/ProductEditor.php:794
 #, php-format
 msgid "License settings of \"%1$s\": %2$s"
 msgstr ""
@@ -5297,6 +5301,48 @@ msgstr ""
 #: src/CLI/LicenseCommand.php:48
 #: src/CLI/PriceChangeCommand.php:81
 msgid "License not found."
+msgstr ""
+
+#. translators: 1: product key, 2: plan key, 3: customer email address, 4: end date (YYYY-MM-DD).
+#: src/CLI/LicenseCommand.php:121
+#, php-format
+msgid "Issue a license for %1$s (plan %2$s) to %3$s, valid until %4$s?"
+msgstr ""
+
+#. translators: 1: license ID, 2: start of the license key (reference, not the key).
+#: src/CLI/LicenseCommand.php:138
+#, php-format
+msgid "License %1$d issued (reference %2$s)."
+msgstr ""
+
+#: src/CLI/LicenseCommand.php:157
+msgid "No user account matches --customer. Give a user ID or the email address of an existing account."
+msgstr ""
+
+#: src/CLI/LicenseCommand.php:163
+msgid "Give either --product-id or --plan-id."
+msgstr ""
+
+#: src/CLI/LicenseCommand.php:191
+msgid "No active plan matches. Mark the WooCommerce product as a license product first."
+msgstr ""
+
+#. translators: %s: comma-separated plan keys.
+#: src/CLI/LicenseCommand.php:198
+#, php-format
+msgid "The product has several active plans. Choose one with --plan: %s"
+msgstr ""
+
+#: src/CLI/LicenseCommand.php:207
+msgid "Give --expires as a date in the future, YYYY-MM-DD."
+msgstr ""
+
+#: src/CLI/LicenseCommand.php:215
+msgid "Issued with WP-CLI"
+msgstr ""
+
+#: src/CLI/LicenseCommand.php:241
+msgid "The license could not be issued."
 msgstr ""
 
 #: src/CLI/PriceChangeCommand.php:73
@@ -5761,43 +5807,43 @@ msgid "More licenses follow (--max-rows). Continue with --after-id=%d."
 msgstr ""
 
 #. translators: 1: required WooCommerce version, 2: installed WooCommerce version.
-#: src/Compatibility/Requirements.php:147
+#: src/Compatibility/Requirements.php:135
 #, php-format
 msgid "WP License Captain requires WooCommerce %1$s or later; version %2$s is installed. Licenses keep working, but the automatic renewal option is not offered in the block checkout until WooCommerce is updated."
 msgstr ""
 
-#: src/Compatibility/Requirements.php:149
-#: src/Gateway/StripeRecurringAdapter.php:1288
+#: src/Compatibility/Requirements.php:137
+#: src/Gateway/StripeRecurringAdapter.php:1261
 msgid "unknown"
 msgstr ""
 
-#: src/Compatibility/Requirements.php:252
+#: src/Compatibility/Requirements.php:225
 msgid "The WooCommerce Stripe Gateway is not active."
 msgstr ""
 
 #. translators: 1: installed Stripe gateway version, 2: required version.
-#: src/Compatibility/Requirements.php:259
+#: src/Compatibility/Requirements.php:232
 #, php-format
 msgid "WooCommerce Stripe Gateway %1$s is too old for automatic renewals; version %2$s or later is required."
 msgstr ""
 
 #. translators: 1: installed Stripe gateway version, 2: list of missing PHP classes or methods.
-#: src/Compatibility/Requirements.php:266
+#: src/Compatibility/Requirements.php:239
 #, php-format
 msgid "WooCommerce Stripe Gateway %1$s no longer provides the functions the renewal adapter needs (%2$s). Automatic renewals are switched off."
 msgstr ""
 
 #. translators: 1: installed Stripe gateway version, 2: newest verified version.
-#: src/Compatibility/Requirements.php:273
+#: src/Compatibility/Requirements.php:246
 #, php-format
 msgid "WooCommerce Stripe Gateway %1$s is newer than the last verified version %2$s. Automatic renewals stay enabled; test a renewal after gateway updates."
 msgstr ""
 
-#: src/Compatibility/Requirements.php:337
+#: src/Compatibility/Requirements.php:310
 msgid "The Stripe payment method is not enabled in WooCommerce."
 msgstr ""
 
-#: src/Compatibility/Requirements.php:344
+#: src/Compatibility/Requirements.php:317
 msgid "Saved payment methods are switched off in the Stripe settings, so there is no card to renew with."
 msgstr ""
 
@@ -5967,27 +6013,27 @@ msgid "%1$s: renewal of %2$s, order #%3$d"
 msgstr ""
 
 #. translators: %s: Stripe payment method type, e.g. link.
-#: src/Gateway/StripeRecurringAdapter.php:1287
+#: src/Gateway/StripeRecurringAdapter.php:1260
 #, php-format
 msgid "WP License Captain: automatic renewal was requested, but the payment method of this order (%s) is not a saved card. The license will not renew automatically."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:1301
+#: src/Gateway/StripeRecurringAdapter.php:1274
 msgid "You asked for automatic renewal, but the payment method you used cannot be charged automatically. Your license runs until the end of the paid period. We will remind you before it ends so you can renew it yourself; to renew automatically, add a card in your account."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:1431
+#: src/Gateway/StripeRecurringAdapter.php:1404
 msgid "WP License Captain: future automatic renewals of this license use the card this order was paid with."
 msgstr ""
 
 #. translators: 1: installed database schema version, 2: schema version this plugin version supports.
-#: src/Infrastructure/Database/Schema.php:500
+#: src/Infrastructure/Database/Schema.php:495
 #, php-format
 msgid "WP License Captain: the database was upgraded by a newer plugin version (schema %1$s, this version supports %2$s). Renewal charges and customer emails are paused. Install the newer plugin version again."
 msgstr ""
 
 #. translators: %s: technical error details.
-#: src/Infrastructure/Database/Schema.php:524
+#: src/Infrastructure/Database/Schema.php:519
 #, php-format
 msgid "WP License Captain could not update its database tables. The plugin keeps working with the previous structure and retries automatically. Details: %s"
 msgstr ""
@@ -6741,27 +6787,27 @@ msgstr ""
 msgid "Your renewal price stays the same"
 msgstr ""
 
-#: src/Notifications/Notifications.php:1007
+#: src/Notifications/Notifications.php:1009
 msgid "Sample product"
 msgstr ""
 
-#: src/Notifications/Notifications.php:1008
+#: src/Notifications/Notifications.php:1010
 msgid "Sample plan"
 msgstr ""
 
-#: src/Notifications/Notifications.php:1087
+#: src/Notifications/Notifications.php:1090
 msgid "You chose automatic renewal for your license. The email with your license lists the renewal date, the amount including tax and the interval."
 msgstr ""
 
-#: src/Notifications/Notifications.php:1103
+#: src/Notifications/Notifications.php:1106
 msgid "Download the plugin ZIP file in your account under \"Licenses\"."
 msgstr ""
 
-#: src/Notifications/Notifications.php:1104
+#: src/Notifications/Notifications.php:1107
 msgid "In the WordPress dashboard of your site, go to Plugins > Add New > Upload Plugin, choose the ZIP file, then install and activate it."
 msgstr ""
 
-#: src/Notifications/Notifications.php:1105
+#: src/Notifications/Notifications.php:1108
 msgid "Open the license settings of the plugin, enter your license key and activate the license for the site."
 msgstr ""
 
@@ -6853,7 +6899,7 @@ msgstr ""
 #: src/Privacy/PersonalData.php:616
 #: src/Privacy/PersonalData.php:627
 #: templates/emails/plain/wplc-cancellation-confirmed.php:41
-#: templates/emails/plain/wplc-expiry-reminder.php:48
+#: templates/emails/plain/wplc-expiry-reminder.php:56
 #: templates/emails/plain/wplc-license-blocked.php:42
 #: templates/emails/plain/wplc-license-expired.php:33
 #: templates/emails/plain/wplc-license-issued.php:42
@@ -6864,7 +6910,7 @@ msgstr ""
 #: templates/emails/plain/wplc-price-change.php:41
 #: templates/emails/plain/wplc-renewal-notice.php:47
 #: templates/emails/wplc-cancellation-confirmed.php:41
-#: templates/emails/wplc-expiry-reminder.php:48
+#: templates/emails/wplc-expiry-reminder.php:56
 #: templates/emails/wplc-license-blocked.php:42
 #: templates/emails/wplc-license-expired.php:33
 #: templates/emails/wplc-license-issued.php:42
@@ -7314,143 +7360,143 @@ msgid "Version %1$s is not higher than the highest published version %2$s. Insta
 msgstr ""
 
 #. translators: %s: product key and version.
-#: src/Update/ReleaseRegistry.php:1297
+#: src/Update/ReleaseRegistry.php:1305
 #, php-format
 msgid "The uploaded package of %s is missing on this server. It is not offered as an update. With several web servers the package directory must be shared between them."
 msgstr ""
 
 #. translators: 1: product key and version, 2: host name.
-#: src/Update/ReleaseRegistry.php:1306
+#: src/Update/ReleaseRegistry.php:1314
 #, php-format
 msgid "The package URL of %1$s points to \"%2$s\", which is not an allowed package host (any more). Update checks for this product fail until the host is added under License settings or the release is replaced. This happens after the shop moved to another domain."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1324
+#: src/Update/ReleaseRegistry.php:1332
 msgid "The package directory can be read over HTTP: this web server ignores the .htaccess protection (nginx). Packages are only protected by their random file name. Add a deny rule for the directory or move it outside the web root with the wplc_package_storage_dir filter (see docs/UPDATE-STORAGE.md)."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1379
+#: src/Update/ReleaseRegistry.php:1387
 msgid "The product key is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1380
+#: src/Update/ReleaseRegistry.php:1388
 msgid "The version must have three numeric parts, optionally followed by -alpha, -beta or -rc and a number: 1.2.3, 1.2.3-beta1, 1.2.3-rc2. Other suffixes are sorted wrongly by WordPress."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1381
+#: src/Update/ReleaseRegistry.php:1389
 msgid "The release channel is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1382
+#: src/Update/ReleaseRegistry.php:1390
 msgid "The package storage type is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1383
+#: src/Update/ReleaseRegistry.php:1391
 msgid "The package URL must be a valid HTTPS URL without credentials."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1384
+#: src/Update/ReleaseRegistry.php:1392
 msgid "The stored package file reference is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1385
+#: src/Update/ReleaseRegistry.php:1393
 msgid "The SHA-256 checksum must consist of exactly 64 hexadecimal characters."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1386
+#: src/Update/ReleaseRegistry.php:1394
 msgid "The required PHP version is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1387
+#: src/Update/ReleaseRegistry.php:1395
 msgid "The required WordPress version is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1388
+#: src/Update/ReleaseRegistry.php:1396
 msgid "The tested WordPress version is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1389
+#: src/Update/ReleaseRegistry.php:1397
 msgid "The required version of the free core plugin is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1390
+#: src/Update/ReleaseRegistry.php:1398
 msgid "The plugin file of the package is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1391
+#: src/Update/ReleaseRegistry.php:1399
 msgid "The release notes are invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1392
+#: src/Update/ReleaseRegistry.php:1400
 msgid "The manifest is not a valid release manifest JSON object."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1393
+#: src/Update/ReleaseRegistry.php:1401
 msgid "The manifest does not contain a product key."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1394
+#: src/Update/ReleaseRegistry.php:1402
 msgid "The manifest does not contain a version."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1395
+#: src/Update/ReleaseRegistry.php:1403
 msgid "The manifest does not contain a package URL."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1396
+#: src/Update/ReleaseRegistry.php:1404
 msgid "The manifest does not contain a SHA-256 checksum."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1397
+#: src/Update/ReleaseRegistry.php:1405
 msgid "This product key is not registered. Map a WooCommerce product to it first."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1398
+#: src/Update/ReleaseRegistry.php:1406
 msgid "A release with this version already exists for the product."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1399
+#: src/Update/ReleaseRegistry.php:1407
 msgid "The release does not exist."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1400
+#: src/Update/ReleaseRegistry.php:1408
 msgid "Version, package and checksum of a published release cannot be changed. Withdraw it and publish a new version instead."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1401
+#: src/Update/ReleaseRegistry.php:1409
 msgid "The release cannot change to this status from its current status."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1402
+#: src/Update/ReleaseRegistry.php:1410
 msgid "The stored package file is missing."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1403
+#: src/Update/ReleaseRegistry.php:1411
 msgid "The stored package file does not match its SHA-256 checksum."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1404
+#: src/Update/ReleaseRegistry.php:1412
 msgid "The file at the package URL does not match the SHA-256 checksum of the release."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1405
+#: src/Update/ReleaseRegistry.php:1413
 msgid "The host of the package URL is not allowed. Add it under WooCommerce → License settings → \"Additional trusted package hosts\". The URL must use HTTPS on the standard port."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1406
+#: src/Update/ReleaseRegistry.php:1414
 msgid "Please enter a reason. It is stored in the release log."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1407
+#: src/Update/ReleaseRegistry.php:1415
 msgid "The release could not be saved."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1410
+#: src/Update/ReleaseRegistry.php:1418
 msgid "The release data is invalid."
 msgstr ""
 
 #. translators: %s: error message of the download.
-#: src/Update/ReleaseRegistry.php:1456
+#: src/Update/ReleaseRegistry.php:1464
 #, php-format
 msgid "The package could not be downloaded from its URL to verify it: %s"
 msgstr ""
@@ -7490,13 +7536,13 @@ msgid "License ends on"
 msgstr ""
 
 #: templates/emails/plain/wplc-cancellation-confirmed.php:46
-#: templates/emails/plain/wplc-expiry-reminder.php:53
+#: templates/emails/plain/wplc-expiry-reminder.php:61
 #: templates/emails/plain/wplc-license-blocked.php:46
 #: templates/emails/plain/wplc-license-expired.php:37
 #: templates/emails/plain/wplc-license-issued.php:47
 #: templates/emails/plain/wplc-license-renewed.php:41
 #: templates/emails/wplc-cancellation-confirmed.php:46
-#: templates/emails/wplc-expiry-reminder.php:53
+#: templates/emails/wplc-expiry-reminder.php:61
 #: templates/emails/wplc-license-blocked.php:46
 #: templates/emails/wplc-license-expired.php:37
 #: templates/emails/wplc-license-issued.php:47
@@ -7505,34 +7551,39 @@ msgid "View license in your account"
 msgstr ""
 
 #. translators: %s: date.
-#: templates/emails/plain/wplc-expiry-reminder.php:32
-#: templates/emails/wplc-expiry-reminder.php:32
+#: templates/emails/plain/wplc-expiry-reminder.php:36
+#: templates/emails/wplc-expiry-reminder.php:36
 #, php-format
 msgid "Your license ends today, %s."
 msgstr ""
 
 #. translators: 1: number of days, 2: date.
-#: templates/emails/plain/wplc-expiry-reminder.php:35
-#: templates/emails/wplc-expiry-reminder.php:35
+#: templates/emails/plain/wplc-expiry-reminder.php:39
+#: templates/emails/wplc-expiry-reminder.php:39
 #, php-format
 msgid "Your license ends in %1$d day, on %2$s."
 msgid_plural "Your license ends in %1$d days, on %2$s."
 msgstr[0] ""
 msgstr[1] ""
 
-#: templates/emails/plain/wplc-expiry-reminder.php:39
-#: templates/emails/wplc-expiry-reminder.php:39
+#: templates/emails/plain/wplc-expiry-reminder.php:44
+#: templates/emails/wplc-expiry-reminder.php:44
 msgid "It does not renew automatically. Renew it in time to keep receiving updates and to keep your sites activated."
 msgstr ""
 
-#: templates/emails/plain/wplc-expiry-reminder.php:41
-#: templates/emails/wplc-expiry-reminder.php:41
+#: templates/emails/plain/wplc-expiry-reminder.php:45
+#: templates/emails/wplc-expiry-reminder.php:45
+msgid "It does not renew automatically. Please contact us before that date if you want to keep using it."
+msgstr ""
+
+#: templates/emails/plain/wplc-expiry-reminder.php:49
+#: templates/emails/wplc-expiry-reminder.php:49
 msgid "You can renew the license in your account under \"Licenses\"."
 msgstr ""
 
 #. translators: %s: date.
-#: templates/emails/plain/wplc-expiry-reminder.php:43
-#: templates/emails/wplc-expiry-reminder.php:43
+#: templates/emails/plain/wplc-expiry-reminder.php:51
+#: templates/emails/wplc-expiry-reminder.php:51
 #, php-format
 msgid "You can renew the license in your account under \"Licenses\" from %s."
 msgstr ""

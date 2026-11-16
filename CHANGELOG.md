@@ -6,6 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Added (16 Nov 2026, project products, client 2.1.1 and the client package)
+
+- **Project products (PK-01 to PK-05, decision 17).** Catalog files whose prefix contains an underscore (`learnboating_form`, `boatingschool_form`) live next to `learnboating`; the product editor maps groups only through the catalog, without the old substring fallback. A connector package with `wplc-catalog.json` can be the first release of a product. A private WooCommerce product with a plan can be licensed by hand, but is not offered in the pricing table, other customers' accounts or the cart. New `wp wplc license issue` issues a license by hand (it never prints the key). A connector and a Pro add-on on the same site keep separate options, activations and site limits. Integration tests: `ProjectProductIntegrationTest`, `ProductIsolationIntegrationTest`, `ProjectConnectorClientIntegrationTest`.
+- **Expiry reminders for products that cannot be bought** no longer say "Renew now"; they ask the customer to get in touch before the end date (`Catalog::is_for_sale()`, view key `sold_in_shop`).
+- **Client library 2.1.1 (AL-4):** a Site Health test "License check" per add-on (good while the last successful check is at most 36 hours old; recommended when a check failed, is overdue or the offline period runs low; critical when the license is no longer confirmed or was released). Without key or secret.
+- **Client library package (PROD-08).** `bin/package-client.php` builds `license-client-<version>.zip` with a checksum: the library, the export script, a README with the API v1 compatibility promise, its own changelog and a contract test (`bin/client-contract-test.php`) that vendors run against their server. `bin/build-zip.sh` builds it and the release workflow attaches it.
+
+### Fixed (16 Nov 2026, product isolation)
+
+- **A download token could deliver another product's URL package (PK-03).** `ReleaseRegistry::grant_is_deliverable()` now refuses a URL that matches only releases of other products, and `PackageStream::serve()` checks that the release belongs to the product of the license.
+
+### Removed (16 Nov 2026, dead code, A-136)
+
+- `Requirements::unique_mode()` with two constants, `SiteUrl::identity_candidates()`/`legacy_normalize()` (stored addresses still match through `comparison_key()`, covered by a test), `StripeRecurringAdapter::request_metadata()`, `StripeWebhook::verify_signature()` and three unused constants.
+
 ### Added (16 Nov 2026, catalog file from the release package)
 
 - **The catalog travels with the release (PROD-03).** When a release is created from a ZIP, the server reads `<plugin folder>/wplc-catalog.json` from the package and imports it into the license catalog (source `release`). The release is never refused because of the file: an invalid file, a file for another product or an oversized file is not imported, the uploader sees the reason and the audit log records `catalog_release_import_refused`. A package older than an existing release does not turn the catalog back. Removed keys that active plans still grant are named in a warning (`catalog_keys_removed_in_use`); plans and licenses are never changed. The archive is read in memory, one entry, at most 256 KB. New setting "Import the catalog file from release packages" (on by default) and filter `wplc_catalog_auto_import`.
