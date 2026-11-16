@@ -22,6 +22,16 @@ Whether a *product* plugin (the license client) supports multisite, and whether 
 
 Everything is per site: tables, the schema version option `wplc_schema_version`, settings, cron events, Action Scheduler actions, REST endpoints (`/{site path}/wp-json/wplc/v1/…`), the installation fingerprint of the staging guard (home URL, database name and the site's table prefix), the billing pause, and the private package directory (`wp-content/uploads/sites/{id}/wplc-packages/`). A license key issued on one site is unknown (`401 invalid_key`) on every other site. All MySQL advisory locks (schema migration, per-license, per-renewal) include the site prefix in their name, so sites never block each other.
 
+## Add-ons on a customer network: one site per subsite (B2)
+
+This section is the license contract for add-ons that run on a customer's multisite network, for example the network-wide workflows of Workflow Captain Pro (`workflow.multisite_network`, TODO WF-MS-25 of wp-workflowmaster). Nothing in the server is specific to it.
+
+- **Every subsite activates by itself and uses one live site.** The bundled client stores credentials per site by default (`network => false`, decision B2): each subsite has its own installation ID and sends its own address (`home` of that subsite). The server counts active live activations of the license (`site_count`) against `site_limit`; it never counts the address of the network root for the whole network. A subdirectory subsite (`example.com/zwei/`) and a subdomain subsite (`zwei.example.com`) are different sites from the main site and from each other (`SiteUrlNormalizationTest`, B-161 rows "two subsites …").
+- **Releasing a seat.** "Remove license" on the license screen of a subsite releases its activation (`DELETE /activations/{id}`); the add-on of that subsite then reports no access and stops its premium functions there. A seat that ends on the server (expired, suspended, revoked, released in the customer account) reaches the subsite with its next signed answer.
+- **Mapped domain, domain change, migration of the whole network.** The blog ID and the installation ID stay. The client of that subsite notices the new address (`site_changed`, no access) until its administrator moves the activation; the move re-activates the same installation ID, the server stores the new address (`site_url_changed`) and keeps the same live site, so a mapped domain never counts twice. A move to an address that looks like a copy is refused (`site_move_refused`); the copy is then activated as a staging site. After a migration of the whole network every subsite does this once.
+- **What the add-on may count.** The enforced limit is `site_limit` of the signed data (see `ENTITLEMENTS.md`). An add-on that combines several subsites (Workflow Captain Pro: every distinct blog ID of a network workflow) may count them for a preview, but it relies on the activation of every participating subsite, not on its own count.
+- Not covered by the server: whether a staging activation on a subsite of a staging network should count as a live site. Staging stays one per live activation, as on single sites.
+
 ## Secrets and the Stripe webhook in a network
 
 The secret constants in `wp-config.php` are the same for every site of the network. For the license-key and encryption key rings that is harmless: each site has its own tables.

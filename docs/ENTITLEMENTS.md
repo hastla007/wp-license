@@ -129,7 +129,7 @@ These keys are reserved for functions that are planned but that no released add-
 | `workflow.custom_connectors` | Workflow Captain Pro: runtime for custom connectors (the connectors of customer projects are products of their own) |
 | `workflow.multisite_network` | Workflow Captain Pro: network-wide workflows in a multisite network |
 
-The eight `workflow.*` keys are boolean and belong to every plan (`single`, `business`, `agency`) once the add-on is released; captain-pro uses the same names (its TODO, WFC-PRO-03). `workflow.custom_connectors` and `workflow.multisite_network` were reserved on 16 Nov 2026 (F-01 of the suite specification in wp-workflowmaster); there is no entitlement for delays, waiting steps stay in the free Workflow core. No Workflow add-on exists yet, and `workflow-captain-pro` is a planned product key that the product editor does not suggest.
+The eight `workflow.*` keys are boolean and belong to every plan (`single`, `business`, `agency`) once the add-on is released; captain-pro uses the same names (its TODO, WFC-PRO-03). `workflow.custom_connectors` and `workflow.multisite_network` were reserved on 16 Nov 2026 (F-01 of the suite specification in wp-workflowmaster); there is no entitlement for delays, waiting steps stay in the free Workflow core. The add-on exists in captain-pro but is held back (not released); `workflow-captain-pro` stays a planned product key that the product editor does not suggest. On a multisite network every participating subsite of `workflow.multisite_network` holds its own activation and uses one live site (`MULTISITE.md`, "Add-ons on a customer network").
 
 ## Contract examples
 
