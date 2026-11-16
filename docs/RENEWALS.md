@@ -375,7 +375,7 @@ Plans are WooCommerce products or variations mapped in the catalog (`src/Catalog
 
 The catalog has no ranking of plans: a plan whose current regular price is higher than the license's **contract price** is an **upgrade**; a cheaper or equally priced one is a **downgrade**. A target is identified by its product or variation ID, because catalog rows get new IDs whenever a mapping is saved.
 
-**Contract price** (`PlanChange::contract_price()`, P-06): what the customer pays for the current period, not today's catalog price of the purchased product. A later price change in the catalog therefore neither turns a more expensive plan into a free "downgrade" (Solo bought for 49.00, Solo now 199.00, Business 149.00: Business is still an upgrade) nor changes the credit of an upgrade.
+**Contract price** (`PlanChange::contract_price()`, P-06): what the customer pays for the current period, not today's catalog price of the purchased product. A later price change in the catalog therefore neither turns a more expensive plan into a free "downgrade" (Single bought for 49.00, Single now 199.00, Business 149.00: Business is still an upgrade) nor changes the credit of an upgrade.
 
 1. The pre-tax amount (`_wplc_renewal_net_minor`) of the paid renewal order of the current period, if that order billed the license's current plan (`renewal_product_id`) and no upgrade was applied since (`plan_order_id = 0`). This is what a manual renewal paid at the then current catalog price.
 2. Otherwise the stored renewal amount (`renewal_amount_minor`: the regular price at purchase, or the amount set by the last plan change), read with its gross/net flag `renewal_amount_includes_tax`.

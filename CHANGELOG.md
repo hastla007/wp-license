@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Changed (16 Nov 2026)
+
+- Entitlement catalog: the product editor offers only keys of functions a released premium add-on ships. Removed are 17 keys that named functions of the free core plugins (eight `affiliate.*`, eight `voucher.*`, `voucher.staff_roles`); a plan or license that still stores one keeps it (advanced JSON field). Six keys of planned functions (`affiliate.store_credit`, `affiliate.stripe_connect`, `affiliate.leaderboard`, `affiliate.multi_tier`, `affiliate.multiple_programs`, `voucher.white_label`) are offered only with the new filter `wplc_offer_planned_entitlements`. `pass.e_invoicing` is labelled "E-invoicing (XRechnung XML)". The planned product keys `workflow-captain-pro`, `form-captain-pro` and `review-captain-pro` are known but neither suggested nor sellable.
+- Documentation: one plan model for every product (`single`/`business`/`agency`, 1/5/25 live sites, same features); download links are valid for five minutes.
+
 ### Added
 
 - Customer account → **Sites**: every site the customer activated, across all licenses and products, in one table with product, environment, installed and latest version, last contact and license state. Flags what needs attention (license not active, payment overdue, license ends without renewal, update available, no contact for 14 days), with search, filters, CSV export and the existing site deactivation. Replaces the entitlements `voucher.central_license_overview` and `pass.client_license_management`.
