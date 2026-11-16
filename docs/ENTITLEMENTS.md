@@ -102,7 +102,7 @@ The keys below are the ones the product editor offers as tick boxes (`WPLC\Catal
 | Affiliate Captain Pro (`affiliate-captain-pro`) | `affiliate.extended_api`, `affiliate.automated_payouts`, `affiliate.white_label_portal`, `affiliate.webhooks` | Built. |
 | Pass Captain Pro (`pass-captain-pro`) | `pass.e_invoicing`, `pass.card_terminal`, `pass.waiting_room`, `pass.write_api`, `pass.white_label` | Built. `pass.e_invoicing` delivers XRechnung 3.0 XML (UBL and CII) and, since captain-pro `e54eda9` (16 Nov 2026), a ZUGFeRD PDF/A-3 with the CII XML embedded; the external validations of the PDF are still open there (captain-pro `docs/PASS-E-INVOICE.md`). |
 | Voucher Captain Pro (`voucher-captain-pro`) | none yet | No premium function is built; the add-on is a skeleton. Nothing can be sold for it yet. |
-| Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`), Course Captain Pro (`course-captain-pro`) | none yet | Planned (product status `planned` in the catalog file). The product keys resolve to the prefixes `workflow.`, `form.`, `review.`, `course.`; the product editor does not suggest them and offers no key for them. Six `workflow.*` keys are reserved (next section). |
+| Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`), Course Captain Pro (`course-captain-pro`) | none yet | Planned (product status `planned` in the catalog file). The product keys resolve to the prefixes `workflow.`, `form.`, `review.`, `course.`; the product editor does not suggest them and offers no key for them. Eight `workflow.*` keys are reserved (next section). |
 
 Support is the plan attribute `support.level` (`standard` or `priority`) and nothing else (owner decision of 16 Nov 2026, R-24). The three former keys `*.priority_support` (one each for `affiliate.`, `voucher.` and `pass.`), which no add-on checked, are no longer in the catalog. A plan or license that still stores one keeps it in the advanced JSON field; it has no effect.
 
@@ -126,8 +126,10 @@ These keys are reserved for functions that are planned but that no released add-
 | `workflow.advanced_logic` | Workflow Captain Pro: advanced logic |
 | `workflow.recipe_templates` | Workflow Captain Pro: recipe templates |
 | `workflow.extended_logs` | Workflow Captain Pro: extended logs |
+| `workflow.custom_connectors` | Workflow Captain Pro: runtime for custom connectors (the connectors of customer projects are products of their own) |
+| `workflow.multisite_network` | Workflow Captain Pro: network-wide workflows in a multisite network |
 
-The six `workflow.*` keys are boolean and belong to every plan (`single`, `business`, `agency`) once the add-on is released; captain-pro uses the same names (its TODO, WFC-PRO-03). No Workflow add-on exists yet, and `workflow-captain-pro` is a planned product key that the product editor does not suggest.
+The eight `workflow.*` keys are boolean and belong to every plan (`single`, `business`, `agency`) once the add-on is released; captain-pro uses the same names (its TODO, WFC-PRO-03). `workflow.custom_connectors` and `workflow.multisite_network` were reserved on 16 Nov 2026 (F-01 of the suite specification in wp-workflowmaster); there is no entitlement for delays, waiting steps stay in the free Workflow core. No Workflow add-on exists yet, and `workflow-captain-pro` is a planned product key that the product editor does not suggest.
 
 ## Contract examples
 

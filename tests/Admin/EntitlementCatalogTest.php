@@ -65,7 +65,7 @@ final class EntitlementCatalogTest extends TestCase {
 		}
 		sort( $planned );
 		$this->assertSame(
-			array( 'affiliate.leaderboard', 'affiliate.multi_tier', 'affiliate.multiple_programs', 'affiliate.store_credit', 'affiliate.stripe_connect', 'voucher.white_label', 'workflow.advanced_logic', 'workflow.event_correlation', 'workflow.extended_logs', 'workflow.recipe_templates', 'workflow.suite_integrations', 'workflow.webhooks' ),
+			array( 'affiliate.leaderboard', 'affiliate.multi_tier', 'affiliate.multiple_programs', 'affiliate.store_credit', 'affiliate.stripe_connect', 'voucher.white_label', 'workflow.advanced_logic', 'workflow.custom_connectors', 'workflow.event_correlation', 'workflow.extended_logs', 'workflow.multisite_network', 'workflow.recipe_templates', 'workflow.suite_integrations', 'workflow.webhooks' ),
 			$planned
 		);
 		$this->assertSame( $this->documented_keys( '## Planned, not deliverable yet', '## Contract examples' ), $planned );
@@ -83,6 +83,35 @@ final class EntitlementCatalogTest extends TestCase {
 		};
 		$this->assertSame( $planned, array_values( array_intersect( $planned, EntitlementCatalog::known_keys() ) ) );
 		$this->assertSame( array( 'voucher.white_label' => true ), EntitlementCatalog::merge( array( 'voucher.white_label' ), array() ) );
+	}
+
+	/**
+	 * F-01 (suite specification): the runtime for custom connectors and network-wide workflows are
+	 * reserved like the other six Workflow keys; `workflow.delays` is not an entitlement.
+	 */
+	public function test_f01_workflow_keys_are_reserved_as_planned(): void {
+		$product = CatalogStore::get( 'workflow-captain-pro' );
+		$this->assertIsArray( $product );
+		$this->assertSame( 'planned', $product['status'] );
+
+		$entitlements = array();
+		foreach ( (array) $product['entitlements'] as $entitlement ) {
+			$entitlements[ (string) $entitlement['key'] ] = $entitlement;
+		}
+		$this->assertCount( 8, $entitlements );
+		foreach ( array( 'workflow.custom_connectors', 'workflow.multisite_network' ) as $key ) {
+			$this->assertArrayHasKey( $key, $entitlements );
+			$this->assertSame( 'planned', $entitlements[ $key ]['status'] );
+			$this->assertSame( array( 'en', 'de_DE', 'de_DE_formal' ), array_keys( (array) $entitlements[ $key ]['label'] ) );
+			$this->assertNotContains( $key, EntitlementCatalog::known_keys(), 'A planned key is not offered.' );
+		}
+		$this->assertSame( 'Laufzeit für eigene Connectoren', CatalogStore::text( $entitlements['workflow.custom_connectors']['label'], 'de_DE' ) );
+		$this->assertSame( 'Netzwerkweite Workflows in einem Multisite-Netzwerk', CatalogStore::text( $entitlements['workflow.multisite_network']['label'], 'de_DE_formal' ) );
+		$this->assertArrayNotHasKey( 'workflow.delays', $entitlements );
+
+		$planned = array_column( EntitlementCatalog::planned()['workflow'], 'key' );
+		$this->assertContains( 'workflow.custom_connectors', $planned );
+		$this->assertContains( 'workflow.multisite_network', $planned );
 	}
 
 	/**
