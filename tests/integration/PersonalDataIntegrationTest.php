@@ -25,6 +25,87 @@ final class PersonalDataIntegrationTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'encrypted-installation-secret', $serialized );
 		$this->assertStringNotContainsString( 'payment-token-secret', $serialized );
 		$this->assertSame( 1, count( $result['data'] ) );
+		$this->assertStringNotContainsString( 'Announced renewal amount', $serialized, 'Nothing is announced for this license.' );
+
+		// INH-11: an announced renewal price is part of the export.
+		$wpdb->update(
+			Schema::table_names()['licenses'],
+			array(
+				'renewal_amount_minor'      => 4900,
+				'price_change_amount_minor' => 5900,
+				'price_change_effective_at' => '2027-03-01 00:00:00',
+				'price_change_announced_at' => '2026-11-16 10:00:00',
+				'price_change_notified_at'  => '2026-11-16 10:00:05',
+				'price_change_notice_days'  => 60,
+			),
+			array( 'id' => $license_id )
+		);
+		$fields = array();
+		foreach ( PersonalData::export_personal_data( 'privacy-export@example.test', 1 )['data'][0]['data'] as $field ) {
+			$fields[ $field['name'] ] = $field['value'];
+		}
+		$this->assertStringStartsWith( '59.00 ', $fields['Announced renewal amount'] );
+		$this->assertSame( '2027-03-01 00:00:00', $fields['Announced amount applies from'] );
+		$this->assertSame( '2026-11-16 10:00:00', $fields['Price change announced'] );
+		$this->assertSame( '2026-11-16 10:00:05', $fields['Price change notice sent'] );
+	}
+
+	/**
+	 * INH-11: a license detached from its owner keeps no announcement; a kept license keeps it.
+	 */
+	public function test_erasure_and_retention_clear_an_announced_price_with_the_owner(): void {
+		global $wpdb;
+
+		$tables  = Schema::table_names();
+		$email   = 'privacy-price@example.test';
+		$user_id = self::factory()->user->create( array( 'user_email' => $email ) );
+		$pending = array(
+			'renewal_amount_minor'      => 4900,
+			'price_change_amount_minor' => 5900,
+			'price_change_effective_at' => '2027-03-01 00:00:00',
+			'price_change_announced_at' => '2026-11-16 10:00:00',
+			'price_change_notified_at'  => '2026-11-16 10:00:05',
+			'price_change_notice_days'  => 60,
+		);
+		$erased  = $this->create_license( $user_id, 'expired' );
+		$kept    = $this->create_license( $user_id, 'active' );
+		$aged    = $this->create_license( self::factory()->user->create(), 'expired' );
+		foreach ( array( $erased, $kept, $aged ) as $id ) {
+			$wpdb->update( $tables['licenses'], $pending, array( 'id' => $id ) );
+		}
+		$columns = static function ( int $id ) use ( $wpdb, $tables ): array {
+			return (array) $wpdb->get_row( $wpdb->prepare( 'SELECT price_change_amount_minor, price_change_effective_at, price_change_announced_at, price_change_notified_at, price_change_notice_days, renewal_amount_minor FROM %i WHERE id = %d', $tables['licenses'], $id ), ARRAY_A );
+		};
+		$cleared = array(
+			'price_change_amount_minor' => null,
+			'price_change_effective_at' => null,
+			'price_change_announced_at' => null,
+			'price_change_notified_at'  => null,
+			'price_change_notice_days'  => null,
+			'renewal_amount_minor'      => '4900',
+		);
+
+		PersonalData::erase_personal_data( $email, 1 );
+		$this->assertSame( $cleared, $columns( $erased ), 'Erased with the owner; the agreed amount is no personal data and stays like the other license fields.' );
+		$this->assertSame( '5900', $columns( $kept )['price_change_amount_minor'], 'A license that stays with the customer keeps its announcement.' );
+
+		// The retention rule that anonymizes long-ended licenses treats the columns the same way.
+		$old = gmdate( 'Y-m-d H:i:s', time() - 400 * DAY_IN_SECONDS );
+		$wpdb->update( $tables['licenses'], array( 'paid_until' => $old, 'updated_at' => $old ), array( 'id' => $aged ) );
+		$days = static function ( $rules ) {
+			$rules['anonymize_licenses'] = 365;
+			return $rules;
+		};
+		add_filter( 'wplc_retention_days', $days );
+		\WPLC\Maintenance\Retention::run();
+		remove_filter( 'wplc_retention_days', $days );
+		$this->assertSame( $cleared, $columns( $aged ) );
+		$this->assertSame( 0, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT customer_id FROM %i WHERE id = %d', $tables['licenses'], $aged ) ) );
+
+		// A deleted account: the license runs on without an owner and without the announcement made to that owner.
+		wp_delete_user( $user_id );
+		$this->assertSame( 0, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT customer_id FROM %i WHERE id = %d', $tables['licenses'], $kept ) ) );
+		$this->assertSame( $cleared, $columns( $kept ) );
 	}
 
 	public function test_erasure_detaches_terminal_license_and_preserves_active_license(): void {

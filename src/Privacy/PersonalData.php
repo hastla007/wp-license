@@ -374,6 +374,16 @@ final class PersonalData {
 					'value' => Money::to_decimal( (int) $license['renewal_amount_minor'], (int) $license['renewal_currency_decimals'] ) . ' ' . (string) $license['renewal_currency'],
 				);
 			}
+			// INH-05 / INH-11: an announced renewal price that is not in force yet.
+			if ( (int) ( $license['price_change_amount_minor'] ?? 0 ) > 0 ) {
+				$license_data[] = array(
+					'name'  => __( 'Announced renewal amount', 'wp-license' ),
+					'value' => Money::to_decimal( (int) $license['price_change_amount_minor'], (int) $license['renewal_currency_decimals'] ) . ' ' . (string) $license['renewal_currency'],
+				);
+				$license_data[] = array( 'name' => __( 'Announced amount applies from', 'wp-license' ), 'value' => (string) ( $license['price_change_effective_at'] ?? '' ) );
+				$license_data[] = array( 'name' => __( 'Price change announced', 'wp-license' ), 'value' => (string) ( $license['price_change_announced_at'] ?? '' ) );
+				$license_data[] = array( 'name' => __( 'Price change notice sent', 'wp-license' ), 'value' => (string) ( $license['price_change_notified_at'] ?? '' ) );
+			}
 			if ( ! empty( $license['next_payment_at'] ) ) {
 				$license_data[] = array( 'name' => __( 'Next payment', 'wp-license' ), 'value' => (string) $license['next_payment_at'] );
 			}
@@ -1112,7 +1122,7 @@ final class PersonalData {
 		// Compare-and-set first: a license that was reactivated in the meantime keeps everything.
 		$detached = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET customer_id = 0, payment_token_id = 0, renewal_enabled = 0, next_payment_at = NULL, updated_at = %s WHERE id = %d AND customer_id = %d AND status IN (%s,%s,%s)",
+				"UPDATE {$tables['licenses']} SET customer_id = 0, payment_token_id = 0, renewal_enabled = 0, next_payment_at = NULL, price_change_amount_minor = NULL, price_change_effective_at = NULL, price_change_announced_at = NULL, price_change_notified_at = NULL, price_change_notice_days = NULL, updated_at = %s WHERE id = %d AND customer_id = %d AND status IN (%s,%s,%s)",
 				gmdate( 'Y-m-d H:i:s' ),
 				$license_id,
 				$user_id,

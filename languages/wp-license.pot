@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T08:32:17+00:00\n"
+"POT-Creation-Date: 2026-11-16T09:02:52+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -1324,12 +1324,12 @@ msgid "Details"
 msgstr ""
 
 #: src/Admin/AuditLogTable.php:219
-#: src/Privacy/PersonalData.php:573
+#: src/Privacy/PersonalData.php:583
 msgid "Before"
 msgstr ""
 
 #: src/Admin/AuditLogTable.php:222
-#: src/Privacy/PersonalData.php:574
+#: src/Privacy/PersonalData.php:584
 msgid "After"
 msgstr ""
 
@@ -1489,7 +1489,7 @@ msgstr ""
 #: src/Admin/ReleaseAdmin.php:124
 #: src/Admin/Settings.php:557
 #: src/Privacy/PersonalData.php:363
-#: src/Privacy/PersonalData.php:544
+#: src/Privacy/PersonalData.php:554
 #: templates/emails/plain/wplc-license-blocked.php:43
 #: templates/emails/wplc-license-blocked.php:43
 msgid "Status"
@@ -3095,7 +3095,7 @@ msgstr ""
 
 #: src/Admin/LicenseDetail.php:202
 #: src/Privacy/PersonalData.php:369
-#: src/Privacy/PersonalData.php:595
+#: src/Privacy/PersonalData.php:605
 msgid "Billing interval"
 msgstr ""
 
@@ -3160,7 +3160,7 @@ msgstr ""
 
 #: src/Admin/LicenseDetail.php:215
 #: src/Admin/LicenseListTable.php:105
-#: src/Privacy/PersonalData.php:547
+#: src/Privacy/PersonalData.php:557
 msgid "Created"
 msgstr ""
 
@@ -3471,7 +3471,7 @@ msgstr ""
 
 #: src/Admin/LicenseDetail.php:600
 #: src/Admin/RenewalReviewAdmin.php:190
-#: src/Privacy/PersonalData.php:586
+#: src/Privacy/PersonalData.php:596
 msgid "Order"
 msgstr ""
 
@@ -3866,7 +3866,7 @@ msgid "Plugin folder: not set yet. The first published package defines it."
 msgstr ""
 
 #: src/Admin/ReleaseAdmin.php:125
-#: src/Privacy/PersonalData.php:626
+#: src/Privacy/PersonalData.php:636
 msgid "Package"
 msgstr ""
 
@@ -4222,7 +4222,7 @@ msgstr ""
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Notifications/Emails/LicenseEmail.php:170
 #: src/Notifications/RenewalTerms.php:265
-#: src/Privacy/PersonalData.php:552
+#: src/Privacy/PersonalData.php:562
 #: templates/emails/plain/wplc-renewal-notice.php:49
 #: templates/emails/wplc-renewal-notice.php:49
 msgid "Amount"
@@ -6753,7 +6753,7 @@ msgstr ""
 msgid "WP License Captain requires WooCommerce %s or later."
 msgstr ""
 
-#: src/Plugin.php:448
+#: src/Plugin.php:450
 msgid "WP License Captain requires WooCommerce to be installed and active."
 msgstr ""
 
@@ -6786,10 +6786,10 @@ msgid "You can request an export or the erasure of this data, with the e-mail ad
 msgstr ""
 
 #: src/Privacy/PersonalData.php:360
-#: src/Privacy/PersonalData.php:541
-#: src/Privacy/PersonalData.php:585
-#: src/Privacy/PersonalData.php:606
-#: src/Privacy/PersonalData.php:617
+#: src/Privacy/PersonalData.php:551
+#: src/Privacy/PersonalData.php:595
+#: src/Privacy/PersonalData.php:616
+#: src/Privacy/PersonalData.php:627
 #: templates/emails/plain/wplc-cancellation-confirmed.php:41
 #: templates/emails/plain/wplc-expiry-reminder.php:48
 #: templates/emails/plain/wplc-license-blocked.php:42
@@ -6834,202 +6834,218 @@ msgid "Cancellation at period end"
 msgstr ""
 
 #: src/Privacy/PersonalData.php:373
-#: src/Privacy/PersonalData.php:592
+#: src/Privacy/PersonalData.php:602
 msgid "Renewal amount"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:378
-msgid "Next payment"
-msgstr ""
-
-#: src/Privacy/PersonalData.php:381
-msgid "Payment method on file for renewal"
+#: src/Privacy/PersonalData.php:380
+msgid "Announced renewal amount"
 msgstr ""
 
 #: src/Privacy/PersonalData.php:383
+msgid "Announced amount applies from"
+msgstr ""
+
+#: src/Privacy/PersonalData.php:384
+msgid "Price change announced"
+msgstr ""
+
+#: src/Privacy/PersonalData.php:385
+msgid "Price change notice sent"
+msgstr ""
+
+#: src/Privacy/PersonalData.php:388
+msgid "Next payment"
+msgstr ""
+
+#: src/Privacy/PersonalData.php:391
+msgid "Payment method on file for renewal"
+msgstr ""
+
+#: src/Privacy/PersonalData.php:393
 msgid "Payment provider"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:389
-#: src/Privacy/PersonalData.php:551
+#: src/Privacy/PersonalData.php:399
+#: src/Privacy/PersonalData.php:561
 msgid "WooCommerce order"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:392
+#: src/Privacy/PersonalData.php:402
 msgid "Consent to automatic renewal given at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:396
+#: src/Privacy/PersonalData.php:406
 msgid "Consent to the immediate start (withdrawal right) given at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:415
-#: src/Privacy/PersonalData.php:533
+#: src/Privacy/PersonalData.php:425
+#: src/Privacy/PersonalData.php:543
 msgid "WP License Captain licenses"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:542
+#: src/Privacy/PersonalData.php:552
 msgid "Period start"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:543
+#: src/Privacy/PersonalData.php:553
 msgid "Period end"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:545
+#: src/Privacy/PersonalData.php:555
 msgid "Payment attempts"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:546
+#: src/Privacy/PersonalData.php:556
 msgid "Reason for review"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:556
+#: src/Privacy/PersonalData.php:566
 msgid "WP License Captain renewals"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:565
+#: src/Privacy/PersonalData.php:575
 msgid "WP License Captain license history"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:568
+#: src/Privacy/PersonalData.php:578
 msgid "Date (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:569
+#: src/Privacy/PersonalData.php:579
 msgid "Event"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:570
+#: src/Privacy/PersonalData.php:580
 msgid "Concerns"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:571
+#: src/Privacy/PersonalData.php:581
 msgid "Note"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:582
+#: src/Privacy/PersonalData.php:592
 msgid "WP License Captain consents to automatic renewal"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:587
+#: src/Privacy/PersonalData.php:597
 msgid "Consent given at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:588
+#: src/Privacy/PersonalData.php:598
 msgid "Given through"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:589
+#: src/Privacy/PersonalData.php:599
 msgid "Language"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:590
+#: src/Privacy/PersonalData.php:600
 msgid "Text you agreed to"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:603
+#: src/Privacy/PersonalData.php:613
 msgid "WP License Captain email log"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:607
+#: src/Privacy/PersonalData.php:617
 msgid "Email type"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:608
+#: src/Privacy/PersonalData.php:618
 msgid "For the period ending"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:609
+#: src/Privacy/PersonalData.php:619
 msgid "Sent at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:618
+#: src/Privacy/PersonalData.php:628
 msgid "Download link created at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:621
+#: src/Privacy/PersonalData.php:631
 msgid "Downloaded at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:624
+#: src/Privacy/PersonalData.php:634
 msgid "Requested through"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:631
+#: src/Privacy/PersonalData.php:641
 msgid "WP License Captain downloads"
-msgstr ""
-
-#. translators: %d: running number of the installation.
-#: src/Privacy/PersonalData.php:652
-#, php-format
-msgid "Installation %d identifier"
-msgstr ""
-
-#. translators: %d: running number of the installation.
-#: src/Privacy/PersonalData.php:654
-#, php-format
-msgid "Installation %d site URL"
-msgstr ""
-
-#. translators: %d: running number of the installation.
-#: src/Privacy/PersonalData.php:656
-#, php-format
-msgid "Installation %d environment"
-msgstr ""
-
-#. translators: %d: running number of the installation.
-#: src/Privacy/PersonalData.php:658
-#, php-format
-msgid "Installation %d status"
-msgstr ""
-
-#. translators: %d: running number of the installation.
-#: src/Privacy/PersonalData.php:660
-#, php-format
-msgid "Installation %d product version"
 msgstr ""
 
 #. translators: %d: running number of the installation.
 #: src/Privacy/PersonalData.php:662
 #, php-format
-msgid "Installation %d WordPress version"
+msgid "Installation %d identifier"
 msgstr ""
 
 #. translators: %d: running number of the installation.
 #: src/Privacy/PersonalData.php:664
 #, php-format
-msgid "Installation %d PHP version"
+msgid "Installation %d site URL"
 msgstr ""
 
 #. translators: %d: running number of the installation.
 #: src/Privacy/PersonalData.php:666
 #, php-format
-msgid "Installation %d activated at"
+msgid "Installation %d environment"
 msgstr ""
 
 #. translators: %d: running number of the installation.
 #: src/Privacy/PersonalData.php:668
 #, php-format
-msgid "Installation %d last seen at"
+msgid "Installation %d status"
 msgstr ""
 
 #. translators: %d: running number of the installation.
 #: src/Privacy/PersonalData.php:670
 #, php-format
+msgid "Installation %d product version"
+msgstr ""
+
+#. translators: %d: running number of the installation.
+#: src/Privacy/PersonalData.php:672
+#, php-format
+msgid "Installation %d WordPress version"
+msgstr ""
+
+#. translators: %d: running number of the installation.
+#: src/Privacy/PersonalData.php:674
+#, php-format
+msgid "Installation %d PHP version"
+msgstr ""
+
+#. translators: %d: running number of the installation.
+#: src/Privacy/PersonalData.php:676
+#, php-format
+msgid "Installation %d activated at"
+msgstr ""
+
+#. translators: %d: running number of the installation.
+#: src/Privacy/PersonalData.php:678
+#, php-format
+msgid "Installation %d last seen at"
+msgstr ""
+
+#. translators: %d: running number of the installation.
+#: src/Privacy/PersonalData.php:680
+#, php-format
 msgid "Installation %d deactivated at"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:815
+#: src/Privacy/PersonalData.php:825
 msgid "The license data could not be read. Please try again."
 msgstr ""
 
-#: src/Privacy/PersonalData.php:854
+#: src/Privacy/PersonalData.php:864
 msgid "WP License Captain found no customer account and no order billing address with this e-mail address, so no license data was erased. Licenses belong to customer accounts: if the person used another e-mail address for the account, run the request for that address."
 msgstr ""
 
 #. translators: %d: number of licenses.
-#: src/Privacy/PersonalData.php:995
+#: src/Privacy/PersonalData.php:1005
 #, php-format
 msgid "%d ended license was detached from the account; its installations, email log and download records were deleted. WooCommerce order records were preserved."
 msgid_plural "%d ended licenses were detached from the account; their installations, email log and download records were deleted. WooCommerce order records were preserved."
@@ -7037,7 +7053,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of licenses.
-#: src/Privacy/PersonalData.php:1007
+#: src/Privacy/PersonalData.php:1017
 #, php-format
 msgid "Automatic renewal was switched off for %d license; the stored payment method reference was removed and open renewals were cancelled."
 msgid_plural "Automatic renewal was switched off for %d licenses; the stored payment method references were removed and open renewals were cancelled."
@@ -7045,7 +7061,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: number of licenses.
-#: src/Privacy/PersonalData.php:1019
+#: src/Privacy/PersonalData.php:1029
 #, php-format
 msgid "The payment provider references (customer and payment method) were removed from %s license."
 msgid_plural "The payment provider references (customer and payment method) were removed from %s licenses."
@@ -7053,18 +7069,18 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of licenses.
-#: src/Privacy/PersonalData.php:1031
+#: src/Privacy/PersonalData.php:1041
 #, php-format
 msgid "%d license that is still in force was retained to preserve the paid service, together with its active installations. It ends with its paid period and can be erased afterwards."
 msgid_plural "%d licenses that are still in force were retained to preserve the paid service, together with their active installations. They end with their paid period and can be erased afterwards."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Privacy/PersonalData.php:1041
+#: src/Privacy/PersonalData.php:1051
 msgid "Some license records could not be erased because of a database error. They were retained; run the erasure request again."
 msgstr ""
 
-#: src/Privacy/PersonalData.php:1131
+#: src/Privacy/PersonalData.php:1141
 msgid "WP License Captain: the customer requested erasure of their license data; this renewal was cancelled."
 msgstr ""
 
