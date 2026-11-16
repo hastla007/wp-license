@@ -600,6 +600,121 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
 	}
 
+	// R-26 / R-27 (client 2.1.0): storage is confirmed, a failed write never leaves more rights behind.
+
+	public function test_r26_a_signed_withdrawal_that_cannot_be_stored_does_not_leave_the_older_rights_in_charge(): void {
+		foreach ( array( 'suspended', 'revoked', 'expired' ) as $license_status ) {
+			$this->kit       = new WPLC_Client_Test_Kit();
+			$manager         = $this->activated();
+			$server          = $this->kit->server;
+			$server->queue[] = $server->signed( $server->entitlement( array( 'license_status' => $license_status, 'access' => false, 'entitlements' => array() ) ) );
+			$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+
+			$this->kit->store->fail = true;
+			$result                 = $manager->refresh();
+
+			$this->assertInstanceOf( WP_Error::class, $result, $license_status );
+			$this->assertSame( 'wplc_state_not_saved', $result->get_error_code() );
+			$this->assertFalse( $manager->is_entitled( 'feature.flag' ), 'The request that received the answer follows it.' );
+			$this->assertFalse( $manager->status()->access );
+			$this->assertSame( $license_status, $manager->status()->license_status );
+
+			// A later request (new object, same database): the older snapshot that granted access is gone.
+			$this->kit->store->fail = false;
+			$later                  = $this->kit->manager();
+			$this->assertFalse( $later->is_entitled( 'feature.flag' ), $license_status );
+			$this->assertSame( LicenseStatus::STATE_STALE, $later->status()->state );
+			$this->assertArrayNotHasKey( 'test_addon_license_state', $this->kit->store->data );
+
+			// The next answer that can be stored applies normally.
+			$server->queue[] = $server->signed( $server->entitlement( array( 'license_status' => $license_status, 'access' => false, 'entitlements' => array() ) ) );
+			$this->assertFalse( $later->refresh()->access );
+			$this->assertArrayHasKey( 'envelope', $this->kit->store->data['test_addon_license_state'] );
+		}
+	}
+
+	public function test_r26_a_withdrawn_right_that_cannot_be_stored_is_not_granted_from_the_older_state(): void {
+		$manager         = $this->activated();
+		$server          = $this->kit->server;
+		$server->queue[] = $server->signed( $server->entitlement( array( 'entitlements' => array( 'other.flag' => true ) ) ) );
+
+		$this->kit->store->fail = true;
+		$this->assertSame( 'wplc_state_not_saved', $manager->refresh()->get_error_code() );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+		$this->assertTrue( $manager->is_entitled( 'other.flag' ) );
+
+		$this->kit->store->fail = false;
+		$this->assertFalse( $this->kit->manager()->is_entitled( 'feature.flag' ) );
+	}
+
+	public function test_r26_an_unstored_answer_with_the_same_rights_keeps_the_older_state(): void {
+		$manager         = $this->activated();
+		$server          = $this->kit->server;
+		$before          = $this->kit->store->data['test_addon_license_state'];
+		$server->queue[] = $server->signed( $server->entitlement() );
+
+		$this->kit->store->fail = true;
+		$this->assertSame( 'wplc_state_not_saved', $manager->refresh()->get_error_code() );
+		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+
+		// Nothing was taken away, so a database hiccup does not switch a paid add-on off.
+		$this->kit->store->fail = false;
+		$this->assertSame( $before, $this->kit->store->data['test_addon_license_state'] );
+		$this->assertTrue( $this->kit->manager()->is_entitled( 'feature.flag' ) );
+
+		// A failed request (kept cache) that cannot be recorded changes nothing either.
+		$this->kit->store->fail     = true;
+		$this->kit->server->queue[] = new WP_Error( 'http_request_failed', 'down' );
+		$this->assertSame( 'wplc_connection_failed', $manager->refresh()->get_error_code() );
+		$this->assertSame( $before, $this->kit->store->data['test_addon_license_state'] );
+		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+	}
+
+	public function test_r26_a_database_that_refuses_write_and_delete_is_reported_and_the_request_follows_the_answer(): void {
+		$manager         = $this->activated();
+		$server          = $this->kit->server;
+		$server->queue[] = $server->signed( $server->entitlement( array( 'license_status' => 'revoked', 'access' => false, 'entitlements' => array() ) ) );
+
+		$this->kit->store->fail        = true;
+		$this->kit->store->fail_delete = true;
+		$this->assertSame( 'wplc_state_not_saved', $manager->refresh()->get_error_code() );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+		$this->assertSame( LicenseStatus::STATE_REVOKED, $manager->status()->state );
+	}
+
+	public function test_r27_deactivation_reports_credentials_the_database_kept(): void {
+		// Released on the server, but the credentials cannot be deleted.
+		$manager                       = $this->activated();
+		$this->kit->server->queue[]    = $this->kit->server->signed( array( 'status' => 'deactivated' ) );
+		$this->kit->store->fail_delete = true;
+
+		$result = $manager->deactivate();
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'wplc_credentials_not_removed', $result->get_error_code() );
+		$this->assertSame( array( 'status' => 'deactivated' ), array_intersect_key( (array) $result->get_error_data()['result'], array( 'status' => true ) ) );
+		$this->assertTrue( $manager->client()->is_activated(), 'The credentials are still there, and the result says so.' );
+
+		$message = $manager->run_form_action( 'forget' );
+		$this->assertSame( 'error', $message['type'] );
+		$this->assertStringContainsString( 'wplc_credentials_not_removed', $message['text'] );
+		$this->assertFalse( $manager->forget_locally() );
+
+		// Once the database works again the admin action removes them.
+		$this->kit->store->fail_delete = false;
+		$this->assertTrue( $manager->forget_locally() );
+		$this->assertFalse( $manager->client()->is_activated() );
+		$this->assertArrayNotHasKey( 'test_addon_license_state', $this->kit->store->data );
+
+		// The normal case still reports the answer of the server.
+		$this->kit                  = new WPLC_Client_Test_Kit();
+		$manager                    = $this->activated();
+		$this->kit->server->queue[] = $this->kit->server->signed( array( 'status' => 'deactivated' ) );
+		$result                     = $manager->deactivate();
+		$this->assertIsArray( $result );
+		$this->assertSame( 'success', $manager->run_form_action( 'forget' )['type'] );
+	}
+
 	public function test_privacy_text_names_the_server_and_what_is_sent(): void {
 		$text = $this->kit->manager()->privacy_text();
 
@@ -624,7 +739,7 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertTrue( $first->is_entitled( 'feature.flag' ) );
 		$this->assertFalse( $second->is_entitled( 'feature.flag' ) );
 		$this->assertSame( LicenseStatus::STATE_UNLICENSED, $second->status()->state );
-		$this->assertSame( '2.0.2', LicenseManager::VERSION );
+		$this->assertSame( '2.1.0', LicenseManager::VERSION );
 		$this->assertSame( LicenseManager::VERSION, LicenseClient::VERSION );
 	}
 

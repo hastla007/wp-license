@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 3b00fc4984dfb535bd46b56d3164de2fd2b8c3e08ad30c078adbad19dcea290e). Do not edit: change the server copy and re-vendor.
+ * (source sha256 804145307faba490c00e18ec5fb0fb2de98a33655f9b306f15c4d2f55ebf0a76). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -33,7 +33,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.2';
+		const VERSION = '2.1.0';
 
 		/**
 		 * Text domain literal used in this file.
@@ -130,6 +130,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'error.wplc_not_activated'            => __( 'This site has not been activated with a license key yet.', 'premium-addon-starter' ),
 				'error.wplc_site_changed'             => __( 'The address of this site differs from the address the license was activated for. This looks like a copy of the site. Activate the license for this address.', 'premium-addon-starter' ),
 				'error.wplc_credentials_not_saved'    => __( 'The activation data could not be stored in the database of this site. Check the database and try again.', 'premium-addon-starter' ),
+				'error.wplc_credentials_not_removed'  => __( 'The activation data could not be deleted from the database of this site. Check the database and try again.', 'premium-addon-starter' ),
+				'error.wplc_state_not_saved'          => __( 'The answer of the license server could not be stored in the database of this site. Check the database; the check is repeated automatically.', 'premium-addon-starter' ),
 				'error.wplc_json_error'               => __( 'The request to the license server could not be prepared.', 'premium-addon-starter' ),
 				'error.wplc_http_error'               => __( 'The license server answered with an unexpected error.', 'premium-addon-starter' ),
 				'error.wplc_connection_failed'        => __( 'The license server could not be reached. Premium features keep working; the check is repeated automatically.', 'premium-addon-starter' ),

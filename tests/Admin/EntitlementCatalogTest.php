@@ -78,6 +78,23 @@ final class EntitlementCatalogTest extends TestCase {
 	}
 
 	/**
+	 * R-28: an entitlement key named as an example in the client library exists in the catalog.
+	 */
+	public function test_r28_examples_in_the_client_library_name_catalogued_keys(): void {
+		$known = EntitlementCatalog::known_keys();
+		$found = array();
+		foreach ( (array) glob( dirname( __DIR__, 2 ) . '/src/Client/*.php' ) as $file ) {
+			preg_match_all( '/`((?:affiliate|voucher|pass|workflow|form|review)\.[a-z0-9_]+)`/', (string) file_get_contents( $file ), $matches );
+			foreach ( $matches[1] as $key ) {
+				$found[] = $key;
+				$this->assertContains( $key, $known, basename( $file ) . ' names ' . $key );
+			}
+		}
+		$this->assertContains( 'pass.waiting_room', $found, 'The scan finds the examples.' );
+		$this->assertNotContains( 'voucher.qr_redemption', $found );
+	}
+
+	/**
 	 * R-07, R-08: keys that named functions of the free core plugins are gone from the catalog.
 	 *
 	 * @return string[]

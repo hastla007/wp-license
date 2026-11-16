@@ -28,7 +28,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.2';
+		const VERSION = '2.1.0';
 
 		/**
 		 * A signed answer ended the activation: rights and credentials are dropped.
@@ -99,6 +99,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @var array<string,mixed>|null
 		 */
 		private $snapshot;
+
+		/**
+		 * State of this request that the database did not take (see write()); null when the stored one counts.
+		 *
+		 * @var array<string,mixed>|null
+		 */
+		private $unsaved;
 
 		/**
 		 * Constructor.
@@ -332,7 +339,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * Reads one non-autoloaded option and verifies the stored snapshot; no
 		 * request is sent.
 		 *
-		 * @param string $key Entitlement key, e.g. `voucher.qr_redemption`.
+		 * @param string $key Entitlement key, e.g. `pass.waiting_room`.
 		 * @return bool
 		 */
 		public function is_entitled( string $key ): bool {
@@ -458,12 +465,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		public function deactivate() {
 			$before = $this->status()->state;
 			$result = $this->client()->deactivate();
-			if ( ! is_wp_error( $result ) ) {
-				$this->client()->store()->delete( $this->state_option() );
-				$this->snapshot = null;
+			// "Not removed" means: released on the server, but the credentials are still in the database.
+			// The cached rights are dropped in that case too.
+			if ( ! is_wp_error( $result ) || 'wplc_credentials_not_removed' === $result->get_error_code() ) {
+				$removed = $this->drop_state();
 				$this->updater()->flush();
 				$this->ensure_schedule();
 				$this->changed( $before );
+				if ( ! $removed && ! is_wp_error( $result ) ) {
+					$result = new \WP_Error( 'wplc_credentials_not_removed', $this->client()->messages()->error( 'wplc_credentials_not_removed' ), array( 'result' => $result ) );
+				}
 			}
 
 			return $result;
@@ -476,16 +487,19 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * unsigned refusal, which leaves this as the way out when the server really
 		 * no longer knows the installation.
 		 *
-		 * @return void
+		 * @since 2.1.0 Returns the result; before, it returned nothing.
+		 *
+		 * @return bool Whether the credentials and the cached rights are gone from the database.
 		 */
-		public function forget_locally(): void {
-			$before = $this->status()->state;
-			$this->client()->forget();
-			$this->client()->store()->delete( $this->state_option() );
-			$this->snapshot = null;
+		public function forget_locally(): bool {
+			$before    = $this->status()->state;
+			$forgotten = $this->client()->forget();
+			$removed   = $this->drop_state();
 			$this->updater()->flush();
 			$this->ensure_schedule();
 			$this->changed( $before );
+
+			return $forgotten && $removed;
 		}
 
 		/**
@@ -871,8 +885,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$result = $this->deactivate();
 				$saved  = is_array( $result ) && 'removed_locally' === ( $result['status'] ?? '' ) && 'wplc_site_changed' === ( $result['reason'] ?? '' ) ? 'ui.saved.deactivated_locally' : 'ui.saved.deactivated';
 			} elseif ( 'forget' === $action ) {
-				$this->forget_locally();
-				$result = array();
+				$result = $this->forget_locally() ? array() : new \WP_Error( 'wplc_credentials_not_removed', $this->client()->messages()->error( 'wplc_credentials_not_removed' ) );
 				$saved  = 'ui.saved.forgotten';
 			} else {
 				$result = $this->refresh( true );
@@ -1065,7 +1078,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 					$state['lock']     = '';
 					$state['envelope'] = $this->client()->last_envelope();
 				}
-				$this->write( $state );
+				if ( ! $this->write( $state ) ) {
+					return new \WP_Error( 'wplc_state_not_saved', $this->client()->messages()->error( 'wplc_state_not_saved' ) );
+				}
 
 				return null;
 			}
@@ -1193,6 +1208,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @return array<string,mixed>
 		 */
 		private function state(): array {
+			if ( null !== $this->unsaved ) {
+				return $this->unsaved;
+			}
 			$state = $this->client()->store()->get( $this->state_option(), array() );
 
 			return is_array( $state ) ? $state : array();
@@ -1201,12 +1219,47 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Write the state and forget the memoized snapshot.
 		 *
+		 * A state the database did not take must not leave the older one in
+		 * charge when that one grants more: a signed answer that withdraws the
+		 * access or a right would otherwise stay without effect until the offline
+		 * window of the older answer ends. In that case the stored state is
+		 * deleted (the add-on then reports "stale", without rights, until an
+		 * answer can be stored). An older state that grants the same is kept.
+		 * For the rest of the request the new state is used from memory either
+		 * way. A database that accepts neither the write nor the delete keeps the
+		 * old state; the daily check repeats the request.
+		 *
 		 * @param array<string,mixed> $state State.
-		 * @return void
+		 * @return bool Whether the state is stored.
 		 */
-		private function write( array $state ): void {
-			$this->client()->store()->set( $this->state_option(), $state );
+		private function write( array $state ): bool {
+			$this->unsaved  = null;
 			$this->snapshot = null;
+			if ( $this->client()->store()->set( $this->state_option(), $state ) ) {
+				return true;
+			}
+
+			$stored         = $this->status();
+			$this->unsaved  = $state;
+			$this->snapshot = null;
+			$current        = $this->status();
+			if ( $stored->access && ( ! $current->access || $stored->entitlements !== $current->entitlements ) ) {
+				$this->client()->store()->delete( $this->state_option() );
+			}
+
+			return false;
+		}
+
+		/**
+		 * Delete the stored state (cached rights) of this add-on.
+		 *
+		 * @return bool Whether it is gone from the database.
+		 */
+		private function drop_state(): bool {
+			$this->unsaved  = null;
+			$this->snapshot = null;
+
+			return $this->client()->store()->delete( $this->state_option() );
 		}
 
 		/**

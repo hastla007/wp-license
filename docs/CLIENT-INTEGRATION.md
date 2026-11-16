@@ -38,7 +38,7 @@ It copies `src/Client/*.php`, replaces `namespace WPLC\Client;` by the given nam
 **Without the script: an unchanged copy.** Every class is declared inside `if ( ! class_exists( ... ) )`, so two add-ons with the same unchanged files do not end in "Cannot declare class". The limits of this way:
 
 - The copy that is loaded **first** is used by all add-ons, also when it is the older one. WordPress loads plugins in the alphabetical order of their folders.
-- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.0.2`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.1.0', '<' )`) and show a message; it cannot replace a class that is already declared.
+- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.1.0`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.2.0', '<' )`) and show a message; it cannot replace a class that is already declared.
 - The strings keep the text domain `wp-license`. They are translated through the `text_domain` setting only if the add-on's language files contain them; `make-pot` does not find them on its own.
 
 Use the unchanged copy for experiments only.
@@ -237,6 +237,8 @@ Codes of the library itself:
 | `wplc_not_activated` | No credentials on this site. |
 | `wplc_site_changed` | The site address differs from the activated one. No request was sent. |
 | `wplc_credentials_not_saved` | The credentials could not be written to the database. No request was sent (pending step), or the activation exists on the server and the next attempt finds it again. |
+| `wplc_credentials_not_removed` | `deactivate()` or "remove anyway" could not delete the credentials or the cached rights from the database (since 2.1.0). The activation is already released on the server when `deactivate()` reports it; the error data `result` carries the answer. Repeat `forget_locally()` once the database works. |
+| `wplc_state_not_saved` | A signed answer could not be stored (since 2.1.0). The request that received it follows the answer; a stored older state that granted more is deleted, so the add-on reports "stale" until an answer can be stored. An older state that grants the same is kept. |
 | `wplc_connection_failed` | No HTTP answer from any server address; `transport_code` and `transport_message` carry the WordPress HTTP error. |
 | `wplc_blocked_by_firewall` | An HTML page arrived instead of JSON: a WAF, a bot challenge, a maintenance page. |
 | `wplc_http_error` | An error status without a JSON error body. |
@@ -282,7 +284,7 @@ A change of scheme (`http` → `https`), of a leading `www.` or of the case of t
 
 ### Deactivation
 
-`deactivate()` sends a signed `DELETE` with the current site address. The local data is removed after the signed confirmation, or on a signed refusal (`403 activation_deactivated` whose `data.signed` verifies against the pinned keys; result `status: removed_locally`). Every other error keeps the credentials and is returned, so that the release can be repeated; this includes an unsigned `site_mismatch` or `activation_not_found`, which anyone between the site and the server could send. An add-on that wants a "remove anyway" button calls `client()->forget()` (a new activation with the key also replaces credentials the server no longer knows). If the host or a firewall refuses the `DELETE` method (HTML page, `405`, `501`), the request is repeated as `POST` with `X-HTTP-Method-Override: DELETE`.
+`deactivate()` sends a signed `DELETE` with the current site address. The local data is removed after the signed confirmation, or on a signed refusal (`403 activation_deactivated` whose `data.signed` verifies against the pinned keys; result `status: removed_locally`). Every other error keeps the credentials and is returned, so that the release can be repeated; this includes an unsigned `site_mismatch` or `activation_not_found`, which anyone between the site and the server could send. Since 2.1.0 `OptionStore::delete()`, `LicenseClient::forget()` and `LicenseManager::forget_locally()` return whether the data is really gone, and `deactivate()` returns the error `wplc_credentials_not_removed` when the database kept it. An add-on that wants a "remove anyway" button calls `client()->forget()` (a new activation with the key also replaces credentials the server no longer knows). If the host or a firewall refuses the `DELETE` method (HTML page, `405`, `501`), the request is repeated as `POST` with `X-HTTP-Method-Override: DELETE`.
 
 ## Multisite
 

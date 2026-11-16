@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/LicenseClient.php
- * (source sha256 c7af15bd7deb0f48dcf79737b4f2f548eb52c31bc549cdbf7fb843793189e58f). Do not edit: change the server copy and re-vendor.
+ * (source sha256 41796a2809a5da469f3038a7296dbda4c7c521ba3051dffc06103aaf7d8cd0d7). Do not edit: change the server copy and re-vendor.
  *
  * Transport of the license client: activation, signed requests, verified answers.
  *
@@ -35,7 +35,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.2';
+		const VERSION = '2.1.0';
 
 		/**
 		 * Context of the Ed25519 signature over the payload text.
@@ -728,6 +728,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * unsigned `site_mismatch` or `activation_not_found` (anyone between the
 		 * site and the server could send those); use forget() to drop them anyway.
 		 *
+		 * When the credentials should be dropped but the database still holds them
+		 * afterwards, the result is the error `wplc_credentials_not_removed` (its
+		 * data `result` carries what would have been returned). The activation is
+		 * then already released on the server; the next signed request locks the
+		 * add-on, and forget() can be repeated.
+		 *
 		 * @return array<string,mixed>|\WP_Error
 		 */
 		public function deactivate() {
@@ -736,10 +742,11 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				return $credentials;
 			}
 			if ( ! $this->site_matches() ) {
-				$this->forget();
-				return array(
-					'status' => 'removed_locally',
-					'reason' => 'wplc_site_changed',
+				return $this->forgotten(
+					array(
+						'status' => 'removed_locally',
+						'reason' => 'wplc_site_changed',
+					)
 				);
 			}
 
@@ -755,27 +762,46 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			}
 			if ( is_wp_error( $data ) ) {
 				if ( self::is_signed_refusal( $data ) ) {
-					$this->forget();
-					return array(
-						'status' => 'removed_locally',
-						'reason' => $data->get_error_code(),
+					return $this->forgotten(
+						array(
+							'status' => 'removed_locally',
+							'reason' => $data->get_error_code(),
+						)
 					);
 				}
 				return $data;
 			}
-			$this->forget();
 
-			return $data;
+			return $this->forgotten( $data );
 		}
 
 		/**
 		 * Remove the stored credentials without contacting the server.
 		 *
-		 * @return void
+		 * @since 2.1.0 Returns the result; before, it returned nothing.
+		 *
+		 * @return bool Whether neither the credentials nor a pending activation are stored afterwards.
 		 */
-		public function forget(): void {
-			$this->store->delete( $this->option_key );
-			$this->store->delete( $this->option_key . '_pending' );
+		public function forget(): bool {
+			$credentials = $this->store->delete( $this->option_key );
+			$pending     = $this->store->delete( $this->option_key . '_pending' );
+
+			return $credentials && $pending;
+		}
+
+		/**
+		 * Result of deactivate() after the credentials were dropped: an error when they are still stored.
+		 *
+		 * @param array<string,mixed> $result Result to return when the credentials are gone.
+		 * @return array<string,mixed>|\WP_Error
+		 */
+		private function forgotten( array $result ) {
+			if ( $this->forget() ) {
+				return $result;
+			}
+
+			// The server (or the copy rule) released this site, but the database kept the credentials.
+			return $this->error( 'wplc_credentials_not_removed', array( 'result' => $result ) );
 		}
 
 		/**
