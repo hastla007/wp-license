@@ -103,7 +103,7 @@ $service_of   = static function ( string $server_url = '', ?callable $clock = nu
 	return new $service_class( $client, $config_class::credentials_option(), $config_class::state_option(), $config_class::ENTITLEMENT_PREFIX, $config_class::CACHE_MAX_AGE, $clock );
 };
 $entitlements = $ns . 'License\\Entitlements';
-e2e_eq( false, $entitlements::has( 'voucher.bulk_orders' ), 'before activation every premium feature is off (fail closed)' );
+e2e_eq( false, $entitlements::has( 'voucher.custom_branding' ), 'before activation every premium feature is off (fail closed)' );
 
 // --- Purchase a license. ---
 $zoe_id   = e2e_customer( 'zoe' );

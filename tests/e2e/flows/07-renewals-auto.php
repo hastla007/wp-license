@@ -145,7 +145,7 @@ e2e_ok( $failed_mails && false !== strpos( $failed_mails[0]['message'], 'order-p
 // Rights during grace.
 e2e_as_site( 'https://dave-shop.example' );
 $check = $client->check_entitlements();
-e2e_ok( is_array( $check ) && 'past_due' === ( $check['license_status'] ?? null ) && true === ( $check['entitlements']['voucher.bulk_orders'] ?? null ), 'during grace the site still gets its entitlements (license_status past_due)', is_array( $check ) ? $check : $error_of( $check ) );
+e2e_ok( is_array( $check ) && 'past_due' === ( $check['license_status'] ?? null ) && true === ( $check['entitlements']['voucher.custom_branding'] ?? null ), 'during grace the site still gets its entitlements (license_status past_due)', is_array( $check ) ? $check : $error_of( $check ) );
 $update = $client->check_update();
 e2e_ok( is_array( $update ) && true === ( $update['update_available'] ?? null ), 'during grace updates are still offered', $error_of( $update ) );
 e2e_as_site( '' );
