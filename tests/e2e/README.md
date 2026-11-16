@@ -58,7 +58,7 @@ A full run takes about five minutes after the first setup.
 6. The plugin is **copied without `vendor/`, `.git` and `tests/`** to
    `wp-content/plugins/wp-license`, so every run proves the fallback autoloader.
 7. `mu-plugins/wplc-e2e.php` is copied to the site (see below).
-8. A PHP built-in server on `127.0.0.1:$WPLC_E2E_PORT` with `router.php` and `$WPLC_E2E_SERVER_WORKERS` worker processes.
+8. A PHP built-in server on `127.0.0.1:$WPLC_E2E_PORT` with `router.php` and `$WPLC_E2E_SERVER_WORKERS` worker processes. `router.php` invalidates the OPcache entry of `wp-config.php` on every request, because flow `01-vendor-onboarding` changes that file while the server runs.
 
 ### HTTPS
 
@@ -102,6 +102,7 @@ talking real HTTP; request signatures, nonces, cookies, redirects and file strea
 | File | Covers |
 | --- | --- |
 | `01-activation.php` | Activation hook, fallback autoloader, 14 tables, schema option, repeatable migration, cron/Action Scheduler, REST routes, every admin screen over HTTP |
+| `01-vendor-onboarding.php` | PROD-09 and PROD-04 on the empty installation right after activation, with an invented vendor ("Acme Plugins", product key `acme-reports-pro`, entitlements `acme_reports.*`): the "Getting started" checklist of the settings screen is checked after every step and exactly that step turns to done: public key (`WPLC_RESPONSE_SIGNING_KEY` added to `wp-config.php`), catalog file upload, license product in the product editor (only the catalog's entitlements offered, neutral placeholder), release upload and publish (a draft does not count), test purchase; then activation, entitlement check and update check through the `LicenseClient` pinned to that key; finally `WPLC_STRIPE_WEBHOOK_SECRET`, after which the checklist folds away. The flow removes the constants and everything it created, so the later flows start from the same empty shop |
 | `02-catalog.php` | Product editor POST (simple product, variations via admin-ajax, whole variable product, parent-level mapping), price changes, invalid input, CSV export/import round trip |
 | `03-purchase.php` | Forced registration, checkout, quantity 2 → 2 licenses + entitlements, repeated hooks, "license issued" email (no full key by default), My Account |
 | `04-client-server.php` | `LicenseClient`: activate, signed entitlement check, both response signatures, replay/expiry/tamper checks, site limit, staging, development, deactivation cascade, replacing a site, customer deactivation |

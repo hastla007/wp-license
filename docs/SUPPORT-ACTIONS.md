@@ -293,7 +293,21 @@ Entries cannot be edited or deleted here. Old entries are removed by the data re
 
 ## Settings
 
-WooCommerce → License settings (also linked as "Getting started" in the plugin list). At the top, a "Getting started" checklist names the steps in the order they are needed – secrets in `wp-config.php`, a license product with product and plan key, the Stripe webhook, the first release, a test purchase – each marked done or to do with a link to its screen; it folds away once every step is done (A-121). Below it, status rows (schema, Stripe webhook, secrets, how many recent license keys can be verified, why automatic renewal is unavailable, checkout type) and the settings.
+WooCommerce → License settings (also linked as "Getting started" in the plugin list). At the top, a "Getting started" checklist leads a new vendor from an empty installation to the first sale (A-121, PROD-09). The state of every step is read from the site on each visit; nothing is stored. Each step has a one-line hint and a link to the screen where it is done; the summary says how many of the seven steps are done, and the checklist folds away once all are done.
+
+| Step | Done when | Link |
+| --- | --- | --- |
+| Define the secrets in `wp-config.php` | `WPLC_LICENSE_KEY_SECRETS` and `WPLC_INSTALLATION_ENCRYPTION_KEYS` (or their single-key forms) are set, so neither falls back to the WordPress salts | Diagnostics |
+| Pin the public key in your add-on | `WPLC_RESPONSE_SIGNING_KEY` is set in `wp-config.php` and usable (`wp wplc signing-key --generate`). A key stored in the database does not count: a restored or copied database could change the public key the add-on pins. Reading the state never creates a stored key | Diagnostics (shows the public key) |
+| Import your catalog file | At least one catalog file was imported by upload, WP-CLI or a release package; the copies shipped in `catalogs/` do not count ([CATALOG-FILE.md](CATALOG-FILE.md)) | Catalog files |
+| Turn a product into a license product | At least one active plan exists | Products |
+| Publish the first release | At least one release is published (a draft does not count) | License releases |
+| Make a test purchase | At least one license exists | Licenses |
+| Connect the Stripe webhook | `WPLC_STRIPE_WEBHOOK_SECRET` is set ([STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md)) | – |
+
+The logic is `Settings::setup_state()` (reads the site) and `Settings::setup_steps_for()` (pure; unit tests in `tests/Admin/SettingsTest.php`, integration test `AdminSupportWave2IntegrationTest::test_a121_settings_page_lists_the_setup_steps_in_order`). The e2e flow `01-vendor-onboarding` walks through all steps with an invented vendor on an empty installation.
+
+Below the checklist, status rows (schema, Stripe webhook, secrets, how many recent license keys can be verified, why automatic renewal is unavailable, checkout type) and the settings.
 
 - A change is written to the audit log (`settings_updated`, see above).
 - **Trusted package hosts** can only be changed by an administrator; other users see the list read-only. If someone else changed the list after you opened the page, your save keeps their list and tells you so; the other fields of your form are still saved.

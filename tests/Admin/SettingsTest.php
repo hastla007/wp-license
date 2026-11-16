@@ -106,4 +106,51 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( array(), Settings::settings_diff( array(), Settings::defaults() )['changed'] );
 		$this->assertSame( array( 'reminder_days' ), Settings::settings_diff( array(), array( 'reminder_days' => '14' ) )['changed'] );
 	}
+
+	/** PROD-09: the onboarding steps of a new vendor, in the order they are needed. */
+	public function test_setup_steps_follow_the_onboarding_order_of_a_new_vendor(): void {
+		$steps = Settings::setup_steps_for( array() );
+
+		$this->assertSame( array( 'secrets', 'public_key', 'catalog', 'product', 'release', 'test', 'webhook' ), array_column( $steps, 'key' ) );
+		$this->assertSame( Settings::SETUP_STEPS, array_column( $steps, 'key' ) );
+		$this->assertSame( array_fill( 0, 7, false ), array_column( $steps, 'done' ), 'An empty state has every step open.' );
+		foreach ( $steps as $step ) {
+			$this->assertNotSame( '', $step['title'], $step['key'] );
+			$this->assertNotSame( '', $step['text'], $step['key'] );
+			$this->assertSame( '' === $step['link'], '' === $step['link_text'], $step['key'] );
+			$this->assertStringNotContainsString( '://', $step['link'], 'Links are relative to wp-admin/.' );
+		}
+	}
+
+	/** PROD-09: each step is done exactly when its flag is set; the order of finishing does not matter. */
+	public function test_each_setup_step_is_done_only_by_its_own_state(): void {
+		$state = array();
+		foreach ( array_reverse( Settings::SETUP_STEPS ) as $key ) {
+			$state[ $key ] = true;
+			$done          = array();
+			foreach ( Settings::setup_steps_for( $state ) as $step ) {
+				if ( $step['done'] ) {
+					$done[] = $step['key'];
+				}
+			}
+			$this->assertEqualsCanonicalizing( array_keys( $state ), $done );
+		}
+		$this->assertSame( array( false ), array_values( array_unique( array_column( Settings::setup_steps_for( array( 'catalog' => false, 'unknown' => true ) ), 'done' ) ) ) );
+	}
+
+	/** PROD-09: the steps link to the screen where the work is done and name what the vendor configures. */
+	public function test_setup_steps_link_to_the_right_screens(): void {
+		$steps = Settings::setup_steps_for( array() );
+		$links = array_column( $steps, 'link', 'key' );
+
+		$this->assertSame( 'admin.php?page=wplc-catalog-files', $links['catalog'] );
+		$this->assertSame( 'edit.php?post_type=product', $links['product'] );
+		$this->assertSame( 'admin.php?page=wplc-releases', $links['release'] );
+		$this->assertSame( 'admin.php?page=wplc-licenses', $links['test'] );
+		$this->assertSame( 'admin.php?page=wplc-diagnostics', $links['public_key'] );
+		$texts = implode( ' ', array_column( $steps, 'text' ) );
+		$this->assertStringContainsString( 'WPLC_RESPONSE_SIGNING_KEY', $texts );
+		$this->assertStringContainsString( 'wplc-catalog.json', $texts );
+		$this->assertStringContainsString( 'WPLC_STRIPE_WEBHOOK_SECRET', $texts );
+	}
 }

@@ -83,6 +83,7 @@ Start here:
 - [To-do list (single task list)](docs/TODO.md)
 - [Release readiness checklist](docs/RELEASE-READINESS.md)
 - [Changelog](CHANGELOG.md)
+- First steps for a new vendor: the "Getting started" checklist under WooCommerce → License settings ([description](docs/SUPPORT-ACTIONS.md#settings))
 
 Concepts:
 

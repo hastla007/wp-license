@@ -390,14 +390,32 @@ final class AdminSupportWave2IntegrationTest extends WPLC_Integration_TestCase {
 		wp_set_current_user( $admin );
 
 		$steps = Settings::setup_steps();
-		$this->assertSame( array( 'secrets', 'product', 'webhook', 'release', 'test' ), array_column( $steps, 'key' ) );
-		$this->assertFalse( $steps[1]['done'], 'No license product exists yet.' );
+		$this->assertSame( array( 'secrets', 'public_key', 'catalog', 'product', 'release', 'test', 'webhook' ), array_column( $steps, 'key' ) );
+		$state = Settings::setup_state();
+		$this->assertSame( Settings::SETUP_STEPS, array_keys( $state ) );
+		$this->assertFalse( $state['product'], 'No license product exists yet.' );
+		$this->assertFalse( $state['catalog'], 'PROD-09: the catalog files shipped in catalogs/ do not count as an imported catalog file.' );
+		$this->assertFalse( $state['release'] );
+		$this->assertFalse( $state['test'] );
+		$this->assertFalse( $state['public_key'], 'PROD-09: without WPLC_RESPONSE_SIGNING_KEY the public key may still change.' );
+		$this->assertSame( '', (string) get_option( \WPLC\Security\ResponseSigner::OPTION, '' ), 'Reading the state creates no stored signing key.' );
 
 		$this->create_license_product();
 		$this->seed_license( array( 'customer_id' => $this->customer ) );
-		$steps = Settings::setup_steps();
-		$this->assertTrue( $steps[1]['done'] );
-		$this->assertTrue( $steps[4]['done'] );
+		\WPLC\Catalog\CatalogStore::reset_cache();
+		$this->assertTrue( \WPLC\Catalog\CatalogStore::import_json( (string) wp_json_encode( array( 'format' => 1, 'product_key' => 'acme-reports-pro', 'prefix' => 'acme_reports', 'name' => 'Acme Reports Pro', 'entitlements' => array( array( 'key' => 'acme_reports.scheduled_exports', 'label' => 'Scheduled exports' ) ) ) ), \WPLC\Catalog\CatalogStore::SOURCE_ADMIN )['ok'] );
+		global $wpdb;
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$wpdb->insert( $this->tables()['releases'], array( 'product_key' => 'acme-reports-pro', 'version' => '1.0.0', 'channel' => 'stable', 'package_url' => 'https://downloads.example.test/acme-reports-pro-1.0.0.zip', 'sha256' => str_repeat( 'a', 64 ), 'release_notes' => '', 'status' => 'draft', 'created_at' => $now, 'updated_at' => $now ) );
+		$this->assertFalse( Settings::setup_state()['release'], 'A draft release does not count.' );
+		$wpdb->update( $this->tables()['releases'], array( 'status' => 'published', 'published_at' => $now ), array( 'product_key' => 'acme-reports-pro' ) );
+
+		$state = Settings::setup_state();
+		$this->assertTrue( $state['product'] );
+		$this->assertTrue( $state['catalog'] );
+		$this->assertTrue( $state['release'] );
+		$this->assertTrue( $state['test'] );
+		$this->assertSame( array_values( $state ), array_column( Settings::setup_steps(), 'done' ) );
 
 		set_current_screen( 'woocommerce_page_wplc-settings' );
 		ob_start();
@@ -405,6 +423,9 @@ final class AdminSupportWave2IntegrationTest extends WPLC_Integration_TestCase {
 		$html = (string) ob_get_clean();
 		$this->assertStringContainsString( 'Getting started', $html );
 		$this->assertStringContainsString( 'data-wplc-step="webhook"', $html );
+		$this->assertStringContainsString( 'data-wplc-step="catalog" data-wplc-step-done="1"', $html );
+		$this->assertStringContainsString( 'page=wplc-catalog-files', $html );
+		$this->assertMatchesRegularExpression( '/\d of 7 steps done/', $html );
 
 		$links = Settings::plugin_action_links( array( 'deactivate' => 'Deactivate' ) );
 		$this->assertStringContainsString( 'page=wplc-settings', (string) $links[0] );

@@ -12,6 +12,12 @@ $_SERVER['HTTP_HOST']   = 'shop.test';
 $_SERVER['SERVER_NAME'] = 'shop.test';
 
 $wplc_e2e_root = $_SERVER['DOCUMENT_ROOT'];
+
+// A flow may change wp-config.php while the server runs (01-vendor-onboarding adds constants):
+// never let OPcache serve the previous copy of that small file.
+if ( function_exists( 'opcache_invalidate' ) ) {
+	opcache_invalidate( $wplc_e2e_root . '/wp-config.php', true );
+}
 $wplc_e2e_path = (string) parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
 $wplc_e2e_file = realpath( $wplc_e2e_root . $wplc_e2e_path );
 

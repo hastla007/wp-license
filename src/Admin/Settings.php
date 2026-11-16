@@ -599,77 +599,134 @@ final class Settings {
 	}
 
 	/**
-	 * Steps from activation to the first sold license, in the order they are needed (A-121).
-	 *
-	 * @return array<int,array{key:string,title:string,text:string,done:bool,link:string,link_text:string}>
+	 * Keys of the setup steps, in the order a new vendor needs them (A-121, PROD-09).
 	 */
-	public static function setup_steps(): array {
+	public const SETUP_STEPS = array( 'secrets', 'public_key', 'catalog', 'product', 'release', 'test', 'webhook' );
+
+	/**
+	 * What the site already has, one flag per setup step (PROD-09). Reads only; creates no key.
+	 *
+	 * - secrets: license key secrets and installation encryption keys come from wp-config.php.
+	 * - public_key: the response signing key comes from wp-config.php (WPLC_RESPONSE_SIGNING_KEY) and is usable, so
+	 *   the public key the add-on pins cannot change with a restored or copied database.
+	 * - catalog: at least one catalog file was imported (by upload, WP-CLI or a release package); the copies shipped
+	 *   in catalogs/ do not count.
+	 * - product: at least one active plan. release: at least one published release. test: at least one license.
+	 * - webhook: a Stripe webhook signing secret is configured.
+	 *
+	 * @return array<string,bool> Step key => done.
+	 */
+	public static function setup_state(): array {
 		global $wpdb;
 
 		$tables  = Schema::table_names();
-		$secrets = ! self::uses_fallback( '\\WPLC\\License\\LicenseKey', 'uses_fallback_secret', array( 'WPLC_LICENSE_KEY_SECRETS', 'WPLC_LICENSE_KEY_SECRET' ) )
-			&& ! self::uses_fallback( '\\WPLC\\Security\\SecretCrypto', 'uses_fallback_key', array( 'WPLC_INSTALLATION_ENCRYPTION_KEYS', 'WPLC_INSTALLATION_ENCRYPTION_KEY' ) );
-		$plan    = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE active = 1 LIMIT 1', $tables['plans'] ) ) > 0;
-		$release = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE status = %s LIMIT 1', $tables['releases'], 'published' ) ) > 0;
-		$license = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i LIMIT 1', $tables['licenses'] ) ) > 0;
+		$catalog = false;
+		foreach ( \WPLC\Catalog\CatalogStore::all() as $product ) {
+			if ( \WPLC\Catalog\CatalogStore::SOURCE_BUNDLED !== (string) ( $product['source'] ?? '' ) ) {
+				$catalog = true;
+				break;
+			}
+		}
 
 		return array(
-			array(
-				'key'       => 'secrets',
-				'title'     => __( 'Define the secrets in wp-config.php', 'wp-license' ),
-				'text'      => __( 'Set WPLC_LICENSE_KEY_SECRETS (with WPLC_LICENSE_KEY_ID) and WPLC_INSTALLATION_ENCRYPTION_KEYS before the first license is sold. Keys issued without them depend on the WordPress salts and stop working when the salts change.', 'wp-license' ),
-				'done'      => $secrets,
-				'link'      => '',
-				'link_text' => '',
-			),
-			array(
-				'key'       => 'product',
-				'title'     => __( 'Turn a product into a license product', 'wp-license' ),
-				'text'      => __( 'Edit the WooCommerce product, tick "License product" and enter the license product key and a plan key. The product key is the identifier the premium add-on asks the server for (for example voucher-captain-pro); every plan of it (for example single or agency, one per product or variation) has its own plan key. Keep both unchanged once the product is sold.', 'wp-license' ),
-				'done'      => $plan,
-				'link'      => admin_url( 'edit.php?post_type=product' ),
-				'link_text' => __( 'Open products', 'wp-license' ),
-			),
-			array(
-				'key'       => 'webhook',
-				'title'     => __( 'Connect the Stripe webhook', 'wp-license' ),
-				'text'      => __( 'In the Stripe dashboard, add an endpoint with the webhook URL shown under "Status" below and the events listed in the documentation (docs/STRIPE-WEBHOOKS.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected.', 'wp-license' ),
-				'done'      => \WPLC\Api\V1\StripeWebhook::is_configured(),
-				'link'      => '',
-				'link_text' => '',
-			),
-			array(
-				'key'       => 'release',
-				'title'     => __( 'Publish the first release', 'wp-license' ),
-				'text'      => __( 'Upload the add-on package and publish it, so that licensed sites can download it and receive updates.', 'wp-license' ),
-				'done'      => $release,
-				'link'      => admin_url( 'admin.php?page=wplc-releases' ),
-				'link_text' => __( 'Open license releases', 'wp-license' ),
-			),
-			array(
-				'key'       => 'test',
-				'title'     => __( 'Make a test purchase', 'wp-license' ),
-				'text'      => __( 'Buy the product with a test customer, check the license under Licenses and activate it in the add-on on a test site. The diagnostics page shows whether the daily background run works.', 'wp-license' ),
-				'done'      => $license,
-				'link'      => admin_url( 'admin.php?page=' . Diagnostics::PAGE ),
-				'link_text' => __( 'Open diagnostics', 'wp-license' ),
-			),
+			'secrets'    => ! self::uses_fallback( '\\WPLC\\License\\LicenseKey', 'uses_fallback_secret', array( 'WPLC_LICENSE_KEY_SECRETS', 'WPLC_LICENSE_KEY_SECRET' ) )
+				&& ! self::uses_fallback( '\\WPLC\\Security\\SecretCrypto', 'uses_fallback_key', array( 'WPLC_INSTALLATION_ENCRYPTION_KEYS', 'WPLC_INSTALLATION_ENCRYPTION_KEY' ) ),
+			// Only the constant is read: status() of a stored key would create one on an empty installation.
+			'public_key' => \WPLC\Security\ResponseSigner::uses_constant() && 'ok' === \WPLC\Security\ResponseSigner::status()['state'],
+			'catalog'    => $catalog,
+			'product'    => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE active = 1 LIMIT 1', $tables['plans'] ) ) > 0,
+			'release'    => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE status = %s LIMIT 1', $tables['releases'], 'published' ) ) > 0,
+			'test'       => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i LIMIT 1', $tables['licenses'] ) ) > 0,
+			'webhook'    => \WPLC\Api\V1\StripeWebhook::is_configured(),
 		);
 	}
 
 	/**
-	 * "Getting started" checklist; folded away once every step is done (A-121).
+	 * Steps from activation to the first sold license, with the state of this site (A-121, PROD-09).
+	 *
+	 * @return array<int,array{key:string,title:string,text:string,done:bool,link:string,link_text:string}>
+	 */
+	public static function setup_steps(): array {
+		return self::setup_steps_for( self::setup_state() );
+	}
+
+	/**
+	 * The setup checklist for a given state. Pure apart from translation; `link` is relative to wp-admin/.
+	 *
+	 * @param array<string,bool> $state Step key => done (see setup_state()); a missing key counts as not done.
+	 * @return array<int,array{key:string,title:string,text:string,done:bool,link:string,link_text:string}>
+	 */
+	public static function setup_steps_for( array $state ): array {
+		$diagnostics = 'admin.php?page=' . Diagnostics::PAGE;
+		$steps       = array(
+			'secrets'    => array(
+				'title'     => __( 'Define the secrets in wp-config.php', 'wp-license' ),
+				'text'      => __( 'Set WPLC_LICENSE_KEY_SECRETS (with WPLC_LICENSE_KEY_ID) and WPLC_INSTALLATION_ENCRYPTION_KEYS before the first license is sold. Keys issued without them depend on the WordPress salts and stop working when the salts change.', 'wp-license' ),
+				'link'      => $diagnostics,
+				'link_text' => __( 'Open diagnostics', 'wp-license' ),
+			),
+			'public_key' => array(
+				'title'     => __( 'Pin the public key in your add-on', 'wp-license' ),
+				'text'      => __( 'Put the response signing key into wp-config.php as WPLC_RESPONSE_SIGNING_KEY ("wp wplc signing-key --generate") and give its public key to the license client of your add-on (option public_keys).', 'wp-license' ),
+				'link'      => $diagnostics,
+				'link_text' => __( 'Show the public key', 'wp-license' ),
+			),
+			'catalog'    => array(
+				'title'     => __( 'Import your catalog file', 'wp-license' ),
+				'text'      => __( 'Describe your product and its entitlements in a wplc-catalog.json file (docs/CATALOG-FILE.md) and import it here, or ship it in the plugin folder of your release package.', 'wp-license' ),
+				'link'      => 'admin.php?page=' . CatalogFileAdmin::PAGE,
+				'link_text' => __( 'Open catalog files', 'wp-license' ),
+			),
+			'product'    => array(
+				'title'     => __( 'Turn a product into a license product', 'wp-license' ),
+				'text'      => __( 'Edit the WooCommerce product, tick "License product", enter the product key of your catalog file (for example acme-pro) and a plan key (for example single), and tick the entitlements of the plan. Keep both keys unchanged once the product is sold.', 'wp-license' ),
+				'link'      => 'edit.php?post_type=product',
+				'link_text' => __( 'Open products', 'wp-license' ),
+			),
+			'release'    => array(
+				'title'     => __( 'Publish the first release', 'wp-license' ),
+				'text'      => __( 'Upload the add-on package and publish it, so that licensed sites can download it and receive updates.', 'wp-license' ),
+				'link'      => 'admin.php?page=' . ReleaseAdmin::PAGE,
+				'link_text' => __( 'Open license releases', 'wp-license' ),
+			),
+			'test'       => array(
+				'title'     => __( 'Make a test purchase', 'wp-license' ),
+				'text'      => __( 'Buy the product with a test customer, check the license under Licenses and activate it in the add-on on a test site. The diagnostics page shows whether the daily background run works.', 'wp-license' ),
+				'link'      => 'admin.php?page=' . LicenseAdmin::PAGE,
+				'link_text' => __( 'Open licenses', 'wp-license' ),
+			),
+			'webhook'    => array(
+				'title'     => __( 'Connect the Stripe webhook', 'wp-license' ),
+				'text'      => __( 'In the Stripe dashboard, add an endpoint with the webhook URL shown under "Status" below and the events listed in the documentation (docs/STRIPE-WEBHOOKS.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected.', 'wp-license' ),
+				'link'      => '',
+				'link_text' => '',
+			),
+		);
+
+		$list = array();
+		foreach ( self::SETUP_STEPS as $key ) {
+			$list[] = array( 'key' => $key ) + $steps[ $key ] + array( 'done' => ! empty( $state[ $key ] ) );
+		}
+
+		return $list;
+	}
+
+	/**
+	 * "Getting started" checklist; folded away once every step is done (A-121, PROD-09).
 	 *
 	 * @return void
 	 */
 	private static function render_setup_steps(): void {
 		$steps = self::setup_steps();
-		$open  = count( array_filter( array_column( $steps, 'done' ) ) ) < count( $steps );
+		$done  = count( array_filter( array_column( $steps, 'done' ) ) );
+		$open  = $done < count( $steps );
 
-		echo '<details class="wplc-setup"' . ( $open ? ' open' : '' ) . '><summary><h2 style="display:inline">' . esc_html__( 'Getting started', 'wp-license' ) . '</h2></summary>';
+		echo '<details class="wplc-setup" data-wplc-setup-done="' . esc_attr( (string) $done ) . '"' . ( $open ? ' open' : '' ) . '><summary><h2 style="display:inline">' . esc_html__( 'Getting started', 'wp-license' ) . '</h2> ';
+		/* translators: 1: number of finished setup steps, 2: number of all setup steps. */
+		echo '<span>' . esc_html( sprintf( __( '%1$s of %2$s steps done', 'wp-license' ), number_format_i18n( $done ), number_format_i18n( count( $steps ) ) ) ) . '</span></summary>';
 		echo '<ol>';
 		foreach ( $steps as $step ) {
-			echo '<li data-wplc-step="' . esc_attr( $step['key'] ) . '"><strong>' . esc_html( $step['title'] ) . '</strong> ';
+			echo '<li data-wplc-step="' . esc_attr( $step['key'] ) . '" data-wplc-step-done="' . ( $step['done'] ? '1' : '0' ) . '"><strong>' . esc_html( $step['title'] ) . '</strong> ';
 			if ( $step['done'] ) {
 				echo '<span class="dashicons dashicons-yes-alt" style="color:#00a32a" aria-hidden="true"></span> <span>' . esc_html__( 'Done', 'wp-license' ) . '</span>';
 			} else {
@@ -677,7 +734,7 @@ final class Settings {
 			}
 			echo '<br><span class="description">' . esc_html( $step['text'] ) . '</span>';
 			if ( '' !== $step['link'] ) {
-				echo ' <a href="' . esc_url( $step['link'] ) . '">' . esc_html( $step['link_text'] ) . '</a>';
+				echo ' <a href="' . esc_url( admin_url( $step['link'] ) ) . '">' . esc_html( $step['link_text'] ) . '</a>';
 			}
 			echo '</li>';
 		}

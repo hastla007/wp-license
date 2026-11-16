@@ -1,6 +1,6 @@
 # Catalog file (`wplc-catalog.json`)
 
-A catalog file tells the license server which entitlements a license product has: their keys, their labels per language and whether they are released. The add-on (or its vendor's build) ships the file; the server imports it. The server code contains no product key, no entitlement key and no label of any vendor (owner decisions G2 and E8 of 16 Nov 2026, T-150).
+A catalog file tells the license server which entitlements a license product has: their keys, their labels per language and whether they are released. The add-on (or its vendor's build) ships the file; the server imports it. The server code contains no product key, no entitlement key and no label of any vendor (owner decisions G2 and E8 of 16 Nov 2026, T-150); placeholders, help texts and examples use invented names such as `acme-pro`. `tests/Contract/VendorNeutralSourceTest.php` scans `src/` (except the client library `src/Client/`, which is shipped to add-ons), `templates/` and `assets/` for the product keys, names and entitlement keys of the files under `catalogs/` and for other names of the Captain products (PROD-04).
 
 This page is the contract for whoever generates the file, for example the build of an add-on. Format version: **1**. The JSON schema is [catalog-file.schema.json](catalog-file.schema.json); the validator is `WPLC\Catalog\CatalogFile` (`src/Catalog/CatalogFile.php`).
 
@@ -102,6 +102,8 @@ A connector built for one customer project (decision 17 of 16 Nov 2026, for exam
 | WP-CLI | `wp wplc catalog import <file>... [--dry-run]`, `wp wplc catalog validate <file>...`, `wp wplc catalog list [--format=json]`, `wp wplc catalog export <product-key>`, `wp wplc catalog remove <product-key> [--yes]` | Shell access |
 | **Release package (automatic)** | When a release is created from a ZIP (upload on the releases screen, `wp wplc release create --zip=…`), the server reads `<plugin folder>/wplc-catalog.json` from the package and imports it. See "Import from the release package" below. | Capability `wplc_manage_releases`; setting "Import the catalog file from release packages" (on by default) |
 | Upgrade | Schema step 24 imports the files shipped under `catalogs/`. A product that was imported from a release package, in the admin or with WP-CLI is never replaced by a shipped file. | – |
+
+The step "Import your catalog file" of the "Getting started" checklist (WooCommerce → License settings) counts as done once one product was imported by the admin screen, WP-CLI or a release package; the shipped copies imported by the upgrade do not count (PROD-09, [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#settings)).
 
 ### Import from the release package (PROD-03)
 
