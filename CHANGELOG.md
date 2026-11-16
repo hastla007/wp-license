@@ -16,6 +16,8 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - **Vendor-neutral code (PROD-04).** Placeholders, help texts, WP-CLI examples and comments use neutral examples such as `acme-pro` instead of the owner's products. `tests/Contract/VendorNeutralSourceTest.php` scans `src/` (except the add-on library `src/Client/`), `templates/` and `assets/` for every product key, name and entitlement of `catalogs/*.json`.
 - **Guided setup for a new vendor (PROD-09).** The "Getting started" checklist under License settings has seven steps (secrets, public key in `wp-config.php`, catalog file, license product, first release, test purchase, Stripe webhook), each with a hint and a link; its state is read from the site on every visit. A new E2E flow (`01-vendor-onboarding`) runs the steps with an invented vendor on an empty installation.
 
+- **Vendor manual (PROD-10, English).** `docs/manual/` with an index and twelve chapters (installation and keys, catalog files, license products, releases, client integration, customer account, renewals and Stripe, operations, WP-CLI, troubleshooting, upgrading) ships in the plugin ZIP; `bin/check-zip-contents.php` requires every chapter and refuses internal documents. A German edition follows after the sale start.
+
 ### Fixed (16 Nov 2026, product isolation)
 
 - **A download token could deliver another product's URL package (PK-03).** `ReleaseRegistry::grant_is_deliverable()` now refuses a URL that matches only releases of other products, and `PackageStream::serve()` checks that the release belongs to the product of the license.
