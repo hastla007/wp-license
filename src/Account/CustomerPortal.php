@@ -608,6 +608,14 @@ final class CustomerPortal {
 		$pay_url     = 'past_due' === $status && isset( $related['renewal_orders'][ $license_id ] ) ? self::payment_url( (int) $related['renewal_orders'][ $license_id ] ) : '';
 		$has_release = self::has_release( $product_key );
 
+		$renewal_text = $running ? self::renewal_text( $license ) : '';
+		// INH-05: a license without automatic renewal has no terms table; name an announced price here.
+		$announced = $running && ! $auto ? RenewalTerms::announced_change( $license ) : null;
+		if ( $announced ) {
+			/* translators: 1: date, 2: amount. */
+			$renewal_text = trim( $renewal_text . ' ' . sprintf( __( 'From %1$s a renewal costs %2$s.', 'wp-license' ), $announced['from'], $announced['amount'] ) );
+		}
+
 		$view = array(
 			'id'            => $license_id,
 			'license'       => $license,
@@ -621,7 +629,7 @@ final class CustomerPortal {
 			'valid_until'   => Format::date( $license['paid_until'], false, __( 'No expiry', 'wp-license' ) ),
 			'sites_text'    => $sites_text,
 			'running'       => $running,
-			'renewal_text'  => $running ? self::renewal_text( $license ) : '',
+			'renewal_text'  => $renewal_text,
 			'renewal_terms' => $auto ? RenewalTerms::rows( $license ) : array(),
 			'pay_url'       => $pay_url,
 			'can_renew'     => $can_renew,

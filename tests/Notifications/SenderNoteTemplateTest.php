@@ -104,6 +104,6 @@ final class SenderNoteTemplateTest extends TestCase {
 			++$checked;
 		}
 
-		$this->assertSame( 18, $checked, 'Nine license emails, HTML and plain.' );
+		$this->assertSame( 22, $checked, 'Eleven license emails (two for an announced renewal price, INH-05), HTML and plain.' );
 	}
 }

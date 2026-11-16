@@ -606,9 +606,10 @@ final class RenewalOrder {
 	 * A license without a stored amount is priced from the catalog when the
 	 * customer renews manually, see choose_price(). A plan change scheduled
 	 * for the next renewal (T-110) replaces the price, see
-	 * choose_pending_price(). The shop changes the agreed amount of one
+	 * choose_pending_price(). The shop lowers the agreed amount of one
 	 * license with the support action "Change renewal amount"
-	 * (docs/SUPPORT-ACTIONS.md).
+	 * (docs/SUPPORT-ACTIONS.md) and raises it only with an announcement and
+	 * a notice period (PriceChange, INH-05).
 	 *
 	 * `includes_tax` tells how the amount is to be read (B-76): true = gross,
 	 * false = net, null = unknown, i.e. by the shop's current price setting.
@@ -618,6 +619,8 @@ final class RenewalOrder {
 	 * @return array{amount_minor:int,decimals:int,currency:string,plan:array<string,mixed>|null,pending_product:\WC_Product|null,includes_tax:bool|null}
 	 */
 	public static function price( array $license, bool $manual ): array {
+		// INH-05: an announced price change replaces the stored amount once its notice period is over.
+		$license = PriceChange::license_at( $license, time() );
 		$plan = self::plan_for_license( $license );
 		$flag = $license['renewal_amount_includes_tax'] ?? null;
 		$flag = null === $flag || '' === $flag ? null : (bool) (int) $flag;

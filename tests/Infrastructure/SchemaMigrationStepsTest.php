@@ -303,10 +303,26 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$property->setAccessible( true );
 		$steps = $property->getValue();
 
-		$this->assertSame( '24', Schema::VERSION );
 		$this->assertSame( 'step_24_import_bundled_catalogs', $steps['24'][1] );
-		$this->assertSame( array( '24' ), Schema::pending_step_versions( '23', Schema::VERSION, array_keys( $steps ) ) );
-		$this->assertSame( array( '23', '24' ), Schema::pending_step_versions( '22', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '24' ), Schema::pending_step_versions( '23', '24', array_keys( $steps ) ) );
+		$this->assertSame( array( '23', '24' ), Schema::pending_step_versions( '22', '24', array_keys( $steps ) ) );
+	}
+
+	/**
+	 * INH-05: schema 25 adds the columns of an announced renewal price; installs on 24 run only that step.
+	 */
+	public function test_schema_25_adds_the_price_change_columns(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$property->setAccessible( true );
+		$steps = $property->getValue();
+
+		$this->assertSame( '25', Schema::VERSION );
+		$this->assertSame( 'step_25_price_change_columns', $steps['25'][1] );
+		$this->assertSame( array( '25' ), Schema::pending_step_versions( '24', Schema::VERSION, array_keys( $steps ) ) );
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		foreach ( array( 'price_change_amount_minor bigint(20) unsigned DEFAULT NULL', 'price_change_effective_at datetime DEFAULT NULL', 'price_change_announced_at datetime DEFAULT NULL', 'price_change_notified_at datetime DEFAULT NULL', 'price_change_notice_days smallint(5) unsigned DEFAULT NULL' ) as $column ) {
+			$this->assertStringContainsString( $column, $source );
+		}
 	}
 
 	public function test_create_statements_contain_the_columns_of_both_lines(): void {

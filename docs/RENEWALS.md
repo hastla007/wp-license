@@ -300,9 +300,50 @@ A manual renewal is priced from the catalog only when the license has no stored 
 
 An automatic renewal without a stored amount is not charged ("This license has no renewal price").
 
-**Changing the agreed amount of one license.** The shop lowers it with the support action "Change renewal amount" on the license page (capability `wplc_manage_licenses`, reason required, audit `admin_renewal_amount_changed`; see [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md)). The action is offered for active and past-due licenses with or without automatic renewal. Raising is refused unless the filter `wplc_admin_can_raise_renewal_amount` allows it, which a shop may only do after the customer agreed to the new amount. A change of plan (upgrade, downgrade) sets the amount of the new plan as described under "Plan changes". There is no bulk action that moves all existing licenses to a new price list.
+**Changing the agreed amount of one license.** The shop lowers it with the support action "Change renewal amount" on the license page (capability `wplc_manage_licenses`, reason required, audit `admin_renewal_amount_changed`; see [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md)). The action is offered for active and past-due licenses with or without automatic renewal. Raising is refused unless the filter `wplc_admin_can_raise_renewal_amount` allows it, which a shop may only do after the customer agreed to the new amount. A change of plan (upgrade, downgrade) sets the amount of the new plan as described under "Plan changes". Raising the amount of existing licenses, one by one or for a whole plan, is done with an announcement and a notice period: see "Ending the price guarantee" below.
 
 The order line always uses the bought product (or, if it is gone, the plan's product), so its tax class applies.
+
+### Ending the price guarantee: a new renewal price with notice (INH-05)
+
+Owner decision of 16 Nov 2026: an existing license may be moved to a higher renewal price when the customer is told by email in advance and can cancel. **The notice period and the wording of the email have not been reviewed by a lawyer (T-93); have both checked before the first announcement.** Source: `src/Billing/PriceChange.php`.
+
+**Announcing.** For one license on the license page ("New renewal price with notice"), for every license of a product and plan under WooCommerce → Renewal price change, or with `wp wplc price-change announce` (dry run unless `--apply`). Each needs the capability `wplc_manage_licenses` and a reason; the screen for a whole plan also needs a ticked confirmation. An announcement is accepted when
+
+- the license is `active` or `past_due` and has a stored renewal amount,
+- the new amount is higher than the stored one (lowering needs no announcement: "Change renewal amount" works at once),
+- the license has no announcement yet (withdraw it first), and
+- the date is at least the notice period ahead. The period is the setting "Price change notice period": 60 days by default, never below 30, at most 365 (filter `wplc_price_change_notice_days`, clamped to the same range).
+
+The license stores the new amount, the date, the notice period in force, the time of the announcement and, once the mailer accepted it, the time of the notice (`price_change_amount_minor`, `price_change_effective_at`, `price_change_notice_days`, `price_change_announced_at`, `price_change_notified_at`; schema 25). The stored renewal amount is not changed.
+
+**The email.** "License renewal: new price announced" (WooCommerce → Settings → Emails, with preview; English, `de_DE`, `de_DE_formal`; template `emails/wplc-price-change.php`). It names the current price, the new price (both including tax where tax applies), the date from which the new price applies and how to cancel the automatic renewal. It is sent once per announcement (reminder log type `price_change`). When the mailer refuses it, when the email is switched off or while billing is paused on a copy of the shop, nothing is recorded and the daily job tries again.
+
+**Which price a renewal costs.**
+
+- The new amount applies from the later of (a) the announced date and (b) the time of the notice plus the notice period. A notice that went out late therefore moves the date by the full period.
+- Before that moment every renewal, automatic or manual, is priced at the stored amount. From that moment on every renewal is priced at the new amount. `RenewalOrder::price()` decides at the time the order is priced.
+- **Without a recorded notice the new amount never applies.** When the announced date passes without one, the license keeps renewing at the stored amount, the audit log gets `renewal_price_change_not_applied` once and `wplc/price_change_not_applied` fires (passed on as `wplc/health_alert` with the metric `price_change_not_applied`).
+- An order that was priced before keeps its amount: an automatic order is never re-priced on a retry, and an order that is paid or waiting for a bank transfer is never touched.
+- The daily job writes the new amount into `renewal_amount_minor` once it applies and clears the announcement (audit `renewal_price_change_applied`). From then on it is the agreed amount like any other.
+- The emails and the account name the amount of the next renewal at its due date; while an announced price is not in force yet, the terms show a second row "Amount from <date>".
+
+**Withdrawing.** Until the daily job applied it, an announcement can be withdrawn on the license page or with `wp wplc price-change withdraw` (reason required, audit `renewal_price_change_withdrawn`). A customer who had been notified gets the email "License renewal: announced price withdrawn".
+
+**Interplay.**
+
+| Situation | What happens |
+| --- | --- |
+| Customer cancels the automatic renewal after the notice | The normal cancellation: the license runs until the end of the paid period and nothing more is charged. This is the "way out" the email names. |
+| Plan change applied (upgrade, downgrade at renewal, administrator) | The announcement is dropped (`renewal_price_change_dropped`): the plan change sets the amount of the new plan. Announce again for the new plan if needed. |
+| Plan change scheduled for the next renewal | The automatic renewal into the new plan pays the price of that plan, but never more than the amount that applies at that time (the stored one before the date, the announced one after). |
+| License suspended, expired or revoked | Nothing can be announced. An existing announcement stays but is not applied while the license is in that state; after a reactivation the daily job applies it if the notice period is over. |
+| Billing paused (copy of the shop) | No notice is sent and no charge is made. |
+| Saved card missing | Unchanged: no other card of the customer is charged, at the old or the new price. |
+| License without automatic renewal | Announced and notified the same way; the email says that nothing is charged unless the customer renews. The account shows "From <date> a renewal costs …". |
+| Customer in another tax location | The announced amount is entered in the same form as the stored one (gross or net flag of the license) and taxed the same way. |
+
+**Proof.** For every license the audit log holds `renewal_price_change_announced` (who, when, old and new amount, date, period), `renewal_price_change_notified` (when the mailer accepted the email) and `renewal_price_change_applied`; the reminder log holds the sent entry. The condition "notice at least the period before the first charge at the new price" is computed from these stored times, not from the clock of a job.
 
 ## Renewal statuses
 
@@ -494,8 +535,9 @@ Manual renewals bill the same stored amount and read it by the same flag (INH-01
 - A paid manual renewal that is rejected is not refunded automatically; "Renewals to review" links to the order, the refund is made there. The events `wplc/renewal_needs_review`, `wplc/renewal_blocked`, `wplc/license_needs_review` and `wplc/renewal_lock_unavailable` are passed on as `wplc/health_alert`.
 - A suspended license whose paid period has ended cannot be reactivated by "Reactivate"; use "Restore with a new end date" (or close the review case).
 - Partial refunds of renewal orders are ignored.
-- Licenses that were issued before schema 13 for a variation of a parent-mapped variable product keep the stored amount, which may be the lowest variation price. It is not raised automatically, neither for automatic nor for manual renewals (before INH-01 their manual renewals used the variation price). The shop cannot correct it upwards without the customer's consent (filter `wplc_admin_can_raise_renewal_amount`).
-- The price guarantee has no end: an existing license never follows a price increase. A way to move existing licenses to a new price with notice and consent does not exist (follow-up task INH-05 in `docs/TODO.md`).
+- Licenses that were issued before schema 13 for a variation of a parent-mapped variable product keep the stored amount, which may be the lowest variation price. It is not raised automatically, neither for automatic nor for manual renewals (before INH-01 their manual renewals used the variation price). The shop corrects it upwards with an announced price change (INH-05) or, with the customer's consent, through the filter `wplc_admin_can_raise_renewal_amount`.
+- An announced price change (INH-05) is technically complete, but the notice period (60 days by default) and the wording of the email are not legally reviewed (T-93). Whether a customer also gets a special right to end the paid period early is a legal question the plugin does not answer; it offers the normal cancellation.
+- The announcement screen for a whole plan handles 500 licenses per submission; a queued background run for very large plans does not exist (use WP-CLI).
 - The currency of a renewal is the one stored at purchase; a later change of the shop currency is not handled.
 - A purchase with quantity N creates N licenses and N separate renewal charges.
 - Deleting or trashing an order does not change its licenses.

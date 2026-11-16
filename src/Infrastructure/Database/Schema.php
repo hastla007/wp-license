@@ -66,8 +66,11 @@ final class Schema {
 	 * 24: the entitlement catalog is data (T-150): the catalog files shipped in `catalogs/` are
 	 *     imported into the option `wplc_entitlement_catalog`, so an installation that used the
 	 *     former hard-coded lists offers the same products and keys. No table changes.
+	 * 25: licenses.price_change_amount_minor, price_change_effective_at, price_change_announced_at,
+	 *     price_change_notified_at and price_change_notice_days: an announced change of the renewal
+	 *     amount (INH-05). Nullable columns added by dbDelta; the step checks that they exist.
 	 */
-	public const VERSION = '24';
+	public const VERSION = '25';
 
 	/**
 	 * Option in which ReminderLog records the layout of its table.
@@ -134,6 +137,7 @@ final class Schema {
 		'22' => array( self::class, 'step_22_lookup_indexes' ),
 		'23' => array( self::class, 'step_23_audit_source' ),
 		'24' => array( self::class, 'step_24_import_bundled_catalogs' ),
+		'25' => array( self::class, 'step_25_price_change_columns' ),
 	);
 
 	/**
@@ -893,6 +897,11 @@ final class Schema {
 				renewal_currency char(3) NOT NULL DEFAULT 'EUR',
 				renewal_amount_includes_tax tinyint(1) DEFAULT NULL,
 				renewal_product_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				price_change_amount_minor bigint(20) unsigned DEFAULT NULL,
+				price_change_effective_at datetime DEFAULT NULL,
+				price_change_announced_at datetime DEFAULT NULL,
+				price_change_notified_at datetime DEFAULT NULL,
+				price_change_notice_days smallint(5) unsigned DEFAULT NULL,
 				pending_plan_key varchar(100) NOT NULL DEFAULT '',
 				pending_product_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				plan_order_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -1514,6 +1523,33 @@ final class Schema {
 		);
 
 		return 1 === (int) $exists && self::indexes_exist( array( 'audit_log' => array( 'source_entries' ) ) );
+	}
+
+	/**
+	 * Schema 25: the columns of an announced renewal price change (INH-05).
+	 *
+	 * dbDelta adds them and reports no errors, so the step checks that they exist. No data changes:
+	 * existing licenses have no announcement.
+	 *
+	 * @return bool
+	 */
+	private static function step_25_price_change_columns(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		global $wpdb;
+
+		$tables = self::table_names();
+		$count  = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name IN (%s, %s, %s, %s, %s)',
+				$tables['licenses'],
+				'price_change_amount_minor',
+				'price_change_effective_at',
+				'price_change_announced_at',
+				'price_change_notified_at',
+				'price_change_notice_days'
+			)
+		);
+
+		return 5 === $count;
 	}
 
 	/**

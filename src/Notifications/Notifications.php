@@ -42,6 +42,8 @@ final class Notifications {
 		'cancelled' => 'CancellationConfirmedEmail',
 		'suspended' => 'LicenseSuspendedEmail',
 		'revoked' => 'LicenseRevokedEmail',
+		'price_change' => 'RenewalPriceChangeEmail',
+		'price_change_withdrawn' => 'RenewalPriceChangeWithdrawnEmail',
 	);
 
 	/**
@@ -327,6 +329,50 @@ final class Notifications {
 			return false;
 		}
 		return ReminderLog::was_sent( (int) $license['id'], ReminderSchedule::TYPE_RENEWAL_NOTICE, (string) $license['paid_until'] );
+	}
+
+	/**
+	 * INH-05: tell the customer about an announced renewal price, once per announcement.
+	 *
+	 * The reminder log makes it once: its period is the time of the announcement. The entry only
+	 * becomes "sent" when the mailer accepted the message; a refused one is released and the daily
+	 * job of PriceChange tries again. The caller records the time of the notice on the license.
+	 *
+	 * @param array<string,mixed> $license License row with the announcement.
+	 * @param array<string,mixed> $pending Result of PriceChange::pending().
+	 * @return bool True when the mailer accepted the message in this call.
+	 */
+	public static function send_price_change_notice( array $license, array $pending ): bool {
+		try {
+			return self::send_once( 'price_change', \WPLC\Billing\PriceChange::REMINDER_TYPE, $license, (string) $pending['announced_at'], array( 'price_change' => $pending ), true );
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'Price change notice failed: ' . $error->getMessage(), (int) ( $license['id'] ?? 0 ) );
+			return false;
+		}
+	}
+
+	/**
+	 * INH-05: tell the customer that an announced renewal price was withdrawn.
+	 *
+	 * @param array<string,mixed> $license License row (the announcement is already removed).
+	 * @param array<string,mixed> $pending The withdrawn announcement.
+	 * @return bool
+	 */
+	public static function send_price_change_withdrawn( array $license, array $pending ): bool {
+		try {
+			$context = array(
+				'price_change'           => $pending,
+				'price_change_withdrawn' => true,
+			);
+			$sent    = self::deliver( 'price_change_withdrawn', $license, $context );
+			if ( ! $sent ) {
+				self::schedule_retry( 'price_change_withdrawn', (int) $license['id'], '', $context, 0 );
+			}
+			return $sent;
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'Price change withdrawal email failed: ' . $error->getMessage(), (int) ( $license['id'] ?? 0 ) );
+			return false;
+		}
 	}
 
 	/**
@@ -815,6 +861,9 @@ final class Notifications {
 				return 'active' === $status && (string) ( $license['paid_until'] ?? '' ) === $period_end;
 			case 'cancelled':
 				return ! empty( $license['cancel_at_period_end'] ) && in_array( $status, array( 'active', 'past_due' ), true );
+			case 'price_change_withdrawn':
+				// Still withdrawn: a new announcement would send its own notice.
+				return empty( $license['price_change_amount_minor'] ) && in_array( $status, array( 'active', 'past_due' ), true );
 		}
 		return false;
 	}
@@ -907,7 +956,41 @@ final class Notifications {
 			'cancelled_at' => ! empty( $context['cancelled_at'] ) ? self::format_date( (int) $context['cancelled_at'], true ) : '',
 			'status' => (string) ( $license['status'] ?? '' ),
 			'support_email' => self::support_email(),
+		) + self::price_change_view( $license, $context );
+	}
+
+	/**
+	 * Display values of an announced renewal price (INH-05); empty strings without one.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param array<string,mixed> $context Trigger context; `price_change` holds PriceChange::pending().
+	 * @return array<string,string>
+	 */
+	private static function price_change_view( array $license, array $context ): array {
+		$view    = array(
+			'old_amount'           => '',
+			'new_amount'           => '',
+			'new_amount_from'      => '',
+			'renews_automatically' => ReminderSchedule::renews_automatically( $license ) ? '1' : '',
 		);
+		$pending = isset( $context['price_change'] ) && is_array( $context['price_change'] ) ? $context['price_change'] : null;
+		if ( null === $pending || empty( $pending['amount_minor'] ) ) {
+			return $view;
+		}
+		$plain = $license;
+		unset( $plain['price_change_amount_minor'], $plain['price_change_effective_at'] );
+		$new                         = $plain;
+		$new['renewal_amount_minor'] = (int) $pending['amount_minor'];
+		// The notice goes out now: the amount applies from the announced date, at the earliest one notice period from today.
+		$from = empty( $context['price_change_withdrawn'] ) && empty( $pending['notified_at'] )
+			? max( (int) $pending['effective_at'], time() + (int) $pending['notice_days'] * 86400 )
+			: max( (int) $pending['effective_at'], (int) ( $pending['applies_at'] ?? 0 ) );
+
+		$view['old_amount']      = RenewalTerms::amount_text( RenewalTerms::gross( $plain ) );
+		$view['new_amount']      = RenewalTerms::amount_text( RenewalTerms::gross( $new ) );
+		$view['new_amount_from'] = self::format_date( $from );
+
+		return $view;
 	}
 
 	/**
@@ -940,6 +1023,10 @@ final class Notifications {
 			'cancelled_at' => self::format_date( $now, true ),
 			'status' => $status,
 			'support_email' => self::support_email(),
+			'old_amount' => Placeholders::plain( $price ),
+			'new_amount' => Placeholders::plain( function_exists( 'wc_price' ) ? (string) wc_price( 59 ) : '59.00' ),
+			'new_amount_from' => self::format_date( $now + 90 * 86400 ),
+			'renews_automatically' => '1',
 		);
 	}
 

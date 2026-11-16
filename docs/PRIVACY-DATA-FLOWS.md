@@ -108,7 +108,7 @@ Do not set `reminder_log` shorter than the longest reminder lead time: the log i
 
 ## Customer emails
 
-The plugin sends ten emails through WooCommerce's mailer to the account email address of the license owner: license issued, expiry reminder, upcoming automatic renewal, renewal payment failed, payment method missing, license expired, license renewed, cancellation confirmed, license suspended, license revoked. They contain the product, plan, license reference (key prefix), dates and, for the renewal notice, the amount.
+The plugin sends twelve emails through WooCommerce's mailer to the account email address of the license owner: license issued, expiry reminder, upcoming automatic renewal, renewal payment failed, payment method missing, license expired, license renewed, cancellation confirmed, license suspended, license revoked, new renewal price announced, announced renewal price withdrawn. They contain the product, plan, license reference (key prefix), dates and, for the renewal notice and the two price emails, amounts.
 
 - The full license key is **not** included by default. A shop owner can opt in per email under WooCommerce → Settings → Emails → License issued; this sends the key over an unencrypted channel and should be an informed decision.
 - Each email can be disabled individually in the same place. Disabling the upcoming-renewal notice may conflict with consumer-protection rules for automatic renewals.

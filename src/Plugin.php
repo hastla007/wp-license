@@ -392,6 +392,7 @@ final class Plugin {
 		LicenseAdmin::register_hooks();
 		CatalogCsv::register_hooks();
 		CatalogFileAdmin::register_hooks();
+		\WPLC\Admin\PriceChangeAdmin::register_hooks();
 		Diagnostics::register_hooks();
 		KeyConfigurationNotice::register_hooks();
 		Requirements::register_hooks();
@@ -400,6 +401,7 @@ final class Plugin {
 		WithdrawalConsent::register_hooks();
 		RenewalProcessor::register_hooks();
 		ManualRenewal::register_hooks();
+		\WPLC\Billing\PriceChange::register_hooks();
 		\WPLC\Billing\RenewInsteadNotice::register_hooks();
 		PlanUpgrade::register_hooks();
 		StripeRecurringAdapter::register_hooks();

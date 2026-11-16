@@ -50,6 +50,7 @@ add_filter( 'wplc_capability', function ( $capability, $action ) {
 | Change plan (now / with the next renewal, withdraw) | License detail | `manage_woocommerce` | yes | `admin_plan_change`, `plan_change_scheduled`, `plan_change_cancelled` |
 | Cancel automatic renewal at the end of the paid period, withdraw the cancellation | License detail | `wplc_manage_licenses` | yes | `cancellation_scheduled`, `cancellation_withdrawn` |
 | Change the renewal amount (lower only) | License detail | `wplc_manage_licenses` | yes | `admin_renewal_amount_changed` |
+| Announce a higher renewal price with notice, withdraw the announcement (INH-05) | License detail; WooCommerce → Renewal price change (whole plan); `wp wplc price-change` | `wplc_manage_licenses` | yes | `renewal_price_change_announced`, `renewal_price_change_withdrawn` |
 | Restore with a new end date | License detail (suspended with ended term, or revoked) | `wplc_manage_licenses`; revoked: `wplc_restore_licenses` | yes | `admin_restore` |
 | Issue new key | License detail | `wplc_manage_licenses` | yes | `license_key_reissued` |
 | Send key email again | License detail | `wplc_manage_licenses` | yes | `license_key_resend_requested` |

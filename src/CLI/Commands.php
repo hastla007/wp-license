@@ -35,6 +35,7 @@ final class Commands {
 		\WP_CLI::add_command( 'wplc schema', SchemaCommand::class );
 		\WP_CLI::add_command( 'wplc sync-entitlements', SyncEntitlementsCommand::class );
 		\WP_CLI::add_command( 'wplc catalog', CatalogCommand::class );
+		\WP_CLI::add_command( 'wplc price-change', PriceChangeCommand::class );
 		\WP_CLI::add_command( 'wplc rekey-licenses', RekeyLicensesCommand::class );
 	}
 }

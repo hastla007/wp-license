@@ -369,6 +369,9 @@ final class LicenseDetail {
 		echo '<input type="text" id="wplc-renewal-amount-reason" name="reason" required maxlength="255">';
 		echo '<button class="button" type="submit">' . esc_html__( 'Change renewal amount', 'wp-license' ) . '</button></form>';
 		echo '<p class="description">' . esc_html__( 'The amount of the next renewals, automatic and manual, in the same form as the product price in the shop (taxes are added as at purchase). It is the price agreed at purchase; a price change in the shop does not change it. It can only be lowered: the customer agreed to the current amount. Renewal orders that already exist keep their amount; change those on the order screen.', 'wp-license' ) . '</p>';
+
+		// INH-05: raising needs an announcement with a notice period.
+		PriceChangeAdmin::render_license_section( $license );
 	}
 
 	/**

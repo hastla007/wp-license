@@ -71,6 +71,7 @@ final class Diagnostics {
 		'wplc/license_needs_review'             => 'license_needs_review',
 		'wplc/renewal_lock_unavailable'         => 'renewal_lock_unavailable',
 		'wplc/response_signing_key_unavailable' => 'response_signing_key_unavailable',
+		'wplc/price_change_not_applied'         => 'price_change_not_applied',
 	);
 
 	/** Register the support page. */

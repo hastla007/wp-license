@@ -40,6 +40,7 @@ Products, entitlement keys and their labels are data: an add-on ships a catalog 
 | `wplc/license_plan_changed` | `src/License/PlanChange.php` | Fires after the plan of a license changed (upgrade, downgrade at renewal, administrator change, revert). |
 | `wplc/license_status_changed` | `src/License/LicenseLifecycle.php` | Fires after every successful license status transition and renewal. |
 | `wplc/loaded` | `src/Plugin.php` | Fires after WP License Captain has confirmed its WooCommerce dependency. |
+| `wplc/price_change_not_applied` | `src/Billing/PriceChange.php` | Fires once when the date of an announced renewal price passed without a recorded notice email. |
 | `wplc/renewal_blocked` | `src/Billing/RenewalProcessor.php` | Fires when a renewal could not be attempted because of a shop-side problem. |
 | `wplc/renewal_disabled_token_deleted` | `src/Maintenance/Orphans.php` | Fires after automatic renewal was switched off because the saved payment method was deleted. |
 | `wplc/renewal_lock_unavailable` | `src/Billing/RenewalProcessor.php` | Fires when the lock of a renewal could repeatedly not be taken. |
@@ -55,6 +56,7 @@ Products, entitlement keys and their labels are data: an add-on ships a catalog 
 | `wplc/stripe_early_fraud_warning` | `src/Gateway/StripeEventHandler.php` | Fires when Stripe reports an early fraud warning for a license payment. |
 | `wplc/stripe_webhook_received` | `src/Api/V1/StripeWebhook.php` |  |
 | `wplc_daily_lifecycle` | `src/Maintenance/DailyRunner.php` |  |
+| `wplc_price_change_notice_days` | `src/Billing/PriceChange.php` | Filters the notice period of a renewal price change in days. |
 | `wplc_release_package_missing` | `src/Update/ReleaseRegistry.php` | Fires when a published release cannot be offered because its file is missing on this server (A-111). |
 
 ## Filters

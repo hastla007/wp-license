@@ -75,7 +75,7 @@ final class Settings {
 	 * Settings whose values are written to the audit log. Other keys are
 	 * recorded by name only (the sender note is free text shown to customers).
 	 */
-	private const AUDITED_VALUES = array( 'package_hosts', 'reminder_days', 'renewal_notice_days' );
+	private const AUDITED_VALUES = array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days' );
 
 	/**
 	 * Audit the first save of the option.
@@ -173,6 +173,7 @@ final class Settings {
 			'package_hosts' => array(),
 			'reminder_days' => '30,7',
 			'renewal_notice_days' => 7,
+			'price_change_notice_days' => \WPLC\Billing\PriceChange::DEFAULT_NOTICE_DAYS,
 			'sender_note'   => '',
 		);
 	}
@@ -322,6 +323,14 @@ final class Settings {
 			array( 'label_for' => 'wplc_renewal_notice_days' )
 		);
 		add_settings_field(
+			'wplc_price_change_notice_days',
+			__( 'Price change notice period', 'wp-license' ),
+			array( self::class, 'render_price_change_notice_days_field' ),
+			self::PAGE,
+			'wplc_emails',
+			array( 'label_for' => 'wplc_price_change_notice_days' )
+		);
+		add_settings_field(
 			'wplc_sender_note',
 			__( 'Sender note', 'wp-license' ),
 			array( self::class, 'render_sender_note_field' ),
@@ -413,11 +422,18 @@ final class Settings {
 			$notice_days = (int) trim( (string) $input['renewal_notice_days'] );
 		}
 
+		$change_days = isset( $current['price_change_notice_days'] ) && is_numeric( $current['price_change_notice_days'] ) ? (int) $current['price_change_notice_days'] : \WPLC\Billing\PriceChange::DEFAULT_NOTICE_DAYS;
+		if ( array_key_exists( 'price_change_notice_days', $input ) && is_scalar( $input['price_change_notice_days'] ) && ctype_digit( trim( (string) $input['price_change_notice_days'] ) ) ) {
+			$change_days = (int) trim( (string) $input['price_change_notice_days'] );
+		}
+
 		return array(
 			'package_hosts' => $hosts_out,
 			'reminder_days' => $days,
 			// B-41: at least one day; the notice cannot be switched off here.
 			'renewal_notice_days' => max( 1, min( 60, $notice_days ) ),
+			// INH-05: never below the floor of 30 days.
+			'price_change_notice_days' => \WPLC\Billing\PriceChange::clamp_notice_days( $change_days ),
 			'sender_note'   => function_exists( 'mb_substr' ) ? mb_substr( $note, 0, 500 ) : substr( $note, 0, 500 ),
 		);
 	}
@@ -844,6 +860,16 @@ final class Settings {
 	public static function render_reminder_days_field(): void {
 		echo '<input type="text" id="wplc_reminder_days" name="' . esc_attr( self::OPTION ) . '[reminder_days]" value="' . esc_attr( (string) self::get( 'reminder_days' ) ) . '" class="regular-text" pattern="[0-9 ,]*" aria-describedby="wplc_reminder_days_help">';
 		echo '<p class="description" id="wplc_reminder_days_help">' . esc_html__( 'Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7.', 'wp-license' ) . '</p>';
+	}
+
+	/**
+	 * Render the notice period of a renewal price change (INH-05).
+	 *
+	 * @return void
+	 */
+	public static function render_price_change_notice_days_field(): void {
+		echo '<input type="number" id="wplc_price_change_notice_days" name="' . esc_attr( self::OPTION ) . '[price_change_notice_days]" value="' . esc_attr( (string) (int) self::get( 'price_change_notice_days' ) ) . '" min="' . esc_attr( (string) \WPLC\Billing\PriceChange::MIN_NOTICE_DAYS ) . '" max="' . esc_attr( (string) \WPLC\Billing\PriceChange::MAX_NOTICE_DAYS ) . '" step="1" class="small-text" aria-describedby="wplc_price_change_notice_days_help">';
+		echo '<p class="description" id="wplc_price_change_notice_days_help">' . esc_html__( 'Days between the email that announces a higher renewal price for an existing license and the first renewal at that price. Default: 60, at least 30. Have the period and the wording of the email checked by a lawyer.', 'wp-license' ) . '</p>';
 	}
 
 	/**
