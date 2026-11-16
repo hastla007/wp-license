@@ -760,3 +760,19 @@ Zum Katalogschnitt Voucher (16.11.2026): die drei neuen Bezeichnungen im Produkt
 - [x] **AL-11 [WICHTIG]** (captain-pro TODO) Übersetzter Fehlertext vor `init`. `LicenseManager`/`LicenseClient` bauten Fehlertexte beim Erzeugen des `WP_Error` (z. B. `wplc_not_activated` aus `credentials()`); früh aufgerufen (`plugins_loaded`) meldet WordPress ≥ 6.7 „Translation loading … triggered too early“. *Erledigt:* Vor `init` (`Messages::ready()`) trägt ein Fehler seinen Code als Meldung, kein Übersetzungsaufruf; angezeigt wird über `LicenseManager::error_text()` (Formular, Site Health). *Unit:* `ClientRuntimeTest::test_status_and_errors_before_init_call_no_translation_function` (zählt `__()`/`translate()` vor `init`: null Aufrufe für `status()`, `is_entitled()`, `refresh()`, `deactivate()`, `check_update()` auf nicht aktivierter, aktivierter und kopierter Website), `LicenseManagerTest::test_audit16_errors_shown_by_the_form_are_translated_when_shown`. *captain-pro:* Fehler mit `error_text()` statt `get_error_message()` anzeigen.
 - Neue Texte der Bibliothek 2.1.0 für die Add-ons (in captain-pro übersetzen): `reason.clock_ahead`, `notice.stale_clock_ahead`, `ui.deactivate_confirm`, `ui.deactivate_unconfirmed`, `ui.reason`, `debug.*` (zehn Einträge).
 - Bibliothek 2.1.0 in den Starter neu übernommen (`examples/premium-addon-starter/bin/vendor-client.php`, `--check` sauber); die Test-Attrappen des Starters kennen `wp_safe_remote_request()`, sein Entwicklungs-Build darf einen lokalen Server erreichen.
+
+## 14. Projekt-Connectoren in PRO enthalten (Entscheidung Nr. 17, geändert 16.11.2026)
+
+Der Inhaber hat am 16.11.2026 geändert: Die Connectoren der eigenen Projekte BoatingSchool und LearnBoating bleiben separat installierte Plugins, laufen aber mit der Pro-Lizenz des Captain-Produkts, an das sie andocken (Voucher, Affiliate, Form, Workflow Pro). Es gibt kein eigenes Projektprodukt je Connector mehr. Offen beim Inhaber (captain-pro `TODO.md` Abschnitt 13):
+- O1: Ort des Codes;
+- O2: nur Projektlizenzen oder jede Pro-Lizenz;
+- O3: Update-Weg.
+
+- [ ] **PC-1 · Rechte im Katalog.** Je Connector ein Recht in der Gruppe des Pro-Produkts, zum Beispiel `voucher.learnboating_course_vouchers` oder allgemein `voucher.project_connectors`; dazu `affiliate.…`, `form.…`, `workflow.…` (Workflow: `workflow.custom_connectors` ist dort schon vorgemerkt, F-01). Keine Gruppe mit Kundennamen.
+  - Bei O2 (a) steht das Recht nicht in den öffentlichen Tarifen und wird je Lizenz eingetragen. Prüfen, ob der Produkteditor ein Recht je Lizenz zulässt oder ob dafür ein eigener Plan „Projekt“ nötig ist.
+  - Bei O2 (b) gehört das Recht in alle Pläne.
+- [ ] **PC-2 · Abschnitt „Project products“ in `docs/ENTITLEMENTS.md`** (2dbf2ae) als überholt kennzeichnen bzw. ersetzen. Die Filter `wplc_entitlement_catalog` und `wplc_known_product_keys` bleiben als allgemeine Erweiterungspunkte.
+  - Erledigt sich damit: die Frage aus Form Captain (P8-88), ob die Registrierung per MU-Plugin nach dem Umbau auf Katalogdateien noch geht, und ob zwei Connectoren eines Projekts mit „ein Präfix = ein Produkt“ kollidieren.
+- [ ] **PC-3 · Nur bei O3 (b): zweites Paket je Produkt.** Releases und `updates/check` liefern heute ein Paket je Produktschlüssel. Für Connector-Updates über die Pro-Lizenz braucht es mehrere Pakete (Slugs) je Produkt mit eigenem Release, oder ein Begleitprodukt, das mit der Pro-Lizenz automatisch mitgewährt wird.
+- [ ] **PC-4 · Client-Bibliothek: keine Änderung nötig.** Der Connector fragt das Pro-Add-on über den Kernel (captain-pro K-01) und belegt keinen zweiten Aktivierungsplatz. Ein zweiter Client mit demselben Produktschlüssel auf derselben Website ist nicht vorgesehen; das sollte `CLIENT-INTEGRATION.md` erwähnen.
+

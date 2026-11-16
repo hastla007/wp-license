@@ -67,6 +67,8 @@ The product editor suggests these keys. The plan key (for example `single`, `bus
 
 ### Project products (not sold, not in this catalog)
 
+> **Superseded for the BoatingSchool and LearnBoating connectors (owner decision no. 17, changed 16 Nov 2026):** they run with the Pro license of the product they dock to; see docs/TODO.md section 14. The mechanism below stays available for other cases.
+
 A plugin made for one customer project of the shop owner (for example a connector between a core plugin and a learning platform) can be licensed by this server like a premium add-on without appearing in this catalog or in the shop. The project, not wp-license, registers its product on the license server with a small must-use plugin:
 
 ```php
