@@ -768,11 +768,13 @@ Der Inhaber hat am 16.11.2026 geändert: Die Connectoren der eigenen Projekte Bo
 - O2: nur Projektlizenzen oder jede Pro-Lizenz;
 - O3: Update-Weg.
 
+**Antworten des Inhabers (16.11.2026):** O1 (a): Der Code bleibt im Projekt-Repository. O2 (a): Das Recht gilt nur für die Lizenzen der eigenen Projekte und steht nicht in den öffentlichen Tarifen. O3 (b): Updates kommen über den Lizenzserver als weiteres Paket der Pro-Lizenz.
+
 - [ ] **PC-1 · Rechte im Katalog.** Je Connector ein Recht in der Gruppe des Pro-Produkts, zum Beispiel `voucher.learnboating_course_vouchers` oder allgemein `voucher.project_connectors`; dazu `affiliate.…`, `form.…`, `workflow.…` (Workflow: `workflow.custom_connectors` ist dort schon vorgemerkt, F-01). Keine Gruppe mit Kundennamen.
   - Bei O2 (a) steht das Recht nicht in den öffentlichen Tarifen und wird je Lizenz eingetragen. Prüfen, ob der Produkteditor ein Recht je Lizenz zulässt oder ob dafür ein eigener Plan „Projekt“ nötig ist.
   - Bei O2 (b) gehört das Recht in alle Pläne.
 - [ ] **PC-2 · Abschnitt „Project products“ in `docs/ENTITLEMENTS.md`** (2dbf2ae) als überholt kennzeichnen bzw. ersetzen. Die Filter `wplc_entitlement_catalog` und `wplc_known_product_keys` bleiben als allgemeine Erweiterungspunkte.
   - Erledigt sich damit: die Frage aus Form Captain (P8-88), ob die Registrierung per MU-Plugin nach dem Umbau auf Katalogdateien noch geht, und ob zwei Connectoren eines Projekts mit „ein Präfix = ein Produkt“ kollidieren.
-- [ ] **PC-3 · Nur bei O3 (b): zweites Paket je Produkt.** Releases und `updates/check` liefern heute ein Paket je Produktschlüssel. Für Connector-Updates über die Pro-Lizenz braucht es mehrere Pakete (Slugs) je Produkt mit eigenem Release, oder ein Begleitprodukt, das mit der Pro-Lizenz automatisch mitgewährt wird.
+- [ ] **PC-3 · Zweites Paket je Produkt (nötig, O3 b).** Releases und `updates/check` liefern heute ein Paket je Produktschlüssel. Für Connector-Updates über die Pro-Lizenz braucht es mehrere Pakete (Slugs) je Produkt mit eigenem Release, nur an Lizenzen ausgeliefert, die das Recht des Connectors tragen (O2 a). Dazu gehört, dass `updates/check` und der Download-Grant für jeden Slug die Aktivierung des Pro-Add-ons akzeptieren, ebenso `wp wplc release create` mit `--slug`. Gegenstück im Client: captain-pro K-04.
 - [ ] **PC-4 · Client-Bibliothek: keine Änderung nötig.** Der Connector fragt das Pro-Add-on über den Kernel (captain-pro K-01) und belegt keinen zweiten Aktivierungsplatz. Ein zweiter Client mit demselben Produktschlüssel auf derselben Website ist nicht vorgesehen; das sollte `CLIENT-INTEGRATION.md` erwähnen.
 
