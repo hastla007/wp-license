@@ -957,6 +957,9 @@ final class ReleaseRegistry {
 		if ( true === $published && is_array( $package ) && '' === $slug ) {
 			self::set_product_slug( (string) $release['product_key'], $package['slug'] );
 		}
+		if ( true === $published ) {
+			\WPLC\Events\LicenseEvents::release_event( \WPLC\Events\LicenseEvents::RELEASE_PUBLISHED, $release );
+		}
 
 		return $published;
 	}
@@ -978,7 +981,12 @@ final class ReleaseRegistry {
 			return self::error( 'invalid_transition' );
 		}
 
-		return self::set_status( $release, self::STATUS_WITHDRAWN, 'release_withdrawn', self::normalize_reason( $reason ), $actor_user_id );
+		$withdrawn = self::set_status( $release, self::STATUS_WITHDRAWN, 'release_withdrawn', self::normalize_reason( $reason ), $actor_user_id );
+		if ( true === $withdrawn ) {
+			\WPLC\Events\LicenseEvents::release_event( \WPLC\Events\LicenseEvents::RELEASE_WITHDRAWN, $release );
+		}
+
+		return $withdrawn;
 	}
 
 	/**

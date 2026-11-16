@@ -371,6 +371,8 @@ final class LicenseBulkActions {
 			return 'busy';
 		}
 
+		// Site events raised under the activation lock fire after it is released.
+		\WPLC\Events\AfterCommit::hold();
 		try {
 			$ids = array_map(
 				'intval',
@@ -397,6 +399,7 @@ final class LicenseBulkActions {
 			);
 		} finally {
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock ) );
+			\WPLC\Events\AfterCommit::release();
 		}
 
 		AuditLog::record(

@@ -126,6 +126,27 @@ If WP-Cron does not run, licenses do not expire, reminders are not sent and the 
 
 Outside the plugin, monitor the availability of `/wp-json/wplc/v1/`, the database, the TLS certificate, the package storage and the backups.
 
+## License events for other plugins in your shop
+
+Plugins that run in the same WordPress as the server (an automation plugin, a CRM bridge) can react to license events through a versioned hook contract. Nothing is sent to customer sites; the events are PHP actions in the shop's own request.
+
+```php
+add_action( 'wplc/event', function ( array $event ) {
+	// $event['event'] is e.g. 'license.site.activated'; store it in your own queue.
+} );
+add_action( 'wplc/event/license.license.status_changed', function ( array $event ) {
+	// One event by name.
+} );
+```
+
+- **Contract version:** the constant `WPLC_EVENT_CONTRACT_VERSION` (currently `1.0.0`, semantic versioning). Within a major version no event and no field is removed, renamed or changes its meaning; new events and fields can be added. Every event carries `contract` and its own `version`.
+- **Events:** `license.license.issued`, `license.license.status_changed` (renewal, expiry, past due, suspension, reactivation, revocation), `license.license.plan_changed`, `license.site.activated`, `license.site.deactivated` (with `initiator`: `api`, `customer`, `support` or `system`), `license.site.limit_reached` (with `limit`), `license.release.published` and `license.release.withdrawn`.
+- **Fields:** scalar values only: `event_id` (UUID; use it to recognise duplicates), `event`, `version`, `contract`, `occurred_at` (UTC, ISO 8601), and for license and site events `license` (the public reference `WPLC-XXXXXXXX` shown in the account), `product_key`, `plan_key`, `status` and `customer_user_id` (the owner's WordPress user ID). Site events add `environment` (`live`, `staging`, `development`); release events carry `product_key`, `release_version` and `channel` instead. An event never contains a license key, a token, an email address, a site address, payment data or a database ID. Mention the user ID in your privacy policy if you pass events on.
+- **Delivery:** each event fires once, after the change is saved and no lock is held; a refused or rolled-back change fires nothing. The server stores nothing and does not repeat an event, so a receiver keeps its own queue. `license.license.issued` can come again for the same license if the key email had to be retried; it then has the same `event_id`. A receiver that throws is logged (action `wplc/job_failed`) and does not break the license operation.
+- **The same promise holds for** `wplc/license_issued_followup`, `wplc/license_status_changed` and `wplc/license_plan_changed`. Never listen to `wplc/license_issued`, `wplc/license_key_reissued` or `wplc/license_key_resend_requested` in such a plugin: they pass the plaintext key.
+
+To look up more than an event carries, use the read-only class `WPLC\Events\LicenseReader` with the reference from the event: `get( $reference )` (product, plan, status, access, `expires_at`, `access_until`, owner), `status()`, `plan()`, `expires_at()`, `entitlements()`, `is_entitled( $reference, 'acme_reports.pdf_export' )` and `for_user( $user_id )`. It only reads and never returns a key or an email address. Changing a license (refund, renewal, status, new key) is not possible through it; that stays with the admin screens and their permissions.
+
 ## Caching, CDN and firewalls
 
 Every API answer is signed for one installation and one request; none may come from a shared cache.
