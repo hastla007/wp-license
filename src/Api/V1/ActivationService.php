@@ -370,7 +370,7 @@ final class ActivationService {
 			null,
 			$after
 		);
-		LicenseEvents::site_activated( $license_id, $environment );
+		LicenseEvents::activation_created( $license_id, $activation_id, $environment );
 
 		return self::signed_entitlement_response( $license_id, $activation_id, $installation_uuid, $secret );
 	}

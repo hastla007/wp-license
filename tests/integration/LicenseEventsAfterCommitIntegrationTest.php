@@ -1,7 +1,7 @@
 <?php
 /**
  * WFC-LIC-07: `wplc/license_issued_followup`, `wplc/license_status_changed` and
- * `wplc/license_plan_changed` (and their license events) fire after the commit.
+ * `wplc/license_plan_changed` (and the new activation actions) fire after the commit.
  *
  * WordPress runs every test inside one transaction that is rolled back afterwards, so a
  * second database connection would never see anything. This class switches the test
@@ -12,7 +12,7 @@
  * @package WPLC
  */
 
-use WPLC\Events\LicenseEvents;
+use WPLC\License\ActivationManager;
 use WPLC\License\LicenseIssuer;
 use WPLC\License\LicenseLifecycle;
 use WPLC\License\PlanChange;
@@ -135,23 +135,19 @@ final class LicenseEventsAfterCommitIntegrationTest extends WPLC_Integration_Tes
 	public function test_status_changed_fires_after_the_commit_and_the_lock(): void {
 		$license_id = $this->seed_license()['id'];
 		$seen       = array();
-		$listener   = function ( $id, $old, $new ) use ( &$seen ) {
-			$seen[] = array( 'action', $this->committed( (int) $id, 'status' ), $new, $this->license_lock_held( (int) $id ) );
-		};
-		$event      = function ( $envelope ) use ( &$seen, $license_id ) {
-			$seen[] = array( 'event', $this->committed( $license_id, 'status' ), $envelope['status'], $this->license_lock_held( $license_id ) );
-		};
-		add_action( 'wplc/license_status_changed', $listener, 10, 3 );
-		add_action( 'wplc/event/' . LicenseEvents::LICENSE_STATUS_CHANGED, $event );
+		add_action(
+			'wplc/license_status_changed',
+			function ( $id, $old, $new ) use ( &$seen ) {
+				$seen[] = array( $this->committed( (int) $id, 'status' ), $new, $this->license_lock_held( (int) $id ) );
+			},
+			10,
+			3
+		);
 
 		$this->assertTrue( LicenseLifecycle::admin_set_status( $license_id, 'suspended', 'Commit check', 1 ) );
 		$this->assertFalse( LicenseLifecycle::admin_set_status( $license_id, 'suspended', 'Same status again', 1 ) );
 
-		$this->assertSame(
-			array( array( 'event', 'suspended', 'suspended', false ), array( 'action', 'suspended', 'suspended', false ) ),
-			$seen,
-			'Both run once, see the committed status through another connection and run without the license lock.'
-		);
+		$this->assertSame( array( array( 'suspended', 'suspended', false ) ), $seen, 'Runs once, sees the committed status through another connection and runs without the license lock.' );
 	}
 
 	public function test_renewal_status_event_sees_the_committed_term(): void {
@@ -183,16 +179,10 @@ final class LicenseEventsAfterCommitIntegrationTest extends WPLC_Integration_Tes
 				$seen[] = array( 'action', $this->committed( (int) $id, 'plan_key' ), $this->license_lock_held( (int) $id ) );
 			}
 		);
-		add_action(
-			'wplc/event/' . LicenseEvents::LICENSE_PLAN_CHANGED,
-			function ( $envelope ) use ( &$seen, $license ) {
-				$seen[] = array( 'event', $this->committed( $license, 'plan_key' ), $this->license_lock_held( $license ), $envelope['plan_key'] );
-			}
-		);
 
 		$this->assertSame( 'plan_changed', PlanChange::admin_change_now( $license, $business->get_id(), 'Commit check', 1 ) );
 
-		$this->assertSame( array( array( 'event', 'business', false, 'business' ), array( 'action', 'business', false ) ), $seen );
+		$this->assertSame( array( array( 'action', 'business', false ) ), $seen );
 	}
 
 	public function test_issued_followup_fires_after_the_license_is_committed(): void {
@@ -205,15 +195,29 @@ final class LicenseEventsAfterCommitIntegrationTest extends WPLC_Integration_Tes
 				$seen[] = array( 'action', $this->committed( (int) $id, 'status' ), $this->license_lock_held( (int) $id ) );
 			}
 		);
-		add_action(
-			'wplc/event/' . LicenseEvents::LICENSE_ISSUED,
-			function ( $envelope ) use ( &$seen, $seeded ) {
-				$seen[] = array( 'event', $this->committed( $seeded['id'], 'status' ), $this->license_lock_held( $seeded['id'] ), $envelope['status'] );
-			}
-		);
 
 		LicenseIssuer::run_followup( $seeded['id'] );
 
-		$this->assertSame( array( array( 'event', 'active', false, 'active' ), array( 'action', 'active', false ) ), $seen );
+		$this->assertSame( array( array( 'action', 'active', false ) ), $seen );
+	}
+
+	public function test_activation_created_and_removed_fire_after_the_commit_and_the_activation_lock(): void {
+		$seeded = $this->seed_license();
+		$seen   = array();
+		$probe  = function ( $license_id, $activation_id ) use ( &$seen ) {
+			$name   = $this->other->real_escape_string( ActivationManager::lock_name( (int) $license_id ) );
+			$locked = '1' === (string) $this->other->query( "SELECT IS_USED_LOCK('{$name}') IS NOT NULL" )->fetch_row()[0];
+			$result = $this->other->query( 'SELECT status FROM `' . $this->tables()['activations'] . '` WHERE id = ' . (int) $activation_id );
+			$row    = $result ? $result->fetch_row() : null;
+			$seen[] = array( current_action(), is_array( $row ) ? $row[0] : null, $locked );
+		};
+		add_action( 'wplc/activation_created', $probe, 10, 2 );
+		add_action( 'wplc/activation_removed', $probe, 10, 2 );
+
+		$site = $this->activate_via_api( $seeded['key'] );
+		$id   = (int) $site['response']->get_data()['data']['activation_id'];
+		$this->assertTrue( ActivationManager::deactivate( $id, 'Commit check', 1, 'admin_site_released' ) );
+
+		$this->assertSame( array( array( 'wplc/activation_created', 'active', false ), array( 'wplc/activation_removed', 'deactivated', false ) ), $seen );
 	}
 }

@@ -23,8 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'WPLC_VERSION', '0.2.0' );
 define( 'WPLC_FILE', __FILE__ );
 define( 'WPLC_PATH', plugin_dir_path( __FILE__ ) );
-// Version of the license event contract (`wplc/event`, docs/LICENSE-EVENTS.md). Semantic versioning.
-define( 'WPLC_EVENT_CONTRACT_VERSION', '1.0.0' );
+// Version of the hook contract for other plugins in the shop (docs/LICENSE-EVENTS.md). Semantic versioning, independent of WPLC_VERSION.
+define( 'WPLC_CONTRACT_VERSION', '1.0.0' );
 
 $wplc_autoloader = WPLC_PATH . 'vendor/autoload.php';
 if ( is_readable( $wplc_autoloader ) ) {

@@ -843,8 +843,8 @@ final class LicenseIssuer {
 
 		/** This action is documented in LicenseIssuer::create_license(); the order ID is zero for manual licenses. */
 		do_action( 'wplc/license_issued', $stored['id'], $stored['key'], 0 );
-		// A license issued by hand has no follow-up job: its contract event is raised here (order ID zero).
-		\WPLC\Events\LicenseEvents::on_license_issued( $stored['id'], 0 );
+		// A license issued by hand has no follow-up job and no key email to wait for (order ID zero).
+		self::fire_followup( $stored['id'], 0 );
 
 		return $stored['id'];
 	}
@@ -888,6 +888,17 @@ final class LicenseIssuer {
 			);
 		}
 
+		self::fire_followup( $license_id, $order_id );
+	}
+
+	/**
+	 * Announce the end of the follow-up work of an issued license.
+	 *
+	 * @param int $license_id License ID.
+	 * @param int $order_id   Source order ID, zero for a license issued by hand.
+	 * @return void
+	 */
+	private static function fire_followup( int $license_id, int $order_id ): void {
 		// The follow-up runs in its own job, outside every lock and transaction; AfterCommit
 		// keeps that promise should a caller ever run it inside one (WFC-LIC-07).
 		\WPLC\Events\AfterCommit::run(
@@ -897,12 +908,13 @@ final class LicenseIssuer {
 				 *
 				 * Unlike `wplc/license_issued` this also runs when the issuing request was
 				 * interrupted, and it can run more than once for a license: listeners must be idempotent.
-				 * Fires after the license is committed and no license lock is held.
+				 * Fires after the license is committed and no license lock is held. Since 0.2.0 it also
+				 * fires for a license issued by hand, with order ID zero.
 				 *
-				 * @since 0.2.0
+				 * @since 0.1.0
 				 *
 				 * @param int $license_id License ID.
-				 * @param int $order_id   Source order ID.
+				 * @param int $order_id   Source order ID, zero for a license issued by hand.
 				 */
 				do_action( 'wplc/license_issued_followup', $license_id, $order_id );
 			}

@@ -35,4 +35,19 @@ final class ExtensionPointsDocTest extends TestCase {
 
 		$this->assertSame( array(), array_values( array_diff( $matches[1], $output ) ) );
 	}
+
+	/** R-3.4 / R-3.9 of the suite spec: every action names the version since which it exists and whether it fires after the commit. */
+	public function test_every_action_has_a_since_version_and_an_after_commit_entry(): void {
+		$doc = (string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/EXTENSION-POINTS.md' );
+		$this->assertSame( 1, preg_match( '/## Actions\n\n\| Hook \| Where \| Since \| After commit \| Summary \|\n\| --- [^\n]*\n((?:\|[^\n]*\n)+)/', $doc, $table ) );
+		$rows = array();
+		foreach ( explode( "\n", trim( $table[1] ) ) as $row ) {
+			$this->assertSame( 1, preg_match( '/^\| `([^`]+)` \| `[^`]+` \| (\d+\.\d+\.\d+) \| (yes|–) \| /u', $row, $match ), 'Row without since/after-commit: ' . $row );
+			$rows[ $match[1] ] = $match[3];
+		}
+		$this->assertGreaterThan( 40, count( $rows ) );
+		foreach ( array( 'wplc/license_issued_followup', 'wplc/license_status_changed', 'wplc/license_plan_changed', 'wplc/activation_created', 'wplc/activation_removed', 'wplc/site_limit_reached', 'wplc/release_published', 'wplc/release_withdrawn' ) as $action ) {
+			$this->assertSame( 'yes', $rows[ $action ] ?? null, $action . ' is promised after commit.' );
+		}
+	}
 }
