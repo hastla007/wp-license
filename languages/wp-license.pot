@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T07:49:37+00:00\n"
+"POT-Creation-Date: 2026-11-16T08:08:35+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -1283,7 +1283,7 @@ msgstr ""
 #: src/Admin/CatalogCsv.php:83
 #: src/Admin/CatalogCsv.php:579
 #: src/Admin/CatalogFileAdmin.php:68
-#: src/Admin/CatalogFileAdmin.php:362
+#: src/Admin/CatalogFileAdmin.php:372
 msgid "You do not have permission to manage license mappings."
 msgstr ""
 
@@ -1481,124 +1481,132 @@ msgstr ""
 msgid "planned, not offered"
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:148
-msgid "Remove this product from the catalog? Its entitlements are no longer offered in the product editor. Plans and licenses keep their entitlements."
+#: src/Admin/CatalogFileAdmin.php:156
+msgid "Remove from the catalog (plans and licenses keep their entitlements)"
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:152
+#: src/Admin/CatalogFileAdmin.php:157
 msgid "Remove"
 msgstr ""
 
 #. translators: 1: product key, 2: number of entitlements.
-#: src/Admin/CatalogFileAdmin.php:193
+#: src/Admin/CatalogFileAdmin.php:198
 #, php-format
 msgid "Product %1$s was added to the catalog with %2$d entitlements."
 msgstr ""
 
 #. translators: 1: product key, 2: number of added entitlements, 3: number of removed entitlements, 4: number of changed entitlements.
-#: src/Admin/CatalogFileAdmin.php:196
+#: src/Admin/CatalogFileAdmin.php:201
 #, php-format
 msgid "Product %1$s was updated: %2$d entitlements added, %3$d removed, %4$d changed."
 msgstr ""
 
 #. translators: %s: product key.
-#: src/Admin/CatalogFileAdmin.php:199
+#: src/Admin/CatalogFileAdmin.php:204
 #, php-format
 msgid "Product %s is already in the catalog exactly as in this file. Nothing was changed."
 msgstr ""
 
 #. translators: %s: product key.
-#: src/Admin/CatalogFileAdmin.php:202
+#: src/Admin/CatalogFileAdmin.php:207
 #, php-format
 msgid "Product %s was removed from the catalog."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:205
+#: src/Admin/CatalogFileAdmin.php:210
 msgid "The catalog file was not imported."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:216
-msgid "The file could not be uploaded."
-msgstr ""
-
-#: src/Admin/CatalogFileAdmin.php:217
-msgid "The file is larger than 256 KB."
-msgstr ""
-
-#: src/Admin/CatalogFileAdmin.php:218
-msgid "The file is not a JSON object."
-msgstr ""
-
-#: src/Admin/CatalogFileAdmin.php:219
-msgid "The field \"format\" is missing or not a whole number."
-msgstr ""
-
-#: src/Admin/CatalogFileAdmin.php:220
-msgid "This version reads catalog files of format 1 only."
+#: src/Admin/CatalogFileAdmin.php:210
+msgid "The catalog was not changed."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:221
-msgid "The product key must consist of lowercase letters, digits and hyphens (2 to 100 characters)."
+msgid "The file could not be uploaded."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:222
-msgid "The field \"prefix\" is required when the file lists no entitlement."
+msgid "The file is larger than 256 KB."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:223
-msgid "The prefix must start with a lowercase letter and contain lowercase letters, digits, hyphens or underscores only."
+msgid "The file is not a JSON object."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:224
-msgid "Another product in the catalog already uses this prefix."
+msgid "The field \"format\" is missing or not a whole number."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:225
-msgid "The status must be \"available\" or \"planned\"."
+msgid "This version reads catalog files of format 1 only."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:226
-msgid "The field \"entitlements\" must be a list (it may be empty)."
+msgid "The product key must consist of lowercase letters, digits and hyphens (2 to 100 characters)."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:227
-msgid "The file lists more than 500 entitlements."
+msgid "The field \"prefix\" is required when the file lists no entitlement."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:228
-msgid "An entitlement must be an object."
+msgid "The prefix must start with a lowercase letter and contain lowercase letters, digits, hyphens or underscores only."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:229
-msgid "The entitlement key is missing or contains characters other than letters, digits, dots, hyphens and underscores."
+msgid "Another product in the catalog already uses this prefix."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:230
-msgid "The entitlement key does not start with the prefix of the product and a dot."
+msgid "The status must be \"available\" or \"planned\"."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:231
-msgid "The entitlement key is listed twice."
+msgid "The field \"entitlements\" must be a list (it may be empty)."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:232
-msgid "A name or label needs at least the English text (\"en\")."
+msgid "The file lists more than 500 entitlements."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:233
-msgid "A text is empty, not a string, or contains markup or control characters."
+msgid "An entitlement must be an object."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:234
-msgid "A text is too long (name and label: 190 characters, description: 1000)."
+msgid "The entitlement key is missing or contains characters other than letters, digits, dots, hyphens and underscores."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:235
-msgid "A locale must be \"en\" or a WordPress locale such as \"de_DE\" or \"de_DE_formal\"."
+msgid "The entitlement key does not start with the prefix of the product and a dot."
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:236
+msgid "The entitlement key is listed twice."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:237
+msgid "A name or label needs at least the English text (\"en\")."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:238
+msgid "A text is empty, not a string, or contains markup or control characters."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:239
+msgid "A text is too long (name and label: 190 characters, description: 1000)."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:240
+msgid "A locale must be \"en\" or a WordPress locale such as \"de_DE\" or \"de_DE_formal\"."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:241
 msgid "This product is not in the catalog."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:242
+msgid "Nothing was removed: tick the box next to \"Remove\" to confirm."
 msgstr ""
 
 #: src/Admin/CsvExport.php:47

@@ -145,10 +145,15 @@ final class CatalogFileAdmin {
 		self::nonce_field();
 		echo '<button class="button button-secondary" type="submit">' . esc_html__( 'Export', 'wp-license' ) . '</button></form> ';
 
-		echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-wplc-confirm="' . esc_attr__( 'Remove this product from the catalog? Its entitlements are no longer offered in the product editor. Plans and licenses keep their entitlements.', 'wp-license' ) . '">';
+		// The confirmation is part of the form and checked by the server: this screen loads no script,
+		// and removing must not depend on one.
+		$confirm_id = 'wplc-catalog-remove-' . $product_key;
+		echo '<form method="post" class="wplc-inline-form" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="wplc_remove_catalog_product">';
 		echo '<input type="hidden" name="product_key" value="' . esc_attr( $product_key ) . '">';
 		self::nonce_field();
+		echo '<label for="' . esc_attr( $confirm_id ) . '"><input type="checkbox" id="' . esc_attr( $confirm_id ) . '" name="confirm_remove" value="1" required> ';
+		echo esc_html__( 'Remove from the catalog (plans and licenses keep their entitlements)', 'wp-license' ) . '</label> ';
 		echo '<button class="button button-link-delete" type="submit">' . esc_html__( 'Remove', 'wp-license' ) . '</button></form>';
 		echo '</td></tr>';
 	}
@@ -202,7 +207,7 @@ final class CatalogFileAdmin {
 				return sprintf( __( 'Product %s was removed from the catalog.', 'wp-license' ), $product_key );
 		}
 
-		return __( 'The catalog file was not imported.', 'wp-license' );
+		return empty( $result['errors'] ) || 'confirmation_missing' !== (string) ( $result['errors'][0]['code'] ?? '' ) ? __( 'The catalog file was not imported.', 'wp-license' ) : __( 'The catalog was not changed.', 'wp-license' );
 	}
 
 	/**
@@ -234,6 +239,7 @@ final class CatalogFileAdmin {
 			'text_too_long'             => __( 'A text is too long (name and label: 190 characters, description: 1000).', 'wp-license' ),
 			'locale_invalid'            => __( 'A locale must be "en" or a WordPress locale such as "de_DE" or "de_DE_formal".', 'wp-license' ),
 			'not_in_catalog'            => __( 'This product is not in the catalog.', 'wp-license' ),
+			'confirmation_missing'      => __( 'Nothing was removed: tick the box next to "Remove" to confirm.', 'wp-license' ),
 		);
 
 		return $messages[ $code ] ?? $code;
@@ -302,6 +308,10 @@ final class CatalogFileAdmin {
 	public static function remove(): void {
 		self::authorize();
 		$product_key = self::posted_product_key();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in authorize().
+		if ( ! isset( $_POST['confirm_remove'] ) || '1' !== sanitize_text_field( wp_unslash( (string) $_POST['confirm_remove'] ) ) ) {
+			self::finish( self::failure( 'confirmation_missing' ) );
+		}
 		if ( ! CatalogStore::remove( $product_key, (int) get_current_user_id(), CatalogStore::SOURCE_ADMIN ) ) {
 			self::finish( self::failure( 'not_in_catalog' ) );
 		}

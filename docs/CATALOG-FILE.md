@@ -70,6 +70,7 @@ A file may be at most 256 KB. A UTF-8 byte order mark is accepted.
 ## What the server does with it
 
 - **One file, one product.** An import replaces the whole definition of that product. A key that is no longer in the file leaves the catalog.
+- **Removing a product takes nothing away from what was sold.** Its keys are no longer offered as tick boxes and its product key is no longer suggested; plans keep their entitlements and keep selling, licenses keep theirs, and installations notice nothing (`CatalogFileIntegrationTest::test_removing_a_product_leaves_plans_and_licenses_untouched`).
 - **Plans and licenses are never changed by an import.** They store their entitlement keys themselves. A plan that stores a key the catalog no longer knows keeps it; the product editor shows it in the field "Advanced: additional entitlements (JSON)" instead of as a tick box (the same rule as for the keys removed on 16 Nov 2026).
 - **Idempotent.** Importing a file with the same content again changes nothing and writes no audit entry. Two files with the same meaning (other order of the object keys, other white space) count as the same.
 - **Planned stays out.** A planned product or entitlement is not offered. A shop that delivers such a function itself can offer every planned key with `add_filter( 'wplc_offer_planned_entitlements', '__return_true' );`.
@@ -81,7 +82,7 @@ A file may be at most 256 KB. A UTF-8 byte order mark is accepted.
 
 | Way | How | Needs |
 | --- | --- | --- |
-| Admin | WooCommerce → License catalog files → "Import a catalog file" (upload). The screen lists every product with its entitlements, exports a product as a file and removes a product. | Capability `wplc_manage_catalog` |
+| Admin | WooCommerce → License catalog files → "Import a catalog file" (upload). The screen lists every product with its entitlements, exports a product as a file and removes a product. Removing needs the capability, the nonce of the screen and a ticked confirmation box in the form (checked by the server; no script is involved), and is audited. | Capability `wplc_manage_catalog` |
 | WP-CLI | `wp wplc catalog import <file>... [--dry-run]`, `wp wplc catalog validate <file>...`, `wp wplc catalog list [--format=json]`, `wp wplc catalog export <product-key>`, `wp wplc catalog remove <product-key> [--yes]` | Shell access |
 | Upgrade | Schema step 24 imports the files shipped under `catalogs/`. A product that was imported in the admin or with WP-CLI is never replaced by a shipped file. | – |
 

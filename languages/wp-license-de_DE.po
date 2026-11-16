@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T07:49:37+00:00\n"
+"POT-Creation-Date: 2026-11-16T08:08:35+00:00\n"
 "PO-Revision-Date: 2026-11-15 15:11+0000\n"
 "Language: de_DE\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -351,7 +351,7 @@ msgstr "Lizenzkatalog (CSV)"
 #: src/Admin/CatalogCsv.php:83
 #: src/Admin/CatalogCsv.php:579
 #: src/Admin/CatalogFileAdmin.php:68
-#: src/Admin/CatalogFileAdmin.php:362
+#: src/Admin/CatalogFileAdmin.php:372
 msgid "You do not have permission to manage license mappings."
 msgstr "Du bist nicht berechtigt, Lizenzzuordnungen zu verwalten."
 
@@ -7321,123 +7321,119 @@ msgstr "Kommandozeile"
 msgid "planned, not offered"
 msgstr "vorgemerkt, nicht angeboten"
 
-#: src/Admin/CatalogFileAdmin.php:148
-msgid "Remove this product from the catalog? Its entitlements are no longer offered in the product editor. Plans and licenses keep their entitlements."
-msgstr "Dieses Produkt aus dem Katalog entfernen? Seine Berechtigungen werden im Produkteditor nicht mehr angeboten. Tarife und Lizenzen behalten ihre Berechtigungen."
-
-#: src/Admin/CatalogFileAdmin.php:152
+#: src/Admin/CatalogFileAdmin.php:157
 msgid "Remove"
 msgstr "Entfernen"
 
 #. translators: 1: product key, 2: number of entitlements.
-#: src/Admin/CatalogFileAdmin.php:193
+#: src/Admin/CatalogFileAdmin.php:198
 #, php-format
 msgid "Product %1$s was added to the catalog with %2$d entitlements."
 msgstr "Das Produkt %1$s wurde mit %2$d Berechtigungen in den Katalog aufgenommen."
 
 #. translators: 1: product key, 2: number of added entitlements, 3: number of removed entitlements, 4: number of changed entitlements.
-#: src/Admin/CatalogFileAdmin.php:196
+#: src/Admin/CatalogFileAdmin.php:201
 #, php-format
 msgid "Product %1$s was updated: %2$d entitlements added, %3$d removed, %4$d changed."
 msgstr "Das Produkt %1$s wurde aktualisiert: %2$d Berechtigungen hinzugefügt, %3$d entfernt, %4$d geändert."
 
 #. translators: %s: product key.
-#: src/Admin/CatalogFileAdmin.php:199
+#: src/Admin/CatalogFileAdmin.php:204
 #, php-format
 msgid "Product %s is already in the catalog exactly as in this file. Nothing was changed."
 msgstr "Das Produkt %s steht bereits genau so im Katalog wie in dieser Datei. Es wurde nichts geändert."
 
 #. translators: %s: product key.
-#: src/Admin/CatalogFileAdmin.php:202
+#: src/Admin/CatalogFileAdmin.php:207
 #, php-format
 msgid "Product %s was removed from the catalog."
 msgstr "Das Produkt %s wurde aus dem Katalog entfernt."
 
-#: src/Admin/CatalogFileAdmin.php:205
+#: src/Admin/CatalogFileAdmin.php:210
 msgid "The catalog file was not imported."
 msgstr "Die Katalogdatei wurde nicht importiert."
 
-#: src/Admin/CatalogFileAdmin.php:216
+#: src/Admin/CatalogFileAdmin.php:221
 msgid "The file could not be uploaded."
 msgstr "Die Datei konnte nicht hochgeladen werden."
 
-#: src/Admin/CatalogFileAdmin.php:217
+#: src/Admin/CatalogFileAdmin.php:222
 msgid "The file is larger than 256 KB."
 msgstr "Die Datei ist größer als 256 KB."
 
-#: src/Admin/CatalogFileAdmin.php:218
+#: src/Admin/CatalogFileAdmin.php:223
 msgid "The file is not a JSON object."
 msgstr "Die Datei ist kein JSON-Objekt."
 
-#: src/Admin/CatalogFileAdmin.php:219
+#: src/Admin/CatalogFileAdmin.php:224
 msgid "The field \"format\" is missing or not a whole number."
 msgstr "Das Feld „format“ fehlt oder ist keine ganze Zahl."
 
-#: src/Admin/CatalogFileAdmin.php:220
+#: src/Admin/CatalogFileAdmin.php:225
 msgid "This version reads catalog files of format 1 only."
 msgstr "Diese Version liest nur Katalogdateien im Format 1."
 
-#: src/Admin/CatalogFileAdmin.php:221
+#: src/Admin/CatalogFileAdmin.php:226
 msgid "The product key must consist of lowercase letters, digits and hyphens (2 to 100 characters)."
 msgstr "Der Produktschlüssel muss aus Kleinbuchstaben, Ziffern und Bindestrichen bestehen (2 bis 100 Zeichen)."
 
-#: src/Admin/CatalogFileAdmin.php:222
+#: src/Admin/CatalogFileAdmin.php:227
 msgid "The field \"prefix\" is required when the file lists no entitlement."
 msgstr "Das Feld „prefix“ ist erforderlich, wenn die Datei keine Berechtigung aufführt."
 
-#: src/Admin/CatalogFileAdmin.php:223
+#: src/Admin/CatalogFileAdmin.php:228
 msgid "The prefix must start with a lowercase letter and contain lowercase letters, digits, hyphens or underscores only."
 msgstr "Das Präfix muss mit einem Kleinbuchstaben beginnen und darf nur Kleinbuchstaben, Ziffern, Bindestriche und Unterstriche enthalten."
 
-#: src/Admin/CatalogFileAdmin.php:224
+#: src/Admin/CatalogFileAdmin.php:229
 msgid "Another product in the catalog already uses this prefix."
 msgstr "Ein anderes Produkt im Katalog verwendet dieses Präfix bereits."
 
-#: src/Admin/CatalogFileAdmin.php:225
+#: src/Admin/CatalogFileAdmin.php:230
 msgid "The status must be \"available\" or \"planned\"."
 msgstr "Der Status muss „available“ oder „planned“ sein."
 
-#: src/Admin/CatalogFileAdmin.php:226
+#: src/Admin/CatalogFileAdmin.php:231
 msgid "The field \"entitlements\" must be a list (it may be empty)."
 msgstr "Das Feld „entitlements“ muss eine Liste sein (sie darf leer sein)."
 
-#: src/Admin/CatalogFileAdmin.php:227
+#: src/Admin/CatalogFileAdmin.php:232
 msgid "The file lists more than 500 entitlements."
 msgstr "Die Datei führt mehr als 500 Berechtigungen auf."
 
-#: src/Admin/CatalogFileAdmin.php:228
+#: src/Admin/CatalogFileAdmin.php:233
 msgid "An entitlement must be an object."
 msgstr "Eine Berechtigung muss ein Objekt sein."
 
-#: src/Admin/CatalogFileAdmin.php:229
+#: src/Admin/CatalogFileAdmin.php:234
 msgid "The entitlement key is missing or contains characters other than letters, digits, dots, hyphens and underscores."
 msgstr "Der Berechtigungsschlüssel fehlt oder enthält andere Zeichen als Buchstaben, Ziffern, Punkte, Bindestriche und Unterstriche."
 
-#: src/Admin/CatalogFileAdmin.php:230
+#: src/Admin/CatalogFileAdmin.php:235
 msgid "The entitlement key does not start with the prefix of the product and a dot."
 msgstr "Der Berechtigungsschlüssel beginnt nicht mit dem Präfix des Produkts und einem Punkt."
 
-#: src/Admin/CatalogFileAdmin.php:231
+#: src/Admin/CatalogFileAdmin.php:236
 msgid "The entitlement key is listed twice."
 msgstr "Der Berechtigungsschlüssel ist doppelt aufgeführt."
 
-#: src/Admin/CatalogFileAdmin.php:232
+#: src/Admin/CatalogFileAdmin.php:237
 msgid "A name or label needs at least the English text (\"en\")."
 msgstr "Ein Name oder eine Bezeichnung braucht mindestens den englischen Text („en“)."
 
-#: src/Admin/CatalogFileAdmin.php:233
+#: src/Admin/CatalogFileAdmin.php:238
 msgid "A text is empty, not a string, or contains markup or control characters."
 msgstr "Ein Text ist leer, keine Zeichenkette oder enthält Markup oder Steuerzeichen."
 
-#: src/Admin/CatalogFileAdmin.php:234
+#: src/Admin/CatalogFileAdmin.php:239
 msgid "A text is too long (name and label: 190 characters, description: 1000)."
 msgstr "Ein Text ist zu lang (Name und Bezeichnung: 190 Zeichen, Beschreibung: 1000)."
 
-#: src/Admin/CatalogFileAdmin.php:235
+#: src/Admin/CatalogFileAdmin.php:240
 msgid "A locale must be \"en\" or a WordPress locale such as \"de_DE\" or \"de_DE_formal\"."
 msgstr "Eine Sprache muss „en“ oder ein WordPress-Sprachcode wie „de_DE“ oder „de_DE_formal“ sein."
 
-#: src/Admin/CatalogFileAdmin.php:236
+#: src/Admin/CatalogFileAdmin.php:241
 msgid "This product is not in the catalog."
 msgstr "Dieses Produkt steht nicht im Katalog."
 
@@ -7472,3 +7468,15 @@ msgstr "Das Produkt %s aus dem Katalog entfernen?"
 #, php-format
 msgid "valid; product %1$s would be %2$s (%3$d added, %4$d removed, %5$d changed)."
 msgstr "gültig; das Produkt %1$s wäre danach „%2$s“ (%3$d hinzugefügt, %4$d entfernt, %5$d geändert)."
+
+#: src/Admin/CatalogFileAdmin.php:156
+msgid "Remove from the catalog (plans and licenses keep their entitlements)"
+msgstr "Aus dem Katalog entfernen (Tarife und Lizenzen behalten ihre Berechtigungen)"
+
+#: src/Admin/CatalogFileAdmin.php:210
+msgid "The catalog was not changed."
+msgstr "Der Katalog wurde nicht geändert."
+
+#: src/Admin/CatalogFileAdmin.php:242
+msgid "Nothing was removed: tick the box next to \"Remove\" to confirm."
+msgstr "Es wurde nichts entfernt: Setze zur Bestätigung das Häkchen neben „Entfernen“."

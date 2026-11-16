@@ -214,4 +214,104 @@ final class CatalogFileIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertTrue( Schema::run_registered_step( '24' ) );
 		$this->assertCount( 1, CatalogStore::get( 'pass-captain-pro' )['entitlements'] );
 	}
+
+	/**
+	 * The handler behind "Remove": capability, nonce and a confirmation that needs no script.
+	 */
+	public function test_removing_a_product_needs_capability_nonce_and_confirmation(): void {
+		$admin    = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
+		CatalogStore::import_json( (string) wp_json_encode( $this->acme( array( array( 'key' => 'acme.pdf_export', 'label' => 'PDF export' ) ) ) ), CatalogStore::SOURCE_CLI );
+		$post = static function ( array $overrides = array() ): array {
+			return array_merge(
+				array(
+					'product_key'    => 'acme-forms-pro',
+					'confirm_remove' => '1',
+					'_wpnonce'       => wp_create_nonce( CatalogFileAdmin::NONCE_ACTION ),
+				),
+				$overrides
+			);
+		};
+
+		// Without the capability, also with a valid nonce of that user.
+		wp_set_current_user( $customer );
+		$this->assertSame( 'die', $this->run_admin_post( 'wplc_remove_catalog_product', $post() )['outcome'] );
+		$this->assertNotNull( CatalogStore::get( 'acme-forms-pro' ) );
+
+		wp_set_current_user( $admin );
+		// Without a nonce and with a wrong one.
+		$this->assertSame( 'die', $this->run_admin_post( 'wplc_remove_catalog_product', $post( array( '_wpnonce' => '' ) ) )['outcome'] );
+		$this->assertSame( 'die', $this->run_admin_post( 'wplc_remove_catalog_product', $post( array( '_wpnonce' => 'wrong' ) ) )['outcome'] );
+		$this->assertNotNull( CatalogStore::get( 'acme-forms-pro' ) );
+
+		// Without the ticked confirmation: back to the screen, nothing removed, nothing logged.
+		$unconfirmed = $post();
+		unset( $unconfirmed['confirm_remove'] );
+		$result = $this->run_admin_post( 'wplc_remove_catalog_product', $unconfirmed );
+		$this->assertSame( 'redirect', $result['outcome'] );
+		$this->assertStringContainsString( 'page=' . CatalogFileAdmin::PAGE, $result['location'] );
+		$this->assertNotNull( CatalogStore::get( 'acme-forms-pro' ) );
+		$this->assertCount( 0, $this->audit( 'catalog_product_removed' ) );
+		ob_start();
+		CatalogFileAdmin::render();
+		$html = (string) ob_get_clean();
+		$this->assertStringContainsString( 'tick the box', $html, 'The screen says why nothing happened.' );
+		$this->assertStringContainsString( 'name="confirm_remove" value="1" required', $html, 'The confirmation is a required field of the form, not a script.' );
+		$this->assertStringNotContainsString( 'data-wplc-confirm', $html );
+
+		// Confirmed: removed and audited with the acting user.
+		$result = $this->run_admin_post( 'wplc_remove_catalog_product', $post() );
+		$this->assertSame( 'redirect', $result['outcome'] );
+		$this->assertNull( CatalogStore::get( 'acme-forms-pro' ) );
+		$rows = $this->audit( 'catalog_product_removed' );
+		$this->assertCount( 1, $rows );
+		$this->assertSame( (string) $admin, (string) $rows[0]['actor_user_id'] );
+		$this->assertSame( 'acme-forms-pro', json_decode( (string) $rows[0]['before_json'], true )['product_key'] );
+	}
+
+	/**
+	 * Removing a product from the catalog takes nothing away from what was sold.
+	 */
+	public function test_removing_a_product_leaves_plans_and_licenses_untouched(): void {
+		global $wpdb;
+		$tables  = Schema::table_names();
+		$product = $this->create_license_product(
+			array(
+				'product_key'  => 'pass-captain-pro',
+				'plan_key'     => 'single',
+				'entitlements' => array( 'pass.waiting_room' => true, 'pass.write_api' => true ),
+			)
+		);
+		$order   = $this->create_paid_order( array( array( $product, 1 ) ), self::factory()->user->create() );
+		$license = $this->licenses_for_order( $order->get_id() )[0];
+		$plan    = static function () use ( $wpdb, $tables, $product ): string {
+			return (string) $wpdb->get_var( $wpdb->prepare( 'SELECT entitlements_json FROM %i WHERE woocommerce_product_id = %d', $tables['plans'], $product->get_id() ) );
+		};
+		$granted = static function () use ( $wpdb, $tables, $license ): array {
+			return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT entitlement_key, value_json, status FROM %i WHERE license_id = %d ORDER BY entitlement_key', $tables['entitlements'], (int) $license['id'] ), ARRAY_A );
+		};
+		$plan_before    = $plan();
+		$granted_before = $granted();
+		$this->assertStringContainsString( 'pass.waiting_room', $plan_before );
+		$this->assertContains( 'pass.waiting_room', array_column( $granted_before, 'entitlement_key' ) );
+
+		$this->assertTrue( CatalogStore::remove( 'pass-captain-pro', 1 ) );
+
+		$this->assertSame( $plan_before, $plan(), 'The plan keeps its entitlements.' );
+		$this->assertSame( $granted_before, $granted(), 'The license keeps its entitlements.' );
+		$this->assertSame( 'active', $this->license( (int) $license['id'] )['status'] );
+		// The product editor no longer offers the keys as tick boxes; it shows them in the JSON field, and saving keeps them.
+		$stored = (array) json_decode( $plan_before, true );
+		$split  = EntitlementCatalog::split( $stored );
+		$this->assertNotContains( 'pass.waiting_room', $split['checked'] );
+		$this->assertTrue( $split['advanced']['pass.waiting_room'] );
+		$merged = EntitlementCatalog::merge( $split['checked'], $split['advanced'] );
+		ksort( $stored );
+		ksort( $merged );
+		$this->assertSame( $stored, $merged );
+		// The product key itself is no longer suggested, but the plan still sells.
+		$this->assertArrayNotHasKey( 'pass-captain-pro', EntitlementCatalog::known_product_keys() );
+		$again = $this->create_paid_order( array( array( wc_get_product( $product->get_id() ), 1 ) ), self::factory()->user->create() );
+		$this->assertCount( 1, $this->licenses_for_order( $again->get_id() ), 'A plan of a removed catalog product still issues licenses.' );
+	}
 }
