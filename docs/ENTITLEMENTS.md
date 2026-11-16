@@ -65,6 +65,28 @@ The product key on a license product in the shop and the key the premium add-on 
 
 The product editor suggests these keys. The plan key (for example `single`, `business`, `agency`) is set per product or variation and is independent of the product key.
 
+### Project products (not sold, not in this catalog)
+
+A plugin made for one customer project of the shop owner (for example a connector between a core plugin and a learning platform) can be licensed by this server like a premium add-on without appearing in this catalog or in the shop. The project, not wp-license, registers its product on the license server with a small must-use plugin:
+
+```php
+add_filter( 'wplc_entitlement_catalog', static function ( array $catalog ): array {
+	$catalog['myproject'] = array(
+		array( 'key' => 'myproject.feature', 'label' => 'Feature (My project)' ),
+	);
+	return $catalog;
+} );
+add_filter( 'wplc_known_product_keys', static function ( array $keys ): array {
+	$keys['myproject-connector'] = 'myproject';
+	return $keys;
+} );
+```
+
+- Product key = plugin folder = text domain, as above; the entitlement prefix is the project's own (`myproject.`), never one of the built-in prefixes.
+- Create the license product in the product editor with that key and issue the licenses manually; without a shop product nothing is sold. Activation, signed answers, the offline window, releases and updates work exactly as for the add-ons.
+- The plugin embeds the client library like an add-on (namespace and text domain of the plugin, `bin/export-client.php` or the exporter of hastla007/captain-pro).
+- No customer or project names go into this repository; the must-use plugin lives in the project's repository.
+
 ## Identifier rules
 
 - Prefix keys by product: `affiliate.`, `voucher.`, or `pass.`.
