@@ -140,6 +140,23 @@ These keys are reserved for functions that are planned but that no released add-
 
 The six `workflow.*` keys are boolean and belong to every plan (`single`, `business`, `agency`) once the add-on is released; captain-pro uses the same names (its TODO, WFC-PRO-03). No Workflow add-on exists yet, and `workflow-captain-pro` is a planned product key that the product editor does not suggest.
 
+## Creating a project product
+
+A project product is a plugin built for one client (for example a connector for BoatingSchool or LearnBoating, decision 17 in [TODO.md](TODO.md), section 15). It is licensed and updated like a Pro add-on, but it is not sold in the shop: the owner issues its license by hand. No special server setting is needed; a private WooCommerce product carries the plan (PK-02, `tests/integration/ProjectProductIntegrationTest.php`).
+
+1. **Product.** Create a simple, virtual WooCommerce product, named the way the client should see it in their account and emails, and set its visibility to **Private** (Publish box → Visibility). Tick "License product" and enter the product key of the connector: key = plugin folder = text domain, for example `learnboating-form-connector`. The connector's catalog file uses its own entitlement prefix (one prefix per connector, see [CATALOG-FILE.md](CATALOG-FILE.md)). The price may stay at 0.
+2. **Plan.** In the same product box choose the plan key (for example `project`), the number of live sites and the entitlements of the connector. The plan stays active while the product is private; only moving the product to the trash deactivates it.
+3. **License by hand.** WooCommerce → Licenses → **Add license manually**: customer (user ID or email address of the client's account), the plan of the project product, the end date and a reason. Or on the command line:
+
+   ```
+   wp wplc license issue --product-id=<WooCommerce product ID> --customer=<user ID or email> --expires=2027-12-31 --reason="Project contract"
+   ```
+
+   `--plan-id=<id>` instead of `--product-id`, `--plan=<plan key>` when the product has several plans, `--skip-email` to send no key email, `--yes` to skip the question. The key is never printed; the client gets it by email and finds it in their account. Every manual license needs an end date. Extend it on the license page with **Change term**; it never renews automatically.
+4. **Release.** Upload the connector ZIP on WooCommerce → License releases (or `wp wplc release create --product=<key> --version=<version> --zip=<file> --publish`). The top-level folder of the ZIP is the product key, and the connector's `Update URI` names the license server. Only installations activated with a license of this product get the update or the download; a license of any other product, and a suspended or revoked license of this one, get nothing of it (PK-03, `tests/integration/ProductIsolationIntegrationTest.php`).
+
+What stays private: the product is not in the pricing table, not in the account of other customers, and nobody but an administrator can put it into the cart (WooCommerce does not sell private products). Expiry reminders for it do not offer "Renew now"; they ask the client to contact the shop before the end date. The customer account still shows "Renew now" during the last 30 days of the term, which creates a renewal order at the plan's price. How long project licenses run (one year with an extension by hand, or a far end date) and whether clients may renew them themselves are open owner decisions (PK-05).
+
 ## Contract examples
 
 Signed data of a license with access:

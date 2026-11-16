@@ -279,7 +279,9 @@ final class PackageStream {
 		$reuse_cutoff = gmdate( 'Y-m-d H:i:s', time() - self::reuse_seconds() );
 		$grant = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT s.release_id, s.source, s.consumed_at, l.status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end FROM {$tables['package_streams']} s INNER JOIN {$tables['licenses']} l ON l.id = s.license_id WHERE s.token_hash = %s AND ( ( s.consumed_at IS NULL AND s.expires_at > %s ) OR s.consumed_at > %s ) LIMIT 1",
+				'SELECT s.release_id, s.source, s.consumed_at, l.product_key, l.status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end FROM %i s INNER JOIN %i l ON l.id = s.license_id WHERE s.token_hash = %s AND ( ( s.consumed_at IS NULL AND s.expires_at > %s ) OR s.consumed_at > %s ) LIMIT 1',
+				$tables['package_streams'],
+				$tables['licenses'],
 				$token_hash,
 				$now,
 				$reuse_cutoff
@@ -315,6 +317,8 @@ final class PackageStream {
 		$release = ReleaseRegistry::get( (int) $grant['release_id'] );
 		if ( null === $release
 			|| ReleaseRegistry::STATUS_PUBLISHED !== $release['status']
+			// PK-03: a stream grant never delivers the package of another product than the license.
+			|| (string) $release['product_key'] !== (string) $grant['product_key']
 			|| ReleaseRegistry::STORAGE_LOCAL !== $release['storage']
 		) {
 			return $not_found;
