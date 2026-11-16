@@ -11,6 +11,7 @@ use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
 use WPLC\Maintenance\SiteGuard;
 use WPLC\Notifications\Notifications;
+use WPLC\Notifications\ReminderLog;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -245,6 +246,11 @@ final class PriceChange {
 
 		$tables    = Schema::table_names();
 		$announced = gmdate( 'Y-m-d H:i:s', $now );
+		// The reminder log knows one notice per license and announcement time. An announcement made in the
+		// same second as a withdrawn one (scripts) must still get its own notice.
+		for ( $shift = 1; $shift <= 5 && ReminderLog::was_sent( $license_id, self::REMINDER_TYPE, $announced ); $shift++ ) {
+			$announced = gmdate( 'Y-m-d H:i:s', $now + $shift );
+		}
 		// Compare-and-set: only a license that still has the amount and status that were checked, and no announcement.
 		$updated = $wpdb->query(
 			$wpdb->prepare(
