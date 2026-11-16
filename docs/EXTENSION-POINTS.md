@@ -14,31 +14,6 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 
 Products, entitlement keys and their labels are data: an add-on ships a catalog file (`wplc-catalog.json`) and the shop imports it ([CATALOG-FILE.md](CATALOG-FILE.md)). This is the supported way to make a product and its entitlements known to the product editor. The filters `wplc_entitlement_catalog`, `wplc_known_product_keys` and `wplc_offer_planned_entitlements` remain for shops that adjust what the editor offers in code; they receive what the imported catalog offers.
 
-## Reading a license: `WPLC\License\ReadFacade`
-
-Since 0.2.0 (WFC-LIC-05). The supported way for another plugin in the same WordPress, for example the license adapter of Workflow Captain Pro in the vendor's shop, to read the state of a license after one of the license actions. The methods of other classes that return a license row (`PlanChange::get_license()`, `Notifications::get_license()`) are internal: they return the whole row with key hash, key prefix, `license_uuid` and payment references.
-
-- `ReadFacade::get( int $license_id ): ?array` returns exactly the keys of `ReadFacade::KEYS`, or `null` for an unknown or invalid ID.
-- `ReadFacade::license_ids_for_customer( int $user_id ): int[]` returns the IDs of a user's licenses, newest first, at most `ReadFacade::MAX_LICENSES_PER_CUSTOMER` (200); read each with `get()`.
-
-Result of `get()` (times in UTC, RFC 3339 with `Z`, for example `2027-01-15T10:00:00Z`):
-
-- `license_id` (int): the ID the license actions pass.
-- `product_key` (string): for example `workflow-captain-pro`.
-- `plan_key` (string): free text in the server; `single`, `business` and `agency` by convention.
-- `status` (string): the stored status (`pending`, `active`, `past_due`, `suspended`, `expired`, `revoked`).
-- `expires_at` (string or null): end of the paid period (`paid_until`); null when the license has none. Access may last a grace period longer.
-- `renewed_at` (string or null): when the last paid renewal was recorded; null when the license was never renewed.
-- `live_site_count`, `staging_site_count`, `development_site_count` (int): active activations per environment.
-- `live_site_limit` (int): live sites the license may activate (`sites.live_limit` of the license, otherwise the plan); each live site may have one staging site on top.
-- `development_site_limit` (int): after the filter `wplc_development_site_limit`, which here receives only the license columns the facade reads.
-- `order_id` (int or null): the WooCommerce order that created the license.
-- `customer_user_id` (int or null): WordPress user ID of the owner.
-
-The previous status is not stored on a license; `wplc/license_status_changed` passes it as an argument. Entitlements are not part of the result yet.
-
-Rules: the facade only reads. It issues SELECT queries only, by an explicit column list (never `*`), and writes, locks, caches, audits and fires nothing; `tests/License/ReadFacadeTest.php` checks this. It checks no capability, because it returns nothing secret: never the license key or any part of it, the key hash, `license_uuid`, installation IDs, activation secrets or tokens, site URLs, payment references, email addresses or names. New keys may be added in a later version; existing keys keep their name and type. There is no contract constant for the license server yet (F-03 of the suite specification); an adapter checks `class_exists( '\WPLC\License\ReadFacade' )`.
-
 ## Actions
 
 | Hook | Where | Summary |
