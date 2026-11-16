@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T06:22:14+00:00\n"
+"POT-Creation-Date: 2026-11-16T06:27:45+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -4570,35 +4570,35 @@ msgstr ""
 msgid "Start of the license: on %1$s (UTC) you agreed: \"%2$s\""
 msgstr ""
 
-#: src/Catalog/Catalog.php:140
+#: src/Catalog/Catalog.php:114
 msgid "The license product key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and needs 2 to 100 characters (for example voucher-captain)."
 msgstr ""
 
-#: src/Catalog/Catalog.php:142
+#: src/Catalog/Catalog.php:116
 msgid "The license plan key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and may have up to 100 characters (for example business)."
 msgstr ""
 
-#: src/Catalog/Catalog.php:144
+#: src/Catalog/Catalog.php:118
 msgid "The billing interval must be \"month\" or \"year\"."
 msgstr ""
 
-#: src/Catalog/Catalog.php:146
+#: src/Catalog/Catalog.php:120
 msgid "The entitlements contain a value that cannot be stored (for example a number that is too large)."
 msgstr ""
 
-#: src/Catalog/Catalog.php:149
+#: src/Catalog/Catalog.php:123
 msgid "The WooCommerce product does not exist."
 msgstr ""
 
-#: src/Catalog/Catalog.php:151
+#: src/Catalog/Catalog.php:125
 msgid "The product needs a valid regular price before it can become a license product."
 msgstr ""
 
-#: src/Catalog/Catalog.php:153
+#: src/Catalog/Catalog.php:127
 msgid "WooCommerce Subscriptions products cannot be license products: Subscriptions bills its own renewals and WP License Captain renews licenses itself, so the customer would be charged twice. Use a simple or variable product."
 msgstr ""
 
-#: src/Catalog/Catalog.php:155
+#: src/Catalog/Catalog.php:129
 msgid "The license plan could not be written to the database."
 msgstr ""
 
@@ -4615,6 +4615,7 @@ msgid "White-label portal"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:47
+#: src/Catalog/EntitlementCatalog.php:121
 msgid "Webhooks"
 msgstr ""
 
@@ -4665,27 +4666,47 @@ msgstr ""
 msgid "Multiple programs"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:128
+#: src/Catalog/EntitlementCatalog.php:120
+msgid "Suite integrations"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:122
+msgid "Event correlation"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:123
+msgid "Advanced logic"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:124
+msgid "Recipe templates"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:125
+msgid "Extended logs"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php:138
 msgid "Affiliate Captain"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:129
+#: src/Catalog/EntitlementCatalog.php:139
 msgid "Voucher Captain"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:130
+#: src/Catalog/EntitlementCatalog.php:140
 msgid "Pass Captain"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:131
+#: src/Catalog/EntitlementCatalog.php:141
 msgid "Workflow Captain"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:132
+#: src/Catalog/EntitlementCatalog.php:142
 msgid "Form Captain"
 msgstr ""
 
-#: src/Catalog/EntitlementCatalog.php:133
+#: src/Catalog/EntitlementCatalog.php:143
 msgid "Review Captain"
 msgstr ""
 
@@ -5292,7 +5313,7 @@ msgid "WP License Captain requires WooCommerce %1$s or later; version %2$s is in
 msgstr ""
 
 #: src/Compatibility/Requirements.php:149
-#: src/Gateway/StripeRecurringAdapter.php:1307
+#: src/Gateway/StripeRecurringAdapter.php:1288
 msgid "unknown"
 msgstr ""
 
@@ -5492,16 +5513,16 @@ msgid "%1$s: renewal of %2$s, order #%3$d"
 msgstr ""
 
 #. translators: %s: Stripe payment method type, e.g. link.
-#: src/Gateway/StripeRecurringAdapter.php:1306
+#: src/Gateway/StripeRecurringAdapter.php:1287
 #, php-format
 msgid "WP License Captain: automatic renewal was requested, but the payment method of this order (%s) is not a saved card. The license will not renew automatically."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:1320
+#: src/Gateway/StripeRecurringAdapter.php:1301
 msgid "You asked for automatic renewal, but the payment method you used cannot be charged automatically. Your license runs until the end of the paid period. We will remind you before it ends so you can renew it yourself; to renew automatically, add a card in your account."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:1450
+#: src/Gateway/StripeRecurringAdapter.php:1431
 msgid "WP License Captain: future automatic renewals of this license use the card this order was paid with."
 msgstr ""
 

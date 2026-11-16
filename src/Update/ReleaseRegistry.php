@@ -43,7 +43,7 @@ final class ReleaseRegistry {
 	 * Product keys that can be looked up (B-174): the catalog's former, wider form, so
 	 * releases of products with an underscore in the key stay reachable. New keys of that
 	 * form cannot appear: the catalog only stores Catalog::PRODUCT_KEY_PATTERN, and a
-	 * release needs an existing product (see Catalog::accepts_product_key()).
+	 * release needs an existing product (create() answers `unknown_product` otherwise).
 	 */
 	const PRODUCT_KEY_PATTERN = \WPLC\Catalog\Catalog::LEGACY_PRODUCT_KEY_PATTERN;
 	const PLATFORM_VERSION_PATTERN = '/^[0-9]+(?:\.[0-9]+){0,2}$/D';
@@ -539,7 +539,7 @@ final class ReleaseRegistry {
 		);
 
 		// Form only (pure). A release also needs an existing product (create(): unknown_product),
-		// so a key of the former form is accepted exactly when Catalog::accepts_product_key() says so.
+		// so a key of the former form is accepted exactly when a product with this key exists.
 		if ( ! preg_match( self::PRODUCT_KEY_PATTERN, $data['product_key'] ) ) {
 			$errors[] = 'invalid_product_key';
 		}

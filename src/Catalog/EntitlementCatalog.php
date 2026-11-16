@@ -114,6 +114,16 @@ final class EntitlementCatalog {
 			'voucher'   => array(
 				array( 'key' => 'voucher.white_label', 'label' => __( 'White label', 'wp-license' ) ),
 			),
+			// WFC-LIC-02: the six keys of Workflow Captain Pro, named identically in captain-pro (TODO, WFC-PRO-03).
+			// Reserved only: no add-on exists yet, and the product key is a planned one (PLANNED_PRODUCT_KEYS).
+			'workflow'  => array(
+				array( 'key' => 'workflow.suite_integrations', 'label' => __( 'Suite integrations', 'wp-license' ) ),
+				array( 'key' => 'workflow.webhooks', 'label' => __( 'Webhooks', 'wp-license' ) ),
+				array( 'key' => 'workflow.event_correlation', 'label' => __( 'Event correlation', 'wp-license' ) ),
+				array( 'key' => 'workflow.advanced_logic', 'label' => __( 'Advanced logic', 'wp-license' ) ),
+				array( 'key' => 'workflow.recipe_templates', 'label' => __( 'Recipe templates', 'wp-license' ) ),
+				array( 'key' => 'workflow.extended_logs', 'label' => __( 'Extended logs', 'wp-license' ) ),
+			),
 		);
 	}
 

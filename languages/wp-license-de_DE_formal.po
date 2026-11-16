@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T06:22:14+00:00\n"
+"POT-Creation-Date: 2026-11-16T06:27:45+00:00\n"
 "PO-Revision-Date: 2026-11-15 15:11+0000\n"
 "Language: de_DE_formal\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -1528,6 +1528,7 @@ msgid "White-label portal"
 msgstr "White-Label-Portal"
 
 #: src/Catalog/EntitlementCatalog.php:47
+#: src/Catalog/EntitlementCatalog.php:121
 msgid "Webhooks"
 msgstr "Webhooks"
 
@@ -1546,27 +1547,27 @@ msgstr "Priorisierter Support"
 msgid "White label"
 msgstr "White Label"
 
-#: src/Catalog/EntitlementCatalog.php:128
+#: src/Catalog/EntitlementCatalog.php:138
 msgid "Affiliate Captain"
 msgstr "Affiliate Captain"
 
-#: src/Catalog/EntitlementCatalog.php:129
+#: src/Catalog/EntitlementCatalog.php:139
 msgid "Voucher Captain"
 msgstr "Voucher Captain"
 
-#: src/Catalog/EntitlementCatalog.php:130
+#: src/Catalog/EntitlementCatalog.php:140
 msgid "Pass Captain"
 msgstr "Pass Captain"
 
-#: src/Catalog/EntitlementCatalog.php:131
+#: src/Catalog/EntitlementCatalog.php:141
 msgid "Workflow Captain"
 msgstr "Workflow Captain"
 
-#: src/Catalog/EntitlementCatalog.php:132
+#: src/Catalog/EntitlementCatalog.php:142
 msgid "Form Captain"
 msgstr "Form Captain"
 
-#: src/Catalog/EntitlementCatalog.php:133
+#: src/Catalog/EntitlementCatalog.php:143
 msgid "Review Captain"
 msgstr "Review Captain"
 
@@ -2217,7 +2218,7 @@ msgid "WP License Captain requires WooCommerce %1$s or later; version %2$s is in
 msgstr "WP License Captain benötigt WooCommerce %1$s oder neuer; installiert ist Version %2$s. Lizenzen funktionieren weiterhin, aber die Option für die automatische Verlängerung wird im Block-Checkout erst nach einem WooCommerce-Update angeboten."
 
 #: src/Compatibility/Requirements.php:149
-#: src/Gateway/StripeRecurringAdapter.php:1307
+#: src/Gateway/StripeRecurringAdapter.php:1288
 msgid "unknown"
 msgstr "unbekannt"
 
@@ -4759,31 +4760,31 @@ msgstr "Der Schlüssel stammt aus WPLC_RESPONSE_SIGNING_KEY, oder der vorbereite
 msgid "The key comes from WPLC_RESPONSE_SIGNING_KEY, or the new key could not be stored encrypted (or the prepared key cannot be decrypted); rotate a constant in wp-config.php."
 msgstr "Der Schlüssel stammt aus WPLC_RESPONSE_SIGNING_KEY, oder der neue Schlüssel konnte nicht verschlüsselt gespeichert werden (oder der vorbereitete Schlüssel lässt sich nicht entschlüsseln); rotieren Sie eine Konstante in wp-config.php."
 
-#: src/Catalog/Catalog.php:140
+#: src/Catalog/Catalog.php:114
 msgid "The license product key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and needs 2 to 100 characters (for example voucher-captain)."
 msgstr "Der Produktschlüssel der Lizenz darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten, muss mit einem Buchstaben oder einer Ziffer beginnen und 2 bis 100 Zeichen lang sein (zum Beispiel voucher-captain)."
 
-#: src/Catalog/Catalog.php:142
+#: src/Catalog/Catalog.php:116
 msgid "The license plan key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and may have up to 100 characters (for example business)."
 msgstr "Der Tarifschlüssel der Lizenz darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten, muss mit einem Buchstaben oder einer Ziffer beginnen und darf bis zu 100 Zeichen lang sein (zum Beispiel business)."
 
-#: src/Catalog/Catalog.php:144
+#: src/Catalog/Catalog.php:118
 msgid "The billing interval must be \"month\" or \"year\"."
 msgstr "Das Abrechnungsintervall muss „month“ oder „year“ sein."
 
-#: src/Catalog/Catalog.php:146
+#: src/Catalog/Catalog.php:120
 msgid "The entitlements contain a value that cannot be stored (for example a number that is too large)."
 msgstr "Die Berechtigungen enthalten einen Wert, der nicht gespeichert werden kann (zum Beispiel eine zu große Zahl)."
 
-#: src/Catalog/Catalog.php:149
+#: src/Catalog/Catalog.php:123
 msgid "The WooCommerce product does not exist."
 msgstr "Das WooCommerce-Produkt existiert nicht."
 
-#: src/Catalog/Catalog.php:151
+#: src/Catalog/Catalog.php:125
 msgid "The product needs a valid regular price before it can become a license product."
 msgstr "Das Produkt benötigt einen gültigen regulären Preis, bevor es ein Lizenzprodukt werden kann."
 
-#: src/Catalog/Catalog.php:155
+#: src/Catalog/Catalog.php:129
 msgid "The license plan could not be written to the database."
 msgstr "Der Lizenztarif konnte nicht in die Datenbank geschrieben werden."
 
@@ -4961,16 +4962,16 @@ msgid "Stripe holds a payment for this renewal whose amount differs from the ord
 msgstr "Stripe liegt eine Zahlung für diese Verlängerung vor, deren Betrag von der Bestellung abweicht."
 
 #. translators: %s: Stripe payment method type, e.g. link.
-#: src/Gateway/StripeRecurringAdapter.php:1306
+#: src/Gateway/StripeRecurringAdapter.php:1287
 #, php-format
 msgid "WP License Captain: automatic renewal was requested, but the payment method of this order (%s) is not a saved card. The license will not renew automatically."
 msgstr "WP License Captain: Die automatische Verlängerung wurde gewünscht, die Zahlungsart dieser Bestellung (%s) ist jedoch keine gespeicherte Karte. Die Lizenz verlängert sich nicht automatisch."
 
-#: src/Gateway/StripeRecurringAdapter.php:1320
+#: src/Gateway/StripeRecurringAdapter.php:1301
 msgid "You asked for automatic renewal, but the payment method you used cannot be charged automatically. Your license runs until the end of the paid period. We will remind you before it ends so you can renew it yourself; to renew automatically, add a card in your account."
 msgstr "Sie haben die automatische Verlängerung gewünscht, die verwendete Zahlungsart kann jedoch nicht automatisch belastet werden. Ihre Lizenz läuft bis zum Ende des bezahlten Zeitraums. Wir erinnern Sie vor dem Ablauf, damit Sie sie selbst verlängern können; für eine automatische Verlängerung hinterlegen Sie eine Karte in Ihrem Konto."
 
-#: src/Gateway/StripeRecurringAdapter.php:1450
+#: src/Gateway/StripeRecurringAdapter.php:1431
 msgid "WP License Captain: future automatic renewals of this license use the card this order was paid with."
 msgstr "WP License Captain: Künftige automatische Verlängerungen dieser Lizenz verwenden die Karte, mit der diese Bestellung bezahlt wurde."
 
@@ -6984,7 +6985,7 @@ msgstr "Einige Lizenzen würden eine Funktion, ein Limit oder eine Support-Stufe
 msgid "More licenses follow (--max-rows). Continue with --after-id=%d."
 msgstr "Weitere Lizenzen folgen (--max-rows). Fahren Sie mit --after-id=%d fort."
 
-#: src/Catalog/Catalog.php:153
+#: src/Catalog/Catalog.php:127
 msgid "WooCommerce Subscriptions products cannot be license products: Subscriptions bills its own renewals and WP License Captain renews licenses itself, so the customer would be charged twice. Use a simple or variable product."
 msgstr "Produkte von WooCommerce Subscriptions können keine Lizenzprodukte sein: Subscriptions rechnet eigene Verlängerungen ab und WP License Captain verlängert Lizenzen selbst, sodass dem Kunden doppelt berechnet würde. Verwenden Sie ein einfaches oder variables Produkt."
 
@@ -7335,3 +7336,23 @@ msgstr "Bestenliste und Meilenstein-Mails"
 #: src/Catalog/EntitlementCatalog.php:111
 msgid "Multi-tier commissions"
 msgstr "Mehrstufige Provisionen"
+
+#: src/Catalog/EntitlementCatalog.php:120
+msgid "Suite integrations"
+msgstr "Suite-Integrationen"
+
+#: src/Catalog/EntitlementCatalog.php:122
+msgid "Event correlation"
+msgstr "Ereigniskorrelation"
+
+#: src/Catalog/EntitlementCatalog.php:123
+msgid "Advanced logic"
+msgstr "Erweiterte Logik"
+
+#: src/Catalog/EntitlementCatalog.php:124
+msgid "Recipe templates"
+msgstr "Rezeptvorlagen"
+
+#: src/Catalog/EntitlementCatalog.php:125
+msgid "Extended logs"
+msgstr "Erweiterte Protokolle"

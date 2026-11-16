@@ -20,7 +20,7 @@ These are the combinations the integration suite runs against in CI (`.github/wo
 - "latest stable" WordPress is resolved at run time; the WooCommerce version is pinned in the workflow matrix and in `bin/install-test-env.sh` and must be raised by hand.
 - Database in CI: MySQL 8.0.
 - Unit tests and the syntax check additionally run on PHP 7.4, 8.1, 8.2 and 8.3 without WordPress.
-- The plugin declares HPOS and block-based checkout compatibility (`wp-license.php`). In the block checkout the renewal opt-in is an additional checkout field (`BlockCheckoutConsent`, WooCommerce 8.9 or later); it is covered by integration tests through the Store API, not by a browser test.
+- The plugin declares HPOS and block-based checkout compatibility (`wp-license.php`). In the block checkout the renewal opt-in is an additional checkout field (`BlockCheckoutConsent`, WooCommerce 8.9 or later); it is covered by integration tests through the Store API, not by a browser test. Limit of WooCommerce 8.9 to 9.8 (B-114): an additional field cannot be hidden there, so the opt-in stands in every cart, also without a license product (its value is then ignored); from 9.9 it is shown for license products only. The filter `wplc_block_checkout_consent_without_rule` switches the opt-in off on the older versions ([RENEWALS.md](RENEWALS.md#consent-opt-in)).
 - Plugin version: 0.2.0 in `wp-license.php` (`WPLC_VERSION`) and `readme.txt` (stable tag); the schema version is independent of it (`Schema::VERSION`).
 
 - Multisite: the multisite cell runs the whole suite on a network plus `MultisiteIntegrationTest.php`; behavior and limits are in [MULTISITE.md](MULTISITE.md).

@@ -102,7 +102,7 @@ The keys below are the ones the product editor offers as tick boxes (`WPLC\Catal
 | Affiliate Captain Pro (`affiliate-captain-pro`) | `affiliate.extended_api`, `affiliate.automated_payouts`, `affiliate.white_label_portal`, `affiliate.webhooks` | Built. |
 | Pass Captain Pro (`pass-captain-pro`) | `pass.e_invoicing`, `pass.card_terminal`, `pass.waiting_room`, `pass.write_api`, `pass.white_label` | Built. `pass.e_invoicing` delivers XML (XRechnung 3.0 as UBL and as CII; the CII file can be used as ZUGFeRD/Factur-X XML). A ZUGFeRD hybrid PDF is not built (captain-pro `docs/PASS-E-INVOICE.md`). |
 | Voucher Captain Pro (`voucher-captain-pro`) | none yet | No premium function is built; the add-on is a skeleton. Nothing can be sold for it yet. |
-| Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`) | none yet | Planned. The product keys resolve to the prefixes `workflow.`, `form.`, `review.` (`EntitlementCatalog::PLANNED_PRODUCT_KEYS`); the product editor does not suggest them and offers no key for them. |
+| Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`) | none yet | Planned. The product keys resolve to the prefixes `workflow.`, `form.`, `review.` (`EntitlementCatalog::PLANNED_PRODUCT_KEYS`); the product editor does not suggest them and offers no key for them. Six `workflow.*` keys are reserved (next section). |
 
 Support is modelled twice today: as the plan attribute `support.level` and as the keys `affiliate.priority_support`, `voucher.priority_support`, `pass.priority_support`, which no add-on checks. Which of the two stays is an open decision (R-24 in [TODO.md](TODO.md)); until then use `support.level` and leave the three keys unticked.
 
@@ -120,6 +120,14 @@ These keys are reserved for functions that are planned but that no released add-
 | `affiliate.multi_tier` | Multi-tier commissions |
 | `affiliate.multiple_programs` | Multiple programs |
 | `voucher.white_label` | White label for Voucher Captain Pro (not described yet) |
+| `workflow.suite_integrations` | Workflow Captain Pro: integrations with the other Captain plugins |
+| `workflow.webhooks` | Workflow Captain Pro: webhooks |
+| `workflow.event_correlation` | Workflow Captain Pro: event correlation |
+| `workflow.advanced_logic` | Workflow Captain Pro: advanced logic |
+| `workflow.recipe_templates` | Workflow Captain Pro: recipe templates |
+| `workflow.extended_logs` | Workflow Captain Pro: extended logs |
+
+The six `workflow.*` keys are boolean and belong to every plan (`single`, `business`, `agency`) once the add-on is released; captain-pro uses the same names (its TODO, WFC-PRO-03). No Workflow add-on exists yet, and `workflow-captain-pro` is a planned product key that the product editor does not suggest.
 
 ## Contract examples
 

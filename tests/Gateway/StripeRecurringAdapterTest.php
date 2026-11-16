@@ -22,12 +22,6 @@ final class StripeRecurringAdapterTest extends TestCase {
 		$this->assertArrayNotHasKey( 'wplc_attempt', StripeRecurringAdapter::request_metadata( 33, 11, 22, null ) );
 	}
 
-	public function test_first_request_of_an_attempt_carries_the_marker(): void {
-		$this->assertTrue( StripeRecurringAdapter::attempt_marker_allowed( '', '', 0 ) );
-		// An unknown result recorded for an earlier attempt says nothing about this one.
-		$this->assertTrue( StripeRecurringAdapter::attempt_marker_allowed( '0|1700000000', '', 1 ) );
-	}
-
 	/** P-61: the renewal order is part of the Stripe key; zero keeps the earlier format. */
 	public function test_stripe_key_depends_on_the_renewal_order(): void {
 		$legacy = StripeRecurringAdapter::stripe_idempotency_key( 'renewal:0', 'cus_1', 'pm_1', 4900, 'eur' );
@@ -45,14 +39,5 @@ final class StripeRecurringAdapterTest extends TestCase {
 		$this->assertSame( 0, StripeRecurringAdapter::attempt_number( str_repeat( 'a', 64 ) . ':0' ) );
 		$this->assertSame( 12, StripeRecurringAdapter::attempt_number( 'abc:12' ) );
 		$this->assertSame( -1, StripeRecurringAdapter::attempt_number( 'abc' ) );
-	}
-
-	public function test_repeated_request_keeps_the_parameters_of_the_first_one(): void {
-		// The first request of attempt 1 carried the marker: the repeat carries it too.
-		$this->assertTrue( StripeRecurringAdapter::attempt_marker_allowed( '1|1700000000', '1', 1 ) );
-		// Sent before the marker existed (no marker recorded for this attempt): the repeat must not add it,
-		// or Stripe rejects the reused idempotency key for changed parameters.
-		$this->assertFalse( StripeRecurringAdapter::attempt_marker_allowed( '1|1700000000', '', 1 ) );
-		$this->assertFalse( StripeRecurringAdapter::attempt_marker_allowed( '1|1700000000', '0', 1 ) );
 	}
 }

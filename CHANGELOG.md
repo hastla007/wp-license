@@ -24,6 +24,9 @@ Consolidation of all earlier development branches into one code base. Preview: c
 
 - Translations: `languages/wp-license.pot` regenerated for 0.2.0 (1,573 texts), `de_DE` and `de_DE_formal` brought in line and recompiled. 130 entries left the catalog: 113 texts of the client library `src/Client` (they are shown by the add-ons in their own text domain, never by this plugin; `bin/make-pot.sh` has excluded them since the 15 Nov audit, the files had not been regenerated since) and 17 labels of the catalog keys removed on 16 Nov. The German texts of the client library remain available in the history of this repository (`languages/wp-license-de_DE_formal.po` before this change) for the add-ons that want to ship them.
 - `bin/make-pot.sh` no longer reads `build/`, `dist/` (output of `bin/build-zip.sh`, which doubled every source reference when present) and `examples/`, and carries the version and creation date of the template into the `.po` headers.
+- Entitlement catalog: the six keys of the planned Workflow Captain Pro (`workflow.suite_integrations`, `workflow.webhooks`, `workflow.event_correlation`, `workflow.advanced_logic`, `workflow.recipe_templates`, `workflow.extended_logs`) are reserved in `EntitlementCatalog::planned()`. They are not offered in the product editor.
+- Removed two methods that only tests still called: `Catalog::accepts_product_key()` and `StripeRecurringAdapter::attempt_marker_allowed()`.
+- Documentation: `docs/RENEWALS.md` said the block checkout shows no opt-in; it describes the additional checkout field and its limit on WooCommerce 8.9 to 9.8 now (also in `docs/COMPATIBILITY.md`).
 - New `bin/check-consistency.php` with `ConsistencyCheckTest` (unit job): the counted overview of `docs/TODO.md`, the CI job numbers in `docs/QUALITY-GATES.md` and `docs/TODO.md`, and the translations against the template.
 
 ### Added
