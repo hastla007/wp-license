@@ -1115,7 +1115,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 *
 		 * @since 2.1.0
 		 *
-		 * @param array<string,mixed> $info Sections of Site Health.
+		 * @param mixed $info Sections of Site Health (an array; other plugins may break the filter value).
 		 * @return array<string,mixed>
 		 */
 		public function debug_information( $info ) {
