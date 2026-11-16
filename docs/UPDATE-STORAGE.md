@@ -130,13 +130,13 @@ For Google Cloud Storage, return `$bucket->object( $key )->signedUrl( new DateTi
 
 ### Without a resolver a `url` release is not delivered
 
-Redirecting a client to the stored URL would tell every licensed installation the permanent address, which it could keep using or pass on after its license has ended. Since A-32 the server therefore refuses (404, grant not used; the customer-account download shows an error) to redirect to an unchanged stored URL, and the releases screen says that such releases are not delivered. Either keep the object private and add a resolver, or upload the ZIP (`local`).
+Redirecting a client to the stored URL would tell every licensed installation the permanent address, which it could keep using or pass on after its license has ended. Since A-32 the server therefore refuses (404; the customer-account download shows an error) to redirect to an unchanged stored URL, and the releases screen says that such releases are not delivered. Either keep the object private and add a resolver, or upload the ZIP (`local`).
 
 A shop that accepts the permanent address (for example a public mirror of a free download) restores the old behaviour with `add_filter( 'wplc_require_package_resolver', '__return_false' );`. The releases screen then warns that customers learn the address.
 
 ### Rules for a resolver
 
-- It runs **before** the grant is marked as used. If it returns nothing usable, the download answers 404 and the client can try the same link again within its ten minutes.
+- A download link is valid for five minutes (`UpdateService::TOKEN_TTL`, 300 seconds) and, by default, for one `GET`: the grant is marked as used **before** the resolver runs (strict single use, T-108, `UpdateService::download()`). If the resolver returns nothing usable, the download answers 404 and the link is spent; the client asks for a new one with `POST /updates/check`. Only a shop that switched the reuse window on (`wplc_download_reuse_seconds` above 0) gets the older order: the resolver runs first, and a failed resolver leaves the grant unused.
 - It also runs once when a `url` release is **published**: the server downloads the package through it (license ID `0`) to compare the SHA-256 and to check the folder and the `Version:` header. The shop server must therefore be able to reach the storage. Switch this off with `add_filter( 'wplc_verify_url_release_on_publish', '__return_false' )` only if your pipeline verifies the package itself.
 - The returned URL must be HTTPS and its host must be allowed, otherwise the download fails closed with 404.
 - The URL must be short-lived, read-only and point to the exact bytes of the published SHA-256. Do not overwrite objects; upload each version under its own key.

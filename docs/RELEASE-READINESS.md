@@ -1,6 +1,6 @@
 # Release readiness checklist
 
-Go/no-go gate for the first public release. A box is ticked only when the item was verified and the evidence is recorded in [LAUNCH-EVIDENCE.md](LAUNCH-EVIDENCE.md). Verified so far: unit and integration tests in CI and the end-to-end harness (`tests/e2e/`) without Stripe and without a browser. Nothing here is ticked until it has also passed the gate's real-world check.
+Go/no-go gate for the first public release. A box is ticked only when the item was verified and the evidence is recorded in [LAUNCH-EVIDENCE.md](LAUNCH-EVIDENCE.md). Verified so far: unit and integration tests and the end-to-end harness (`tests/e2e/`) in CI, without Stripe; a browser pass with headless Chromium ran locally only ([BROWSER-ACCEPTANCE.md](BROWSER-ACCEPTANCE.md)). Nothing here is ticked until it has also passed the gate's real-world check.
 
 The work items themselves live in [TODO.md](TODO.md), the single task list. This page does not repeat them; each gate names the tasks that must be closed first.
 
@@ -9,8 +9,8 @@ The work items themselves live in [TODO.md](TODO.md), the single task list. This
 ### 1. Build and installation
 
 - [ ] All tasks of TODO section 1 closed (T-12 Stripe test mode, T-130 browser acceptance, T-131 product add-ons).
-- [ ] CI green on the release commit: lint, unit tests, integration tests, coding standards, static analysis (T-80).
-- [ ] Release ZIP built by CI, installed on a clean WordPress with WooCommerce, activated without errors or notices (T-95).
+- [ ] CI green on the release commit: lint, unit tests, integration tests (all seven cells), end-to-end run, coding standards, static analysis, release ZIP (T-80). **Green means green on the first run of the release commit.** A restarted job counts only when the cause of the red run is written down in [LAUNCH-EVIDENCE.md](LAUNCH-EVIDENCE.md): the failing test, why it failed, and the commit that fixed it or the proof that the cause lies outside the plugin (runner outage, download failure). A test that fails now and then is a defect and blocks the release until its cause is fixed (R-11; the two red runs on `main` of 15 Nov 2026 came from a test fixture with a random key prefix, not from the runner).
+- [ ] Release ZIP built by CI, installed on a clean WordPress with WooCommerce, activated without errors or notices (T-95). The rehearsal of 14 Nov 2026 used version 0.1.0 with 14 tables; it must be repeated with the release commit (0.2.0 or later, current `Schema::VERSION`) and with a real tag push including the release upload (R-25).
 - [ ] Update from the previous schema version runs without data loss (T-60).
 - [ ] The declared minimums (WordPress 6.5, WooCommerce 8.9, PHP 7.4; `wp-license.php`, `Requirements::MIN_WC`) pass the integration suite in CI: the matrix cell WordPress 6.5 / WooCommerce 8.9.3 / PHP 7.4 (HPOS and legacy orders) is green on the release commit. If it cannot be made green, the minimum is raised to the oldest version that is (A-91).
 - [ ] German and English admin and customer texts checked on screen; `languages/` is in the ZIP (T-76).
@@ -18,8 +18,9 @@ The work items themselves live in [TODO.md](TODO.md), the single task list. This
 
 ### 2. Purchase and renewal
 
-- [ ] All [KRITISCH] purchase and renewal tasks closed (T-12, T-42, T-132).
+- [ ] All [KRITISCH] purchase and renewal tasks closed (T-12, T-42, T-132), including the Stripe-dependent tasks that are proven against the fake only (TODO R-02: A-20, A-114, B-10, B-58, B-59, B-60, B-62, B-146, B-147, P-03, P-15, P-16, P-18, P-59, P-61; steps in [STRIPE-TEST-PLAN.md](STRIPE-TEST-PLAN.md)).
 - [ ] The six [KRITISCH] findings of the 13 November audit stay fixed and are re-checked on real screens (B-154): A-01 variable product mapped on the parent only (guest gets an ownerless license), A-02 a new customer can buy with WooCommerce default settings, A-03 manual renewal uses the price of the purchased plan, A-04 renewal orders keep the tax exemption and VAT ID, A-05 saving in the variations tab keeps the license fields, A-06 long version strings do not block an activation. Their tests are listed in TODO.md section 7.
+- [ ] The later [KRITISCH] findings stay fixed and are re-checked the same way: B-01 (a cloned shop or a restored backup must not charge again: billing pauses when the site address changes) and B-02 (a cancellation survives the payment of an open renewal order) from rounds 3 to 5 (TODO section 8); P-01 (license form in network mode), P-02 (license re-read under lock directly before the charge), P-03 (idempotency key frozen per attempt), P-04 and P-06 (plan change keeps the tax flag and uses the contract price), P-05 (review actions refuse refunded or cancelled orders) from the audit panel (TODO section 10). P-03 additionally needs step 17 of the Stripe test plan.
 - [ ] Purchase → license → email → account verified in the test shop with real WooCommerce screens.
 - [ ] Automatic renewal verified in the Stripe test mode: success, decline, 3-D Secure, timeout, removed card (T-12).
 - [ ] Manual renewal verified with at least two payment methods, including a net-price and a gross-price shop.
@@ -28,6 +29,7 @@ The work items themselves live in [TODO.md](TODO.md), the single task list. This
 
 ### 3. Updates and product plugins
 
+- [ ] **Host name gate (B-15):** the permanent host name of the license server is decided, DNS and HTTPS for it are in place, and it is the address in `Update URI` and in the client configuration of every add-on, together with the pinned public key of the production server. No add-on release is built before this: the address is burnt into every shipped add-on, the client does not follow redirects, and after a later change of the address every customer site loses its entitlement checks and updates. The add-ons in captain-pro still carry the placeholder `https://license.example.com`.
 - [ ] All [KRITISCH] update and product-plugin tasks closed (T-131, T-134, T-135, T-42).
 - [ ] A release published in the admin is installed through the WordPress updater of each product plugin; wrong checksum, expired link and inactive license are refused.
 - [ ] Customer download of the first ZIP from the account verified.
@@ -37,7 +39,8 @@ The work items themselves live in [TODO.md](TODO.md), the single task list. This
 
 - [ ] All [KRITISCH] security tasks closed (T-22 concurrency, T-134 server signature in the client).
 - [ ] `WPLC_LICENSE_KEY_SECRETS` and `WPLC_INSTALLATION_ENCRYPTION_KEYS` defined on the production server; the admin notice about salt fallback is gone.
-- [ ] Key rotation and recovery rehearsed on a restored database copy (T-86).
+- [ ] Key rotation and recovery rehearsed on a restored database copy (T-86). The rehearsal of 14 Nov 2026 ran on version 0.1.0 with schema 14; it must be repeated on a copy with the current schema before the release (R-25).
+- [ ] Multisite rehearsed on a real network with the release commit: network and per-site activation, tables per site, deleting a site (T-61; the rehearsal of 14 Nov 2026 ran on 0.1.0, R-25).
 - [ ] Personal data export and erasure verified through the WordPress privacy tools; retention periods decided; deletion queries run against a database (T-92).
 - [ ] The anonymisation period for ended licenses decided and set (`wplc_retention_days`, key `anonymize_licenses`; the settings page shows it), or the decision to keep it off is recorded (B-45).
 - [ ] Independent review of the REST API authentication completed; concurrency verified (T-22).

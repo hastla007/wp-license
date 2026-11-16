@@ -12,13 +12,18 @@ No `composer.lock` is committed: the dependencies are development tools only and
 | PHP syntax | `phpunit.yml` / `unit (X)` | yes | Every PHP file parses on PHP 7.4, 8.1, 8.2 and 8.3 |
 | Unit tests | `phpunit.yml` / `unit (X)` | yes | Pure logic without WordPress, on PHP 7.4, 8.1, 8.2 and 8.3 |
 | Site URL rules without intl | `phpunit.yml` / `unit (X)` | yes | `SiteUrl::normalize()` behaves as documented when `idn_to_ascii()` is unavailable |
-| Integration tests | `phpunit.yml` / `integration (…)` (5 cells), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
+| Integration tests | `phpunit.yml` / `integration (…)` (7 cells: WooCommerce 8.9.3, 9.4.3 and 11.2.2, each with HPOS and legacy orders, plus one multisite cell), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
 | PHPCS security + compatibility | `quality.yml` / `phpcs` | yes (new findings) | Escaping, nonces, input sanitization, prepared SQL, PHP 7.4 compatibility |
 | PHPCS coding standard | `quality.yml` / `phpcs` | no (report only) | WordPress-Extra and WordPress-Docs style |
 | PHPStan level 5 | `quality.yml` / `phpstan` | yes (new errors) | Undefined methods/variables, wrong argument counts and types in `src/` and `wp-license.php` |
 | Plugin ZIP | `package.yml` / `zip` | yes | `bin/build-zip.sh` (the release build) on PHP 7.4: versions agree, ZIP contents, class map covers `src/` |
+| End-to-end run | `e2e.yml` / `e2e (WP latest, WC 11.2.2, PHP 8.3)` | yes | The 15 flows of `tests/e2e/` in a real WordPress + WooCommerce shop with MySQL 8.0, including concurrent requests ([tests/e2e/README.md](../tests/e2e/README.md)) |
 
-`wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (7.4)` … `unit (8.3)`, `phpcs`, `phpstan`, `zip`) as required checks.
+`wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (7.4)` … `unit (8.3)`, `phpcs`, `phpstan`, `zip`, `e2e (…)`) as required checks.
+
+A pull request or a push to `main` starts 16 jobs: 4 unit, 7 integration cells, `wordpress-integration`, `phpcs`, `phpstan`, `zip` and `e2e`. The browser pass of [BROWSER-ACCEPTANCE.md](BROWSER-ACCEPTANCE.md) is not one of them; it runs locally only.
+
+A red job on a commit that did not change code is a defect of the test suite, not noise: find the failing test and its cause before restarting the job (rule in [RELEASE-READINESS.md](RELEASE-READINESS.md)).
 
 ## Syntax and unit tests
 

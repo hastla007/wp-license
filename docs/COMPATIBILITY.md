@@ -15,7 +15,7 @@ These are the combinations the integration suite runs against in CI (`.github/wo
 | latest stable | 11.2.2 | 8.3 | HPOS | multisite (subdirectory network) |
 
 - WordPress 6.5, PHP 7.4 and WooCommerce 8.9 are the minimums declared in `wp-license.php` (`WC requires at least: 8.9`, checked at run time by `Requirements::MIN_WC`).
-- WooCommerce 8.9.3 is the last release of the declared minimum line (it needs WordPress 6.4 or later). The 8.9.3 cells were added to the matrix without a local run (the download was not reachable in the development environment); until CI has passed them once, 8.9 is a declared but unproven minimum.
+- WooCommerce 8.9.3 is the last release of the declared minimum line (it needs WordPress 6.4 or later). Both 8.9.3 cells have passed in CI on `main` (for example commit `c269e07`, PHPUnit run 424 of 15 Nov 2026); they were never run locally, because the download was not reachable in the development environment.
 - WooCommerce 9.4.3 declares WordPress 6.5 as its own minimum and is the newest WooCommerce line that still supports it; the pinned recent version (11.2.2) declares WordPress 7.0, which is why it is paired with the latest WordPress.
 - "latest stable" WordPress is resolved at run time; the WooCommerce version is pinned in the workflow matrix and in `bin/install-test-env.sh` and must be raised by hand.
 - Database in CI: MySQL 8.0.
@@ -39,12 +39,12 @@ WP License Captain renews licenses itself and does not integrate with WooCommerc
 
 ## Connected products: declared minimums
 
-Source is the `readme.txt` in each connected product repository (snapshot 2026-11-12). These are declared minimums, not test results of this repository.
+Source is the plugin header and `readme.txt` in each connected product repository (snapshot 2026-11-16; details in [PRODUCT-COMPATIBILITY.md](PRODUCT-COMPATIBILITY.md)). These are declared minimums, not test results of this repository.
 
 | Product | WordPress minimum | PHP minimum | WooCommerce minimum | Declared tested WordPress |
 |---|---:|---:|---:|---:|
-| Voucher Captain (`wp-couponmaster`) | 6.4 | 8.1 | Not declared in readme | 7.1 |
-| WP Pass Captain (`wp-passmaster`) | 6.4 | 8.2 | 8.2 | 7.1 |
-| Affiliate Captain (`wpaffiliatemaster`) | 6.2 | 7.4 | Not declared in readme | 7.1 |
+| Voucher Captain (`wp-couponmaster`) | 6.4 | 8.1 | 8.9 | 7.1 |
+| Pass Captain (`wp-passmaster`) | 6.4 | 8.2 | 8.2 (optional) | 7.1 |
+| Affiliate Captain (`wpaffiliatemaster`) | 6.3 | 7.4 | 8.0 (optional) | 7.1 |
 
 The client libraries of these products are not tested by this repository's CI.

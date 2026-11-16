@@ -361,7 +361,7 @@ A refund of a plan upgrade order is described under "Plan changes" below.
 
 ## Plan changes
 
-A license can change to another plan of the same product (T-110): for example Solo → Business (more live sites, more features) or back. The license, its key, its paid period (`paid_until`) and its site activations stay. What changes: the plan key, the entitlement snapshot (including `sites.live_limit`), and the product and amount used for future renewals (`renewal_product_id`, `renewal_amount_minor`).
+A license can change to another plan of the same product (T-110): for example `single` → `business` (more live sites; in the decided catalog all plans of a product have the same features) or back. The license, its key, its paid period (`paid_until`) and its site activations stay. What changes: the plan key, the entitlement snapshot (including `sites.live_limit`), and the product and amount used for future renewals (`renewal_product_id`, `renewal_amount_minor`).
 
 Source: `src/License/PlanChange.php` (core, shared by all paths), `src/Billing/PlanUpgrade.php` (customer account, upgrade order, refund, cancellation, daily sweep).
 
@@ -484,7 +484,7 @@ Manual renewals use the current catalog price and read it by the current shop se
 
 - A single writable MySQL primary: the locks use `GET_LOCK`.
 - Action Scheduler is used when available, otherwise WP-Cron. The schedule must actually run.
-- Classic checkout for the opt-in.
+- The opt-in is offered in the classic checkout and, from WooCommerce 8.9, in the block checkout as an additional checkout field (`BlockCheckoutConsent`). The block checkout is covered by integration tests through the Store API only, not in a browser (T-130).
 - Stripe webhooks are needed for disputes and for payments that settle later; see [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md).
 
 ## Known gaps

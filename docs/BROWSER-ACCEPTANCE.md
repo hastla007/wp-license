@@ -58,7 +58,7 @@ Without the compiled WooCommerce CSS the product data panel and the responsive a
 would be unstyled and the layout checks meaningless. Only in that case the script injects two
 hand-flattened stand-ins of the relevant WooCommerce 11.2.2 rules
 (`tests/browser/wc-admin-shim.css`, `tests/browser/wc-frontend-shim.css`) and says so in a
-`NOTE`. With the release ZIP (CI) the real stylesheets are used. The block checkout cannot
+`NOTE`. With the release ZIP of WooCommerce the real stylesheets are used. The block checkout cannot
 render at all in a source build (no compiled Blocks scripts); the script notes that and checks
 it automatically when `assets/client/blocks/checkout.js` exists.
 
@@ -117,8 +117,9 @@ Specific items:
 - **Real wallets** (Apple Pay, Google Pay, Link, B-113) and **real Stripe** (3DS windows, saved
   cards, webhooks; see `docs/STRIPE-TEST-PLAN.md`, T-12).
 - **Block checkout** in a source build, and generally against the release build of the
-  WooCommerce version you ship (CI has it, see below).
-- **Mail clients** (the nine plugin mails in Outlook, Gmail, Apple Mail; A-129).
+  WooCommerce version you ship (the CI runner installs that release build, but the browser
+  pass is not part of CI, see below).
+- **Mail clients** (the ten plugin mails in Outlook, Gmail, Apple Mail; A-129).
 - **Language and design judgement:** German texts in context, themes other than Twenty
   Twenty-Five, real devices (touch targets, zoom), visual polish. The screenshots are a starting
   point for that review.
@@ -127,7 +128,9 @@ Specific items:
 
 ## CI
 
-Not wired into `.github/workflows/e2e.yml`. The runner has Node but neither the `playwright`
+The browser pass does not run in CI: it is not wired into `.github/workflows/e2e.yml` or any other
+workflow. Every result in this document comes from a local run with headless Chromium against a
+WooCommerce source build (stand-in stylesheets, no block checkout). The runner has Node but neither the `playwright`
 module nor its Chromium; installing them (`npm i playwright && npx playwright install
 --with-deps chromium`) adds a download and a moving dependency to the required E2E job, and the
 pass has only run locally so far. To add it later as an opt-in step after the E2E step:
