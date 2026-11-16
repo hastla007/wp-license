@@ -6,11 +6,19 @@
  */
 
 use PHPUnit\Framework\TestCase;
+use WPLC\Catalog\CatalogStore;
 use WPLC\Catalog\EntitlementCatalog;
 
 require_once __DIR__ . '/wp-function-stubs.php';
 
 final class EntitlementCatalogTest extends TestCase {
+
+	protected function setUp(): void {
+		parent::setUp();
+		// The catalog is data: the files under catalogs/ are what schema step 24 imports.
+		$report = CatalogStore::import_bundled();
+		$this->assertSame( array(), $report['failed'] );
+	}
 
 	protected function tearDown(): void {
 		unset( $GLOBALS['wplc_test_filters']['wplc_offer_planned_entitlements'], $GLOBALS['wplc_test_filters']['wplc_known_product_keys'] );
@@ -30,7 +38,7 @@ final class EntitlementCatalogTest extends TestCase {
 		$end      = strpos( $markdown, $to );
 		$this->assertNotFalse( $start, $from );
 		$this->assertNotFalse( $end, $to );
-		preg_match_all( '/`((?:affiliate|voucher|pass|workflow|form|review)\.[a-z_]+)`/', substr( $markdown, (int) $start, (int) $end - (int) $start ), $matches );
+		preg_match_all( '/`((?:affiliate|voucher|pass|workflow|form|review|course)\.[a-z_]+)`/', substr( $markdown, (int) $start, (int) $end - (int) $start ), $matches );
 		$documented = array_values( array_unique( $matches[1] ) );
 		sort( $documented );
 
@@ -39,7 +47,7 @@ final class EntitlementCatalogTest extends TestCase {
 
 	public function test_catalog_matches_the_documented_keys(): void {
 		$catalog = EntitlementCatalog::all();
-		$this->assertSame( array( 'affiliate', 'voucher', 'pass', 'workflow', 'form', 'review' ), array_keys( $catalog ) );
+		$this->assertSame( array( 'affiliate', 'course', 'form', 'pass', 'review', 'voucher', 'workflow' ), array_keys( $catalog ) );
 
 		$known = EntitlementCatalog::known_keys();
 		sort( $known );
@@ -152,7 +160,7 @@ final class EntitlementCatalogTest extends TestCase {
 
 	public function test_every_entry_is_prefixed_by_its_group_and_labelled(): void {
 		foreach ( EntitlementCatalog::all() as $group => $entitlements ) {
-			if ( isset( array_flip( EntitlementCatalog::PLANNED_PRODUCT_KEYS )[ $group ] ) ) {
+			if ( isset( array_flip( EntitlementCatalog::planned_product_keys() )[ $group ] ) ) {
 				$this->assertSame( array(), $entitlements, 'No entitlement is offered for a planned product.' );
 				continue;
 			}
@@ -171,11 +179,12 @@ final class EntitlementCatalogTest extends TestCase {
 	}
 
 	public function test_planned_product_keys_resolve_to_their_group_without_being_suggested_or_sold(): void {
+		// FR-LIC-06: Course Captain is the fourth planned product.
 		$this->assertSame(
-			array( 'workflow-captain-pro' => 'workflow', 'form-captain-pro' => 'form', 'review-captain-pro' => 'review' ),
-			EntitlementCatalog::PLANNED_PRODUCT_KEYS
+			array( 'course-captain-pro' => 'course', 'form-captain-pro' => 'form', 'review-captain-pro' => 'review', 'workflow-captain-pro' => 'workflow' ),
+			EntitlementCatalog::planned_product_keys()
 		);
-		foreach ( EntitlementCatalog::PLANNED_PRODUCT_KEYS as $product_key => $group ) {
+		foreach ( EntitlementCatalog::planned_product_keys() as $product_key => $group ) {
 			$this->assertTrue( \WPLC\Catalog\Catalog::is_valid_product_key( $product_key ), $product_key );
 			$this->assertSame( array( $group ), EntitlementCatalog::groups_for_product_key( $product_key ) );
 			$this->assertSame( array(), EntitlementCatalog::all()[ $group ] );
@@ -183,7 +192,8 @@ final class EntitlementCatalogTest extends TestCase {
 			$this->assertNotSame( ucfirst( $group ), EntitlementCatalog::group_label( $group ) );
 			$this->assertStringNotContainsString( 'WP ', EntitlementCatalog::group_label( $group ) );
 		}
-		$this->assertSame( 'Pass Captain', EntitlementCatalog::group_label( 'pass' ) );
+		$this->assertSame( 'Pass Captain Pro', EntitlementCatalog::group_label( 'pass' ) );
+		$this->assertSame( 'Unknown', EntitlementCatalog::group_label( 'unknown' ), 'A group without a product in the catalog shows its prefix.' );
 		// An empty group never matches by substring: "platform" contains "form", "preview" contains "review".
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'my-platform' ) );
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'preview-tool' ) );
@@ -208,7 +218,7 @@ final class EntitlementCatalogTest extends TestCase {
 
 	public function test_the_decided_product_keys_map_to_their_entitlement_prefix(): void {
 		$this->assertSame(
-			array( 'voucher-captain-pro' => 'voucher', 'pass-captain-pro' => 'pass', 'affiliate-captain-pro' => 'affiliate' ),
+			array( 'affiliate-captain-pro' => 'affiliate', 'pass-captain-pro' => 'pass', 'voucher-captain-pro' => 'voucher' ),
 			EntitlementCatalog::known_product_keys()
 		);
 		foreach ( EntitlementCatalog::known_product_keys() as $product_key => $group ) {

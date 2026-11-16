@@ -137,6 +137,12 @@ The address is burnt into every shipped copy. Before the first release, give the
 
 To rotate the server key: ship an add-on version that lists the old **and** the new key, wait until it is installed widely, then switch the server. Sites that still pin only the old key keep their rights until the signed deadline of their last snapshot and then stop with the state `stale`; that is why the order matters. Set the key on the server with `WPLC_RESPONSE_SIGNING_KEY` so that it survives a database restore ([SECURITY-OPERATIONS.md](SECURITY-OPERATIONS.md)).
 
+## The catalog file of the add-on
+
+The license server does not know your product or its entitlement keys until you tell it. Put a file named `wplc-catalog.json` into the root folder of the add-on (next to the main plugin file, so that it is part of the release ZIP). It lists the product key, the prefix of the entitlement keys and every key the add-on checks, with labels per language and the status `available` or `planned`. Format, JSON schema and an example: [CATALOG-FILE.md](CATALOG-FILE.md).
+
+The add-on never reads the file at run time; it is for the shop. Import it there under WooCommerce → License catalog files or with `wp wplc catalog import wplc-catalog.json` whenever a release adds, renames or releases a key. Check it in your build with `wp wplc catalog validate` or against `docs/catalog-file.schema.json`. The keys you pass to `is_entitled()` must be the keys of the file.
+
 ## Settings of `LicenseManager`
 
 | Key | Required | Meaning |

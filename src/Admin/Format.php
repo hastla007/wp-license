@@ -269,6 +269,8 @@ final class Format {
 			'admin_issue_for_order'           => __( 'Missing licenses issued for an order', 'wp-license' ),
 			'admin_plan_change'               => __( 'Plan changed by support', 'wp-license' ),
 			'admin_renewal_amount_changed'    => __( 'Renewal amount changed by support', 'wp-license' ),
+			'catalog_file_imported'           => __( 'Catalog file imported', 'wp-license' ),
+			'catalog_product_removed'         => __( 'Product removed from the catalog', 'wp-license' ),
 			'plan_change_scheduled'           => __( 'Plan change scheduled', 'wp-license' ),
 			'plan_change_cancelled'           => __( 'Plan change withdrawn', 'wp-license' ),
 			'license_key_reissued'            => __( 'New key issued', 'wp-license' ),

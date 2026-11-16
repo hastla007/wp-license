@@ -5,8 +5,8 @@
 #
 # Used by .github/workflows/release.yml (tag builds) and by the "Package" workflow on pull
 # requests, so every pull request exercises exactly the release build. It copies an
-# allow-list of runtime files (wp-license.php, uninstall.php, readme.txt, src/, mu-plugins/, languages/,
-# assets/, templates/) into build/wp-license/, generates vendor/ there and writes
+# allow-list of runtime files (wp-license.php, uninstall.php, readme.txt, src/, mu-plugins/, catalogs/,
+# languages/, assets/, templates/) into build/wp-license/, generates vendor/ there and writes
 # dist/wp-license-captain-<version>.zip (one top-level wp-license/ folder) plus a .sha256 file.
 # The checkout itself is not modified; everything happens in build/ and dist/.
 #
@@ -39,7 +39,8 @@ ZIP="wp-license-captain-${VERSION}.zip"
 rm -rf build dist
 mkdir -p "${STAGE}" dist
 cp wp-license.php uninstall.php readme.txt composer.json "${STAGE}/"
-cp -R src mu-plugins "${STAGE}/"
+# catalogs/ holds the catalog files schema step 24 imports (docs/CATALOG-FILE.md).
+cp -R src mu-plugins catalogs "${STAGE}/"
 for OPTIONAL in languages assets templates; do
 	if [ -d "${OPTIONAL}" ]; then
 		cp -R "${OPTIONAL}" "${STAGE}/"
@@ -98,7 +99,7 @@ find "${STAGE}" -type f -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
 
 # Verify the package contents.
 unzip -Z1 "dist/${ZIP}" > build/contents.txt
-for REQUIRED in wp-license/wp-license.php wp-license/uninstall.php wp-license/readme.txt wp-license/vendor/autoload.php wp-license/src/Plugin.php wp-license/mu-plugins/wplc-site-cleanup.php; do
+for REQUIRED in wp-license/wp-license.php wp-license/uninstall.php wp-license/readme.txt wp-license/vendor/autoload.php wp-license/src/Plugin.php wp-license/mu-plugins/wplc-site-cleanup.php wp-license/catalogs/pass-captain-pro.json; do
 	if ! grep -qx "${REQUIRED}" build/contents.txt; then
 		echo "::error::The ZIP is missing ${REQUIRED}."
 		exit 1

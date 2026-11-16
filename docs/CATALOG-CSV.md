@@ -2,6 +2,8 @@
 
 Users who may manage the license catalog can export the current plans and import a file from **WooCommerce → License catalog CSV**.
 
+> The CSV transfers **plan mappings** (which WooCommerce product sells which plan with which entitlements). Which entitlement keys exist at all, with their labels, is defined by the **catalog files** of the add-ons (`wplc-catalog.json`); see [CATALOG-FILE.md](CATALOG-FILE.md). The CSV accepts any valid key in `entitlements_json`, also one that no catalog file lists; such a key is stored and shown in the advanced JSON field of the product editor.
+
 ## Who may use it
 
 The screen, the export and the import need the catalog capability: `manage_woocommerce` by default, changeable with the filter `wplc_capability` (second argument `manage_catalog`). The same capability is needed to see and save the license fields in the product editor. Being allowed to edit products is neither needed nor enough.

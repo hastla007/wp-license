@@ -13,10 +13,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Catalog of feature entitlements (see docs/ENTITLEMENTS.md) and helpers for the product editor.
- */
-/*
- * Only premium features are listed. Core features of the free plugins are never
- * license-gated and therefore are not entitlements.
+ *
+ * The class holds no product, key or label itself: it reads the catalog files the vendor's add-ons
+ * ship (CatalogStore). Only premium features belong into such a file; functions of a free core
+ * plugin are never license-gated and therefore are not entitlements.
  */
 final class EntitlementCatalog {
 
@@ -26,48 +26,18 @@ final class EntitlementCatalog {
 	public const KEY_PATTERN = '/^[a-zA-Z0-9_.-]{1,120}$/';
 
 	/**
-	 * All known boolean entitlements.
+	 * All known boolean entitlements that the product editor offers.
 	 *
-	 * @return array<string,array<int,array{key:string,label:string}>> Product group => list of entitlements.
+	 * The definitions come from the imported catalog files (CatalogStore, docs/CATALOG-FILE.md): the
+	 * add-on of a product ships them, the server holds no product or key of any vendor in its code
+	 * (T-150, owner decisions G2 and E8 of 16 Nov 2026). A key is offered when its product and the
+	 * key itself are "available". A key that is not in the catalog (never was, or left it with a
+	 * later file) is not lost on a plan or license that stores it: split() leaves unknown keys in
+	 * the advanced JSON field.
+	 *
+	 * @return array<string,array<int,array{key:string,label:string}>> Entitlement prefix (group) => list of entitlements.
 	 */
 	public static function all(): array {
-		/*
-		 * A key is listed only when the premium add-on ships the function (hastla007/captain-pro). Removed on
-		 * 16 Nov 2026 (R-07, R-08): the keys that named functions of the free core plugins (affiliate: partner
-		 * portal, coupon attribution, refund handling, basic commissions, payout CSV, partner groups, product
-		 * and category rates, recurring commissions; voucher: branding, PDF templates, automatic and scheduled
-		 * delivery, QR redemption, partial balance, import/export, reports, staff roles). A plan or a license
-		 * that still stores one of them keeps it: split() leaves unknown keys in the advanced JSON field.
-		 * Removed on 16 Nov 2026 by owner decision G1 (R-24), in the same way: affiliate.priority_support,
-		 * voucher.priority_support and pass.priority_support. Support is the plan attribute support.level.
-		 */
-		$catalog = array(
-			'affiliate' => array(
-				array( 'key' => 'affiliate.extended_api', 'label' => __( 'Extended API', 'wp-license' ) ),
-				array( 'key' => 'affiliate.automated_payouts', 'label' => __( 'Automated payouts', 'wp-license' ) ),
-				array( 'key' => 'affiliate.white_label_portal', 'label' => __( 'White-label portal', 'wp-license' ) ),
-				array( 'key' => 'affiliate.webhooks', 'label' => __( 'Webhooks', 'wp-license' ) ),
-			),
-			// No premium function of Voucher Captain Pro is built yet; support is the plan attribute support.level (R-24).
-			'voucher'   => array(),
-			'pass'      => array(
-				// Pass Captain Pro, decided 14 Nov 2026 (captain-pro docs/PASS-PRO.md): payment providers,
-				// integrations, seating, box office, offline check-in, reports and the other former keys are
-				// part of the free Pass core. Every plan contains every Pro function; plans differ by sites.
-				// E-invoicing delivers XML (XRechnung as UBL and CII); a ZUGFeRD hybrid PDF is not built.
-				array( 'key' => 'pass.e_invoicing', 'label' => __( 'E-invoicing (XRechnung XML)', 'wp-license' ) ),
-				array( 'key' => 'pass.card_terminal', 'label' => __( 'Card terminal (Stripe Terminal, SumUp)', 'wp-license' ) ),
-				array( 'key' => 'pass.waiting_room', 'label' => __( 'Virtual waiting room', 'wp-license' ) ),
-				array( 'key' => 'pass.write_api', 'label' => __( 'Write API', 'wp-license' ) ),
-				array( 'key' => 'pass.white_label', 'label' => __( 'White label', 'wp-license' ) ),
-			),
-			// Planned add-ons (R-22): the groups exist so that their product keys resolve to the right
-			// prefix; no entitlement is offered before the add-on ships it.
-			'workflow'  => array(),
-			'form'      => array(),
-			'review'    => array(),
-		);
-
 		/**
 		 * Filters whether entitlements that are planned but not shipped by any add-on yet are offered
 		 * in the product editor. Off by default: a shop must not sell what does not exist.
@@ -75,16 +45,26 @@ final class EntitlementCatalog {
 		 * @param bool $offer Whether to offer the planned keys of EntitlementCatalog::planned().
 		 * @since 0.2.0
 		 */
-		if ( apply_filters( 'wplc_offer_planned_entitlements', false ) ) {
-			foreach ( self::planned() as $group => $entitlements ) {
-				$catalog[ $group ] = array_merge( isset( $catalog[ $group ] ) ? $catalog[ $group ] : array(), $entitlements );
+		$offer_planned = (bool) apply_filters( 'wplc_offer_planned_entitlements', false );
+
+		$catalog = array();
+		foreach ( CatalogStore::all() as $product ) {
+			$group = (string) $product['prefix'];
+			// A planned product keeps its group, so that its product key resolves to the right prefix.
+			$catalog[ $group ] = isset( $catalog[ $group ] ) ? $catalog[ $group ] : array();
+			$product_available = CatalogFile::STATUS_AVAILABLE === (string) $product['status'];
+			foreach ( (array) $product['entitlements'] as $entitlement ) {
+				$available = $product_available && CatalogFile::STATUS_AVAILABLE === (string) $entitlement['status'];
+				if ( $available || $offer_planned ) {
+					$catalog[ $group ][] = self::entry( $entitlement );
+				}
 			}
 		}
 
 		/**
 		 * Filters the catalog of known boolean entitlements offered in the product editor.
 		 *
-		 * @param array<string,array<int,array{key:string,label:string}>> $catalog Product group => entitlements.
+		 * @param array<string,array<int,array{key:string,label:string}>> $catalog Entitlement prefix => entitlements.
 		 * @since 0.2.0
 		 */
 		$filtered = apply_filters( 'wplc_entitlement_catalog', $catalog );
@@ -95,53 +75,58 @@ final class EntitlementCatalog {
 	/**
 	 * Entitlements that are planned but that no released add-on checks yet (R-09).
 	 *
-	 * They are not part of all() and therefore neither offered as tick boxes nor shown in the
-	 * pricing table, unless the filter `wplc_offer_planned_entitlements` returns true.
+	 * These are the keys with the status "planned" and every key of a planned product. They are
+	 * not part of all() and therefore neither offered as tick boxes nor shown in the pricing table,
+	 * unless the filter `wplc_offer_planned_entitlements` returns true.
 	 *
-	 * @return array<string,array<int,array{key:string,label:string}>> Product group => list of entitlements.
+	 * @return array<string,array<int,array{key:string,label:string}>> Entitlement prefix => list of entitlements.
 	 */
 	public static function planned(): array {
-		return array(
-			'affiliate' => array(
-				// Added 15 Nov 2026 on request of the captain-pro development; not built there yet.
-				array( 'key' => 'affiliate.store_credit', 'label' => __( 'Payout as store credit', 'wp-license' ) ),
-				array( 'key' => 'affiliate.stripe_connect', 'label' => __( 'Payouts via Stripe Connect', 'wp-license' ) ),
-				array( 'key' => 'affiliate.leaderboard', 'label' => __( 'Leaderboard and milestone emails', 'wp-license' ) ),
-				array( 'key' => 'affiliate.multi_tier', 'label' => __( 'Multi-tier commissions', 'wp-license' ) ),
-				array( 'key' => 'affiliate.multiple_programs', 'label' => __( 'Multiple programs', 'wp-license' ) ),
-			),
-			'voucher'   => array(
-				array( 'key' => 'voucher.white_label', 'label' => __( 'White label', 'wp-license' ) ),
-			),
-			// WFC-LIC-02: the six keys of Workflow Captain Pro, named identically in captain-pro (TODO, WFC-PRO-03).
-			// Reserved only: no add-on exists yet, and the product key is a planned one (PLANNED_PRODUCT_KEYS).
-			'workflow'  => array(
-				array( 'key' => 'workflow.suite_integrations', 'label' => __( 'Suite integrations', 'wp-license' ) ),
-				array( 'key' => 'workflow.webhooks', 'label' => __( 'Webhooks', 'wp-license' ) ),
-				array( 'key' => 'workflow.event_correlation', 'label' => __( 'Event correlation', 'wp-license' ) ),
-				array( 'key' => 'workflow.advanced_logic', 'label' => __( 'Advanced logic', 'wp-license' ) ),
-				array( 'key' => 'workflow.recipe_templates', 'label' => __( 'Recipe templates', 'wp-license' ) ),
-				array( 'key' => 'workflow.extended_logs', 'label' => __( 'Extended logs', 'wp-license' ) ),
-			),
-		);
+		$planned = array();
+		foreach ( CatalogStore::all() as $product ) {
+			$product_available = CatalogFile::STATUS_AVAILABLE === (string) $product['status'];
+			foreach ( (array) $product['entitlements'] as $entitlement ) {
+				if ( ! $product_available || CatalogFile::STATUS_AVAILABLE !== (string) $entitlement['status'] ) {
+					$planned[ (string) $product['prefix'] ][] = self::entry( $entitlement );
+				}
+			}
+		}
+
+		return $planned;
 	}
 
 	/**
-	 * Translated headings for the built-in product groups.
+	 * Heading of a group in the product editor: the name of the product with that prefix.
 	 *
-	 * @param string $group Catalog group key.
+	 * @param string $group Entitlement prefix.
 	 * @return string
 	 */
 	public static function group_label( string $group ): string {
-		$labels = array(
-			'affiliate' => __( 'Affiliate Captain', 'wp-license' ),
-			'voucher'   => __( 'Voucher Captain', 'wp-license' ),
-			'pass'      => __( 'Pass Captain', 'wp-license' ),
-			'workflow'  => __( 'Workflow Captain', 'wp-license' ),
-			'form'      => __( 'Form Captain', 'wp-license' ),
-			'review'    => __( 'Review Captain', 'wp-license' ),
+		foreach ( CatalogStore::all() as $product ) {
+			if ( (string) $product['prefix'] === $group ) {
+				$name = CatalogStore::text( $product['name'] ?? array() );
+				if ( '' !== $name ) {
+					return $name;
+				}
+			}
+		}
+
+		return ucfirst( $group );
+	}
+
+	/**
+	 * Key and label in the current language.
+	 *
+	 * @param array<string,mixed> $entitlement Entitlement of a stored product.
+	 * @return array{key:string,label:string}
+	 */
+	private static function entry( array $entitlement ): array {
+		$label = CatalogStore::text( $entitlement['label'] ?? array() );
+
+		return array(
+			'key'   => (string) $entitlement['key'],
+			'label' => '' !== $label ? $label : (string) $entitlement['key'],
 		);
-		return isset( $labels[ $group ] ) ? $labels[ $group ] : ucfirst( $group );
 	}
 
 	/**
@@ -160,39 +145,46 @@ final class EntitlementCatalog {
 	}
 
 	/**
-	 * Product keys of the premium add-ons (decided 14.11.2026, T-158): key = add-on folder = text domain
-	 * (hastla007/captain-pro).
+	 * Product keys of the products in the catalog with a given status.
 	 *
-	 * The key on a license product must equal the key the add-on sends; each maps to its entitlement prefix.
+	 * @param string $status CatalogFile::STATUS_AVAILABLE or CatalogFile::STATUS_PLANNED.
+	 * @return array<string,string> Product key => entitlement prefix.
 	 */
-	public const PRODUCT_KEYS = array(
-		'voucher-captain-pro'   => 'voucher',
-		'pass-captain-pro'      => 'pass',
-		'affiliate-captain-pro' => 'affiliate',
-	);
+	private static function product_keys( string $status ): array {
+		$keys = array();
+		foreach ( CatalogStore::all() as $product_key => $product ) {
+			if ( (string) $product['status'] === $status ) {
+				$keys[ (string) $product_key ] = (string) $product['prefix'];
+			}
+		}
+
+		return $keys;
+	}
 
 	/**
-	 * Product keys of planned add-ons that are not released yet (R-22). They resolve to their entitlement
-	 * group, but the product editor does not suggest them and no entitlement is offered for them.
+	 * Product keys of planned products that are not released yet (R-22). They resolve to their
+	 * entitlement group, but the product editor does not suggest them and no entitlement is offered for them.
+	 *
+	 * @return array<string,string> Product key => entitlement prefix.
 	 */
-	public const PLANNED_PRODUCT_KEYS = array(
-		'workflow-captain-pro' => 'workflow',
-		'form-captain-pro'     => 'form',
-		'review-captain-pro'   => 'review',
-	);
+	public static function planned_product_keys(): array {
+		return self::product_keys( CatalogFile::STATUS_PLANNED );
+	}
 
 	/**
-	 * Known product keys, filterable for further products.
+	 * Product keys the product editor suggests: the available products of the catalog. The key on a
+	 * license product must equal the key the add-on sends; each maps to its entitlement prefix.
 	 *
 	 * @return array<string,string> Product key => entitlement group.
 	 */
 	public static function known_product_keys(): array {
+		$available = self::product_keys( CatalogFile::STATUS_AVAILABLE );
 		/**
 		 * Filter the product keys suggested in the product editor.
 		 *
 		 * @param array<string,string> $keys Product key => entitlement group (prefix without the dot).
 		 */
-		$keys = function_exists( 'apply_filters' ) ? apply_filters( 'wplc_known_product_keys', self::PRODUCT_KEYS ) : self::PRODUCT_KEYS;
+		$keys = function_exists( 'apply_filters' ) ? apply_filters( 'wplc_known_product_keys', $available ) : $available;
 		$clean = array();
 		foreach ( (array) $keys as $key => $group ) {
 			if ( is_string( $key ) && is_string( $group ) && '' !== $key ) {
@@ -218,8 +210,9 @@ final class EntitlementCatalog {
 		if ( isset( $known[ $product_key ] ) ) {
 			return array( $known[ $product_key ] );
 		}
-		if ( isset( self::PLANNED_PRODUCT_KEYS[ $product_key ] ) ) {
-			return array( self::PLANNED_PRODUCT_KEYS[ $product_key ] );
+		$planned = self::planned_product_keys();
+		if ( isset( $planned[ $product_key ] ) ) {
+			return array( $planned[ $product_key ] );
 		}
 		foreach ( self::all() as $group => $entitlements ) {
 			// Groups without entitlements (planned products) match by their exact product key only.

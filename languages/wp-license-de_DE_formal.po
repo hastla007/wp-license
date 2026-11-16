@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T07:29:03+00:00\n"
+"POT-Creation-Date: 2026-11-16T07:49:37+00:00\n"
 "PO-Revision-Date: 2026-11-15 15:11+0000\n"
 "Language: de_DE_formal\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -132,6 +132,7 @@ msgid "Activated"
 msgstr "Aktiviert"
 
 #: src/Account/SiteOverview.php:288
+#: src/Admin/CatalogFileAdmin.php:80
 #: src/Admin/LicenseDetail.php:240
 #: src/Admin/ReleaseAdmin.php:129
 #: src/Admin/RenewalReviewAdmin.php:190
@@ -349,6 +350,8 @@ msgstr "Lizenzkatalog (CSV)"
 
 #: src/Admin/CatalogCsv.php:83
 #: src/Admin/CatalogCsv.php:579
+#: src/Admin/CatalogFileAdmin.php:68
+#: src/Admin/CatalogFileAdmin.php:362
 msgid "You do not have permission to manage license mappings."
 msgstr "Sie sind nicht berechtigt, Lizenzzuordnungen zu verwalten."
 
@@ -420,6 +423,7 @@ msgstr "Nicht erkannt"
 msgid "OpenSSL"
 msgstr "OpenSSL"
 
+#: src/Admin/CatalogFileAdmin.php:109
 #: src/Admin/Diagnostics.php:979
 #: src/Admin/Diagnostics.php:1023
 #: src/Admin/Diagnostics.php:1035
@@ -691,6 +695,7 @@ msgstr "Produkt"
 msgid "Plan"
 msgstr "Tarif"
 
+#: src/Admin/CatalogFileAdmin.php:80
 #: src/Admin/LicenseBulkActions.php:556
 #: src/Admin/LicenseDetail.php:201
 #: src/Admin/LicenseDetail.php:543
@@ -944,6 +949,7 @@ msgstr "Nächster Versuch"
 msgid "Grace ends"
 msgstr "Kulanzzeit endet"
 
+#: src/Admin/CatalogFileAdmin.php:80
 #: src/Admin/LicenseDetail.php:619
 #: src/Catalog/ProductEditor.php:342
 msgid "Entitlements"
@@ -1520,52 +1526,6 @@ msgstr "Diese Verlängerung erfordert eine Authentifizierung durch den Kunden. A
 msgid "The renewal attempt did not finish and its result is unknown."
 msgstr "Der Verlängerungsversuch wurde nicht abgeschlossen, sein Ergebnis ist unbekannt."
 
-#: src/Catalog/EntitlementCatalog.php:46
-msgid "Extended API"
-msgstr "Erweiterte API"
-
-#: src/Catalog/EntitlementCatalog.php:48
-msgid "White-label portal"
-msgstr "White-Label-Portal"
-
-#: src/Catalog/EntitlementCatalog.php:49
-#: src/Catalog/EntitlementCatalog.php:120
-msgid "Webhooks"
-msgstr "Webhooks"
-
-#: src/Catalog/EntitlementCatalog.php:111
-msgid "Multiple programs"
-msgstr "Mehrere Programme"
-
-#: src/Catalog/EntitlementCatalog.php:62
-#: src/Catalog/EntitlementCatalog.php:114
-msgid "White label"
-msgstr "White Label"
-
-#: src/Catalog/EntitlementCatalog.php:137
-msgid "Affiliate Captain"
-msgstr "Affiliate Captain"
-
-#: src/Catalog/EntitlementCatalog.php:138
-msgid "Voucher Captain"
-msgstr "Voucher Captain"
-
-#: src/Catalog/EntitlementCatalog.php:139
-msgid "Pass Captain"
-msgstr "Pass Captain"
-
-#: src/Catalog/EntitlementCatalog.php:140
-msgid "Workflow Captain"
-msgstr "Workflow Captain"
-
-#: src/Catalog/EntitlementCatalog.php:141
-msgid "Form Captain"
-msgstr "Form Captain"
-
-#: src/Catalog/EntitlementCatalog.php:142
-msgid "Review Captain"
-msgstr "Review Captain"
-
 #: src/Catalog/ProductEditor.php:174
 #: src/Catalog/ProductEditor.php:210
 msgid "License product"
@@ -1771,15 +1731,15 @@ msgstr "Wird 7 Tage vor der Abbuchung für eine Lizenz mit automatischer Verlän
 msgid "Your {product} license renews on {charge_date}"
 msgstr "Ihre Lizenz für {product} verlängert sich am {charge_date}"
 
-#: src/Plugin.php:128
+#: src/Plugin.php:129
 msgid "WP License Captain requires PHP 7.4 or later."
 msgstr "WP License Captain erfordert PHP 7.4 oder höher."
 
-#: src/Plugin.php:132
+#: src/Plugin.php:133
 msgid "Please activate WooCommerce before activating WP License Captain."
 msgstr "Bitte aktivieren Sie WooCommerce, bevor Sie WP License Captain aktivieren."
 
-#: src/Plugin.php:444
+#: src/Plugin.php:446
 msgid "WP License Captain requires WooCommerce to be installed and active."
 msgstr "WP License Captain setzt voraus, dass WooCommerce installiert und aktiviert ist."
 
@@ -2942,10 +2902,6 @@ msgstr "Version %s ist verfügbar."
 msgid "No contact for more than %d days."
 msgstr "Seit mehr als %d Tagen kein Kontakt."
 
-#: src/Catalog/EntitlementCatalog.php:47
-msgid "Automated payouts"
-msgstr "Automatische Auszahlungen"
-
 #: src/Admin/AdminNotices.php:73
 msgid "The bulk action was processed. The result for every license is shown below."
 msgstr "Die Sammelaktion wurde ausgeführt. Das Ergebnis für jede Lizenz steht unten."
@@ -3111,7 +3067,7 @@ msgstr "Erledigt:"
 msgid "Skipped because"
 msgstr "Übersprungen, weil"
 
-#: src/Admin/Format.php:283
+#: src/Admin/Format.php:285
 #: src/Admin/LicenseListTable.php:348
 msgid "Renewal needs review"
 msgstr "Verlängerung muss geprüft werden"
@@ -3120,7 +3076,7 @@ msgstr "Verlängerung muss geprüft werden"
 msgid "Renewal result being checked"
 msgstr "Ergebnis der Verlängerung wird geprüft"
 
-#: src/Admin/Format.php:282
+#: src/Admin/Format.php:284
 #: src/Admin/LicenseListTable.php:350
 msgid "Renewal payment failed"
 msgstr "Verlängerungszahlung fehlgeschlagen"
@@ -3591,6 +3547,7 @@ msgid "You do not have permission to do this."
 msgstr "Sie sind nicht berechtigt, dies zu tun."
 
 #: src/Admin/CatalogCsv.php:90
+#: src/Admin/CatalogFileAdmin.php:146
 msgid "Export"
 msgstr "Exportieren"
 
@@ -4860,7 +4817,7 @@ msgstr "Bitte beachten Sie"
 msgid "You already have a license for this product. This purchase adds another license with a new key. To extend the existing license, use \"Renew\" in your account instead."
 msgstr "Sie haben bereits eine Lizenz für dieses Produkt. Mit diesem Kauf erhalten Sie eine weitere Lizenz mit einem neuen Schlüssel. Um die vorhandene Lizenz zu verlängern, verwenden Sie stattdessen „Verlängern“ in Ihrem Konto."
 
-#: src/Admin/Format.php:292
+#: src/Admin/Format.php:294
 msgid "Site address changed"
 msgstr "Website-Adresse geändert"
 
@@ -4971,13 +4928,13 @@ msgid "WP License Captain: future automatic renewals of this license use the car
 msgstr "WP License Captain: Künftige automatische Verlängerungen dieser Lizenz verwenden die Karte, mit der diese Bestellung bezahlt wurde."
 
 #. translators: 1: installed database schema version, 2: schema version this plugin version supports.
-#: src/Infrastructure/Database/Schema.php:492
+#: src/Infrastructure/Database/Schema.php:496
 #, php-format
 msgid "WP License Captain: the database was upgraded by a newer plugin version (schema %1$s, this version supports %2$s). Renewal charges and customer emails are paused. Install the newer plugin version again."
 msgstr "WP License Captain: Die Datenbank wurde von einer neueren Plugin-Version aktualisiert (Schema %1$s, diese Version unterstützt %2$s). Abbuchungen von Verlängerungen und E-Mails an Kunden sind pausiert. Installieren Sie die neuere Plugin-Version erneut."
 
 #. translators: %s: technical error details.
-#: src/Infrastructure/Database/Schema.php:516
+#: src/Infrastructure/Database/Schema.php:520
 #, php-format
 msgid "WP License Captain could not update its database tables. The plugin keeps working with the previous structure and retries automatically. Details: %s"
 msgstr "WP License Captain konnte seine Datenbanktabellen nicht aktualisieren. Das Plugin arbeitet mit der bisherigen Struktur weiter und versucht es automatisch erneut. Details: %s"
@@ -5285,7 +5242,7 @@ msgid "You can cancel the automatic renewal at any time before the renewal date 
 msgstr "Sie können die automatische Verlängerung jederzeit vor dem Verlängerungsdatum in Ihrem Konto unter „Lizenzen“ kündigen. Die Lizenz bleibt dann bis zum Ende des bezahlten Zeitraums gültig und wird nicht erneut berechnet."
 
 #. translators: %s: minimum WooCommerce version.
-#: src/Plugin.php:140
+#: src/Plugin.php:141
 #, php-format
 msgid "WP License Captain requires WooCommerce %s or later."
 msgstr "WP License Captain erfordert WooCommerce %s oder neuer."
@@ -6449,6 +6406,7 @@ msgid "Release notes of the published versions of a product."
 msgstr "Versionshinweise der veröffentlichten Versionen eines Produkts."
 
 #: src/Account/Blocks.php:146
+#: src/Admin/CatalogFileAdmin.php:80
 msgid "Product key"
 msgstr "Produktschlüssel"
 
@@ -6610,112 +6568,112 @@ msgstr "Tarif vom Support geändert"
 msgid "Renewal amount changed by support"
 msgstr "Verlängerungsbetrag vom Support geändert"
 
-#: src/Admin/Format.php:272
+#: src/Admin/Format.php:274
 msgid "Plan change scheduled"
 msgstr "Tarifwechsel geplant"
 
-#: src/Admin/Format.php:273
+#: src/Admin/Format.php:275
 msgid "Plan change withdrawn"
 msgstr "Tarifwechsel zurückgenommen"
 
-#: src/Admin/Format.php:274
+#: src/Admin/Format.php:276
 msgid "New key issued"
 msgstr "Neuer Schlüssel ausgestellt"
 
-#: src/Admin/Format.php:275
+#: src/Admin/Format.php:277
 msgid "Key email sent again"
 msgstr "Schlüssel-E-Mail erneut gesendet"
 
-#: src/Admin/Format.php:276
+#: src/Admin/Format.php:278
 msgid "Owner changed"
 msgstr "Inhaber geändert"
 
-#: src/Admin/Format.php:277
+#: src/Admin/Format.php:279
 msgid "Cancelled for the end of the term"
 msgstr "Zum Ende der Laufzeit gekündigt"
 
-#: src/Admin/Format.php:278
+#: src/Admin/Format.php:280
 msgid "Cancellation withdrawn"
 msgstr "Kündigung zurückgenommen"
 
-#: src/Admin/Format.php:279
+#: src/Admin/Format.php:281
 msgid "Automatic renewal switched on"
 msgstr "Automatische Verlängerung eingeschaltet"
 
-#: src/Admin/Format.php:280
+#: src/Admin/Format.php:282
 msgid "Automatic renewal switched off"
 msgstr "Automatische Verlängerung ausgeschaltet"
 
-#: src/Admin/Format.php:281
+#: src/Admin/Format.php:283
 msgid "Renewal paid"
 msgstr "Verlängerung bezahlt"
 
-#: src/Admin/Format.php:284
+#: src/Admin/Format.php:286
 msgid "Reviewed renewal booked"
 msgstr "Geprüfte Verlängerung verbucht"
 
-#: src/Admin/Format.php:285
+#: src/Admin/Format.php:287
 msgid "Renewal review closed"
 msgstr "Prüffall zur Verlängerung abgeschlossen"
 
-#: src/Admin/Format.php:286
+#: src/Admin/Format.php:288
 msgid "Renewal refunded"
 msgstr "Verlängerung erstattet"
 
-#: src/Admin/Format.php:287
+#: src/Admin/Format.php:289
 msgid "Renewal cancelled"
 msgstr "Verlängerung storniert"
 
-#: src/Admin/Format.php:288
+#: src/Admin/Format.php:290
 msgid "Manual renewal started"
 msgstr "Manuelle Verlängerung gestartet"
 
-#: src/Admin/Format.php:289
+#: src/Admin/Format.php:291
 msgid "Manual renewal paid"
 msgstr "Manuelle Verlängerung bezahlt"
 
-#: src/Admin/Format.php:290
+#: src/Admin/Format.php:292
 msgid "Site activated"
 msgstr "Website aktiviert"
 
-#: src/Admin/Format.php:291
+#: src/Admin/Format.php:293
 msgid "Site deactivated"
 msgstr "Website deaktiviert"
 
-#: src/Admin/Format.php:296
+#: src/Admin/Format.php:298
 msgid "Chargeback received"
 msgstr "Rückbuchung eingegangen"
 
-#: src/Admin/Format.php:297
+#: src/Admin/Format.php:299
 msgid "Payment method changed"
 msgstr "Zahlungsart geändert"
 
-#: src/Admin/Format.php:298
+#: src/Admin/Format.php:300
 msgid "Package downloaded"
 msgstr "Paket heruntergeladen"
 
-#: src/Admin/Format.php:299
+#: src/Admin/Format.php:301
 msgid "Settings changed"
 msgstr "Einstellungen geändert"
 
-#: src/Admin/Format.php:300
+#: src/Admin/Format.php:302
 msgid "Licenses exported"
 msgstr "Lizenzen exportiert"
 
-#: src/Admin/Format.php:301
+#: src/Admin/Format.php:303
 msgid "Audit log exported"
 msgstr "Audit-Protokoll exportiert"
 
-#: src/Admin/Format.php:302
+#: src/Admin/Format.php:304
 msgid "Personal data erased"
 msgstr "Personenbezogene Daten gelöscht"
 
-#: src/Admin/Format.php:303
+#: src/Admin/Format.php:305
 msgid "License anonymized"
 msgstr "Lizenz anonymisiert"
 
 #. translators: %s: site timezone, for example Europe/Berlin or +02:00.
-#: src/Admin/Format.php:343
+#: src/Admin/Format.php:345
 #, php-format
 msgid "Date (%s)"
 msgstr "Datum (%s)"
@@ -7167,12 +7125,12 @@ msgstr "Nicht installiert"
 msgid "If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/MULTISITE.md)."
 msgstr "Wenn diese Website in der Netzwerkverwaltung gelöscht wird, während das Plugin auf der Hauptwebsite nicht aktiv ist, bleiben ihre wplc_*-Tabellen zurück. Installieren Sie die optionale Hilfsdatei mit wp wplc schema install-mu-helper (docs/MULTISITE.md)."
 
-#: src/Admin/Format.php:293
-#: src/Admin/Format.php:294
+#: src/Admin/Format.php:295
+#: src/Admin/Format.php:296
 msgid "Site moved to another license"
 msgstr "Website zu einer anderen Lizenz verschoben"
 
-#: src/Admin/Format.php:295
+#: src/Admin/Format.php:297
 msgid "Site taken over from another license"
 msgstr "Website von einer anderen Lizenz übernommen"
 
@@ -7250,22 +7208,6 @@ msgstr "%s löschen?"
 msgid "Removed %s."
 msgstr "%s entfernt."
 
-#: src/Catalog/EntitlementCatalog.php:58
-msgid "E-invoicing (XRechnung XML)"
-msgstr "E-Rechnung (XRechnung als XML)"
-
-#: src/Catalog/EntitlementCatalog.php:59
-msgid "Card terminal (Stripe Terminal, SumUp)"
-msgstr "Kartenterminal (Stripe Terminal, SumUp)"
-
-#: src/Catalog/EntitlementCatalog.php:60
-msgid "Virtual waiting room"
-msgstr "Virtueller Warteraum"
-
-#: src/Catalog/EntitlementCatalog.php:61
-msgid "Write API"
-msgstr "Schreibende API"
-
 #. translators: %s: file path.
 #: src/Infrastructure/Database/SiteCleanupHelper.php:88
 #, php-format
@@ -7308,42 +7250,6 @@ msgstr "%s konnte nicht gelöscht werden. Prüfen Sie die Dateiberechtigungen od
 msgid "Moved by the license owner from license #%1$d to license #%2$d."
 msgstr "Vom Lizenzinhaber von Lizenz #%1$d zu Lizenz #%2$d verschoben."
 
-#: src/Catalog/EntitlementCatalog.php:107
-msgid "Payout as store credit"
-msgstr "Auszahlung als Shop-Guthaben"
-
-#: src/Catalog/EntitlementCatalog.php:108
-msgid "Payouts via Stripe Connect"
-msgstr "Auszahlungen über Stripe Connect"
-
-#: src/Catalog/EntitlementCatalog.php:109
-msgid "Leaderboard and milestone emails"
-msgstr "Bestenliste und Meilenstein-Mails"
-
-#: src/Catalog/EntitlementCatalog.php:110
-msgid "Multi-tier commissions"
-msgstr "Mehrstufige Provisionen"
-
-#: src/Catalog/EntitlementCatalog.php:119
-msgid "Suite integrations"
-msgstr "Suite-Integrationen"
-
-#: src/Catalog/EntitlementCatalog.php:121
-msgid "Event correlation"
-msgstr "Ereigniskorrelation"
-
-#: src/Catalog/EntitlementCatalog.php:122
-msgid "Advanced logic"
-msgstr "Erweiterte Logik"
-
-#: src/Catalog/EntitlementCatalog.php:123
-msgid "Recipe templates"
-msgstr "Rezeptvorlagen"
-
-#: src/Catalog/EntitlementCatalog.php:124
-msgid "Extended logs"
-msgstr "Erweiterte Protokolle"
-
 #: src/Admin/AdminNotices.php:120
 msgid "The renewal amount was changed. It applies to the next renewals; existing renewal orders keep their amount."
 msgstr "Der Verlängerungsbetrag wurde geändert. Er gilt für die nächsten Verlängerungen; bestehende Verlängerungsbestellungen behalten ihren Betrag."
@@ -7351,3 +7257,218 @@ msgstr "Der Verlängerungsbetrag wurde geändert. Er gilt für die nächsten Ver
 #: src/Admin/LicenseDetail.php:371
 msgid "The amount of the next renewals, automatic and manual, in the same form as the product price in the shop (taxes are added as at purchase). It is the price agreed at purchase; a price change in the shop does not change it. It can only be lowered: the customer agreed to the current amount. Renewal orders that already exist keep their amount; change those on the order screen."
 msgstr "Der Betrag der nächsten Verlängerungen, automatisch und manuell, in derselben Form wie der Produktpreis im Shop (Steuern werden wie beim Kauf hinzugerechnet). Es ist der beim Kauf vereinbarte Preis; eine Preisänderung im Shop ändert ihn nicht. Er kann nur gesenkt werden: Der Kunde hat dem aktuellen Betrag zugestimmt. Bereits vorhandene Verlängerungsbestellungen behalten ihren Betrag; ändern Sie diese in der Bestellansicht."
+
+#: src/Admin/CatalogFileAdmin.php:52
+#: src/Admin/CatalogFileAdmin.php:53
+#: src/Admin/CatalogFileAdmin.php:58
+#: src/Admin/CatalogFileAdmin.php:71
+msgid "License catalog files"
+msgstr "Lizenzkatalog: Dateien"
+
+#: src/Admin/CatalogFileAdmin.php:73
+msgid "A catalog file (wplc-catalog.json) describes one license product: its product key, the prefix of its entitlement keys, and every entitlement with its labels. The add-on of the product ships the file. The product editor offers the entitlements listed here as tick boxes; planned products and planned entitlements are not offered."
+msgstr "Eine Katalogdatei (wplc-catalog.json) beschreibt ein Lizenzprodukt: seinen Produktschlüssel, das Präfix seiner Berechtigungsschlüssel und jede Berechtigung mit ihren Bezeichnungen. Das Add-on des Produkts liefert die Datei mit. Der Produkteditor bietet die hier aufgeführten Berechtigungen als Kontrollkästchen an; vorgemerkte Produkte und vorgemerkte Berechtigungen werden nicht angeboten."
+
+#: src/Admin/CatalogFileAdmin.php:77
+msgid "No catalog file has been imported yet. The product editor offers no entitlements until one is imported; entitlements can still be entered as JSON."
+msgstr "Es wurde noch keine Katalogdatei importiert. Der Produkteditor bietet keine Berechtigungen an, bis eine importiert ist; Berechtigungen können weiterhin als JSON eingegeben werden."
+
+#: src/Admin/CatalogFileAdmin.php:80
+msgid "Name"
+msgstr "Name"
+
+#: src/Admin/CatalogFileAdmin.php:80
+msgid "Prefix"
+msgstr "Präfix"
+
+#: src/Admin/CatalogFileAdmin.php:80
+msgid "Imported"
+msgstr "Importiert"
+
+#: src/Admin/CatalogFileAdmin.php:90
+msgid "Import a catalog file"
+msgstr "Katalogdatei importieren"
+
+#: src/Admin/CatalogFileAdmin.php:94
+msgid "Catalog file (JSON)"
+msgstr "Katalogdatei (JSON)"
+
+#: src/Admin/CatalogFileAdmin.php:96
+msgid "Import catalog file"
+msgstr "Katalogdatei importieren"
+
+#: src/Admin/CatalogFileAdmin.php:97
+msgid "The import replaces the whole definition of the product named in the file. An entitlement that is no longer in the file leaves the list; plans and licenses that store it keep it. Importing the same file again changes nothing. Every import is recorded in the audit log."
+msgstr "Der Import ersetzt die gesamte Definition des in der Datei genannten Produkts. Eine Berechtigung, die nicht mehr in der Datei steht, verschwindet aus der Liste; Tarife und Lizenzen, die sie gespeichert haben, behalten sie. Derselbe Import ein zweites Mal ändert nichts. Jeder Import wird im Audit-Protokoll gespeichert."
+
+#: src/Admin/CatalogFileAdmin.php:110
+msgid "Planned"
+msgstr "Vorgemerkt"
+
+#: src/Admin/CatalogFileAdmin.php:113
+msgid "shipped with the plugin"
+msgstr "mit dem Plugin ausgeliefert"
+
+#: src/Admin/CatalogFileAdmin.php:114
+msgid "uploaded"
+msgstr "hochgeladen"
+
+#: src/Admin/CatalogFileAdmin.php:115
+msgid "command line"
+msgstr "Kommandozeile"
+
+#: src/Admin/CatalogFileAdmin.php:133
+msgid "planned, not offered"
+msgstr "vorgemerkt, nicht angeboten"
+
+#: src/Admin/CatalogFileAdmin.php:148
+msgid "Remove this product from the catalog? Its entitlements are no longer offered in the product editor. Plans and licenses keep their entitlements."
+msgstr "Dieses Produkt aus dem Katalog entfernen? Seine Berechtigungen werden im Produkteditor nicht mehr angeboten. Tarife und Lizenzen behalten ihre Berechtigungen."
+
+#: src/Admin/CatalogFileAdmin.php:152
+msgid "Remove"
+msgstr "Entfernen"
+
+#. translators: 1: product key, 2: number of entitlements.
+#: src/Admin/CatalogFileAdmin.php:193
+#, php-format
+msgid "Product %1$s was added to the catalog with %2$d entitlements."
+msgstr "Das Produkt %1$s wurde mit %2$d Berechtigungen in den Katalog aufgenommen."
+
+#. translators: 1: product key, 2: number of added entitlements, 3: number of removed entitlements, 4: number of changed entitlements.
+#: src/Admin/CatalogFileAdmin.php:196
+#, php-format
+msgid "Product %1$s was updated: %2$d entitlements added, %3$d removed, %4$d changed."
+msgstr "Das Produkt %1$s wurde aktualisiert: %2$d Berechtigungen hinzugefügt, %3$d entfernt, %4$d geändert."
+
+#. translators: %s: product key.
+#: src/Admin/CatalogFileAdmin.php:199
+#, php-format
+msgid "Product %s is already in the catalog exactly as in this file. Nothing was changed."
+msgstr "Das Produkt %s steht bereits genau so im Katalog wie in dieser Datei. Es wurde nichts geändert."
+
+#. translators: %s: product key.
+#: src/Admin/CatalogFileAdmin.php:202
+#, php-format
+msgid "Product %s was removed from the catalog."
+msgstr "Das Produkt %s wurde aus dem Katalog entfernt."
+
+#: src/Admin/CatalogFileAdmin.php:205
+msgid "The catalog file was not imported."
+msgstr "Die Katalogdatei wurde nicht importiert."
+
+#: src/Admin/CatalogFileAdmin.php:216
+msgid "The file could not be uploaded."
+msgstr "Die Datei konnte nicht hochgeladen werden."
+
+#: src/Admin/CatalogFileAdmin.php:217
+msgid "The file is larger than 256 KB."
+msgstr "Die Datei ist größer als 256 KB."
+
+#: src/Admin/CatalogFileAdmin.php:218
+msgid "The file is not a JSON object."
+msgstr "Die Datei ist kein JSON-Objekt."
+
+#: src/Admin/CatalogFileAdmin.php:219
+msgid "The field \"format\" is missing or not a whole number."
+msgstr "Das Feld „format“ fehlt oder ist keine ganze Zahl."
+
+#: src/Admin/CatalogFileAdmin.php:220
+msgid "This version reads catalog files of format 1 only."
+msgstr "Diese Version liest nur Katalogdateien im Format 1."
+
+#: src/Admin/CatalogFileAdmin.php:221
+msgid "The product key must consist of lowercase letters, digits and hyphens (2 to 100 characters)."
+msgstr "Der Produktschlüssel muss aus Kleinbuchstaben, Ziffern und Bindestrichen bestehen (2 bis 100 Zeichen)."
+
+#: src/Admin/CatalogFileAdmin.php:222
+msgid "The field \"prefix\" is required when the file lists no entitlement."
+msgstr "Das Feld „prefix“ ist erforderlich, wenn die Datei keine Berechtigung aufführt."
+
+#: src/Admin/CatalogFileAdmin.php:223
+msgid "The prefix must start with a lowercase letter and contain lowercase letters, digits, hyphens or underscores only."
+msgstr "Das Präfix muss mit einem Kleinbuchstaben beginnen und darf nur Kleinbuchstaben, Ziffern, Bindestriche und Unterstriche enthalten."
+
+#: src/Admin/CatalogFileAdmin.php:224
+msgid "Another product in the catalog already uses this prefix."
+msgstr "Ein anderes Produkt im Katalog verwendet dieses Präfix bereits."
+
+#: src/Admin/CatalogFileAdmin.php:225
+msgid "The status must be \"available\" or \"planned\"."
+msgstr "Der Status muss „available“ oder „planned“ sein."
+
+#: src/Admin/CatalogFileAdmin.php:226
+msgid "The field \"entitlements\" must be a list (it may be empty)."
+msgstr "Das Feld „entitlements“ muss eine Liste sein (sie darf leer sein)."
+
+#: src/Admin/CatalogFileAdmin.php:227
+msgid "The file lists more than 500 entitlements."
+msgstr "Die Datei führt mehr als 500 Berechtigungen auf."
+
+#: src/Admin/CatalogFileAdmin.php:228
+msgid "An entitlement must be an object."
+msgstr "Eine Berechtigung muss ein Objekt sein."
+
+#: src/Admin/CatalogFileAdmin.php:229
+msgid "The entitlement key is missing or contains characters other than letters, digits, dots, hyphens and underscores."
+msgstr "Der Berechtigungsschlüssel fehlt oder enthält andere Zeichen als Buchstaben, Ziffern, Punkte, Bindestriche und Unterstriche."
+
+#: src/Admin/CatalogFileAdmin.php:230
+msgid "The entitlement key does not start with the prefix of the product and a dot."
+msgstr "Der Berechtigungsschlüssel beginnt nicht mit dem Präfix des Produkts und einem Punkt."
+
+#: src/Admin/CatalogFileAdmin.php:231
+msgid "The entitlement key is listed twice."
+msgstr "Der Berechtigungsschlüssel ist doppelt aufgeführt."
+
+#: src/Admin/CatalogFileAdmin.php:232
+msgid "A name or label needs at least the English text (\"en\")."
+msgstr "Ein Name oder eine Bezeichnung braucht mindestens den englischen Text („en“)."
+
+#: src/Admin/CatalogFileAdmin.php:233
+msgid "A text is empty, not a string, or contains markup or control characters."
+msgstr "Ein Text ist leer, keine Zeichenkette oder enthält Markup oder Steuerzeichen."
+
+#: src/Admin/CatalogFileAdmin.php:234
+msgid "A text is too long (name and label: 190 characters, description: 1000)."
+msgstr "Ein Text ist zu lang (Name und Bezeichnung: 190 Zeichen, Beschreibung: 1000)."
+
+#: src/Admin/CatalogFileAdmin.php:235
+msgid "A locale must be \"en\" or a WordPress locale such as \"de_DE\" or \"de_DE_formal\"."
+msgstr "Eine Sprache muss „en“ oder ein WordPress-Sprachcode wie „de_DE“ oder „de_DE_formal“ sein."
+
+#: src/Admin/CatalogFileAdmin.php:236
+msgid "This product is not in the catalog."
+msgstr "Dieses Produkt steht nicht im Katalog."
+
+#: src/Admin/Format.php:272
+msgid "Catalog file imported"
+msgstr "Katalogdatei importiert"
+
+#: src/Admin/Format.php:273
+msgid "Product removed from the catalog"
+msgstr "Produkt aus dem Katalog entfernt"
+
+#: src/CLI/CatalogCommand.php:62
+msgid "At least one catalog file was not imported."
+msgstr "Mindestens eine Katalogdatei wurde nicht importiert."
+
+#: src/CLI/CatalogCommand.php:64
+msgid "Every file is valid. Nothing was written."
+msgstr "Jede Datei ist gültig. Es wurde nichts geschrieben."
+
+#: src/CLI/CatalogCommand.php:64
+msgid "Catalog files imported."
+msgstr "Katalogdateien importiert."
+
+#. translators: %s: product key.
+#: src/CLI/CatalogCommand.php:163
+#, php-format
+msgid "Remove product %s from the catalog?"
+msgstr "Das Produkt %s aus dem Katalog entfernen?"
+
+#. translators: 1: product key, 2: result (created, updated, unchanged), 3: number of added keys, 4: number of removed keys, 5: number of changed keys.
+#: src/CLI/CatalogCommand.php:204
+#, php-format
+msgid "valid; product %1$s would be %2$s (%3$d added, %4$d removed, %5$d changed)."
+msgstr "gültig; das Produkt %1$s wäre danach „%2$s“ (%3$d hinzugefügt, %4$d entfernt, %5$d geändert)."

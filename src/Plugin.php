@@ -20,6 +20,7 @@ use WPLC\Account\SiteOverview;
 use WPLC\Admin\LicenseAdmin;
 use WPLC\Admin\Diagnostics;
 use WPLC\Admin\CatalogCsv;
+use WPLC\Admin\CatalogFileAdmin;
 use WPLC\Admin\KeyConfigurationNotice;
 use WPLC\Admin\ReleaseAdmin;
 use WPLC\Update\ReleaseRegistry;
@@ -390,6 +391,7 @@ final class Plugin {
 		SiteOverview::register_hooks();
 		LicenseAdmin::register_hooks();
 		CatalogCsv::register_hooks();
+		CatalogFileAdmin::register_hooks();
 		Diagnostics::register_hooks();
 		KeyConfigurationNotice::register_hooks();
 		Requirements::register_hooks();

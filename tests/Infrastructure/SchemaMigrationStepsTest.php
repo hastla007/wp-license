@@ -283,17 +283,30 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$property->setAccessible( true );
 		$steps = $property->getValue();
 
-		$this->assertSame( '23', Schema::VERSION );
-		$this->assertSame( \WPLC\License\AuditLog::SOURCE_SCHEMA, Schema::VERSION );
+		$this->assertSame( '23', \WPLC\License\AuditLog::SOURCE_SCHEMA );
 		$this->assertSame( 'step_23_audit_source', $steps['23'][1] );
-		$this->assertSame( array( '23' ), Schema::pending_step_versions( '22', Schema::VERSION, array_keys( $steps ) ) );
-		$this->assertSame( array( '22', '23' ), Schema::pending_step_versions( '21', Schema::VERSION, array_keys( $steps ) ) );
-		$this->assertSame( array( '21', '22', '23' ), Schema::pending_step_versions( '20', Schema::VERSION, array_keys( $steps ) ) );
-		$this->assertSame( array( '18', '19', '21', '22', '23' ), Schema::pending_step_versions( '17', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '23' ), Schema::pending_step_versions( '22', '23', array_keys( $steps ) ) );
+		$this->assertSame( array( '22', '23' ), Schema::pending_step_versions( '21', '23', array_keys( $steps ) ) );
+		$this->assertSame( array( '21', '22', '23' ), Schema::pending_step_versions( '20', '23', array_keys( $steps ) ) );
+		$this->assertSame( array( '18', '19', '21', '22', '23' ), Schema::pending_step_versions( '17', '23', array_keys( $steps ) ) );
 
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
 		$this->assertStringContainsString( "source varchar(20) NOT NULL DEFAULT ''", $source );
 		$this->assertStringContainsString( 'KEY source_entries (source)', $source );
+	}
+
+	/**
+	 * T-150: schema 24 imports the catalog files shipped with the plugin; installs on 23 run only that step.
+	 */
+	public function test_schema_24_imports_the_bundled_catalog_files(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$property->setAccessible( true );
+		$steps = $property->getValue();
+
+		$this->assertSame( '24', Schema::VERSION );
+		$this->assertSame( 'step_24_import_bundled_catalogs', $steps['24'][1] );
+		$this->assertSame( array( '24' ), Schema::pending_step_versions( '23', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '23', '24' ), Schema::pending_step_versions( '22', Schema::VERSION, array_keys( $steps ) ) );
 	}
 
 	public function test_create_statements_contain_the_columns_of_both_lines(): void {

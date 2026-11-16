@@ -63,8 +63,11 @@ final class Schema {
 	 *     Stripe token sync) and event_inbox.source_received (time of the last event per
 	 *     source on the diagnostics page), added by dbDelta (P-31, P-53). From this version
 	 *     on the daily structure check also compares the declared indexes.
+	 * 24: the entitlement catalog is data (T-150): the catalog files shipped in `catalogs/` are
+	 *     imported into the option `wplc_entitlement_catalog`, so an installation that used the
+	 *     former hard-coded lists offers the same products and keys. No table changes.
 	 */
-	public const VERSION = '23';
+	public const VERSION = '24';
 
 	/**
 	 * Option in which ReminderLog records the layout of its table.
@@ -130,6 +133,7 @@ final class Schema {
 		'21' => array( self::class, 'step_21_merged_schema' ),
 		'22' => array( self::class, 'step_22_lookup_indexes' ),
 		'23' => array( self::class, 'step_23_audit_source' ),
+		'24' => array( self::class, 'step_24_import_bundled_catalogs' ),
 	);
 
 	/**
@@ -1510,6 +1514,23 @@ final class Schema {
 		);
 
 		return 1 === (int) $exists && self::indexes_exist( array( 'audit_log' => array( 'source_entries' ) ) );
+	}
+
+	/**
+	 * Import the catalog files shipped with the plugin (T-150).
+	 *
+	 * Until schema 23 the products, entitlement keys and labels were lists in the code. They are
+	 * data now; this step fills the store from `catalogs/*.json` so that existing installations
+	 * and new ones offer what they offered before. A product an administrator imported is never
+	 * replaced. Plans and licenses are not touched: they store their keys themselves.
+	 * Idempotent: an unchanged file is skipped.
+	 *
+	 * @return bool False when a shipped file is invalid; the migration is then retried.
+	 */
+	private static function step_24_import_bundled_catalogs(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		$report = \WPLC\Catalog\CatalogStore::import_bundled();
+
+		return array() === $report['failed'];
 	}
 
 	/**

@@ -10,6 +10,10 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 - **`wplc/license_issued` passes the plaintext license key** (arguments: license ID, key, order ID). It exists so the key email can be sent; the key is never stored in plaintext. Listeners that do not need the key must use `wplc/license_issued_followup` (license ID, order ID), which also runs when the issuing request ended early. Never log or store the key argument.
 - Hooks not listed here are internal (WordPress, WooCommerce or Action Scheduler hooks the plugin listens to) and can change without notice.
 
+## Catalog files instead of filters
+
+Products, entitlement keys and their labels are data: an add-on ships a catalog file (`wplc-catalog.json`) and the shop imports it ([CATALOG-FILE.md](CATALOG-FILE.md)). This is the supported way to make a product and its entitlements known to the product editor. The filters `wplc_entitlement_catalog`, `wplc_known_product_keys` and `wplc_offer_planned_entitlements` remain for shops that adjust what the editor offers in code; they receive what the imported catalog offers.
+
 ## Actions
 
 | Hook | Where | Summary |

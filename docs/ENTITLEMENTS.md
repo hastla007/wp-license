@@ -47,7 +47,7 @@ All date-time values of the API (`paid_until`, `access_until`, `grace_until`, `s
 
 ## Product keys (decided 14 Nov 2026, T-158)
 
-The product key on a license product in the shop and the key the premium add-on sends must be identical. Key = add-on folder = text domain; the add-ons live in hastla007/captain-pro. Each key maps to one entitlement prefix (`EntitlementCatalog::PRODUCT_KEYS`; further products via the filter `wplc_known_product_keys`).
+The product key on a license product in the shop and the key the premium add-on sends must be identical. Key = add-on folder = text domain; the add-ons live in hastla007/captain-pro. Each key maps to one entitlement prefix. Products, prefixes, keys and labels are not part of the server code: they come from the catalog file each add-on ships (`wplc-catalog.json`, [CATALOG-FILE.md](CATALOG-FILE.md)); the table below is what the catalog files of the Captain products contain (`catalogs/` in this repository until captain-pro delivers them). Further products are added by importing their file; the filter `wplc_known_product_keys` still works.
 
 | Product | Product key | Entitlement prefix | Premium add-on |
 |---|---|---|---|
@@ -57,16 +57,16 @@ The product key on a license product in the shop and the key the premium add-on 
 
 The product editor suggests these keys. The plan key (`single`, `business` or `agency`, see [Plans and entitlements](#plans-and-entitlements)) is set per product or variation and is independent of the product key.
 
-Planned add-ons, not released and not for sale yet: `workflow-captain-pro` (`workflow.`), `form-captain-pro` (`form.`), `review-captain-pro` (`review.`).
+Planned add-ons, not released and not for sale yet (status `planned` in their catalog file): `workflow-captain-pro` (`workflow.`), `form-captain-pro` (`form.`), `review-captain-pro` (`review.`), `course-captain-pro` (`course.`).
 
 ## Identifier rules
 
-- Prefix keys by product: `affiliate.`, `voucher.`, or `pass.` (planned: `workflow.`, `form.`, `review.`).
+- Prefix keys by product: `affiliate.`, `voucher.`, or `pass.` (planned: `workflow.`, `form.`, `review.`, `course.`). One prefix belongs to one product.
 - Use lowercase snake_case after the prefix; never reuse a key for different behavior.
 - Server plans return a boolean or a documented numeric limit. Clients fail closed for new premium features when an entitlement is absent or invalid.
 - Plan key/SKU assignment is a separate configuration step; the tables below are the decided model, not live catalog data.
 - Site counts are license limits, not feature entitlements. Staging does not consume another live site.
-- The keys the shop offers as tick boxes in the product editor come from `WPLC\Catalog\EntitlementCatalog` (filter `wplc_entitlement_catalog`). Further keys and numeric limits can be entered as JSON.
+- The keys the shop offers as tick boxes in the product editor come from the imported catalog files (`WPLC\Catalog\CatalogStore`, read by `WPLC\Catalog\EntitlementCatalog`; filter `wplc_entitlement_catalog`). A key is offered when its product and the key itself have the status `available`. Further keys and numeric limits can be entered as JSON.
 - A license stores a snapshot of its plan's entitlements. A plan change (upgrade, downgrade at the next renewal, administrator change) replaces the whole snapshot with the new plan's entitlements; clients see the change at their next entitlement check, without re-activation. A lower live site limit deactivates no site, it only blocks new activations (see [RENEWALS.md](RENEWALS.md#plan-changes)).
 
 ## Changing a plan that licenses already use (A-23)
@@ -93,16 +93,16 @@ Decided on 14 Nov 2026 (captain-pro `docs/TARIFE.md`, `docs/PREMIUM-ENTSCHEIDUNG
 | `business` | Business | 5 | `standard` |
 | `agency` | Agency | 25 | `priority` |
 
-Prices are not part of this document. The prices proposed in captain-pro `docs/TARIFE.md` are not confirmed yet (see "Offene Entscheidungen" in [TODO.md](TODO.md), T-42).
+Prices are not part of this document. The prices proposed in captain-pro `docs/TARIFE.md` are not confirmed yet (see "Offene Entscheidungen" in [TODO.md](TODO.md), T-42). Confirmed by the owner on 16 Nov 2026 are only the prices of the planned Form Captain Pro: 59, 129 and 249 EUR per year including tax for `single`, `business` and `agency`.
 
-The keys below are the ones the product editor offers as tick boxes (`WPLC\Catalog\EntitlementCatalog::all()`). A key is listed only when the premium add-on ships the function; the core plugins have no keys.
+The keys below are the ones the product editor offers as tick boxes (`WPLC\Catalog\EntitlementCatalog::all()`, filled from the catalog files). A key has the status `available` only when the premium add-on ships the function; the core plugins have no keys. The labels (English, `de_DE`, `de_DE_formal`) are in the catalog files, not in the translations of the server.
 
 | Product (product key) | Keys in every plan (`single`, `business`, `agency`) | State of the add-on (captain-pro, 16 Nov 2026) |
 |---|---|---|
 | Affiliate Captain Pro (`affiliate-captain-pro`) | `affiliate.extended_api`, `affiliate.automated_payouts`, `affiliate.white_label_portal`, `affiliate.webhooks` | Built. |
-| Pass Captain Pro (`pass-captain-pro`) | `pass.e_invoicing`, `pass.card_terminal`, `pass.waiting_room`, `pass.write_api`, `pass.white_label` | Built. `pass.e_invoicing` delivers XML (XRechnung 3.0 as UBL and as CII; the CII file can be used as ZUGFeRD/Factur-X XML). A ZUGFeRD hybrid PDF is not built (captain-pro `docs/PASS-E-INVOICE.md`). |
+| Pass Captain Pro (`pass-captain-pro`) | `pass.e_invoicing`, `pass.card_terminal`, `pass.waiting_room`, `pass.write_api`, `pass.white_label` | Built. `pass.e_invoicing` delivers XRechnung 3.0 XML (UBL and CII) and, since captain-pro `e54eda9` (16 Nov 2026), a ZUGFeRD PDF/A-3 with the CII XML embedded; the external validations of the PDF are still open there (captain-pro `docs/PASS-E-INVOICE.md`). |
 | Voucher Captain Pro (`voucher-captain-pro`) | none yet | No premium function is built; the add-on is a skeleton. Nothing can be sold for it yet. |
-| Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`) | none yet | Planned. The product keys resolve to the prefixes `workflow.`, `form.`, `review.` (`EntitlementCatalog::PLANNED_PRODUCT_KEYS`); the product editor does not suggest them and offers no key for them. Six `workflow.*` keys are reserved (next section). |
+| Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`), Course Captain Pro (`course-captain-pro`) | none yet | Planned (product status `planned` in the catalog file). The product keys resolve to the prefixes `workflow.`, `form.`, `review.`, `course.`; the product editor does not suggest them and offers no key for them. Six `workflow.*` keys are reserved (next section). |
 
 Support is the plan attribute `support.level` (`standard` or `priority`) and nothing else (owner decision of 16 Nov 2026, R-24). The three former keys `*.priority_support` (one each for `affiliate.`, `voucher.` and `pass.`), which no add-on checked, are no longer in the catalog. A plan or license that still stores one keeps it in the advanced JSON field; it has no effect.
 
@@ -110,7 +110,7 @@ Plan keys and product keys are assigned in the product editor or by the catalog 
 
 ## Planned, not deliverable yet
 
-These keys are reserved for functions that are planned but that no released add-on checks. They are **not** offered in the product editor and not shown in the pricing table (`EntitlementCatalog::planned()`), so that a shop does not sell what does not exist. A shop that ships such a function itself can offer them with `add_filter( 'wplc_offer_planned_entitlements', '__return_true' );`.
+These keys are reserved for functions that are planned but that no released add-on checks. They are **not** offered in the product editor and not shown in the pricing table (status `planned` in the catalog file, `EntitlementCatalog::planned()`), so that a shop does not sell what does not exist. A shop that ships such a function itself can offer them with `add_filter( 'wplc_offer_planned_entitlements', '__return_true' );`.
 
 | Key | Planned function |
 |---|---|

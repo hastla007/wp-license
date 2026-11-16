@@ -1,0 +1,63 @@
+{
+  "format": 1,
+  "product_key": "workflow-captain-pro",
+  "prefix": "workflow",
+  "name": "Workflow Captain Pro",
+  "status": "planned",
+  "entitlements": [
+    {
+      "key": "workflow.suite_integrations",
+      "label": {
+        "en": "Suite integrations",
+        "de_DE": "Suite-Integrationen",
+        "de_DE_formal": "Suite-Integrationen"
+      },
+      "status": "planned"
+    },
+    {
+      "key": "workflow.webhooks",
+      "label": {
+        "en": "Webhooks",
+        "de_DE": "Webhooks",
+        "de_DE_formal": "Webhooks"
+      },
+      "status": "planned"
+    },
+    {
+      "key": "workflow.event_correlation",
+      "label": {
+        "en": "Event correlation",
+        "de_DE": "Ereigniskorrelation",
+        "de_DE_formal": "Ereigniskorrelation"
+      },
+      "status": "planned"
+    },
+    {
+      "key": "workflow.advanced_logic",
+      "label": {
+        "en": "Advanced logic",
+        "de_DE": "Erweiterte Logik",
+        "de_DE_formal": "Erweiterte Logik"
+      },
+      "status": "planned"
+    },
+    {
+      "key": "workflow.recipe_templates",
+      "label": {
+        "en": "Recipe templates",
+        "de_DE": "Rezeptvorlagen",
+        "de_DE_formal": "Rezeptvorlagen"
+      },
+      "status": "planned"
+    },
+    {
+      "key": "workflow.extended_logs",
+      "label": {
+        "en": "Extended logs",
+        "de_DE": "Erweiterte Protokolle",
+        "de_DE_formal": "Erweiterte Protokolle"
+      },
+      "status": "planned"
+    }
+  ]
+}

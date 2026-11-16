@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "product_key": "voucher-captain-pro",
+  "prefix": "voucher",
+  "name": "Voucher Captain Pro",
+  "status": "available",
+  "entitlements": [
+    {
+      "key": "voucher.white_label",
+      "label": {
+        "en": "White label",
+        "de_DE": "White Label",
+        "de_DE_formal": "White Label"
+      },
+      "description": {
+        "en": "Same scope as the white label of Pass Captain Pro (owner decision of 16 Nov 2026). Not built yet."
+      },
+      "status": "planned"
+    }
+  ]
+}

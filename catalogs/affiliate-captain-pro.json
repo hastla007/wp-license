@@ -1,0 +1,90 @@
+{
+  "format": 1,
+  "product_key": "affiliate-captain-pro",
+  "prefix": "affiliate",
+  "name": "Affiliate Captain Pro",
+  "status": "available",
+  "entitlements": [
+    {
+      "key": "affiliate.extended_api",
+      "label": {
+        "en": "Extended API",
+        "de_DE": "Erweiterte API",
+        "de_DE_formal": "Erweiterte API"
+      },
+      "status": "available"
+    },
+    {
+      "key": "affiliate.automated_payouts",
+      "label": {
+        "en": "Automated payouts",
+        "de_DE": "Automatische Auszahlungen",
+        "de_DE_formal": "Automatische Auszahlungen"
+      },
+      "status": "available"
+    },
+    {
+      "key": "affiliate.white_label_portal",
+      "label": {
+        "en": "White-label portal",
+        "de_DE": "White-Label-Portal",
+        "de_DE_formal": "White-Label-Portal"
+      },
+      "status": "available"
+    },
+    {
+      "key": "affiliate.webhooks",
+      "label": {
+        "en": "Webhooks",
+        "de_DE": "Webhooks",
+        "de_DE_formal": "Webhooks"
+      },
+      "status": "available"
+    },
+    {
+      "key": "affiliate.store_credit",
+      "label": {
+        "en": "Payout as store credit",
+        "de_DE": "Auszahlung als Shop-Guthaben",
+        "de_DE_formal": "Auszahlung als Shop-Guthaben"
+      },
+      "status": "planned"
+    },
+    {
+      "key": "affiliate.stripe_connect",
+      "label": {
+        "en": "Payouts via Stripe Connect",
+        "de_DE": "Auszahlungen über Stripe Connect",
+        "de_DE_formal": "Auszahlungen über Stripe Connect"
+      },
+      "status": "planned"
+    },
+    {
+      "key": "affiliate.leaderboard",
+      "label": {
+        "en": "Leaderboard and milestone emails",
+        "de_DE": "Bestenliste und Meilenstein-Mails",
+        "de_DE_formal": "Bestenliste und Meilenstein-Mails"
+      },
+      "status": "planned"
+    },
+    {
+      "key": "affiliate.multi_tier",
+      "label": {
+        "en": "Multi-tier commissions",
+        "de_DE": "Mehrstufige Provisionen",
+        "de_DE_formal": "Mehrstufige Provisionen"
+      },
+      "status": "planned"
+    },
+    {
+      "key": "affiliate.multiple_programs",
+      "label": {
+        "en": "Multiple programs",
+        "de_DE": "Mehrere Programme",
+        "de_DE_formal": "Mehrere Programme"
+      },
+      "status": "planned"
+    }
+  ]
+}
