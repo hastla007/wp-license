@@ -113,6 +113,7 @@ wp wplc signing-key --field=public_key
 | Catalog file of release packages | on | Import `wplc-catalog.json` automatically from uploaded release ZIPs (chapter 3). |
 | Reminder lead days | `30,7` | Days before the end of the paid period on which expiry reminders are sent. |
 | Renewal notice lead days | 7 | Days before an automatic charge on which the customer is notified (1 to 60). |
+| Combine automatic renewals | off | Charge the licenses of one customer that renew automatically on the same day with one order and one payment (chapter 8). |
 | Price change notice period | 60 | Days between the notice of a higher renewal price and its first charge (30 to 365, chapter 8). |
 | Sender note | – | Short text the license emails can show below their content, for example a support contact (up to 500 characters). |
 

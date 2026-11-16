@@ -301,6 +301,10 @@ final class PlanUpgrade {
 					RenewalOrder::set_addresses( $order, $license );
 				}
 				$order->set_currency( $quote['currency'] );
+				if ( strtoupper( (string) $order->get_currency() ) !== strtoupper( (string) $quote['currency'] ) ) {
+					// B-189: the upgrade is billed in the license's currency or not at all.
+					return $unavailable;
+				}
 				if ( ! RenewalOrder::set_plain_line( $order, $target['product'], $quote['amount_minor'], $quote['decimals'] ) ) {
 					return $unavailable;
 				}

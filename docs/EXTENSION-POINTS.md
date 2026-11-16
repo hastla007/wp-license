@@ -124,6 +124,8 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_catalog_auto_import` | `src/Catalog/ReleaseCatalog.php` | Filters whether the catalog file of an uploaded release package is imported. |
 | `wplc_catalog_csv_time_budget` | `src/Admin/CatalogCsv.php` | Filters how many seconds one catalog CSV import may run before it stops and reports where. |
 | `wplc_client_ip` | `src/Api/V1/ClientIp.php` | Filter the client address used for anonymous rate limiting. |
+| `wplc_combined_renewals` | `src/Billing/CombinedRenewal.php` | Filters whether due automatic renewals of one customer are combined into one order and one charge (B-191). |
+| `wplc_currency_decimals` | `src/Billing/Money.php` | Filters the precision of a currency the shop does not enter prices in (B-189). |
 | `wplc_customer_download_hourly_limit` | `src/Update/CustomerDownload.php` |  |
 | `wplc_customer_download_version_choices` | `src/Update/CustomerDownload.php` | Filters how many versions the customer can choose from. |
 | `wplc_daily_run_split` | `src/Maintenance/DailyRunner.php` | Filter whether the daily run queues every job as its own Action Scheduler action. |
@@ -176,9 +178,11 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_reminder_time_budget` | `src/Notifications/Notifications.php` | Filter the seconds a reminder run may take before it continues in a later run. |
 | `wplc_renew_instead_notice` | `src/Billing/RenewInsteadNotice.php` | Filter the "Renew instead" notice for one license in the cart (A-22). |
 | `wplc_renewal_charge_allowed` | `src/Billing/RenewalProcessor.php` | Filters whether a due renewal may be charged now (B-41). |
+| `wplc_renewal_currency_supported` | `src/Billing/RenewalOrder.php` | Filters whether a renewal may be charged in the license's currency (B-189). |
 | `wplc_renewal_display_amount` | `src/Notifications/RenewalTerms.php` | Filter the displayed amount of the next renewal. |
 | `wplc_renewal_grace_days` | `src/License/LicenseLifecycle.php` | Filters the renewal grace period in days (A-135). |
 | `wplc_renewal_notice_lead_days` | `src/Notifications/Notifications.php` | Filter the lead time of the automatic renewal notice. Zero disables the |
+| `wplc_renewal_price_in_order_currency` | `src/License/LicenseIssuer.php` | Filters the renewal price of a license bought in a currency other than the shop currency (B-189). |
 | `wplc_renewal_requires_advance_notice` | `src/Notifications/Notifications.php` | Filter whether an automatic charge needs the logged advance notice. |
 | `wplc_renewal_retry_days` | `src/Billing/RenewalProcessor.php` | Filters the retry schedule of failed renewal charges (A-135). |
 | `wplc_require_package_resolver` | `src/Api/V1/UpdateService.php` | Filters whether packages may only be delivered through a resolver. |
@@ -190,6 +194,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_schema_can_migrate` | `src/Infrastructure/Database/Schema.php` | Filter whether this request may run a schema migration. |
 | `wplc_self_update_check_enabled` | `src/Infrastructure/SelfUpdateCheck.php` | Filters whether the plugin looks for new releases of itself (A-42). |
 | `wplc_self_update_release_api` | `src/Infrastructure/SelfUpdateCheck.php` | Filters the API address of the latest release (A-42). |
+| `wplc_shop_base_currency` | `src/Catalog/Catalog.php` | Filters the currency product prices are entered in (B-189). |
 | `wplc_show_license_term` | `src/Catalog/TermDisplay.php` | Filters whether the license term is appended to the price of a license product. |
 | `wplc_stripe_adapter_status` | `src/Compatibility/Requirements.php` | Filters whether the Stripe renewal adapter is usable. |
 | `wplc_stripe_mode` | `src/Gateway/StripeRecurringAdapter.php` | Filters the mode the Stripe gateway is considered to run in. |

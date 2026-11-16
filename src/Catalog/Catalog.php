@@ -203,7 +203,8 @@ final class Catalog {
 		if ( null === $price_minor ) {
 			return self::fail( 'invalid_price' );
 		}
-		$currency = strtoupper( sanitize_text_field( function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'EUR' ) );
+		// B-189: the currency product prices are entered in, not the currency a multi-currency plugin shows.
+		$currency = self::base_currency();
 
 		$entitlements = $data['entitlements'] ?? array();
 		if ( ! is_array( $entitlements ) ) {
@@ -370,13 +371,39 @@ final class Catalog {
 		if ( false === $minor || $minor <= 0 ) {
 			return null;
 		}
-		$currency = function_exists( 'get_woocommerce_currency' ) ? (string) get_woocommerce_currency() : 'EUR';
 
 		return array(
 			'amount_minor' => $minor,
 			'decimals' => $decimals,
-			'currency' => strtoupper( sanitize_text_field( $currency ) ),
+			// B-189: get_regular_price( 'edit' ) is the stored amount, in the currency prices are entered in.
+			'currency' => self::base_currency(),
 		);
+	}
+
+	/**
+	 * Currency the shop enters its product prices in (B-189).
+	 *
+	 * Read from the stored WooCommerce setting, not from get_woocommerce_currency():
+	 * multi-currency plugins (WPML/WCML, Aelia, CURCY and others) filter that
+	 * function to the currency a visitor has chosen, while the stored product
+	 * prices stay in this currency.
+	 *
+	 * @return string ISO 4217 code, upper case.
+	 */
+	public static function base_currency(): string {
+		$currency = function_exists( 'get_option' ) ? (string) get_option( 'woocommerce_currency', '' ) : '';
+		if ( '' === $currency && function_exists( 'get_woocommerce_currency' ) ) {
+			$currency = (string) get_woocommerce_currency();
+		}
+		$currency = '' === $currency ? 'EUR' : $currency;
+		/**
+		 * Filters the currency product prices are entered in (B-189).
+		 *
+		 * @param string $currency ISO 4217 code from the WooCommerce setting.
+		 */
+		$currency = function_exists( 'apply_filters' ) ? (string) apply_filters( 'wplc_shop_base_currency', $currency ) : $currency;
+
+		return strtoupper( sanitize_text_field( $currency ) );
 	}
 
 	/**

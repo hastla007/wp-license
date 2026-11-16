@@ -334,6 +334,8 @@ final class AuditReason {
 			'renewal_cancelled'                  => array( __( 'The renewal was cancelled.', 'wp-license' ), array() ),
 			'renewal_order_missing'              => array( __( 'The renewal order no longer exists.', 'wp-license' ), array() ),
 			'renewal_order_closed'               => array( __( 'The renewal order was closed.', 'wp-license' ), array() ),
+			'combined_order_in_review'           => array( __( 'The combined renewal order of this license is in review; check the payment of the whole order.', 'wp-license' ), array() ),
+			'renewal_combined'                   => array( __( 'Renewed together with other licenses of the customer in one order and one payment.', 'wp-license' ), array() ),
 			'result_unknown_timeout'             => array( __( 'The payment result stayed unknown for too long.', 'wp-license' ), array() ),
 			// Error codes of failed renewal attempts (same texts as the errors themselves).
 			'renewal_payment_failed'             => array( __( 'The payment gateway did not confirm the renewal.', 'wp-license' ), array() ),
@@ -345,6 +347,8 @@ final class AuditReason {
 			'renewal_order_link_failed'          => array( __( 'The existing renewal order could not be linked.', 'wp-license' ), array() ),
 			'renewal_product_missing'            => array( __( 'The source product is no longer available for renewal.', 'wp-license' ), array() ),
 			'renewal_amount_invalid'             => array( __( 'This license has no renewal price.', 'wp-license' ), array() ),
+			'renewal_currency_mismatch'          => array( __( 'The renewal order does not carry the currency of the license. The renewal is not charged; a license renews in the currency of its order and is never converted. Check multi-currency plugins that change the order currency.', 'wp-license' ), array() ),
+			'renewal_currency_unsupported'       => array( __( 'The payment method does not accept the currency of this license. The renewal is not charged; a license renews in the currency of its order and is never converted.', 'wp-license' ), array() ),
 			'woocommerce_unavailable'            => array( __( 'WooCommerce order services are unavailable.', 'wp-license' ), array() ),
 			'renewal_payment_not_taken'          =>array( __( 'The renewal order was set to failed after its payment result was checked.', 'wp-license' ), array() ),
 			'renewal_result_unknown'             => array( __( 'Stripe did not return a definite result for the renewal payment.', 'wp-license' ), array() ),

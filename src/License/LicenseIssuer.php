@@ -7,6 +7,7 @@
 
 namespace WPLC\License;
 
+use WPLC\Billing\Money;
 use WPLC\Billing\RecurringConsent;
 use WPLC\Billing\RenewalScheduler;
 use WPLC\Catalog\Catalog;
@@ -480,7 +481,8 @@ final class LicenseIssuer {
 		// the lowest variation price, which is wrong for every other variation.
 		$purchased = $item->get_product();
 		$renewal_product_id = $purchased ? (int) $purchased->get_id() : 0;
-		$renewal_price = $purchased ? Catalog::product_regular_price( $purchased ) : null;
+		// B-189: the license renews in the currency of its order, never converted.
+		$renewal_price = self::order_currency_price( $order, $item, $purchased ? Catalog::product_regular_price( $purchased ) : null );
 
 		$stored = self::store_license(
 			$plan,
@@ -511,7 +513,7 @@ final class LicenseIssuer {
 		if ( $renewal_enabled ) {
 			// B-57: the gateway's own customer and payment method references and the mode of the purchase.
 			\WPLC\Gateway\PaymentReference::store( $license_id, $gateway_id, $token_id, $customer_id );
-			self::store_consent_evidence( $license_id, $order, $plan, $customer_id, $consent );
+			self::store_consent_evidence( $license_id, $order, $plan, $customer_id, $consent, self::renewal_price( $plan, $renewal_price ) );
 			RenewalScheduler::schedule_next( $license_id );
 		}
 
@@ -552,9 +554,10 @@ final class LicenseIssuer {
 	 * @param array<string,mixed> $plan Catalog plan.
 	 * @param int                 $customer_id Customer.
 	 * @param string              $consent_at UTC time of the consent.
+	 * @param array<string,mixed> $price Renewal price stored on the license (B-189: in the order currency).
 	 * @return void
 	 */
-	private static function store_consent_evidence( int $license_id, $order, array $plan, int $customer_id, string $consent_at ): void {
+	private static function store_consent_evidence( int $license_id, $order, array $plan, int $customer_id, string $consent_at, array $price ): void {
 		global $wpdb;
 
 		$evidence = $order->get_meta( RecurringConsent::META_EVIDENCE, true );
@@ -574,9 +577,9 @@ final class LicenseIssuer {
 				'locale' => substr( sanitize_text_field( (string) ( $evidence['locale'] ?? '' ) ), 0, 20 ),
 				'text_hash' => hash( 'sha256', $text ),
 				'consent_text' => $text,
-				'amount_minor' => max( 0, (int) $plan['price_minor'] ),
-				'currency_decimals' => max( 0, min( 6, (int) ( $plan['price_decimals'] ?? 2 ) ) ),
-				'currency' => strtoupper( sanitize_text_field( (string) $plan['currency'] ) ),
+				'amount_minor' => max( 0, (int) $price['amount_minor'] ),
+				'currency_decimals' => max( 0, min( 6, (int) $price['decimals'] ) ),
+				'currency' => strtoupper( sanitize_text_field( (string) $price['currency'] ) ),
 				'billing_interval' => (string) $plan['billing_interval'],
 				'created_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
@@ -675,7 +678,8 @@ final class LicenseIssuer {
 				'renewal_currency' => $price['currency'],
 				'renewal_product_id' => max( 0, (int) ( $context['renewal_product_id'] ?? 0 ) ),
 				// B-76: how the stored amount is to be read stays fixed, whatever the shop setting becomes later.
-				'renewal_amount_includes_tax' => function_exists( 'wc_prices_include_tax' ) && wc_prices_include_tax() ? 1 : 0,
+				// B-189: an amount taken from an order in another currency is net (line subtotal).
+				'renewal_amount_includes_tax' => isset( $price['includes_tax'] ) ? ( $price['includes_tax'] ? 1 : 0 ) : ( function_exists( 'wc_prices_include_tax' ) && wc_prices_include_tax() ? 1 : 0 ),
 				'cancel_at_period_end' => 0,
 				'revoked_at' => null,
 				'billing_interval' => (string) $plan['billing_interval'],
@@ -747,22 +751,83 @@ final class LicenseIssuer {
 	}
 
 	/**
+	 * Renewal price of a license in the currency of its order (B-189).
+	 *
+	 * An order in the currency product prices are entered in renews at the
+	 * regular price of the purchased product (T-132). An order in another
+	 * currency (a multi-currency plugin converted the cart) renews in that
+	 * currency, never converted by this plugin: at the amount paid for one unit
+	 * before coupons, without tax (WooCommerce stores line subtotals net). An
+	 * integration that knows the regular price in that currency supplies it with
+	 * the filter `wplc_renewal_price_in_order_currency`.
+	 *
+	 * @param \WC_Order                                                 $order Paid order.
+	 * @param \WC_Order_Item_Product                                    $item Order line.
+	 * @param array{amount_minor:int,decimals:int,currency:string}|null $regular Regular price in the shop currency.
+	 * @return array{amount_minor:int,decimals:int,currency:string,includes_tax?:bool}|null
+	 */
+	public static function order_currency_price( $order, $item, ?array $regular ): ?array {
+		$currency = strtoupper( sanitize_text_field( (string) $order->get_currency() ) );
+		if ( '' === $currency || Catalog::base_currency() === $currency ) {
+			return $regular;
+		}
+		$decimals = Money::currency_decimals( $currency );
+		$quantity = max( 1, (int) $item->get_quantity() );
+		$subtotal = Money::to_minor_units( (string) wc_format_decimal( (string) $item->get_subtotal(), $decimals ), $decimals );
+		$price    = null;
+		if ( false !== $subtotal && $subtotal > 0 ) {
+			$price = array(
+				'amount_minor' => (int) round( $subtotal / $quantity ),
+				'decimals' => $decimals,
+				'currency' => $currency,
+				'includes_tax' => false,
+			);
+		}
+		/**
+		 * Filters the renewal price of a license bought in a currency other than the shop currency (B-189).
+		 *
+		 * Return an array with amount_minor (int, minor units), decimals, currency (must be the order
+		 * currency) and includes_tax (bool), or null to fall back to the plan price.
+		 *
+		 * @param array<string,mixed>|null $price Default: the unit price of the line before coupons, net.
+		 * @param \WC_Order                $order Paid order.
+		 * @param \WC_Order_Item_Product   $item Order line.
+		 */
+		$filtered = apply_filters( 'wplc_renewal_price_in_order_currency', $price, $order, $item );
+		if ( ! is_array( $filtered ) || (int) ( $filtered['amount_minor'] ?? 0 ) <= 0 || strtoupper( (string) ( $filtered['currency'] ?? '' ) ) !== $currency ) {
+			return is_array( $filtered ) ? $price : null;
+		}
+
+		return array(
+			'amount_minor' => (int) $filtered['amount_minor'],
+			'decimals' => max( 0, min( 6, (int) ( $filtered['decimals'] ?? $decimals ) ) ),
+			'currency' => $currency,
+			'includes_tax' => ! empty( $filtered['includes_tax'] ),
+		);
+	}
+
+	/**
 	 * Renewal price stored on a new license.
 	 *
 	 * The regular price of the purchased product wins; the plan price is the
 	 * fallback (manual licenses, products without a usable price).
 	 *
 	 * @param array<string,mixed>                                         $plan Catalog plan.
-	 * @param array{amount_minor:int,decimals:int,currency:string}|null $product_price Regular price of the purchased product.
-	 * @return array{amount_minor:int,decimals:int,currency:string}
+	 * @param array<string,mixed>|null $product_price Regular price of the purchased product (amount_minor, decimals, currency, optional includes_tax).
+	 * @return array{amount_minor:int,decimals:int,currency:string,includes_tax?:bool}
 	 */
 	public static function renewal_price( array $plan, ?array $product_price ): array {
 		if ( is_array( $product_price ) && (int) $product_price['amount_minor'] > 0 ) {
-			return array(
+			$price = array(
 				'amount_minor' => (int) $product_price['amount_minor'],
 				'decimals' => max( 0, min( 6, (int) $product_price['decimals'] ) ),
 				'currency' => strtoupper( (string) $product_price['currency'] ),
 			);
+			if ( isset( $product_price['includes_tax'] ) ) {
+				$price['includes_tax'] = (bool) $product_price['includes_tax'];
+			}
+
+			return $price;
 		}
 
 		return array(

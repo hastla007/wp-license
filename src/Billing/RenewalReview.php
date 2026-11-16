@@ -444,13 +444,31 @@ final class RenewalReview {
 	 * @return bool True when a case was closed.
 	 */
 	public static function close_for_order( int $order_id, string $reason ): bool {
-		global $wpdb;
-
 		$order = $order_id && function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
 		if ( ! $order instanceof \WC_Order ) {
 			return false;
 		}
-		$renewal_id = absint( $order->get_meta( RenewalOrder::META_RENEWAL, true ) );
+		// B-191: every open case of a combined order ends.
+		$closed = false;
+		foreach ( array_keys( RenewalOrder::links( $order ) ) as $renewal_id ) {
+			$closed = self::close_case_for_order( $order, (int) $renewal_id, $reason ) || $closed;
+		}
+
+		return $closed;
+	}
+
+	/**
+	 * Close the open case of one renewal of a refunded or cancelled order (P-05).
+	 *
+	 * @param \WC_Order $order Renewal order.
+	 * @param int       $renewal_id Renewal ID.
+	 * @param string    $reason AuditReason::REVIEW_ORDER_REFUNDED or REVIEW_ORDER_CANCELLED.
+	 * @return bool True when a case was closed.
+	 */
+	private static function close_case_for_order( $order, int $renewal_id, string $reason ): bool {
+		global $wpdb;
+
+		$order_id = (int) $order->get_id();
 		if ( ! $renewal_id ) {
 			return false;
 		}
@@ -638,6 +656,10 @@ final class RenewalReview {
 			}
 		}
 		RenewalScheduler::schedule_next( $license_id );
+		if ( RenewalOrder::is_combined( $order ) ) {
+			// B-191: the payment of a combined order books its other licenses as well.
+			CombinedRenewal::reconcile_paid( $order );
+		}
 
 		return 'review_booked';
 	}
