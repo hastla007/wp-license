@@ -16,6 +16,10 @@ Products, entitlement keys and their labels are data: an add-on ships a catalog 
 
 Project products (connectors for one customer project, decision 17) use the catalog file too: it comes with the connector's first release package and makes product key, prefix and entitlements known ([CATALOG-FILE.md](CATALOG-FILE.md#project-products)). The filters `wplc_entitlement_catalog` and `wplc_known_product_keys` (and an MU plugin that sets them) are not needed for them (`ProjectProductsIntegrationTest::test_pk04_the_first_release_of_a_connector_brings_product_and_rights_into_the_catalog`). The product editor maps a product key to its group only through the catalog, never by substring; a group added with `wplc_entitlement_catalog` needs an entry in `wplc_known_product_keys` to be offered for a product key.
 
+## Package resolvers and built-in object storage
+
+`wplc_resolve_update_package_url` (arguments: stored package URL, license ID; `0` when the server verifies a release on publish) turns the stored location of a URL release into the URL a client is redirected to. Two resolvers are built in: `PackageStream::resolve` (priority 10, uploaded packages) and `S3Storage::resolve` (priority 20, T-31), which signs an unchanged object URL of the bucket configured with the `WPLC_S3_*` constants (see [UPDATE-STORAGE.md](UPDATE-STORAGE.md)). A custom resolver on priority 10 (or anything below 20) runs first; a URL it changed carries a query and is not signed again, so custom resolvers keep precedence. `wplc_s3_presign_expires` sets the validity of the signed links (default 300 s, clamped to 1 s … 7 days). The bucket's request host is added to `wplc_update_package_hosts` (priority 1000) while the storage is configured. There is no filter for the credentials: they come from wp-config.php only.
+
 ## Actions
 
 | Hook | Where | Summary |
@@ -137,6 +141,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_retention_days` | `src/Maintenance/Retention.php` | Filter the retention periods in days. |
 | `wplc_retention_time_budget` | `src/Maintenance/Retention.php` | Filter the seconds one retention run may take. |
 | `wplc_review_payment_reference` | `src/Billing/RenewalReview.php` | Filters the transaction ID stored when a reviewed renewal order is booked as paid. |
+| `wplc_s3_presign_expires` | `src/Update/S3Storage.php` | Filters how long a pre-signed object storage URL is valid. |
 | `wplc_schema_can_migrate` | `src/Infrastructure/Database/Schema.php` | Filter whether this request may run a schema migration. |
 | `wplc_self_update_check_enabled` | `src/Infrastructure/SelfUpdateCheck.php` | Filters whether the plugin looks for new releases of itself (A-42). |
 | `wplc_self_update_release_api` | `src/Infrastructure/SelfUpdateCheck.php` | Filters the API address of the latest release (A-42). |

@@ -8,6 +8,7 @@
 namespace WPLC\CLI;
 
 use WPLC\Update\ReleaseRegistry;
+use WPLC\Update\S3Storage;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -29,11 +30,15 @@ final class ReleaseCommand {
 	}
 
 	/**
-	 * Create a release from a ZIP file on this server.
+	 * Create a release from a ZIP file on this server or from an object in the configured object storage.
 	 *
-	 * The ZIP is copied into the private package directory. It must contain
-	 * exactly one top-level folder (the plugin folder of the product) and a
-	 * plugin file whose "Version:" header equals --version.
+	 * With --zip the ZIP is copied into the private package directory. It must
+	 * contain exactly one top-level folder (the plugin folder of the product)
+	 * and a plugin file whose "Version:" header equals --version.
+	 *
+	 * With --object and --sha256 the release points to an object in the bucket
+	 * of the WPLC_S3_* constants; it is delivered through short-lived signed
+	 * URLs. The object is downloaded and checked when the release is published.
 	 *
 	 * ## OPTIONS
 	 *
@@ -43,8 +48,14 @@ final class ReleaseCommand {
 	 * --version=<version>
 	 * : Release version: 1.2.3, 1.2.3-alpha1, 1.2.3-beta1 or 1.2.3-rc1.
 	 *
-	 * --zip=<path>
-	 * : Path of the package ZIP.
+	 * [--zip=<path>]
+	 * : Path of the package ZIP. Either --zip or --object is required.
+	 *
+	 * [--object=<location>]
+	 * : Object in the configured bucket: s3://bucket/key, or only the key.
+	 *
+	 * [--sha256=<checksum>]
+	 * : SHA-256 of the object (required with --object).
 	 *
 	 * [--channel=<channel>]
 	 * : Release channel.
@@ -85,6 +96,7 @@ final class ReleaseCommand {
 	 * ## EXAMPLES
 	 *
 	 *     wp wplc release create --product=acme-pro --version=1.4.0 --zip=build/acme-pro-1.4.0.zip --notes-file=CHANGES.html --publish
+	 *     wp wplc release create --product=acme-pro --version=1.4.0 --object=s3://acme-releases/acme-pro/acme-pro-1.4.0.zip --sha256=<sha256> --publish
 	 *
 	 * @param array<int,string>   $args       Positional arguments.
 	 * @param array<string,mixed> $assoc_args Options.
@@ -181,7 +193,11 @@ final class ReleaseCommand {
 	 */
 	public static function run_create( array $assoc_args ) {
 		$zip = (string) ( $assoc_args['zip'] ?? '' );
-		if ( '' === $zip || ! is_file( $zip ) || ! is_readable( $zip ) ) {
+		$object = trim( (string) ( $assoc_args['object'] ?? '' ) );
+		if ( '' !== $object && '' !== $zip ) {
+			return new \WP_Error( 'zip_and_object', __( 'Use either --zip or --object, not both.', 'wp-license' ) );
+		}
+		if ( '' === $object && ( '' === $zip || ! is_file( $zip ) || ! is_readable( $zip ) ) ) {
 			/* translators: %s: path of the ZIP file. */
 			return new \WP_Error( 'zip_not_found', sprintf( __( 'The ZIP file "%s" does not exist or is not readable.', 'wp-license' ), $zip ) );
 		}
@@ -201,26 +217,35 @@ final class ReleaseCommand {
 			return ReleaseRegistry::error( 'invalid_channel' );
 		}
 
-		$release_id = ReleaseRegistry::create_with_package(
-			array(
-				'product_key' => sanitize_key( (string) ( $assoc_args['product'] ?? '' ) ),
-				'version' => trim( (string) ( $assoc_args['version'] ?? '' ) ),
-				'channel' => $channel,
-				'requires_php' => trim( (string) ( $assoc_args['requires-php'] ?? '' ) ),
-				'requires_wp' => trim( (string) ( $assoc_args['requires-wp'] ?? '' ) ),
-				'tested_wp' => trim( (string) ( $assoc_args['tested-wp'] ?? '' ) ),
-				'requires_core' => trim( (string) ( $assoc_args['requires-core'] ?? '' ) ),
-				'release_notes' => $notes,
-			),
-			$zip,
-			0
+		$input = array(
+			'product_key' => sanitize_key( (string) ( $assoc_args['product'] ?? '' ) ),
+			'version' => trim( (string) ( $assoc_args['version'] ?? '' ) ),
+			'channel' => $channel,
+			'requires_php' => trim( (string) ( $assoc_args['requires-php'] ?? '' ) ),
+			'requires_wp' => trim( (string) ( $assoc_args['requires-wp'] ?? '' ) ),
+			'tested_wp' => trim( (string) ( $assoc_args['tested-wp'] ?? '' ) ),
+			'requires_core' => trim( (string) ( $assoc_args['requires-core'] ?? '' ) ),
+			'release_notes' => $notes,
 		);
+		if ( '' !== $object ) {
+			// T-31: a bare key means an object in the configured bucket.
+			$config = S3Storage::config();
+			if ( ! S3Storage::is_object_uri( $object ) && 'configured' === $config['state'] ) {
+				$object = S3Storage::URI_SCHEME . $config['bucket'] . '/' . ltrim( $object, '/' );
+			}
+			$input['storage'] = ReleaseRegistry::STORAGE_URL;
+			$input['package_url'] = S3Storage::is_object_uri( $object ) ? $object : S3Storage::URI_SCHEME;
+			$input['sha256'] = trim( (string) ( $assoc_args['sha256'] ?? '' ) );
+			$release_id = ReleaseRegistry::create( $input, 0 );
+		} else {
+			$release_id = ReleaseRegistry::create_with_package( $input, $zip, 0 );
+		}
 		if ( is_wp_error( $release_id ) ) {
 			return $release_id;
 		}
 		$warnings = array();
 		// PROD-03: what happened to the catalog file of the package.
-		$catalog = \WPLC\Catalog\ReleaseCatalog::message( \WPLC\Catalog\ReleaseCatalog::last_result() );
+		$catalog = '' === $object ? \WPLC\Catalog\ReleaseCatalog::message( \WPLC\Catalog\ReleaseCatalog::last_result() ) : '';
 		if ( '' !== $catalog ) {
 			$warnings[] = $catalog;
 		}

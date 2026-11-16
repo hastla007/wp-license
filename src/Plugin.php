@@ -382,6 +382,7 @@ final class Plugin {
 		Schema::maybe_upgrade();
 		ReleaseRegistry::register_hooks();
 		PackageStream::register_hooks();
+		\WPLC\Update\S3Storage::register_hooks();
 		CustomerDownload::register_hooks();
 		ReleaseAdmin::register_hooks();
 		ProductEditor::register_hooks();

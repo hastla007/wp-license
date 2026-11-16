@@ -93,6 +93,8 @@ wp wplc signing-key --field=public_key
 | Constant | Purpose |
 | --- | --- |
 | `WPLC_PACKAGE_STORAGE_DIR` | Absolute directory outside the web root for uploaded release ZIPs (chapter 5). Recommended for production. |
+| `WPLC_S3_BUCKET`, `WPLC_S3_ACCESS_KEY_ID`, `WPLC_S3_SECRET_ACCESS_KEY` | Private S3-compatible bucket for release packages and a key that may read it (chapter 5). Optional; all three are required together. Never stored in the database or shown. |
+| `WPLC_S3_REGION`, `WPLC_S3_ENDPOINT`, `WPLC_S3_PATH_STYLE` | Region (default `us-east-1`, `auto` for Cloudflare R2), HTTPS endpoint (default: AWS for the region) and path-style addressing (default `false`) of that storage. |
 | `WPLC_TRUSTED_PROXY_HEADER`, `WPLC_TRUSTED_PROXIES` | Behind a CDN or reverse proxy: the header with the real client address (for example `HTTP_CF_CONNECTING_IP`) and the IPs or CIDR ranges of the proxies allowed to set it. Without both, all customers behind the proxy share one rate-limit bucket (chapter 9). |
 | `WPLC_RATE_LIMIT_KEY` | Key of the HMAC that hashes rate-limit buckets. Optional; derived from the WordPress auth salt otherwise. Changing it only resets the running buckets. |
 | `WPLC_PAUSE_BILLING` | `true` pauses all charges, expiries and reminder emails (staging copies, restores); `false` lets a non-production site bill test cards (chapter 9). |

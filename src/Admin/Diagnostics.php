@@ -978,6 +978,16 @@ final class Diagnostics {
 
 		$add( __( 'HTTPS', 'wp-license' ), is_ssl() ? __( 'Enabled', 'wp-license' ) : __( 'Not detected', 'wp-license' ), is_ssl() ? 'ok' : 'warning' );
 		$add( __( 'OpenSSL', 'wp-license' ), extension_loaded( 'openssl' ) ? __( 'Available', 'wp-license' ) : __( 'Unavailable', 'wp-license' ), extension_loaded( 'openssl' ) ? 'ok' : 'warning' );
+		// T-31: only whether object storage is configured, the bucket and the endpoint host. Never a key.
+		$object_storage = \WPLC\Update\S3Storage::config();
+		if ( 'configured' === $object_storage['state'] ) {
+			/* translators: 1: bucket name, 2: host name of the storage endpoint. */
+			$add( __( 'Object storage (S3-compatible)', 'wp-license' ), sprintf( __( 'Bucket %1$s on %2$s', 'wp-license' ), $object_storage['bucket'], $object_storage['endpoint_host'] ), 'ok' );
+		} elseif ( 'invalid' === $object_storage['state'] ) {
+			$add( __( 'Object storage (S3-compatible)', 'wp-license' ), __( 'Invalid configuration', 'wp-license' ), 'warning', \WPLC\Update\S3Storage::error_message( $object_storage['error'] ) );
+		} else {
+			$add( __( 'Object storage (S3-compatible)', 'wp-license' ), __( 'Not configured', 'wp-license' ) );
+		}
 
 		// Background jobs.
 		$run    = self::daily_run_state();

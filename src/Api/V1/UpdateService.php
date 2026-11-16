@@ -11,6 +11,7 @@ use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\LicenseLifecycle;
 use WPLC\Update\PackageStream;
 use WPLC\Update\ReleaseRegistry;
+use WPLC\Update\S3Storage;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -343,7 +344,7 @@ final class UpdateService {
 	 *
 	 * Without one, releases with storage "url" are delivered at their permanent address.
 	 *
-	 * @return bool True when a resolver besides the built-in one for local packages exists.
+	 * @return bool True when a resolver besides the built-in one for local packages exists, or object storage is configured (T-31).
 	 */
 	public static function has_package_resolver(): bool {
 		global $wp_filter;
@@ -353,6 +354,13 @@ final class UpdateService {
 		}
 		foreach ( $wp_filter['wplc_resolve_update_package_url']->callbacks as $callbacks ) {
 			foreach ( $callbacks as $callback ) {
+				if ( array( S3Storage::class, 'resolve' ) === $callback['function'] ) {
+					// The built-in object storage resolver only counts once a bucket is configured.
+					if ( S3Storage::is_configured() ) {
+						return true;
+					}
+					continue;
+				}
 				if ( array( PackageStream::class, 'resolve' ) !== $callback['function'] ) {
 					return true;
 				}
