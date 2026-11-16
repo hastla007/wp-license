@@ -276,6 +276,8 @@ final class Format {
 			'renewal_price_change_dropped'    => __( 'Announced renewal price dropped (plan changed)', 'wp-license' ),
 			'renewal_price_change_not_applied' => __( 'Announced renewal price not applied (no notice sent)', 'wp-license' ),
 			'catalog_file_imported'           => __( 'Catalog file imported', 'wp-license' ),
+			'catalog_release_import_refused'  => __( 'Catalog file of a release package not imported', 'wp-license' ),
+			'catalog_keys_removed_in_use'     => __( 'Catalog import removed entitlements that plans still grant', 'wp-license' ),
 			'catalog_product_removed'         => __( 'Product removed from the catalog', 'wp-license' ),
 			'plan_change_scheduled'           => __( 'Plan change scheduled', 'wp-license' ),
 			'plan_change_cancelled'           => __( 'Plan change withdrawn', 'wp-license' ),

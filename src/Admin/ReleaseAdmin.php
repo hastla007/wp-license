@@ -194,6 +194,11 @@ final class ReleaseAdmin {
 			// A-119: say it now, not only when the release is published.
 			$message .= ' ' . ReleaseRegistry::error_message( 'untrusted_package_host' );
 		}
+		// PROD-03: what happened to the catalog file of the package.
+		$catalog = $has_upload ? \WPLC\Catalog\ReleaseCatalog::message( \WPLC\Catalog\ReleaseCatalog::last_result() ) : '';
+		if ( '' !== $catalog ) {
+			$message .= ' ' . $catalog;
+		}
 		self::finish( true, $message );
 	}
 

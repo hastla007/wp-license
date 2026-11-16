@@ -835,6 +835,20 @@ final class ReleaseRegistry {
 		$result = self::create( $input, $actor_user_id );
 		if ( is_wp_error( $result ) ) {
 			LocalPackageStorage::delete( $stored['key'] );
+
+			return $result;
+		}
+		// PROD-03: the add-on ships its catalog file in the package. The release never fails because of it.
+		\WPLC\Catalog\ReleaseCatalog::reset();
+		$path = LocalPackageStorage::path_for_key( (string) $stored['key'] );
+		if ( null !== $path ) {
+			try {
+				\WPLC\Catalog\ReleaseCatalog::import_from_package( $path, (string) $package['slug'], (string) $data['product_key'], (string) $data['version'], (int) $result, $actor_user_id );
+			} catch ( \Throwable $error ) {
+				if ( function_exists( 'wc_get_logger' ) ) {
+					wc_get_logger()->error( 'Catalog import from the release package failed: ' . $error->getMessage(), array( 'source' => 'wp-license' ) );
+				}
+			}
 		}
 
 		return $result;

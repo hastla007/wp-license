@@ -25,6 +25,10 @@ $build_zip = static function ( string $version ) {
 	$zip  = new ZipArchive();
 	$zip->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE );
 	$zip->addFromString( 'voucher-captain-pro/voucher-captain-pro.php', "<?php\n/**\n * Plugin Name: Voucher Captain\n * Version: {$version}\n */\n" );
+	// PROD-03: the add-on ships its catalog file in its folder; here the shipped one plus one planned key.
+	$catalog                   = json_decode( (string) file_get_contents( WPLC_PATH . 'catalogs/voucher-captain-pro.json' ), true );
+	$catalog['entitlements'][] = array( 'key' => 'voucher.e2e_packaged', 'label' => 'Packaged with the release', 'status' => 'planned' );
+	$zip->addFromString( 'voucher-captain-pro/wplc-catalog.json', (string) wp_json_encode( $catalog ) );
 	$zip->addFromString( 'voucher-captain-pro/readme.txt', "=== Voucher Captain ===\nStable tag: {$version}\n" . str_repeat( 'e2e payload ', 2000 ) );
 	$zip->close();
 	$bytes = file_get_contents( $file );
@@ -93,6 +97,9 @@ e2e_ok( is_file( $storage_dir . '/.htaccess' ) && is_file( $storage_dir . '/inde
 e2e_ok( (bool) preg_match( '/^voucher-captain-pro-1\.1\.0-[a-f0-9]{32}\.zip$/', (string) $release['package_url'] ), 'stored file name carries 128 random bits (not guessable where .htaccess is ignored, e.g. nginx)', $release['package_url'] );
 $result_page = e2e_http( 'GET', $created['location'], array( 'cookies' => $admin_cookies ) );
 e2e_ok( 200 === $result_page['code'] && false !== strpos( $result_page['body'], 'Draft release created' ) && false !== strpos( $result_page['body'], '1.1.0' ), 'releases screen shows the notice and the draft', $result_page['code'] );
+\WPLC\Catalog\CatalogStore::reset_cache();
+$packaged = \WPLC\Catalog\CatalogStore::get( 'voucher-captain-pro' );
+e2e_ok( is_array( $packaged ) && 'release' === ( $packaged['source'] ?? '' ) && in_array( 'voucher.e2e_packaged', array_column( (array) $packaged['entitlements'], 'key' ), true ) && false !== strpos( $result_page['body'], 'catalog file of the package was imported' ), 'the catalog file in the uploaded package was imported into the license catalog and the screen says so (PROD-03)', array( $packaged['source'] ?? null ) );
 
 // A draft is not delivered.
 $result = $check_update( $client );

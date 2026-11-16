@@ -84,9 +84,26 @@ A file may be at most 256 KB. A UTF-8 byte order mark is accepted.
 | --- | --- | --- |
 | Admin | WooCommerce → License catalog files → "Import a catalog file" (upload). The screen lists every product with its entitlements, exports a product as a file and removes a product. Removing needs the capability, the nonce of the screen and a ticked confirmation box in the form (checked by the server; no script is involved), and is audited. | Capability `wplc_manage_catalog` |
 | WP-CLI | `wp wplc catalog import <file>... [--dry-run]`, `wp wplc catalog validate <file>...`, `wp wplc catalog list [--format=json]`, `wp wplc catalog export <product-key>`, `wp wplc catalog remove <product-key> [--yes]` | Shell access |
-| Upgrade | Schema step 24 imports the files shipped under `catalogs/`. A product that was imported in the admin or with WP-CLI is never replaced by a shipped file. | – |
+| **Release package (automatic)** | When a release is created from a ZIP (upload on the releases screen, `wp wplc release create --zip=…`), the server reads `<plugin folder>/wplc-catalog.json` from the package and imports it. See "Import from the release package" below. | Capability `wplc_manage_releases`; setting "Import the catalog file from release packages" (on by default) |
+| Upgrade | Schema step 24 imports the files shipped under `catalogs/`. A product that was imported from a release package, in the admin or with WP-CLI is never replaced by a shipped file. | – |
 
-Not built yet: reading the file from the ZIP of a release when the release is published (PROD-03 in [PRODUCT-PLAN.md](PRODUCT-PLAN.md)).
+### Import from the release package (PROD-03)
+
+Owner decision of 16 Nov 2026: the catalog file travels with the release. The normal way to keep the catalog current is therefore to do nothing: build the add-on with `wplc-catalog.json` in its folder and upload the ZIP as a release. Source: `src/Catalog/ReleaseCatalog.php`.
+
+- **Where the file must be.** A release package has exactly one top-level folder (the plugin folder, see [UPDATES.md](UPDATES.md#what-a-package-must-look-like)). The server reads exactly `<plugin folder>/wplc-catalog.json`. A file with that name anywhere else in the archive is ignored.
+- **When.** When the release is created from the ZIP, also as a draft: the statuses in the file (`available`, `planned`) decide what the product editor offers, not the state of the release. A release registered by URL is not read (the server does not download packages); import its file by hand.
+- **A package without the file changes nothing.**
+- **The release never fails because of its catalog file.** The file is refused, the release is created, the person who uploaded the package sees the reason next to "Draft release created", and the audit log gets `catalog_release_import_refused` (object: the release) when
+  - the file is not a valid catalog file (the first error is named with its field),
+  - its `product_key` is not the product of the release: a package must not redefine the catalog of another product,
+  - it is larger than 256 KB or cannot be read.
+- **An older package does not turn the catalog back.** When the product already has a release with a higher version, the file of the new package is not imported (no audit entry; the screen says so).
+- **Removed keys that plans still grant.** The import is carried out. The message names the keys that active plans of the product still grant, and the audit log gets `catalog_keys_removed_in_use`. Plans and licenses keep the keys; the product editor shows them in the JSON field.
+- **Idempotent and audited** like every import: source `release`, audit `catalog_file_imported` with the acting user; an unchanged file writes nothing.
+- **Safe reading.** The archive is opened read-only and nothing is extracted to disk. Only the one entry is read, as a stream, and never more than 256 KB plus one byte of it, whatever size the archive declares (a file that inflates to more is refused).
+- **Switching it off.** WooCommerce → License settings → Updates → "Import the catalog file from release packages", or the filter `wplc_catalog_auto_import`. Catalogs are then imported in the admin or with WP-CLI only.
+- **The copies under `catalogs/`.** A product whose catalog came from a release package is no longer touched by the files shipped with the server (schema step 24 skips it). The shipped copy of a product becomes dead weight with the first release of that add-on that carries the file; the folder is deleted when every sold add-on does (PROD-02, PROD-12 in [TODO.md](TODO.md)).
 
 `--dry-run` and `validate` check the file and print what an import would change, without writing. A rejected file is reported with the path of the field and the reason, for example `entitlements[3].key: The entitlement key is listed twice.` The codes are listed in `CatalogFile::describe()`.
 

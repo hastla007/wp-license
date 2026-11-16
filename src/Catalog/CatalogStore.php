@@ -36,6 +36,7 @@ final class CatalogStore {
 	public const SOURCE_BUNDLED = 'bundled';
 	public const SOURCE_ADMIN   = 'admin';
 	public const SOURCE_CLI     = 'cli';
+	public const SOURCE_RELEASE = 'release';
 
 	/**
 	 * Results of import().

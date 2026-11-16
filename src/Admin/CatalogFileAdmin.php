@@ -113,6 +113,7 @@ final class CatalogFileAdmin {
 			CatalogStore::SOURCE_BUNDLED => __( 'shipped with the plugin', 'wp-license' ),
 			CatalogStore::SOURCE_ADMIN   => __( 'uploaded', 'wp-license' ),
 			CatalogStore::SOURCE_CLI     => __( 'command line', 'wp-license' ),
+			CatalogStore::SOURCE_RELEASE => __( 'release package', 'wp-license' ),
 		);
 		$status   = (string) $product['status'];
 		$source   = (string) ( $product['source'] ?? '' );

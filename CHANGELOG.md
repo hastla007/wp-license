@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Added (16 Nov 2026, catalog file from the release package)
+
+- **The catalog travels with the release (PROD-03).** When a release is created from a ZIP, the server reads `<plugin folder>/wplc-catalog.json` from the package and imports it into the license catalog (source `release`). The release is never refused because of the file: an invalid file, a file for another product or an oversized file is not imported, the uploader sees the reason and the audit log records `catalog_release_import_refused`. A package older than an existing release does not turn the catalog back. Removed keys that active plans still grant are named in a warning (`catalog_keys_removed_in_use`); plans and licenses are never changed. The archive is read in memory, one entry, at most 256 KB. New setting "Import the catalog file from release packages" (on by default) and filter `wplc_catalog_auto_import`.
+
 ### Added (16 Nov 2026, own update path, off by default)
 
 - **Updates of the plugin from a license server (E8b, PROD-06).** A copy of the plugin can get its own updates from the license server of its vendor through the client library it ships (`src/Infrastructure/SelfLicense.php`). Configuration with the constants `WPLC_VENDOR_SERVER_URL`, `WPLC_VENDOR_PRODUCT_KEY`, `WPLC_VENDOR_PUBLIC_KEYS` and `WPLC_VENDOR_ACCOUNT_URL` or the filter `wplc_vendor_license_config`. **Off unless configured:** without it nothing is registered and no new request is made. The own license gates updates and support only: the shop's licenses are sold, checked and renewed the same with or without it. An endpoint on the same site is refused. See `docs/PRODUCTION-OPERATIONS.md`.

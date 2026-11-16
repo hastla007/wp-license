@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T09:02:52+00:00\n"
+"POT-Creation-Date: 2026-11-16T09:09:27+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -582,7 +582,7 @@ msgstr ""
 
 #: src/Account/SiteOverview.php:282
 #: src/Admin/LicenseDetail.php:199
-#: src/Admin/ReleaseAdmin.php:462
+#: src/Admin/ReleaseAdmin.php:467
 #: src/Privacy/PersonalData.php:361
 #: templates/emails/plain/wplc-cancellation-confirmed.php:39
 #: templates/emails/plain/wplc-expiry-reminder.php:46
@@ -618,7 +618,7 @@ msgstr ""
 
 #: src/Account/SiteOverview.php:284
 #: src/Admin/ReleaseAdmin.php:123
-#: src/Admin/ReleaseAdmin.php:468
+#: src/Admin/ReleaseAdmin.php:473
 #: src/Update/CustomerDownload.php:137
 msgid "Version"
 msgstr ""
@@ -1133,7 +1133,7 @@ msgid "Renewal"
 msgstr ""
 
 #: src/Admin/AuditLogAdmin.php:171
-#: src/Admin/ReleaseAdmin.php:541
+#: src/Admin/ReleaseAdmin.php:546
 msgid "Release"
 msgstr ""
 
@@ -1222,7 +1222,7 @@ msgstr ""
 #: src/Admin/AuditLogAdmin.php:487
 #: src/Admin/AuditLogTable.php:52
 #: src/Admin/LicenseDetail.php:696
-#: src/Admin/ReleaseAdmin.php:542
+#: src/Admin/ReleaseAdmin.php:547
 msgid "Action"
 msgstr ""
 
@@ -1307,8 +1307,8 @@ msgstr ""
 #: src/Admin/PriceChangeAdmin.php:121
 #: src/Admin/PriceChangeAdmin.php:138
 #: src/Admin/PriceChangeAdmin.php:187
-#: src/Admin/ReleaseAdmin.php:434
-#: src/Admin/ReleaseAdmin.php:543
+#: src/Admin/ReleaseAdmin.php:439
+#: src/Admin/ReleaseAdmin.php:548
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Admin/RenewalReviewAdmin.php:282
 msgid "Reason"
@@ -1351,7 +1351,7 @@ msgstr ""
 #: src/Admin/CatalogCsv.php:83
 #: src/Admin/CatalogCsv.php:579
 #: src/Admin/CatalogFileAdmin.php:68
-#: src/Admin/CatalogFileAdmin.php:372
+#: src/Admin/CatalogFileAdmin.php:373
 msgid "You do not have permission to manage license mappings."
 msgstr ""
 
@@ -1360,7 +1360,7 @@ msgid "CSV contains product IDs, variation IDs, SKU, plan keys, billing interval
 msgstr ""
 
 #: src/Admin/CatalogCsv.php:90
-#: src/Admin/CatalogFileAdmin.php:146
+#: src/Admin/CatalogFileAdmin.php:147
 msgid "Export"
 msgstr ""
 
@@ -1487,7 +1487,7 @@ msgstr ""
 #: src/Admin/LicenseDetail.php:629
 #: src/Admin/LicenseListTable.php:101
 #: src/Admin/ReleaseAdmin.php:124
-#: src/Admin/Settings.php:557
+#: src/Admin/Settings.php:568
 #: src/Privacy/PersonalData.php:363
 #: src/Privacy/PersonalData.php:554
 #: templates/emails/plain/wplc-license-blocked.php:43
@@ -1525,7 +1525,7 @@ msgstr ""
 #: src/Admin/Diagnostics.php:980
 #: src/Admin/Diagnostics.php:1024
 #: src/Admin/Diagnostics.php:1036
-#: src/Admin/Settings.php:756
+#: src/Admin/Settings.php:767
 msgid "Available"
 msgstr ""
 
@@ -1545,135 +1545,139 @@ msgstr ""
 msgid "command line"
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:133
+#: src/Admin/CatalogFileAdmin.php:116
+msgid "release package"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:134
 msgid "planned, not offered"
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:156
+#: src/Admin/CatalogFileAdmin.php:157
 msgid "Remove from the catalog (plans and licenses keep their entitlements)"
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:157
+#: src/Admin/CatalogFileAdmin.php:158
 msgid "Remove"
 msgstr ""
 
 #. translators: 1: product key, 2: number of entitlements.
-#: src/Admin/CatalogFileAdmin.php:198
+#: src/Admin/CatalogFileAdmin.php:199
 #, php-format
 msgid "Product %1$s was added to the catalog with %2$d entitlements."
 msgstr ""
 
 #. translators: 1: product key, 2: number of added entitlements, 3: number of removed entitlements, 4: number of changed entitlements.
-#: src/Admin/CatalogFileAdmin.php:201
+#: src/Admin/CatalogFileAdmin.php:202
 #, php-format
 msgid "Product %1$s was updated: %2$d entitlements added, %3$d removed, %4$d changed."
 msgstr ""
 
 #. translators: %s: product key.
-#: src/Admin/CatalogFileAdmin.php:204
+#: src/Admin/CatalogFileAdmin.php:205
 #, php-format
 msgid "Product %s is already in the catalog exactly as in this file. Nothing was changed."
 msgstr ""
 
 #. translators: %s: product key.
-#: src/Admin/CatalogFileAdmin.php:207
+#: src/Admin/CatalogFileAdmin.php:208
 #, php-format
 msgid "Product %s was removed from the catalog."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:210
+#: src/Admin/CatalogFileAdmin.php:211
 msgid "The catalog file was not imported."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:210
+#: src/Admin/CatalogFileAdmin.php:211
 msgid "The catalog was not changed."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:221
+#: src/Admin/CatalogFileAdmin.php:222
 msgid "The file could not be uploaded."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:222
+#: src/Admin/CatalogFileAdmin.php:223
 msgid "The file is larger than 256 KB."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:223
+#: src/Admin/CatalogFileAdmin.php:224
 msgid "The file is not a JSON object."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:224
+#: src/Admin/CatalogFileAdmin.php:225
 msgid "The field \"format\" is missing or not a whole number."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:225
+#: src/Admin/CatalogFileAdmin.php:226
 msgid "This version reads catalog files of format 1 only."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:226
+#: src/Admin/CatalogFileAdmin.php:227
 msgid "The product key must consist of lowercase letters, digits and hyphens (2 to 100 characters)."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:227
+#: src/Admin/CatalogFileAdmin.php:228
 msgid "The field \"prefix\" is required when the file lists no entitlement."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:228
+#: src/Admin/CatalogFileAdmin.php:229
 msgid "The prefix must start with a lowercase letter and contain lowercase letters, digits, hyphens or underscores only."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:229
+#: src/Admin/CatalogFileAdmin.php:230
 msgid "Another product in the catalog already uses this prefix."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:230
+#: src/Admin/CatalogFileAdmin.php:231
 msgid "The status must be \"available\" or \"planned\"."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:231
+#: src/Admin/CatalogFileAdmin.php:232
 msgid "The field \"entitlements\" must be a list (it may be empty)."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:232
+#: src/Admin/CatalogFileAdmin.php:233
 msgid "The file lists more than 500 entitlements."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:233
+#: src/Admin/CatalogFileAdmin.php:234
 msgid "An entitlement must be an object."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:234
+#: src/Admin/CatalogFileAdmin.php:235
 msgid "The entitlement key is missing or contains characters other than letters, digits, dots, hyphens and underscores."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:235
+#: src/Admin/CatalogFileAdmin.php:236
 msgid "The entitlement key does not start with the prefix of the product and a dot."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:236
+#: src/Admin/CatalogFileAdmin.php:237
 msgid "The entitlement key is listed twice."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:237
+#: src/Admin/CatalogFileAdmin.php:238
 msgid "A name or label needs at least the English text (\"en\")."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:238
+#: src/Admin/CatalogFileAdmin.php:239
 msgid "A text is empty, not a string, or contains markup or control characters."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:239
+#: src/Admin/CatalogFileAdmin.php:240
 msgid "A text is too long (name and label: 190 characters, description: 1000)."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:240
+#: src/Admin/CatalogFileAdmin.php:241
 msgid "A locale must be \"en\" or a WordPress locale such as \"de_DE\" or \"de_DE_formal\"."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:241
+#: src/Admin/CatalogFileAdmin.php:242
 msgid "This product is not in the catalog."
 msgstr ""
 
-#: src/Admin/CatalogFileAdmin.php:242
+#: src/Admin/CatalogFileAdmin.php:243
 msgid "Nothing was removed: tick the box next to \"Remove\" to confirm."
 msgstr ""
 
@@ -1726,7 +1730,7 @@ msgid "Until it runs again, licenses do not expire, failed payments are not retr
 msgstr ""
 
 #: src/Admin/Diagnostics.php:334
-#: src/Admin/Settings.php:644
+#: src/Admin/Settings.php:655
 msgid "Open diagnostics"
 msgstr ""
 
@@ -1784,7 +1788,7 @@ msgid "Package storage"
 msgstr ""
 
 #: src/Admin/Diagnostics.php:826
-#: src/Admin/ReleaseAdmin.php:625
+#: src/Admin/ReleaseAdmin.php:630
 msgid "The constant is ignored and the default directory is used."
 msgstr ""
 
@@ -1793,7 +1797,7 @@ msgid "The directory lies inside the web root. Apache and IIS honour the generat
 msgstr ""
 
 #: src/Admin/Diagnostics.php:842
-#: src/Admin/ReleaseAdmin.php:315
+#: src/Admin/ReleaseAdmin.php:320
 msgid "Check again"
 msgstr ""
 
@@ -2031,7 +2035,7 @@ msgid "The job threw an error and was skipped; the jobs after it still ran. The 
 msgstr ""
 
 #: src/Admin/Diagnostics.php:1023
-#: src/Admin/Settings.php:755
+#: src/Admin/Settings.php:766
 msgid "Action Scheduler"
 msgstr ""
 
@@ -2048,7 +2052,7 @@ msgid "Open WooCommerce → Status → Scheduled Actions, filter by \"Failed\" a
 msgstr ""
 
 #: src/Admin/Diagnostics.php:1035
-#: src/Admin/Settings.php:745
+#: src/Admin/Settings.php:756
 msgid "Automatic renewal (Stripe)"
 msgstr ""
 
@@ -2074,7 +2078,7 @@ msgid "Not loaded"
 msgstr ""
 
 #: src/Admin/Diagnostics.php:1049
-#: src/Admin/Settings.php:695
+#: src/Admin/Settings.php:706
 msgid "Stripe webhook secret"
 msgstr ""
 
@@ -2195,13 +2199,13 @@ msgid "Update packages"
 msgstr ""
 
 #: src/Admin/Diagnostics.php:1089
-#: src/Admin/Settings.php:734
+#: src/Admin/Settings.php:745
 msgid "License keys verifiable with the current secret"
 msgstr ""
 
 #. translators: 1: number of verifiable keys, 2: number of checked keys.
 #: src/Admin/Diagnostics.php:1091
-#: src/Admin/Settings.php:736
+#: src/Admin/Settings.php:747
 #, php-format
 msgid "%1$s of the %2$s most recent key"
 msgid_plural "%1$s of the %2$s most recent keys"
@@ -2657,138 +2661,146 @@ msgid "Catalog file imported"
 msgstr ""
 
 #: src/Admin/Format.php:279
-msgid "Product removed from the catalog"
+msgid "Catalog file of a release package not imported"
 msgstr ""
 
 #: src/Admin/Format.php:280
-msgid "Plan change scheduled"
+msgid "Catalog import removed entitlements that plans still grant"
 msgstr ""
 
 #: src/Admin/Format.php:281
-msgid "Plan change withdrawn"
+msgid "Product removed from the catalog"
 msgstr ""
 
 #: src/Admin/Format.php:282
-msgid "New key issued"
+msgid "Plan change scheduled"
 msgstr ""
 
 #: src/Admin/Format.php:283
-msgid "Key email sent again"
+msgid "Plan change withdrawn"
 msgstr ""
 
 #: src/Admin/Format.php:284
-msgid "Owner changed"
+msgid "New key issued"
 msgstr ""
 
 #: src/Admin/Format.php:285
-msgid "Cancelled for the end of the term"
+msgid "Key email sent again"
 msgstr ""
 
 #: src/Admin/Format.php:286
-msgid "Cancellation withdrawn"
+msgid "Owner changed"
 msgstr ""
 
 #: src/Admin/Format.php:287
-msgid "Automatic renewal switched on"
+msgid "Cancelled for the end of the term"
 msgstr ""
 
 #: src/Admin/Format.php:288
-msgid "Automatic renewal switched off"
+msgid "Cancellation withdrawn"
 msgstr ""
 
 #: src/Admin/Format.php:289
-msgid "Renewal paid"
+msgid "Automatic renewal switched on"
 msgstr ""
 
 #: src/Admin/Format.php:290
+msgid "Automatic renewal switched off"
+msgstr ""
+
+#: src/Admin/Format.php:291
+msgid "Renewal paid"
+msgstr ""
+
+#: src/Admin/Format.php:292
 #: src/Admin/LicenseListTable.php:350
 msgid "Renewal payment failed"
 msgstr ""
 
-#: src/Admin/Format.php:291
+#: src/Admin/Format.php:293
 #: src/Admin/LicenseListTable.php:348
 msgid "Renewal needs review"
 msgstr ""
 
-#: src/Admin/Format.php:292
+#: src/Admin/Format.php:294
 msgid "Reviewed renewal booked"
 msgstr ""
 
-#: src/Admin/Format.php:293
+#: src/Admin/Format.php:295
 msgid "Renewal review closed"
 msgstr ""
 
-#: src/Admin/Format.php:294
+#: src/Admin/Format.php:296
 msgid "Renewal refunded"
 msgstr ""
 
-#: src/Admin/Format.php:295
+#: src/Admin/Format.php:297
 msgid "Renewal cancelled"
 msgstr ""
 
-#: src/Admin/Format.php:296
+#: src/Admin/Format.php:298
 msgid "Manual renewal started"
 msgstr ""
 
-#: src/Admin/Format.php:297
+#: src/Admin/Format.php:299
 msgid "Manual renewal paid"
 msgstr ""
 
-#: src/Admin/Format.php:298
+#: src/Admin/Format.php:300
 msgid "Site activated"
 msgstr ""
 
-#: src/Admin/Format.php:299
+#: src/Admin/Format.php:301
 msgid "Site deactivated"
 msgstr ""
 
-#: src/Admin/Format.php:300
+#: src/Admin/Format.php:302
 msgid "Site address changed"
 msgstr ""
 
-#: src/Admin/Format.php:301
-#: src/Admin/Format.php:302
+#: src/Admin/Format.php:303
+#: src/Admin/Format.php:304
 msgid "Site moved to another license"
 msgstr ""
 
-#: src/Admin/Format.php:303
+#: src/Admin/Format.php:305
 msgid "Site taken over from another license"
 msgstr ""
 
-#: src/Admin/Format.php:304
+#: src/Admin/Format.php:306
 msgid "Chargeback received"
 msgstr ""
 
-#: src/Admin/Format.php:305
+#: src/Admin/Format.php:307
 msgid "Payment method changed"
 msgstr ""
 
-#: src/Admin/Format.php:306
+#: src/Admin/Format.php:308
 msgid "Package downloaded"
 msgstr ""
 
-#: src/Admin/Format.php:307
+#: src/Admin/Format.php:309
 msgid "Settings changed"
 msgstr ""
 
-#: src/Admin/Format.php:308
+#: src/Admin/Format.php:310
 msgid "Licenses exported"
 msgstr ""
 
-#: src/Admin/Format.php:309
+#: src/Admin/Format.php:311
 msgid "Audit log exported"
 msgstr ""
 
-#: src/Admin/Format.php:310
+#: src/Admin/Format.php:312
 msgid "Personal data erased"
 msgstr ""
 
-#: src/Admin/Format.php:311
+#: src/Admin/Format.php:313
 msgid "License anonymized"
 msgstr ""
 
 #. translators: %s: site timezone, for example Europe/Berlin or +02:00.
-#: src/Admin/Format.php:351
+#: src/Admin/Format.php:353
 #, php-format
 msgid "Date (%s)"
 msgstr ""
@@ -3843,7 +3855,7 @@ msgid "License releases"
 msgstr ""
 
 #: src/Admin/ReleaseAdmin.php:83
-#: src/Admin/ReleaseAdmin.php:297
+#: src/Admin/ReleaseAdmin.php:302
 msgid "You do not have permission to manage releases."
 msgstr ""
 
@@ -3871,7 +3883,7 @@ msgid "Package"
 msgstr ""
 
 #: src/Admin/ReleaseAdmin.php:126
-#: src/Admin/ReleaseAdmin.php:486
+#: src/Admin/ReleaseAdmin.php:491
 msgid "SHA-256"
 msgstr ""
 
@@ -3880,8 +3892,8 @@ msgid "Requires"
 msgstr ""
 
 #: src/Admin/ReleaseAdmin.php:128
-#: src/Admin/ReleaseAdmin.php:530
-#: src/Admin/ReleaseAdmin.php:592
+#: src/Admin/ReleaseAdmin.php:535
+#: src/Admin/ReleaseAdmin.php:597
 msgid "Published"
 msgstr ""
 
@@ -3895,272 +3907,272 @@ msgstr ""
 msgid "Draft release created. Publish it to make it available."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:213
+#: src/Admin/ReleaseAdmin.php:218
 msgid "The manifest upload failed or the file is larger than 1 MB."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:221
+#: src/Admin/ReleaseAdmin.php:226
 msgid "Upload a manifest file or paste the manifest JSON."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:232
+#: src/Admin/ReleaseAdmin.php:237
 msgid "Manifest imported as a draft release. Publish it to make it available."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:253
+#: src/Admin/ReleaseAdmin.php:258
 msgid "Release published."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:264
+#: src/Admin/ReleaseAdmin.php:269
 msgid "Release withdrawn. Installations are now offered the next highest published version."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:275
+#: src/Admin/ReleaseAdmin.php:280
 msgid "Draft release deleted."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:329
+#: src/Admin/ReleaseAdmin.php:334
 msgid "Releases with a package URL are not delivered: without a resolver that returns a short-lived signed URL, every licensed customer would learn the permanent address and could keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md)."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:329
+#: src/Admin/ReleaseAdmin.php:334
 msgid "Releases with a package URL are delivered by redirecting licensed installations to that URL. Without a resolver that returns a short-lived signed URL, every licensed customer learns the permanent address and can keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md)."
 msgstr ""
 
 #. translators: %s: PHP version.
-#: src/Admin/ReleaseAdmin.php:346
+#: src/Admin/ReleaseAdmin.php:351
 #, php-format
 msgid "PHP %s"
 msgstr ""
 
 #. translators: %s: WordPress version.
-#: src/Admin/ReleaseAdmin.php:350
+#: src/Admin/ReleaseAdmin.php:355
 #, php-format
 msgid "WP %s"
 msgstr ""
 
 #. translators: %s: WordPress version.
-#: src/Admin/ReleaseAdmin.php:354
+#: src/Admin/ReleaseAdmin.php:359
 #, php-format
 msgid "tested up to WP %s"
 msgstr ""
 
 #. translators: %s: version of the free core plugin.
-#: src/Admin/ReleaseAdmin.php:358
+#: src/Admin/ReleaseAdmin.php:363
 #, php-format
 msgid "core plugin %s"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:366
+#: src/Admin/ReleaseAdmin.php:371
 msgid "current"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:371
+#: src/Admin/ReleaseAdmin.php:376
 msgid "Uploaded file (private storage)"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:375
+#: src/Admin/ReleaseAdmin.php:380
 msgid "Host not allowed: add it under License settings before publishing."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:389
+#: src/Admin/ReleaseAdmin.php:394
 msgid "Publish again"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:389
+#: src/Admin/ReleaseAdmin.php:394
 msgid "Publish"
 msgstr ""
 
 #. translators: %s: product key and version.
-#: src/Admin/ReleaseAdmin.php:392
+#: src/Admin/ReleaseAdmin.php:397
 #, php-format
 msgid "Publish %s? Licensed installations will be offered this package as an update."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:399
+#: src/Admin/ReleaseAdmin.php:404
 msgid "Withdraw"
 msgstr ""
 
 #. translators: %s: product key and version.
-#: src/Admin/ReleaseAdmin.php:402
+#: src/Admin/ReleaseAdmin.php:407
 #, php-format
 msgid "Withdraw %s? It is no longer offered; installations that already have it keep it."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:409
+#: src/Admin/ReleaseAdmin.php:414
 msgid "Delete draft"
 msgstr ""
 
 #. translators: %s: product key and version.
-#: src/Admin/ReleaseAdmin.php:412
+#: src/Admin/ReleaseAdmin.php:417
 #, php-format
 msgid "Delete the draft %s and its uploaded file? This cannot be undone."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:435
+#: src/Admin/ReleaseAdmin.php:440
 msgid "Reason (required)"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:447
+#: src/Admin/ReleaseAdmin.php:452
 msgid "Add release"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:449
+#: src/Admin/ReleaseAdmin.php:454
 msgid "No licensed products exist yet. Map a WooCommerce product to a license plan first."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:468
+#: src/Admin/ReleaseAdmin.php:473
 msgid "Three numbers, optionally followed by -alpha, -beta or -rc and a number: 1.2.3, 1.2.3-beta1, 1.2.3-rc2. It must equal the \"Version:\" header of the plugin in the ZIP."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:470
+#: src/Admin/ReleaseAdmin.php:475
 msgid "Channel"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:471
+#: src/Admin/ReleaseAdmin.php:476
 msgid "Stable: all installations"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:472
+#: src/Admin/ReleaseAdmin.php:477
 msgid "Beta: only installations that asked for pre-releases"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:475
+#: src/Admin/ReleaseAdmin.php:480
 msgid "Package ZIP"
 msgstr ""
 
 #. translators: %s: maximum file size, for example "50 MB".
-#: src/Admin/ReleaseAdmin.php:480
+#: src/Admin/ReleaseAdmin.php:485
 #, php-format
 msgid "Stored in a private directory and delivered through short-lived links. The ZIP must contain exactly one top-level folder (the plugin folder). The SHA-256 checksum is computed automatically. Maximum size: %s."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:485
+#: src/Admin/ReleaseAdmin.php:490
 msgid "or package URL"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:485
+#: src/Admin/ReleaseAdmin.php:490
 msgid "HTTPS URL on an allowed package host (License settings → Additional trusted package hosts). Ignored when a ZIP is uploaded. The file is downloaded once and checked when the release is published."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:486
+#: src/Admin/ReleaseAdmin.php:491
 msgid "Required for a package URL: 64 hexadecimal characters. Compute it with \"sha256sum file.zip\" (Linux), \"shasum -a 256 file.zip\" (macOS) or \"Get-FileHash file.zip\" (Windows PowerShell)."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:487
+#: src/Admin/ReleaseAdmin.php:492
 msgid "Requires PHP"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:487
-#: src/Admin/ReleaseAdmin.php:488
+#: src/Admin/ReleaseAdmin.php:492
+#: src/Admin/ReleaseAdmin.php:493
 msgid "Empty: taken from the plugin header of an uploaded ZIP."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:488
+#: src/Admin/ReleaseAdmin.php:493
 msgid "Requires WordPress"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:489
+#: src/Admin/ReleaseAdmin.php:494
 msgid "Tested up to WordPress"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:490
+#: src/Admin/ReleaseAdmin.php:495
 msgid "Requires core plugin"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:490
+#: src/Admin/ReleaseAdmin.php:495
 msgid "Minimum version of the free core plugin this add-on release needs. Installations that report an older core plugin are not offered this release."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:492
+#: src/Admin/ReleaseAdmin.php:497
 msgid "Release notes"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:495
+#: src/Admin/ReleaseAdmin.php:500
 msgid "Create draft release"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:504
+#: src/Admin/ReleaseAdmin.php:509
 msgid "Import release manifest"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:505
+#: src/Admin/ReleaseAdmin.php:510
 msgid "Import a manifest JSON created by tools/create-release-manifest.php. The package stays at its HTTPS URL; the release is created as a draft."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:509
+#: src/Admin/ReleaseAdmin.php:514
 msgid "Manifest file"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:511
+#: src/Admin/ReleaseAdmin.php:516
 msgid "or paste the manifest JSON"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:513
+#: src/Admin/ReleaseAdmin.php:518
 msgid "Import manifest"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:528
+#: src/Admin/ReleaseAdmin.php:533
 msgid "Draft created"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:529
+#: src/Admin/ReleaseAdmin.php:534
 msgid "Changed"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:531
-#: src/Admin/ReleaseAdmin.php:593
+#: src/Admin/ReleaseAdmin.php:536
+#: src/Admin/ReleaseAdmin.php:598
 msgid "Withdrawn"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:532
+#: src/Admin/ReleaseAdmin.php:537
 msgid "Draft deleted"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:533
+#: src/Admin/ReleaseAdmin.php:538
 msgid "Plugin folder set"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:535
+#: src/Admin/ReleaseAdmin.php:540
 msgid "Release log"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:536
+#: src/Admin/ReleaseAdmin.php:541
 msgid "The last 50 changes to releases."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:539
+#: src/Admin/ReleaseAdmin.php:544
 msgid "Date"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:540
+#: src/Admin/ReleaseAdmin.php:545
 msgid "User"
 msgstr ""
 
 #. translators: %d: user ID.
-#: src/Admin/ReleaseAdmin.php:551
+#: src/Admin/ReleaseAdmin.php:556
 #, php-format
 msgid "User #%d"
 msgstr ""
 
 #. translators: %d: user ID.
-#: src/Admin/ReleaseAdmin.php:551
+#: src/Admin/ReleaseAdmin.php:556
 msgid "System / WP-CLI"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:591
+#: src/Admin/ReleaseAdmin.php:596
 msgid "Draft"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:628
+#: src/Admin/ReleaseAdmin.php:633
 msgid "Uploaded release packages are publicly readable."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:629
+#: src/Admin/ReleaseAdmin.php:634
 msgid "The web server delivered a test file from the private package directory, so it ignores the generated .htaccess (for example nginx). Only the random file names protect the ZIPs. Move the directory outside the web root with WPLC_PACKAGE_STORAGE_DIR or add a deny rule."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:630
+#: src/Admin/ReleaseAdmin.php:635
 msgid "Show the rule and check again"
 msgstr ""
 
@@ -4291,271 +4303,283 @@ msgid "You do not have permission to extend licenses."
 msgstr ""
 
 #: src/Admin/Settings.php:69
-#: src/Admin/Settings.php:658
+#: src/Admin/Settings.php:669
 msgid "Getting started"
 msgstr ""
 
-#: src/Admin/Settings.php:273
 #: src/Admin/Settings.php:274
-#: src/Admin/Settings.php:279
-#: src/Admin/Settings.php:553
+#: src/Admin/Settings.php:275
+#: src/Admin/Settings.php:280
+#: src/Admin/Settings.php:564
 msgid "License settings"
 msgstr ""
 
-#: src/Admin/Settings.php:298
+#: src/Admin/Settings.php:299
 msgid "Updates"
 msgstr ""
 
-#: src/Admin/Settings.php:301
+#: src/Admin/Settings.php:302
 msgid "Additional trusted package hosts"
 msgstr ""
 
-#: src/Admin/Settings.php:308
+#: src/Admin/Settings.php:311
+msgid "Catalog file of release packages"
+msgstr ""
+
+#: src/Admin/Settings.php:317
 msgid "Customer emails"
 msgstr ""
 
-#: src/Admin/Settings.php:311
+#: src/Admin/Settings.php:320
 msgid "Reminder lead days"
 msgstr ""
 
-#: src/Admin/Settings.php:319
+#: src/Admin/Settings.php:328
 msgid "Renewal notice lead days"
 msgstr ""
 
-#: src/Admin/Settings.php:327
+#: src/Admin/Settings.php:336
 msgid "Price change notice period"
 msgstr ""
 
-#: src/Admin/Settings.php:335
+#: src/Admin/Settings.php:344
 msgid "Sender note"
 msgstr ""
 
 #. translators: %d: number of rejected lines.
-#: src/Admin/Settings.php:376
+#: src/Admin/Settings.php:385
 #, php-format
 msgid "%d package host line was not a valid host name and was ignored. Enter host names only, without https:// or a path."
 msgid_plural "%d package host lines were not valid host names and were ignored. Enter host names only, without https:// or a path."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Settings.php:398
+#: src/Admin/Settings.php:407
 msgid "The trusted package hosts were not changed: only an administrator may change them."
 msgstr ""
 
-#: src/Admin/Settings.php:400
+#: src/Admin/Settings.php:409
 msgid "The trusted package hosts were not changed: someone else changed them after you opened this page. Check the list below and save again."
 msgstr ""
 
-#: src/Admin/Settings.php:550
+#: src/Admin/Settings.php:561
 msgid "You do not have permission to change license settings."
 msgstr ""
 
-#: src/Admin/Settings.php:564
+#: src/Admin/Settings.php:575
 #: templates/myaccount/wplc-license.php:58
 msgid "Copied"
 msgstr ""
 
-#: src/Admin/Settings.php:564
+#: src/Admin/Settings.php:575
 msgid "Copying failed. Select the address and copy it by hand."
 msgstr ""
 
-#: src/Admin/Settings.php:564
+#: src/Admin/Settings.php:575
 #: templates/myaccount/wplc-license.php:58
 msgid "Copy"
 msgstr ""
 
-#: src/Admin/Settings.php:581
+#: src/Admin/Settings.php:592
 msgid "Secrets are never stored in the database. Define them as constants in wp-config.php."
 msgstr ""
 
-#: src/Admin/Settings.php:608
+#: src/Admin/Settings.php:619
 msgid "Define the secrets in wp-config.php"
 msgstr ""
 
-#: src/Admin/Settings.php:609
+#: src/Admin/Settings.php:620
 msgid "Set WPLC_LICENSE_KEY_SECRETS (with WPLC_LICENSE_KEY_ID) and WPLC_INSTALLATION_ENCRYPTION_KEYS before the first license is sold. Keys issued without them depend on the WordPress salts and stop working when the salts change."
 msgstr ""
 
-#: src/Admin/Settings.php:616
+#: src/Admin/Settings.php:627
 msgid "Turn a product into a license product"
 msgstr ""
 
-#: src/Admin/Settings.php:617
+#: src/Admin/Settings.php:628
 msgid "Edit the WooCommerce product, tick \"License product\" and enter the license product key and a plan key. The product key is the identifier the premium add-on asks the server for (for example voucher-captain-pro); every plan of it (for example single or agency, one per product or variation) has its own plan key. Keep both unchanged once the product is sold."
 msgstr ""
 
-#: src/Admin/Settings.php:620
+#: src/Admin/Settings.php:631
 msgid "Open products"
 msgstr ""
 
-#: src/Admin/Settings.php:624
+#: src/Admin/Settings.php:635
 msgid "Connect the Stripe webhook"
 msgstr ""
 
-#: src/Admin/Settings.php:625
+#: src/Admin/Settings.php:636
 msgid "In the Stripe dashboard, add an endpoint with the webhook URL shown under \"Status\" below and the events listed in the documentation (docs/STRIPE-WEBHOOKS.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected."
 msgstr ""
 
-#: src/Admin/Settings.php:632
+#: src/Admin/Settings.php:643
 msgid "Publish the first release"
 msgstr ""
 
-#: src/Admin/Settings.php:633
+#: src/Admin/Settings.php:644
 msgid "Upload the add-on package and publish it, so that licensed sites can download it and receive updates."
 msgstr ""
 
-#: src/Admin/Settings.php:636
+#: src/Admin/Settings.php:647
 msgid "Open license releases"
 msgstr ""
 
-#: src/Admin/Settings.php:640
+#: src/Admin/Settings.php:651
 msgid "Make a test purchase"
 msgstr ""
 
-#: src/Admin/Settings.php:641
+#: src/Admin/Settings.php:652
 msgid "Buy the product with a test customer, check the license under Licenses and activate it in the add-on on a test site. The diagnostics page shows whether the daily background run works."
 msgstr ""
 
-#: src/Admin/Settings.php:663
+#: src/Admin/Settings.php:674
 msgid "Done"
 msgstr ""
 
-#: src/Admin/Settings.php:665
+#: src/Admin/Settings.php:676
 msgid "To do"
 msgstr ""
 
-#: src/Admin/Settings.php:686
+#: src/Admin/Settings.php:697
 msgid "Database schema version"
 msgstr ""
 
 #. translators: 1: installed schema version, 2: schema version expected by the code.
-#: src/Admin/Settings.php:688
+#: src/Admin/Settings.php:699
 #, php-format
 msgid "%1$s (expected: %2$s)"
 msgstr ""
 
-#: src/Admin/Settings.php:696
+#: src/Admin/Settings.php:707
 msgid "A webhook signing secret is configured in wp-config.php."
 msgstr ""
 
-#: src/Admin/Settings.php:696
+#: src/Admin/Settings.php:707
 msgid "No webhook signing secret is configured (WPLC_STRIPE_WEBHOOK_SECRET in wp-config.php). Stripe events are rejected."
 msgstr ""
 
-#: src/Admin/Settings.php:700
+#: src/Admin/Settings.php:711
 msgid "Stripe webhook URL"
 msgstr ""
 
-#: src/Admin/Settings.php:702
+#: src/Admin/Settings.php:713
 msgid "Enter this URL as the endpoint in the Stripe dashboard."
 msgstr ""
 
-#: src/Admin/Settings.php:711
+#: src/Admin/Settings.php:722
 msgid "License key secret"
 msgstr ""
 
-#: src/Admin/Settings.php:713
+#: src/Admin/Settings.php:724
 msgid "Not configured. Keys are derived from the WordPress salts; rotating the salts invalidates every issued key. Define WPLC_LICENSE_KEY_SECRETS."
 msgstr ""
 
-#: src/Admin/Settings.php:714
-#: src/Admin/Settings.php:727
+#: src/Admin/Settings.php:725
+#: src/Admin/Settings.php:738
 msgid "Configured through a constant."
 msgstr ""
 
-#: src/Admin/Settings.php:724
+#: src/Admin/Settings.php:735
 msgid "Installation secret encryption key"
 msgstr ""
 
-#: src/Admin/Settings.php:726
+#: src/Admin/Settings.php:737
 msgid "Not configured. The WordPress salts are used; define WPLC_INSTALLATION_ENCRYPTION_KEYS."
 msgstr ""
 
-#: src/Admin/Settings.php:738
+#: src/Admin/Settings.php:749
 msgid "Some customers see \"not available\" instead of their key. The secret or the salts were changed. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS, or run \"wp wplc recover-license-key-ids\"."
 msgstr ""
 
-#: src/Admin/Settings.php:747
+#: src/Admin/Settings.php:758
 msgid "Available. Customers can opt in at checkout."
 msgstr ""
 
 #. translators: %s: reason, a full sentence.
-#: src/Admin/Settings.php:749
+#: src/Admin/Settings.php:760
 #, php-format
 msgid "Switched off. %s Customers are not offered automatic renewal and renew manually in their account."
 msgstr ""
 
-#: src/Admin/Settings.php:756
+#: src/Admin/Settings.php:767
 msgid "Unavailable. Scheduled work falls back to WP-Cron, which is less reliable."
 msgstr ""
 
-#: src/Admin/Settings.php:762
+#: src/Admin/Settings.php:773
 msgid "Classic checkout"
 msgstr ""
 
-#: src/Admin/Settings.php:765
+#: src/Admin/Settings.php:776
 msgid "Block checkout. The option for automatic renewal is offered as an additional checkout field."
 msgstr ""
 
-#: src/Admin/Settings.php:766
+#: src/Admin/Settings.php:777
 msgid "The checkout page uses the block checkout, but this WooCommerce version has no additional checkout fields. Licenses bought here never renew automatically."
 msgstr ""
 
-#: src/Admin/Settings.php:769
+#: src/Admin/Settings.php:780
 msgid "Checkout type"
 msgstr ""
 
-#: src/Admin/Settings.php:775
+#: src/Admin/Settings.php:786
 msgid "Renewal grace period"
 msgstr ""
 
 #. translators: %d: number of days.
-#: src/Admin/Settings.php:777
+#: src/Admin/Settings.php:788
 #, php-format
 msgid "%d day"
 msgid_plural "%d days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Settings.php:783
+#: src/Admin/Settings.php:794
 msgid "Anonymisation of ended licenses"
 msgstr ""
 
 #. translators: %s: number of days.
-#: src/Admin/Settings.php:786
+#: src/Admin/Settings.php:797
 #, php-format
 msgid "%s day after the end of the license"
 msgid_plural "%s days after the end of the license"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Settings.php:787
+#: src/Admin/Settings.php:798
 msgid "Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice with the filter wplc_retention_days (key anonymize_licenses)."
 msgstr ""
 
-#: src/Admin/Settings.php:839
+#: src/Admin/Settings.php:850
 msgid "Only an administrator may change the trusted package hosts, because update packages for all customer sites are delivered from them."
 msgstr ""
 
 #. translators: %s: host name of this site.
-#: src/Admin/Settings.php:848
+#: src/Admin/Settings.php:859
 #, php-format
 msgid "One host name per line, for example downloads.example.com. Update packages are only delivered from HTTPS URLs on these hosts. This site (%s) is always trusted."
 msgstr ""
 
-#: src/Admin/Settings.php:862
+#: src/Admin/Settings.php:873
 msgid "Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7."
 msgstr ""
 
-#: src/Admin/Settings.php:872
+#: src/Admin/Settings.php:884
+msgid "Import the catalog file from release packages"
+msgstr ""
+
+#: src/Admin/Settings.php:885
+msgid "When a release is created from a ZIP, the file wplc-catalog.json in the plugin folder of the package is checked and imported into the license catalog. The release is created in any case; a file that is invalid or describes another product is not imported and reported. Plans and licenses are never changed."
+msgstr ""
+
+#: src/Admin/Settings.php:895
 msgid "Days between the email that announces a higher renewal price for an existing license and the first renewal at that price. Default: 60, at least 30. Have the period and the wording of the email checked by a lawyer."
 msgstr ""
 
-#: src/Admin/Settings.php:882
+#: src/Admin/Settings.php:905
 msgid "Days before an automatic charge on which the customer is told the date and the amount. Default: 7. A license is only charged after this email was accepted for sending; otherwise the charge is postponed and reported under Diagnostics."
 msgstr ""
 
-#: src/Admin/Settings.php:892
+#: src/Admin/Settings.php:915
 msgid "Optional short text that license emails may show below their content, for example a support contact."
 msgstr ""
 
@@ -5128,6 +5152,44 @@ msgstr ""
 #: src/Catalog/ProductEditor.php:784
 #, php-format
 msgid "License settings of \"%1$s\": %2$s"
+msgstr ""
+
+#. translators: 1: number of added entitlements, 2: number of removed entitlements, 3: number of changed entitlements.
+#: src/Catalog/ReleaseCatalog.php:209
+#, php-format
+msgid "The catalog file of the package was imported: %1$d entitlements added, %2$d removed, %3$d changed."
+msgstr ""
+
+#. translators: %s: comma-separated entitlement keys.
+#: src/Catalog/ReleaseCatalog.php:216
+#, php-format
+msgid "Active plans still grant entitlements that left the catalog: %s. Plans and licenses keep them; the product editor shows them in the JSON field."
+msgstr ""
+
+#: src/Catalog/ReleaseCatalog.php:221
+msgid "it describes another product"
+msgstr ""
+
+#: src/Catalog/ReleaseCatalog.php:222
+msgid "it is larger than 256 KB"
+msgstr ""
+
+#: src/Catalog/ReleaseCatalog.php:223
+msgid "it could not be read"
+msgstr ""
+
+#: src/Catalog/ReleaseCatalog.php:224
+msgid "it is not a valid catalog file"
+msgstr ""
+
+#. translators: 1: reason, 2: detail in brackets or empty.
+#: src/Catalog/ReleaseCatalog.php:232
+#, php-format
+msgid "The catalog file of the package was NOT imported: %1$s%2$s. The release was created; the license catalog is unchanged."
+msgstr ""
+
+#: src/Catalog/ReleaseCatalog.php:234
+msgid "The catalog file of the package was not imported, because a release with a higher version exists for this product."
 msgstr ""
 
 #: src/Catalog/TermDisplay.php:43
@@ -6434,7 +6496,7 @@ msgstr ""
 msgid "WP License Captain: the license ended; this renewal order is closed."
 msgstr ""
 
-#: src/Maintenance/Orphans.php:99
+#: src/Maintenance/Orphans.php:101
 msgid "WP License Captain: the customer account was deleted; this renewal was cancelled."
 msgstr ""
 
@@ -7252,143 +7314,143 @@ msgid "Version %1$s is not higher than the highest published version %2$s. Insta
 msgstr ""
 
 #. translators: %s: product key and version.
-#: src/Update/ReleaseRegistry.php:1283
+#: src/Update/ReleaseRegistry.php:1297
 #, php-format
 msgid "The uploaded package of %s is missing on this server. It is not offered as an update. With several web servers the package directory must be shared between them."
 msgstr ""
 
 #. translators: 1: product key and version, 2: host name.
-#: src/Update/ReleaseRegistry.php:1292
+#: src/Update/ReleaseRegistry.php:1306
 #, php-format
 msgid "The package URL of %1$s points to \"%2$s\", which is not an allowed package host (any more). Update checks for this product fail until the host is added under License settings or the release is replaced. This happens after the shop moved to another domain."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1310
+#: src/Update/ReleaseRegistry.php:1324
 msgid "The package directory can be read over HTTP: this web server ignores the .htaccess protection (nginx). Packages are only protected by their random file name. Add a deny rule for the directory or move it outside the web root with the wplc_package_storage_dir filter (see docs/UPDATE-STORAGE.md)."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1365
+#: src/Update/ReleaseRegistry.php:1379
 msgid "The product key is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1366
+#: src/Update/ReleaseRegistry.php:1380
 msgid "The version must have three numeric parts, optionally followed by -alpha, -beta or -rc and a number: 1.2.3, 1.2.3-beta1, 1.2.3-rc2. Other suffixes are sorted wrongly by WordPress."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1367
+#: src/Update/ReleaseRegistry.php:1381
 msgid "The release channel is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1368
+#: src/Update/ReleaseRegistry.php:1382
 msgid "The package storage type is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1369
+#: src/Update/ReleaseRegistry.php:1383
 msgid "The package URL must be a valid HTTPS URL without credentials."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1370
+#: src/Update/ReleaseRegistry.php:1384
 msgid "The stored package file reference is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1371
+#: src/Update/ReleaseRegistry.php:1385
 msgid "The SHA-256 checksum must consist of exactly 64 hexadecimal characters."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1372
+#: src/Update/ReleaseRegistry.php:1386
 msgid "The required PHP version is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1373
+#: src/Update/ReleaseRegistry.php:1387
 msgid "The required WordPress version is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1374
+#: src/Update/ReleaseRegistry.php:1388
 msgid "The tested WordPress version is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1375
+#: src/Update/ReleaseRegistry.php:1389
 msgid "The required version of the free core plugin is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1376
+#: src/Update/ReleaseRegistry.php:1390
 msgid "The plugin file of the package is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1377
+#: src/Update/ReleaseRegistry.php:1391
 msgid "The release notes are invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1378
+#: src/Update/ReleaseRegistry.php:1392
 msgid "The manifest is not a valid release manifest JSON object."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1379
+#: src/Update/ReleaseRegistry.php:1393
 msgid "The manifest does not contain a product key."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1380
+#: src/Update/ReleaseRegistry.php:1394
 msgid "The manifest does not contain a version."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1381
+#: src/Update/ReleaseRegistry.php:1395
 msgid "The manifest does not contain a package URL."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1382
+#: src/Update/ReleaseRegistry.php:1396
 msgid "The manifest does not contain a SHA-256 checksum."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1383
+#: src/Update/ReleaseRegistry.php:1397
 msgid "This product key is not registered. Map a WooCommerce product to it first."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1384
+#: src/Update/ReleaseRegistry.php:1398
 msgid "A release with this version already exists for the product."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1385
+#: src/Update/ReleaseRegistry.php:1399
 msgid "The release does not exist."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1386
+#: src/Update/ReleaseRegistry.php:1400
 msgid "Version, package and checksum of a published release cannot be changed. Withdraw it and publish a new version instead."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1387
+#: src/Update/ReleaseRegistry.php:1401
 msgid "The release cannot change to this status from its current status."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1388
+#: src/Update/ReleaseRegistry.php:1402
 msgid "The stored package file is missing."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1389
+#: src/Update/ReleaseRegistry.php:1403
 msgid "The stored package file does not match its SHA-256 checksum."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1390
+#: src/Update/ReleaseRegistry.php:1404
 msgid "The file at the package URL does not match the SHA-256 checksum of the release."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1391
+#: src/Update/ReleaseRegistry.php:1405
 msgid "The host of the package URL is not allowed. Add it under WooCommerce → License settings → \"Additional trusted package hosts\". The URL must use HTTPS on the standard port."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1392
+#: src/Update/ReleaseRegistry.php:1406
 msgid "Please enter a reason. It is stored in the release log."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1393
+#: src/Update/ReleaseRegistry.php:1407
 msgid "The release could not be saved."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1396
+#: src/Update/ReleaseRegistry.php:1410
 msgid "The release data is invalid."
 msgstr ""
 
 #. translators: %s: error message of the download.
-#: src/Update/ReleaseRegistry.php:1442
+#: src/Update/ReleaseRegistry.php:1456
 #, php-format
 msgid "The package could not be downloaded from its URL to verify it: %s"
 msgstr ""

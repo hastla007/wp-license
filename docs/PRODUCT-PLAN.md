@@ -6,6 +6,8 @@ Dieses Dokument beschreibt, was dafür zu tun ist. Es ist ein Plan, keine Zusage
 
 > **Nachtrag vom Abend des 16.11.2026 (Entscheidung E8b):** Frage 1 aus Abschnitt 5 ist beantwortet. Vor dem ersten Verkauf der Add-ons braucht der Server Stufe 1 (PROD-01, PROD-02, PROD-12) **und** seinen eigenen Update- und Lizenzweg (PROD-06 mit PROD-07 und PROD-13). Client-Paket, Handbuch für Hersteller und der Rest (PROD-03, -04, -05, -08, -09, -10, -11) folgen nach dem Verkaufsstart. Die Tabelle in Abschnitt 3 und Abschnitt 4 sind entsprechend angepasst. Der technische Teil von PROD-06, der keine weitere Entscheidung braucht, ist gebaut (siehe dort).
 
+> **Zweiter Nachtrag vom Abend des 16.11.2026 (Entscheidungen PROD-Q4, PROD-Q8, PROD-Q10):** (1) Die Katalogdatei wird automatisch aus dem hochgeladenen Release-Paket eingespielt; PROD-03 rückt damit vor den ersten Verkauf der Add-ons und ist gebaut. (2) Käufer des Servers bekommen den Client als Bibliothek mit Exportskript; ein eigenes Client-Plugin gibt es nicht (PROD-08). (3) Die Dokumentation für Hersteller erscheint auf Englisch und Deutsch (PROD-10, nach dem Verkaufsstart). Die Fragen 4, 8 und 10 in Abschnitt 5 sind damit beantwortet.
+
 ## 1. Ausgangslage
 
 - Der Lizenzserver ist ein WordPress-Plugin für einen WooCommerce-Shop. Eine Installation bedient genau einen Hersteller; mehrere Hersteller in einer Installation sind nicht vorgesehen und werden hier nicht geplant.
@@ -20,7 +22,7 @@ Dieses Dokument beschreibt, was dafür zu tun ist. Es ist ein Plan, keine Zusage
 1. **Keine Daten eines Herstellers im Code.** Produkte, Rechte, Bezeichnungen und Übersetzungen kommen aus Katalogdateien, die der Hersteller liefert (PROD-01 bis PROD-03).
 2. **Herstellerneutrale Oberfläche und Dokumentation.** Kein Text, kein Platzhalter und kein Beispiel setzt Captain-Produkte voraus (PROD-04, PROD-05, PROD-10).
 3. **Ein eigener Updateweg und eine eigene Lizenz für den Server** (PROD-06, PROD-07).
-4. **Ein Client, den fremde Hersteller ohne dieses Repository einbauen können** (PROD-08).
+4. **Ein Client, den fremde Hersteller ohne dieses Repository einbauen können**, als Bibliothek mit Exportskript (PROD-08).
 5. **Ein Einstieg für einen neuen Hersteller**: erstes Produkt, erster Tarif, erstes Release, Testlizenz (PROD-09).
 6. **Eine saubere Grenze**, was Captain-spezifisch bleibt und wohin es wandert (PROD-11).
 7. **Eine Migration ohne Datenverlust** für die bestehende Installation (PROD-12).
@@ -34,14 +36,14 @@ Größe: **S** bis etwa ein Arbeitstag, **M** einige Tage, **L** ein bis zwei Wo
 | --- | --- | --- | --- | --- | --- |
 | PROD-01 | Katalog als Daten | M | – | vor dem Verkaufsstart | erledigt am 16.11.2026 |
 | PROD-02 | Captain-Katalog kommt aus captain-pro | S | PROD-01, captain-pro | vor dem Verkaufsstart | offen (captain-pro liefert drei Dateien) |
-| PROD-03 | Katalogdatei mit dem Release einspielen | M | PROD-01 | nach dem Verkaufsstart | offen |
+| PROD-03 | Katalogdatei mit dem Release einspielen | M | PROD-01 | vor dem Verkaufsstart (PROD-Q8) | erledigt am 16.11.2026 |
 | PROD-04 | Herstellerneutrale Texte, Platzhalter und Beispiele | M | PROD-01 | nach dem Verkaufsstart | offen |
 | PROD-05 | Name, Marke und Kennungen des Produkts | S | Entscheidung | nach dem Verkaufsstart (der Produktschlüssel schon vorher, INH-07) | offen |
 | PROD-06 | Eigener Updateweg des Servers | L | PROD-07, PROD-13 | vor dem Verkaufsstart | technischer Teil gebaut, Konfiguration offen |
 | PROD-07 | Lizenzmodell des Servers | S | Entscheidung | vor dem Verkaufsstart | offen (Entscheidung) |
-| PROD-08 | Eigenständiger Client für andere Hersteller | M | Entscheidung | nach dem Verkaufsstart | offen |
+| PROD-08 | Client für andere Hersteller als Bibliothek mit Exportskript (kein Plugin, PROD-Q4) | M | – | nach dem Verkaufsstart | offen |
 | PROD-09 | Einstieg für einen neuen Hersteller | M | PROD-01, PROD-04 | nach dem Verkaufsstart | offen |
-| PROD-10 | Dokumentation für Hersteller | M | PROD-04, PROD-08, PROD-09 | nach dem Verkaufsstart | offen |
+| PROD-10 | Dokumentation für Hersteller, Englisch und Deutsch (PROD-Q10) | M | PROD-04, PROD-08, PROD-09 | nach dem Verkaufsstart | offen |
 | PROD-11 | Captain-spezifisches auslagern | M | PROD-02, PROD-04 | nach dem Verkaufsstart | offen |
 | PROD-12 | Migration der bestehenden Installation | S | PROD-01, PROD-02 | vor dem Verkaufsstart | Teil 1 erledigt |
 | PROD-13 | Release des Servers als Produkt | S | PROD-05 | vor dem Verkaufsstart | offen |
@@ -61,6 +63,8 @@ Größe: **S** bis etwa ein Arbeitstag, **M** einige Tage, **L** ein bis zwei Wo
 - Erledigt, wenn: captain-pro die sieben Dateien liefert (drei Add-ons verfügbar, vier vorgemerkt), ein Test in captain-pro sie gegen das Schema prüft, der Shop sie eingespielt hat und `catalogs/` hier gelöscht ist.
 
 ### PROD-03 · Katalogdatei mit dem Release einspielen
+
+**Stand 16.11.2026: gebaut** (`src/Catalog/ReleaseCatalog.php`, beschrieben in [CATALOG-FILE.md](CATALOG-FILE.md), Abschnitt „Import from the release package“). Abweichend vom ersten Entwurf unten geschieht der Import beim Anlegen des Release aus der ZIP-Datei, nicht erst beim Veröffentlichen: Was der Produkteditor anbietet, steuern die Status in der Datei (`available`, `planned`), nicht der Zustand des Release. Ein Release scheitert nie an seiner Katalogdatei; eine ungültige Datei oder eine für ein anderes Produkt wird abgelehnt, gemeldet und im Audit-Protokoll vermerkt. Ein Paket, das älter ist als ein vorhandenes Release, dreht den Katalog nicht zurück. Pakete, die nur per URL registriert sind, werden nicht gelesen.
 
 - Beim Anlegen eines Release aus einer ZIP-Datei (`ReleaseAdmin`, `wp wplc release create`) liest der Server eine `wplc-catalog.json` aus dem Wurzelordner des Pakets, zeigt die Unterschiede zum gespeicherten Katalog und spielt sie mit dem Veröffentlichen des Release ein. Ein Recht wird so genau dann „verfügbar“, wenn die Version erscheint, die es prüft.
 - Zu klären beim Bau: Verhalten bei einem zurückgezogenen Release (der Katalog bleibt, weil verkaufte Tarife die Rechte tragen) und bei Paketen, die nur per URL registriert sind (kein Zugriff auf den Inhalt: Import bleibt von Hand).
@@ -101,7 +105,7 @@ Ursprünglich zu bauen bei b: Einbau der eigenen Client-Bibliothek in den Server
 
 - **Was es gibt:** die Bibliothek in `src/Client` mit eigener Versionsnummer, `bin/export-client.php` (kopiert sie unter den Namensraum und die Textdomain eines Add-ons), ein Beispiel-Add-on mit Tests, die Dokumente `CLIENT-INTEGRATION.md` und `API-V1.md`, Vertragstests unter `tests/Contract`.
 - **Was fehlt für fremde Hersteller:** (1) eine Lieferform ohne dieses Repository: ein eigenes Paket (Composer-Paket aus einem abgespaltenen Repository oder ein Archiv je Release) mit eigenem Changelog; (2) das Exportskript als dokumentierter Weg, die Bibliothek unter eigenem Namensraum einzubauen, im Paket enthalten; (3) eine Zusage, welche Versionen der Bibliothek zu welcher Serverversion passen (API v1), und ein Vertragstest, den ein Hersteller gegen seinen Server laufen lassen kann; (4) die Texte der Bibliothek zum Übersetzen in der Textdomain des Add-ons (heute über das Exportskript gelöst).
-- **Ein eigenes WordPress-Plugin „License Captain Client“ ist nach diesem Plan nicht nötig** und wird nicht gebaut: Die Bibliothek muss in jedem Add-on stecken, damit ein Add-on ohne zweite Installation funktioniert und mehrere Add-ons mit verschiedenen Versionen nebeneinander laufen. Ein gemeinsames Plugin schüfe genau die Abhängigkeit, die das Exportskript vermeidet. Es bleibt eine Frage an den Inhaber, weil `README.md` und die Konzepte der Produkte ein solches Plugin erwähnen.
+- **Entschieden am 16.11.2026 (PROD-Q4): Es gibt kein eigenes WordPress-Plugin „License Captain Client“.** Käufer bekommen die Bibliothek und das Exportskript. Begründung aus dem Plan: Die Bibliothek muss in jedem Add-on stecken, damit ein Add-on ohne zweite Installation funktioniert und mehrere Add-ons mit verschiedenen Versionen nebeneinander laufen. Ein gemeinsames Plugin schüfe genau die Abhängigkeit, die das Exportskript vermeidet. `README.md` und die Konzepte der Produkte, die ein solches Plugin erwähnen, sind mit PROD-04 und PROD-11 anzupassen.
 - Der Add-on-Rahmen von captain-pro (`packages/addon-kernel`) ist Captain-eigen und nicht Teil des verkauften Clients.
 
 ### PROD-09 · Einstieg für einen neuen Hersteller
@@ -139,9 +143,9 @@ Captain-spezifisch und kein Teil des Servers sind:
 Technisch braucht der erste Verkauf der Captain-Add-ons keines dieser Pakete: Der Server verkaufte und prüfte die drei Add-ons auch mit den festen Listen. Der Inhaber hat am 16.11.2026 entschieden (E8 und E8b), was trotzdem vorher fertig sein muss:
 
 - **Vor dem ersten Verkauf der Add-ons:**
-  - Stufe 1, die Trennung der Captain-Daten vom Server: PROD-01 (erledigt), PROD-02 (captain-pro liefert die Katalogdateien; drei liegen vor und sind gültig, vier fehlen) und PROD-12 (Teil 1 erledigt).
+  - Stufe 1, die Trennung der Captain-Daten vom Server: PROD-01 (erledigt), PROD-03 (erledigt: die Katalogdatei kommt mit dem Release-Paket), PROD-02 (captain-pro legt die Datei in den Plugin-Ordner seiner Pakete; drei Dateien liegen vor und sind gültig, vier fehlen) und PROD-12 (Teil 1 erledigt). Die Kopien unter `catalogs/` verschwinden so: Mit dem ersten Release eines Add-ons, das die Datei trägt, ersetzt das Paket den mitgelieferten Eintrag dieses Produkts; ist das für jedes verkaufte Add-on geschehen, wird der Ordner gelöscht.
   - Der eigene Update- und Lizenzweg des Servers: PROD-06 (technischer Teil gebaut), PROD-07 (Lizenzmodell, Entscheidung) und PROD-13 (Release des Servers im eigenen Shop). Offen sind dafür vier Antworten des Inhabers (INH-07 bis INH-10) und der Produktivserver (T-90), auf dem der öffentliche Schlüssel entsteht.
-- **Nach dem Verkaufsstart:** PROD-03, -04, -05, -08, -09, -10 und -11 (Katalog mit dem Release, neutrale Texte, Name und Marke, Client-Paket, Einstieg und Handbuch für Hersteller, Auslagern des Captain-spezifischen).
+- **Nach dem Verkaufsstart:** PROD-04, -05, -08, -09, -10 und -11 (neutrale Texte, Name und Marke, Client-Paket, Einstieg und Handbuch für Hersteller, Auslagern des Captain-spezifischen).
 - Unabhängig davon bleiben die bekannten Voraussetzungen des ersten Verkaufs: Stripe-Test (T-12), Abnahme im Browser (T-130), Produktivserver (T-90), Hostname (B-15), Preise (T-42).
 
 ## 5. Fragen an den Inhaber
@@ -149,10 +153,10 @@ Technisch braucht der erste Verkauf der Captain-Add-ons keines dieser Pakete: De
 1. **Umfang vor dem Verkaufsstart:** beantwortet am 16.11.2026 (E8b): Stufe 1 und der eigene Update- und Lizenzweg vorher, der Rest danach.
 2. **Lizenz des Servers:** Der Weg ist entschieden und gebaut (der Server holt seine Updates über die eigene Client-Bibliothek; die Lizenz steuert nur Updates und Support). Offen sind die Werte: Produktschlüssel und Name (INH-07), Adresse des Lizenzservers (INH-08), öffentlicher Schlüssel (INH-09).
 3. **Lizenzmodell und Preis des Servers:** Welche Tarife, was zählt als Website, welcher Produktschlüssel, welche Laufzeit?
-4. **Client:** Genügt die Bibliothek als Paket mit Exportskript, oder soll es zusätzlich ein WordPress-Plugin „License Captain Client“ geben? (Empfehlung: nur die Bibliothek.)
+4. **Client:** beantwortet am 16.11.2026 (PROD-Q4): Bibliothek mit Exportskript, kein eigenes Client-Plugin.
 5. **Name und Marke:** Bleibt „WP License Captain“ der Name des verkauften Produkts, und unter welchem Autor erscheint es?
 6. **GPL:** Der Server steht unter GPL-2.0-or-later. Ein Käufer darf ihn weitergeben. Ist das für den Verkauf so gewollt? (Geschäftliche und rechtliche Frage.)
 7. **Leistungsumfang für Käufer:** Welcher Support, welche unterstützten Versionen von WordPress, WooCommerce und PHP, und gilt „automatische Verlängerung nur mit Stripe“ auch als Produktgrenze für Käufer?
-8. **Einspielen des Captain-Katalogs:** Wer spielt bei einem neuen Release eines Add-ons die Katalogdatei im Shop ein: von Hand im Admin, ein Befehl im Auslieferungsskript, oder automatisch mit dem Release-Paket (PROD-03)?
+8. **Einspielen des Captain-Katalogs:** beantwortet am 16.11.2026 (PROD-Q8): automatisch mit dem Release-Paket; gebaut (PROD-03).
 9. **Vertrieb:** Nur über den eigenen Shop? Gibt es eine Test- oder Entwicklerlizenz für den Server?
-10. **Sprache der Dokumentation für Hersteller:** nur Englisch, oder auch Deutsch?
+10. **Sprache der Dokumentation für Hersteller:** beantwortet am 16.11.2026 (PROD-Q10): Englisch und Deutsch.

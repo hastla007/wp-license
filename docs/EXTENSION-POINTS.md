@@ -55,6 +55,7 @@ Products, entitlement keys and their labels are data: an add-on ships a catalog 
 | `wplc/review_case_changed` | `src/Billing/RenewalReview.php` |  |
 | `wplc/stripe_early_fraud_warning` | `src/Gateway/StripeEventHandler.php` | Fires when Stripe reports an early fraud warning for a license payment. |
 | `wplc/stripe_webhook_received` | `src/Api/V1/StripeWebhook.php` |  |
+| `wplc_catalog_auto_import` | `src/Catalog/ReleaseCatalog.php` | Filters whether the catalog file of an uploaded release package is imported. |
 | `wplc_daily_lifecycle` | `src/Maintenance/DailyRunner.php` |  |
 | `wplc_price_change_notice_days` | `src/Billing/PriceChange.php` | Filters the notice period of a renewal price change in days. |
 | `wplc_release_package_missing` | `src/Update/ReleaseRegistry.php` | Fires when a published release cannot be offered because its file is missing on this server (A-111). |

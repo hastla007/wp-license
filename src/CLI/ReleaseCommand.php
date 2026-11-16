@@ -219,6 +219,11 @@ final class ReleaseCommand {
 			return $release_id;
 		}
 		$warnings = array();
+		// PROD-03: what happened to the catalog file of the package.
+		$catalog = \WPLC\Catalog\ReleaseCatalog::message( \WPLC\Catalog\ReleaseCatalog::last_result() );
+		if ( '' !== $catalog ) {
+			$warnings[] = $catalog;
+		}
 		if ( $publish ) {
 			$warning = ReleaseRegistry::publish_warning( $release_id );
 			$published = ReleaseRegistry::publish( $release_id, 0, '' !== $reason ? $reason : 'Published with WP-CLI.' );
