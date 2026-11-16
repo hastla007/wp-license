@@ -126,26 +126,34 @@ If WP-Cron does not run, licenses do not expire, reminders are not sent and the 
 
 Outside the plugin, monitor the availability of `/wp-json/wplc/v1/`, the database, the TLS certificate, the package storage and the backups.
 
-## License events for other plugins in your shop
+## License actions for other plugins in your shop
 
-Plugins that run in the same WordPress as the server (an automation plugin, a CRM bridge) can react to license events through a versioned hook contract. Nothing is sent to customer sites; the events are PHP actions in the shop's own request.
+Plugins that run in the same WordPress as the server (an automation plugin, a CRM bridge) can react to licenses through a versioned set of PHP actions. Nothing is sent to customer sites, and the server builds no event envelope: the receiving plugin builds its own record, ID and duplicate check from the arguments.
 
 ```php
-add_action( 'wplc/event', function ( array $event ) {
-	// $event['event'] is e.g. 'license.site.activated'; store it in your own queue.
-} );
-add_action( 'wplc/event/license.license.status_changed', function ( array $event ) {
-	// One event by name.
-} );
+add_action( 'wplc/license_status_changed', function ( $license_id, $old_status, $new_status, $action ) {
+	$license = \WPLC\Events\LicenseReader::get( (int) $license_id );
+	// Store what you need in your own queue: $license['product_key'], $license['customer_user_id'], …
+}, 10, 4 );
 ```
 
-- **Contract version:** the constant `WPLC_EVENT_CONTRACT_VERSION` (currently `1.0.0`, semantic versioning). Within a major version no event and no field is removed, renamed or changes its meaning; new events and fields can be added. Every event carries `contract` and its own `version`.
-- **Events:** `license.license.issued`, `license.license.status_changed` (renewal, expiry, past due, suspension, reactivation, revocation), `license.license.plan_changed`, `license.site.activated`, `license.site.deactivated` (with `initiator`: `api`, `customer`, `support` or `system`), `license.site.limit_reached` (with `limit`), `license.release.published` and `license.release.withdrawn`.
-- **Fields:** scalar values only: `event_id` (UUID; use it to recognise duplicates), `event`, `version`, `contract`, `occurred_at` (UTC, ISO 8601), and for license and site events `license` (the public reference `WPLC-XXXXXXXX` shown in the account), `product_key`, `plan_key`, `status` and `customer_user_id` (the owner's WordPress user ID). Site events add `environment` (`live`, `staging`, `development`); release events carry `product_key`, `release_version` and `channel` instead. An event never contains a license key, a token, an email address, a site address, payment data or a database ID. Mention the user ID in your privacy policy if you pass events on.
-- **Delivery:** each event fires once, after the change is saved and no lock is held; a refused or rolled-back change fires nothing. The server stores nothing and does not repeat an event, so a receiver keeps its own queue. `license.license.issued` can come again for the same license if the key email had to be retried; it then has the same `event_id`. A receiver that throws is logged (action `wplc/job_failed`) and does not break the license operation.
-- **The same promise holds for** `wplc/license_issued_followup`, `wplc/license_status_changed` and `wplc/license_plan_changed`. Never listen to `wplc/license_issued`, `wplc/license_key_reissued` or `wplc/license_key_resend_requested` in such a plugin: they pass the plaintext key.
+| Action | Arguments |
+| --- | --- |
+| `wplc/license_issued_followup` | license ID, order ID (0 for a license issued by hand) |
+| `wplc/license_status_changed` | license ID, old status, new status, lifecycle action (renewal, expiry, past due, suspension, reactivation, revocation) |
+| `wplc/license_plan_changed` | license ID |
+| `wplc/activation_created` | license ID, activation ID, environment (`live`, `staging`, `development`) |
+| `wplc/activation_removed` | license ID, activation ID, environment, initiator (`api`, `customer`, `support`, `system`) |
+| `wplc/site_limit_reached` | license ID, environment, limit |
+| `wplc/release_published` | release ID, product key, version, channel |
+| `wplc/release_withdrawn` | release ID, product key, version, channel |
 
-To look up more than an event carries, use the read-only class `WPLC\Events\LicenseReader` with the reference from the event: `get( $reference )` (product, plan, status, access, `expires_at`, `access_until`, owner), `status()`, `plan()`, `expires_at()`, `entitlements()`, `is_entitled( $reference, 'acme_reports.pdf_export' )` and `for_user( $user_id )`. It only reads and never returns a key or an email address. Changing a license (refund, renewal, status, new key) is not possible through it; that stays with the admin screens and their permissions.
+- **Contract version:** the constant `WPLC_CONTRACT_VERSION` (currently `1.0.0`, semantic versioning, independent of the plugin version). Within a major version no action or argument is removed or changes its meaning; before an action is removed it stays deprecated for at least two minor versions. The developer reference of the plugin lists every action with the version it appeared in and whether it fires after the commit.
+- **Arguments:** IDs and keys only. No action of this list passes a license key or any part of it (the `WPLC-…` reference shown in the account is part of the key), an email address, a site address or payment data. Mention the user ID in your privacy policy if your plugin stores it.
+- **Delivery:** each action fires once per change, after the change is saved and no lock is held; a refused or rolled-back change fires nothing. The server stores nothing and does not repeat an action, so a receiver keeps its own queue. The issuing follow-up can run again for the same license if the key email had to be retried. A receiver of the five activation, limit and release actions that throws is logged (action `wplc/job_failed`) and does not break the operation.
+- Never listen to `wplc/license_issued`, `wplc/license_key_reissued` or `wplc/license_key_resend_requested` in such a plugin: they pass the plaintext key.
+
+To look up more, use the read-only class `WPLC\Events\LicenseReader` with the license ID from an action: `get( $license_id )` (product, plan, status, access, `expires_at`, `access_until`, owner's user ID), `status()`, `plan()`, `expires_at()`, `entitlements()`, `is_entitled( $license_id, 'acme_reports.pdf_export' )` and `for_user( $user_id )`. Pass the owner's user ID as second argument to make sure the license belongs to that customer. The class only reads and never returns a key, a key reference or an email address. Changing a license (refund, renewal, status, new key) is not possible through it; that stays with the admin screens and their permissions.
 
 ## Caching, CDN and firewalls
 

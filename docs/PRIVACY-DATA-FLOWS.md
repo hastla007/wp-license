@@ -62,7 +62,7 @@ The plugin registers a suggested section under Settings → Privacy → Policy g
 
 - The automatic retention worker is described under "Automatic retention" below. Its queries are covered by integration tests against MySQL; it has not yet been run against a production-sized database.
 - Privacy processing is recorded in the audit log without copying the personal data into the entry.
-- License events (`wplc/event`, [LICENSE-EVENTS.md](LICENSE-EVENTS.md)) pass the owner's WordPress user ID and the public license reference to other plugins in the same WordPress; never a key, an email address or a site address. Nothing leaves the site through them and nothing is stored. A receiver that stores events is responsible for its own retention and erasure; the assessment of the user ID belongs to the legal review (T-93).
+- The license actions of the hook contract ([LICENSE-EVENTS.md](LICENSE-EVENTS.md)) pass record IDs (license, activation, release) to other plugins in the same WordPress; the read-only facade `LicenseReader` gives them the owner's WordPress user ID. Never a key or key prefix, an email address or a site address. Nothing leaves the site through them and the server stores nothing for them. A receiver that stores events with the user ID is responsible for its own retention and erasure; the assessment belongs to the legal review (T-93).
 - Do not claim GDPR compliance based only on these hooks. The merchant must publish the correct notice and validate its retention schedule with appropriate counsel.
 
 ## Automatic retention

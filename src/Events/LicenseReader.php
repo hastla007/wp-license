@@ -9,7 +9,6 @@ namespace WPLC\Events;
 
 use WPLC\Api\V1\EntitlementService;
 use WPLC\Infrastructure\Database\Schema;
-use WPLC\License\LicenseKey;
 use WPLC\License\LicenseLifecycle;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -17,19 +16,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Read-only facade: status, plan, entitlements and expiry of a license by the
- * public reference an event carries (`WPLC-XXXXXXXX`), and the licenses of a user.
+ * Read-only facade: status, plan, entitlements and expiry of a license by its
+ * record ID (`license_id`, the subject of the license actions), and the
+ * licenses of a user.
  *
  * Every method runs SELECT queries only and returns public fields only: never
- * a license key or key hash, an email address, payment data, an installation
- * secret or the database ID of a license. Changing a license stays with the
- * plugin's own screens and APIs (capabilities `wplc_*`, nonces); this class
- * offers no way to do it. Part of the event contract (docs/LICENSE-EVENTS.md).
+ * a license key, any part of it (key prefix), its hash, an email address, a
+ * site address, payment data or an installation secret. Changing a license
+ * stays with the plugin's own screens and APIs (capabilities `wplc_*`,
+ * nonces); this class offers no way to do it. Part of the hook contract
+ * (docs/LICENSE-EVENTS.md).
  */
 final class LicenseReader {
 
-	/** Columns read from the licenses table (no key hash, no secrets). */
-	private const COLUMNS = 'license_uuid, customer_id, product_key, plan_key, status, paid_until, renewal_enabled, cancel_at_period_end';
+	/** Columns read from the licenses table (no key, key prefix or key hash). */
+	private const COLUMNS = 'id, customer_id, product_key, plan_key, status, paid_until, renewal_enabled, cancel_at_period_end';
 
 	/** Most licenses for_user() returns. */
 	private const USER_LIMIT = 200;
@@ -37,29 +38,25 @@ final class LicenseReader {
 	/**
 	 * Public summary of one license.
 	 *
-	 * The reference is the eight-character prefix of the license's UUID. When
-	 * two licenses share it (rare), the reference is ambiguous and null is
-	 * returned unless the customer narrows it down.
-	 *
-	 * @param string $reference        Public reference, e.g. `WPLC-1A2B3C4D` (case-insensitive).
-	 * @param int    $customer_user_id Optional owner to narrow the lookup; zero for any.
-	 * @return array{license:string,product_key:string,plan_key:string,status:string,access:bool,expires_at:?string,access_until:?string,customer_user_id:int}|null
+	 * @param int $license_id       License ID from a license action.
+	 * @param int $customer_user_id Optional owner to narrow the lookup; zero for any.
+	 * @return array{license_id:int,product_key:string,plan_key:string,status:string,access:bool,expires_at:?string,access_until:?string,customer_user_id:int}|null
 	 */
-	public static function get( string $reference, int $customer_user_id = 0 ): ?array {
-		$row = self::row( $reference, $customer_user_id );
+	public static function get( int $license_id, int $customer_user_id = 0 ): ?array {
+		$row = self::row( $license_id, $customer_user_id );
 
 		return null === $row ? null : self::summary( $row );
 	}
 
 	/**
-	 * Stored status of a license (active, past_due, suspended, expired, revoked, cancelled …).
+	 * Stored status of a license (active, past_due, suspended, expired, revoked).
 	 *
-	 * @param string $reference        Public reference.
-	 * @param int    $customer_user_id Optional owner; zero for any.
-	 * @return string|null Null for an unknown or ambiguous reference.
+	 * @param int $license_id       License ID.
+	 * @param int $customer_user_id Optional owner; zero for any.
+	 * @return string|null Null for an unknown license.
 	 */
-	public static function status( string $reference, int $customer_user_id = 0 ): ?string {
-		$license = self::get( $reference, $customer_user_id );
+	public static function status( int $license_id, int $customer_user_id = 0 ): ?string {
+		$license = self::get( $license_id, $customer_user_id );
 
 		return null === $license ? null : $license['status'];
 	}
@@ -67,12 +64,12 @@ final class LicenseReader {
 	/**
 	 * Product and plan of a license.
 	 *
-	 * @param string $reference        Public reference.
-	 * @param int    $customer_user_id Optional owner; zero for any.
+	 * @param int $license_id       License ID.
+	 * @param int $customer_user_id Optional owner; zero for any.
 	 * @return array{product_key:string,plan_key:string}|null
 	 */
-	public static function plan( string $reference, int $customer_user_id = 0 ): ?array {
-		$license = self::get( $reference, $customer_user_id );
+	public static function plan( int $license_id, int $customer_user_id = 0 ): ?array {
+		$license = self::get( $license_id, $customer_user_id );
 
 		return null === $license ? null : array(
 			'product_key' => $license['product_key'],
@@ -81,14 +78,14 @@ final class LicenseReader {
 	}
 
 	/**
-	 * End of the paid period in UTC (ISO 8601), null for none or an unknown reference.
+	 * End of the paid period in UTC (ISO 8601), null for none or an unknown license.
 	 *
-	 * @param string $reference        Public reference.
-	 * @param int    $customer_user_id Optional owner; zero for any.
+	 * @param int $license_id       License ID.
+	 * @param int $customer_user_id Optional owner; zero for any.
 	 * @return string|null
 	 */
-	public static function expires_at( string $reference, int $customer_user_id = 0 ): ?string {
-		$license = self::get( $reference, $customer_user_id );
+	public static function expires_at( int $license_id, int $customer_user_id = 0 ): ?string {
+		$license = self::get( $license_id, $customer_user_id );
 
 		return null === $license ? null : $license['expires_at'];
 	}
@@ -96,16 +93,16 @@ final class LicenseReader {
 	/**
 	 * Entitlements the license grants now (key => value), as the license API reports them.
 	 *
-	 * Empty when the license grants no access (ended, suspended, revoked) or the reference is unknown.
+	 * Empty when the license grants no access (ended, suspended, revoked) or is unknown.
 	 *
-	 * @param string $reference        Public reference.
-	 * @param int    $customer_user_id Optional owner; zero for any.
+	 * @param int $license_id       License ID.
+	 * @param int $customer_user_id Optional owner; zero for any.
 	 * @return array<string,mixed>
 	 */
-	public static function entitlements( string $reference, int $customer_user_id = 0 ): array {
+	public static function entitlements( int $license_id, int $customer_user_id = 0 ): array {
 		global $wpdb;
 
-		$row = self::row( $reference, $customer_user_id );
+		$row = self::row( $license_id, $customer_user_id );
 		if ( null === $row ) {
 			return array();
 		}
@@ -138,13 +135,13 @@ final class LicenseReader {
 	/**
 	 * Whether the license grants a boolean entitlement now.
 	 *
-	 * @param string $reference        Public reference.
+	 * @param int    $license_id       License ID.
 	 * @param string $entitlement_key  Entitlement key, e.g. `acme_reports.pdf_export`.
 	 * @param int    $customer_user_id Optional owner; zero for any.
 	 * @return bool
 	 */
-	public static function is_entitled( string $reference, string $entitlement_key, int $customer_user_id = 0 ): bool {
-		$entitlements = self::entitlements( $reference, $customer_user_id );
+	public static function is_entitled( int $license_id, string $entitlement_key, int $customer_user_id = 0 ): bool {
+		$entitlements = self::entitlements( $license_id, $customer_user_id );
 
 		return isset( $entitlements[ $entitlement_key ] ) && true === $entitlements[ $entitlement_key ];
 	}
@@ -154,7 +151,7 @@ final class LicenseReader {
 	 *
 	 * @param int    $user_id     WordPress user ID.
 	 * @param string $product_key Optional product key to filter by.
-	 * @return array<int,array{license:string,product_key:string,plan_key:string,status:string,access:bool,expires_at:?string,access_until:?string,customer_user_id:int}>
+	 * @return array<int,array{license_id:int,product_key:string,plan_key:string,status:string,access:bool,expires_at:?string,access_until:?string,customer_user_id:int}>
 	 */
 	public static function for_user( int $user_id, string $product_key = '' ): array {
 		global $wpdb;
@@ -165,11 +162,11 @@ final class LicenseReader {
 		$tables = Schema::table_names();
 		$rows   = '' === $product_key
 			? $wpdb->get_results(
-				$wpdb->prepare( 'SELECT id, ' . self::COLUMNS . ' FROM %i WHERE customer_id = %d AND status <> %s ORDER BY id DESC LIMIT %d', $tables['licenses'], $user_id, 'pending', self::USER_LIMIT ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- COLUMNS is a constant.
+				$wpdb->prepare( 'SELECT ' . self::COLUMNS . ' FROM %i WHERE customer_id = %d AND status <> %s ORDER BY id DESC LIMIT %d', $tables['licenses'], $user_id, 'pending', self::USER_LIMIT ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- COLUMNS is a constant.
 				ARRAY_A
 			)
 			: $wpdb->get_results(
-				$wpdb->prepare( 'SELECT id, ' . self::COLUMNS . ' FROM %i WHERE customer_id = %d AND product_key = %s AND status <> %s ORDER BY id DESC LIMIT %d', $tables['licenses'], $user_id, $product_key, 'pending', self::USER_LIMIT ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- COLUMNS is a constant.
+				$wpdb->prepare( 'SELECT ' . self::COLUMNS . ' FROM %i WHERE customer_id = %d AND product_key = %s AND status <> %s ORDER BY id DESC LIMIT %d', $tables['licenses'], $user_id, $product_key, 'pending', self::USER_LIMIT ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- COLUMNS is a constant.
 				ARRAY_A
 			);
 
@@ -177,52 +174,43 @@ final class LicenseReader {
 	}
 
 	/**
-	 * Find the single license row of a reference.
+	 * Find the license row.
 	 *
-	 * @param string $reference        Public reference.
-	 * @param int    $customer_user_id Optional owner; zero for any.
+	 * @param int $license_id       License ID.
+	 * @param int $customer_user_id Optional owner; zero for any.
 	 * @return array<string,mixed>|null
 	 */
-	private static function row( string $reference, int $customer_user_id ): ?array {
+	private static function row( int $license_id, int $customer_user_id ): ?array {
 		global $wpdb;
 
-		$reference = strtoupper( trim( $reference ) );
-		if ( ! preg_match( '/^WPLC-[0-9A-F]{8}$/', $reference ) ) {
+		if ( $license_id < 1 ) {
 			return null;
 		}
 		$tables = Schema::table_names();
-		$rows   = $customer_user_id > 0
-			? $wpdb->get_results(
-				$wpdb->prepare( 'SELECT id, ' . self::COLUMNS . ' FROM %i WHERE key_prefix = %s AND customer_id = %d AND status <> %s LIMIT 2', $tables['licenses'], $reference, $customer_user_id, 'pending' ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- COLUMNS is a constant.
+		$row    = $customer_user_id > 0
+			? $wpdb->get_row(
+				$wpdb->prepare( 'SELECT ' . self::COLUMNS . ' FROM %i WHERE id = %d AND customer_id = %d AND status <> %s LIMIT 1', $tables['licenses'], $license_id, $customer_user_id, 'pending' ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- COLUMNS is a constant.
 				ARRAY_A
 			)
-			: $wpdb->get_results(
-				$wpdb->prepare( 'SELECT id, ' . self::COLUMNS . ' FROM %i WHERE key_prefix = %s AND status <> %s LIMIT 2', $tables['licenses'], $reference, 'pending' ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- COLUMNS is a constant.
+			: $wpdb->get_row(
+				$wpdb->prepare( 'SELECT ' . self::COLUMNS . ' FROM %i WHERE id = %d AND status <> %s LIMIT 1', $tables['licenses'], $license_id, 'pending' ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- COLUMNS is a constant.
 				ARRAY_A
 			);
-		if ( ! is_array( $rows ) || 1 !== count( $rows ) ) {
-			return null;
-		}
-		$row = $rows[0];
-		// key_prefix is stored for display; the reference must also match the UUID it came from.
-		if ( LicenseKey::prefix( (string) $row['license_uuid'] ) !== $reference ) {
-			return null;
-		}
 
-		return $row;
+		return is_array( $row ) ? $row : null;
 	}
 
 	/**
 	 * Public fields of a license row.
 	 *
 	 * @param array<string,mixed> $row License row.
-	 * @return array{license:string,product_key:string,plan_key:string,status:string,access:bool,expires_at:?string,access_until:?string,customer_user_id:int}
+	 * @return array{license_id:int,product_key:string,plan_key:string,status:string,access:bool,expires_at:?string,access_until:?string,customer_user_id:int}
 	 */
 	private static function summary( array $row ): array {
 		$access = EntitlementService::access_fields( $row );
 
 		return array(
-			'license' => LicenseKey::prefix( (string) $row['license_uuid'] ),
+			'license_id' => (int) $row['id'],
 			'product_key' => (string) $row['product_key'],
 			'plan_key' => (string) $row['plan_key'],
 			'status' => (string) $row['status'],

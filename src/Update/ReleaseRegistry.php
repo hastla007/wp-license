@@ -958,7 +958,7 @@ final class ReleaseRegistry {
 			self::set_product_slug( (string) $release['product_key'], $package['slug'] );
 		}
 		if ( true === $published ) {
-			\WPLC\Events\LicenseEvents::release_event( \WPLC\Events\LicenseEvents::RELEASE_PUBLISHED, $release );
+			\WPLC\Events\LicenseEvents::release_published( $release );
 		}
 
 		return $published;
@@ -983,7 +983,7 @@ final class ReleaseRegistry {
 
 		$withdrawn = self::set_status( $release, self::STATUS_WITHDRAWN, 'release_withdrawn', self::normalize_reason( $reason ), $actor_user_id );
 		if ( true === $withdrawn ) {
-			\WPLC\Events\LicenseEvents::release_event( \WPLC\Events\LicenseEvents::RELEASE_WITHDRAWN, $release );
+			\WPLC\Events\LicenseEvents::release_withdrawn( $release );
 		}
 
 		return $withdrawn;

@@ -389,7 +389,6 @@ final class Plugin {
 		LicenseIssuer::register_hooks();
 		LicenseLifecycle::register_hooks();
 		\WPLC\Events\AfterCommit::register_hooks();
-		\WPLC\Events\LicenseEvents::register_hooks();
 		Routes::register_hooks();
 		CustomerPortal::register_hooks();
 		SiteOverview::register_hooks();
