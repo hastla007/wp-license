@@ -93,7 +93,7 @@ Decided on 14 Nov 2026 (captain-pro `docs/TARIFE.md`, `docs/PREMIUM-ENTSCHEIDUNG
 | `business` | Business | 5 | `standard` |
 | `agency` | Agency | 25 | `priority` |
 
-Prices are not part of this document. The prices proposed in captain-pro `docs/TARIFE.md` are not confirmed yet (see "Offene Entscheidungen" in [TODO.md](TODO.md), T-42). Confirmed by the owner on 16 Nov 2026 are only the prices of the planned Form Captain Pro: 59, 129 and 249 EUR per year including tax for `single`, `business` and `agency`.
+Prices are not part of this document. The prices proposed in captain-pro `docs/TARIFE.md` are not confirmed yet (see "Offene Entscheidungen" in [TODO.md](TODO.md), T-42). Confirmed by the owner on 16 Nov 2026 are only the prices of the planned Form Captain Pro: 59, 129 and 249 EUR per year net, plus VAT, for `single`, `business` and `agency` (owner decision of 16 Nov 2026, corrected from gross to net).
 
 The keys below are the ones the product editor offers as tick boxes (`WPLC\Catalog\EntitlementCatalog::all()`, filled from the catalog files). A key has the status `available` only when the premium add-on ships the function; the core plugins have no keys. The labels (English, `de_DE`, `de_DE_formal`) are in the catalog files, not in the translations of the server.
 
