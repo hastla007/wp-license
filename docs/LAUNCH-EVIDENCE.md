@@ -185,3 +185,16 @@ The only database errors in `debug.log` are WooCommerce's own on sites 2 and 3 b
 9. **Restore from the dump.** Counts 99/20/292 and both checksums as at baseline. With the key ring of the end of the rehearsal: 0 of 99 keys shown, 0 of 20 secrets decrypt, signing key `undecryptable`; `rotate-installation-secrets` warns per row (`failed: 20`, `Response signing key: failed`, warning to put the previous encryption key back), exit code 1; `signing-key` refuses with the restore hint. With the backed-up configuration (`wp-config.php` identical by `diff`, key file identical): 99 of 99 keys with the baseline digest, 20 of 20 secrets, signing key `ok` with key ID `93d7c3561fe0fe56`, dry run exit code 0, schema status 25/25.
 
 No entry in `wp-content/debug.log` names a file of the plugin (only WordPress.org connection warnings of the offline sandbox).
+
+### Release workflow rehearsed locally with the client package and the manual (16 Nov 2026)
+
+Commit `57253e7` (working branch, not a release commit). The `run:` steps of `.github/workflows/release.yml` job `build` were executed in order on a `git archive` export, with `GITHUB_REF_NAME` and `GITHUB_OUTPUT` set as the runner sets them; the `actions/*` and `softprops/action-gh-release` steps were not executed, their path lists were resolved by the shell against the built files instead.
+
+| Item | Value |
+|---|---|
+| Result | **Pass.** Not covered: a real tag push (release creation and upload on GitHub) and PHP 7.4 itself (not installed here; the new scripts and tests pass the PHPCompatibilityWP scan for 7.4-). |
+
+1. **Tag `v0.2.0`:** outputs `version=0.2.0`, `prerelease=false`. `bin/build-zip.sh 0.2.0` builds `wp-license-captain-0.2.0.zip` (252 entries, contents check passed) and `license-client-2.1.1.zip` (11 files), each with a `.sha256`; `sha256sum -c` passes for both.
+2. **Path lists of the upload and release steps:** `dist/wp-license-captain-0.2.0.zip`, `dist/wp-license-captain-0.2.0.zip.sha256`, `dist/license-client-*.zip` and `dist/license-client-*.zip.sha256` each match exactly one file, so `if-no-files-found: error` and `fail_on_unmatched_files: true` do not trip.
+3. **Manual in the ZIP:** `wp-license/docs/` holds only `manual/` (13 files) and `catalog-file.schema.json`.
+4. **Tag `v0.2.0-rc.1` on version 0.2.0:** outputs `prerelease=true`; the build stops with the version mismatch error (exit code 1), as intended: a pre-release tag needs the matching version in the plugin header, `WPLC_VERSION` and `readme.txt`.
