@@ -1630,8 +1630,20 @@ msgid "Voucher Captain"
 msgstr "Voucher Captain"
 
 #: src/Catalog/EntitlementCatalog.php:103
-msgid "WP Pass Captain"
-msgstr "WP Pass Captain"
+msgid "Pass Captain"
+msgstr "Pass Captain"
+
+#: src/Catalog/EntitlementCatalog.php
+msgid "Workflow Captain"
+msgstr "Workflow Captain"
+
+#: src/Catalog/EntitlementCatalog.php
+msgid "Form Captain"
+msgstr "Form Captain"
+
+#: src/Catalog/EntitlementCatalog.php
+msgid "Review Captain"
+msgstr "Review Captain"
 
 #: src/Catalog/ProductEditor.php:174
 #: src/Catalog/ProductEditor.php:210
@@ -7818,8 +7830,8 @@ msgid "Removed %s."
 msgstr "%s entfernt."
 
 #: src/Catalog/EntitlementCatalog.php:73
-msgid "E-invoicing (XRechnung, ZUGFeRD)"
-msgstr "E-Rechnung (XRechnung, ZUGFeRD)"
+msgid "E-invoicing (XRechnung XML)"
+msgstr "E-Rechnung (XRechnung als XML)"
 
 #: src/Catalog/EntitlementCatalog.php:74
 msgid "Card terminal (Stripe Terminal, SumUp)"

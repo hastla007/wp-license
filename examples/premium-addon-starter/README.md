@@ -11,7 +11,7 @@ It covers section "B. Premium-Add-on" (B1–B11) of the core plugins' TODO.md. E
 | `src/Plugin.php` | Wiring on `plugins_loaded`, core version check with admin notice and clean bail-out, daily WP-Cron job |
 | `src/Client/LicenseClient.php` | Vendored copy of the server's client (generated, never edited) |
 | `src/License/LicenseService.php` | Activation, signed offline cache, 14-day limit, fail-closed decisions |
-| `src/License/Entitlements.php` | `Entitlements::has( 'voucher.pdf_templates' )`, `Entitlements::limit( 'voucher.monthly_limit' )` |
+| `src/License/Entitlements.php` | `Entitlements::has( 'voucher.example_feature' )`, `Entitlements::limit( 'voucher.monthly_limit' )` |
 | `src/Admin/SettingsPage.php` | Settings → *Product* license |
 | `src/Update/Updater.php` | Update detection and verified download |
 | `src/Uninstaller.php`, `uninstall.php` | Release the activation, delete credentials and cache |
@@ -67,7 +67,7 @@ The product keys are `voucher-captain-pro`, `pass-captain-pro` and `affiliate-ca
 
    ```php
    add_action( 'vcap_pro_loaded', function () {
-   	if ( \VCAP\Pro\License\Entitlements::has( 'voucher.pdf_templates' ) ) {
+   	if ( \VCAP\Pro\License\Entitlements::has( 'voucher.example_feature' ) ) {
    		// register the PDF template screen, routes and jobs
    	}
    } );

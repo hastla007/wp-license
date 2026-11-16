@@ -98,6 +98,7 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc_log_api_rejection` | `src/Api/V1/ApiLog.php` | Filter whether this rejection is written to the log. |
 | `wplc_log_debug` | `src/Infrastructure/Log.php` | Filters whether the plugin writes debug lines to the WooCommerce log (A-133). |
 | `wplc_new_activations_per_hour` | `src/Api/V1/ActivationService.php` | Filter how many new installations one license may activate per hour. |
+| `wplc_offer_planned_entitlements` | `src/Catalog/EntitlementCatalog.php` | Filters whether entitlements that are planned but not shipped by any add-on yet are offered in the product editor (default: no). |
 | `wplc_offline_cache_days` | `src/Api/V1/EntitlementService.php` | Filter the number of days a client may rely on a signed snapshot offline. |
 | `wplc_package_max_upload_bytes` | `src/Update/LocalPackageStorage.php` |  |
 | `wplc_package_offload_header` | `src/Update/PackageStream.php` | Filters a header that hands the file to the web server instead of PHP (B-25). |

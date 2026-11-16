@@ -95,7 +95,7 @@ voucher_captain_pro_license()->register();
 add_action(
 	'init',
 	static function () {
-		if ( voucher_captain_pro_license()->is_entitled( 'voucher.qr_redemption' ) ) {
+		if ( voucher_captain_pro_license()->is_entitled( 'voucher.example_feature' ) ) {
 			require_once __DIR__ . '/includes/qr-redemption.php';
 		}
 	}

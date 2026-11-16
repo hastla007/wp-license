@@ -34,13 +34,13 @@ foreach ( array( 'site_a', 'site_b', 'site_a_staging', 'site_a_staging2', 'site_
 }
 
 // --- Client refuses a plain-HTTP server URL. ---
-$insecure = new LicenseClient( 'http://shop.test', 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_a' );
+$insecure = new LicenseClient( 'http://shop.test', 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_site_a' );
 $result   = $insecure->activate( $key );
 e2e_ok( is_wp_error( $result ) && 'wplc_configuration_invalid' === $result->get_error_code(), 'client refuses an http:// license server', $error_of( $result ) );
 
 // --- Activate site A. ---
 $as_site( 'https://site-a.example' );
-$client_a = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_a' );
+$client_a = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_site_a' );
 $result   = $client_a->activate( $key );
 e2e_ok( is_array( $result ), 'site A: activation succeeds', $error_of( $result ) );
 $credentials_a = (array) get_option( 'wplc_e2e_client_site_a', array() );
@@ -54,7 +54,7 @@ if ( is_array( $result ) ) {
 // The client is pinned to the server's Ed25519 public key (e2e_client()): the activation above was only
 // accepted because the answer carried a valid signature of that key.
 e2e_ok( '' !== \WPLC\Security\ResponseSigner::public_key() && ! isset( $credentials_a['signed_payload'] ), 'the client verified the activation with the pinned Ed25519 key of the server (no "signed_payload" flag is stored any more)' );
-$wrong_key = new LicenseClient( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_a', array( 'public_keys' => array( base64_encode( str_repeat( "\1", 32 ) ) ) ) );
+$wrong_key = new LicenseClient( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_site_a', array( 'public_keys' => array( base64_encode( str_repeat( "\1", 32 ) ) ) ) );
 $unverified = $wrong_key->check_entitlements();
 e2e_ok( is_wp_error( $unverified ), 'a client pinned to another public key rejects the same server answer', is_wp_error( $unverified ) ? $unverified->get_error_code() : $unverified );
 e2e_ok( ! isset( $credentials_a['license_key'] ) && false === strpos( wp_json_encode( $credentials_a ), $key ), 'client option does not store the license key' );
@@ -71,7 +71,7 @@ $raw_id     = wp_generate_uuid4();
 $raw_body   = wp_json_encode(
 	array(
 		'license_key'         => $key,
-		'product_key'         => 'voucher-captain',
+		'product_key'         => 'voucher-captain-pro',
 		'installation_id'     => $raw_id,
 		'installation_secret' => $raw_secret,
 		'site_url'            => 'https://site-a.example',
@@ -149,14 +149,14 @@ e2e_ok( is_wp_error( $result ) && 'invalid_key' === $result->get_error_code(), '
 
 // --- Second live site: site limit. ---
 $as_site( 'https://site-b.example' );
-$client_b = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_b' );
+$client_b = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_site_b' );
 $result   = $client_b->activate( $key );
 e2e_ok( is_wp_error( $result ) && 'site_limit' === $result->get_error_code() && 409 === (int) ( $result->get_error_data()['status'] ?? 0 ), 'site B: second live activation is refused with 409 site_limit', $error_of( $result ) );
 e2e_ok( false === get_option( 'wplc_e2e_client_site_b', false ), 'site B: no credentials stored after the refusal' );
 
 // --- Staging with parent. ---
 $as_site( 'https://staging.site-a.example' );
-$client_staging = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_a_staging' );
+$client_staging = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_site_a_staging' );
 $result         = $client_staging->activate( $key, 'staging' );
 e2e_ok( is_wp_error( $result ) && 'staging_parent_required' === $result->get_error_code(), 'staging without a parent installation is refused (staging_parent_required)', $error_of( $result ) );
 $result = $client_staging->activate( $key, 'staging', wp_generate_uuid4() );
@@ -167,17 +167,17 @@ $staging_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['activations']
 $parent_row  = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['activations']} WHERE installation_uuid = %s", (string) $credentials_a['installation_id'] ), ARRAY_A );
 e2e_ok( is_array( $staging_row ) && 'staging' === $staging_row['environment'] && (int) $staging_row['staging_parent_id'] === (int) $parent_row['id'], 'staging row is linked to the live activation', $staging_row );
 $as_site( 'https://staging2.site-a.example' );
-$client_staging2 = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_a_staging2' );
+$client_staging2 = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_site_a_staging2' );
 $result          = $client_staging2->activate( $key, 'staging', (string) $credentials_a['installation_id'] );
 e2e_ok( is_wp_error( $result ) && 'staging_limit' === $result->get_error_code(), 'a second staging site for the same live site is refused (staging_limit)', $error_of( $result ) );
 
 // --- Development. ---
 $as_site( 'https://dev.site-a.example' );
-$client_dev = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_dev' );
+$client_dev = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_site_dev' );
 $result     = $client_dev->activate( $key, 'development' );
 e2e_ok( is_wp_error( $result ) && 'development_site_invalid' === $result->get_error_code(), 'development activation for a non-local host is refused (development_site_invalid)', $error_of( $result ) );
 $as_site( 'https://voucher.local' );
-$client_local = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_local' );
+$client_local = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_site_local' );
 $result       = $client_local->activate( $key, 'development' );
 e2e_ok( is_array( $result ), 'development activation for a .local host succeeds without using a live slot', $error_of( $result ) );
 
@@ -241,7 +241,7 @@ e2e_ok( is_array( $result ), 'site B: activation succeeds after site A released 
 $credentials_b = (array) get_option( 'wplc_e2e_client_site_b', array() );
 
 // --- Same site again with lost credentials: replaces instead of consuming a slot. ---
-$client_b_restored = e2e_client( $server, 'voucher-captain', '1.0.1', 'wplc_e2e_client_site_a_restored' );
+$client_b_restored = e2e_client( $server, 'voucher-captain-pro', '1.0.1', 'wplc_e2e_client_site_a_restored' );
 $result            = $client_b_restored->activate( $key );
 e2e_ok( is_array( $result ), 'site B with a new installation ID (lost options): activation succeeds although the limit is 1', $error_of( $result ) );
 $live = e2e_rows( 'activations', 'license_id = ' . (int) $license['id'] . " AND environment = 'production' AND status = 'active'" );
@@ -288,7 +288,7 @@ e2e_login( 0 );
 // --- Leave one live activation on license 1 for the following flows (updates). ---
 $as_site( 'https://site-c.example' );
 delete_option( 'wplc_e2e_client_site_c' );
-$client_c = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_c' );
+$client_c = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_site_c' );
 $result   = $client_c->activate( $key );
 e2e_ok( is_array( $result ), 'site C activated for the following flows', $error_of( $result ) );
 $as_site( '' );

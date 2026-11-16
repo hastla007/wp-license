@@ -98,7 +98,7 @@ foreach ( $licenses as $index => $license ) {
 	$key = e2e_key( $license );
 	e2e_ok( 0 === strpos( $key, 'WPLC-' ) && hash_equals( $license['license_key_hash'], \WPLC\License\LicenseKey::hash( $key ) ), 'license ' . ( $index + 1 ) . ': derived key matches the stored hash' );
 	e2e_eq(
-		array( (string) $alice_id, 'voucher-captain', 'pro', 'year', '4900', 'EUR', '0', '', (string) $order_id ),
+		array( (string) $alice_id, 'voucher-captain-pro', 'pro', 'year', '4900', 'EUR', '0', '', (string) $order_id ),
 		array( $license['customer_id'], $license['product_key'], $license['plan_key'], $license['billing_interval'], $license['renewal_amount_minor'], $license['renewal_currency'], $license['renewal_enabled'], $license['payment_gateway_id'], $license['source_order_id'] ),
 		'license ' . ( $index + 1 ) . ': customer, plan, renewal price 4900 EUR, no automatic renewal (bank transfer)'
 	);

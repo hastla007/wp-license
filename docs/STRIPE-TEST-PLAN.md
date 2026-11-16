@@ -2,7 +2,9 @@
 
 Nothing in the Stripe integration has run against a Stripe account. The automated tests use a fake of the gateway's API class (`tests/integration/helpers/StripeApiStub.php`) and constructed webhook events: they prove what the plugin does with an answer, not that Stripe gives that answer. This plan is the list of things to run by hand against a Stripe **test** account before the first real sale.
 
-The original 16 steps of the Stripe review were not kept; these are reconstructed from the findings (B-57 to B-63, B-146 to B-150, A-15, A-16, A-20, A-113, A-114, B-10, B-29). Each fix has one step.
+The original 16 steps of the Stripe review were not kept; these are reconstructed from the findings (B-57 to B-63, B-146 to B-150, A-15, A-16, A-20, A-113, A-114, B-10, B-29). Each fix has one step. Steps 17 to 22 were added on 16 Nov 2026 for the findings of the audit panel that touch money at Stripe (P-03, P-15, P-16, P-18, P-59, P-61); they were proven against the fake only.
+
+Until this plan has been run, every task named in the column "Finding" counts as open in [TODO.md](TODO.md) ("Code und Test gegen nachgebildete Stripe-Schnittstelle erledigt; offen: Lauf gegen Stripe-Testkonto (T-12)").
 
 ## Preparation
 
@@ -34,6 +36,12 @@ For every step note: gateway version, date, PaymentIntent ID, result, deviations
 | 14 | B-10, B-01, B-29 | Copy the database after a paid renewal, restore the copy from **before** that renewal on the same site and run the renewal. Separately: clone the shop to a second URL with the same Stripe account. | Restore: the adapter finds the existing payment by `wplc_renewal_id` and `wplc_period` and books it; no second charge. Clone: billing is paused by the site guard; with the pause lifted by hand the clone's events are ignored on the original (`"reason":"other_site"`) and the other way round. |
 | 15 | B-148, T-51 | Buy with `…0259` (dispute) and with `…5423` (early fraud warning). Close the dispute as won and as lost (test dashboard: evidence text `winning_evidence` / `losing_evidence`). Send one test-mode event to a shop in live mode. | Dispute created: license `suspended`. Won: audit `dispute_won`, action fired, license stays `suspended`. Lost: audit `dispute_closed`. Fraud warning: audit `stripe_early_fraud_warning` and `renewal_disabled`, automatic renewal of the license off, license otherwise unchanged (P-58). Test event in live mode: 200 with `"reason":"test_event_in_live_mode"`. Diagnostics shows the time of the last valid event. Resend one event from the dashboard: 200 `duplicate`. |
 | 16 | B-63, A-15, A-16 | Enable SEPA Direct Debit in the gateway and buy with it, ticking automatic renewal. Then, with a card license: replace the secret key by one of another account and run a renewal; fire many renewals at once to hit the test-mode rate limit. | SEPA: no automatic renewal, note and hint as in step 10 (decision in [PAYPAL-COMPATIBILITY.md](PAYPAL-COMPATIBILITY.md)). Wrong account: `last_error = stripe_resource_missing` (or the code Stripe returns), no failed attempt, license `active`, `wplc/renewal_blocked` fired; after restoring the key the next run charges. Rate limit: `renewal_gateway_rate_limited`, retried after 30 minutes without a failed attempt. |
+| 17 | P-03 | Double charge after a card change: produce an unknown result as in step 13 (renewal `reconciling`). While it is reconciling, replace the saved card of the customer (My account → Payment methods, new default card), then let the hourly check run with the connection restored. Second run: instead of the card, change the amount of the renewal order in the admin while it is reconciling. Third run: keep `GET /v1/payment_intents/search` blocked while the charge endpoint works again. | Exactly one PaymentIntent for the period in the Stripe dashboard in all three runs. Card or amount changed: the retry is sent with the idempotency key of the first request (the request of an attempt is frozen after it was first sent, `StripeRecurringAdapter::META_ATTEMPT_REQUEST`), Stripe answers with the first payment or with `idempotency_error`, never with a second charge. Search blocked: no charge request is sent while the renewal is `reconciling`; after 12 hours it is `review_required`. |
+| 18 | P-61 | New order for the same attempt: after a declined renewal (step 6, `…9995`), cancel the open renewal order in the admin so that the next attempt creates a new order (also: change the tax rate so that the order is replaced). Run the renewal with a working card. | The new order is charged at once. No `idempotency_error` from Stripe, no alarm, no 6-hour delay; the request carries a key that differs from the key of the cancelled order. One PaymentIntent succeeded. |
+| 19 | P-15 | Refund one of two payments: produce the double payment of step 9 (two succeeded PaymentIntents for one renewal). Refund the payment that WooCommerce knows from the order ("Refund via Stripe"), in full. | The license keeps the period (`paid_until` unchanged), the renewal stays `paid`, automatic renewal stays on. Audit `renewal_duplicate_refunded` once, alarm `wplc/health_alert` naming the second PaymentIntent, which is still to be refunded by hand in the Stripe dashboard. Refunding the second one too rolls the renewal back as in step 4. |
+| 20 | P-16 | Card or customer missing at Stripe: (a) detach the card of the license in the Stripe dashboard without touching the shop; (b) with another license, delete the Stripe customer in the dashboard. Run the renewal in both cases, twice. | Nothing is charged and no other card of the customer is tried. Renewal stays `scheduled` with `last_error = renewal_payment_method_missing`, `attempt_count = 0`, license `active` until its end date and then in the normal grace period; the renewal order is not `failed`. Action `wplc/renewal_payment_method_missing` (first run with `true`, second with `false`), one note on the first order, **one** mail to the customer asking for a new card or a manual renewal (not a second mail on the second run). Check the exact Stripe answer: `resource_missing` with `param` `payment_method`/`customer` or `payment_method_unexpected_state`; note deviations. Counter-check: with the secret key of another account (step 16) the same answer stays a configuration problem without a customer mail. |
+| 21 | P-18 | Book after review: bring a renewal into `review_required` whose payment succeeded at Stripe (step 13, variant with the check kept blocked for 12 hours; then restore the connection). Under WooCommerce → Renewals to review choose "Book the renewal". Then refund the order from WooCommerce ("Refund via Stripe") and, with a second case, open a dispute for the payment (`…0259`). | The order carries the charge as transaction ID (`ch_…`) and the Stripe metas (`_stripe_intent_id`, `_stripe_charge_captured`, `_stripe_customer_id`, `_stripe_source_id`). The refund from WooCommerce arrives at Stripe; the dispute event is assigned to the license (license `suspended`). When Stripe has no payment for the case, the booking leaves an order note saying that no reference was found. |
+| 22 | P-59 | Payment `succeeded` without a charge ID: cannot be forced with a test card. Watch for it in steps 2, 5 and 13: note for every succeeded PaymentIntent whether the answer to the charge request carries `latest_charge`. If a case occurs (or with the answer changed by a proxy or the filter `http_response`): | The renewal becomes `reconciling` (`renewal_result_unknown`), not a declined attempt: no dunning mail, license `active`, the order not `failed`. The next check reads the PaymentIntent with `expand[]=latest_charge` once and books the payment with the charge as transaction ID; no second charge request. |
 
 ## What the automated tests already cover (against fakes)
 
@@ -177,11 +185,20 @@ Nach jedem Fall die Lizenz-Detailseite (WooCommerce → Licenses → Lizenz öff
 4. MU-Plugin löschen und die Prüfung auslösen (`process( ID )`). Erwartet: Stripe bekommt dieselbe Anfrage mit demselben Idempotency-Key, die Zahlung wird einmal gebucht, die Lizenz verlängert.
 5. Variante „Prüfung“: MU-Plugin aktiv lassen und die Verlängerung in der Datenbank 13 Stunden zurückdatieren (oder warten). Erwartet: Status `review_required`, Eintrag unter WooCommerce → Renewals to review, Alarm `wplc/health_alert`. Dort „Als nicht bezahlt markieren“ ausprobieren.
 
-### F6 · Widerrufene Karte
+### F6 · Widerrufene Karte (Entscheidung vom 14.11.2026, B-78, P-16)
 
-1. Lizenz mit Opt-in und Karte `4242…`.
-2. Im Stripe-Dashboard beim Kunden die Zahlungsmethode entfernen (Detach) **oder** im Kundenkonto des Shops die Karte löschen.
-3. Verlängerung auslösen. Erwartet: keine Abbuchung, eindeutige Ablehnung (Lizenz `past_due`, Mail an den Kunden) bzw. bei gelöschtem Token im Shop: Verlängerung `manual_action_required` oder `failed` mit Begründung im Audit-Protokoll. Ergebnis notieren.
+Entschieden ist: Fehlt die gespeicherte Karte, wird **keine andere Karte** des Kunden belastet. Die Verlängerung wartet, und der Kunde wird per Mail aufgefordert, eine Karte zu hinterlegen oder manuell zu verlängern.
+
+1. Lizenz mit Opt-in und Karte `4242…`. Der Kunde hat zusätzlich eine zweite gespeicherte Karte.
+2. Variante A: im Stripe-Dashboard beim Kunden die Zahlungsmethode der Lizenz entfernen (Detach). Variante B (zweite Lizenz): im Kundenkonto des Shops die Karte löschen.
+3. Verlängerung auslösen. Erwartet in Variante A:
+   - keine Abbuchung, auch nicht von der zweiten Karte; in Stripe entsteht keine erfolgreiche Zahlung;
+   - Verlängerung bleibt `scheduled` mit `last_error = renewal_payment_method_missing`, `attempt_count = 0` (kein Fehlversuch, keine Mahnstufe), die Verlängerungsbestellung wird nicht `failed`;
+   - Lizenz bleibt `active` bis zum Laufzeitende, danach gilt die normale Kulanzzeit;
+   - eine Mail an den Kunden mit der Bitte, eine Karte zu hinterlegen oder manuell zu verlängern; Notiz an der ersten Bestellung; Aktion `wplc/renewal_payment_method_missing`.
+4. Verlängerung noch einmal auslösen. Erwartet: weiterhin keine Abbuchung und **keine zweite Mail**.
+5. Erwartet in Variante B: Beim Löschen der Karte im Shop wird die automatische Verlängerung der Lizenz ausgeschaltet (Audit-Eintrag an der Lizenz, Aktion `wplc/renewal_disabled_token_deleted`); es wird nichts abgebucht, der Kunde verlängert manuell über die Erinnerungsmail.
+6. Der Kunde hinterlegt eine neue Karte, indem er die Verlängerungsbestellung auf der Bezahlseite bezahlt (Schritt 7 der Tabelle oben). Erwartet: Lizenz verlängert, neue Karte übernommen.
 
 ### F7 · Zahlungsstreit (T-51)
 
@@ -224,9 +241,16 @@ Datum: ________ · Stripe-Plugin-Version: ________ · WooCommerce: ________ · S
 | F4 3-D Secure bei der Verlängerung | | | |
 | F5 Zeitüberschreitung, Abgleich | | | |
 | F5 Prüffall | | | |
-| F6 Widerrufene Karte | | | |
+| F6 Karte bei Stripe entfernt: keine andere Karte, Mail | | | |
+| F6 Karte im Shop gelöscht: Verlängerung aus | | | |
 | F7 Zahlungsstreit (T-51) | | | |
 | F8 Voll- und Teilerstattung | | | |
 | F9 Kündigung | | | |
+| Schritt 17 Kartenwechsel/Betragsänderung im Abgleich (P-03) | | | |
+| Schritt 18 Neue Bestellung, gleicher Versuch (P-61) | | | |
+| Schritt 19 Erstattung einer von zwei Zahlungen (P-15) | | | |
+| Schritt 20 Karte oder Kunde fehlt bei Stripe (P-16) | | | |
+| Schritt 21 Buchen nach Prüfung (P-18) | | | |
+| Schritt 22 `succeeded` ohne Charge (P-59) | | | |
 
 Bitte das ausgefüllte Protokoll in `docs/LAUNCH-EVIDENCE.md` übernehmen und Abweichungen als neue Aufgaben in `docs/TODO.md` eintragen.

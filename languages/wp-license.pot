@@ -5191,7 +5191,7 @@ msgid "White label"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:73
-msgid "E-invoicing (XRechnung, ZUGFeRD)"
+msgid "E-invoicing (XRechnung XML)"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:74
@@ -5215,7 +5215,19 @@ msgid "Voucher Captain"
 msgstr ""
 
 #: src/Catalog/EntitlementCatalog.php:103
-msgid "WP Pass Captain"
+msgid "Pass Captain"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php
+msgid "Workflow Captain"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php
+msgid "Form Captain"
+msgstr ""
+
+#: src/Catalog/EntitlementCatalog.php
+msgid "Review Captain"
 msgstr ""
 
 #: src/Catalog/ProductEditor.php:174

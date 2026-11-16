@@ -105,7 +105,7 @@ $response = $save_product(
 		'_regular_price'           => '49.00',
 		'_virtual'                 => 'on',
 		'_wplc_is_license_product' => 'yes',
-		'_wplc_product_key'        => 'voucher-captain',
+		'_wplc_product_key'        => 'voucher-captain-pro',
 		'_wplc_plan_key'           => 'pro',
 		'_wplc_billing_interval'   => 'year',
 		'_wplc_live_site_limit'    => '1',
@@ -119,7 +119,7 @@ $plan = $plan_of( $simple_id );
 e2e_ok( is_array( $plan ), 'plan row exists for the simple product' );
 if ( is_array( $plan ) ) {
 	e2e_eq(
-		array( 'voucher-captain', 'pro', 'year', '4900', '2', 'EUR', '1', 'priority', '1' ),
+		array( 'voucher-captain-pro', 'pro', 'year', '4900', '2', 'EUR', '1', 'priority', '1' ),
 		array( $plan['product_key'], $plan['plan_key'], $plan['billing_interval'], $plan['price_minor'], $plan['price_decimals'], $plan['currency'], $plan['live_site_limit'], $plan['support_level'], $plan['active'] ),
 		'plan row carries key, interval, price 4900 EUR, limit and support level'
 	);
@@ -131,7 +131,7 @@ if ( is_array( $plan ) ) {
 		'plan entitlements = checked boxes + advanced JSON + automatic limit/support (unknown checkbox key dropped)'
 	);
 }
-e2e_eq( 'Voucher Captain Pro', (string) $wpdb->get_var( $wpdb->prepare( "SELECT display_name FROM {$t['products']} WHERE product_key = %s", 'voucher-captain' ) ), 'product row stores the display name' );
+e2e_eq( 'Voucher Captain Pro', (string) $wpdb->get_var( $wpdb->prepare( "SELECT display_name FROM {$t['products']} WHERE product_key = %s", 'voucher-captain-pro' ) ), 'product row stores the display name' );
 e2e_eq( 'yes', (string) wc_get_product( $simple_id )->get_meta( '_wplc_is_license_product', true ), 'product meta _wplc_is_license_product = yes' );
 
 // Editor shows the saved state again.
@@ -146,7 +146,7 @@ $response = $save_product(
 		'_regular_price'           => '59.00',
 		'_virtual'                 => 'on',
 		'_wplc_is_license_product' => 'yes',
-		'_wplc_product_key'        => 'voucher-captain',
+		'_wplc_product_key'        => 'voucher-captain-pro',
 		'_wplc_plan_key'           => 'pro',
 		'_wplc_billing_interval'   => 'year',
 		'_wplc_live_site_limit'    => '1',
@@ -166,7 +166,7 @@ $save_product(
 		'_regular_price'           => '49.00',
 		'_virtual'                 => 'on',
 		'_wplc_is_license_product' => 'yes',
-		'_wplc_product_key'        => 'voucher-captain',
+		'_wplc_product_key'        => 'voucher-captain-pro',
 		'_wplc_plan_key'           => 'pro',
 		'_wplc_billing_interval'   => 'year',
 		'_wplc_live_site_limit'    => '1',
@@ -185,7 +185,7 @@ $save_product(
 	array(
 		'_regular_price'           => '49.00',
 		'_wplc_is_license_product' => 'yes',
-		'_wplc_product_key'        => 'voucher-captain',
+		'_wplc_product_key'        => 'voucher-captain-pro',
 		'_wplc_plan_key'           => 'changed',
 		'_wplc_billing_interval'   => 'year',
 		'_wplc_live_site_limit'    => '1',
@@ -417,7 +417,7 @@ while ( false !== ( $row = fgetcsv( $stream, 0, ',', '"', '\\' ) ) ) {
 }
 fclose( $stream );
 e2e_eq( array( 'product_id', 'variation_id', 'sku', 'product_key', 'plan_key', 'billing_interval', 'live_site_limit', 'support_level', 'entitlements_json' ), $parsed[0] ?? null, 'CSV header row' );
-e2e_eq( array( (string) $simple_id, '0', 'VC-PRO', 'voucher-captain', 'pro', 'year', '1', 'priority' ), array_slice( $parsed[1] ?? array(), 0, 8 ), 'CSV row of the simple product' );
+e2e_eq( array( (string) $simple_id, '0', 'VC-PRO', 'voucher-captain-pro', 'pro', 'year', '1', 'priority' ), array_slice( $parsed[1] ?? array(), 0, 8 ), 'CSV row of the simple product' );
 
 // Wipe the mappings, import the exported file unchanged: the catalog must be identical.
 $before = $wpdb->get_results( "SELECT product_key, plan_key, woocommerce_product_id, woocommerce_variation_id, billing_interval, price_minor, live_site_limit, support_level, entitlements_json FROM {$t['plans']} ORDER BY woocommerce_product_id, woocommerce_variation_id", ARRAY_A );
@@ -439,8 +439,8 @@ e2e_eq( $normalize( $before ), $normalize( $after ), 'catalog after export → w
 // A changed row is applied; a row with a foreign SKU and a broken row are rejected.
 $changed   = $parsed;
 $changed[1][6] = '5';
-$changed[] = array( (string) $plain_id, '0', 'WRONG-SKU', 'voucher-captain', 'x', 'year', '1', 'standard', '{}' );
-$changed[] = array( (string) $simple_id, '0', 'VC-PRO', 'voucher-captain', 'pro', 'decade', '1', 'standard', '{}' );
+$changed[] = array( (string) $plain_id, '0', 'WRONG-SKU', 'voucher-captain-pro', 'x', 'year', '1', 'standard', '{}' );
+$changed[] = array( (string) $simple_id, '0', 'VC-PRO', 'voucher-captain-pro', 'pro', 'decade', '1', 'standard', '{}' );
 $stream    = fopen( 'php://memory', 'w+' );
 foreach ( $changed as $row ) {
 	fputcsv( $stream, $row, ',', '"', '\\' );
@@ -470,7 +470,7 @@ $save_product(
 		'_regular_price'           => '49.00',
 		'_virtual'                 => 'on',
 		'_wplc_is_license_product' => 'yes',
-		'_wplc_product_key'        => 'voucher-captain',
+		'_wplc_product_key'        => 'voucher-captain-pro',
 		'_wplc_plan_key'           => 'pro',
 		'_wplc_billing_interval'   => 'year',
 		'_wplc_live_site_limit'    => '1',

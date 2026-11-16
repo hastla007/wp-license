@@ -265,7 +265,10 @@ final class AdminSupportWave2IntegrationTest extends WPLC_Integration_TestCase {
 		$product = $this->create_license_product();
 		$order   = $this->create_paid_order( array( array( $product, 1 ) ), $this->customer );
 		$issued  = (int) $this->licenses_for_order( $order->get_id() )[0]['id'];
-		$other   = $this->seed_license( array( 'customer_id' => $this->customer ) )['id'];
+		// R-11: a number is searched as license ID, customer ID, order ID and inside the key prefix, whose eight
+		// hex characters are random. With a random prefix (and the customer of the order) this license matched
+		// the order number now and then, twice on CI. Its prefix has no digit and it belongs to nobody.
+		$other   = $this->seed_license( array( 'key_prefix' => 'WPLC-ABCDEFAB' ) )['id'];
 
 		$renewal_order = wc_create_order( array( 'customer_id' => $this->customer ) );
 		$renewal_order->update_meta_data( RenewalOrder::META_LICENSE, $other );
@@ -283,6 +286,9 @@ final class AdminSupportWave2IntegrationTest extends WPLC_Integration_TestCase {
 			$this->assertNotContains( $other, $find( (string) $order->get_id() ) );
 		}
 		$this->assertContains( $other, $find( (string) $renewal_order->get_id() ) );
+		// The cause of R-11, on purpose: digits of the term inside a key prefix are a match.
+		$by_prefix = $this->seed_license( array( 'key_prefix' => 'WPLC-' . str_pad( (string) $order->get_id(), 8, 'A' ) ) )['id'];
+		$this->assertContains( $by_prefix, $find( (string) $order->get_id() ) );
 
 		$this->assertSame( array( $issued ), array_map( 'intval', array_column( OrderLicensesBox::licenses_for( $order ), 'id' ) ) );
 		$renewed = OrderLicensesBox::licenses_for( wc_get_order( $renewal_order->get_id() ) );

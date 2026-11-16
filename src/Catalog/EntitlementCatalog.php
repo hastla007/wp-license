@@ -31,53 +31,56 @@ final class EntitlementCatalog {
 	 * @return array<string,array<int,array{key:string,label:string}>> Product group => list of entitlements.
 	 */
 	public static function all(): array {
+		/*
+		 * A key is listed only when the premium add-on ships the function (hastla007/captain-pro). Removed on
+		 * 16 Nov 2026 (R-07, R-08): the keys that named functions of the free core plugins (affiliate: partner
+		 * portal, coupon attribution, refund handling, basic commissions, payout CSV, partner groups, product
+		 * and category rates, recurring commissions; voucher: branding, PDF templates, automatic and scheduled
+		 * delivery, QR redemption, partial balance, import/export, reports, staff roles). A plan or a license
+		 * that still stores one of them keeps it: split() leaves unknown keys in the advanced JSON field.
+		 */
 		$catalog = array(
 			'affiliate' => array(
-				array( 'key' => 'affiliate.partner_portal', 'label' => __( 'Partner portal', 'wp-license' ) ),
-				array( 'key' => 'affiliate.coupon_attribution', 'label' => __( 'Coupon attribution', 'wp-license' ) ),
-				array( 'key' => 'affiliate.order_refund_handling', 'label' => __( 'Order refund handling', 'wp-license' ) ),
-				array( 'key' => 'affiliate.basic_commissions', 'label' => __( 'Basic commissions', 'wp-license' ) ),
-				array( 'key' => 'affiliate.manual_payout_csv', 'label' => __( 'Manual payout CSV', 'wp-license' ) ),
-				array( 'key' => 'affiliate.partner_groups', 'label' => __( 'Partner groups', 'wp-license' ) ),
-				array( 'key' => 'affiliate.product_category_rates', 'label' => __( 'Product and category rates', 'wp-license' ) ),
-				array( 'key' => 'affiliate.recurring_commissions', 'label' => __( 'Recurring commissions', 'wp-license' ) ),
 				array( 'key' => 'affiliate.extended_api', 'label' => __( 'Extended API', 'wp-license' ) ),
 				array( 'key' => 'affiliate.automated_payouts', 'label' => __( 'Automated payouts', 'wp-license' ) ),
 				array( 'key' => 'affiliate.white_label_portal', 'label' => __( 'White-label portal', 'wp-license' ) ),
 				array( 'key' => 'affiliate.webhooks', 'label' => __( 'Webhooks', 'wp-license' ) ),
-				// Added 15 Nov 2026 on request of the captain-pro development (Affiliate Captain Pro, all plans).
-				array( 'key' => 'affiliate.store_credit', 'label' => __( 'Payout as store credit', 'wp-license' ) ),
-				array( 'key' => 'affiliate.stripe_connect', 'label' => __( 'Payouts via Stripe Connect', 'wp-license' ) ),
-				array( 'key' => 'affiliate.leaderboard', 'label' => __( 'Leaderboard and milestone emails', 'wp-license' ) ),
-				array( 'key' => 'affiliate.multi_tier', 'label' => __( 'Multi-tier commissions', 'wp-license' ) ),
-				array( 'key' => 'affiliate.multiple_programs', 'label' => __( 'Multiple programs', 'wp-license' ) ),
 				array( 'key' => 'affiliate.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),
 			'voucher'   => array(
-				array( 'key' => 'voucher.custom_branding', 'label' => __( 'Custom branding', 'wp-license' ) ),
-				array( 'key' => 'voucher.pdf_templates', 'label' => __( 'PDF templates', 'wp-license' ) ),
-				array( 'key' => 'voucher.automatic_delivery', 'label' => __( 'Automatic delivery', 'wp-license' ) ),
-				array( 'key' => 'voucher.qr_redemption', 'label' => __( 'QR redemption', 'wp-license' ) ),
-				array( 'key' => 'voucher.partial_balance', 'label' => __( 'Partial balance', 'wp-license' ) ),
-				array( 'key' => 'voucher.staff_roles', 'label' => __( 'Staff roles', 'wp-license' ) ),
-				array( 'key' => 'voucher.scheduled_delivery', 'label' => __( 'Scheduled delivery', 'wp-license' ) ),
-				array( 'key' => 'voucher.bulk_import_export', 'label' => __( 'Bulk import and export', 'wp-license' ) ),
-				array( 'key' => 'voucher.reports', 'label' => __( 'Reports', 'wp-license' ) ),
-				array( 'key' => 'voucher.white_label', 'label' => __( 'White label', 'wp-license' ) ),
 				array( 'key' => 'voucher.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),
 			'pass'      => array(
 				// Pass Captain Pro, decided 14 Nov 2026 (captain-pro docs/PASS-PRO.md): payment providers,
 				// integrations, seating, box office, offline check-in, reports and the other former keys are
 				// part of the free Pass core. Every plan contains every Pro function; plans differ by sites.
-				array( 'key' => 'pass.e_invoicing', 'label' => __( 'E-invoicing (XRechnung, ZUGFeRD)', 'wp-license' ) ),
+				// E-invoicing delivers XML (XRechnung as UBL and CII); a ZUGFeRD hybrid PDF is not built.
+				array( 'key' => 'pass.e_invoicing', 'label' => __( 'E-invoicing (XRechnung XML)', 'wp-license' ) ),
 				array( 'key' => 'pass.card_terminal', 'label' => __( 'Card terminal (Stripe Terminal, SumUp)', 'wp-license' ) ),
 				array( 'key' => 'pass.waiting_room', 'label' => __( 'Virtual waiting room', 'wp-license' ) ),
 				array( 'key' => 'pass.write_api', 'label' => __( 'Write API', 'wp-license' ) ),
 				array( 'key' => 'pass.white_label', 'label' => __( 'White label', 'wp-license' ) ),
 				array( 'key' => 'pass.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),
+			// Planned add-ons (R-22): the groups exist so that their product keys resolve to the right
+			// prefix; no entitlement is offered before the add-on ships it.
+			'workflow'  => array(),
+			'form'      => array(),
+			'review'    => array(),
 		);
+
+		/**
+		 * Filters whether entitlements that are planned but not shipped by any add-on yet are offered
+		 * in the product editor. Off by default: a shop must not sell what does not exist.
+		 *
+		 * @param bool $offer Whether to offer the planned keys of EntitlementCatalog::planned().
+		 * @since 0.2.0
+		 */
+		if ( apply_filters( 'wplc_offer_planned_entitlements', false ) ) {
+			foreach ( self::planned() as $group => $entitlements ) {
+				$catalog[ $group ] = array_merge( isset( $catalog[ $group ] ) ? $catalog[ $group ] : array(), $entitlements );
+			}
+		}
 
 		/**
 		 * Filters the catalog of known boolean entitlements offered in the product editor.
@@ -91,6 +94,30 @@ final class EntitlementCatalog {
 	}
 
 	/**
+	 * Entitlements that are planned but that no released add-on checks yet (R-09).
+	 *
+	 * They are not part of all() and therefore neither offered as tick boxes nor shown in the
+	 * pricing table, unless the filter `wplc_offer_planned_entitlements` returns true.
+	 *
+	 * @return array<string,array<int,array{key:string,label:string}>> Product group => list of entitlements.
+	 */
+	public static function planned(): array {
+		return array(
+			'affiliate' => array(
+				// Added 15 Nov 2026 on request of the captain-pro development; not built there yet.
+				array( 'key' => 'affiliate.store_credit', 'label' => __( 'Payout as store credit', 'wp-license' ) ),
+				array( 'key' => 'affiliate.stripe_connect', 'label' => __( 'Payouts via Stripe Connect', 'wp-license' ) ),
+				array( 'key' => 'affiliate.leaderboard', 'label' => __( 'Leaderboard and milestone emails', 'wp-license' ) ),
+				array( 'key' => 'affiliate.multi_tier', 'label' => __( 'Multi-tier commissions', 'wp-license' ) ),
+				array( 'key' => 'affiliate.multiple_programs', 'label' => __( 'Multiple programs', 'wp-license' ) ),
+			),
+			'voucher'   => array(
+				array( 'key' => 'voucher.white_label', 'label' => __( 'White label', 'wp-license' ) ),
+			),
+		);
+	}
+
+	/**
 	 * Translated headings for the built-in product groups.
 	 *
 	 * @param string $group Catalog group key.
@@ -100,7 +127,10 @@ final class EntitlementCatalog {
 		$labels = array(
 			'affiliate' => __( 'Affiliate Captain', 'wp-license' ),
 			'voucher'   => __( 'Voucher Captain', 'wp-license' ),
-			'pass'      => __( 'WP Pass Captain', 'wp-license' ),
+			'pass'      => __( 'Pass Captain', 'wp-license' ),
+			'workflow'  => __( 'Workflow Captain', 'wp-license' ),
+			'form'      => __( 'Form Captain', 'wp-license' ),
+			'review'    => __( 'Review Captain', 'wp-license' ),
 		);
 		return isset( $labels[ $group ] ) ? $labels[ $group ] : ucfirst( $group );
 	}
@@ -130,6 +160,16 @@ final class EntitlementCatalog {
 		'voucher-captain-pro'   => 'voucher',
 		'pass-captain-pro'      => 'pass',
 		'affiliate-captain-pro' => 'affiliate',
+	);
+
+	/**
+	 * Product keys of planned add-ons that are not released yet (R-22). They resolve to their entitlement
+	 * group, but the product editor does not suggest them and no entitlement is offered for them.
+	 */
+	public const PLANNED_PRODUCT_KEYS = array(
+		'workflow-captain-pro' => 'workflow',
+		'form-captain-pro'     => 'form',
+		'review-captain-pro'   => 'review',
 	);
 
 	/**
@@ -169,8 +209,12 @@ final class EntitlementCatalog {
 		if ( isset( $known[ $product_key ] ) ) {
 			return array( $known[ $product_key ] );
 		}
-		foreach ( array_keys( self::all() ) as $group ) {
-			if ( false !== strpos( $product_key, (string) $group ) ) {
+		if ( isset( self::PLANNED_PRODUCT_KEYS[ $product_key ] ) ) {
+			return array( self::PLANNED_PRODUCT_KEYS[ $product_key ] );
+		}
+		foreach ( self::all() as $group => $entitlements ) {
+			// Groups without entitlements (planned products) match by their exact product key only.
+			if ( $entitlements && false !== strpos( $product_key, (string) $group ) ) {
 				$matches[] = (string) $group;
 			}
 		}
