@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Changed (16 Nov 2026, evening: minimum versions, MINVER-1)
+
+- **Requires PHP 8.5 or later; supported database servers are MySQL 9.7 and MariaDB 12.3 or later** (owner decision of 16 Nov 2026 for all Captain plugins). Below PHP 8.5 the plugin shows a notice and does not load; an older database server only gets a warning in Site Health and on the diagnostics page. CI runs on PHP 8.5 with MySQL 9.7 and MariaDB 12.3, PHP 8.6 as an experimental cell. License client 2.2.0 and the add-on starter require PHP 8.5.
+
 ### Added (16 Nov 2026, evening: post-launch features built now)
 
 - **Co-users and transfer by the customer (B-139, schema 26).** The owner invites co-users by email (at most 5, single-use link valid for 14 days); co-users see the key, sites and downloads and may release sites, everything else stays with the owner. A transfer takes effect only when the recipient accepts it in their account; automatic renewal ends, the payment method is detached, co-users are removed and both parties get an email. New table `wplc_license_members`, three new emails, privacy export and erasure.

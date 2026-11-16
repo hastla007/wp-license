@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T15:18:02+00:00\n"
+"POT-Creation-Date: 2026-11-16T17:46:37+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -18,6 +18,7 @@ msgstr ""
 #: wp-license.php
 #: src/Admin/LicenseAdmin.php:90
 #: src/Admin/LicenseAdmin.php:99
+#: src/Compatibility/Requirements.php:228
 #: src/Privacy/PersonalData.php:95
 #: src/Privacy/PersonalData.php:109
 #: src/Privacy/PersonalData.php:124
@@ -1457,8 +1458,8 @@ msgstr ""
 
 #: src/Admin/AuditLogAdmin.php:203
 #: src/Admin/Diagnostics.php:881
-#: src/Admin/Diagnostics.php:897
-#: src/Admin/Diagnostics.php:974
+#: src/Admin/Diagnostics.php:910
+#: src/Admin/Diagnostics.php:988
 msgid "Unknown"
 msgstr ""
 
@@ -1796,9 +1797,9 @@ msgid "The import replaces the whole definition of the product named in the file
 msgstr ""
 
 #: src/Admin/CatalogFileAdmin.php:109
-#: src/Admin/Diagnostics.php:980
-#: src/Admin/Diagnostics.php:1034
-#: src/Admin/Diagnostics.php:1046
+#: src/Admin/Diagnostics.php:994
+#: src/Admin/Diagnostics.php:1048
+#: src/Admin/Diagnostics.php:1060
 #: src/Admin/Settings.php:836
 msgid "Available"
 msgstr ""
@@ -2005,7 +2006,7 @@ msgid "Open diagnostics"
 msgstr ""
 
 #: src/Admin/Diagnostics.php:795
-#: src/Admin/Diagnostics.php:1272
+#: src/Admin/Diagnostics.php:1286
 msgid "You do not have permission to view diagnostics."
 msgstr ""
 
@@ -2108,394 +2109,418 @@ msgstr ""
 msgid "Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/manual/12-upgrading.md)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:894
+#. translators: %s: minimum PHP version.
+#: src/Admin/Diagnostics.php:899
+#: src/Compatibility/Requirements.php:217
+#: src/Plugin.php:134
+#, php-format
+msgid "WP License Captain requires PHP %s or later."
+msgstr ""
+
+#. translators: 1: running PHP version, 2: minimum PHP version.
+#: src/Admin/Diagnostics.php:902
 msgid "PHP"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:895
-msgid "WordPress"
-msgstr ""
-
-#: src/Admin/Diagnostics.php:896
-msgid "WooCommerce"
-msgstr ""
-
-#: src/Admin/Diagnostics.php:896
-#: src/Admin/Diagnostics.php:980
-#: src/Admin/Diagnostics.php:1034
-msgid "Unavailable"
-msgstr ""
-
-#: src/Admin/Diagnostics.php:897
-msgid "Database"
+#. translators: 1: running PHP version, 2: minimum PHP version.
+#: src/Admin/Diagnostics.php:902
+#, php-format
+msgid "%1$s (minimum %2$s)"
 msgstr ""
 
 #: src/Admin/Diagnostics.php:903
-msgid "The database migration did not finish. Deactivate and reactivate the plugin, then check the PHP error log."
+msgid "WordPress"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:906
-msgid "The database was already updated by a newer plugin version. This older version may not handle the data correctly; install the newer version again."
+#: src/Admin/Diagnostics.php:904
+msgid "WooCommerce"
 msgstr ""
 
+#: src/Admin/Diagnostics.php:904
+#: src/Admin/Diagnostics.php:994
+#: src/Admin/Diagnostics.php:1048
+msgid "Unavailable"
+msgstr ""
+
+#. translators: 1: MySQL or MariaDB, 2: version of the database server, 3: minimum version.
 #: src/Admin/Diagnostics.php:908
-msgid "License schema (installed / expected)"
+#: src/Admin/Diagnostics.php:910
+msgid "Database"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:912
-msgid "Last migration error"
-msgstr ""
-
-#: src/Admin/Diagnostics.php:916
-msgid "License tables"
+#. translators: 1: MySQL or MariaDB, 2: version of the database server, 3: minimum version.
+#: src/Admin/Diagnostics.php:908
+#: src/Compatibility/Requirements.php:205
+#, php-format
+msgid "%1$s %2$s (minimum %3$s)"
 msgstr ""
 
 #: src/Admin/Diagnostics.php:917
-msgid "All present"
+msgid "The database migration did not finish. Deactivate and reactivate the plugin, then check the PHP error log."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:919
-msgid "These tables are missing. Deactivate and reactivate the plugin."
+#: src/Admin/Diagnostics.php:920
+msgid "The database was already updated by a newer plugin version. This older version may not handle the data correctly; install the newer version again."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:927
-msgid "Table structure"
+#: src/Admin/Diagnostics.php:922
+msgid "License schema (installed / expected)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:928
-msgid "Matches this plugin version"
+#: src/Admin/Diagnostics.php:926
+msgid "Last migration error"
 msgstr ""
 
 #: src/Admin/Diagnostics.php:930
-msgid "Columns are missing or have another type than this version expects. The plugin repairs this in the next admin or cron request; if the row stays, check the database user's ALTER privilege."
+msgid "License tables"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:935
-msgid "WPLC_PAUSE_BILLING is set in wp-config.php"
+#: src/Admin/Diagnostics.php:931
+msgid "All present"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:936
-msgid "the database belongs to a newer plugin version"
+#: src/Admin/Diagnostics.php:933
+msgid "These tables are missing. Deactivate and reactivate the plugin."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:937
-msgid "the site address or database changed (copy or restore); confirm the notice at the top of the admin pages"
-msgstr ""
-
-#: src/Admin/Diagnostics.php:938
-msgid "the environment type is not \"production\""
+#: src/Admin/Diagnostics.php:941
+msgid "Table structure"
 msgstr ""
 
 #: src/Admin/Diagnostics.php:942
-#: src/Admin/Diagnostics.php:995
+msgid "Matches this plugin version"
+msgstr ""
+
+#: src/Admin/Diagnostics.php:944
+msgid "Columns are missing or have another type than this version expects. The plugin repairs this in the next admin or cron request; if the row stays, check the database user's ALTER privilege."
+msgstr ""
+
+#: src/Admin/Diagnostics.php:949
+msgid "WPLC_PAUSE_BILLING is set in wp-config.php"
+msgstr ""
+
+#: src/Admin/Diagnostics.php:950
+msgid "the database belongs to a newer plugin version"
+msgstr ""
+
+#: src/Admin/Diagnostics.php:951
+msgid "the site address or database changed (copy or restore); confirm the notice at the top of the admin pages"
+msgstr ""
+
+#: src/Admin/Diagnostics.php:952
+msgid "the environment type is not \"production\""
+msgstr ""
+
+#: src/Admin/Diagnostics.php:956
+#: src/Admin/Diagnostics.php:1009
 msgid "Running"
 msgstr ""
 
 #. translators: %s: reason.
-#: src/Admin/Diagnostics.php:945
+#: src/Admin/Diagnostics.php:959
 #, php-format
 msgid "Paused: %s"
 msgstr ""
 
 #. translators: %s: reason.
-#: src/Admin/Diagnostics.php:945
+#: src/Admin/Diagnostics.php:959
 msgid "the filter wplc_billing_paused"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:947
+#: src/Admin/Diagnostics.php:961
 msgid "Running (the pause was lifted by the filter wplc_billing_paused)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:950
+#: src/Admin/Diagnostics.php:964
 msgid "Charges, expiry and customer emails"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:953
+#: src/Admin/Diagnostics.php:967
 msgid "While paused nothing is charged, no license expires and no reminder or status email is sent. The API keeps answering."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:958
+#: src/Admin/Diagnostics.php:972
 msgid "Processing gap"
 msgstr ""
 
 #. translators: %s: date and time.
-#: src/Admin/Diagnostics.php:960
+#: src/Admin/Diagnostics.php:974
 #, php-format
 msgid "Licenses that became due during the gap are not expired before %s"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:962
+#: src/Admin/Diagnostics.php:976
 msgid "The plugin was inactive, billing was paused or the daily run stood still. Renewals and orders of that time are caught up first."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:967
+#: src/Admin/Diagnostics.php:981
 msgid "Server time (UTC) / site time"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:973
+#: src/Admin/Diagnostics.php:987
 msgid "Database time (UTC)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:976
+#: src/Admin/Diagnostics.php:990
 msgid "The clocks of the web server and the database differ by more than two minutes. Signed API requests and expiry dates depend on them."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:979
+#: src/Admin/Diagnostics.php:993
 msgid "HTTPS"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:979
+#: src/Admin/Diagnostics.php:993
 msgid "Enabled"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:979
+#: src/Admin/Diagnostics.php:993
 msgid "Not detected"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:980
+#: src/Admin/Diagnostics.php:994
 msgid "OpenSSL"
 msgstr ""
 
 #. translators: 1: bucket name, 2: host name of the storage endpoint.
-#: src/Admin/Diagnostics.php:985
-#: src/Admin/Diagnostics.php:987
-#: src/Admin/Diagnostics.php:989
+#: src/Admin/Diagnostics.php:999
+#: src/Admin/Diagnostics.php:1001
+#: src/Admin/Diagnostics.php:1003
 msgid "Object storage (S3-compatible)"
 msgstr ""
 
 #. translators: 1: bucket name, 2: host name of the storage endpoint.
-#: src/Admin/Diagnostics.php:985
+#: src/Admin/Diagnostics.php:999
 #, php-format
 msgid "Bucket %1$s on %2$s"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:987
+#: src/Admin/Diagnostics.php:1001
 msgid "Invalid configuration"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:989
+#: src/Admin/Diagnostics.php:1003
 msgid "Not configured"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:996
+#: src/Admin/Diagnostics.php:1010
 msgid "Not run yet"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:997
+#: src/Admin/Diagnostics.php:1011
 msgid "Not run for more than 26 hours"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:998
+#: src/Admin/Diagnostics.php:1012
 msgid "Started, but did not finish"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1001
+#: src/Admin/Diagnostics.php:1015
 msgid "Last daily run"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1004
+#: src/Admin/Diagnostics.php:1018
 msgid "Licenses do not expire, failed payments are not retried and reminders are not sent. Check WP-Cron or the server cron job and the PHP error log."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1008
+#: src/Admin/Diagnostics.php:1022
 msgid "Next daily run"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1009
+#: src/Admin/Diagnostics.php:1023
 msgid "Not scheduled"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1011
+#: src/Admin/Diagnostics.php:1025
 msgid "Deactivate and reactivate the plugin to schedule it again."
 msgstr ""
 
 #. translators: %s: internal job name.
-#: src/Admin/Diagnostics.php:1018
+#: src/Admin/Diagnostics.php:1032
 #, php-format
 msgid "Last run: %s"
 msgstr ""
 
 #. translators: %s: internal job name.
-#: src/Admin/Diagnostics.php:1024
+#: src/Admin/Diagnostics.php:1038
 #, php-format
 msgid "Last failure: %s"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1027
+#: src/Admin/Diagnostics.php:1041
 msgid "The job threw an error and was skipped; the jobs after it still ran. The full message is in the WooCommerce log (source wp-license)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1033
+#: src/Admin/Diagnostics.php:1047
 #: src/Admin/Settings.php:835
 msgid "Action Scheduler"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1036
+#: src/Admin/Diagnostics.php:1050
 msgid "Scheduled work falls back to WP-Cron, which is less reliable."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1039
+#: src/Admin/Diagnostics.php:1053
 msgid "Failed scheduled actions (group wplc)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1039
+#: src/Admin/Diagnostics.php:1053
 msgid "Open WooCommerce → Status → Scheduled Actions, filter by \"Failed\" and search for \"wplc\" to see the error of each action."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1045
+#: src/Admin/Diagnostics.php:1059
 #: src/Admin/Settings.php:825
 msgid "Automatic renewal (Stripe)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1052
+#: src/Admin/Diagnostics.php:1066
 msgid "License emails switched off"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1053
-#: src/Admin/Diagnostics.php:1148
+#: src/Admin/Diagnostics.php:1067
+#: src/Admin/Diagnostics.php:1162
 msgid "None"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1055
+#: src/Admin/Diagnostics.php:1069
 msgid "These emails are switched off under WooCommerce → Settings → Emails and are not sent to customers (each skipped email is logged under the source wp-license)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1057
+#: src/Admin/Diagnostics.php:1071
 msgid "Stripe gateway version"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1057
+#: src/Admin/Diagnostics.php:1071
 msgid "Not loaded"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1059
+#: src/Admin/Diagnostics.php:1073
 #: src/Admin/Settings.php:775
 msgid "Stripe webhook secret"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1059
+#: src/Admin/Diagnostics.php:1073
 msgid "Set"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1059
+#: src/Admin/Diagnostics.php:1073
 msgid "Not set. Stripe events are rejected."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1060
+#: src/Admin/Diagnostics.php:1074
 msgid "Last valid Stripe event"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1062
+#: src/Admin/Diagnostics.php:1076
 msgid "Last Stripe event in live mode"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1062
+#: src/Admin/Diagnostics.php:1076
 msgid "Last Stripe event in test mode"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1069
+#: src/Admin/Diagnostics.php:1083
 msgid "Last rejected Stripe webhook request"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1072
+#: src/Admin/Diagnostics.php:1086
 msgid "A request to the webhook URL had no valid signature. If this repeats, the signing secret in wp-config.php does not match the endpoint in the Stripe dashboard (live and test mode have different secrets)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1075
+#: src/Admin/Diagnostics.php:1089
 msgid "Minutes with rejected Stripe webhook requests (24 hours)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1075
+#: src/Admin/Diagnostics.php:1089
 msgid "Requests to the webhook URL without a valid signature, counted at most once a minute. A few can be scans of the URL; many mean that the signing secret does not match the endpoint in the Stripe dashboard."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1076
+#: src/Admin/Diagnostics.php:1090
 msgid "Pending Stripe events"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1076
+#: src/Admin/Diagnostics.php:1090
 msgid "Events that were received but not processed yet. They are retried by the background queue."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1077
+#: src/Admin/Diagnostics.php:1091
 msgid "Stripe events needing review (24 hours)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1077
+#: src/Admin/Diagnostics.php:1091
 msgid "The event could not be matched to a renewal. Compare the payment in the Stripe dashboard with the renewal order."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1078
+#: src/Admin/Diagnostics.php:1092
 msgid "Stuck renewals (job not run, grace period over)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1078
+#: src/Admin/Diagnostics.php:1092
 msgid "Renewals whose queued attempt or check should have run more than an hour ago, or whose grace period ended without the license being expired. Renewals waiting for their next retry are not counted."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1079
+#: src/Admin/Diagnostics.php:1093
 msgid "Renewals stuck in processing (over 1 hour)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1079
+#: src/Admin/Diagnostics.php:1093
 msgid "A payment attempt started and never reported back. Check the renewal order and the payment in Stripe before anything is retried."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1080
+#: src/Admin/Diagnostics.php:1094
 msgid "Renewals needing review (unknown payment result, payment not applied)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1080
+#: src/Admin/Diagnostics.php:1094
 msgid "The payment provider did not give a final answer and the automatic check could not resolve it. Compare the renewal order with the payment in the provider's dashboard, then extend the license by hand or cancel the order. Nothing is charged again automatically."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1081
+#: src/Admin/Diagnostics.php:1095
 msgid "Licenses with automatic renewal but no open renewal"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1081
+#: src/Admin/Diagnostics.php:1095
 msgid "These licenses would not be charged at the end of their term. The daily run schedules missing renewals."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1082
+#: src/Admin/Diagnostics.php:1096
 msgid "Paid renewals without extension"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1082
+#: src/Admin/Diagnostics.php:1096
 msgid "The latest renewal of these licenses is paid, but the license does not run until the end of the paid period. Extend the term by hand or refund the order."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1083
+#: src/Admin/Diagnostics.php:1097
 msgid "Unused expired download grants"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1086
+#: src/Admin/Diagnostics.php:1100
 msgid "License products without a plan"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1086
+#: src/Admin/Diagnostics.php:1100
 msgid "These products are ticked as license product but have no product key and plan. They are sold without a license. Open the product and complete the license fields."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1088
+#: src/Admin/Diagnostics.php:1102
 msgid "Paid orders without their licenses"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1088
+#: src/Admin/Diagnostics.php:1102
 msgid "A license could not be created for these orders; the reason is in the order notes. Issuing is retried daily."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1092
+#: src/Admin/Diagnostics.php:1106
 msgid "Update packages"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1099
+#: src/Admin/Diagnostics.php:1113
 #: src/Admin/Settings.php:814
 msgid "License keys verifiable with the current secret"
 msgstr ""
 
 #. translators: 1: number of verifiable keys, 2: number of checked keys.
-#: src/Admin/Diagnostics.php:1101
+#: src/Admin/Diagnostics.php:1115
 #: src/Admin/Settings.php:816
 #, php-format
 msgid "%1$s of the %2$s most recent key"
@@ -2503,267 +2528,267 @@ msgid_plural "%1$s of the %2$s most recent keys"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Diagnostics.php:1103
+#: src/Admin/Diagnostics.php:1117
 msgid "The secret or the salts were changed. Customers with these keys see \"not available\" and their sites cannot be activated again. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1107
+#: src/Admin/Diagnostics.php:1121
 msgid "Secrets in wp-config.php"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1108
+#: src/Admin/Diagnostics.php:1122
 msgid "Not configured; the WordPress salts are used"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1108
+#: src/Admin/Diagnostics.php:1122
 msgid "Configured"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1113
+#: src/Admin/Diagnostics.php:1127
 msgid "the PHP extension sodium is missing"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1114
+#: src/Admin/Diagnostics.php:1128
 msgid "WPLC_RESPONSE_SIGNING_KEY is not a valid key"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1115
+#: src/Admin/Diagnostics.php:1129
 msgid "the stored key cannot be decrypted with the configured secrets"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1116
+#: src/Admin/Diagnostics.php:1130
 msgid "the stored key is damaged"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1117
+#: src/Admin/Diagnostics.php:1131
 msgid "the stored key is gone"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1118
+#: src/Admin/Diagnostics.php:1132
 msgid "the key could not be encrypted for storage"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1119
+#: src/Admin/Diagnostics.php:1133
 msgid "the key could not be stored"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1120
+#: src/Admin/Diagnostics.php:1134
 msgid "another request is creating the key"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1121
+#: src/Admin/Diagnostics.php:1135
 msgid "no key available"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1125
+#: src/Admin/Diagnostics.php:1139
 msgid "Response signing key (Ed25519, public)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1127
+#: src/Admin/Diagnostics.php:1141
 msgid "stored in the database"
 msgstr ""
 
 #. translators: %s: reason.
-#: src/Admin/Diagnostics.php:1129
+#: src/Admin/Diagnostics.php:1143
 #, php-format
 msgid "Unavailable: %s"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1132
+#: src/Admin/Diagnostics.php:1146
 msgid "The key is stored encrypted in the database. For a production server, keep it in wp-config.php as WPLC_RESPONSE_SIGNING_KEY (\"wp wplc signing-key\"), so a restored or copied database cannot change it."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1133
+#: src/Admin/Diagnostics.php:1147
 msgid "API responses are sent without the Ed25519 signature. Add-ons that require it treat the license server as unreachable."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1137
+#: src/Admin/Diagnostics.php:1151
 msgid "Installation secrets encrypted with an old key"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1140
+#: src/Admin/Diagnostics.php:1154
 msgid "Run \"wp wplc rotate-installation-secrets\" before you remove the previous encryption key from wp-config.php."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1142
+#: src/Admin/Diagnostics.php:1156
 msgid "Rejected API requests today (UTC)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1142
+#: src/Admin/Diagnostics.php:1156
 msgid "Rejected API requests yesterday (UTC)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1154
+#: src/Admin/Diagnostics.php:1168
 msgid "Database locks (GET_LOCK)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1155
+#: src/Admin/Diagnostics.php:1169
 msgid "Working"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1155
+#: src/Admin/Diagnostics.php:1169
 msgid "Not working"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1157
+#: src/Admin/Diagnostics.php:1171
 msgid "Activations and renewals rely on named database locks. They fail behind database proxies that spread a request over several connections and on clusters with several writing nodes."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1162
+#: src/Admin/Diagnostics.php:1176
 msgid "This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/manual/09-operations.md)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1163
+#: src/Admin/Diagnostics.php:1177
 msgid "This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/manual/09-operations.md)."
 msgstr ""
 
 #. translators: %s: PHP class name of the database layer.
-#: src/Admin/Diagnostics.php:1165
-#: src/Admin/Diagnostics.php:1168
-#: src/Admin/Diagnostics.php:1170
+#: src/Admin/Diagnostics.php:1179
+#: src/Admin/Diagnostics.php:1182
+#: src/Admin/Diagnostics.php:1184
 msgid "Database layer"
 msgstr ""
 
 #. translators: %s: PHP class name of the database layer.
-#: src/Admin/Diagnostics.php:1165
+#: src/Admin/Diagnostics.php:1179
 #, php-format
 msgid "%s (read/write splitting)"
 msgstr ""
 
 #. translators: %s: PHP class name of the database layer.
-#: src/Admin/Diagnostics.php:1168
+#: src/Admin/Diagnostics.php:1182
 #, php-format
 msgid "%s (db.php drop-in)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1174
+#: src/Admin/Diagnostics.php:1188
 msgid "Client address of this request"
 msgstr ""
 
 #. translators: 1: address used for rate limits, 2: address of the direct peer.
-#: src/Admin/Diagnostics.php:1176
+#: src/Admin/Diagnostics.php:1190
 #, php-format
 msgid "%1$s (direct peer: %2$s)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1178
+#: src/Admin/Diagnostics.php:1192
 msgid "The direct peer is a private address, so a proxy or load balancer sits in front of this server, but WPLC_TRUSTED_PROXY_HEADER and WPLC_TRUSTED_PROXIES are not both defined. All customers then share one rate limit."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1181
+#: src/Admin/Diagnostics.php:1195
 msgid "Proxy constants"
 msgstr ""
 
 #. translators: 1: header name or "not set", 2: "set" or "not set".
-#: src/Admin/Diagnostics.php:1184
+#: src/Admin/Diagnostics.php:1198
 #, php-format
 msgid "WPLC_TRUSTED_PROXY_HEADER: %1$s; WPLC_TRUSTED_PROXIES: %2$s"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1185
-#: src/Admin/Diagnostics.php:1186
+#: src/Admin/Diagnostics.php:1199
+#: src/Admin/Diagnostics.php:1200
 msgid "not set"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1186
+#: src/Admin/Diagnostics.php:1200
 msgid "set"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1191
+#: src/Admin/Diagnostics.php:1205
 msgid "Proxy header ignored"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1191
+#: src/Admin/Diagnostics.php:1205
 msgid "Not used"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1220
+#: src/Admin/Diagnostics.php:1234
 msgid "None received yet"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1230
+#: src/Admin/Diagnostics.php:1244
 msgid "Site cleanup helper (must-use)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1233
+#: src/Admin/Diagnostics.php:1247
 msgid "Installed"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1237
+#: src/Admin/Diagnostics.php:1251
 msgid "Older copy installed"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1237
+#: src/Admin/Diagnostics.php:1251
 msgid "Run wp wplc schema install-mu-helper to replace it with the version shipped with this plugin."
 msgstr ""
 
 #. translators: %s: file name.
-#: src/Admin/Diagnostics.php:1242
+#: src/Admin/Diagnostics.php:1256
 #, php-format
 msgid "Another file named %s is in the must-use directory"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1246
+#: src/Admin/Diagnostics.php:1260
 msgid "Not installed (not needed while the plugin is network-activated)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1249
+#: src/Admin/Diagnostics.php:1263
 msgid "Not installed"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1249
+#: src/Admin/Diagnostics.php:1263
 msgid "If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/manual/09-operations.md)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1274
+#: src/Admin/Diagnostics.php:1288
 msgid "WP License Captain diagnostics"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1275
+#: src/Admin/Diagnostics.php:1289
 msgid "Read-only environment details for support. No license key, installation secret, token, or payment credential is displayed."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1280
+#: src/Admin/Diagnostics.php:1294
 msgid "OK:"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1282
+#: src/Admin/Diagnostics.php:1296
 msgid "Warning:"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1293
+#: src/Admin/Diagnostics.php:1307
 msgid "Open \"Renewals to review\""
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1319
+#: src/Admin/Diagnostics.php:1333
 msgid "Stripe events that need attention"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1321
+#: src/Admin/Diagnostics.php:1335
 msgid "None."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1324
+#: src/Admin/Diagnostics.php:1338
 msgid "Look the event up in the Stripe dashboard by its ID and compare the payment with the renewal order of the license. The latest 50 are shown."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1326
+#: src/Admin/Diagnostics.php:1340
 msgid "Received"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1326
+#: src/Admin/Diagnostics.php:1340
 msgid "Stripe event ID"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1326
+#: src/Admin/Diagnostics.php:1340
 msgid "Type"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1326
+#: src/Admin/Diagnostics.php:1340
 msgid "Outcome"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1326
+#: src/Admin/Diagnostics.php:1340
 msgid "Processed"
 msgstr ""
 
@@ -6274,44 +6299,74 @@ msgstr ""
 msgid "More licenses follow (--max-rows). Continue with --after-id=%d."
 msgstr ""
 
+#. translators: 1: minimum MySQL version, 2: minimum MariaDB version, 3: MySQL or MariaDB, 4: version of this database server.
+#: src/Compatibility/Requirements.php:156
+#, php-format
+msgid "WP License Captain supports MySQL %1$s or later and MariaDB %2$s or later; this site uses %3$s %4$s. Nothing is blocked, but older database servers are not tested. Ask your host for an update."
+msgstr ""
+
+#: src/Compatibility/Requirements.php:183
+msgid "WP License Captain: PHP and database versions"
+msgstr ""
+
+#. translators: 1: running PHP version, 2: minimum PHP version.
+#: src/Compatibility/Requirements.php:202
+#, php-format
+msgid "PHP %1$s (minimum %2$s)"
+msgstr ""
+
+#. translators: 1: minimum MySQL version, 2: minimum MariaDB version.
+#: src/Compatibility/Requirements.php:207
+#, php-format
+msgid "Database server version unknown (minimum MySQL %1$s or MariaDB %2$s)"
+msgstr ""
+
+#: src/Compatibility/Requirements.php:224
+msgid "PHP and the database server meet the requirements of WP License Captain"
+msgstr ""
+
+#: src/Compatibility/Requirements.php:225
+msgid "PHP or the database server is older than WP License Captain supports"
+msgstr ""
+
 #. translators: 1: required WooCommerce version, 2: installed WooCommerce version.
-#: src/Compatibility/Requirements.php:135
+#: src/Compatibility/Requirements.php:350
 #, php-format
 msgid "WP License Captain requires WooCommerce %1$s or later; version %2$s is installed. Licenses keep working, but the automatic renewal option is not offered in the block checkout until WooCommerce is updated."
 msgstr ""
 
-#: src/Compatibility/Requirements.php:137
+#: src/Compatibility/Requirements.php:352
 #: src/Gateway/StripeRecurringAdapter.php:1261
 msgid "unknown"
 msgstr ""
 
-#: src/Compatibility/Requirements.php:225
+#: src/Compatibility/Requirements.php:440
 msgid "The WooCommerce Stripe Gateway is not active."
 msgstr ""
 
 #. translators: 1: installed Stripe gateway version, 2: required version.
-#: src/Compatibility/Requirements.php:232
+#: src/Compatibility/Requirements.php:447
 #, php-format
 msgid "WooCommerce Stripe Gateway %1$s is too old for automatic renewals; version %2$s or later is required."
 msgstr ""
 
 #. translators: 1: installed Stripe gateway version, 2: list of missing PHP classes or methods.
-#: src/Compatibility/Requirements.php:239
+#: src/Compatibility/Requirements.php:454
 #, php-format
 msgid "WooCommerce Stripe Gateway %1$s no longer provides the functions the renewal adapter needs (%2$s). Automatic renewals are switched off."
 msgstr ""
 
 #. translators: 1: installed Stripe gateway version, 2: newest verified version.
-#: src/Compatibility/Requirements.php:246
+#: src/Compatibility/Requirements.php:461
 #, php-format
 msgid "WooCommerce Stripe Gateway %1$s is newer than the last verified version %2$s. Automatic renewals stay enabled; test a renewal after gateway updates."
 msgstr ""
 
-#: src/Compatibility/Requirements.php:310
+#: src/Compatibility/Requirements.php:525
 msgid "The Stripe payment method is not enabled in WooCommerce."
 msgstr ""
 
-#: src/Compatibility/Requirements.php:317
+#: src/Compatibility/Requirements.php:532
 msgid "Saved payment methods are switched off in the Stripe settings, so there is no card to renew with."
 msgstr ""
 
@@ -7409,21 +7464,17 @@ msgstr ""
 msgid "Amount from %s"
 msgstr ""
 
-#: src/Plugin.php:129
-msgid "WP License Captain requires PHP 7.4 or later."
-msgstr ""
-
-#: src/Plugin.php:133
+#: src/Plugin.php:142
 msgid "Please activate WooCommerce before activating WP License Captain."
 msgstr ""
 
 #. translators: %s: minimum WooCommerce version.
-#: src/Plugin.php:141
+#: src/Plugin.php:150
 #, php-format
 msgid "WP License Captain requires WooCommerce %s or later."
 msgstr ""
 
-#: src/Plugin.php:453
+#: src/Plugin.php:464
 msgid "WP License Captain requires WooCommerce to be installed and active."
 msgstr ""
 
@@ -8763,4 +8814,10 @@ msgstr ""
 
 #: templates/wplc-cancel.php:113
 msgid "With a customer account you can also cancel there:"
+msgstr ""
+
+#. translators: 1: minimum PHP version, 2: running PHP version.
+#: wp-license.php:42
+#, php-format
+msgid "WP License Captain requires PHP %1$s or later; this site runs PHP %2$s. The plugin is not loaded until PHP is updated."
 msgstr ""
