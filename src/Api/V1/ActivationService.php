@@ -486,7 +486,7 @@ final class ActivationService {
 		if ( is_string( $reported_url ) && '' !== $reported_url ) {
 			$reported_key = SiteUrl::comparison_key( $reported_url );
 			if ( '' === $reported_key || SiteUrl::comparison_key( (string) $activation['site_url'] ) !== $reported_key ) {
-				return new \WP_Error( 'site_mismatch', 'This activation belongs to another site address and was not deactivated.', array( 'status' => 409 ) );
+				return self::site_mismatch_error( $activation );
 			}
 		}
 
@@ -506,6 +506,37 @@ final class ActivationService {
 		} finally {
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
 		}
+	}
+
+	/**
+	 * Signed `409 site_mismatch` for the release of an activation from another address (AL-6).
+	 *
+	 * Signed like the refusal of a released activation: `data.signed` is an envelope bound to the
+	 * request nonce with `site_match: false`, so the client can tell it from an answer of anyone
+	 * between the site and the server. The client then forgets its local credentials; the
+	 * activation stays active for its own address. The stored address is not disclosed. Clients
+	 * before 2.1.0 ignore `data.signed` and keep their credentials, as before.
+	 *
+	 * @param array<string,mixed> $activation Authenticated activation (with `installation_secret`, `request_nonce`, `installation_uuid`).
+	 * @return \WP_Error
+	 */
+	public static function site_mismatch_error( array $activation ): \WP_Error {
+		$data = array(
+			'activation_id' => (int) $activation['id'],
+			'installation_id' => (string) $activation['installation_uuid'],
+			'activation_status' => (string) $activation['status'],
+			'site_match' => false,
+			'server_time' => gmdate( 'Y-m-d H:i:s' ),
+		);
+
+		return new \WP_Error(
+			'site_mismatch',
+			'This activation belongs to another site address and was not deactivated.',
+			array(
+				'status' => 409,
+				'signed' => Response::envelope( $data, (string) $activation['installation_secret'], (string) $activation['request_nonce'], (string) $activation['installation_uuid'] ),
+			)
+		);
 	}
 
 	/**

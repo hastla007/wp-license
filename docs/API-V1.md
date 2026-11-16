@@ -274,6 +274,14 @@ The response is `EntitlementData` as described above. `404 license_not_found` me
 
 Optional JSON body: `{"site_url": "https://shop.example"}`. When `site_url` is sent it must be the activated site (comparison key); otherwise the server answers `409 site_mismatch` and deactivates nothing. This keeps a copy of a site (staging clone with the copied credentials) from ending the activation of the original. Clients should always send their current address and, on `site_mismatch`, only remove their local credentials.
 
+Since 16 Nov 2026 (AL-6) the `409 site_mismatch` is **signed** like the refusal of a released installation: `data.signed` is a complete envelope whose payload echoes the nonce of the request and carries
+
+```json
+{"activation_id": 123, "installation_id": "…", "activation_status": "active", "site_match": false, "server_time": "2026-11-16 10:00:00"}
+```
+
+The stored address of the activation is not disclosed. A client verifies the envelope like any other signed answer (HMAC, Ed25519 with the pinned key, nonce) and, when `site_match` is `false`, removes its local credentials; the activation stays active for its own address. Without a verified `data.signed` (servers before this change, or anyone between the site and the server) a client keeps its credentials, as before. The client library does this since version 2.1.0 (`LicenseClient::is_signed_site_mismatch()`, result `status: removed_locally`, `reason: site_mismatch`); older clients ignore `data.signed`.
+
 `403 activation_mismatch`: the path does not name the activation of the signing installation. Success and repeated calls: `200` with signed `{"activation_id": 123, "status": "deactivated"}`.
 
 ## Update check and download
@@ -329,7 +337,7 @@ The product client must verify the signatures of the metadata and the SHA-256 of
 | `site_move_refused` | 409 | activations | A live activation tried to move to a staging, local or hosting-staging address; `data.site_url` is the activated address. Activate the copy as a staging site with a new installation ID. |
 | `installation_conflict` | 409 | activations | The installation ID exists with another secret, license or environment. Generate a new one. |
 | `activation_conflict` | 409 | activations | The installation ID was taken at the same moment. Retry with a new one. |
-| `site_mismatch` | 409 | deactivation | The `site_url` of the request is not the activated site; nothing was deactivated. |
+| `site_mismatch` | 409 | deactivation | The `site_url` of the request is not the activated site; nothing was deactivated. `data.signed` carries the signed envelope with `site_match: false` (see [Deactivation](#deactivation)). |
 | `deactivation_failed` | 409 | deactivation | The activation changed at the same moment. Retry. |
 | `request_replayed` | 409 | signed | The nonce was already used. Retry with a new nonce. |
 | `rate_limited` | 429 | all | Too many requests; wait `Retry-After` seconds. Not a license problem. |

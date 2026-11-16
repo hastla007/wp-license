@@ -170,7 +170,7 @@
             "$ref": "#/components/responses/ApiError"
           }
         },
-        "description": "Parameters are read only from the signed JSON body. Error codes: 400 request_parameters_unsigned (query parameters, or a body that is not application/json); 401 invalid_request_signature, request_expired, activation_not_found (unknown installation or wrong signature), installation_secret_invalid; 403 activation_mismatch; 409 site_mismatch (the site_url in the body is not the activated site; nothing was deactivated), deactivation_failed, request_replayed; 429 rate_limited; 503 retry_later, rate_limit_store_unavailable, replay_store_unavailable.",
+        "description": "Parameters are read only from the signed JSON body. Error codes: 400 request_parameters_unsigned (query parameters, or a body that is not application/json); 401 invalid_request_signature, request_expired, activation_not_found (unknown installation or wrong signature), installation_secret_invalid; 403 activation_mismatch; 409 site_mismatch (the site_url in the body is not the activated site; nothing was deactivated; data.signed carries a SignedEnvelope with SiteMismatchData, bound to the request nonce: a client that verifies it removes only its local credentials), deactivation_failed, request_replayed; 429 rate_limited; 503 retry_later, rate_limit_store_unavailable, replay_store_unavailable.",
         "requestBody": {
           "required": false,
           "content": {
@@ -640,6 +640,7 @@
       },
       "ApiError": {
         "type": "object",
+        "description": "data.signed: activation_deactivated carries a SignedEnvelope with DeactivatedData, site_mismatch of DELETE /activations/{activation_id} one with SiteMismatchData. Both are verified like a 200 answer (HMAC, Ed25519, nonce of the request).",
         "required": [
           "code",
           "message",
@@ -858,6 +859,40 @@
             "enum": [
               "deactivated"
             ]
+          }
+        }
+      },
+      "SiteMismatchData": {
+        "type": "object",
+        "description": "Signed data of 409 site_mismatch: the activation belongs to another address and was not deactivated. The stored address is not disclosed.",
+        "required": [
+          "activation_id",
+          "installation_id",
+          "activation_status",
+          "site_match",
+          "server_time"
+        ],
+        "properties": {
+          "activation_id": {
+            "type": "integer"
+          },
+          "installation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "activation_status": {
+            "type": "string",
+            "description": "Status of the activation, which this request did not change (active)."
+          },
+          "site_match": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "server_time": {
+            "type": "string",
+            "description": "UTC, YYYY-MM-DD HH:MM:SS."
           }
         }
       },
