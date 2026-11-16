@@ -289,18 +289,18 @@ When a license is issued, it stores the **regular price of the product or variat
 
 This matters for variable products that are mapped only on the parent product: the plan of such a mapping holds the lowest variation price, because WooCommerce reports the lowest variation price for a variable parent. Before T-132 every variation renewed at that lowest price (a variation bought for 79.00 renewed for 59.00).
 
-### Automatic renewal
+### Price guarantee: automatic and manual renewal
 
-Charges exactly the stored amount. A later price change in the shop does not change it: the customer consented to off-session charges of that amount, and raising it without notice is not acceptable.
+Both bill exactly the stored amount, the price of the purchase day (owner decision of 16 Nov 2026, INH-01). A later price change in the shop reaches new purchases only; it does not change what an existing license pays, whether the customer renews automatically or by hand. For the automatic renewal this is also a matter of consent: the customer agreed to off-session charges of that amount.
 
-### Manual renewal
+A manual renewal is priced from the catalog only when the license has no stored amount (`renewal_amount_minor = 0`, for example a license issued without a price):
 
-The customer sees the amount on the pay page before paying, so the manual renewal follows the shop's current price of what the customer bought:
+1. The current regular price of `renewal_product_id`, if that product or variation still exists and has a price.
+2. For licenses issued before schema 13 (`renewal_product_id = 0`) the product is resolved through the source order line (`source_order_id`, `source_order_item_id`); if that does not resolve either, the plan price is used.
 
-1. The current regular price of `renewal_product_id`, if that product or variation still exists and has a price. A later regular-price change of the variation therefore applies to manual renewals. This keeps the earlier rule ("current catalog price") but applies it to the bought variation instead of the plan.
-2. If the product or variation was deleted or has no price: the stored amount, i.e. the price of that variation at purchase. The plan price is not used, because for parent-level mappings it is the lowest variation price.
+An automatic renewal without a stored amount is not charged ("This license has no renewal price").
 
-Licenses issued before schema 13 have `renewal_product_id = 0`. For them the product is resolved through the source order line (`source_order_id`, `source_order_item_id`). If that does not resolve either, the plan price is used as before, and the stored amount when the plan has no price.
+**Changing the agreed amount of one license.** The shop lowers it with the support action "Change renewal amount" on the license page (capability `wplc_manage_licenses`, reason required, audit `admin_renewal_amount_changed`; see [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md)). The action is offered for active and past-due licenses with or without automatic renewal. Raising is refused unless the filter `wplc_admin_can_raise_renewal_amount` allows it, which a shop may only do after the customer agreed to the new amount. A change of plan (upgrade, downgrade) sets the amount of the new plan as described under "Plan changes". There is no bulk action that moves all existing licenses to a new price list.
 
 The order line always uses the bought product (or, if it is gone, the plan's product), so its tax class applies.
 
@@ -377,7 +377,7 @@ The catalog has no ranking of plans: a plan whose current regular price is highe
 
 **Contract price** (`PlanChange::contract_price()`, P-06): what the customer pays for the current period, not today's catalog price of the purchased product. A later price change in the catalog therefore neither turns a more expensive plan into a free "downgrade" (Single bought for 49.00, Single now 199.00, Business 149.00: Business is still an upgrade) nor changes the credit of an upgrade.
 
-1. The pre-tax amount (`_wplc_renewal_net_minor`) of the paid renewal order of the current period, if that order billed the license's current plan (`renewal_product_id`) and no upgrade was applied since (`plan_order_id = 0`). This is what a manual renewal paid at the then current catalog price.
+1. The pre-tax amount (`_wplc_renewal_net_minor`) of the paid renewal order of the current period, if that order billed the license's current plan (`renewal_product_id`) and no upgrade was applied since (`plan_order_id = 0`). This is what the last renewal of this period paid.
 2. Otherwise the stored renewal amount (`renewal_amount_minor`: the regular price at purchase, or the amount set by the last plan change), read with its gross/net flag `renewal_amount_includes_tax`.
 3. Only for old rows without a stored amount: the current regular price of the purchased product.
 
@@ -430,7 +430,7 @@ The account page shows "Switch to … at the next renewal" for each downgrade ta
 
 The next renewal is billed with the pending plan (`RenewalOrder::price()`, `RenewalOrder::choose_pending_price()`):
 
-- manual renewal: the current regular price of the pending plan's product, with that product on the order line;
+- manual renewal: the current regular price of the pending plan's product, with that product on the order line (a change of plan is a new agreement; the price guarantee covers the plan the customer has);
 - automatic renewal: that price, but never more than the stored amount (consent);
 - if the pending product has no usable price (deleted, other currency), the renewal is billed with the current plan and the change waits.
 
@@ -478,7 +478,7 @@ The stored price is a catalog price. How it is read is decided per license by `l
 | `1` | The amount is gross. The shop base tax is removed to get the net line; for a customer taxed like the shop base the order total must equal the amount (one minor unit of rounding tolerated), otherwise the order is closed and the renewal is blocked with `renewal_amount_mismatch`. |
 | `0` | The amount is net. Tax of the customer's location is added. |
 
-Manual renewals use the current catalog price and read it by the current shop setting. WooCommerce calculates tax from the billing address of the order. The pre-tax line total is stored in `_wplc_renewal_net_minor` and compared (integer minor units, no floats) before an automatic charge and before a payment is booked. Amounts are compared with `WPLC\Billing\Money`.
+Manual renewals bill the same stored amount and read it by the same flag (INH-01); only a manual renewal of a license without a stored amount uses the current catalog price, read by the current shop setting. WooCommerce calculates tax from the billing address of the order. The pre-tax line total is stored in `_wplc_renewal_net_minor` and compared (integer minor units, no floats) before an automatic charge and before a payment is booked. Amounts are compared with `WPLC\Billing\Money`.
 
 ## Requirements and limits
 
@@ -494,8 +494,8 @@ Manual renewals use the current catalog price and read it by the current shop se
 - A paid manual renewal that is rejected is not refunded automatically; "Renewals to review" links to the order, the refund is made there. The events `wplc/renewal_needs_review`, `wplc/renewal_blocked`, `wplc/license_needs_review` and `wplc/renewal_lock_unavailable` are passed on as `wplc/health_alert`.
 - A suspended license whose paid period has ended cannot be reactivated by "Reactivate"; use "Restore with a new end date" (or close the review case).
 - Partial refunds of renewal orders are ignored.
-- Licenses with automatic renewal that were issued before schema 13 for a variation of a parent-mapped variable product keep the stored amount, which may be the lowest variation price. It is not raised automatically; their manual renewals use the variation price.
-- The manual price (current catalog price) and the automatic price (amount agreed at purchase) of the same period can differ.
+- Licenses that were issued before schema 13 for a variation of a parent-mapped variable product keep the stored amount, which may be the lowest variation price. It is not raised automatically, neither for automatic nor for manual renewals (before INH-01 their manual renewals used the variation price). The shop cannot correct it upwards without the customer's consent (filter `wplc_admin_can_raise_renewal_amount`).
+- The price guarantee has no end: an existing license never follows a price increase. A way to move existing licenses to a new price with notice and consent does not exist (follow-up task INH-05 in `docs/TODO.md`).
 - The currency of a renewal is the one stored at purchase; a later change of the shop currency is not handled.
 - A purchase with quantity N creates N licenses and N separate renewal charges.
 - Deleting or trashing an order does not change its licenses.

@@ -6,6 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Changed (16 Nov 2026, owner decisions)
+
+- **Price guarantee for renewals (INH-01).** A manual renewal now bills the amount stored on the license at purchase, exactly like the automatic renewal. Before, it used the current regular price of the purchased product, so a price change in the shop reached customers who renew by hand but not those who renew automatically. A license without a stored amount is still priced from the catalog when the customer renews by hand. A plan change scheduled for the next renewal is billed at the price of the new plan, as before. The support action "Change renewal amount" is now also offered for licenses without automatic renewal. **Behaviour change for shops:** raising a product price no longer changes what existing licenses pay.
+- **Entitlement catalog (R-24).** The keys `affiliate.priority_support`, `voucher.priority_support` and `pass.priority_support` are removed; support is the plan attribute `support.level`. A plan or license that stores one of the keys keeps it in the advanced JSON field.
+- **German (B-120).** `de_DE` is now an informal ("du") translation, as in WordPress and WooCommerce; 358 of 1,577 texts differ from `de_DE_formal`, which stays formal ("Sie"). Shops that want the formal texts set the site language to "Deutsch (Sie)". `de_AT`, `de_CH` and other German variants keep loading `de_DE_formal`.
+- Documentation: the Stripe webhook is named as the authoritative reconciliation of payment events (`docs/STRIPE-WEBHOOKS.md`).
+
 ### Changed (16 Nov 2026)
 
 - Entitlement catalog: the product editor offers only keys of functions a released premium add-on ships. Removed are 17 keys that named functions of the free core plugins (eight `affiliate.*`, eight `voucher.*`, `voucher.staff_roles`); a plan or license that still stores one keeps it (advanced JSON field). Six keys of planned functions (`affiliate.store_credit`, `affiliate.stripe_connect`, `affiliate.leaderboard`, `affiliate.multi_tier`, `affiliate.multiple_programs`, `voucher.white_label`) are offered only with the new filter `wplc_offer_planned_entitlements`. `pass.e_invoicing` is labelled "E-invoicing (XRechnung XML)". The planned product keys `workflow-captain-pro`, `form-captain-pro` and `review-captain-pro` are known but neither suggested nor sellable.

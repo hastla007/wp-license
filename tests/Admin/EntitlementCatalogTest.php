@@ -95,7 +95,7 @@ final class EntitlementCatalogTest extends TestCase {
 	}
 
 	/**
-	 * R-07, R-08: keys that named functions of the free core plugins are gone from the catalog.
+	 * R-07, R-08, R-24: keys that named functions of the free core plugins, and the three support keys, are gone from the catalog.
 	 *
 	 * @return string[]
 	 */
@@ -118,6 +118,10 @@ final class EntitlementCatalogTest extends TestCase {
 			'voucher.scheduled_delivery',
 			'voucher.bulk_import_export',
 			'voucher.reports',
+			// R-24 (owner decision G1): support is the plan attribute support.level only.
+			'affiliate.priority_support',
+			'voucher.priority_support',
+			'pass.priority_support',
 		);
 	}
 
@@ -152,6 +156,10 @@ final class EntitlementCatalogTest extends TestCase {
 				$this->assertSame( array(), $entitlements, 'No entitlement is offered for a planned product.' );
 				continue;
 			}
+			if ( 'voucher' === $group ) {
+				$this->assertSame( array(), $entitlements, 'Voucher Captain Pro has no built premium function; the support key is gone (R-24).' );
+				continue;
+			}
 			$this->assertNotEmpty( $entitlements );
 			foreach ( $entitlements as $entitlement ) {
 				$this->assertStringStartsWith( $group . '.', $entitlement['key'] );
@@ -179,11 +187,12 @@ final class EntitlementCatalogTest extends TestCase {
 		// An empty group never matches by substring: "platform" contains "form", "preview" contains "review".
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'my-platform' ) );
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'preview-tool' ) );
-		$this->assertSame( array( 'voucher' ), EntitlementCatalog::groups_for_product_key( 'voucher-platform' ) );
+		$this->assertSame( array( 'pass' ), EntitlementCatalog::groups_for_product_key( 'pass-platform' ) );
 	}
 
 	public function test_groups_are_found_from_the_license_product_key(): void {
-		$this->assertSame( array( 'voucher' ), EntitlementCatalog::groups_for_product_key( 'voucher-captain' ) );
+		// Voucher Captain Pro has no key yet (R-24 removed its only one), so only its exact product key resolves.
+		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'voucher-captain' ) );
 		$this->assertSame( array( 'affiliate' ), EntitlementCatalog::groups_for_product_key( 'Affiliate-Captain' ) );
 		$this->assertSame( array( 'pass' ), EntitlementCatalog::groups_for_product_key( 'wp-pass-captain' ) );
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'something-else' ) );

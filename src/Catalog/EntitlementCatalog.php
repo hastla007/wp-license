@@ -38,6 +38,8 @@ final class EntitlementCatalog {
 		 * and category rates, recurring commissions; voucher: branding, PDF templates, automatic and scheduled
 		 * delivery, QR redemption, partial balance, import/export, reports, staff roles). A plan or a license
 		 * that still stores one of them keeps it: split() leaves unknown keys in the advanced JSON field.
+		 * Removed on 16 Nov 2026 by owner decision G1 (R-24), in the same way: affiliate.priority_support,
+		 * voucher.priority_support and pass.priority_support. Support is the plan attribute support.level.
 		 */
 		$catalog = array(
 			'affiliate' => array(
@@ -45,11 +47,9 @@ final class EntitlementCatalog {
 				array( 'key' => 'affiliate.automated_payouts', 'label' => __( 'Automated payouts', 'wp-license' ) ),
 				array( 'key' => 'affiliate.white_label_portal', 'label' => __( 'White-label portal', 'wp-license' ) ),
 				array( 'key' => 'affiliate.webhooks', 'label' => __( 'Webhooks', 'wp-license' ) ),
-				array( 'key' => 'affiliate.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),
-			'voucher'   => array(
-				array( 'key' => 'voucher.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
-			),
+			// No premium function of Voucher Captain Pro is built yet; support is the plan attribute support.level (R-24).
+			'voucher'   => array(),
 			'pass'      => array(
 				// Pass Captain Pro, decided 14 Nov 2026 (captain-pro docs/PASS-PRO.md): payment providers,
 				// integrations, seating, box office, offline check-in, reports and the other former keys are
@@ -60,7 +60,6 @@ final class EntitlementCatalog {
 				array( 'key' => 'pass.waiting_room', 'label' => __( 'Virtual waiting room', 'wp-license' ) ),
 				array( 'key' => 'pass.write_api', 'label' => __( 'Write API', 'wp-license' ) ),
 				array( 'key' => 'pass.white_label', 'label' => __( 'White label', 'wp-license' ) ),
-				array( 'key' => 'pass.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),
 			// Planned add-ons (R-22): the groups exist so that their product keys resolve to the right
 			// prefix; no entitlement is offered before the add-on ships it.

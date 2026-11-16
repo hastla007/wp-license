@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T06:27:45+00:00\n"
+"POT-Creation-Date: 2026-11-16T07:29:03+00:00\n"
 "PO-Revision-Date: 2026-11-15 15:11+0000\n"
 "Language: de_DE_formal\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -112,20 +112,20 @@ msgid "No sites are activated."
 msgstr "Es sind keine Websites aktiviert."
 
 #: src/Account/SiteOverview.php:281
-#: src/Admin/LicenseDetail.php:541
+#: src/Admin/LicenseDetail.php:543
 #: templates/myaccount/wplc-license.php:136
 #: templates/myaccount/wplc-license.php:145
 msgid "Site"
 msgstr "Website"
 
 #: src/Account/SiteOverview.php:283
-#: src/Admin/LicenseDetail.php:541
+#: src/Admin/LicenseDetail.php:543
 #: templates/myaccount/wplc-license.php:137
 #: templates/myaccount/wplc-license.php:146
 msgid "Environment"
 msgstr "Umgebung"
 
-#: src/Admin/LicenseDetail.php:541
+#: src/Admin/LicenseDetail.php:543
 #: templates/myaccount/wplc-license.php:138
 #: templates/myaccount/wplc-license.php:147
 msgid "Activated"
@@ -564,7 +564,7 @@ msgstr "Verschlüsseln Sie anschließend die gespeicherten Zugangsdaten mit dem 
 
 #. translators: %d: user ID.
 #: src/Admin/LicenseAdmin.php:200
-#: src/Admin/LicenseDetail.php:725
+#: src/Admin/LicenseDetail.php:727
 #, php-format
 msgid "Deleted user #%d"
 msgstr "Gelöschter Benutzer #%d"
@@ -576,7 +576,7 @@ msgid "You do not have permission to view licenses."
 msgstr "Sie sind nicht berechtigt, Lizenzen anzuzeigen."
 
 #: src/Admin/LicenseAdmin.php:251
-#: src/Admin/LicenseDetail.php:836
+#: src/Admin/LicenseDetail.php:838
 msgid "Add license manually"
 msgstr "Lizenz manuell hinzufügen"
 
@@ -605,10 +605,10 @@ msgstr "Sie sind nicht berechtigt, Lizenzen zu ändern."
 #: src/Admin/AuditLogAdmin.php:168
 #: src/Admin/LicenseBulkActions.php:556
 #: src/Admin/LicenseDetail.php:52
-#: src/Admin/LicenseDetail.php:679
+#: src/Admin/LicenseDetail.php:681
 #: src/Admin/LicenseListTable.php:98
 #: src/Admin/RenewalReviewAdmin.php:190
-#: src/Billing/RenewalOrder.php:876
+#: src/Billing/RenewalOrder.php:877
 #: src/License/LicenseIssuer.php:239
 msgid "License"
 msgstr "Lizenz"
@@ -624,7 +624,7 @@ msgid "License %1$s (#%2$d)"
 msgstr "Lizenz %1$s (#%2$d)"
 
 #: src/Admin/LicenseDetail.php:80
-#: src/Admin/LicenseDetail.php:837
+#: src/Admin/LicenseDetail.php:839
 #: src/Admin/LicenseListTable.php:272
 #: src/Admin/RenewalReviewAdmin.php:173
 msgid "All licenses"
@@ -636,7 +636,7 @@ msgstr "Keine (manuell hinzugefügt)"
 
 #: src/Admin/AuditLogAdmin.php:186
 #: src/Admin/LicenseDetail.php:198
-#: src/Admin/LicenseDetail.php:856
+#: src/Admin/LicenseDetail.php:858
 #: src/Admin/LicenseListTable.php:99
 #: src/Admin/RenewalReviewAdmin.php:190
 msgid "Customer"
@@ -668,7 +668,7 @@ msgid "Product"
 msgstr "Produkt"
 
 #: src/Admin/LicenseDetail.php:200
-#: src/Admin/LicenseDetail.php:860
+#: src/Admin/LicenseDetail.php:862
 #: src/Privacy/PersonalData.php:362
 #: templates/emails/plain/wplc-cancellation-confirmed.php:40
 #: templates/emails/plain/wplc-expiry-reminder.php:47
@@ -693,9 +693,9 @@ msgstr "Tarif"
 
 #: src/Admin/LicenseBulkActions.php:556
 #: src/Admin/LicenseDetail.php:201
-#: src/Admin/LicenseDetail.php:541
-#: src/Admin/LicenseDetail.php:595
-#: src/Admin/LicenseDetail.php:624
+#: src/Admin/LicenseDetail.php:543
+#: src/Admin/LicenseDetail.php:597
+#: src/Admin/LicenseDetail.php:626
 #: src/Admin/LicenseListTable.php:101
 #: src/Admin/ReleaseAdmin.php:124
 #: src/Admin/Settings.php:541
@@ -728,7 +728,7 @@ msgid "Started"
 msgstr "Beginn"
 
 #: src/Admin/LicenseDetail.php:204
-#: src/Admin/LicenseDetail.php:878
+#: src/Admin/LicenseDetail.php:880
 #: src/Admin/LicenseListTable.php:102
 msgid "Paid until"
 msgstr "Bezahlt bis"
@@ -751,7 +751,8 @@ msgstr "Nein"
 
 #: src/Admin/AuditLogAdmin.php:170
 #: src/Admin/LicenseDetail.php:206
-#: src/Admin/LicenseDetail.php:681
+#: src/Admin/LicenseDetail.php:337
+#: src/Admin/LicenseDetail.php:683
 #: src/Admin/LicenseListTable.php:104
 msgid "Renewal"
 msgstr "Verlängerung"
@@ -843,19 +844,19 @@ msgstr "Begründung: %s"
 #: src/Admin/LicenseAdmin.php:385
 #: src/Admin/LicenseDetail.php:270
 #: src/Admin/LicenseDetail.php:300
-#: src/Admin/LicenseDetail.php:341
-#: src/Admin/LicenseDetail.php:350
-#: src/Admin/LicenseDetail.php:366
-#: src/Admin/LicenseDetail.php:392
-#: src/Admin/LicenseDetail.php:425
-#: src/Admin/LicenseDetail.php:436
-#: src/Admin/LicenseDetail.php:449
-#: src/Admin/LicenseDetail.php:498
-#: src/Admin/LicenseDetail.php:499
-#: src/Admin/LicenseDetail.php:521
-#: src/Admin/LicenseDetail.php:571
-#: src/Admin/LicenseDetail.php:691
-#: src/Admin/LicenseDetail.php:885
+#: src/Admin/LicenseDetail.php:343
+#: src/Admin/LicenseDetail.php:352
+#: src/Admin/LicenseDetail.php:368
+#: src/Admin/LicenseDetail.php:394
+#: src/Admin/LicenseDetail.php:427
+#: src/Admin/LicenseDetail.php:438
+#: src/Admin/LicenseDetail.php:451
+#: src/Admin/LicenseDetail.php:500
+#: src/Admin/LicenseDetail.php:501
+#: src/Admin/LicenseDetail.php:523
+#: src/Admin/LicenseDetail.php:573
+#: src/Admin/LicenseDetail.php:693
+#: src/Admin/LicenseDetail.php:887
 #: src/Admin/ReleaseAdmin.php:434
 #: src/Admin/ReleaseAdmin.php:543
 #: src/Admin/RenewalReviewAdmin.php:190
@@ -869,7 +870,7 @@ msgid "Change term"
 msgstr "Laufzeit ändern"
 
 #: src/Admin/LicenseDetail.php:298
-#: src/Admin/LicenseDetail.php:390
+#: src/Admin/LicenseDetail.php:392
 msgid "New end date"
 msgstr "Neues Enddatum"
 
@@ -879,92 +880,92 @@ msgstr "Neues Enddatum"
 msgid "The license runs until the end of that day in the site timezone (%s). No payment is taken. An expired license becomes active again."
 msgstr "Die Lizenz läuft bis zum Ende dieses Tages in der Zeitzone der Website (%s). Es wird keine Zahlung eingezogen. Eine abgelaufene Lizenz wird wieder aktiv."
 
-#: src/Admin/LicenseDetail.php:534
+#: src/Admin/LicenseDetail.php:536
 msgid "Site activations"
 msgstr "Website-Aktivierungen"
 
-#: src/Admin/LicenseDetail.php:536
+#: src/Admin/LicenseDetail.php:538
 msgid "No site has been activated with this license."
 msgstr "Mit dieser Lizenz wurde noch keine Website aktiviert."
 
-#: src/Admin/LicenseDetail.php:541
+#: src/Admin/LicenseDetail.php:543
 msgid "Versions"
 msgstr "Versionen"
 
-#: src/Admin/LicenseDetail.php:541
+#: src/Admin/LicenseDetail.php:543
 msgid "Last seen"
 msgstr "Zuletzt gesehen"
 
 #. translators: 1: environment label, 2: activation ID of the live site.
-#: src/Admin/LicenseDetail.php:550
+#: src/Admin/LicenseDetail.php:552
 #, php-format
 msgid "%1$s (of #%2$d)"
 msgstr "%1$s (von #%2$d)"
 
 #. translators: 1: product version, 2: WordPress version, 3: PHP version.
-#: src/Admin/LicenseDetail.php:553
+#: src/Admin/LicenseDetail.php:555
 #, php-format
 msgid "Plugin %1$s, WP %2$s, PHP %3$s"
 msgstr "Plugin %1$s, WP %2$s, PHP %3$s"
 
 #. translators: %s: site URL.
-#: src/Admin/LicenseDetail.php:570
+#: src/Admin/LicenseDetail.php:572
 #, php-format
 msgid "Reason for releasing %s"
 msgstr "Begründung für die Freigabe von %s"
 
-#: src/Admin/LicenseDetail.php:588
+#: src/Admin/LicenseDetail.php:590
 msgid "Renewals"
 msgstr "Verlängerungen"
 
-#: src/Admin/LicenseDetail.php:590
+#: src/Admin/LicenseDetail.php:592
 msgid "No renewal has been scheduled or paid for this license."
 msgstr "Für diese Lizenz wurde noch keine Verlängerung geplant oder bezahlt."
 
-#: src/Admin/LicenseDetail.php:595
+#: src/Admin/LicenseDetail.php:597
 msgid "Period"
 msgstr "Zeitraum"
 
-#: src/Admin/LicenseDetail.php:595
+#: src/Admin/LicenseDetail.php:597
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Privacy/PersonalData.php:586
 msgid "Order"
 msgstr "Bestellung"
 
-#: src/Admin/LicenseDetail.php:595
+#: src/Admin/LicenseDetail.php:597
 msgid "Attempts"
 msgstr "Versuche"
 
-#: src/Admin/LicenseDetail.php:595
+#: src/Admin/LicenseDetail.php:597
 msgid "Next attempt"
 msgstr "Nächster Versuch"
 
-#: src/Admin/LicenseDetail.php:595
+#: src/Admin/LicenseDetail.php:597
 msgid "Grace ends"
 msgstr "Kulanzzeit endet"
 
-#: src/Admin/LicenseDetail.php:617
+#: src/Admin/LicenseDetail.php:619
 #: src/Catalog/ProductEditor.php:342
 msgid "Entitlements"
 msgstr "Berechtigungen"
 
-#: src/Admin/LicenseDetail.php:619
+#: src/Admin/LicenseDetail.php:621
 msgid "This license has no entitlements."
 msgstr "Diese Lizenz hat keine Berechtigungen."
 
-#: src/Admin/LicenseDetail.php:624
+#: src/Admin/LicenseDetail.php:626
 msgid "Key"
 msgstr "Schlüssel"
 
-#: src/Admin/LicenseDetail.php:624
+#: src/Admin/LicenseDetail.php:626
 msgid "Value"
 msgstr "Wert"
 
-#: src/Admin/LicenseDetail.php:624
+#: src/Admin/LicenseDetail.php:626
 msgid "Valid from"
 msgstr "Gültig ab"
 
-#: src/Admin/LicenseDetail.php:624
+#: src/Admin/LicenseDetail.php:626
 #: templates/emails/plain/wplc-expiry-reminder.php:49
 #: templates/emails/plain/wplc-license-expired.php:34
 #: templates/emails/plain/wplc-license-issued.php:44
@@ -976,16 +977,16 @@ msgstr "Gültig ab"
 msgid "Valid until"
 msgstr "Gültig bis"
 
-#: src/Admin/LicenseDetail.php:668
+#: src/Admin/LicenseDetail.php:670
 msgid "Audit log"
 msgstr "Audit-Protokoll"
 
-#: src/Admin/LicenseDetail.php:670
+#: src/Admin/LicenseDetail.php:672
 msgid "No audit entries exist for this license."
 msgstr "Für diese Lizenz sind keine Audit-Einträge vorhanden."
 
 #: src/Admin/AuditLogAdmin.php:169
-#: src/Admin/LicenseDetail.php:680
+#: src/Admin/LicenseDetail.php:682
 msgid "Activation"
 msgstr "Aktivierung"
 
@@ -995,78 +996,78 @@ msgstr "Datum"
 
 #: src/Admin/AuditLogAdmin.php:487
 #: src/Admin/AuditLogTable.php:52
-#: src/Admin/LicenseDetail.php:691
+#: src/Admin/LicenseDetail.php:693
 #: src/Admin/ReleaseAdmin.php:542
 msgid "Action"
 msgstr "Aktion"
 
 #: src/Admin/AuditLogTable.php:53
-#: src/Admin/LicenseDetail.php:691
+#: src/Admin/LicenseDetail.php:693
 msgid "Object"
 msgstr "Objekt"
 
 #: src/Admin/AuditLogAdmin.php:489
 #: src/Admin/AuditLogTable.php:54
-#: src/Admin/LicenseDetail.php:691
+#: src/Admin/LicenseDetail.php:693
 msgid "By"
 msgstr "Durch"
 
 #: src/Admin/AuditLogTable.php:57
-#: src/Admin/LicenseDetail.php:691
+#: src/Admin/LicenseDetail.php:693
 msgid "Change"
 msgstr "Änderung"
 
 #: src/Admin/AuditLogAdmin.php:174
-#: src/Admin/LicenseDetail.php:721
+#: src/Admin/LicenseDetail.php:723
 msgid "System"
 msgstr "System"
 
 #. translators: %d: order ID.
-#: src/Admin/LicenseDetail.php:803
+#: src/Admin/LicenseDetail.php:805
 #: src/Admin/RenewalReviewAdmin.php:233
 #, php-format
 msgid "Order #%d"
 msgstr "Bestellung #%d"
 
-#: src/Admin/LicenseDetail.php:806
+#: src/Admin/LicenseDetail.php:808
 msgid "(not found)"
 msgstr "(nicht gefunden)"
 
-#: src/Admin/LicenseDetail.php:839
+#: src/Admin/LicenseDetail.php:841
 msgid "Use this for goodwill or migrated customers. No order is created and nothing is charged. The license does not renew automatically; the customer can renew it in their account."
 msgstr "Verwenden Sie diese Funktion für Kulanzfälle oder migrierte Kunden. Es wird keine Bestellung angelegt und nichts berechnet. Die Lizenz verlängert sich nicht automatisch; der Kunde kann sie in seinem Konto verlängern."
 
-#: src/Admin/LicenseDetail.php:842
+#: src/Admin/LicenseDetail.php:844
 msgid "There is no active plan in the catalog yet. Mark a WooCommerce product as a license product first."
 msgstr "Im Katalog gibt es noch keinen aktiven Tarif. Kennzeichnen Sie zuerst ein WooCommerce-Produkt als Lizenzprodukt."
 
-#: src/Admin/LicenseDetail.php:858
+#: src/Admin/LicenseDetail.php:860
 msgid "User ID or email address of an existing user account."
 msgstr "Benutzer-ID oder E-Mail-Adresse eines vorhandenen Benutzerkontos."
 
-#: src/Admin/LicenseDetail.php:861
+#: src/Admin/LicenseDetail.php:863
 msgid "Select a plan"
 msgstr "Tarif auswählen"
 
-#: src/Admin/LicenseDetail.php:870
+#: src/Admin/LicenseDetail.php:872
 msgid "monthly"
 msgstr "monatlich"
 
-#: src/Admin/LicenseDetail.php:870
+#: src/Admin/LicenseDetail.php:872
 msgid "yearly"
 msgstr "jährlich"
 
 #. translators: %s: site timezone, for example Europe/Berlin.
-#: src/Admin/LicenseDetail.php:882
+#: src/Admin/LicenseDetail.php:884
 #, php-format
 msgid "The license runs until the end of that day in the site timezone (%s)."
 msgstr "Die Lizenz läuft bis zum Ende dieses Tages in der Zeitzone der Website (%s)."
 
-#: src/Admin/LicenseDetail.php:887
+#: src/Admin/LicenseDetail.php:889
 msgid "Stored in the audit log. Do not enter license keys or passwords."
 msgstr "Wird im Audit-Protokoll gespeichert. Geben Sie keine Lizenzschlüssel oder Passwörter ein."
 
-#: src/Admin/LicenseDetail.php:894
+#: src/Admin/LicenseDetail.php:896
 msgid "Add license"
 msgstr "Lizenz hinzufügen"
 
@@ -1519,55 +1520,49 @@ msgstr "Diese Verlängerung erfordert eine Authentifizierung durch den Kunden. A
 msgid "The renewal attempt did not finish and its result is unknown."
 msgstr "Der Verlängerungsversuch wurde nicht abgeschlossen, sein Ergebnis ist unbekannt."
 
-#: src/Catalog/EntitlementCatalog.php:44
+#: src/Catalog/EntitlementCatalog.php:46
 msgid "Extended API"
 msgstr "Erweiterte API"
 
-#: src/Catalog/EntitlementCatalog.php:46
+#: src/Catalog/EntitlementCatalog.php:48
 msgid "White-label portal"
 msgstr "White-Label-Portal"
 
-#: src/Catalog/EntitlementCatalog.php:47
-#: src/Catalog/EntitlementCatalog.php:121
+#: src/Catalog/EntitlementCatalog.php:49
+#: src/Catalog/EntitlementCatalog.php:120
 msgid "Webhooks"
 msgstr "Webhooks"
 
-#: src/Catalog/EntitlementCatalog.php:112
+#: src/Catalog/EntitlementCatalog.php:111
 msgid "Multiple programs"
 msgstr "Mehrere Programme"
 
-#: src/Catalog/EntitlementCatalog.php:48
-#: src/Catalog/EntitlementCatalog.php:51
-#: src/Catalog/EntitlementCatalog.php:63
-msgid "Priority support"
-msgstr "Priorisierter Support"
-
 #: src/Catalog/EntitlementCatalog.php:62
-#: src/Catalog/EntitlementCatalog.php:115
+#: src/Catalog/EntitlementCatalog.php:114
 msgid "White label"
 msgstr "White Label"
 
-#: src/Catalog/EntitlementCatalog.php:138
+#: src/Catalog/EntitlementCatalog.php:137
 msgid "Affiliate Captain"
 msgstr "Affiliate Captain"
 
-#: src/Catalog/EntitlementCatalog.php:139
+#: src/Catalog/EntitlementCatalog.php:138
 msgid "Voucher Captain"
 msgstr "Voucher Captain"
 
-#: src/Catalog/EntitlementCatalog.php:140
+#: src/Catalog/EntitlementCatalog.php:139
 msgid "Pass Captain"
 msgstr "Pass Captain"
 
-#: src/Catalog/EntitlementCatalog.php:141
+#: src/Catalog/EntitlementCatalog.php:140
 msgid "Workflow Captain"
 msgstr "Workflow Captain"
 
-#: src/Catalog/EntitlementCatalog.php:142
+#: src/Catalog/EntitlementCatalog.php:141
 msgid "Form Captain"
 msgstr "Form Captain"
 
-#: src/Catalog/EntitlementCatalog.php:143
+#: src/Catalog/EntitlementCatalog.php:142
 msgid "Review Captain"
 msgstr "Review Captain"
 
@@ -1716,7 +1711,7 @@ msgstr "Ihre Lizenz für {product} steht bereit"
 msgid "Your license is ready"
 msgstr "Ihre Lizenz steht bereit"
 
-#: src/Admin/LicenseDetail.php:419
+#: src/Admin/LicenseDetail.php:421
 #: src/Notifications/Emails/LicenseIssuedEmail.php:65
 #: templates/emails/plain/wplc-license-issued.php:43
 #: templates/emails/wplc-license-issued.php:43
@@ -2318,14 +2313,14 @@ msgstr "Zahlungsergebnis wird geprüft"
 msgid "This search has expired. Search again to see the results."
 msgstr "Diese Suche ist abgelaufen. Suchen Sie erneut, um die Ergebnisse zu sehen."
 
-#: src/Admin/LicenseDetail.php:541
-#: src/Admin/LicenseDetail.php:572
+#: src/Admin/LicenseDetail.php:543
+#: src/Admin/LicenseDetail.php:574
 msgctxt "verb: free the place of a site activation"
 msgid "Release"
 msgstr "Freigeben"
 
 #. translators: 1: product name, 2: plan key, 3: billing interval ("monthly" or "yearly"), 4: number of live sites.
-#: src/Admin/LicenseDetail.php:867
+#: src/Admin/LicenseDetail.php:869
 #, php-format
 msgid "%1$s — %2$s (%3$s, %4$d live site)"
 msgid_plural "%1$s — %2$s (%3$s, %4$d live sites)"
@@ -2947,7 +2942,7 @@ msgstr "Version %s ist verfügbar."
 msgid "No contact for more than %d days."
 msgstr "Seit mehr als %d Tagen kein Kontakt."
 
-#: src/Catalog/EntitlementCatalog.php:45
+#: src/Catalog/EntitlementCatalog.php:47
 msgid "Automated payouts"
 msgstr "Automatische Auszahlungen"
 
@@ -3138,7 +3133,7 @@ msgstr "Verlängerung erfordert eine Aktion des Kunden"
 msgid "Past due with open renewal"
 msgstr "Überfällig mit offener Verlängerung"
 
-#: src/Admin/LicenseDetail.php:335
+#: src/Admin/LicenseDetail.php:337
 #: src/Admin/LicenseListTable.php:363
 #: src/Billing/RecurringConsent.php:182
 #: src/Privacy/PersonalData.php:368
@@ -4252,122 +4247,122 @@ msgstr "Eine automatische Zahlung für diese Lizenz wird gerade verarbeitet. Die
 msgid "The customer still has an unpaid renewal order for this license. Changing the term does not cancel it: if the customer pays it later, the payment is accepted but may not extend the license. Cancel the order in WooCommerce first, or leave the term unchanged."
 msgstr "Der Kunde hat für diese Lizenz noch eine unbezahlte Verlängerungsbestellung. Das Ändern der Laufzeit storniert sie nicht: Bezahlt der Kunde sie später, wird die Zahlung angenommen, verlängert die Lizenz aber möglicherweise nicht. Stornieren Sie die Bestellung zuerst in WooCommerce, oder lassen Sie die Laufzeit unverändert."
 
-#: src/Admin/LicenseDetail.php:384
+#: src/Admin/LicenseDetail.php:386
 msgid "Restore with a new end date"
 msgstr "Mit neuem Enddatum wiederherstellen"
 
-#: src/Admin/LicenseDetail.php:385
+#: src/Admin/LicenseDetail.php:387
 msgid "Restore this revoked license? The customer gets access again."
 msgstr "Diese widerrufene Lizenz wiederherstellen? Der Kunde erhält wieder Zugriff."
 
-#: src/Admin/LicenseDetail.php:394
+#: src/Admin/LicenseDetail.php:396
 msgid "Restore license"
 msgstr "Lizenz wiederherstellen"
 
-#: src/Admin/LicenseDetail.php:398
+#: src/Admin/LicenseDetail.php:400
 msgid "Use this to undo a revocation that happened by mistake, for example an order set to \"refunded\" by accident. The license becomes active until the end of that day. Automatic renewal stays off. No payment is taken."
 msgstr "Verwenden Sie dies, um einen versehentlichen Widerruf rückgängig zu machen, zum Beispiel bei einer Bestellung, die versehentlich auf „Erstattet“ gesetzt wurde. Die Lizenz wird bis zum Ende dieses Tages aktiv. Die automatische Verlängerung bleibt ausgeschaltet. Es wird keine Zahlung eingezogen."
 
-#: src/Admin/LicenseDetail.php:399
+#: src/Admin/LicenseDetail.php:401
 msgid "The paid period of this suspended license has ended. It becomes active again until the end of that day. No payment is taken."
 msgstr "Der bezahlte Zeitraum dieser gesperrten Lizenz ist abgelaufen. Sie wird bis zum Ende dieses Tages wieder aktiv. Es wird keine Zahlung eingezogen."
 
-#: src/Admin/LicenseDetail.php:420
+#: src/Admin/LicenseDetail.php:422
 msgid "Issue a new key? The old key stops working immediately."
 msgstr "Einen neuen Schlüssel ausstellen? Der alte Schlüssel funktioniert sofort nicht mehr."
 
-#: src/Admin/LicenseDetail.php:424
+#: src/Admin/LicenseDetail.php:426
 msgid "Reason for the new key"
 msgstr "Grund für den neuen Schlüssel"
 
-#: src/Admin/LicenseDetail.php:426
-#: src/Admin/LicenseDetail.php:455
+#: src/Admin/LicenseDetail.php:428
+#: src/Admin/LicenseDetail.php:457
 msgid "Also release all activated sites"
 msgstr "Auch alle aktivierten Websites freigeben"
 
-#: src/Admin/LicenseDetail.php:427
+#: src/Admin/LicenseDetail.php:429
 msgid "Issue new key"
 msgstr "Neuen Schlüssel ausstellen"
 
-#: src/Admin/LicenseDetail.php:428
+#: src/Admin/LicenseDetail.php:430
 msgid "For a key that was published or passed on. The license keeps its term, its order and its renewal. Sites that are already activated keep working unless you release them; release unknown sites below. The customer finds the new key in their account."
 msgstr "Für einen Schlüssel, der veröffentlicht oder weitergegeben wurde. Die Lizenz behält ihre Laufzeit, ihre Bestellung und ihre Verlängerung. Bereits aktivierte Websites funktionieren weiter, sofern Sie sie nicht freigeben; geben Sie unbekannte Websites unten frei. Der Kunde findet den neuen Schlüssel in seinem Konto."
 
-#: src/Admin/LicenseDetail.php:435
+#: src/Admin/LicenseDetail.php:437
 msgid "Reason for sending the key again"
 msgstr "Grund für das erneute Senden des Schlüssels"
 
-#: src/Admin/LicenseDetail.php:437
+#: src/Admin/LicenseDetail.php:439
 msgid "Send key email again"
 msgstr "Schlüssel-E-Mail erneut senden"
 
-#: src/Admin/LicenseDetail.php:441
-#: src/Admin/LicenseDetail.php:457
+#: src/Admin/LicenseDetail.php:443
+#: src/Admin/LicenseDetail.php:459
 msgid "Change owner"
 msgstr "Inhaber ändern"
 
-#: src/Admin/LicenseDetail.php:442
+#: src/Admin/LicenseDetail.php:444
 msgid "Hand this license over to another customer?"
 msgstr "Diese Lizenz an einen anderen Kunden übergeben?"
 
-#: src/Admin/LicenseDetail.php:447
+#: src/Admin/LicenseDetail.php:449
 msgid "New customer (user ID or email)"
 msgstr "Neuer Kunde (Benutzer-ID oder E-Mail)"
 
 #. translators: %s: plan key the license changes to.
-#: src/Admin/LicenseDetail.php:472
+#: src/Admin/LicenseDetail.php:474
 #, php-format
 msgid "changes to %s with the next renewal"
 msgstr "wechselt mit der nächsten Verlängerung zu %s"
 
-#: src/Admin/LicenseDetail.php:490
-#: src/Admin/LicenseDetail.php:523
+#: src/Admin/LicenseDetail.php:492
+#: src/Admin/LicenseDetail.php:525
 #: src/Billing/PlanUpgrade.php:812
 #: src/Billing/PlanUpgrade.php:837
 msgid "Change plan"
 msgstr "Tarif ändern"
 
 #. translators: %s: plan key.
-#: src/Admin/LicenseDetail.php:497
+#: src/Admin/LicenseDetail.php:499
 #, php-format
 msgid "Scheduled for the next renewal: %s."
 msgstr "Für die nächste Verlängerung geplant: %s."
 
-#: src/Admin/LicenseDetail.php:500
+#: src/Admin/LicenseDetail.php:502
 msgid "Withdraw plan change"
 msgstr "Tarifwechsel zurücknehmen"
 
-#: src/Admin/LicenseDetail.php:503
+#: src/Admin/LicenseDetail.php:505
 msgid "No other plan of this product with the same billing interval is mapped in the catalog."
 msgstr "Im Katalog ist kein anderer Tarif dieses Produkts mit demselben Abrechnungsintervall zugeordnet."
 
-#: src/Admin/LicenseDetail.php:510
+#: src/Admin/LicenseDetail.php:512
 msgid "New plan"
 msgstr "Neuer Tarif"
 
 #. translators: 1: plan key, 2: product name, 3: price, 4: currency, 5: live sites.
-#: src/Admin/LicenseDetail.php:515
+#: src/Admin/LicenseDetail.php:517
 #, php-format
 msgid "%1$s — %2$s (%3$s %4$s, live sites: %5$s)"
 msgstr "%1$s — %2$s (%3$s %4$s, Live-Websites: %5$s)"
 
-#: src/Admin/LicenseDetail.php:519
+#: src/Admin/LicenseDetail.php:521
 msgid "When"
 msgstr "Wann"
 
-#: src/Admin/LicenseDetail.php:520
+#: src/Admin/LicenseDetail.php:522
 msgid "Now"
 msgstr "Sofort"
 
-#: src/Admin/LicenseDetail.php:520
+#: src/Admin/LicenseDetail.php:522
 msgid "With the next renewal"
 msgstr "Mit der nächsten Verlängerung"
 
-#: src/Admin/LicenseDetail.php:524
+#: src/Admin/LicenseDetail.php:526
 msgid "No payment is taken and nothing is refunded. The paid period stays. \"Now\" replaces the entitlements and the live site limit at once; sites above a lower limit stay active, but no new sites can be activated. Future renewals use the product of the new plan; an automatic renewal amount is never raised without the consent of the customer (it stays as it is for a more expensive plan)."
 msgstr "Es wird keine Zahlung eingezogen und nichts erstattet. Der bezahlte Zeitraum bleibt bestehen. „Sofort“ ersetzt die Berechtigungen und das Limit für Live-Websites sofort; Websites über einem niedrigeren Limit bleiben aktiv, aber es können keine neuen Websites aktiviert werden. Künftige Verlängerungen verwenden das Produkt des neuen Tarifs; ein automatischer Verlängerungsbetrag wird nie ohne Zustimmung des Kunden erhöht (bei einem teureren Tarif bleibt er unverändert)."
 
-#: src/Admin/LicenseDetail.php:687
+#: src/Admin/LicenseDetail.php:689
 msgid "Open the complete audit log of this license"
 msgstr "Das vollständige Audit-Protokoll dieser Lizenz öffnen"
 
@@ -4689,12 +4684,12 @@ msgid "The order is waiting for a payment; review the license before accepting i
 msgstr "Die Bestellung wartet auf eine Zahlung; prüfen Sie die Lizenz, bevor Sie sie annehmen."
 
 #. translators: %s: product name.
-#: src/Billing/RenewalOrder.php:868
+#: src/Billing/RenewalOrder.php:869
 #, php-format
 msgid "%s (license renewal)"
 msgstr "%s (Lizenzverlängerung)"
 
-#: src/Billing/RenewalOrder.php:878
+#: src/Billing/RenewalOrder.php:879
 #: src/License/LicenseIssuer.php:242
 msgid "Service period (UTC)"
 msgstr "Leistungszeitraum (UTC)"
@@ -5897,20 +5892,20 @@ msgid_plural "%s skipped."
 msgstr[0] "%s übersprungen."
 msgstr[1] "%s übersprungen."
 
-#: src/Admin/LicenseDetail.php:454
+#: src/Admin/LicenseDetail.php:456
 msgid "Issue a new key (the previous key stops working)"
 msgstr "Neuen Schlüssel ausstellen (der bisherige Schlüssel funktioniert dann nicht mehr)"
 
-#: src/Admin/LicenseDetail.php:458
+#: src/Admin/LicenseDetail.php:460
 msgid "The new customer sees the license and its key in their account; the previous owner no longer sees it there. Automatic renewal is switched off, because the stored payment method belongs to the previous owner."
 msgstr "Der neue Kunde sieht die Lizenz und ihren Schlüssel in seinem Konto; der bisherige Inhaber sieht sie dort nicht mehr. Die automatische Verlängerung wird ausgeschaltet, weil die gespeicherte Zahlungsart dem bisherigen Inhaber gehört."
 
-#: src/Admin/LicenseDetail.php:459
+#: src/Admin/LicenseDetail.php:461
 msgid "The previous owner still knows the current key from their emails and could activate further sites with it. Keep \"Issue a new key\" ticked unless both sides agree otherwise; the new owner then gets the new key. Activated sites stay connected unless you release them."
 msgstr "Der bisherige Inhaber kennt den aktuellen Schlüssel noch aus seinen E-Mails und könnte damit weitere Websites aktivieren. Lassen Sie „Neuen Schlüssel ausstellen“ angehakt, sofern nicht beide Seiten etwas anderes vereinbaren; der neue Inhaber erhält dann den neuen Schlüssel. Aktivierte Websites bleiben verbunden, sofern Sie sie nicht freigeben."
 
 #. translators: %s: maximum number of entries.
-#: src/Admin/LicenseDetail.php:685
+#: src/Admin/LicenseDetail.php:687
 #, php-format
 msgid "Latest %s entry, newest first."
 msgid_plural "Latest %s entries, newest first."
@@ -6493,10 +6488,6 @@ msgstr "Für diese Lizenz gibt es keine Kündigung, die zurückgenommen werden k
 msgid "The cancellation was not withdrawn. Once the paid period has ended, the customer renews in their account."
 msgstr "Die Kündigung wurde nicht zurückgenommen. Nach Ablauf des bezahlten Zeitraums verlängert der Kunde in seinem Konto."
 
-#: src/Admin/AdminNotices.php:120
-msgid "The renewal amount was changed. It applies to the next automatic renewals; existing renewal orders keep their amount."
-msgstr "Der Verlängerungsbetrag wurde geändert. Er gilt für die nächsten automatischen Verlängerungen; bestehende Verlängerungsbestellungen behalten ihren Betrag."
-
 #: src/Admin/AdminNotices.php:121
 msgid "A license, a valid amount above zero and a reason are required."
 msgstr "Eine Lizenz, ein gültiger Betrag über null und ein Grund sind erforderlich."
@@ -6737,55 +6728,51 @@ msgstr "Suchen Sie nach Schlüsselpräfix, Produkt, Tarif, Kunden-ID, Bestellnum
 msgid "Suspend this license? Its sites lose access to updates and features until it is reactivated."
 msgstr "Diese Lizenz sperren? Ihre Websites verlieren den Zugriff auf Updates und Funktionen, bis sie reaktiviert wird."
 
-#: src/Admin/LicenseDetail.php:337
+#: src/Admin/LicenseDetail.php:339
 msgid "Cancel the automatic renewal of this license for the end of the paid period?"
 msgstr "Die automatische Verlängerung dieser Lizenz zum Ende des bezahlten Zeitraums kündigen?"
 
-#: src/Admin/LicenseDetail.php:343
+#: src/Admin/LicenseDetail.php:345
 msgid "Cancel at the end of the paid period"
 msgstr "Zum Ende des bezahlten Zeitraums kündigen"
 
-#: src/Admin/LicenseDetail.php:344
+#: src/Admin/LicenseDetail.php:346
 msgid "The same cancellation the customer can make in their account: the license keeps running until the end of the paid period, nothing more is charged, and the customer gets a confirmation email. It can be withdrawn here until the period ends."
 msgstr "Dieselbe Kündigung, die der Kunde in seinem Konto vornehmen kann: Die Lizenz läuft bis zum Ende des bezahlten Zeitraums weiter, es wird nichts mehr berechnet, und der Kunde erhält eine Bestätigungs-E-Mail. Sie kann hier bis zum Ende des Zeitraums zurückgenommen werden."
 
-#: src/Admin/LicenseDetail.php:352
+#: src/Admin/LicenseDetail.php:354
 msgid "Withdraw cancellation"
 msgstr "Kündigung zurücknehmen"
 
-#: src/Admin/LicenseDetail.php:353
+#: src/Admin/LicenseDetail.php:355
 msgid "The license is cancelled for the end of the paid period. Withdraw the cancellation only when the customer asked for it: the license is then charged automatically again with the stored payment method."
 msgstr "Die Lizenz ist zum Ende des bezahlten Zeitraums gekündigt. Nehmen Sie die Kündigung nur zurück, wenn der Kunde darum gebeten hat: Die Lizenz wird dann wieder automatisch über die gespeicherte Zahlungsart abgerechnet."
 
 #. translators: %s: currency code, for example EUR.
-#: src/Admin/LicenseDetail.php:364
+#: src/Admin/LicenseDetail.php:366
 #, php-format
 msgid "Renewal amount (%s)"
 msgstr "Verlängerungsbetrag (%s)"
 
-#: src/Admin/LicenseDetail.php:368
+#: src/Admin/LicenseDetail.php:370
 msgid "Change renewal amount"
 msgstr "Verlängerungsbetrag ändern"
 
-#: src/Admin/LicenseDetail.php:369
-msgid "The amount of the next automatic renewals, in the same form as the product price in the shop (taxes are added as at purchase). It can only be lowered: the customer agreed to automatic charges of the current amount. Renewal orders that already exist keep their amount; change those on the order screen."
-msgstr "Der Betrag der nächsten automatischen Verlängerungen, in derselben Form wie der Produktpreis im Shop (Steuern werden wie beim Kauf hinzugerechnet). Er kann nur gesenkt werden: Der Kunde hat automatischen Abbuchungen des aktuellen Betrags zugestimmt. Bereits vorhandene Verlängerungsbestellungen behalten ihren Betrag; ändern Sie diese in der Bestellansicht."
-
 #. translators: %s: site URL.
-#: src/Admin/LicenseDetail.php:564
+#: src/Admin/LicenseDetail.php:566
 #, php-format
 msgid "Release %s? The site loses its connection until it is activated again."
 msgstr "%s freigeben? Die Website verliert ihre Verbindung, bis sie erneut aktiviert wird."
 
-#: src/Admin/LicenseDetail.php:889
+#: src/Admin/LicenseDetail.php:891
 msgid "Email"
 msgstr "E-Mail"
 
-#: src/Admin/LicenseDetail.php:890
+#: src/Admin/LicenseDetail.php:892
 msgid "Do not send the license email with the key"
 msgstr "Keine Lizenz-E-Mail mit dem Schlüssel senden"
 
-#: src/Admin/LicenseDetail.php:891
+#: src/Admin/LicenseDetail.php:893
 msgid "Tick this for a migrated customer who already has a key or should not get an email now. The customer finds the key in their account either way."
 msgstr "Aktivieren Sie dies für einen übernommenen Kunden, der bereits einen Schlüssel hat oder jetzt keine E-Mail erhalten soll. Der Kunde findet den Schlüssel in jedem Fall in seinem Konto."
 
@@ -7134,7 +7121,7 @@ msgstr "Intern"
 
 #: src/Admin/AuditLogAdmin.php:491
 #: src/Admin/AuditLogTable.php:55
-#: src/Admin/LicenseDetail.php:691
+#: src/Admin/LicenseDetail.php:693
 msgid "Source"
 msgstr "Quelle"
 
@@ -7321,38 +7308,46 @@ msgstr "%s konnte nicht gelöscht werden. Prüfen Sie die Dateiberechtigungen od
 msgid "Moved by the license owner from license #%1$d to license #%2$d."
 msgstr "Vom Lizenzinhaber von Lizenz #%1$d zu Lizenz #%2$d verschoben."
 
-#: src/Catalog/EntitlementCatalog.php:108
+#: src/Catalog/EntitlementCatalog.php:107
 msgid "Payout as store credit"
 msgstr "Auszahlung als Shop-Guthaben"
 
-#: src/Catalog/EntitlementCatalog.php:109
+#: src/Catalog/EntitlementCatalog.php:108
 msgid "Payouts via Stripe Connect"
 msgstr "Auszahlungen über Stripe Connect"
 
-#: src/Catalog/EntitlementCatalog.php:110
+#: src/Catalog/EntitlementCatalog.php:109
 msgid "Leaderboard and milestone emails"
 msgstr "Bestenliste und Meilenstein-Mails"
 
-#: src/Catalog/EntitlementCatalog.php:111
+#: src/Catalog/EntitlementCatalog.php:110
 msgid "Multi-tier commissions"
 msgstr "Mehrstufige Provisionen"
 
-#: src/Catalog/EntitlementCatalog.php:120
+#: src/Catalog/EntitlementCatalog.php:119
 msgid "Suite integrations"
 msgstr "Suite-Integrationen"
 
-#: src/Catalog/EntitlementCatalog.php:122
+#: src/Catalog/EntitlementCatalog.php:121
 msgid "Event correlation"
 msgstr "Ereigniskorrelation"
 
-#: src/Catalog/EntitlementCatalog.php:123
+#: src/Catalog/EntitlementCatalog.php:122
 msgid "Advanced logic"
 msgstr "Erweiterte Logik"
 
-#: src/Catalog/EntitlementCatalog.php:124
+#: src/Catalog/EntitlementCatalog.php:123
 msgid "Recipe templates"
 msgstr "Rezeptvorlagen"
 
-#: src/Catalog/EntitlementCatalog.php:125
+#: src/Catalog/EntitlementCatalog.php:124
 msgid "Extended logs"
 msgstr "Erweiterte Protokolle"
+
+#: src/Admin/AdminNotices.php:120
+msgid "The renewal amount was changed. It applies to the next renewals; existing renewal orders keep their amount."
+msgstr "Der Verlängerungsbetrag wurde geändert. Er gilt für die nächsten Verlängerungen; bestehende Verlängerungsbestellungen behalten ihren Betrag."
+
+#: src/Admin/LicenseDetail.php:371
+msgid "The amount of the next renewals, automatic and manual, in the same form as the product price in the shop (taxes are added as at purchase). It is the price agreed at purchase; a price change in the shop does not change it. It can only be lowered: the customer agreed to the current amount. Renewal orders that already exist keep their amount; change those on the order screen."
+msgstr "Der Betrag der nächsten Verlängerungen, automatisch und manuell, in derselben Form wie der Produktpreis im Shop (Steuern werden wie beim Kauf hinzugerechnet). Es ist der beim Kauf vereinbarte Preis; eine Preisänderung im Shop ändert ihn nicht. Er kann nur gesenkt werden: Der Kunde hat dem aktuellen Betrag zugestimmt. Bereits vorhandene Verlängerungsbestellungen behalten ihren Betrag; ändern Sie diese in der Bestellansicht."

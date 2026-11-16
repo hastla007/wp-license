@@ -78,26 +78,43 @@ final class RenewalPriceTest extends TestCase {
 		$this->assertSame( $this->eur( 7900 ), RenewalOrder::choose_price( $this->license(), $this->parent_plan(), null, false ) );
 	}
 
-	public function test_manual_renewal_uses_the_current_regular_price_of_the_purchased_variation(): void {
-		$this->assertSame( $this->eur( 7900 ), RenewalOrder::choose_price( $this->license(), $this->parent_plan(), $this->eur( 7900 ), true ) );
-		$this->assertSame( $this->eur( 8900 ), RenewalOrder::choose_price( $this->license(), $this->parent_plan(), $this->eur( 8900 ), true ) );
-	}
-
-	public function test_manual_renewal_of_a_deleted_variation_uses_the_stored_amount_not_the_plan_price(): void {
+	/**
+	 * INH-01 (owner decision A4): the manual renewal bills the amount agreed at purchase, like the automatic one.
+	 */
+	public function test_inh01_manual_renewal_keeps_the_price_of_the_purchase_day(): void {
+		// The shop raised and lowered the price of the variation since the purchase: neither reaches the license.
+		$this->assertSame( $this->eur( 7900 ), RenewalOrder::choose_price( $this->license(), $this->parent_plan(), $this->eur( 8900 ), true ) );
+		$this->assertSame( $this->eur( 7900 ), RenewalOrder::choose_price( $this->license(), $this->parent_plan(), $this->eur( 6900 ), true ) );
 		$this->assertSame( $this->eur( 7900 ), RenewalOrder::choose_price( $this->license(), $this->parent_plan(), null, true ) );
+		// Manual and automatic renewals of one license cost the same.
+		$this->assertSame(
+			RenewalOrder::choose_price( $this->license(), $this->parent_plan(), $this->eur( 8900 ), false ),
+			RenewalOrder::choose_price( $this->license(), $this->parent_plan(), $this->eur( 8900 ), true )
+		);
 	}
 
-	public function test_legacy_license_without_recorded_product_falls_back_to_the_plan_price(): void {
+	public function test_inh01_legacy_license_with_a_stored_amount_keeps_it(): void {
 		$legacy = $this->license( array( 'renewal_product_id' => 0, 'renewal_amount_minor' => 5900 ) );
 		$plan   = array( 'price_minor' => 6900, 'price_decimals' => 2, 'currency' => 'EUR' );
 
-		// The source order line still resolves the variation: its current price wins.
-		$this->assertSame( $this->eur( 7900 ), RenewalOrder::choose_price( $legacy, $plan, $this->eur( 7900 ), true ) );
-		// Nothing resolves: plan price as before T-132, else the stored amount.
+		$this->assertSame( $this->eur( 5900 ), RenewalOrder::choose_price( $legacy, $plan, $this->eur( 7900 ), true ) );
+		$this->assertSame( $this->eur( 5900 ), RenewalOrder::choose_price( $legacy, $plan, null, true ) );
+	}
+
+	public function test_inh01_manual_renewal_without_a_stored_amount_is_priced_from_the_catalog(): void {
+		$unpriced = $this->license( array( 'renewal_amount_minor' => 0 ) );
+		$plan     = array( 'price_minor' => 6900, 'price_decimals' => 2, 'currency' => 'EUR' );
+
+		// The purchased product still has a price: that price.
+		$this->assertSame( $this->eur( 8900 ), RenewalOrder::choose_price( $unpriced, $plan, $this->eur( 8900 ), true ) );
+		// A recorded product that is gone: no plan price (for parent-level mappings it is the lowest variation price).
+		$this->assertSame( $this->eur( 0 ), RenewalOrder::choose_price( $unpriced, $plan, null, true ) );
+		// A license that never recorded its product: the plan price, else nothing.
+		$legacy = $this->license( array( 'renewal_amount_minor' => 0, 'renewal_product_id' => 0 ) );
 		$this->assertSame( $this->eur( 6900 ), RenewalOrder::choose_price( $legacy, $plan, null, true ) );
-		$this->assertSame( $this->eur( 5900 ), RenewalOrder::choose_price( $legacy, null, null, true ) );
-		unset( $legacy['renewal_product_id'] );
-		$this->assertSame( $this->eur( 6900 ), RenewalOrder::choose_price( $legacy, $plan, null, true ) );
+		$this->assertSame( $this->eur( 0 ), RenewalOrder::choose_price( $legacy, null, null, true ) );
+		// An automatic renewal never takes a catalog price.
+		$this->assertSame( $this->eur( 0 ), RenewalOrder::choose_price( $unpriced, $plan, $this->eur( 8900 ), false ) );
 	}
 
 	public function test_product_regular_price_ignores_a_running_sale(): void {

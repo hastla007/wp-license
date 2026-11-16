@@ -279,11 +279,11 @@ final class OrderLicenseIssuanceIntegrationTest extends WPLC_Integration_TestCas
 		$this->assertSame( 7900, RenewalOrder::price( $license, false )['amount_minor'] );
 		$this->assertSame( 7900, RenewalOrder::price( $license, true )['amount_minor'] );
 
-		// A later regular-price change applies to manual renewals only; the consented automatic amount stays.
+		// INH-01 (price guarantee): a later regular-price change reaches neither the manual nor the automatic renewal.
 		$variation = wc_get_product( $variation->get_id() );
 		$variation->set_regular_price( '89.00' );
 		$variation->save();
-		$this->assertSame( 8900, RenewalOrder::price( $license, true )['amount_minor'] );
+		$this->assertSame( 7900, RenewalOrder::price( $license, true )['amount_minor'] );
 		$this->assertSame( 7900, RenewalOrder::price( $license, false )['amount_minor'] );
 
 		// A deleted variation falls back to the stored price, never to the lowest price of the plan.
@@ -306,8 +306,14 @@ final class OrderLicenseIssuanceIntegrationTest extends WPLC_Integration_TestCas
 		);
 		$license = $this->license( $seed['id'] );
 
-		$this->assertSame( 7900, RenewalOrder::price( $license, true )['amount_minor'], 'Manual renewal resolves the variation through the source order line.' );
+		// INH-01: the stored amount is the price of every renewal, also of a license from before schema 13.
+		$this->assertSame( 5900, RenewalOrder::price( $license, true )['amount_minor'], 'The amount agreed at purchase is not raised for a manual renewal either.' );
 		$this->assertSame( 5900, RenewalOrder::price( $license, false )['amount_minor'], 'The consented automatic amount of an existing license is not raised.' );
+
+		// Only a license without a stored amount is priced from the catalog: the variation is resolved through the source order line.
+		$unpriced = array_merge( $license, array( 'renewal_amount_minor' => 0 ) );
+		$this->assertSame( 7900, RenewalOrder::price( $unpriced, true )['amount_minor'] );
+		$this->assertSame( 0, RenewalOrder::price( $unpriced, false )['amount_minor'] );
 	}
 
 	/**

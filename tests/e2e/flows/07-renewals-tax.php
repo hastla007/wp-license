@@ -160,7 +160,7 @@ foreach ( $modes as $mode => $include ) {
 	e2e_ok( ! $auto_mismatch, "{$label}: the automatic renewal charges exactly the total of a normal purchase (3 prices, German customer)", $auto_mismatch );
 }
 
-// --- Price change in the shop: manual renewal uses today's plan price, automatic renewal the agreed one. ---
+// --- Price change in the shop (INH-01, price guarantee): manual and automatic renewal both cost the price of the purchase day. ---
 update_option( 'woocommerce_prices_include_tax', 'yes' );
 WC_Cache_Helper::invalidate_cache_group( 'taxes' );
 $product_id = $make_product( '50.00', 'chg' );
@@ -173,7 +173,7 @@ $plan = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['plans']} WHERE wooco
 \WPLC\Catalog\Catalog::save_mapping( $product_id, 0, array( 'product_key' => $plan['product_key'], 'plan_key' => $plan['plan_key'], 'billing_interval' => 'year', 'live_site_limit' => 1, 'support_level' => 'standard', 'entitlements' => array() ) );
 e2e_move_paid_until( (int) $manual['id'], $utc( time() + 10 * DAY_IN_SECONDS ) );
 $manual_order = \WPLC\Billing\ManualRenewal::start( (int) $manual['id'], $german_id );
-e2e_eq( '60.00', is_wp_error( $manual_order ) ? $manual_order->get_error_code() : wc_format_decimal( $manual_order->get_total(), 2 ), 'after a price increase to 60.00 a manual renewal costs the current price' );
+e2e_eq( '50.00', is_wp_error( $manual_order ) ? $manual_order->get_error_code() : wc_format_decimal( $manual_order->get_total(), 2 ), 'after a price increase to 60.00 a manual renewal still costs the price of the purchase day (50.00)' );
 update_option( 'wplc_e2e_fake_charges', array(), false );
 $renewal_id = e2e_move_paid_until( (int) $auto['id'], $utc( time() - HOUR_IN_SECONDS ) );
 e2e_run_action( 'wplc_process_renewal', array( $renewal_id ) );

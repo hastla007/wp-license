@@ -104,7 +104,7 @@ The keys below are the ones the product editor offers as tick boxes (`WPLC\Catal
 | Voucher Captain Pro (`voucher-captain-pro`) | none yet | No premium function is built; the add-on is a skeleton. Nothing can be sold for it yet. |
 | Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`) | none yet | Planned. The product keys resolve to the prefixes `workflow.`, `form.`, `review.` (`EntitlementCatalog::PLANNED_PRODUCT_KEYS`); the product editor does not suggest them and offers no key for them. Six `workflow.*` keys are reserved (next section). |
 
-Support is modelled twice today: as the plan attribute `support.level` and as the keys `affiliate.priority_support`, `voucher.priority_support`, `pass.priority_support`, which no add-on checks. Which of the two stays is an open decision (R-24 in [TODO.md](TODO.md)); until then use `support.level` and leave the three keys unticked.
+Support is the plan attribute `support.level` (`standard` or `priority`) and nothing else (owner decision of 16 Nov 2026, R-24). The three former keys `*.priority_support` (one each for `affiliate.`, `voucher.` and `pass.`), which no add-on checked, are no longer in the catalog. A plan or license that still stores one keeps it in the advanced JSON field; it has no effect.
 
 Plan keys and product keys are assigned in the product editor or by the catalog CSV ([CATALOG-CSV.md](CATALOG-CSV.md)). The server does not enforce the three plan keys: a shop can name plans differently, and a custom key is only a label. Clients must authorize by entitlement key, never by plan key.
 

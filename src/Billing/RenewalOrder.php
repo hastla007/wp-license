@@ -188,7 +188,7 @@ final class RenewalOrder {
 	 *
 	 * @param array<string,mixed> $renewal Renewal row.
 	 * @param array<string,mixed> $license License row.
-	 * @param bool                $manual Customer-initiated renewal (any payment method, current catalog price).
+	 * @param bool                $manual Customer-initiated renewal (any payment method; same price as the automatic one).
 	 * @return \WC_Order|\WP_Error
 	 */
 	public static function get_or_create( array $renewal, array $license, bool $manual ) {
@@ -599,14 +599,16 @@ final class RenewalOrder {
 	/**
 	 * Price of the renewal in minor units.
 	 *
-	 * Automatic renewals charge the amount stored on the license at purchase
-	 * (the regular price of the purchased product or variation). Manual
-	 * renewals use the current regular price of that product or variation
-	 * (T-132); see choose_price() for the fallbacks to the price of the
-	 * license's own plan (plan_for_license()) and to the stored amount. When
-	 * the plan cannot be determined safely the amount agreed at purchase is
-	 * used. A plan change scheduled for the next renewal (T-110) replaces the
-	 * price, see choose_pending_price().
+	 * Price guarantee (owner decision A4 of 16 Nov 2026, INH-01): automatic
+	 * and manual renewals both bill the amount stored on the license at
+	 * purchase (the regular price of the purchased product or variation on
+	 * that day). A later price change in the shop reaches new purchases only.
+	 * A license without a stored amount is priced from the catalog when the
+	 * customer renews manually, see choose_price(). A plan change scheduled
+	 * for the next renewal (T-110) replaces the price, see
+	 * choose_pending_price(). The shop changes the agreed amount of one
+	 * license with the support action "Change renewal amount"
+	 * (docs/SUPPORT-ACTIONS.md).
 	 *
 	 * `includes_tax` tells how the amount is to be read (B-76): true = gross,
 	 * false = net, null = unknown, i.e. by the shop's current price setting.
@@ -621,18 +623,16 @@ final class RenewalOrder {
 		$flag = null === $flag || '' === $flag ? null : (bool) (int) $flag;
 		// An ambiguous plan (several prices for one key pair) never sets the price.
 		$priced_plan = $plan && empty( $plan['_ambiguous'] ) ? $plan : null;
+		$stored = (int) ( $license['renewal_amount_minor'] ?? 0 ) > 0;
 		$current = null;
-		if ( $manual ) {
+		if ( $manual && ! $stored ) {
 			$purchased = self::purchased_product( $license );
 			$current = $purchased ? Catalog::product_regular_price( $purchased ) : null;
 		}
 
 		$price = self::choose_price( $license, $priced_plan, $current, $manual );
-		$stored = ! $manual
-			|| ( ! ( is_array( $current ) && (int) $current['amount_minor'] > 0 )
-				&& ( (int) ( $license['renewal_product_id'] ?? 0 ) > 0 || ! $priced_plan || (int) $priced_plan['price_minor'] <= 0 ) );
-		// A catalog price is read the way the shop enters prices today.
-		$includes_tax = $stored ? $flag : null;
+		// The stored amount is read the way it was entered at purchase; a catalog price the way the shop enters prices today.
+		$includes_tax = $stored || ! $manual ? $flag : null;
 		$pending_product = null;
 		$pending = PlanChange::pending_target( $license );
 		if ( $pending ) {
@@ -655,6 +655,8 @@ final class RenewalOrder {
 	/**
 	 * Price of a renewal that switches to a pending plan (T-110). Pure helper.
 	 *
+	 * A change to another plan is a new agreement, so the price guarantee of
+	 * the current plan (INH-01) does not apply to it:
 	 * - Manual: the current regular price of the pending plan's product; the
 	 *   customer sees it on the pay page.
 	 * - Automatic: that price, but never more than the stored amount: the
@@ -689,16 +691,15 @@ final class RenewalOrder {
 	/**
 	 * Pick the renewal amount. Pure helper.
 	 *
-	 * - Automatic: the amount stored on the license. The customer agreed to
-	 *   off-session charges of that amount, so a later price change in the
-	 *   shop never raises it silently.
-	 * - Manual: the current regular price of the purchased product or
-	 *   variation, because the customer sees the price on the pay page before
-	 *   paying. When that product no longer exists or has no price:
-	 *   - licenses that recorded their product (renewal_product_id) use the
-	 *     stored amount, which is the price of that product at purchase;
-	 *   - older licenses without a recorded product use the plan price, as
-	 *     before, and the stored amount when the plan has no price.
+	 * - A stored amount above zero is the price of every renewal, automatic
+	 *   or manual: the amount agreed at purchase (price guarantee, INH-01).
+	 *   A later price change in the shop never changes it.
+	 * - Automatic renewal without a stored amount: zero (nothing is charged;
+	 *   the caller reports "no renewal price").
+	 * - Manual renewal without a stored amount (a license issued without a
+	 *   price): the current regular price of the purchased product or
+	 *   variation; when that product no longer exists or has no price, the
+	 *   plan price for licenses that did not record their product.
 	 *
 	 * @param array<string,mixed>                                       $license License row.
 	 * @param array<string,mixed>|null                                  $plan Active plan of the license.
@@ -713,7 +714,7 @@ final class RenewalOrder {
 			'decimals' => max( 0, min( 6, (int) ( $license['renewal_currency_decimals'] ?? $fallback_decimals ) ) ),
 			'currency' => strtoupper( (string) $license['renewal_currency'] ),
 		);
-		if ( ! $manual ) {
+		if ( ! $manual || $stored['amount_minor'] > 0 ) {
 			return $stored;
 		}
 		if ( is_array( $current ) && (int) $current['amount_minor'] > 0 ) {

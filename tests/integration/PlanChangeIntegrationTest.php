@@ -444,15 +444,43 @@ final class PlanChangeIntegrationTest extends WPLC_Integration_TestCase {
 	public function test_contract_price_is_what_the_last_manual_renewal_paid(): void {
 		$license_id = $this->buy( 'solo' );
 		$this->set_license( $license_id, array( 'paid_until' => gmdate( 'Y-m-d H:i:s', time() + 5 * DAY_IN_SECONDS ) ) );
+		// INH-01: the shop raised the price; the renewal still costs what was agreed at purchase.
 		$this->set_price( 'solo', '79.00' );
 		$renewal = ManualRenewal::start( $license_id, $this->customer );
 		$this->assertInstanceOf( WC_Order::class, $renewal );
-		$this->assertSame( '79.00', wc_format_decimal( $renewal->get_total(), 2 ) );
+		$this->assertSame( '49.00', wc_format_decimal( $renewal->get_total(), 2 ) );
 		$renewal->payment_complete( 'txn_renewal' );
 
 		$license = $this->license( $license_id );
 		$this->assertSame( 4900, (int) $license['renewal_amount_minor'], 'The stored amount is unchanged by a manual renewal.' );
-		$this->assertSame( 7900, PlanChange::contract_price( $license )['amount_minor'], 'This period was paid at 79.00.' );
+		// Support lowers the amount of the following renewals: this period was still paid at 49.00.
+		$this->set_license( $license_id, array( 'renewal_amount_minor' => 3900 ) );
+		$this->assertSame( 4900, PlanChange::contract_price( $this->license( $license_id ) )['amount_minor'], 'This period was paid at 49.00.' );
+	}
+
+	/**
+	 * INH-01: the documented way to change the agreed amount of one license is the support action; it
+	 * reaches the next manual renewal, and the license page offers it without automatic renewal.
+	 */
+	public function test_inh01_support_changes_the_agreed_amount_of_a_manually_renewed_license(): void {
+		$license_id = $this->buy( 'solo' );
+		$this->set_license( $license_id, array( 'paid_until' => gmdate( 'Y-m-d H:i:s', time() + 5 * DAY_IN_SECONDS ), 'renewal_enabled' => 0 ) );
+		$this->set_price( 'solo', '79.00' );
+		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+
+		$this->assertSame( \WPLC\Admin\SupportActions::RESULT_OK, \WPLC\Admin\SupportActions::change_renewal_amount( $license_id, 3900, 4900, 'Goodwill', $admin ) );
+		$this->assertSame( \WPLC\Admin\SupportActions::RESULT_INCREASE_REFUSED, \WPLC\Admin\SupportActions::change_renewal_amount( $license_id, 7900, 3900, 'New price list', $admin ), 'Raising needs the customer: the filter wplc_admin_can_raise_renewal_amount.' );
+
+		$renewal = ManualRenewal::start( $license_id, $this->customer );
+		$this->assertInstanceOf( WC_Order::class, $renewal );
+		$this->assertSame( '39.00', wc_format_decimal( $renewal->get_total(), 2 ), 'Neither the catalog price of today (79.00) nor the old amount.' );
+
+		wp_set_current_user( $admin );
+		ob_start();
+		\WPLC\Admin\LicenseDetail::render( $license_id );
+		$html = (string) ob_get_clean();
+		$this->assertStringContainsString( 'name="action" value="wplc_admin_renewal_amount"', $html );
+		$this->assertStringNotContainsString( 'wplc_admin_cancel_renewal', $html, 'Nothing to cancel without automatic renewal.' );
 	}
 
 	public function test_open_upgrade_order_is_not_payable_once_its_quote_no_longer_applies(): void {
