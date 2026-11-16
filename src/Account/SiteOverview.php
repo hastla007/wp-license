@@ -18,10 +18,9 @@ defined( 'ABSPATH' ) || exit;
  * all licenses and products, with what needs attention.
  *
  * The license page (CustomerPortal) answers "what does this license cover?";
- * this page answers "what runs where, and where must I act?". It replaces the
- * product entitlements `voucher.central_license_overview` and
- * `pass.client_license_management`: an overview of a customer's sites is a
- * function of the customer account, not of the plugin on each site, and it
+ * this page answers "what runs where, and where must I act?". It replaces
+ * per-product entitlements for a central license overview: an overview of a
+ * customer's sites is a function of the customer account, not of the plugin on each site, and it
  * is available to every customer.
  *
  * Reads only. Deactivating a site uses the existing, audited handler of the

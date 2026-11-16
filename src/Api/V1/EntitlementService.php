@@ -276,8 +276,8 @@ final class EntitlementService {
 	/**
 	 * Access fields of a signed license answer, derived from LicenseLifecycle::has_access().
 	 *
-	 * Read by the client library of hastla007/captain-pro (LicenseManager unlocks features only when `access` is
-	 * true); additive for the client of this repository.
+	 * Read by add-on client libraries (LicenseManager unlocks features only when `access` is true);
+	 * additive for older clients.
 	 *
 	 * - `access`: whether the license grants premium rights now.
 	 * - `access_until`: end of access (paid period, or its end plus the renewal grace period while renewing).

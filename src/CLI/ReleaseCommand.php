@@ -84,7 +84,7 @@ final class ReleaseCommand {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp wplc release create --product=voucher-captain-pro --version=1.4.0 --zip=build/voucher-captain-pro-1.4.0.zip --notes-file=CHANGES.html --publish
+	 *     wp wplc release create --product=acme-pro --version=1.4.0 --zip=build/acme-pro-1.4.0.zip --notes-file=CHANGES.html --publish
 	 *
 	 * @param array<int,string>   $args       Positional arguments.
 	 * @param array<string,mixed> $assoc_args Options.

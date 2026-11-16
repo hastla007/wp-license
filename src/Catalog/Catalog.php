@@ -111,7 +111,7 @@ final class Catalog {
 	public static function error_message( string $code ): string {
 		switch ( $code ) {
 			case 'invalid_product_key':
-				return __( 'The license product key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and needs 2 to 100 characters (for example voucher-captain).', 'wp-license' );
+				return __( 'The license product key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and needs 2 to 100 characters (for example acme-pro).', 'wp-license' );
 			case 'invalid_plan_key':
 				return __( 'The license plan key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and may have up to 100 characters (for example business).', 'wp-license' );
 			case 'invalid_interval':

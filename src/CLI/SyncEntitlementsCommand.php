@@ -58,8 +58,8 @@ final class SyncEntitlementsCommand {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp wplc sync-entitlements --product=voucher-captain-pro --plan=business
-	 *     wp wplc sync-entitlements --product=voucher-captain-pro --plan=business --apply
+	 *     wp wplc sync-entitlements --product=acme-pro --plan=business
+	 *     wp wplc sync-entitlements --product=acme-pro --plan=business --apply
 	 *     wp wplc sync-entitlements --license=123 --apply --allow-reductions
 	 *
 	 * @param array<int,string>   $args       Positional arguments.

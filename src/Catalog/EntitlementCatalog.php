@@ -205,11 +205,11 @@ final class EntitlementCatalog {
 	}
 
 	/**
-	 * Catalog groups that belong to a license product key such as "voucher-captain-pro".
+	 * Catalog groups that belong to a license product key such as "acme-pro".
 	 *
 	 * The group is resolved only through the catalog (product key => prefix). There is no match by
-	 * substring (PK-01): "learnboating-form-connector" contains "learnboating", the prefix of another
-	 * project product, and must not be offered its entitlements. A key the catalog does not know has
+	 * substring (PK-01): "acme-forms-connector" contains "acme", the prefix of another product, and
+	 * must not be offered its entitlements. A key the catalog does not know has
 	 * no group, so the product editor offers nothing for it until its catalog file is imported.
 	 *
 	 * @param string $product_key License product key from the product editor.

@@ -2,8 +2,8 @@
  * WP License Captain: show the entitlement checklist of the product whose key is entered.
  *
  * The group of a key comes only from the catalog (the map in data-wplc-product-groups, product
- * key => prefix); there is no match by substring (PK-01), so "learnboating-form-connector" is
- * never offered the entitlements of "learnboating". With an empty key every group is shown; a key
+ * key => prefix); there is no match by substring (PK-01), so "acme-forms-connector" is never
+ * offered the entitlements of "acme". With an empty key every group is shown; a key
  * the catalog does not know is offered no group. Groups with ticked boxes always stay visible, so
  * nothing that will be saved is ever hidden. Without this script the server-rendered state stays.
  */

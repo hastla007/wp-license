@@ -219,9 +219,9 @@ final class ProductEditor {
 				'id' => $name( '_wplc_product_key' ),
 				'label' => __( 'License product key', 'wp-license' ),
 				'value' => $values['product_key'],
-				'placeholder' => 'voucher-captain-pro',
+				'placeholder' => 'acme-pro',
 				'desc_tip' => true,
-				'description' => __( 'Stable product identifier. Must match the key of the premium add-on: voucher-captain-pro, pass-captain-pro or affiliate-captain-pro. Lowercase letters, digits and hyphens only.', 'wp-license' ),
+				'description' => __( 'Stable product identifier. Must match the product key the premium add-on sends, for example acme-pro; the suggestions come from the imported catalog files. Lowercase letters, digits and hyphens only.', 'wp-license' ),
 				'custom_attributes' => array(
 					'list' => 'wplc-known-product-keys',
 					'pattern' => '[a-z0-9][a-z0-9\-]{1,99}',
@@ -312,7 +312,7 @@ final class ProductEditor {
 				'id' => $name( '_wplc_entitlements_json' ),
 				'label' => __( 'Advanced: additional entitlements (JSON)', 'wp-license' ),
 				'value' => false === $advanced_json ? '' : $advanced_json,
-				'placeholder' => '{"affiliate.program_limit":3}',
+				'placeholder' => '{"acme.project_limit":3}',
 				'desc_tip' => true,
 				'description' => __( 'Optional JSON object for numeric limits and entitlement keys that are not in the list above. The live-site limit and support level are added automatically.', 'wp-license' ),
 			)

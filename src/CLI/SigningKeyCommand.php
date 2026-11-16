@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * WP-CLI command for the public key that product builds pin (e.g. VCAP_LICENSE_PUBLIC_KEY in Voucher Captain).
+ * WP-CLI command for the public key that product builds pin (the public_keys option of the LicenseClient in an add-on).
  */
 final class SigningKeyCommand {
 
