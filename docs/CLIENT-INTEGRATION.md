@@ -38,7 +38,7 @@ It copies `src/Client/*.php`, replaces `namespace WPLC\Client;` by the given nam
 **Without the script: an unchanged copy.** Every class is declared inside `if ( ! class_exists( ... ) )`, so two add-ons with the same unchanged files do not end in "Cannot declare class". The limits of this way:
 
 - The copy that is loaded **first** is used by all add-ons, also when it is the older one. WordPress loads plugins in the alphabetical order of their folders.
-- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.0.3`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.1.0', '<' )`) and show a message; it cannot replace a class that is already declared.
+- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.1.0`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.1.0', '<' )`) and show a message; it cannot replace a class that is already declared.
 - The strings keep the text domain `wp-license`. They are translated through the `text_domain` setting only if the add-on's language files contain them; `make-pot` does not find them on its own.
 
 Use the unchanged copy for experiments only.
@@ -127,6 +127,8 @@ That is all. `register()` adds the license screen (**Settings → Voucher Captai
 
 Order of precedence: the filter `{prefix}_license_server_url`, then the `server_url` setting, which in the example reads a constant from `wp-config.php` and falls back to the built-in address. The filter is read when the license is first needed in a request (not when the `LicenseManager` is created), so it also works from another plugin or the theme as long as the add-on does not ask for the license while its file is loaded; a must-use plugin or the constant always works.
 
+The client sends every API request with `wp_safe_remote_request()` (since 2.1.0): WordPress refuses a host that resolves to a loopback or private IP address and ports other than 80, 443 and 8080, also after a DNS change of the server host. The live license server therefore needs a public address. For a development or test server on a local address, either define `{PREFIX}_LICENSE_DEV` (development build) or return `true` from the filter `{prefix}_license_allow_local_server`; only the host and port of the configured server addresses are then let through (filters `http_request_host_is_external` and `http_allowed_safe_ports`, added for the duration of each request and removed afterwards), nothing else.
+
 The address is burnt into every shipped copy. Before the first release, give the license server a **host name of its own that never changes**, for example `licenses.example.com`, pointing to the shop, and use it for `server_url` and for `Update URI`. If the shop moves to another domain later, the old host name keeps answering and no customer site has to be updated first. The address must be HTTPS without credentials, query or fragment; redirects are not followed. Two further settings exist for emergencies: `fallback_urls` (tried in order when the first address cannot be reached at all) and `rest_base` (when the server does not answer under `/wp-json`, for example `https://licenses.example.com/index.php?rest_route=`).
 
 ### The public key of the server
@@ -158,7 +160,7 @@ To rotate the server key: ship an add-on version that lists the old **and** the 
 | `capability` | | Who may manage the license. Default `manage_options` (`manage_network_options` in network mode). |
 | `account_url` | | Customer account of the shop; appended to the grace and expiry notices. |
 | `fallback_urls`, `rest_base` | | See above. |
-| `store`, `transport`, `clock` | | Test doubles: an `OptionStore`, a replacement for `wp_remote_request()` (also used for the package download), a replacement for `time()`. |
+| `store`, `transport`, `clock` | | Test doubles: an `OptionStore`, a replacement for `wp_safe_remote_request()` (also used for the package download), a replacement for `time()`. |
 | `signature_verifier` | | Test double: replacement for `sodium_crypto_sign_verify_detached()`; `false` simulates a PHP without any Ed25519 implementation. |
 
 ## Methods of the facade
@@ -173,7 +175,10 @@ To rotate the server key: ship an add-on version that lists the old **and** the 
 | `deactivate()` | Release this site. |
 | `move( $license_key )` | The site moved to a new address: keep the activation. |
 | `uninstall()` | Release the activation and delete all data of the add-on's licensing. |
-| `render_settings()`, `run_form_action()`, `notice()`, `render_notice()`, `settings_url()`, `privacy_text()` | Building blocks of the admin screen for add-ons that bring their own page. |
+| `render_settings()`, `run_form_action( string $action, string $license_key = '', bool $confirmed = false )`, `notice()`, `render_notice()`, `settings_url()`, `privacy_text()` | Building blocks of the admin screen for add-ons that bring their own page. `deactivate` and `move` need `$confirmed = true`, see [The license form](#the-license-form-and-run_form_action). |
+| `error_text( WP_Error $error ): string` | Since 2.1.0. Translated text of an error of the library, for display; use it instead of `get_error_message()` (an error created before `init` carries its code as message). |
+| `debug_information( array $info ): array` | Since 2.1.0. The section under Tools → Site Health → Info; hooked by `register()`. |
+| `offline_tolerance(): int` | Since 2.1.0. Seconds the local clock may run past the signed `cache_expires_at` (default 86400, at most 604800). |
 | `client()`, `updater()` | The lower layers. |
 | `LicenseManager::error_class( WP_Error )` | `lock`, `reactivate` or `keep`. |
 
@@ -192,10 +197,10 @@ To rotate the server key: ship an add-on version that lists the old **and** the 
 | `inactive` | no | Any other state without access (`pending`). |
 | `deactivated` | no | The activation of this site was released (signed by the server). The key must be entered again. |
 | `site_changed` | no | The site runs under another address than the activated one. |
-| `stale` | no | The signed offline window is used up, or the stored snapshot does not verify. |
+| `stale` | no | The signed offline window is used up, or the stored snapshot does not verify. With `reason` `clock_ahead` (since 2.1.0): the local clock is later than the signed `cache_expires_at` plus the tolerance; the clock of the site is ahead, or the offline window has really expired. |
 | `misconfigured` | no | Server address, product key or public key is unusable. |
 
-Other fields: `access`, `license_status` (the raw value of the server), `entitlements`, `paid_until`, `access_until`, `grace_until`, `cache_expires_at`, `environment`, `site_limit`, `site_count`, `installation_id`, `last_checked`, `last_error`, `last_error_at`, `needs_reactivation`. All date-time strings are **UTC** in the form `Y-m-d H:i:s`; `last_checked` and `last_error_at` are Unix times.
+Other fields: `reason` (since 2.1.0: `clock_ahead` for the `stale` state described above, otherwise empty; constant `LicenseStatus::REASON_CLOCK_AHEAD`), `access`, `license_status` (the raw value of the server), `entitlements`, `paid_until`, `access_until`, `grace_until`, `cache_expires_at`, `environment`, `site_limit`, `site_count`, `installation_id`, `last_checked`, `last_error`, `last_error_at`, `needs_reactivation`. All date-time strings are **UTC** in the form `Y-m-d H:i:s`; `last_checked` and `last_error_at` are Unix times.
 
 `is_entitled( $key )` is true when `access` is true and the value of the right is `true` or a number above zero. `entitlement( $key, $default )` returns the raw value (a limit, a string). Decide by `access` and `is_entitled()`, never by `license_status`.
 
@@ -206,7 +211,8 @@ An expired or missing license only switches premium features off. It must never 
 - The manager stores the **signed snapshot** of the last answer (`payload` with its HMAC and the Ed25519 signature of the server) in the option `{prefix}_license_state`. It is not autoloaded and not a transient, so a flushed object cache does not switch the premium features off.
 - On every read the snapshot is verified again: the HMAC with the installation secret, and the server signature with the pinned keys. A snapshot edited in the database is void (state `stale`). Both checks run on every read; nothing stored next to the snapshot can skip the server signature. Without the sodium extension WordPress' `sodium_compat` verifies, which takes about 20 ms per check: its result is then remembered for the rest of the request (for all add-ons using the library) and for a day in the object cache, or in a transient without a persistent object cache, under a key derived from signature, message and key. The stored value is an HMAC with `AUTH_KEY` and `AUTH_SALT` from `wp-config.php`, so a database edit cannot mark a forged snapshot as verified; without those constants only the per-request memo is used. The HMAC with the installation secret is checked on every read. `client()->uses_native_ed25519()` tells whether ext-sodium is used. On a PHP with neither, the client fails closed: no answer and no snapshot is accepted (`wplc_ed25519_unavailable`, state `stale`), because the HMAC alone proves nothing to someone who can read the installation secret in the same database. The activation itself is kept.
 - The snapshot is valid until its signed **`cache_expires_at`**. This is the offline window: 14 days after the answer, but never beyond `access_until`. The deadline is read from the signed payload. It is not restarted by failed attempts, and the add-on must not shorten it to `paid_until` on its own (that would lock honest customers out during the grace period).
-- Time is measured from the signed `server_time` inside the verified payload plus the local time that passed since it was stored (`fetched_at`). A wrong time zone or a constant clock error on the customer server therefore does not matter. The unsigned helper fields in the option can only make the result later: the highest local time seen (`clock_high`, so turning the clock back does not extend the window) and the highest signed server time seen. A `fetched_at` more than five minutes in the future (an edited option, or the clock turned back before the last answer, for example by an NTP correction) voids the snapshot (state `stale`) until a new signed answer arrives. The first page view that notices it schedules a one-off background check through WP-Cron right away (event `{prefix}_license_check`, at most every 15 minutes, transient `{prefix}_license_recheck`), so the features are back within minutes instead of after the next daily check; the admin catch-up asks at once as well. Limit: someone who can write the database and keeps resetting `fetched_at` can stretch the window again and again; no local-only check prevents that, but a single edit no longer unlocks anything for good.
+- Time is measured from the signed `server_time` inside the verified payload plus the local time that passed since it was stored (`fetched_at`). A wrong time zone or a clock of the customer server that is behind therefore does not shorten the window. The unsigned helper fields in the option can only make the result later: the highest local time seen (`clock_high`, so turning the clock back does not extend the window) and the highest signed server time seen. A `fetched_at` more than five minutes in the future (an edited option, or the clock turned back before the last answer, for example by an NTP correction) voids the snapshot (state `stale`) until a new signed answer arrives. The first page view that notices it schedules a one-off background check through WP-Cron right away (event `{prefix}_license_check`, at most every 15 minutes, transient `{prefix}_license_recheck`), so the features are back within minutes instead of after the next daily check; the admin catch-up asks at once as well.
+- **Absolute limit (since 2.1.0, decision of 16 Nov 2026).** Independently of all unsigned fields, the snapshot is `stale` (reason `clock_ahead`) as soon as the local UTC time (`time()`) is later than the signed `cache_expires_at` plus a tolerance of one day (`LicenseManager::OFFLINE_TOLERANCE`; filter `{prefix}_license_offline_tolerance` in seconds, limited to 0 … 7 days). Up to 2.0.3, someone who could write the options could reset `fetched_at`, `clock_high` and `server_time_max` and use an old, genuinely signed snapshot again for up to 14 days, as often as he liked (reproduced in the audit of 16 Nov 2026: `stale` on day 20, `active` after the reset). Now a database edit is not enough; it takes a system clock that is set back. The price: a clock that is ahead by more than the tolerance shortens the offline window by the difference, and a clock that is ahead by more than 14 + 1 days makes the snapshot `stale` right after every check. The license screen then shows the reason and the notice says "the clock of this site is ahead, or the offline period has expired"; the fix is the time of the web server.
 - An answer whose `server_time` is more than five minutes older than one already accepted is refused (`wplc_response_stale`).
 
 ## What an error does
@@ -283,7 +289,7 @@ A change of scheme (`http` → `https`), of a leading `www.` or of the case of t
 
 ### Deactivation
 
-`deactivate()` sends a signed `DELETE` with the current site address. The local data is removed after the signed confirmation, or on a signed refusal (`403 activation_deactivated` whose `data.signed` verifies against the pinned keys; result `status: removed_locally`). Every other error keeps the credentials and is returned, so that the release can be repeated; this includes an unsigned `site_mismatch` or `activation_not_found`, which anyone between the site and the server could send. An add-on that wants a "remove anyway" button calls `client()->forget()` (a new activation with the key also replaces credentials the server no longer knows). Since 2.0.3 `forget()`, `OptionStore::delete()` and `LicenseManager::forget_locally()` return whether the data is really gone (read back like `set()`); when the credentials stay in the database, `deactivate()` returns `wplc_credentials_not_removed` instead of a success (data `released`: whether the server released the activation; if it did, the manager still drops the stored rights). If the host or a firewall refuses the `DELETE` method (HTML page, `405`, `501`), the request is repeated as `POST` with `X-HTTP-Method-Override: DELETE`.
+`deactivate()` sends a signed `DELETE` with the current site address. The local data is removed after the signed confirmation, on a signed refusal (`403 activation_deactivated` whose `data.signed` verifies against the pinned keys; result `status: removed_locally`, `reason: activation_deactivated`), and since 2.1.0 on a signed `409 site_mismatch` (the activation belongs to another address, for example after the site was copied and the copy took the activation with "transfer"; `data.signed` verifies and says `site_match: false`; result `status: removed_locally`, `reason: site_mismatch`; the activation of the other address stays, `LicenseClient::is_signed_site_mismatch()`). Every other error keeps the credentials and is returned, so that the release can be repeated; this includes an unsigned `site_mismatch` (servers before 16 Nov 2026 send only that) or `activation_not_found`, which anyone between the site and the server could send. An add-on that wants a "remove anyway" button calls `client()->forget()` (a new activation with the key also replaces credentials the server no longer knows). Since 2.0.3 `forget()`, `OptionStore::delete()` and `LicenseManager::forget_locally()` return whether the data is really gone (read back like `set()`); when the credentials stay in the database, `deactivate()` returns `wplc_credentials_not_removed` instead of a success (data `released`: whether the server released the activation; if it did, the manager still drops the stored rights). If the host or a firewall refuses the `DELETE` method (HTML page, `405`, `501`), the request is repeated as `POST` with `X-HTTP-Method-Override: DELETE`.
 
 ## Multisite
 
@@ -319,7 +325,8 @@ A license without access still sees that a version exists: the server answers si
 
 ## Screen, notices, daily check
 
-- **License screen:** status, paid until, sites in use, environment with the installation ID, last check, last error; a key field with "Activate"; "Check now"; "Remove license from this site". The key and the installation secret are never printed. The form posts to `admin-post.php` (action `{prefix}_license`) with a nonce and the capability check.
+- **License screen:** status (with the reason of a `stale` state), paid until, sites in use, environment with the installation ID, last check, last error; a key field with "Activate"; "Check now"; "Remove license from this site" behind the checkbox "I confirm that this site gives up its license …" (since 2.1.0). The key and the installation secret are never printed. The form posts to `admin-post.php` (action `{prefix}_license`) with a nonce and the capability check.
+- **Site Health** (since 2.1.0): `register()` adds a section "{name} – License" under Tools → Site Health → Info (filter `debug_information`, method `debug_information()`): state and reason, last successful check, last error with code and time, end of the offline window, environment, the first eight characters of the installation ID, the host of the license server, how signatures are checked (PHP sodium extension, `sodium_compat`, or not at all), fingerprints of the pinned keys (first 16 hex characters of their SHA-256) and the library version. Never the license key (it is not stored), the installation secret, its hash or the snapshot. Each field has a `debug` value in English for "Copy site info to clipboard".
 - **Notices** for `grace`, `expired`, `suspended`, `revoked`, `inactive`, `deactivated`, `site_changed`, `stale`, `misconfigured`, for "the server no longer knows this site" and for a server that could not be reached for more than three days (with the date at which the features stop). The hint for a site without a license appears on the dashboard and the plugin list only.
 - **Daily check:** the cron event `{prefix}_license_check` is scheduled at a random time of day while the site is activated and removed on deactivation of the plugin. **If WP-Cron does not run**, the next admin page view of a user who may manage the license catches up after 36 hours, and after a failed attempt as soon as the back-off allows.
 
@@ -333,6 +340,30 @@ Hooks (the prefix is the option prefix of the add-on):
 | `{prefix}_license_max_package_bytes` | filter | Size limit of an update package in bytes (default 104857600). |
 | `{prefix}_license_settings_url` | filter | Address of the license screen. |
 | `{prefix}_license_show_notice` | filter | `( bool $show, array $notice )`: suppress a notice. |
+| `{prefix}_license_offline_tolerance` | filter | Since 2.1.0. Seconds the local clock may run past the signed `cache_expires_at` (default 86400; limited to 0 … 604800). |
+| `{prefix}_license_allow_local_server` | filter | Since 2.1.0. `true` lets the host of the configured server addresses resolve to a local or private IP address (development servers). Default: `true` in a development build (`{PREFIX}_LICENSE_DEV`), `false` otherwise. |
+
+### The license form and `run_form_action()`
+
+```php
+public function run_form_action( string $action, string $license_key = '', bool $confirmed = false ): array
+// returns array( 'type' => 'success'|'error', 'text' => string )
+```
+
+`$action` is `activate`, `move`, `deactivate`, `forget` or `check` (anything else checks). `$confirmed` is the administrator's confirmation:
+
+- `move`: the site moved and the old address loses the license (checkbox `wplc_confirm_move`). Unchanged.
+- `deactivate` (**new in 2.1.0**): this site gives up its license (checkbox `wplc_confirm_deactivate`). Without `$confirmed = true` nothing is sent and the result is `type: error` with the text "Nothing was removed. Confirm that this site gives up its license before you remove it." This applies whenever the release would reach the server, i.e. the site is activated and runs under its activated address. On a copy of the site (`site_changed`) `deactivate` only removes the copied data and needs no confirmation, as before.
+
+`handle_settings_form()` (the form of `render_settings()`) reads `wplc_confirm_deactivate` for `deactivate` and `wplc_confirm_move` for every other action. What callers of 2.0.x must change:
+
+| Caller | 2.0.x | 2.1.0 |
+| --- | --- | --- |
+| Own form posting to `admin-post.php?action={prefix}_license` | button `wplc_do=deactivate` | add `<input type="checkbox" name="wplc_confirm_deactivate" value="1">` with a label, before the button |
+| Own form handler calling `run_form_action()` | `run_form_action( 'deactivate' )` | `run_form_action( 'deactivate', '', ! empty( $_POST['wplc_confirm_deactivate'] ) )` |
+| Code without a form (tests, E2E, WP-CLI of the add-on) | `run_form_action( 'deactivate' )` | `run_form_action( 'deactivate', '', true )`, or `deactivate()` directly (unchanged, no confirmation) |
+
+`deactivate()`, `move()`, `forget_locally()` and the other methods of the facade are unchanged; the confirmation belongs to the form layer only.
 
 ## Uninstall
 
@@ -351,6 +382,10 @@ What is sent, exactly: `site_url`, `installation_id`, `product_key`, `product_ve
 ## Translations
 
 All texts live in `Messages.php` with their English source. After the export they carry the add-on's text domain and are part of its `.pot`. Server messages are never shown to the customer.
+
+**No translation before `init`** (since 2.1.0). WordPress 6.7 and later report "Translation loading for the … domain was triggered too early" when a translation is requested before `init`. Feature checks (`is_entitled()`, `status()`) build no text at all. Errors that the library creates before `init` (for example `wplc_not_activated` from `refresh()` on `plugins_loaded`) carry their **code as message**; `Messages::ready()` tells whether texts may be built. Show errors with `LicenseManager::error_text( $error )`, which looks the text up when it is shown, instead of `get_error_message()`. After `init` both give the same text.
+
+New texts in 2.1.0 (keys in `Messages.php`; to translate in the add-on): `reason.clock_ahead`, `notice.stale_clock_ahead`, `ui.deactivate_confirm`, `ui.deactivate_unconfirmed`, `ui.reason`, `debug.offline_until`, `debug.installation`, `debug.server`, `debug.signature`, `debug.signature.native`, `debug.signature.compat`, `debug.signature.none`, `debug.keys`, `debug.version`, `debug.none`.
 
 ## Quick start: test product, test license, test release
 
@@ -378,7 +413,7 @@ Things to try before a release of the add-on: activate, "Check now", copy the da
 new LicenseClient( string $server_url, string $product_key, string $product_version, string $option_key, array $args = array() )
 ```
 
-`$args`: `public_keys`, `text_domain`, `fallback_urls`, `rest_base`, `timeout`, `network`, `allow_insecure` (accept an `http://` server on a local development machine), `store`, `transport`, `clock`, `signature_verifier` (tests). Without `public_keys` only the HMAC is checked; this mode exists for tests, the facade does not allow it. `can_verify_server_signature()` tells whether this PHP has an Ed25519 implementation at all.
+`$args`: `public_keys`, `text_domain`, `fallback_urls`, `rest_base`, `timeout`, `network`, `allow_insecure` (accept an `http://` server on a local development machine), `allow_local_server` (since 2.1.0: let the server host resolve to a local or private address, see [Where the server address comes from](#where-the-server-address-comes-from)), `store`, `transport`, `clock`, `signature_verifier` (tests). Without `public_keys` only the HMAC is checked; this mode exists for tests, the facade does not allow it. `can_verify_server_signature()` tells whether this PHP has an Ed25519 implementation at all.
 
 | Method | Purpose |
 | --- | --- |
@@ -387,6 +422,7 @@ new LicenseClient( string $server_url, string $product_key, string $product_vers
 | `check_entitlements()` | Signed status and rights. Sends `site_url`. |
 | `check_update( bool $download = false, array $extra = array() )` | Update feed. `$extra`: `channel`, `core_version`, `target_version`. |
 | `deactivate()`, `forget()` | Release on the server; remove the local data only (`forget()` returns whether it is gone). |
+| `LicenseClient::is_signed_refusal( WP_Error )`, `LicenseClient::is_signed_site_mismatch( WP_Error )` | Whether an error carries a verified signed `activation_deactivated`, or (since 2.1.0) a verified signed `site_mismatch`. |
 | `is_activated()`, `installation_id()`, `environment()`, `activated_site_url()`, `site_matches()`, `is_configured()` | State. |
 | `last_envelope()`, `verify_snapshot( array $envelope )` | The signed envelope of the last answer, and its verification later. |
 | `LicenseClient::verified_data( $envelope, $secret, $expected_nonce = '', $public_keys = array(), $installation_id = '' )` | Pure verification of an envelope; returns the data or an error code. |
@@ -394,7 +430,7 @@ new LicenseClient( string $server_url, string $product_key, string $product_vers
 
 Verification order, mandatory for every client of this API: the HMAC of the received `payload` text; the Ed25519 signature over `wplc-response-v2\n{installation UUID, lower case}\n{payload}` with a pinned key; then decode `payload`, compare `nonce` with the value sent (for an activation: the installation ID) and use `payload.data`. The top-level `data`, `signature` and `signature_ed25519` are legacy members and are ignored; an answer without `payload` is refused. Never run the Ed25519 check over the top-level `data`.
 
-Timeouts: 5 seconds in web requests, 15 seconds in WP-Cron, WP-CLI and for the check right before a download; `timeout` overrides both. TLS verification is on, redirects are not followed.
+Timeouts: 5 seconds in web requests, 15 seconds in WP-Cron, WP-CLI and for the check right before a download; `timeout` overrides both. TLS verification is on, redirects are not followed, requests go through `wp_safe_remote_request()` (since 2.1.0; was `wp_remote_request()`).
 
 Stored credentials (`{prefix}_license`, not autoloaded): `installation_id`, `installation_secret`, `activation_id`, `license_key_hash`, `product_key`, `site_url`, `environment`, `activated_at`, `clock_offset`.
 

@@ -25,7 +25,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseStatus', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.3';
+		const VERSION = '2.1.0';
 
 		const STATE_MISCONFIGURED = 'misconfigured';
 		const STATE_UNLICENSED    = 'unlicensed';
@@ -40,11 +40,30 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseStatus', false ) ) {
 		const STATE_STALE         = 'stale';
 
 		/**
+		 * Reason of a `stale` state: the local clock is past the signed `cache_expires_at` plus the tolerance.
+		 *
+		 * Either the clock of this site is ahead or the offline window has really expired; stored
+		 * fields cannot tell which, so the text names both.
+		 *
+		 * @since 2.1.0
+		 */
+		const REASON_CLOCK_AHEAD = 'clock_ahead';
+
+		/**
 		 * One of the STATE_* constants.
 		 *
 		 * @var string
 		 */
 		public $state = self::STATE_UNLICENSED;
+
+		/**
+		 * Why the state is what it is, when the state alone does not say it: REASON_CLOCK_AHEAD, or an empty string.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @var string
+		 */
+		public $reason = '';
 
 		/**
 		 * Whether the premium features may run right now.

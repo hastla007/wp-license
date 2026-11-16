@@ -130,9 +130,25 @@ final class Plugin {
 		wp_clear_scheduled_hook( Config::cron_hook() );
 	}
 
-	/** Client configured from Config. */
+	/**
+	 * Client configured from Config.
+	 *
+	 * The client sends its requests with wp_safe_remote_request(); a development build
+	 * (PREMIUM_ADDON_STARTER_LICENSE_DEV) may reach a license server on a local or private address.
+	 */
 	public static function client( string $version = '' ): LicenseClient {
-		return new LicenseClient( Config::server_url(), Config::PRODUCT_KEY, $version, Config::credentials_option(), array( 'public_keys' => Config::server_public_keys(), 'text_domain' => 'premium-addon-starter' ) );
+		$dev = defined( 'PREMIUM_ADDON_STARTER_LICENSE_DEV' ) && true === (bool) constant( 'PREMIUM_ADDON_STARTER_LICENSE_DEV' );
+		return new LicenseClient(
+			Config::server_url(),
+			Config::PRODUCT_KEY,
+			$version,
+			Config::credentials_option(),
+			array(
+				'public_keys'        => Config::server_public_keys(),
+				'text_domain'        => 'premium-addon-starter',
+				'allow_local_server' => $dev,
+			)
+		);
 	}
 
 	/** License service. */
