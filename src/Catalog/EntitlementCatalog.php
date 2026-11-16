@@ -195,32 +195,34 @@ final class EntitlementCatalog {
 	}
 
 	/**
+	 * Every product key the catalog resolves, with its entitlement prefix: the suggested (available)
+	 * product keys, including those added with `wplc_known_product_keys`, and the planned ones.
+	 *
+	 * @return array<string,string> Product key => entitlement group.
+	 */
+	public static function product_key_groups(): array {
+		return self::known_product_keys() + self::planned_product_keys();
+	}
+
+	/**
 	 * Catalog groups that belong to a license product key such as "voucher-captain-pro".
 	 *
+	 * The group is resolved only through the catalog (product key => prefix). There is no match by
+	 * substring (PK-01): "learnboating-form-connector" contains "learnboating", the prefix of another
+	 * project product, and must not be offered its entitlements. A key the catalog does not know has
+	 * no group, so the product editor offers nothing for it until its catalog file is imported.
+	 *
 	 * @param string $product_key License product key from the product editor.
-	 * @return string[] Matching group keys; empty when none matches.
+	 * @return string[] The group of the product key; empty when the catalog does not know the key.
 	 */
 	public static function groups_for_product_key( string $product_key ): array {
 		$product_key = strtolower( $product_key );
-		$matches     = array();
 		if ( '' === $product_key ) {
-			return $matches;
+			return array();
 		}
-		$known = self::known_product_keys();
-		if ( isset( $known[ $product_key ] ) ) {
-			return array( $known[ $product_key ] );
-		}
-		$planned = self::planned_product_keys();
-		if ( isset( $planned[ $product_key ] ) ) {
-			return array( $planned[ $product_key ] );
-		}
-		foreach ( self::all() as $group => $entitlements ) {
-			// Groups without entitlements (planned products) match by their exact product key only.
-			if ( $entitlements && false !== strpos( $product_key, (string) $group ) ) {
-				$matches[] = (string) $group;
-			}
-		}
-		return $matches;
+		$groups = self::product_key_groups();
+
+		return isset( $groups[ $product_key ] ) ? array( $groups[ $product_key ] ) : array();
 	}
 
 	/**

@@ -194,18 +194,25 @@ final class EntitlementCatalogTest extends TestCase {
 		}
 		$this->assertSame( 'Pass Captain Pro', EntitlementCatalog::group_label( 'pass' ) );
 		$this->assertSame( 'Unknown', EntitlementCatalog::group_label( 'unknown' ), 'A group without a product in the catalog shows its prefix.' );
-		// An empty group never matches by substring: "platform" contains "form", "preview" contains "review".
+		// No group matches by substring (PK-01): "platform" contains "form", "preview" contains "review".
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'my-platform' ) );
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'preview-tool' ) );
-		$this->assertSame( array( 'pass' ), EntitlementCatalog::groups_for_product_key( 'pass-platform' ) );
+		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'pass-platform' ) );
 	}
 
 	public function test_groups_are_found_from_the_license_product_key(): void {
-		// Voucher Captain Pro has no key yet (R-24 removed its only one), so only its exact product key resolves.
+		// Only the catalog resolves a product key (PK-01): a key that merely contains a prefix gets no group.
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'voucher-captain' ) );
-		$this->assertSame( array( 'affiliate' ), EntitlementCatalog::groups_for_product_key( 'Affiliate-Captain' ) );
-		$this->assertSame( array( 'pass' ), EntitlementCatalog::groups_for_product_key( 'wp-pass-captain' ) );
+		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'Affiliate-Captain' ) );
+		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'wp-pass-captain' ) );
 		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'something-else' ) );
+		$this->assertSame( array( 'pass' ), EntitlementCatalog::groups_for_product_key( 'Pass-Captain-Pro' ), 'Case does not matter.' );
+		// A shop maps a legacy key in code with the filter of the suggested keys.
+		$GLOBALS['wplc_test_filters']['wplc_known_product_keys'][] = static function ( array $keys ): array {
+			return $keys + array( 'wp-pass-captain' => 'pass' );
+		};
+		$this->assertSame( array( 'pass' ), EntitlementCatalog::groups_for_product_key( 'wp-pass-captain' ) );
+		unset( $GLOBALS['wplc_test_filters']['wplc_known_product_keys'] );
 		// The three add-on product keys (decision of 14 Nov 2026) each select exactly their feature group.
 		$this->assertSame( array( 'voucher' ), EntitlementCatalog::groups_for_product_key( 'voucher-captain-pro' ) );
 		$this->assertSame( array( 'pass' ), EntitlementCatalog::groups_for_product_key( 'pass-captain-pro' ) );
