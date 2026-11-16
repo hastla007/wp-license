@@ -1,6 +1,6 @@
 # WP License Captain — To-do-Liste
 
-Stand: 16.11.2026, nach dem Review aller fünf Repositories (Abschnitt 13) und einem zweiten Durchgang durch alle offenen Aufgaben (Arbeitsliste unten). Dies ist die einzige Aufgabenliste des Lizenzservers. Sie vereint die beiden früheren Entwicklungslinien: `claude/zen-babbage-7q4nac` (T-Nummern; erledigte Aufgaben in Abschnitt 6) und `claude/sharp-mendel-xiiwf3` (Funde A-… und B-… der Audits vom 13.11., Abschnitte 7 und 8). Dazu kommen die Zusammenführung (M-…, Abschnitt 9), das Audit-Panel vom 15.11. (P-…, Abschnitt 10), die geplanten Produkte (FR-LIC-… und WFC-LIC-…, Abschnitte 11 und 12) und der Review vom 16.11. (R-…, Abschnitt 13). Nummern bleiben unverändert. Die Aufgaben der Premium-Add-ons stehen in der `TODO.md` des Repositorys `hastla007/captain-pro`, die der drei Kern-Plugins in deren eigenen `TODO.md`.
+Stand: 16.11.2026, nach dem Review aller fünf Repositories (Abschnitt 13) und einem zweiten Durchgang durch alle offenen Aufgaben (Arbeitsliste unten). Dies ist die einzige Aufgabenliste des Lizenzservers. Sie vereint die beiden früheren Entwicklungslinien: `claude/zen-babbage-7q4nac` (T-Nummern; erledigte Aufgaben in Abschnitt 6) und `claude/sharp-mendel-xiiwf3` (Funde A-… und B-… der Audits vom 13.11., Abschnitte 7 und 8). Dazu kommen die Zusammenführung (M-…, Abschnitt 9), das Audit-Panel vom 15.11. (P-…, Abschnitt 10), die geplanten Produkte (FR-LIC-… und WFC-LIC-…, Abschnitte 11 und 12) und der Review vom 16.11. (R-…, Abschnitt 13) und die Entscheidungen des Inhabers vom 16.11. mit ihren Folgeaufgaben (INH-… und PROD-…, Abschnitt 14). Nummern bleiben unverändert. Die Aufgaben der Premium-Add-ons stehen in der `TODO.md` des Repositorys `hastla007/captain-pro`, die der drei Kern-Plugins in deren eigenen `TODO.md`.
 
 Was bisher wo gelaufen ist:
 
@@ -11,13 +11,14 @@ Was bisher wo gelaufen ist:
 
 **Überblick am 16.11.2026** (aus dieser Datei gezählt, `- [ ]` und `- [x]` der obersten Ebene)
 
-- Kritisch: 8 offen, 18 erledigt. Offen: T-12, T-130, T-131, T-42, T-90, T-152, B-15, P-03.
+- Kritisch: 10 offen, 18 erledigt. Offen: T-12, T-130, T-131, T-42, T-90, T-152, B-15, P-03, INH-01, INH-04.
 - Wichtig: 24 offen, 164 erledigt. Offen: T-148, T-91, T-31, T-93, T-94, T-96, T-149, T-121, T-122, A-20, A-22, B-10, B-28, B-39, B-45, B-58, B-59, B-60, B-62, B-199, P-15, P-16, P-18, R-25.
-- Optimierung: 27 offen, 154 erledigt. Offen: T-106, T-150, A-114, A-116, A-136, B-113, B-120, B-139, B-146, B-147, B-189, B-191, P-59, P-61, R-24, FR-LIC-01 bis -05, WFC-LIC-01 bis -06, R-31.
+- Optimierung: 29 offen, 154 erledigt. Offen: T-106, T-150, A-114, A-116, A-136, B-113, B-120, B-139, B-146, B-147, B-189, B-191, P-59, P-61, FR-LIC-01 bis -05, WFC-LIC-01 bis -06, R-24, R-31, INH-02, INH-03.
 - Ohne Einstufung: 72 erledigte ältere Einträge in Abschnitt 6.
-- Zusammen: 59 offen, 408 erledigt.
-- Von den 59 offenen Aufgaben sind 15 fertig programmiert und nur gegen die nachgebildete Stripe-Schnittstelle belegt (A-20, A-114, B-10, B-58, B-59, B-60, B-62, B-146, B-147, P-03, P-15, P-16, P-18, P-59, P-61; sie schließen mit T-12), 20 warten auf eine Entscheidung des Inhabers (Liste unten), 11 betreffen die geplanten Produkte Form, Review und Workflow, und die übrigen 13 brauchen ein Gegenstück außerhalb dieser Umgebung (Liste unten) bis auf A-136 (Struktur, laufend).
+- Zusammen: 63 offen, 408 erledigt.
+- Von den 63 offenen Aufgaben sind 15 fertig programmiert und nur gegen die nachgebildete Stripe-Schnittstelle belegt (A-20, A-114, B-10, B-58, B-59, B-60, B-62, B-146, B-147, P-03, P-15, P-16, P-18, P-59, P-61; sie schließen mit T-12). Welche der übrigen auf eine Entscheidung warten, steht unter „Offene Entscheidungen“, was ein Gegenstück außerhalb dieser Umgebung braucht, in der Liste danach.
 - Am 16.11. wieder geöffnet: die 15 Stripe-Aufgaben (R-02) und T-148 (R-11). Am 16.11. neu: R-01 bis R-25, FR-LIC-01 bis -05; WFC-LIC-01 bis -06 neu gefasst.
+- Entscheidungen des Inhabers vom 16.11. (Abschnitt 14): neu INH-01 bis INH-04; die entschiedenen Aufgaben werden dort einzeln abgearbeitet.
 - Zweiter Durchgang am 16.11.: neu R-26 bis R-31; erledigt R-26 bis R-30 und B-114; offen bleibt R-31 (wartet auf captain-pro). Die Zahlen und Listen dieses Überblicks prüft seitdem `php bin/check-consistency.php` (R-30).
 
 **Regeln**
@@ -32,45 +33,37 @@ Was bisher wo gelaufen ist:
 
 ## Offene Entscheidungen
 
-Diese Fragen kann niemand außer dem Inhaber beantworten. Jede Zeile nennt die Frage; die Aufgabe dazu bleibt bis zur Antwort offen.
+Diese Fragen kann niemand außer dem Inhaber beantworten. Jede Zeile nennt die Frage; die Aufgabe dazu bleibt bis zur Antwort offen. Die am 16.11.2026 beantworteten Fragen stehen nicht mehr hier, sondern mit ihrer Antwort in Abschnitt 14.
 
 **Vor dem ersten Verkauf**
 
-- **B-15** Unter welchem dauerhaften Hostnamen läuft der Lizenzserver? Die Adresse wird in jedes Add-on fest eingetragen; vor dem ersten Add-on-Release muss sie feststehen (Release-Gate).
-- **T-42** Welche Produkte und Preise kommen in den echten Katalog? Das Tarifmodell steht fest (`single`/`business`/`agency`, 1/5/25 Live-Websites, gleicher Funktionsumfang). Offen: (a) Werden die in captain-pro `docs/TARIFE.md` vorgeschlagenen Preise bestätigt (Voucher 129/229/399 €, Pass 169/299/549 €, Affiliate 229/399/699 €)? Ein Dokument dort nennt sie entschieden, ein anderes „zu bestätigen“. (b) Sind die Preise netto oder brutto gemeint? (c) Voucher Captain Pro hat noch keine gebaute Premiumfunktion: Wird es trotzdem zum Start angeboten?
-- **T-131** Welche Funktionen sind Premium? Für Affiliate und Pass entschieden und gebaut; für Voucher offen (siehe T-42 c).
-- **B-28** Bleibt es bei „eine Aktivierung je Website“ in einem Multisite-Netzwerk (so ist es gebaut und angenommen), oder belegt ein Netzwerk nur einen Platz? Muss vor dem ersten Add-on-Release bestätigt sein.
-- **T-152** Soll eine bezahlte Bestellung, die ohne Erstattung storniert wird, ihre Lizenz sperren (so seit B-36, angenommen, nicht bestätigt) oder behalten (so vorher)?
-- **Verlängerungspreis (zu T-132):** Die automatische Verlängerung belastet den beim Kauf gespeicherten Betrag, die manuelle den aktuellen regulären Preis der gekauften Variante. Nach einer Preisänderung zahlen zwei Kunden desselben Tarifs also Verschiedenes. Ist das so gewollt? (So gebaut und angenommen, nicht bestätigt.)
+- **B-15 (B1)** Entschieden ist: Der Lizenzserver bekommt eine eigene Subdomain, und die Add-ons tragen zusätzlich eine Ausweichadresse. Offen: Wie heißt die Subdomain genau, und welche Ausweichadresse wird eingetragen? Beide Adressen stehen fest in jedem ausgelieferten Add-on; vor dem ersten Add-on-Release müssen sie feststehen (Release-Gate).
+- **T-42 (A1, A2)** Welche Produkte und Preise kommen in den echten Katalog? Das Tarifmodell steht fest (`single`/`business`/`agency`, 1/5/25 Live-Websites, gleicher Funktionsumfang). Offen: (a) Werden die in captain-pro `docs/TARIFE.md` vorgeschlagenen Preise bestätigt (Voucher 129/229/399 €, Pass 169/299/549 €, Affiliate 229/399/699 €)? Ein Dokument dort nennt sie entschieden, ein anderes „zu bestätigen“. (b) Sind die Preise netto oder brutto gemeint, und welche Nebenregeln gelten? (c) Voucher Captain Pro hat noch keine gebaute Premiumfunktion: Wird es trotzdem zum Start angeboten?
+- **T-131 (E1)** Welche Funktionen sind Premium? Für Affiliate und Pass entschieden und gebaut; für Voucher ist der Umfang offen (siehe T-42 c).
 
 **Vor dem öffentlichen Launch**
 
-- **T-121** Bleibt es nach dem Stripe-Test (T-12) bei der eigenen Verlängerung ohne WooCommerce Subscriptions? `docs/IMPLEMENTATION-PLAN.md` nennt „kein WooCommerce Subscriptions“ als Regel; die Aufgabe sieht die Bestätigung erst nach T-12 vor. Bis dahin gilt die Regel als angenommen.
-- **T-122** Wird schriftlich bestätigt, dass der Webhook der maßgebliche Abgleich für Zahlungsereignisse ist?
-- **T-31** Wird zum Start ein externer Paketspeicher (S3 oder GCS) gebraucht, oder genügt die lokale Ablage?
-- **T-94** Wer leistet Support, und welche Rolle bekommt welche der neuen Berechtigungen?
-- **B-45** Nach welcher Frist werden lange beendete Lizenzen anonymisiert? (In der Vorgabe aus.)
-- **B-39** Widerruf bei digitalen Inhalten: eigene Zustimmung im Checkout (gebaut, Pflicht in der Vorgabe) oder Germanized/German Market? Welcher Wortlaut, und braucht eine Verlängerung eine neue Zustimmung? (Rechtliche Prüfung T-93.)
-- **A-22** Sollen die Aktivierungen bei einem Neukauf automatisch auf die neue Lizenz übergehen, oder genügt es, dass der Kunde seine Websites im Konto selbst verschiebt (gebaut)?
-- **R-21 Produktgrenze:** README und `docs/CLIENT-INTEGRATION.md` nennen seit dem 15.11. den Lizenzserver ein „separat verkauftes Produkt für andere Hersteller“ und ein Plugin „License Captain Client“. (a) Soll der Server wirklich an Dritte verkauft werden (Preis, Lizenz für den Server selbst, Support, Dokumentation), oder bleibt er der Lizenzserver für die eigenen Add-ons (`docs/IMPLEMENTATION-PLAN.md` §1)? (b) Soll es ein eigenes Client-Plugin geben, oder bleibt es bei der Bibliothek, die jedes Add-on mitliefert (so ist captain-pro gebaut)? Ohne Antwort gibt es dazu keine Aufgaben.
+- **T-94 (A10)** Wer leistet Support, und welche Rolle bekommt welche der neuen Berechtigungen?
+- **B-45 (A11)** Nach welcher Frist werden lange beendete Lizenzen anonymisiert? (In der Vorgabe aus; Datenschutzfrage, fachlich prüfen lassen.)
+- **B-39 (A5)** Widerruf bei digitalen Inhalten: eigene Zustimmung im Checkout (gebaut, Pflicht in der Vorgabe) oder Germanized/German Market? Welcher Wortlaut, und braucht eine Verlängerung eine neue Zustimmung? (Rechtliche Prüfung T-93, A6.)
+- **INH-02 PHP-Mindestversion:** Der Inhaber testet die neuesten PHP-Versionen und entscheidet danach, auf welche Mindestversion Server und Client-Bibliothek angehoben werden (heute 7.4).
 
 **Danach (Optimierung)**
 
-- **R-24 Support:** Gilt das Tarifmerkmal `support.level` (`standard`/`priority`), oder die Rechte `*.priority_support` im Katalog, die kein Add-on prüft? Vorschlag: nur `support.level`, die drei Schlüssel entfallen.
-- **T-150** Sollen die Bezeichnungen der Add-on-Funktionen weiter hier übersetzt werden, oder liefern die Add-ons sie (Filter `wplc_entitlement_catalog`)?
-- **T-106** Kürzeres Schlüsselformat: welches Format, welche Länge, mindestens 128 Bit?
-- **A-116** Soll das Laufzeitende am Tagesende liegen (Shop-Zeit oder UTC) statt sekundengenau zur Kauf-Uhrzeit, und die Abbuchung ebenso?
-- **B-120** Soll `de_DE` auf „du“ umgestellt werden (etwa 1500 Texte, wie WooCommerce)? Heute sind `de_DE` und `de_DE_formal` inhaltsgleich.
-- **B-139** Sollen Kunden Mitbenutzer einladen und eine Lizenz selbst übergeben können (Agentur an Kunde)?
-- **B-189** Mehrwährungs-Shops: in der Bestellwährung oder in der Grundwährung verlängern?
-- **B-191** Menge größer 1: eine gemeinsame Verlängerungsbestellung je Kunde und Fälligkeitstag?
+- **B-189 (G6)** Mehrwährungs-Shops: in der Bestellwährung oder in der Grundwährung verlängern?
 
 **Geplante Produkte (Abschnitte 11 und 12)**
 
-- **WFC-LIC-04 / WFC-LIC-05 Workflow Captain:** (a) Wo läuft Workflow Captain, wenn es Lizenzereignisse verarbeiten soll: im Shop des Herstellers (dann genügen PHP-Hooks im selben WordPress) oder auf den Websites der Kunden (dann braucht es eine ausgehende, signierte Zustellung oder eine Abfrage über die Client-API)? (b) Wer verarbeitet die Ereignisse: der kostenlose Workflow-Kern (der nach der Grundregel nichts über Lizenzen wissen darf) oder nur das Pro-Add-on? (c) Welche stabile Referenz darf im Ereignis stehen (Lizenz-UUID, Installations-UUID)? Ohne Bezug auf Lizenz oder Kunde ist ein Ereignis nicht zuzuordnen; die Aufgabe verbietet zugleich „geheime Site-Daten“ und E-Mail. (d) Welche Zustellgarantie wird erwartet (mindestens einmal mit Wiederholung, Aufbewahrung)? (e) Braucht wirklich jemand die Ereignisse „Site-Limit erreicht“ und „Update freigegeben“? Dafür gibt es heute nicht einmal einen PHP-Hook.
-- **WFC-LIC-01 Preise Workflow:** Abschnitt 12 nennt 129/229/399 € als Produktentscheidung. Netto oder brutto? Und worin unterscheidet sich der Support der drei Tarife (siehe R-24)?
-- **FR-LIC-03 Form und Review:** Welche Preise? Brauchen einzelne Produkte oder Tarife eine eigene Staging-Regel oder einen eigenen Updatekanal? Heute gelten beide für den ganzen Shop.
-- **Wer braucht Pro für eine Workflow-Integration:** die Workflow-Lizenz (`workflow.suite_integrations`, Abschnitt 12) oder die Pro-Lizenz des jeweiligen Produkts (so die TODO von Pass Captain)? Die Repositories widersprechen sich.
+- **WFC-LIC-01 (E9) Preise Workflow:** Abschnitt 12 nennt 129/229/399 € als Produktentscheidung. Netto oder brutto?
+- **FR-LIC-03 (E9) Form und Review:** Welche Preise? Brauchen einzelne Produkte oder Tarife eine eigene Staging-Regel oder einen eigenen Updatekanal? Heute gelten beide für den ganzen Shop.
+- **WFC-LIC-05 (D3)** Wo verläuft die Grenze zwischen dem kostenlosen Workflow-Kern und Workflow Captain Pro, und welcher der beiden verarbeitet die Lizenzereignisse des Shops? Der Kern darf nach der Grundregel nichts über Lizenzen wissen.
+- **D8, Datenschutz:** Die Nutzdaten der Lizenzereignisse enthalten nach der Entscheidung öffentliche Kennungen und die Benutzer-ID. Die datenschutzrechtliche Bewertung gehört in die rechtliche Prüfung (T-93).
+
+**Lizenzserver als Produkt (E8)**
+
+- Die Fragen, die der Produktplan aufwirft (Lizenz und Updateweg des Servers selbst, eigenes Client-Plugin, Name und Preis), stehen in `docs/PRODUCT-PLAN.md`, sobald INH-04 erledigt ist, und werden dann hier eingetragen.
+
+**Nicht gefragt, weiter beim Inhaber (geschäftlich oder rechtlich):** A1 Preise netto oder brutto und Nebenregeln (T-42); A2 Start mit oder ohne Voucher Pro (T-42); A5, A6 und A11 Recht und Steuern (B-39, T-93, B-45); A10 Support (T-94); B4 Einreichung der Kerne bei WordPress.org; D3 Grenze zwischen kostenlosem und bezahltem Workflow; E1 Umfang von Voucher Pro; E3 Umfang der vier Affiliate-Funktionen; E9 Preise für Workflow, Form und Review; E10 Startländer; F1 und F4 Autor und Name; G6 Mehrwährung (B-189); der genaue Name der Subdomain (B1, B-15).
 
 ## Nur außerhalb dieser Umgebung prüfbar
 
@@ -902,3 +895,51 @@ Ein lesender Review aller fünf Repositories (`main` von wp-license bei `c269e07
 - [x] **R-30 [OPTIMIERUNG]** (Qualität) Die Zahlen im Kopf dieser Datei und die Job- und Zellenzahlen in `docs/QUALITY-GATES.md` sind schon zweimal veraltet (R-12, R-17), ohne dass eine Prüfung es gemerkt hat. Erledigt, wenn ein Skript unter `bin/` die offenen und erledigten Aufgaben je Einstufung zählt und mit dem Kopf vergleicht (auch die Listen der offenen Nummern), die Job- und Zellenzahlen aus `.github/workflows` liest und mit `docs/QUALITY-GATES.md` und dem Kopf vergleicht, und ein Unit-Test dieses Skript in CI ausführt.
   - Erledigt 16.11. (zweiter Durchgang): `bin/check-consistency.php` vergleicht (1) die Zahlen und die Listen der offenen Nummern im Kopf dieser Datei mit den Aufgabenzeilen, (2) die Job-, Unit- und Zellenzahlen in `docs/QUALITY-GATES.md` und im Kopf dieser Datei mit den Workflows, die ein Pull Request startet (heute 16 Jobs, 4 Unit, 7 Zellen), (3) die Übersetzungen mit der Vorlage und deren Kopf mit der Plugin-Version. *Unit:* `ConsistencyCheckTest` (6 Tests, läuft im CI-Job `unit`): der Stand des Repositorys ist stimmig; ein abgehakter Eintrag ohne neuen Kopf, eine neue Aufgabe, eine zusätzliche Zelle, eine zusätzliche PHP-Version, ein neuer Job und eine abweichende Übersetzung werden jeweils gemeldet. Grenze: Einen im Code geänderten Text bemerkt die Prüfung erst nach `bin/make-pot.sh` (braucht WP-CLI); Testzahlen im Kopf prüft sie nicht. Beschrieben in `docs/QUALITY-GATES.md`.
 - [ ] **R-31 [OPTIMIERUNG]** (Rechtekatalog) Die vier Affiliate-Rechte `affiliate.store_credit`, `affiliate.stripe_connect`, `affiliate.leaderboard` und `affiliate.multi_tier` sind in `hastla007/captain-pro` auf dem Pull Request 7 (Branch `claude/wp-plugin-analysis-todos-f78fzo`) gebaut, aber nicht in `main`. Sie bleiben deshalb in `EntitlementCatalog::planned()`. Braucht: den Merge dieses Pull Requests in captain-pro. Danach, in dieser Reihenfolge: (1) in `src/Catalog/EntitlementCatalog.php` die vier Einträge aus `planned()` in die Gruppe `affiliate` von `all()` verschieben (in `planned()` bleiben `affiliate.multiple_programs` und `voucher.white_label`); (2) in `docs/ENTITLEMENTS.md` die vier Zeilen aus der Tabelle „Planned, not deliverable yet“ streichen und die vier Schlüssel in der Tabelle „Plans and entitlements“ in die Zelle der Zeile „Affiliate Captain Pro“ eintragen; (3) in `tests/Admin/EntitlementCatalogTest.php` die erwartete Liste in `test_planned_keys_are_documented_and_not_offered_by_default()` auf die zwei verbleibenden Schlüssel kürzen (der Test vergleicht Code und Dokument von selbst); (4) `bin/make-pot.sh` ausführen, falls sich eine Bezeichnung geändert hat; (5) Eintrag in `CHANGELOG.md`. Vorher prüfen, dass die vier Schlüssel in captain-pro `main` genau so heißen (`addons/affiliate-captain-pro`, Aufrufe von `is_entitled()`).
+
+## 14. Entscheidungen des Inhabers vom 16.11.2026
+
+Der Inhaber hat am 16.11.2026 die technischen Fragen einzeln beantwortet. Die Kennungen (A3, G1, …) stammen aus der Entscheidungsvorlage desselben Tages, die alle fünf Repositories zusammenfasst. Hier stehen nur die Antworten, die den Lizenzserver betreffen; jede Zeile nennt die betroffenen Aufgaben. Eine entschiedene Frage schließt eine Entscheidungsaufgabe. Arbeit, die auf „nach dem Launch“ gelegt wurde, bleibt als offene Aufgabe mit diesem Vermerk stehen.
+
+### Die Entscheidungen
+
+- **A3** Eine bezahlte Bestellung, die ohne Erstattung storniert wird, sperrt ihre Lizenz (wie gebaut). Betrifft T-152.
+- **A4** Die manuelle Verlängerung nimmt wie die automatische den Preis des Kauftags (echte Preisgarantie). Zu bauen. Betrifft INH-01.
+- **A7** Die eigene Verlängerung bleibt, ohne WooCommerce Subscriptions; die endgültige Bestätigung folgt nach dem Stripe-Test. Betrifft T-121, T-12.
+- **A8** Der Stripe-Webhook ist der maßgebliche Abgleich für Zahlungsereignisse. Betrifft T-122.
+- **A9** Die Updatepakete liegen zum Start lokal; ein externer Speicher kommt später. Betrifft T-31.
+- **A12** Bei einem Neukauf gehen die Websites nicht automatisch auf die neue Lizenz über; der Kunde verschiebt sie selbst. Betrifft A-22.
+- **B1** Der Lizenzserver bekommt eine eigene Subdomain und die Add-ons eine Ausweichadresse; den genauen Namen nennt der Inhaber noch. Betrifft B-15.
+- **B2** In einem Multisite-Netzwerk zählt jede Unterseite als eigene Website. Betrifft B-28.
+- **B3 und PHP** Die Add-ons verlangen die PHP-Version ihres Kerns (Voucher 8.1, Pass 8.2, Affiliate 7.4). Der Inhaber testet später die neuesten PHP-Versionen und hebt die Mindestversionen voraussichtlich an (Sicherheit, langfristige Kompatibilität). Bis dahin läuft die neueste PHP-Version als zusätzliche CI-Zelle mit. Betrifft INH-02, INH-03.
+- **D1** Die eine gemeinsame Workflow-Spezifikation liegt im Repository des künftigen kostenlosen Workflow-Kerns; das Repository legt der Inhaber noch an. Betrifft WFC-LIC-03, WFC-LIC-04.
+- **D2** Workflow Captain läuft auf Kunden-Websites und im eigenen Shop. Im Shop verarbeitet es Lizenzereignisse; dafür liefert der Lizenzserver versionierte Ereignisse als PHP-Hooks im selben WordPress. Eine Zustellung an Kunden-Websites gibt es nicht. Betrifft WFC-LIC-04, WFC-LIC-05.
+- **D4** Jeder Kern führt eine Konstante mit der Version seines Vertrags; der Lizenzserver bekommt eine für seinen Hook-Vertrag. Betrifft WFC-LIC-04.
+- **D5** Der Transport sind die vorhandenen PHP-Hooks; neu gebaut wird nur der Abnehmer in Workflow. Betrifft WFC-LIC-04.
+- **D6** Eine Automation über zwei Produkte braucht Workflow Pro und die Pro-Lizenz des Produkt-Add-ons; geprüft wird nur in den Add-ons. Betrifft WFC-LIC-02 (die Frage „Wer braucht Pro“ ist damit beantwortet).
+- **D8** Die Nutzdaten eines Ereignisses enthalten öffentliche Kennungen und die Benutzer-ID, aber keine Schlüssel, Codes oder E-Mail-Adressen. Die Datenschutzbewertung geht in die rechtliche Prüfung. Betrifft WFC-LIC-04, T-93.
+- **D9** Der Abnehmer (Workflow) speichert und wiederholt; die Kerne und der Lizenzserver bleiben unverändert. Betrifft WFC-LIC-04.
+- **D10** Die Kerne und der Lizenzserver behalten ihre Mails und Erinnerungen; Workflow ergänzt nur. Betrifft WFC-LIC-04.
+- **D11** Ein Workflow darf Gutscheine ausstellen (mit festen Grenzen im Voucher-Kern), sonst nichts, was Geld bewegt. Für den Lizenzserver heißt das: Workflow löst hier keine Erstattung, Verlängerung oder Lizenzänderung aus. Betrifft WFC-LIC-05.
+- **D12** Die Workflow-Arbeit kommt nach dem Verkaufsstart der drei Add-ons; die Spezifikation darf parallel entstehen. Betrifft WFC-LIC-01 bis -06.
+- **E2** `voucher.white_label` bekommt denselben Umfang wie das White Label von Pass Pro. Der Schlüssel bleibt vorgemerkt, bis captain-pro ihn baut. Betrifft den Katalog (T-150).
+- **E3** `affiliate.multiple_programs` bleibt vorgemerkt und wird sicher gebaut. Betrifft den Katalog (T-150, R-31).
+- **E4** ZUGFeRD wird vor dem Launch in captain-pro gebaut. Danach nennt die Bezeichnung von `pass.e_invoicing` wieder „XRechnung, ZUGFeRD“; die Bezeichnung liefert dann das Add-on mit seiner Katalogdatei. Betrifft T-150.
+- **E8** Der Lizenzserver wird selbst als Produkt an andere Hersteller verkauft, und der Umbau dazu geschieht vor dem Verkaufsstart der Add-ons: eigener Updateweg und eigene Lizenz, keine fest eingebauten Captain-Schlüssel und -Übersetzungen, eigenständiger Client. Das verzögert den Verkaufsstart der Add-ons. Betrifft R-21, INH-04, PROD-….
+- **F2** Die alten Produktnamen werden in einem abgestimmten Schritt umbenannt, nachdem die Branches zusammengeführt sind. Betrifft die sichtbaren Texte dieses Repositorys; keine Aufgabe vor dem Merge.
+- **F3** `de_DE` wird eine echte „du“-Fassung, `de_DE_formal` bleibt „Sie“. Zu bauen. Betrifft B-120.
+- **G1** Für Support gilt nur das Tarifmerkmal `support.level`; die drei Rechte `*.priority_support` entfallen aus dem Katalog. Zu bauen. Betrifft R-24.
+- **G2** Die Add-ons liefern die Bezeichnungen ihrer Funktionen; der Server enthält keine fest eingebauten Captain-Bezeichnungen. Zu bauen. Betrifft T-150, FR-LIC-02, WFC-LIC-02.
+- **G3** Die Schlüssellänge wird nach dem Launch überprüft. Betrifft T-106.
+- **G4** Das Laufzeitende bleibt sekundengenau. Betrifft A-116 (und B-178).
+- **G5** Mitbenutzer und Übergabe einer Lizenz durch den Kunden kommen nach dem Launch. Betrifft B-139.
+- **G7** Eine gemeinsame Verlängerung bei Menge größer 1 kommt nach dem Launch. Betrifft B-191.
+- **C4** Die alten Branches `codex/*` löscht der Inhaber selbst (das Löschen wird dem Werkzeug mit 403 verweigert). Betrifft T-149.
+
+### Folgeaufgaben
+
+- [ ] **INH-01 [KRITISCH]** (Verlängerung, A4) Die manuelle Verlängerung nimmt den beim Kauf gespeicherten Betrag wie die automatische, nicht den aktuellen Katalogpreis (`src/Billing/RenewalOrder.php`, `price()` und `choose_price()`). Erledigt, wenn (1) `choose_price()` für beide Wege den gespeicherten Betrag liefert und nur dann auf einen Katalogpreis ausweicht, wenn kein Betrag gespeichert ist, (2) Konto, Mails und Checkout-Hinweise denselben Betrag nennen, (3) `docs/RENEWALS.md` die Preisgarantie beschreibt und die Lücke „manueller und automatischer Preis können abweichen“ entfällt, (4) Unit-, Integrations- und E2E-Tests den Betrag nach einer Preisänderung im Shop prüfen, und (5) dokumentiert ist, wie der Shop den vereinbarten Betrag einer bestehenden Lizenz ändert.
+- [ ] **INH-02 [OPTIMIERUNG]** (PHP) PHP-Mindestversion prüfen und anheben. Server und Client-Bibliothek verlangen heute PHP 7.4 (`wp-license.php`, `composer.json`, `phpcs.xml.dist`, `docs/COMPATIBILITY.md`). Der Inhaber testet die neuesten PHP-Versionen und entscheidet danach über die neue Mindestversion (Sicherheit, langfristige Kompatibilität). Erledigt, wenn die Entscheidung vorliegt und Plugin-Kopf, `composer.json`, PHPCompatibility-Regel, CI-Matrix, Client-Bibliothek und Dokumente dieselbe Version nennen. Braucht: die Entscheidung des Inhabers nach seinem Test. Die Add-ons richten sich bis dahin nach ihrem Kern (B3).
+- [ ] **INH-03 [OPTIMIERUNG]** (PHP, CI) Die neueste stabile PHP-Version, die GitHub-Runner anbieten, läuft als zusätzliche Zelle mit: in der Unit-Matrix und in einer Integrationszelle. Erledigt, wenn `.github/workflows/phpunit.yml`, `docs/QUALITY-GATES.md`, der Kopf dieser Datei und `bin/check-consistency.php` dieselben Zahlen nennen.
+- [ ] **INH-04 [KRITISCH]** (Produkt, E8) Produktplan schreiben: `docs/PRODUCT-PLAN.md` beschreibt, was „Lizenzserver als Produkt“ verlangt, als nummerierte Arbeitspakete mit Abhängigkeiten und Größe, und sagt für jedes Paket, ob es den ersten Verkauf der Captain-Add-ons blockiert oder nur den Verkauf des Servers. Erledigt, wenn das Dokument vorliegt, die Pakete als Aufgaben PROD-01 und folgende in diesem Abschnitt stehen und die Fragen an den Inhaber unter „Offene Entscheidungen“ eingetragen sind. Eingestuft als [KRITISCH], weil der Inhaber den Umbau vor den Verkaufsstart gelegt hat.
+
+Bereits vorhandene Aufgaben, die durch die Entscheidungen zu Bauaufgaben werden: R-24 (G1), B-120 (F3), T-150 (G2, Katalog als Daten) und WFC-LIC-01 bis -06 (D-Entscheidungen, Abschnitt 12).
