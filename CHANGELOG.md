@@ -20,6 +20,12 @@ Consolidation of all earlier development branches into one code base. Preview: c
   - **Action for add-ons:** `hastla007/captain-pro` must refresh its vendored copy with `bin/sync-client.sh /path/to/wp-license` and rebuild. A class that extends `OptionStore` (test doubles) must declare `delete(): bool`.
   - The examples in the doc comments name an existing entitlement key (`pass.waiting_room`) instead of the removed `voucher.qr_redemption`; a test checks it.
 
+### Changed (16 Nov 2026, translations and checks)
+
+- Translations: `languages/wp-license.pot` regenerated for 0.2.0 (1,573 texts), `de_DE` and `de_DE_formal` brought in line and recompiled. 130 entries left the catalog: 113 texts of the client library `src/Client` (they are shown by the add-ons in their own text domain, never by this plugin; `bin/make-pot.sh` has excluded them since the 15 Nov audit, the files had not been regenerated since) and 17 labels of the catalog keys removed on 16 Nov. The German texts of the client library remain available in the history of this repository (`languages/wp-license-de_DE_formal.po` before this change) for the add-ons that want to ship them.
+- `bin/make-pot.sh` no longer reads `build/`, `dist/` (output of `bin/build-zip.sh`, which doubled every source reference when present) and `examples/`, and carries the version and creation date of the template into the `.po` headers.
+- New `bin/check-consistency.php` with `ConsistencyCheckTest` (unit job): the counted overview of `docs/TODO.md`, the CI job numbers in `docs/QUALITY-GATES.md` and `docs/TODO.md`, and the translations against the template.
+
 ### Added
 
 - Customer account → **Sites**: every site the customer activated, across all licenses and products, in one table with product, environment, installed and latest version, last contact and license state. Flags what needs attention (license not active, payment overdue, license ends without renewal, update available, no contact for 14 days), with search, filters, CSV export and the existing site deactivation. Replaces the entitlements `voucher.central_license_overview` and `pass.client_license_management`.
