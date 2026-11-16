@@ -1222,7 +1222,9 @@ final class ReleaseRegistry {
 	 * A grant only stores a URL. For a release of the registry this checks that
 	 * the release is still published (and, for local storage, that its file is
 	 * present). URLs that belong to no release, e.g. from a custom
-	 * `wplc_update_packages` filter, are not restricted here.
+	 * `wplc_update_packages` filter, are not restricted here. A URL that only
+	 * belongs to releases of another product is never delivered for this
+	 * license (PK-03).
 	 *
 	 * @param string $package_url URL stored in the grant.
 	 * @param string $product_key Product key of the license.
@@ -1242,20 +1244,26 @@ final class ReleaseRegistry {
 				&& null !== LocalPackageStorage::path_for_key( (string) $release['package_url'] );
 		}
 		$tables = Schema::table_names();
-		$statuses = $wpdb->get_col(
+		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names().
-				"SELECT status FROM {$tables['releases']} WHERE product_key = %s AND storage = %s AND package_url = %s",
-				$product_key,
+				"SELECT product_key, status FROM {$tables['releases']} WHERE storage = %s AND package_url = %s",
 				self::STORAGE_URL,
 				$package_url
-			)
+			),
+			ARRAY_A
 		);
-		if ( ! $statuses ) {
+		if ( ! is_array( $rows ) || ! $rows ) {
 			return true;
 		}
+		foreach ( $rows as $row ) {
+			if ( (string) $row['product_key'] === $product_key && self::STATUS_PUBLISHED === (string) $row['status'] ) {
+				return true;
+			}
+		}
 
-		return in_array( self::STATUS_PUBLISHED, $statuses, true );
+		// Withdrawn or a draft of this product, or a package of another product only.
+		return false;
 	}
 
 	/**

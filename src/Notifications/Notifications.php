@@ -952,6 +952,8 @@ final class Notifications {
 			'account_url' => $account_url,
 			'pay_url' => self::pay_url( $license ),
 			'can_renew_now' => $renew_from > 0 && time() >= $renew_from ? '1' : '',
+			// PK-05: a product that is not for sale (project product) gets no "Renew now" in the reminder.
+			'sold_in_shop' => self::sold_in_shop( $license ) ? '1' : '',
 			'renew_from' => $renew_from > 0 ? self::format_date( $renew_from ) : '',
 			'cancelled_at' => ! empty( $context['cancelled_at'] ) ? self::format_date( (int) $context['cancelled_at'], true ) : '',
 			'status' => (string) ( $license['status'] ?? '' ),
@@ -1019,6 +1021,7 @@ final class Notifications {
 			'account_url' => function_exists( 'wc_get_account_endpoint_url' ) ? (string) wc_get_account_endpoint_url( 'wplc-licenses' ) : (string) home_url( '/' ),
 			'pay_url' => '',
 			'can_renew_now' => '1',
+			'sold_in_shop' => '1',
 			'renew_from' => self::format_date( $now ),
 			'cancelled_at' => self::format_date( $now, true ),
 			'status' => $status,
@@ -1223,6 +1226,26 @@ final class Notifications {
 		}
 
 		return (string) $order->get_checkout_payment_url();
+	}
+
+	/**
+	 * Whether the product of a license can be bought in the shop (PK-05).
+	 *
+	 * False only when the product the license was bought or issued as is known
+	 * and is not for sale (private, draft, password protected or not
+	 * purchasable), e.g. a project product licensed by hand. A license whose
+	 * product cannot be found keeps the normal wording.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return bool
+	 */
+	public static function sold_in_shop( array $license ): bool {
+		if ( ! function_exists( 'wc_get_product' ) ) {
+			return true;
+		}
+		$product = \WPLC\Billing\RenewalOrder::purchased_product( $license );
+
+		return ! $product || \WPLC\Catalog\Catalog::is_for_sale( $product );
 	}
 
 	/**

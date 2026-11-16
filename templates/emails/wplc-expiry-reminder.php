@@ -9,7 +9,8 @@
  * @var array<string,string> $view               Display values: product, plan, key_prefix, valid_until, days_left,
  *                                               amount (including tax), amount_includes_tax, currency, interval,
  *                                               charge_date, grace_until, account_url, pay_url, can_renew_now,
- *                                               renew_from, cancelled_at, status, support_email.
+ *                                               renew_from, cancelled_at, status, support_email,
+ *                                               sold_in_shop ('' when the product is not for sale, PK-05).
  * @var string               $email_heading      Email heading.
  * @var string               $additional_content Additional content from the email settings.
  * @var string               $sender_note        Sender note from the license settings; empty for none.
@@ -25,7 +26,10 @@ $view = array_merge(
 
 // Days are calendar days in the site timezone, like the date next to them: 0 means "today".
 $days_left  = (int) $view['days_left'];
-$can_renew  = '' !== $view['can_renew_now'] || '' === $view['renew_from'];
+// PK-05: a product that is not for sale (e.g. a project product licensed by hand) is extended by the shop, not bought again.
+// An overridden caller without the key keeps the old wording.
+$for_sale   = ! isset( $view['sold_in_shop'] ) || '' !== $view['sold_in_shop'];
+$can_renew  = $for_sale && ( '' !== $view['can_renew_now'] || '' === $view['renew_from'] );
 $paragraphs = array(
 	$days_left < 1
 		/* translators: %s: date. */
@@ -36,12 +40,16 @@ $paragraphs = array(
 			$days_left,
 			$view['valid_until']
 		),
-	__( 'It does not renew automatically. Renew it in time to keep receiving updates and to keep your sites activated.', 'wp-license' ),
-	$can_renew
+	$for_sale
+		? __( 'It does not renew automatically. Renew it in time to keep receiving updates and to keep your sites activated.', 'wp-license' )
+		: __( 'It does not renew automatically. Please contact us before that date if you want to keep using it.', 'wp-license' ),
+);
+if ( $for_sale ) {
+	$paragraphs[] = $can_renew
 		? __( 'You can renew the license in your account under "Licenses".', 'wp-license' )
 		/* translators: %s: date. */
-		: sprintf( __( 'You can renew the license in your account under "Licenses" from %s.', 'wp-license' ), $view['renew_from'] ),
-);
+		: sprintf( __( 'You can renew the license in your account under "Licenses" from %s.', 'wp-license' ), $view['renew_from'] );
+}
 $rows       = array(
 	__( 'Product', 'wp-license' ) => $view['product'],
 	__( 'Plan', 'wp-license' ) => $view['plan'],

@@ -14,6 +14,12 @@ The product keys are fixed (decision of 14 Nov 2026) and follow the rule "produc
 
 The library is written for PHP 7.4 and WordPress 6.5, the lowest requirements among the products, and needs neither WooCommerce nor a class of the license server.
 
+### Project connectors
+
+The second group of users are the project connectors (decision 17, [TODO.md](TODO.md) section 15): plugins built for one client, such as the connectors for BoatingSchool and LearnBoating. Each connector is its own project product with its own product key (key = folder = text domain, e.g. `learnboating-form-connector`), its own catalog file and entitlement prefix, and a license the owner issues by hand ([ENTITLEMENTS.md](ENTITLEMENTS.md#creating-a-project-product)). It carries its own copy of the library under its own namespace, exported like an add-on's (captain-pro delivers the export, `build/lib/ClientExporter.php`), and keeps its own options, named after its option prefix.
+
+A connector and a Pro add-on on the same website are two independent clients: two installations, two activations, and each takes one place of the live-site limit of its own product only. Revoking or suspending one license leaves the other valid, and a key of one product is refused by the other client (`product_mismatch`). `tests/integration/ProjectConnectorClientIntegrationTest.php` runs this with the library of this repository for the Pro add-on and the copy vendored into the starter (`Vendor\Product\Premium\Client`) for the connector.
+
 ## Earlier pull requests against the core plugins
 
 Before that decision, each core repository received a pull request from a branch `codex/wplc-client` (wp-couponmaster #10, wp-passmaster #20, wpaffiliatemaster #9) that added a license screen and an older copy of `LicenseClient` to the **core** plugin. They contradict the decision and must not be merged into a core plugin. They also predate version 2.0.0 of the library and its contract (server signature, signed offline window, site address, updater). Their state is not tracked in this repository.

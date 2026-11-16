@@ -1094,7 +1094,7 @@ final class LicenseAdmin {
 	 * @param string $input User ID or email address.
 	 * @return int User ID, or zero when no account matches.
 	 */
-	private static function resolve_customer( string $input ): int {
+	public static function resolve_customer( string $input ): int {
 		$input = trim( $input );
 		if ( '' !== $input && ctype_digit( $input ) ) {
 			$user = get_userdata( (int) $input );

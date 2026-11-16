@@ -320,6 +320,29 @@ final class Catalog {
 	}
 
 	/**
+	 * Whether anybody can buy a product or variation in the shop (PK-05).
+	 *
+	 * Published (the parent too, for a variation), without a password and
+	 * purchasable. A private product, as used for a project product that is
+	 * only licensed by hand (docs/ENTITLEMENTS.md, "Creating a project
+	 * product"), is not for sale, also not while an administrator looks at it.
+	 *
+	 * @param mixed $product WooCommerce product, variation or anything else.
+	 * @return bool
+	 */
+	public static function is_for_sale( $product ): bool {
+		if ( ! $product instanceof \WC_Product ) {
+			return false;
+		}
+		$parent = $product->is_type( 'variation' ) && function_exists( 'wc_get_product' ) ? wc_get_product( $product->get_parent_id() ) : $product;
+		if ( ! $parent instanceof \WC_Product || 'publish' !== $parent->get_status() || 'publish' !== $product->get_status() ) {
+			return false;
+		}
+
+		return '' === (string) get_post_field( 'post_password', $parent->get_id() ) && $product->is_purchasable();
+	}
+
+	/**
 	 * Current regular price of one purchasable product or variation.
 	 *
 	 * Used as the renewal price of a license: the regular price, never a running
