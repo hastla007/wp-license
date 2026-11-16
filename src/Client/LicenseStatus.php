@@ -25,7 +25,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseStatus', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.2';
+		const VERSION = '2.0.3';
 
 		const STATE_MISCONFIGURED = 'misconfigured';
 		const STATE_UNLICENSED    = 'unlicensed';
@@ -156,7 +156,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseStatus', false ) ) {
 		 *
 		 * True for the value `true` and for a number above zero.
 		 *
-		 * @param string $key Entitlement key, e.g. `voucher.qr_redemption`.
+		 * @param string $key Entitlement key, e.g. `voucher.bulk_orders`.
 		 * @return bool
 		 */
 		public function is_entitled( string $key ): bool {

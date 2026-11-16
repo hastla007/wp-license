@@ -600,6 +600,79 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
 	}
 
+	/**
+	 * Add-on audit 16 Nov 2026, item 9 (captain-pro docs/AUDIT-LIZENZ-PRS.md): a signed answer that cannot be
+	 * stored must not leave the older snapshot (and its rights) in place.
+	 */
+	public function test_audit16_a_signed_answer_that_cannot_be_stored_drops_the_old_snapshot(): void {
+		$manager = $this->activated();
+		$server  = $this->kit->server;
+		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+
+		$server->queue[]        = $server->signed( $server->entitlement( array( 'license_status' => 'revoked', 'access' => false, 'entitlements' => array(), 'access_until' => null ) ) );
+		$this->kit->store->fail = true;
+		$result                 = $manager->refresh();
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'wplc_credentials_not_saved', $result->get_error_code() );
+		$this->assertTrue( $result->get_error_data()['snapshot_removed'] );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ), 'The revoked license grants nothing, although its answer could not be stored.' );
+		$this->assertSame( LicenseStatus::STATE_STALE, $manager->status()->state );
+		$this->assertTrue( $manager->client()->is_activated(), 'The credentials stay: the next answer can be stored again.' );
+		$message = $manager->run_form_action( 'check' );
+		$this->assertSame( 'error', $message['type'] );
+		$this->assertStringContainsString( '(wplc_credentials_not_saved)', $message['text'] );
+
+		$this->kit->store->fail = false;
+		$this->kit->advance( 60 );
+		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->refresh()->state );
+		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+
+		// The signed refusal (lock) cannot be stored either: nothing keeps running.
+		$this->kit->server->queue[] = $this->signed_refusal();
+		$this->kit->store->fail     = true;
+		$this->assertSame( 'wplc_credentials_not_saved', $manager->refresh()->get_error_code() );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+	}
+
+	public function test_audit16_when_the_state_can_neither_be_written_nor_deleted_the_error_says_so(): void {
+		$manager                       = $this->activated();
+		$server                        = $this->kit->server;
+		$server->queue[]               = $server->signed( $server->entitlement( array( 'license_status' => 'expired', 'access' => false, 'entitlements' => array() ) ) );
+		$this->kit->store->fail        = true;
+		$this->kit->store->fail_delete = true;
+
+		$result = $manager->refresh();
+
+		$this->assertSame( 'wplc_credentials_not_saved', $result->get_error_code() );
+		$this->assertFalse( $result->get_error_data()['snapshot_removed'], 'Reported, not hidden: the old snapshot is still stored.' );
+	}
+
+	/**
+	 * Add-on audit 16 Nov 2026, item 10: "removed" is only reported when the credentials are gone.
+	 */
+	public function test_audit16_deactivation_reports_credentials_that_cannot_be_removed(): void {
+		$manager                       = $this->activated();
+		$this->kit->store->fail_delete = true;
+
+		$message = $manager->run_form_action( 'deactivate' );
+
+		$this->assertSame( 'error', $message['type'] );
+		$this->assertStringContainsString( '(wplc_credentials_not_removed)', $message['text'] );
+		$this->assertTrue( $manager->client()->is_activated(), 'The credentials could not be deleted.' );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ), 'The server released the site, so the stored rights are dropped anyway.' );
+		$this->assertArrayNotHasKey( 'envelope', $this->kit->store->data['test_addon_license_state'], 'The state could not be deleted and was emptied instead.' );
+
+		$forget = $manager->run_form_action( 'forget' );
+		$this->assertSame( 'error', $forget['type'] );
+		$this->assertStringContainsString( '(wplc_credentials_not_removed)', $forget['text'] );
+
+		$this->kit->store->fail_delete = false;
+		$this->assertTrue( $manager->forget_locally() );
+		$this->assertSame( 'success', $manager->run_form_action( 'forget' )['type'] );
+		$this->assertFalse( $manager->client()->is_activated() );
+	}
+
 	public function test_privacy_text_names_the_server_and_what_is_sent(): void {
 		$text = $this->kit->manager()->privacy_text();
 
@@ -624,7 +697,7 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertTrue( $first->is_entitled( 'feature.flag' ) );
 		$this->assertFalse( $second->is_entitled( 'feature.flag' ) );
 		$this->assertSame( LicenseStatus::STATE_UNLICENSED, $second->status()->state );
-		$this->assertSame( '2.0.2', LicenseManager::VERSION );
+		$this->assertSame( '2.0.3', LicenseManager::VERSION );
 		$this->assertSame( LicenseManager::VERSION, LicenseClient::VERSION );
 	}
 

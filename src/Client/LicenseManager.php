@@ -28,7 +28,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.2';
+		const VERSION = '2.0.3';
 
 		/**
 		 * A signed answer ended the activation: rights and credentials are dropped.
@@ -332,7 +332,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * Reads one non-autoloaded option and verifies the stored snapshot; no
 		 * request is sent.
 		 *
-		 * @param string $key Entitlement key, e.g. `voucher.qr_redemption`.
+		 * @param string $key Entitlement key, e.g. `voucher.bulk_orders`.
 		 * @return bool
 		 */
 		public function is_entitled( string $key ): bool {
@@ -453,17 +453,25 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Release the activation of this site (or only forget copied credentials on a copy).
 		 *
+		 * The stored rights are dropped whenever the server released the activation, also when the
+		 * credentials could not be removed (`wplc_credentials_not_removed`, returned as the error).
+		 * A success is returned only when credentials and stored state are both gone.
+		 *
 		 * @return array<string,mixed>|\WP_Error Result of LicenseClient::deactivate().
 		 */
 		public function deactivate() {
 			$before = $this->status()->state;
 			$result = $this->client()->deactivate();
-			if ( ! is_wp_error( $result ) ) {
-				$this->client()->store()->delete( $this->state_option() );
-				$this->snapshot = null;
+			$gone   = ! is_wp_error( $result )
+				|| ( 'wplc_credentials_not_removed' === $result->get_error_code() && ! empty( ( (array) $result->get_error_data() )['released'] ) );
+			if ( $gone ) {
+				$removed = $this->drop_state();
 				$this->updater()->flush();
 				$this->ensure_schedule();
 				$this->changed( $before );
+				if ( ! $removed && ! is_wp_error( $result ) ) {
+					$result = new \WP_Error( 'wplc_credentials_not_removed', $this->client()->messages()->error( 'wplc_credentials_not_removed' ), array( 'released' => true ) );
+				}
 			}
 
 			return $result;
@@ -476,16 +484,19 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * unsigned refusal, which leaves this as the way out when the server really
 		 * no longer knows the installation.
 		 *
-		 * @return void
+		 * @since 2.0.3 Returns whether the data is gone (was void).
+		 *
+		 * @return bool Whether credentials and stored state are both removed.
 		 */
-		public function forget_locally(): void {
-			$before = $this->status()->state;
-			$this->client()->forget();
-			$this->client()->store()->delete( $this->state_option() );
-			$this->snapshot = null;
+		public function forget_locally(): bool {
+			$before      = $this->status()->state;
+			$credentials = $this->client()->forget();
+			$state       = $this->drop_state();
 			$this->updater()->flush();
 			$this->ensure_schedule();
 			$this->changed( $before );
+
+			return $credentials && $state;
 		}
 
 		/**
@@ -871,8 +882,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$result = $this->deactivate();
 				$saved  = is_array( $result ) && 'removed_locally' === ( $result['status'] ?? '' ) && 'wplc_site_changed' === ( $result['reason'] ?? '' ) ? 'ui.saved.deactivated_locally' : 'ui.saved.deactivated';
 			} elseif ( 'forget' === $action ) {
-				$this->forget_locally();
-				$result = array();
+				$result = $this->forget_locally() ? array() : new \WP_Error( 'wplc_credentials_not_removed', $this->client()->messages()->error( 'wplc_credentials_not_removed' ) );
 				$saved  = 'ui.saved.forgotten';
 			} else {
 				$result = $this->refresh( true );
@@ -1065,7 +1075,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 					$state['lock']     = '';
 					$state['envelope'] = $this->client()->last_envelope();
 				}
-				$this->write( $state );
+				if ( ! $this->write( $state ) ) {
+					return $this->not_saved();
+				}
 
 				return null;
 			}
@@ -1081,7 +1093,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$state['error_streak']    = 0;
 				$state['next_attempt']    = 0;
 				unset( $state['envelope'] );
-				$this->write( $state );
+				if ( ! $this->write( $state ) ) {
+					return $this->not_saved();
+				}
 
 				return $result;
 			}
@@ -1202,11 +1216,41 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * Write the state and forget the memoized snapshot.
 		 *
 		 * @param array<string,mixed> $state State.
-		 * @return void
+		 * @return bool Whether the state was stored (read back by OptionStore::set()).
 		 */
-		private function write( array $state ): void {
-			$this->client()->store()->set( $this->state_option(), $state );
+		private function write( array $state ): bool {
+			$saved          = $this->client()->store()->set( $this->state_option(), $state );
 			$this->snapshot = null;
+
+			return $saved;
+		}
+
+		/**
+		 * Remove the stored state with its snapshot; when the option cannot be deleted, overwrite it with an empty state.
+		 *
+		 * @return bool Whether no snapshot is stored any more.
+		 */
+		private function drop_state(): bool {
+			$removed = $this->client()->store()->delete( $this->state_option() ) || $this->write( array() );
+
+			$this->snapshot = null;
+
+			return $removed;
+		}
+
+		/**
+		 * A signed answer could not be stored: drop the stored state with its snapshot.
+		 *
+		 * Otherwise the rights of the older snapshot would outlive the signed answer that
+		 * replaced them (for example a revocation) until its `cache_expires_at`. Without a
+		 * snapshot the add-on is `stale` until the next answer can be stored.
+		 *
+		 * @return \WP_Error `wplc_credentials_not_saved`; data `snapshot_removed` says whether the old snapshot is gone.
+		 */
+		private function not_saved(): \WP_Error {
+			$removed = $this->drop_state();
+
+			return new \WP_Error( 'wplc_credentials_not_saved', $this->client()->messages()->error( 'wplc_credentials_not_saved' ), array( 'snapshot_removed' => $removed ) );
 		}
 
 		/**

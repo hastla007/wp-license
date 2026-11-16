@@ -155,6 +155,15 @@ Eight reviewers (security admin/frontend, REST pentest, billing QA, client QA, p
   - P-34: `signing-key --rotate` and `activation release --license` ask for confirmation.
   - P-51 / P-52 / P-54 / P-56 / P-57: yesterday's API counters are kept, less admin overhead, uninstall removes cron events with arguments, the PHPCS gate compares per source line, readme says schema 22.
 
+### Add-on audits (16 Nov 2026)
+
+- **Client library 2.0.3** (add-on audits of 16 Nov 2026, captain-pro `docs/AUDIT-LIZENZ-PRS.md`; `docs/TODO.md` section 13):
+  - Signed activation, entitlement and update answers must carry `product_key`; without it they are `wplc_response_invalid`. Only the signed "deactivated" answer, which grants nothing, may omit it. A stored snapshot without it grants nothing.
+  - The `activation_id` of an activation answer must be a positive integer; otherwise nothing is stored and `activate()` returns `wplc_response_invalid` (was: `-5` stored, `"abc"` stored as 0 and reported as activated).
+  - `LicenseManager` checks that the state was written: when a signed answer cannot be stored, the older snapshot is deleted (or emptied) and `wplc_credentials_not_saved` is returned, so a revocation that could not be saved does not leave the old rights running for up to 14 days.
+  - `OptionStore::delete()`, `LicenseClient::forget()` and `LicenseManager::forget_locally()` return whether the data is gone (were `void`); `deactivate()` and the form actions report `wplc_credentials_not_removed` (new text) instead of "removed" while the credentials stay. Subclasses of `OptionStore` (only the test kit) must declare `delete(): bool`.
+  - Re-vendored into the add-on starter.
+
 ### Open items from the 13 Nov audits (15 Nov 2026, wave 2)
 
 - **Renewals and orders:**

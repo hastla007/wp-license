@@ -123,6 +123,9 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$this->assertIsArray( $update );
 		$this->assertFalse( $update['update_available'] );
 		$this->assertTrue( $update['license_active'] );
+		// Client 2.0.3 refuses signed answers without product_key: activation, check and update check above
+		// only succeed because the real server names the product in each of them.
+		$this->assertSame( 'test-product', $update['product_key'] );
 		$this->assertSame( 0, (int) $GLOBALS['wpdb']->get_var( "SELECT COUNT(*) FROM {$this->tables()['download_tokens']}" ) );
 
 		// Deactivate: signed DELETE with the site address; credentials and snapshot are removed.

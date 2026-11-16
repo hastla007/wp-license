@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/LicenseClient.php
- * (source sha256 c7af15bd7deb0f48dcf79737b4f2f548eb52c31bc549cdbf7fb843793189e58f). Do not edit: change the server copy and re-vendor.
+ * (source sha256 68049fa0686b50d95bc11aa2daf648fc1de8e45f48bb57bc8ace671fcf9cdc79). Do not edit: change the server copy and re-vendor.
  *
  * Transport of the license client: activation, signed requests, verified answers.
  *
@@ -35,7 +35,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.2';
+		const VERSION = '2.0.3';
 
 		/**
 		 * Context of the Ed25519 signature over the payload text.
@@ -622,11 +622,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			if ( is_wp_error( $data ) ) {
 				return $data;
 			}
-			if ( strtolower( (string) ( $data['installation_id'] ?? '' ) ) !== strtolower( $body['installation_id'] ) || empty( $data['activation_id'] ) ) {
+			// The ID is stored and later used in the route of the deactivation: only a positive integer is accepted.
+			if ( strtolower( (string) ( $data['installation_id'] ?? '' ) ) !== strtolower( $body['installation_id'] ) || 0 === self::positive_id( $data['activation_id'] ?? null ) ) {
 				return $this->error( 'wplc_response_invalid' );
 			}
 
-			return $this->check_product( $data );
+			return $this->check_product( $data, false );
 		}
 
 		/**
@@ -644,7 +645,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				array(
 					'installation_id'     => $installation_id,
 					'installation_secret' => $secret,
-					'activation_id'       => (int) $data['activation_id'],
+					'activation_id'       => self::positive_id( $data['activation_id'] ?? null ),
 					'license_key_hash'    => $key_hash,
 					'product_key'         => $this->product_key,
 					'site_url'            => $this->store->site_url(),
@@ -708,11 +709,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			if ( is_wp_error( $data ) ) {
 				return $data;
 			}
-			if ( isset( $data['product_key'] ) && strtolower( (string) $data['product_key'] ) !== $this->product_key ) {
-				return $this->error( 'wplc_product_mismatch' );
-			}
 
-			return $data;
+			return $this->check_product( $data, false );
 		}
 
 		/**
@@ -727,6 +725,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * Every other error keeps the credentials and is returned, also an
 		 * unsigned `site_mismatch` or `activation_not_found` (anyone between the
 		 * site and the server could send those); use forget() to drop them anyway.
+		 * When the credentials cannot be removed from the database the result is
+		 * `wplc_credentials_not_removed` (data `released`: whether the server
+		 * released the activation), never a success.
 		 *
 		 * @return array<string,mixed>|\WP_Error
 		 */
@@ -736,7 +737,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				return $credentials;
 			}
 			if ( ! $this->site_matches() ) {
-				$this->forget();
+				if ( ! $this->forget() ) {
+					return $this->error( 'wplc_credentials_not_removed', array( 'released' => false ) );
+				}
 				return array(
 					'status' => 'removed_locally',
 					'reason' => 'wplc_site_changed',
@@ -755,7 +758,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			}
 			if ( is_wp_error( $data ) ) {
 				if ( self::is_signed_refusal( $data ) ) {
-					$this->forget();
+					// interpret() already tried to forget; a second attempt tells whether the data is gone.
+					if ( ! $this->forget() ) {
+						return $this->error( 'wplc_credentials_not_removed', array( 'released' => true ) );
+					}
 					return array(
 						'status' => 'removed_locally',
 						'reason' => $data->get_error_code(),
@@ -763,7 +769,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				}
 				return $data;
 			}
-			$this->forget();
+			if ( ! $this->forget() ) {
+				return $this->error( 'wplc_credentials_not_removed', array( 'released' => true ) );
+			}
 
 			return $data;
 		}
@@ -771,11 +779,15 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Remove the stored credentials without contacting the server.
 		 *
-		 * @return void
+		 * @since 2.0.3 Returns whether they are gone (was void).
+		 *
+		 * @return bool Whether neither the credentials nor a pending activation remain stored.
 		 */
-		public function forget(): void {
-			$this->store->delete( $this->option_key );
-			$this->store->delete( $this->option_key . '_pending' );
+		public function forget(): bool {
+			$credentials = $this->store->delete( $this->option_key );
+			$pending     = $this->store->delete( $this->option_key . '_pending' );
+
+			return $credentials && $pending;
 		}
 
 		/**
@@ -822,7 +834,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 				return $data;
 			}
 
-			return isset( $data['product_key'] ) && strtolower( (string) $data['product_key'] ) !== $this->product_key ? 'wplc_product_mismatch' : $data;
+			$problem = $this->product_problem( $data, true );
+
+			return '' === $problem ? $data : $problem;
 		}
 
 		/**
@@ -1314,17 +1328,56 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		// ------------------------------------------------------------------
 
 		/**
-		 * Reject signed data that was issued for another product.
+		 * Reject signed data that was issued for another product or names none.
 		 *
-		 * @param array<string,mixed> $data Signed data.
+		 * @param array<string,mixed> $data          Signed data.
+		 * @param bool                $allow_refusal Accept a signed "deactivated" answer without product key (entitlement check).
 		 * @return array<string,mixed>|\WP_Error
 		 */
-		private function check_product( array $data ) {
-			if ( isset( $data['product_key'] ) && strtolower( (string) $data['product_key'] ) !== $this->product_key ) {
-				return $this->error( 'wplc_product_mismatch' );
+		private function check_product( array $data, bool $allow_refusal = true ) {
+			$problem = $this->product_problem( $data, $allow_refusal );
+
+			return '' === $problem ? $data : $this->error( $problem );
+		}
+
+		/**
+		 * Why signed data does not belong to this add-on; empty when it does.
+		 *
+		 * Since 2.0.3 `product_key` is required: the server sends it in every activation, entitlement and
+		 * update answer, and signed data without it is `wplc_response_invalid`. The one exception (with
+		 * `$allow_refusal`) is the signed "deactivated" answer of the entitlement check, which carries no
+		 * product key and grants nothing. Builds no texts (used by verified_snapshot_data()).
+		 *
+		 * @param array<string,mixed> $data          Signed data.
+		 * @param bool                $allow_refusal Accept `activation_status: deactivated` without access and without product key.
+		 * @return string Error code or ''.
+		 */
+		private function product_problem( array $data, bool $allow_refusal ): string {
+			$product = $data['product_key'] ?? null;
+			if ( ! is_string( $product ) || '' === $product ) {
+				$refusal = 'deactivated' === ( $data['activation_status'] ?? '' ) && true !== ( $data['access'] ?? null );
+
+				return $allow_refusal && $refusal ? '' : 'wplc_response_invalid';
 			}
 
-			return $data;
+			return strtolower( $product ) === $this->product_key ? '' : 'wplc_product_mismatch';
+		}
+
+		/**
+		 * A positive integer ID from signed data; 0 for anything else.
+		 *
+		 * @param mixed $value Value of the answer (JSON integer, or a decimal string without leading zero).
+		 * @return int
+		 */
+		private static function positive_id( $value ): int {
+			if ( is_int( $value ) ) {
+				return $value > 0 ? $value : 0;
+			}
+			if ( is_string( $value ) && preg_match( '/^[1-9][0-9]{0,17}$/D', $value ) ) {
+				return (int) $value;
+			}
+
+			return 0;
 		}
 
 		/**

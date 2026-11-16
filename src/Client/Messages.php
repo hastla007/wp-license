@@ -30,7 +30,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.2';
+		const VERSION = '2.0.3';
 
 		/**
 		 * Text domain literal used in this file.
@@ -127,6 +127,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'error.wplc_not_activated'            => __( 'This site has not been activated with a license key yet.', 'wp-license' ),
 				'error.wplc_site_changed'             => __( 'The address of this site differs from the address the license was activated for. This looks like a copy of the site. Activate the license for this address.', 'wp-license' ),
 				'error.wplc_credentials_not_saved'    => __( 'The activation data could not be stored in the database of this site. Check the database and try again.', 'wp-license' ),
+				'error.wplc_credentials_not_removed'  => __( 'The license data could not be removed from the database of this site. Check the database and try again.', 'wp-license' ),
 				'error.wplc_json_error'               => __( 'The request to the license server could not be prepared.', 'wp-license' ),
 				'error.wplc_http_error'               => __( 'The license server answered with an unexpected error.', 'wp-license' ),
 				'error.wplc_connection_failed'        => __( 'The license server could not be reached. Premium features keep working; the check is repeated automatically.', 'wp-license' ),

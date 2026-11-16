@@ -207,8 +207,10 @@ final class WPLC_Test_Store extends OptionStore {
 	public $data = array();
 	/** @var string */
 	public $site = 'https://shop.example';
-	/** @var bool */
+	/** @var bool Refuse every write. */
 	public $fail = false;
+	/** @var bool Refuse every delete (the value stays). */
+	public $fail_delete = false;
 
 	public function __construct() {
 	}
@@ -225,8 +227,12 @@ final class WPLC_Test_Store extends OptionStore {
 		$this->data[ $name ] = $value;
 		return true;
 	}
-	public function delete( string $name ): void {
+	public function delete( string $name ): bool {
+		if ( $this->fail_delete ) {
+			return ! array_key_exists( $name, $this->data );
+		}
 		unset( $this->data[ $name ] );
+		return true;
 	}
 	public function site_url(): string {
 		return $this->site;
@@ -253,8 +259,9 @@ final class WPLC_Test_Blog_Store extends OptionStore {
 		$this->data[ get_current_blog_id() ][ $name ] = $value;
 		return true;
 	}
-	public function delete( string $name ): void {
+	public function delete( string $name ): bool {
 		unset( $this->data[ get_current_blog_id() ][ $name ] );
+		return true;
 	}
 	public function site_url(): string {
 		return 'https://site' . get_current_blog_id() . '.example';

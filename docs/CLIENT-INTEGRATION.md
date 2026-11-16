@@ -38,7 +38,7 @@ It copies `src/Client/*.php`, replaces `namespace WPLC\Client;` by the given nam
 **Without the script: an unchanged copy.** Every class is declared inside `if ( ! class_exists( ... ) )`, so two add-ons with the same unchanged files do not end in "Cannot declare class". The limits of this way:
 
 - The copy that is loaded **first** is used by all add-ons, also when it is the older one. WordPress loads plugins in the alphabetical order of their folders.
-- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.0.2`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.1.0', '<' )`) and show a message; it cannot replace a class that is already declared.
+- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.0.3`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.1.0', '<' )`) and show a message; it cannot replace a class that is already declared.
 - The strings keep the text domain `wp-license`. They are translated through the `text_domain` setting only if the add-on's language files contain them; `make-pot` does not find them on its own.
 
 Use the unchanged copy for experiments only.
@@ -236,11 +236,12 @@ Codes of the library itself:
 | `wplc_license_key_missing` | No key was entered. |
 | `wplc_not_activated` | No credentials on this site. |
 | `wplc_site_changed` | The site address differs from the activated one. No request was sent. |
-| `wplc_credentials_not_saved` | The credentials could not be written to the database. No request was sent (pending step), or the activation exists on the server and the next attempt finds it again. |
+| `wplc_credentials_not_saved` | The credentials could not be written to the database. No request was sent (pending step), or the activation exists on the server and the next attempt finds it again. Also returned by `LicenseManager` when a signed answer could not be stored: the older snapshot is then dropped (data `snapshot_removed`), so its rights do not outlive the answer that replaced them. |
+| `wplc_credentials_not_removed` | The credentials (or the stored state) could not be deleted from the database; nothing is reported as removed. |
 | `wplc_connection_failed` | No HTTP answer from any server address; `transport_code` and `transport_message` carry the WordPress HTTP error. |
 | `wplc_blocked_by_firewall` | An HTML page arrived instead of JSON: a WAF, a bot challenge, a maintenance page. |
 | `wplc_http_error` | An error status without a JSON error body. |
-| `wplc_response_invalid` | Status 2xx, but not a readable envelope. |
+| `wplc_response_invalid` | Status 2xx, but not a readable envelope; since 2.0.3 also signed data without `product_key` (only the signed "deactivated" answer of the entitlement check may omit it) and an activation answer whose `activation_id` is not a positive integer. Nothing is stored. |
 | `wplc_signature_invalid` | `payload` or its HMAC is missing or wrong. |
 | `wplc_server_signature_invalid` | The Ed25519 signature of the server is missing or does not match a pinned key. |
 | `wplc_ed25519_unavailable` | This PHP has neither ext-sodium nor `sodium_compat`; nothing is accepted (fail closed). |
@@ -282,7 +283,7 @@ A change of scheme (`http` → `https`), of a leading `www.` or of the case of t
 
 ### Deactivation
 
-`deactivate()` sends a signed `DELETE` with the current site address. The local data is removed after the signed confirmation, or on a signed refusal (`403 activation_deactivated` whose `data.signed` verifies against the pinned keys; result `status: removed_locally`). Every other error keeps the credentials and is returned, so that the release can be repeated; this includes an unsigned `site_mismatch` or `activation_not_found`, which anyone between the site and the server could send. An add-on that wants a "remove anyway" button calls `client()->forget()` (a new activation with the key also replaces credentials the server no longer knows). If the host or a firewall refuses the `DELETE` method (HTML page, `405`, `501`), the request is repeated as `POST` with `X-HTTP-Method-Override: DELETE`.
+`deactivate()` sends a signed `DELETE` with the current site address. The local data is removed after the signed confirmation, or on a signed refusal (`403 activation_deactivated` whose `data.signed` verifies against the pinned keys; result `status: removed_locally`). Every other error keeps the credentials and is returned, so that the release can be repeated; this includes an unsigned `site_mismatch` or `activation_not_found`, which anyone between the site and the server could send. An add-on that wants a "remove anyway" button calls `client()->forget()` (a new activation with the key also replaces credentials the server no longer knows). Since 2.0.3 `forget()`, `OptionStore::delete()` and `LicenseManager::forget_locally()` return whether the data is really gone (read back like `set()`); when the credentials stay in the database, `deactivate()` returns `wplc_credentials_not_removed` instead of a success (data `released`: whether the server released the activation; if it did, the manager still drops the stored rights). If the host or a firewall refuses the `DELETE` method (HTML page, `405`, `501`), the request is repeated as `POST` with `X-HTTP-Method-Override: DELETE`.
 
 ## Multisite
 
@@ -385,7 +386,7 @@ new LicenseClient( string $server_url, string $product_key, string $product_vers
 | `move( $license_key )` | Repeat the activation with the stored installation for the current address. |
 | `check_entitlements()` | Signed status and rights. Sends `site_url`. |
 | `check_update( bool $download = false, array $extra = array() )` | Update feed. `$extra`: `channel`, `core_version`, `target_version`. |
-| `deactivate()`, `forget()` | Release on the server; remove the local data only. |
+| `deactivate()`, `forget()` | Release on the server; remove the local data only (`forget()` returns whether it is gone). |
 | `is_activated()`, `installation_id()`, `environment()`, `activated_site_url()`, `site_matches()`, `is_configured()` | State. |
 | `last_envelope()`, `verify_snapshot( array $envelope )` | The signed envelope of the last answer, and its verification later. |
 | `LicenseClient::verified_data( $envelope, $secret, $expected_nonce = '', $public_keys = array(), $installation_id = '' )` | Pure verification of an envelope; returns the data or an error code. |
