@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 14d0daced93c0e7a6dfe73a5fb0ef2691927b475faacb2deeaa9a514d6f30737). Do not edit: change the server copy and re-vendor.
+ * (source sha256 3a8b48dc8d063dc7e5e8edf35e5b836fdb2cdfb90e16d899617c47d7d66b5408). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -159,6 +159,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'error.wplc_not_activated'            => __( 'This site has not been activated with a license key yet.', 'premium-addon-starter' ),
 				'error.wplc_site_changed'             => __( 'The address of this site differs from the address the license was activated for. This looks like a copy of the site. Activate the license for this address.', 'premium-addon-starter' ),
 				'error.wplc_credentials_not_saved'    => __( 'The activation data could not be stored in the database of this site. Check the database and try again.', 'premium-addon-starter' ),
+				'error.wplc_state_not_saved'          => __( 'The answer of the license server could not be stored in the database of this site. Check the database; the check is repeated automatically.', 'premium-addon-starter' ),
 				'error.wplc_credentials_not_removed'  => __( 'The license data could not be removed from the database of this site. Check the database and try again.', 'premium-addon-starter' ),
 				'error.wplc_json_error'               => __( 'The request to the license server could not be prepared.', 'premium-addon-starter' ),
 				'error.wplc_http_error'               => __( 'The license server answered with an unexpected error.', 'premium-addon-starter' ),

@@ -248,7 +248,8 @@ Codes of the library itself:
 | `wplc_license_key_missing` | No key was entered. |
 | `wplc_not_activated` | No credentials on this site. |
 | `wplc_site_changed` | The site address differs from the activated one. No request was sent. |
-| `wplc_credentials_not_saved` | The credentials could not be written to the database. No request was sent (pending step), or the activation exists on the server and the next attempt finds it again. Also returned by `LicenseManager` when a signed answer could not be stored: the older snapshot is then dropped (data `snapshot_removed`), so its rights do not outlive the answer that replaced them. |
+| `wplc_credentials_not_saved` | The credentials could not be written to the database. No request was sent (pending step), or the activation exists on the server and the next attempt finds it again. |
+| `wplc_state_not_saved` | A signed answer could not be stored (since 2.1.0). The request that received it follows the answer; a stored older state that granted more is deleted, so the add-on reports "stale" until an answer can be stored. An older state that grants the same is kept, so a database hiccup does not switch a paid add-on off. |
 | `wplc_credentials_not_removed` | The credentials (or the stored state) could not be deleted from the database; nothing is reported as removed. |
 | `wplc_connection_failed` | No HTTP answer from any server address; `transport_code` and `transport_message` carry the WordPress HTTP error. |
 | `wplc_blocked_by_firewall` | An HTML page arrived instead of JSON: a WAF, a bot challenge, a maintenance page. |

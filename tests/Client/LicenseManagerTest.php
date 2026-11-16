@@ -699,52 +699,86 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
 	}
 
-	/**
-	 * Add-on audit 16 Nov 2026, item 9 (captain-pro docs/AUDIT-LIZENZ-PRS.md): a signed answer that cannot be
-	 * stored must not leave the older snapshot (and its rights) in place.
-	 */
-	public function test_audit16_a_signed_answer_that_cannot_be_stored_drops_the_old_snapshot(): void {
-		$manager = $this->activated();
-		$server  = $this->kit->server;
-		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+	// R-26 / R-27 (client 2.1.0): storage is confirmed, a failed write never leaves more rights behind.
 
-		$server->queue[]        = $server->signed( $server->entitlement( array( 'license_status' => 'revoked', 'access' => false, 'entitlements' => array(), 'access_until' => null ) ) );
-		$this->kit->store->fail = true;
-		$result                 = $manager->refresh();
+	public function test_r26_a_signed_withdrawal_that_cannot_be_stored_does_not_leave_the_older_rights_in_charge(): void {
+		foreach ( array( 'suspended', 'revoked', 'expired' ) as $license_status ) {
+			$this->kit       = new WPLC_Client_Test_Kit();
+			$manager         = $this->activated();
+			$server          = $this->kit->server;
+			$server->queue[] = $server->signed( $server->entitlement( array( 'license_status' => $license_status, 'access' => false, 'entitlements' => array() ) ) );
+			$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
 
-		$this->assertInstanceOf( WP_Error::class, $result );
-		$this->assertSame( 'wplc_credentials_not_saved', $result->get_error_code() );
-		$this->assertTrue( $result->get_error_data()['snapshot_removed'] );
-		$this->assertFalse( $manager->is_entitled( 'feature.flag' ), 'The revoked license grants nothing, although its answer could not be stored.' );
-		$this->assertSame( LicenseStatus::STATE_STALE, $manager->status()->state );
-		$this->assertTrue( $manager->client()->is_activated(), 'The credentials stay: the next answer can be stored again.' );
-		$message = $manager->run_form_action( 'check' );
-		$this->assertSame( 'error', $message['type'] );
-		$this->assertStringContainsString( '(wplc_credentials_not_saved)', $message['text'] );
+			$this->kit->store->fail = true;
+			$result                 = $manager->refresh();
 
-		$this->kit->store->fail = false;
-		$this->kit->advance( 60 );
-		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->refresh()->state );
-		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+			$this->assertInstanceOf( WP_Error::class, $result, $license_status );
+			$this->assertSame( 'wplc_state_not_saved', $result->get_error_code() );
+			$this->assertFalse( $manager->is_entitled( 'feature.flag' ), 'The request that received the answer follows it.' );
+			$this->assertFalse( $manager->status()->access );
+			$this->assertSame( $license_status, $manager->status()->license_status );
 
-		// The signed refusal (lock) cannot be stored either: nothing keeps running.
-		$this->kit->server->queue[] = $this->signed_refusal();
-		$this->kit->store->fail     = true;
-		$this->assertSame( 'wplc_credentials_not_saved', $manager->refresh()->get_error_code() );
-		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+			// A later request (new object, same database): the older snapshot that granted access is gone.
+			$this->kit->store->fail = false;
+			$later                  = $this->kit->manager();
+			$this->assertFalse( $later->is_entitled( 'feature.flag' ), $license_status );
+			$this->assertSame( LicenseStatus::STATE_STALE, $later->status()->state );
+			$this->assertArrayNotHasKey( 'test_addon_license_state', $this->kit->store->data );
+
+			// The next answer that can be stored applies normally.
+			$server->queue[] = $server->signed( $server->entitlement( array( 'license_status' => $license_status, 'access' => false, 'entitlements' => array() ) ) );
+			$this->assertFalse( $later->refresh()->access );
+			$this->assertArrayHasKey( 'envelope', $this->kit->store->data['test_addon_license_state'] );
+		}
 	}
 
-	public function test_audit16_when_the_state_can_neither_be_written_nor_deleted_the_error_says_so(): void {
-		$manager                       = $this->activated();
-		$server                        = $this->kit->server;
-		$server->queue[]               = $server->signed( $server->entitlement( array( 'license_status' => 'expired', 'access' => false, 'entitlements' => array() ) ) );
+	public function test_r26_a_withdrawn_right_that_cannot_be_stored_is_not_granted_from_the_older_state(): void {
+		$manager         = $this->activated();
+		$server          = $this->kit->server;
+		$server->queue[] = $server->signed( $server->entitlement( array( 'entitlements' => array( 'other.flag' => true ) ) ) );
+
+		$this->kit->store->fail = true;
+		$this->assertSame( 'wplc_state_not_saved', $manager->refresh()->get_error_code() );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+		$this->assertTrue( $manager->is_entitled( 'other.flag' ) );
+
+		$this->kit->store->fail = false;
+		$this->assertFalse( $this->kit->manager()->is_entitled( 'feature.flag' ) );
+	}
+
+	public function test_r26_an_unstored_answer_with_the_same_rights_keeps_the_older_state(): void {
+		$manager         = $this->activated();
+		$server          = $this->kit->server;
+		$before          = $this->kit->store->data['test_addon_license_state'];
+		$server->queue[] = $server->signed( $server->entitlement() );
+
+		$this->kit->store->fail = true;
+		$this->assertSame( 'wplc_state_not_saved', $manager->refresh()->get_error_code() );
+		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+
+		// Nothing was taken away, so a database hiccup does not switch a paid add-on off.
+		$this->kit->store->fail = false;
+		$this->assertSame( $before, $this->kit->store->data['test_addon_license_state'] );
+		$this->assertTrue( $this->kit->manager()->is_entitled( 'feature.flag' ) );
+
+		// A failed request (kept cache) that cannot be recorded changes nothing either.
+		$this->kit->store->fail     = true;
+		$this->kit->server->queue[] = new WP_Error( 'http_request_failed', 'down' );
+		$this->assertSame( 'wplc_connection_failed', $manager->refresh()->get_error_code() );
+		$this->assertSame( $before, $this->kit->store->data['test_addon_license_state'] );
+		$this->assertTrue( $manager->is_entitled( 'feature.flag' ) );
+	}
+
+	public function test_r26_a_database_that_refuses_write_and_delete_is_reported_and_the_request_follows_the_answer(): void {
+		$manager         = $this->activated();
+		$server          = $this->kit->server;
+		$server->queue[] = $server->signed( $server->entitlement( array( 'license_status' => 'revoked', 'access' => false, 'entitlements' => array() ) ) );
+
 		$this->kit->store->fail        = true;
 		$this->kit->store->fail_delete = true;
-
-		$result = $manager->refresh();
-
-		$this->assertSame( 'wplc_credentials_not_saved', $result->get_error_code() );
-		$this->assertFalse( $result->get_error_data()['snapshot_removed'], 'Reported, not hidden: the old snapshot is still stored.' );
+		$this->assertSame( 'wplc_state_not_saved', $manager->refresh()->get_error_code() );
+		$this->assertFalse( $manager->is_entitled( 'feature.flag' ) );
+		$this->assertSame( LicenseStatus::STATE_REVOKED, $manager->status()->state );
 	}
 
 	/**

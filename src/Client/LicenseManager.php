@@ -112,6 +112,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		private $snapshot;
 
 		/**
+		 * State of this request that the database did not take (see write()); null when the stored one counts.
+		 *
+		 * @var array<string,mixed>|null
+		 */
+		private $unsaved;
+
+		/**
 		 * Constructor.
 		 *
 		 * @param array<string,mixed> $config {
@@ -1427,6 +1434,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * @return array<string,mixed>
 		 */
 		private function state(): array {
+			if ( null !== $this->unsaved ) {
+				return $this->unsaved;
+			}
 			$state = $this->client()->store()->get( $this->state_option(), array() );
 
 			return is_array( $state ) ? $state : array();
@@ -1435,14 +1445,34 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Write the state and forget the memoized snapshot.
 		 *
+		 * A state the database did not take must not leave the older one in charge when that one
+		 * grants more (R-26, audit item 9): a signed answer that withdraws the access or a right
+		 * would otherwise stay without effect until the offline window of the older answer ends.
+		 * In that case the stored state is deleted (the add-on then reports "stale", without
+		 * rights, until an answer can be stored). An older state that grants the same is kept, so
+		 * a database hiccup does not switch a paid add-on off. For the rest of the request the new
+		 * state is used from memory either way. A database that accepts neither the write nor the
+		 * delete keeps the old state; the error says so and the daily check repeats the request.
+		 *
 		 * @param array<string,mixed> $state State.
 		 * @return bool Whether the state was stored (read back by OptionStore::set()).
 		 */
 		private function write( array $state ): bool {
-			$saved          = $this->client()->store()->set( $this->state_option(), $state );
+			$this->unsaved  = null;
 			$this->snapshot = null;
+			if ( $this->client()->store()->set( $this->state_option(), $state ) ) {
+				return true;
+			}
 
-			return $saved;
+			$stored         = $this->status();
+			$this->unsaved  = $state;
+			$this->snapshot = null;
+			$current        = $this->status();
+			if ( $stored->access && ( ! $current->access || $stored->entitlements !== $current->entitlements ) ) {
+				$this->client()->store()->delete( $this->state_option() );
+			}
+
+			return false;
 		}
 
 		/**
@@ -1459,18 +1489,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		}
 
 		/**
-		 * A signed answer could not be stored: drop the stored state with its snapshot.
+		 * A signed answer could not be stored (see write() for what happened to the older state).
 		 *
-		 * Otherwise the rights of the older snapshot would outlive the signed answer that
-		 * replaced them (for example a revocation) until its `cache_expires_at`. Without a
-		 * snapshot the add-on is `stale` until the next answer can be stored.
-		 *
-		 * @return \WP_Error `wplc_credentials_not_saved`; data `snapshot_removed` says whether the old snapshot is gone.
+		 * @return \WP_Error `wplc_state_not_saved`.
 		 */
 		private function not_saved(): \WP_Error {
-			$removed = $this->drop_state();
-
-			return $this->error( 'wplc_credentials_not_saved', array( 'snapshot_removed' => $removed ) );
+			return $this->error( 'wplc_state_not_saved' );
 		}
 
 		/**
