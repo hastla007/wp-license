@@ -1,6 +1,6 @@
 # WP License Captain — To-do-Liste
 
-Stand: 16.11.2026, nach dem Review aller fünf Repositories (Abschnitt 13). Dies ist die einzige Aufgabenliste des Lizenzservers. Sie vereint die beiden früheren Entwicklungslinien: `claude/zen-babbage-7q4nac` (T-Nummern; erledigte Aufgaben in Abschnitt 6) und `claude/sharp-mendel-xiiwf3` (Funde A-… und B-… der Audits vom 13.11., Abschnitte 7 und 8). Dazu kommen die Zusammenführung (M-…, Abschnitt 9), das Audit-Panel vom 15.11. (P-…, Abschnitt 10), die geplanten Produkte (FR-LIC-… und WFC-LIC-…, Abschnitte 11 und 12) und der Review vom 16.11. (R-…, Abschnitt 13). Nummern bleiben unverändert. Die Aufgaben der Premium-Add-ons stehen in der `TODO.md` des Repositorys `hastla007/captain-pro`, die der drei Kern-Plugins in deren eigenen `TODO.md`.
+Stand: 16.11.2026, nach dem Review aller fünf Repositories (Abschnitt 13) und einem zweiten Durchgang durch alle offenen Aufgaben (Arbeitsliste unten). Dies ist die einzige Aufgabenliste des Lizenzservers. Sie vereint die beiden früheren Entwicklungslinien: `claude/zen-babbage-7q4nac` (T-Nummern; erledigte Aufgaben in Abschnitt 6) und `claude/sharp-mendel-xiiwf3` (Funde A-… und B-… der Audits vom 13.11., Abschnitte 7 und 8). Dazu kommen die Zusammenführung (M-…, Abschnitt 9), das Audit-Panel vom 15.11. (P-…, Abschnitt 10), die geplanten Produkte (FR-LIC-… und WFC-LIC-…, Abschnitte 11 und 12) und der Review vom 16.11. (R-…, Abschnitt 13). Nummern bleiben unverändert. Die Aufgaben der Premium-Add-ons stehen in der `TODO.md` des Repositorys `hastla007/captain-pro`, die der drei Kern-Plugins in deren eigenen `TODO.md`.
 
 Was bisher wo gelaufen ist:
 
@@ -16,13 +16,14 @@ Was bisher wo gelaufen ist:
 - Optimierung: 27 offen, 154 erledigt. Offen: T-106, T-150, A-114, A-116, A-136, B-113, B-120, B-139, B-146, B-147, B-189, B-191, P-59, P-61, R-24, FR-LIC-01 bis -05, WFC-LIC-01 bis -06, R-31.
 - Ohne Einstufung: 72 erledigte ältere Einträge in Abschnitt 6.
 - Zusammen: 59 offen, 408 erledigt.
-- Von den 59 offenen Aufgaben sind 15 fertig programmiert und nur gegen die nachgebildete Stripe-Schnittstelle belegt (A-20, A-114, B-10, B-58, B-59, B-60, B-62, B-146, B-147, P-03, P-15, P-16, P-18, P-59, P-61; sie schließen mit T-12), 20 warten auf eine Entscheidung des Inhabers (Liste unten), 11 betreffen die geplanten Produkte Form, Review und Workflow, und die übrigen brauchen ein Gegenstück außerhalb dieser Umgebung (Liste unten) bis auf A-136 (Struktur, laufend) und B-114 (Grenze von WooCommerce).
+- Von den 59 offenen Aufgaben sind 15 fertig programmiert und nur gegen die nachgebildete Stripe-Schnittstelle belegt (A-20, A-114, B-10, B-58, B-59, B-60, B-62, B-146, B-147, P-03, P-15, P-16, P-18, P-59, P-61; sie schließen mit T-12), 20 warten auf eine Entscheidung des Inhabers (Liste unten), 11 betreffen die geplanten Produkte Form, Review und Workflow, und die übrigen 13 brauchen ein Gegenstück außerhalb dieser Umgebung (Liste unten) bis auf A-136 (Struktur, laufend).
 - Am 16.11. wieder geöffnet: die 15 Stripe-Aufgaben (R-02) und T-148 (R-11). Am 16.11. neu: R-01 bis R-25, FR-LIC-01 bis -05; WFC-LIC-01 bis -06 neu gefasst.
+- Zweiter Durchgang am 16.11.: neu R-26 bis R-31; erledigt R-26 bis R-30 und B-114; offen bleibt R-31 (wartet auf captain-pro). Die Zahlen und Listen dieses Überblicks prüft seitdem `php bin/check-consistency.php` (R-30).
 
 **Regeln**
 
 - Ein Haken bedeutet: umgesetzt **und** belegt. Der Beleg steht dabei.
-- Belegarten: *Unit* (PHPUnit ohne WordPress: 919 Tests, dazu 56 der Add-on-Vorlage), *Integration* (WordPress + WooCommerce + MySQL: 831 Tests, davon 11 je nach Zelle übersprungen; in CI 7 Kombinationen: WooCommerce 8.9.3, 9.4.3 und 11.2.2 jeweils mit HPOS und klassischer Bestellspeicherung, dazu eine Multisite-Zelle), *E2E* (Durchlauf in einer echten WordPress/WooCommerce-Installation, `tests/e2e/`, 15 Abläufe mit 787 Prüfungen, als CI-Job), *Browser* (automatischer Durchlauf, nur lokal, siehe oben), *Quelltext* (gegen den Quellcode von WooCommerce oder des Stripe-Plugins gelesen, nicht ausgeführt). Zahlen aus den Läufen vom 16.11.2026.
+- Belegarten: *Unit* (PHPUnit ohne WordPress: 930 Tests, dazu 56 der Add-on-Vorlage), *Integration* (WordPress + WooCommerce + MySQL: 831 Tests, davon 11 je nach Zelle übersprungen; in CI 7 Kombinationen: WooCommerce 8.9.3, 9.4.3 und 11.2.2 jeweils mit HPOS und klassischer Bestellspeicherung, dazu eine Multisite-Zelle), *E2E* (Durchlauf in einer echten WordPress/WooCommerce-Installation, `tests/e2e/`, 15 Abläufe mit 787 Prüfungen, als CI-Job), *Browser* (automatischer Durchlauf, nur lokal, siehe oben), *Quelltext* (gegen den Quellcode von WooCommerce oder des Stripe-Plugins gelesen, nicht ausgeführt). Zahlen aus den Läufen vom 16.11.2026.
 - Was nur per *Quelltext* oder nur gegen eine nachgebildete Schnittstelle belegt ist, gilt als offen, bis es im Browser oder gegen Stripe gelaufen ist. Solche Aufgaben tragen den Vermerk „Code und Test gegen nachgebildete Stripe-Schnittstelle erledigt; offen: Lauf gegen Stripe-Testkonto (T-12)“.
 - Kritikalität: **[KRITISCH]** blockiert den ersten echten Verkauf, **[WICHTIG]** blockiert den öffentlichen Launch, **[OPTIMIERUNG]** kann danach folgen.
 - Nummern bleiben stabil. Bis zum 13.11.2026 erledigte Nummern stehen in Abschnitt 6; alles andere bleibt mit Haken und Beleg an seiner Stelle.
@@ -78,39 +79,54 @@ Für diese Aufgaben fehlt hier das Gegenstück (Stripe, Browser, Server, GitHub-
 - **T-12** Stripe-Testkonto und Testshop; Testplan in `docs/STRIPE-TEST-PLAN.md` (22 Schritte und neun Abnahmefälle). Dort werden mitgeprüft: A-20, A-114, B-10, B-58, B-59, B-60, B-62, B-146, B-147, P-03, P-15, P-16, P-18, P-59, P-61.
 - **T-130** Ein Mensch mit Browser und Mailprogramm; dabei auch der Block-Checkout und B-113 (echtes Wallet).
 - **T-90** Produktivserver mit HTTPS, Schlüsseln, Backup und Wiederherstellung; dort auch T-91 (Alarm-Empfänger und Überwachung).
-- **R-25** Wiederholung der Proben T-61 (echtes Multisite-Netzwerk), T-86 (Schlüsselrotation an einer Datenbankkopie) und T-95 (Release-ZIP auf leerer Installation, echter Tag-Push) mit Version 0.2.0 und dem aktuellen Schema.
+- **R-25** Die Proben T-61, T-86 und T-95 sind am 16.11. mit Version 0.2.0 und Schema 23 hier wiederholt (`docs/LAUNCH-EVIDENCE.md`). Es fehlt die Wiederholung mit dem Release-Commit und für T-95 ein echter Tag-Push mit Release-Upload im GitHub-Repository.
 - **T-93** Rechtliche Prüfung durch einen Anwalt.
 - **T-96** Die Nachweise aus T-12, T-130 und T-90.
 - **T-148** Ein im ersten Lauf grüner PHPUnit-Lauf aller sieben Zellen auf `main` nach dem Zusammenführen dieses Branches.
 - **T-149** Freigabe des Inhabers und Schreibrechte auf GitHub, um die Branches `codex/*` zu löschen.
-- **T-131, B-199** Die Add-ons in `hastla007/captain-pro` und die Erweiterungspunkte in den Kern-Repositories; Adresse und öffentlicher Schlüssel des Produktivservers (B-15).
-- **FR-LIC-…, WFC-LIC-…** Die Add-on-Builds für Form, Review und Workflow in captain-pro und ein Workflow-Konzept, das es in keinem Repository gibt.
+- **T-131** Die Add-ons in `hastla007/captain-pro` mit der erneuerten Client-Bibliothek 2.1.0 (`bin/sync-client.sh`); Adresse und öffentlicher Schlüssel des Produktivservers (B-15); ein ausgerollter Server (T-90).
+- **B-199** Der Merge der Erweiterungspunkte in zwei Kern-Repositories: `vcap_admin_menu` in `hastla007/wp-couponmaster` (dort Pull Request 15) und die 12 Hooks `wp_pass_captain_*_v1` in `hastla007/wp-passmaster` (Branch `claude/wp-plugin-analysis-todos-kvbfan`). Affiliate Captain hat seine Hooks auf `main`.
+- **R-31** Der Merge des Pull Requests 7 in `hastla007/captain-pro` (vier Affiliate-Rechte); danach die fünf Schritte an der Aufgabe.
+- **FR-LIC-…, WFC-LIC-…** Die Add-on-Builds für Form, Review und Workflow in captain-pro (dort gibt es am 16.11. nur die Ordner der drei vorhandenen Add-ons) und ein Workflow-Konzept, das es in keinem Repository gibt.
 
 Mit einer Datenbank, die Lesen und Schreiben trennt, wäre B-24 zu prüfen (Diagnose warnt; Release-Gate 5).
+
+Weder Entscheidung noch Gegenstück braucht nur A-136 (statische Struktur): ein laufender Umbau ohne Abnahmekriterium, der weder Verkauf noch Launch aufhält.
 
 ## Arbeitsliste vom 16.11.2026 (zweiter Durchgang)
 
 Auftrag des Inhabers: alle 59 offenen Aufgaben einzeln durchgehen und alles abarbeiten, was keine Entscheidung, kein Stripe-Konto, keinen Menschen am Browser, keinen Produktivserver und kein anderes Repository braucht. Die Zeilen dieser Liste sind keine eigenen Aufgaben; jede Aufgabe steht mit ihrem Zustand an ihrer Stelle, und nur dort wird gezählt. Ein Haken hier heißt: Der genannte Schritt ist getan und an der Aufgabe belegt.
 
 - Reihenfolge: zuerst Kritisch, dann Wichtig, dann Optimierung.
-  - [ ] **T-131** Vermerk auf die aktuelle Version der Client-Bibliothek bringen (nach R-26/R-27) und den Stand in captain-pro nachlesen.
+  - [x] **T-131** Vermerk auf die aktuelle Version der Client-Bibliothek bringen (nach R-26/R-27) und den Stand in captain-pro nachlesen.
   - [x] **R-26** `LicenseManager::write()` wertet das Ergebnis von `OptionStore::set()` aus; Test mit einem Speicher, der nicht schreibt.
   - [x] **R-27** `OptionStore::delete()` und `LicenseClient::forget()` bestätigen das Löschen; die Deaktivierung meldet einen Fehler, wenn die Zugangsdaten lokal bleiben; Test; Versionskonstante und Changelog.
   - [x] **R-29** `languages/wp-license.pot` neu erzeugen, `de_DE` und `de_DE_formal` nachziehen, `.mo` kompilieren, veraltete Einträge entfernen.
-  - [ ] **R-25** Die Proben T-95, T-61 und T-86 hier mit Version 0.2.0 und Schema 23 wiederholen, soweit es ohne GitHub-Tag und ohne Produktivdaten geht, und in `docs/LAUNCH-EVIDENCE.md` eintragen.
-  - [ ] **T-148** Den ersten CI-Lauf des Pull Requests 45 auswerten (alle sieben Zellen) und an der Aufgabe vermerken.
-  - [ ] **T-149** Auf GitHub nachzählen, ob die 37 Branches `codex/*` noch bestehen, und die Aufgabe danach fassen.
-  - [ ] **B-28** Den überholten Satz „wurde dort nie ausgeführt“ gegen die Multisite-Zelle prüfen und berichtigen.
-  - [ ] **B-199** In den drei Kern-Repositories (nur lesend) nachsehen, welche Erweiterungspunkte inzwischen da sind, und die Aufgabe auf den Rest kürzen.
-  - [ ] **A-136** Die beiden nur noch von Tests genutzten Methoden `Catalog::accepts_product_key()` und `StripeRecurringAdapter::attempt_marker_allowed()` entfernen.
+  - [x] **R-25** Die Proben T-95, T-61 und T-86 hier mit Version 0.2.0 und Schema 23 wiederholen, soweit es ohne GitHub-Tag und ohne Produktivdaten geht, und in `docs/LAUNCH-EVIDENCE.md` eintragen.
+  - [ ] **T-148** Den ersten CI-Lauf des Pull Requests 45 auswerten (alle sieben Zellen) und an der Aufgabe vermerken. Nicht möglich: Die Läufe standen bis zum Ende des Durchgangs in der Warteschlange (Vermerk an T-148).
+  - [x] **T-149** Auf GitHub nachzählen, ob die 37 Branches `codex/*` noch bestehen, und die Aufgabe danach fassen.
+  - [x] **B-28** Den überholten Satz „wurde dort nie ausgeführt“ gegen die Multisite-Zelle prüfen und berichtigen.
+  - [x] **B-199** In den drei Kern-Repositories (nur lesend) nachsehen, welche Erweiterungspunkte inzwischen da sind, und die Aufgabe auf den Rest kürzen.
+  - [x] **A-136** Die beiden nur noch von Tests genutzten Methoden `Catalog::accepts_product_key()` und `StripeRecurringAdapter::attempt_marker_allowed()` entfernen.
   - [x] **B-114** Die Grenze von WooCommerce am Code prüfen und in `docs/COMPATIBILITY.md` festhalten.
-  - [ ] **B-120** Mit der neu erzeugten `.pot` prüfen, ob der Diagnose-Text noch fehlt, und die Aufgabe auf die Entscheidung kürzen.
+  - [x] **B-120** Mit der neu erzeugten `.pot` prüfen, ob der Diagnose-Text noch fehlt, und die Aufgabe auf die Entscheidung kürzen.
   - [x] **R-28** Das entfernte Recht `voucher.qr_redemption` in den Kommentaren der Client-Bibliothek durch ein vorhandenes ersetzen.
-  - [x] **R-30** Skript `bin/check-docs.php` und Unit-Test: Zahlen im Kopf dieser Datei gegen die gezählten Aufgaben, Job- und Zellenzahlen in `docs/QUALITY-GATES.md` gegen `.github/workflows`.
-  - [ ] **R-31** Aufgabe für die vier Affiliate-Rechte anlegen (wird erst mit dem Merge in captain-pro ausgeführt).
-  - [ ] **FR-LIC-01, WFC-LIC-01, WFC-LIC-02** In captain-pro (nur lesend) nachsehen, ob es die Add-on-Ordner und die genannten Rechte gibt, und „Braucht“ danach fassen.
-  - [ ] Alle übrigen offenen Aufgaben einzeln prüfen: Nennt die Zeile genau, was fehlt, und steht sie unter „Offene Entscheidungen“ oder „Nur außerhalb dieser Umgebung prüfbar“? Ergebnis am Ende dieser Liste.
-  - [ ] Abschluss: Zahlen im Kopf, `CHANGELOG.md`, alle Prüfungen grün.
+  - [x] **R-30** Skript `bin/check-consistency.php` und Unit-Test: Zahlen im Kopf dieser Datei gegen die gezählten Aufgaben, Job- und Zellenzahlen in `docs/QUALITY-GATES.md` gegen `.github/workflows`.
+  - [x] **R-31** Aufgabe für die vier Affiliate-Rechte anlegen (wird erst mit dem Merge in captain-pro ausgeführt).
+  - [x] **FR-LIC-01, WFC-LIC-01, WFC-LIC-02** In captain-pro (nur lesend) nachsehen, ob es die Add-on-Ordner und die genannten Rechte gibt, und „Braucht“ danach fassen.
+  - [x] Alle übrigen offenen Aufgaben einzeln prüfen: Nennt die Zeile genau, was fehlt, und steht sie unter „Offene Entscheidungen“ oder „Nur außerhalb dieser Umgebung prüfbar“? Ergebnis am Ende dieser Liste.
+  - [x] Abschluss: Zahlen im Kopf, `CHANGELOG.md`, alle Prüfungen grün. *Unit* 930 und 56, *Integration* 831 in drei Zellen und der Multisite-Zelle, *E2E* 15 Abläufe mit 787 Prüfungen, PHPStan ohne Fehler, blockierendes phpcs 0 neu, `bin/build-zip.sh` und `bin/check-consistency.php` grün.
+
+**Ergebnis des zweiten Durchgangs** (jede der 59 damals offenen Aufgaben und die sechs neuen wurden einzeln geprüft)
+
+- Erledigt und abgehakt: R-26, R-27, R-28, R-29, R-30 (neu) und B-114.
+- Teilweise erledigt, Text auf den Rest gekürzt: R-25 (alle drei Proben mit 0.2.0 wiederholt; es fehlen Release-Commit und Tag-Push), A-136 (toter Code entfernt), B-120 (Vorlage vollständig; es bleibt die Entscheidung), B-28 (Test läuft auf einem Netzwerk; es bleibt die Bestätigung), WFC-LIC-02 (sechs Schlüssel vorgemerkt), T-131, B-199, T-149, FR-LIC-01, WFC-LIC-01 (Stand nachgelesen und eingetragen).
+- Geprüft, hier ist nichts zu tun, die Zeile nennt, was fehlt:
+  - Stripe-Testkonto (T-12): A-20, A-114, B-10, B-58, B-59, B-60, B-62, B-146, B-147, P-03, P-15, P-16, P-18, P-59, P-61. Jede nennt ihren Schritt im Testplan.
+  - Entscheidung des Inhabers: T-42, T-152, B-15, T-31, T-94, T-121, T-122, A-22, B-39, B-45, T-106, T-150, A-116, B-139, B-189, B-191, R-24, FR-LIC-03, WFC-LIC-04, WFC-LIC-05. Jede steht mit ihrer Frage unter „Offene Entscheidungen“.
+  - Mensch, Server, Anwalt oder GitHub-Rechte: T-130 (mit B-113), T-90 (mit T-91), T-93, T-96, T-148.
+  - Anderes Repository: R-31, FR-LIC-02, FR-LIC-04, FR-LIC-05, WFC-LIC-03, WFC-LIC-06.
+- Für WFC-LIC-05 (Lesefassade) und WFC-LIC-04 (Lizenzereignisse) wurde bewusst nichts gebaut: Was zu bauen ist, hängt von der Antwort auf Frage (a) ab.
 
 ## 1. Was noch nie gelaufen ist
 
@@ -142,6 +158,7 @@ Diese drei Lücken lassen sich nicht durch weiteren Code schließen.
 - [ ] **T-148 [WICHTIG]** Zweimal schlug ein einzelner Integrationstest lokal einmalig fehl, als zwei Testläufe denselben Datenbankserver nutzten. Die serverweiten Sperrnamen sind inzwischen pro Site eindeutig; beobachten, ob es in CI wieder auftritt. Am 14.11. traten ähnliche Zufallsfehler nur auf, solange parallele Testläufe versehentlich dieselbe Datenbank nutzten; mit getrennten Datenbanken waren alle Läufe stabil. Am 15.11. scheiterte ein E2E-Lauf einmal an einem MariaDB-Deadlock beim Speichern eines WooCommerce-Transients (`wc_product_children_*`, 8 parallele Server-Prozesse); der nächste Lauf war grün.
   - Erledigt 15.11. (Welle 2): siehe B-195.
   - Stand 16.11. (R-11): wieder geöffnet. Auf `main` scheiterte PHPUnit zweimal bei reinen Doku-Commits (`e3a5abe`: WP 6.5, WC 8.9.3, klassische Bestellspeicherung; `1762c85`: WC 11.2.2, klassische Bestellspeicherung), beide Male `AdminSupportWave2IntegrationTest::test_a123_search_by_order_finds_issued_and_renewed_licenses_and_the_order_links_back` (Zeile 283, aus den Job-Logs 132883299413 und 132841569911). Ursache: Die Suche nach einer Zahl durchsucht auch das Schlüsselpräfix; die Testlizenz hatte ein zufälliges Präfix aus acht Hex-Zeichen, das die Bestellnummer gelegentlich enthielt. Behoben: festes Präfix ohne Ziffern und eine eigene Prüfung, die den Treffer über das Präfix absichtlich herbeiführt. Mit B-195 (Minutengrenze der Rate-Limits) hatte das nichts zu tun; B-195 bleibt erledigt. *Integration:* WP 7.1/WC 11.2.2 und WP 6.5/WC 9.4.3, jeweils klassische Bestellspeicherung, 831 Tests grün. Braucht: einen im ersten Lauf grünen PHPUnit-Lauf aller sieben Zellen auf `main` nach dem Zusammenführen dieses Branches; CI läuft nur für Pull Requests und `main`.
+  - Stand 16.11. (zweiter Durchgang): Die Läufe des Pull Requests 45 ließen sich in diesem Durchgang nicht auswerten: Alle 15 gemeldeten Jobs standen von 06:12 bis mindestens 06:45 UTC in der Warteschlange von GitHub Actions, kein Runner hat begonnen; jeder weitere Push bricht die wartenden Läufe ab und stellt neue ein. Kein Job war rot. Lokal am 16.11. grün mit dem Stand dieses Durchgangs: *Integration* 831 Tests (11 übersprungen) auf WP 7.1.4/WC 11.2.2 mit HPOS und mit klassischer Bestellspeicherung und auf WP 6.5/WC 9.4.3 klassisch; *E2E* 15 Abläufe, 787 Prüfungen. Es bleibt bei „Braucht“: ein im ersten Lauf grüner Lauf aller sieben Zellen in CI.
 - [ ] **T-91 [WICHTIG]** Monitoring anschließen: Empfänger für `wplc/health_alert`, Überwachung von Action Scheduler, Webhooks und Paket-Host (`docs/MONITORING.md`). Stand 14.11.: `docs/MONITORING.md` beschreibt jede Diagnosezeile, die Kennzahlen und den Herzschlag. Braucht: einen Empfänger für `wplc/health_alert` und die Überwachung auf dem Produktivserver.
 - [ ] **T-31 [WICHTIG]** Externer Paketspeicher (S3 oder GCS) ist nur dokumentiert. Bei Bedarf anbinden und abnehmen. Braucht: die Entscheidung des Inhabers, ob zum Start ein externer Paketspeicher nötig ist oder die lokale Ablage genügt.
 - [ ] **T-93 [WICHTIG]** Rechtliche Prüfung: Kündigungsbutton, Hinweispflichten bei automatischer Verlängerung, Widerruf bei digitalen Inhalten, Umsatzsteuer und Rechnungen für Verlängerungen, Datenschutzhinweise. Braucht: eine rechtliche Prüfung durch einen Anwalt. Kündigungsweg ohne Login (B-40), Vertragsbedingungen in den Mails (B-38) und Einwilligungsnachweis (B-37) sind technisch umgesetzt.
@@ -870,6 +887,7 @@ Ein lesender Review aller fünf Repositories (`main` von wp-license bei `c269e07
   - Erledigt 16.11.: Alle E2E-Abläufe nutzen den Produktschlüssel `voucher-captain-pro` (Ablauf 12 verwendet das Lizenzprodukt der früheren Abläufe, deshalb überall). *E2E:* 15 Abläufe, 787 Prüfungen, `E2E RESULT: PASS`.
 - [ ] **R-24 [OPTIMIERUNG]** (Rechtekatalog) Support ist doppelt modelliert: als Tarifmerkmal `support.level` und als Recht `*.priority_support`, das kein Add-on prüft. Erledigt, wenn entschieden ist, welches Modell gilt, und das andere entfällt. Stand 16.11.: `docs/ENTITLEMENTS.md` beschreibt beide Modelle und empfiehlt bis zur Entscheidung `support.level`. Braucht: die Entscheidung des Inhabers (siehe „Offene Entscheidungen“).
 - [ ] **R-25 [WICHTIG]** (Release) Die Proben T-61 (Multisite auf einem echten Netzwerk), T-86 (Schlüsselrotation an einer Datenbankkopie mit Backup und Wiederherstellung) und T-95 (Release-ZIP auf einer leeren Installation) liefen am 14.11. auf Version 0.1.0 mit Schema 14; seitdem kamen neun Schemaschritte dazu (heute 23). Erledigt, wenn alle drei mit dem Release-Commit wiederholt und in `docs/LAUNCH-EVIDENCE.md` eingetragen sind, T-95 mit einem echten Tag-Push samt Release-Upload. Braucht: ein echtes Multisite-Netzwerk, eine Datenbankkopie mit Backup und Wiederherstellung, eine leere WordPress-Installation und einen Test-Tag im GitHub-Repository.
+  - Stand 16.11. (zweiter Durchgang): Alle drei Proben hier mit Version 0.2.0 und Schema 23 wiederholt (Commit `cea8836`, kein Release-Commit), Protokoll in `docs/LAUNCH-EVIDENCE.md`, Abschnitt „R-25 (interim)“. T-95: ZIP aus `git archive` mit `bin/build-zip.sh 0.2.0` gebaut (213 Einträge), auf leerem WordPress 7.1.4 mit WooCommerce 11.2.2 installiert und aktiviert, 15 Tabellen, Schema 23, sieben Adminseiten und Produkteditor ohne PHP-Fehler, Deinstallation sauber. T-61: echtes Netzwerk mit drei Sites, Tabellen je Site, Lizenz einer Site bei der anderen unbekannt, Löschen einer Site entfernt ihre 15 Tabellen, Netzwerk-Deaktivierung und Deinstallation räumen jede Site auf. T-86: Kopie der Datenbank des E2E-Shops (99 Lizenzen, 20 Aktivierungen), neue Schlüssel-IDs, `rotate-installation-secrets`, Ausmustern des alten Schlüssels (Signaturschlüssel bleibt lesbar), `signing-key --prepare/--rotate`, zwei Bedienfehler mit `recover-license-key-ids`, Wiederherstellung aus dem Dump mit und ohne den Schlüsselring des Backups. Alle drei bestanden, kein Fehler gefunden. Nicht wiederholt: Clients über HTTP mit fest hinterlegtem Schlüssel während der Rotation. Offen und Bedingung des Release-Gates: dieselben drei Proben mit dem Release-Commit und T-95 mit einem echten Tag-Push samt Release-Upload. Braucht: den Release-Commit (nach T-12, T-130, T-90) und einen Test-Tag im GitHub-Repository; die übrigen genannten Mittel gibt es hier.
 
 ### Nachtrag vom 16.11.2026 (zweiter Durchgang)
 

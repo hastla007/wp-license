@@ -71,3 +71,57 @@ Code changes from this rehearsal:
 5. **Installation on an empty site:** `wp plugin install wp-license-captain-0.1.0.zip --activate` → `Plugin 'wp-license' activated.` `wp-content/debug.log` (`WP_DEBUG_LOG`): no entry from the plugin (only WordPress.org connection warnings of the offline sandbox). Schema: 14 `wp_wplc_*` tables, `wplc_schema_version` = 14. REST namespace `wplc/v1` lists all 8 routes.
 6. **Admin pages** (logged-in admin over HTTP, `/wp-admin/admin.php?page=…`): `wplc-licenses`, `wplc-releases`, `wplc-renewal-review`, `wplc-settings`, `wplc-catalog-csv`, `wplc-diagnostics`, `plugins.php` and the product editor (`post-new.php?post_type=product`, license fields present) all HTTP 200 without PHP errors in the page or in `debug.log` from the plugin. The non-dismissible "secrets are not configured" notice is shown, as intended on a site without key constants. (WooCommerce's own settings screen fails in this sandbox because its WooCommerce copy is a source build without compiled admin assets, see tests/e2e/README.md; unrelated to the plugin.)
 7. **Deactivate and uninstall:** `wp plugin deactivate wp-license`, `wp plugin uninstall wp-license` → `Uninstalled and deleted 'wp-license' plugin.`; plugin directory removed, no `wplc_*` cron events left, no notice in `debug.log`; the 14 tables and the options `wplc_schema_version`, `wplc_rewrite_version`, `wplc_response_signing_key` are kept by design (business records, see `uninstall.php` and docs/MULTISITE.md).
+
+### R-25 (interim): the three rehearsals repeated on version 0.2.0, schema 23
+
+Run on 16 Nov 2026 on the working branch, commit `cea8836` (not a release commit, no tag). These runs show that the procedures still work on the current schema. They do not replace the repetition with the release commit and the real tag push that the release gates ask for (docs/RELEASE-READINESS.md, R-25).
+
+#### T-95 repeated: ZIP built from a clean export and installed on an empty WordPress
+
+| Item | Value |
+|---|---|
+| Source | `git archive` of commit `cea8836`, plugin version 0.2.0 |
+| Build | `bin/build-zip.sh 0.2.0` (the `run:` step of `release.yml` job `build`), PHP 8.3 CLI, Composer 2 |
+| Target | Fresh WordPress 7.1.4 (`wp core install`, new database), WooCommerce 11.2.2 activated, served by `php -S` over plain HTTP |
+| Result | **Pass** for build, contents, activation, schema, admin pages and uninstall. Not covered, as on 14 Nov: a tag push on GitHub (release creation and upload) and the PHP 7.4 steps of the release job. |
+
+1. **Build:** `Version: 0.2.0 / plugin header: 0.2.0 / WPLC_VERSION: 0.2.0 / readme.txt Stable tag: 0.2.0`, `Generated optimized autoload files containing 128 classes`, `127 classes of src/ in the class map`, `wp-license-captain-0.2.0.zip: OK`, 213 entries. `bin/build-zip.sh 0.2.1` against version 0.2.0 fails with the mismatch error.
+2. **Contents:** one top-level `wp-license/` with `wp-license.php`, `uninstall.php`, `readme.txt`, `src/`, `mu-plugins/`, `assets/`, `templates/`, `languages/` (`.pot`, and `.po` + `.mo` for `de_DE` and `de_DE_formal`) and `vendor/`; no `tests/`, `docs/`, `bin/`, dotfiles, `composer.json` or tool configuration. SHA-256 of this local build, for reference only: `cdd7e42e44d7bc0c2f2183062bd69e337b1571041d143ecd565bc0d7757546c0`.
+3. **Installation:** `wp plugin install wp-license-captain-0.2.0.zip --activate` → `Plugin 'wp-license' activated.` No entry from the plugin in `wp-content/debug.log`. Schema: 15 `wp_wplc_*` tables, `wplc_schema_version` = 23. REST namespace `wplc/v1` with 7 routes (activations, activation by ID, entitlement check, update check, update download, package download, Stripe webhook).
+4. **Admin pages** as logged-in administrator over HTTP: `wplc-licenses`, `wplc-releases`, `wplc-renewal-review`, `wplc-settings`, `wplc-catalog-csv`, `wplc-diagnostics`, `wplc-audit-log`, `plugins.php` and the product editor (license fields present) answer HTTP 200 without a PHP error in the page; `debug.log` has no entry that names a file of the plugin. WooCommerce's own settings screen fails in this sandbox for the reason noted on 14 Nov (source build of WooCommerce without compiled admin assets).
+5. **Deactivate and uninstall:** `Deactivated 1 of 1 plugins.`, `Uninstalled 1 of 1 plugins.`; plugin directory removed, no `wplc_*` cron event left, no notice. Kept by design: the 15 tables and the options `wplc_schema_version`, `wplc_reminder_log_version`, `wplc_rewrite_version`, `wplc_site_fingerprint`, `wplc_sites_endpoint_rules`, `wplc_response_signing_key`, `wplc_response_signing_key_id` (the list in `uninstall.php`).
+
+#### T-61 repeated: a real multisite network
+
+| Item | Value |
+|---|---|
+| Environment | WordPress 7.1.4 network (`wp core multisite-install`, subdirectories, new database), WooCommerce 11.2.2 network-activated, three sites; the plugin from the ZIP of the step above, `--activate-network` |
+| Result | **Pass.** |
+
+1. **Tables per site:** after the network activation site 1 has 15 `wp_wplc_*` tables, sites 2 and 3 none. The first WP-CLI request on site 2 and on site 3 creates their 15 tables (`wp wplc schema status`: `Schema installed: 23; expected: 23`, `Every table, column and index exists.`).
+2. **Nothing is shared:** a license issued on site 1 (`wp wplc license show 1` there) is unknown on site 2 (`Error: License not found.`); license rows per site 1 / 0 / 0. Each site has its own recurring events.
+3. **Deleting a site:** `wp site delete 3` removes every table of that site, including its 15 `wp_3_wplc_*` tables; site 2 keeps its tables.
+4. **Network deactivation:** the recurring events are gone and `wplc_deactivated_at` is set on both remaining sites.
+5. **Uninstall:** the working state is removed on both sites (`wplc_deactivated_at`, `wplc_last_run` gone); tables, the license of site 1 and `wplc_schema_version` stay, as documented in docs/MULTISITE.md.
+
+The only database errors in `debug.log` are WooCommerce's own on a new site before its tables exist; no entry names a file of the plugin.
+
+#### T-86 repeated: key rotation and recovery on a database copy
+
+| Item | Value |
+|---|---|
+| Environment | WordPress 7.1.4, WooCommerce 11.2.2, PHP 8.3 CLI, MariaDB 10.11; copy of the database of the e2e shop after a full e2e run (99 licenses, 20 activations, 271 audit rows), schema 23, plugin 0.2.0 |
+| Checked with | WP-CLI and a read-only probe on the server side: every license key derived and compared with its stored verifier, every installation secret decrypted, state of the response signing key, checksums of `licenses(id, license_key_secret_id, license_key_hash)` and `activations(id, installation_secret_encrypted)` |
+| Result | **Pass**, no defect found. Not repeated from 14 Nov: clients over HTTP with pinned public keys during the rotation (the client path itself ran in the e2e flows 04 and 12 on the same code, without rotated keys), and the mistakes of steps 8 and 9 (secret removed, key ID changed by SQL). |
+
+1. **Baseline and backup:** 99 of 99 keys shown, 20 of 20 installation secrets decrypted, signing key `ok` (key ID `4e6e437a9716e903`); `mysqldump --single-transaction` and a copy of `wp-config.php`.
+2. **`2026-11` added to both rings and made current:** the 99 keys are unchanged (same digest), the 20 secrets decrypt and count as "on an old key".
+3. **`wp wplc rotate-installation-secrets`:** dry run `Inspected: 20; needing rotation: 20`, exit code 1; `--apply --batch-size=5`: `rotated: 20`, 20 audit rows `installation_secret_rotated`; dry run again: `needing rotation: 0`, `Response signing key: current`, exit code 0. `recover-license-key-ids --to=2026-11`: `already verified: 99; unmatched: 0`.
+4. **New license** (manual issue): stored with key ID `2026-11`, key shown.
+5. **Old encryption key removed from the ring:** 20 of 20 secrets still decrypt, the signing key stays `ok` with the same key ID (the defect of 14 Nov does not come back), dry run exit code 0.
+6. **Signing key:** `wp wplc signing-key --prepare` prints `next_key_id: ac274ff6a4b5177a`, a second call the same; `--rotate --yes` switches to it (audit `response_signing_key_rotated`).
+7. **Mistake, old license secret filed under a wrong ID** (`e2e-2026-old`): 1 of 100 keys shown. `recover-license-key-ids --to=2026-11`: `unmatched: 99`, warning, nothing changed. `--to=e2e-2026-old`: `recoverable: 99`; `--apply --max-rows=10` (warning: 90 rows not inspected, continue with `--after-id=10`), then `--apply --after-id=10`: 89 more; dry run: `already verified: 100`, exit code 0; 100 of 100 keys shown.
+8. **Mistake, typo in the current key ID** (`e2e-2027`): a manual issue returns 0 and the WooCommerce log (`source wp-license`) says `License not issued: the current license key ID "e2e-2027" (WPLC_LICENSE_KEY_ID) has no secret in WPLC_LICENSE_KEY_SECRETS.`; `recover-license-key-ids --to=e2e-2027` refuses the unconfigured ID.
+9. **Restore from the dump.** With the key ring of the end of the rehearsal: 0 of 99 keys shown, 0 of 20 secrets decrypt, signing key `undecryptable`; `rotate-installation-secrets` warns, exit code 1; `signing-key` refuses with the restore hint. With the backed-up `wp-config.php`: counts and both checksums as at baseline, 99 of 99 keys with the baseline digest, 20 of 20 secrets, signing key `ok` with key ID `4e6e437a9716e903`, dry run exit code 0. A restored database needs the key ring of its time; the runbook in docs/SECURITY-OPERATIONS.md says so.
+
+No entry in `wp-content/debug.log` names a file of the plugin.

@@ -27,6 +27,7 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - Entitlement catalog: the six keys of the planned Workflow Captain Pro (`workflow.suite_integrations`, `workflow.webhooks`, `workflow.event_correlation`, `workflow.advanced_logic`, `workflow.recipe_templates`, `workflow.extended_logs`) are reserved in `EntitlementCatalog::planned()`. They are not offered in the product editor.
 - Removed two methods that only tests still called: `Catalog::accepts_product_key()` and `StripeRecurringAdapter::attempt_marker_allowed()`.
 - Documentation: `docs/RENEWALS.md` said the block checkout shows no opt-in; it describes the additional checkout field and its limit on WooCommerce 8.9 to 9.8 now (also in `docs/COMPATIBILITY.md`).
+- Rehearsals repeated on version 0.2.0 with schema 23 (release ZIP on an empty WordPress, a real multisite network, key rotation and restore on a database copy); records in `docs/LAUNCH-EVIDENCE.md`. They have to be repeated with the release commit.
 - New `bin/check-consistency.php` with `ConsistencyCheckTest` (unit job): the counted overview of `docs/TODO.md`, the CI job numbers in `docs/QUALITY-GATES.md` and `docs/TODO.md`, and the translations against the template.
 
 ### Added
