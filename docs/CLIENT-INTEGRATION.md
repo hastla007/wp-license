@@ -22,6 +22,27 @@ This is the guide for the developer of a premium add-on. Everything the add-on n
 
 All state is per `LicenseManager` instance. Nothing is static, so one copy of the classes can serve several add-ons.
 
+## Getting the library
+
+Vendors who run this license server get the client as a library package, not as a plugin (owner decision PROD-Q4 of 16 Nov 2026): `license-client-<version>.zip`, attached to every release of the server next to the plugin ZIP (with a `.sha256` file). `bin/build-zip.sh` builds it with `php bin/package-client.php` (also on its own: `php bin/package-client.php --out=dist`). The ZIP holds one folder `license-client-<version>/` with:
+
+- `src/Client/*.php`: the library, unchanged (namespace `WPLC\Client`);
+- `bin/export-client.php`: the documented way to embed it (next section);
+- `bin/client-contract-test.php`: a contract test the vendor runs against their own server;
+- `README.md`: embedding, namespace and prefix rules, the compatibility promise;
+- `CHANGELOG-CLIENT.md`: changes by library version (source: `packaging/client/CHANGELOG-CLIENT.md`; the build fails when it has no section for the current `VERSION`, or when the classes of `src/Client` disagree on `VERSION`).
+
+**Compatibility promise.** The client of a major version (2.x) works with every server that answers API v1. Servers may add fields, error codes and routes; the client ignores what it does not know and keeps the stored rights on an unknown error. Minor and patch versions of the client only add or fix; a change that needs work in the add-on is marked **Action** in `CHANGELOG-CLIENT.md`. A client that needs more than API v1 gets a new major version.
+
+**Contract test.** Before shipping an add-on, run against your server with a test license of the product:
+
+```sh
+php bin/client-contract-test.php --server=https://shop.example --product=my-addon \
+    --key=WPLC-XXXX-XXXX-XXXX-XXXX --public-key=BASE64-PUBLIC-KEY
+```
+
+It runs the unchanged library without WordPress over real HTTPS: activate (as a development site `https://contract-test.local` by default, so no live site slot is used), check, update check (metadata only, no download grant), signature check (the last answer verifies against the pinned key; a changed payload and another key are refused), deactivate (also after a failed step). Each step prints `PASS` or `FAIL`; exit code 0, 1, or 2 for wrong arguments. Options `--site`, `--environment`, `--version`, `--rest-base`, `--timeout`, `--allow-insecure`; `--public-key` can be repeated during a key rotation. It needs the sodium extension and never prints the key. It does not run in CI (network); its argument parsing, response parsing and the whole flow against the fake server of the unit tests are covered by `tests/Client/ClientPackageTest.php`.
+
 ## Getting the library into the add-on
 
 Three add-ons can be active on one site, each with its own copy and possibly different versions. There are two ways to ship the copy.
@@ -38,7 +59,7 @@ It copies `src/Client/*.php`, replaces `namespace WPLC\Client;` by the given nam
 **Without the script: an unchanged copy.** Every class is declared inside `if ( ! class_exists( ... ) )`, so two add-ons with the same unchanged files do not end in "Cannot declare class". The limits of this way:
 
 - The copy that is loaded **first** is used by all add-ons, also when it is the older one. WordPress loads plugins in the alphabetical order of their folders.
-- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.1.0`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.2.0', '<' )`) and show a message; it cannot replace a class that is already declared.
+- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.1.1`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.2.0', '<' )`) and show a message; it cannot replace a class that is already declared.
 - The strings keep the text domain `wp-license`. They are translated through the `text_domain` setting only if the add-on's language files contain them; `make-pot` does not find them on its own.
 
 Use the unchanged copy for experiments only.
@@ -184,6 +205,7 @@ The add-on never reads the file at run time; it is for the shop. Import it there
 | `render_settings()`, `run_form_action( string $action, string $license_key = '', bool $confirmed = false )`, `notice()`, `render_notice()`, `settings_url()`, `privacy_text()` | Building blocks of the admin screen for add-ons that bring their own page. `deactivate` and `move` need `$confirmed = true`, see [The license form](#the-license-form-and-run_form_action). |
 | `error_text( WP_Error $error ): string` | Since 2.1.0. Translated text of an error of the library, for display; use it instead of `get_error_message()` (an error created before `init` carries its code as message). |
 | `debug_information( array $info ): array` | Since 2.1.0. The section under Tools → Site Health → Info; hooked by `register()`. |
+| `site_status_tests( array $tests ): array`, `site_health_test(): array` | Since 2.1.1. The direct test "License check" under Tools → Site Health → Status; hooked by `register()`. |
 | `offline_tolerance(): int` | Since 2.1.0. Seconds the local clock may run past the signed `cache_expires_at` (default 86400, at most 604800). |
 | `client()`, `updater()` | The lower layers. |
 | `LicenseManager::error_class( WP_Error )` | `lock`, `reactivate` or `keep`. |
@@ -334,6 +356,7 @@ A license without access still sees that a version exists: the server answers si
 
 - **License screen:** status (with the reason of a `stale` state), paid until, sites in use, environment with the installation ID, last check, last error; a key field with "Activate"; "Check now"; "Remove license from this site" behind the checkbox "I confirm that this site gives up its license …" (since 2.1.0). The key and the installation secret are never printed. The form posts to `admin-post.php` (action `{prefix}_license`) with a nonce and the capability check.
 - **Site Health** (since 2.1.0): `register()` adds a section "{name} – License" under Tools → Site Health → Info (filter `debug_information`, method `debug_information()`): state and reason, last successful check, last error with code and time, end of the offline window, environment, the first eight characters of the installation ID, the host of the license server, how signatures are checked (PHP sodium extension, `sodium_compat`, or not at all), fingerprints of the pinned keys (first 16 hex characters of their SHA-256) and the library version. Never the license key (it is not stored), the installation secret, its hash or the snapshot. Each field has a `debug` value in English for "Copy site info to clipboard".
+- **Site Health test "License check"** (since 2.1.1): `register()` also adds a direct test `{prefix}_license_check` under Tools → Site Health → Status (filter `site_status_tests`, methods `site_status_tests()` and `site_health_test()`), as long as the add-on is configured and this site holds an activation or a signed answer released it. Result *good* while the last successful check is at most 36 hours old (`LicenseManager::CATCH_UP_AFTER`) and nothing failed since; *recommended* when the last check failed, the check is overdue, the server no longer knows the activation, the site address changed, or less than three days of the signed offline window are left (`LicenseManager::HEALTH_LOW_WINDOW`); *critical* when the snapshot is `stale` (also with reason `clock_ahead`) or a signed answer released the activation. The description names the dates, the error text and the host of the license server and links to the license screen; never the key, the secret or the snapshot.
 - **Notices** for `grace`, `expired`, `suspended`, `revoked`, `inactive`, `deactivated`, `site_changed`, `stale`, `misconfigured`, for "the server no longer knows this site" and for a server that could not be reached for more than three days (with the date at which the features stop). The hint for a site without a license appears on the dashboard and the plugin list only.
 - **Daily check:** the cron event `{prefix}_license_check` is scheduled at a random time of day while the site is activated and removed on deactivation of the plugin. **If WP-Cron does not run**, the next admin page view of a user who may manage the license catches up after 36 hours, and after a failed attempt as soon as the back-off allows.
 
@@ -393,6 +416,8 @@ All texts live in `Messages.php` with their English source. After the export the
 **No translation before `init`** (since 2.1.0). WordPress 6.7 and later report "Translation loading for the … domain was triggered too early" when a translation is requested before `init`. Feature checks (`is_entitled()`, `status()`) build no text at all. Errors that the library creates before `init` (for example `wplc_not_activated` from `refresh()` on `plugins_loaded`) carry their **code as message**; `Messages::ready()` tells whether texts may be built. Show errors with `LicenseManager::error_text( $error )`, which looks the text up when it is shown, instead of `get_error_message()`. After `init` both give the same text.
 
 New texts in 2.1.0 (keys in `Messages.php`; to translate in the add-on): `reason.clock_ahead`, `notice.stale_clock_ahead`, `ui.deactivate_confirm`, `ui.deactivate_unconfirmed`, `ui.reason`, `debug.offline_until`, `debug.installation`, `debug.server`, `debug.signature`, `debug.signature.native`, `debug.signature.compat`, `debug.signature.none`, `debug.keys`, `debug.version`, `debug.none`.
+
+New texts in 2.1.1 (Site Health test "License check"): `health.good`, `health.failing`, `health.overdue`, `health.running_low`, `health.site_changed`, `health.stale`, `health.locked`, `health.good_text`, `health.failing_text`, `health.overdue_text`.
 
 ## Quick start: test product, test license, test release
 

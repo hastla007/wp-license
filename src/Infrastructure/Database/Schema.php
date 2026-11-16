@@ -73,11 +73,6 @@ final class Schema {
 	public const VERSION = '25';
 
 	/**
-	 * Option in which ReminderLog records the layout of its table.
-	 */
-	public const LEGACY_REMINDER_LOG_VERSION_OPTION = 'wplc_reminder_log_version';
-
-	/**
 	 * Option that stores the installed schema version (autoloaded).
 	 */
 	public const VERSION_OPTION = 'wplc_schema_version';

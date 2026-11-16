@@ -25,7 +25,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseStatus', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.1.0';
+		const VERSION = '2.1.1';
 
 		const STATE_MISCONFIGURED = 'misconfigured';
 		const STATE_UNLICENSED    = 'unlicensed';

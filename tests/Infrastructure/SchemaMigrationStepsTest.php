@@ -197,7 +197,7 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$this->assertArrayHasKey( '12', $steps );
 		$this->assertSame( 'step_12_adopt_reminder_log', $steps['12'][1] );
 		$this->assertContains( '12', Schema::pending_step_versions( '11', Schema::VERSION, array_keys( $steps ) ) );
-		$this->assertSame( 'wplc_reminder_log_version', Schema::LEGACY_REMINDER_LOG_VERSION_OPTION );
+		$this->assertSame( 'wplc_reminder_log_version', \WPLC\Notifications\ReminderLog::VERSION_OPTION );
 	}
 
 	public function test_every_table_has_a_create_statement(): void {

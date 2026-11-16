@@ -3,11 +3,9 @@ use PHPUnit\Framework\TestCase;
 use WPLC\Api\V1\StripeWebhook;
 
 final class StripeWebhookSignatureTest extends TestCase {
-	/** Invoke the private verifier without registering WordPress routes or making network requests. */
+	/** Run the verifier of the webhook route with the configured secret, without WordPress routes or network requests. */
 	private function verify( string $body, string $header ): bool {
-		$method = new ReflectionMethod( StripeWebhook::class, 'verify_signature' );
-		$method->setAccessible( true );
-		return (bool) $method->invoke( null, $body, $header );
+		return null !== StripeWebhook::matching_secret_mode( $body, $header, StripeWebhook::secret_list( WPLC_STRIPE_WEBHOOK_SECRET, '' ), time() );
 	}
 
 	public function test_accepts_valid_current_v1_signature(): void {

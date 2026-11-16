@@ -1,8 +1,8 @@
 <?php
 /**
- * Client 2.1.0 behaviour that depends on WordPress functions the other client tests do not define:
+ * Client 2.1.x behaviour that depends on WordPress functions the other client tests do not define:
  * no texts before `init`, wp_safe_remote_request() with the local-server exception, the confirmation
- * field of the license form.
+ * field of the license form, the Site Health test "License check" (2.1.1).
  *
  * Each test runs in its own process because it defines the WordPress functions it needs before the
  * test kit is loaded (the kit only defines what is still missing).
@@ -221,5 +221,107 @@ final class ClientRuntimeTest extends TestCase {
 		// The same form fields as before for everything else.
 		$this->assertSame( 'error', $manager->run_form_action( 'deactivate' )['type'] );
 		$this->assertTrue( $manager->client()->is_activated() );
+	}
+
+	/**
+	 * AL-4 (2.1.1): the Site Health test "License check" says whether the daily check works.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_al4_site_health_test_reports_an_overdue_or_failing_license_check(): void {
+		// phpcs:disable
+		eval(
+			'function esc_html( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES ); }
+			function esc_url( $url ) { return (string) $url; }
+			function admin_url( $path = "" ) { return "https://shop.example/wp-admin/" . $path; }'
+		);
+		// phpcs:enable
+		$kit   = self::kit();
+		$other = array(
+			'direct' => array( 'php_version' => array( 'label' => 'PHP' ) ),
+			'async'  => array(),
+		);
+
+		// Not activated or not configured: no check that could be overdue, no test.
+		$this->assertSame( $other, $kit->manager()->site_status_tests( $other ) );
+		$this->assertSame( $other, $kit->manager( array( 'public_keys' => array() ) )->site_status_tests( $other ) );
+
+		$manager = $kit->manager();
+		$this->assertInstanceOf( LicenseStatus::class, $manager->activate( self::KEY ) );
+		$tests = $manager->site_status_tests( $other );
+		$this->assertArrayHasKey( 'php_version', $tests['direct'], 'Other tests stay.' );
+		$this->assertSame( 'Test Add-on – License', $tests['direct']['test_addon_license_check']['label'] );
+		$this->assertSame( array( $manager, 'site_health_test' ), $tests['direct']['test_addon_license_check']['test'] );
+
+		// Fresh signed answer: good.
+		$result = $manager->site_health_test();
+		$this->assertSame( 'good', $result['status'] );
+		$this->assertSame( 'test_addon_license_check', $result['test'] );
+		$this->assertSame( array( 'label' => 'License', 'color' => 'blue' ), $result['badge'] );
+		$this->assertSame( 'Test Add-on: the license check works', $result['label'] );
+		$this->assertStringContainsString( gmdate( 'Y-m-d H:i', $kit->now + 14 * DAY_IN_SECONDS ), $result['description'] );
+		$this->assertStringContainsString( 'https://shop.example/wp-admin/options-general.php?page=', $result['actions'] );
+		$credentials = $kit->credentials();
+		$json        = (string) json_encode( $result );
+		foreach ( array( $credentials['installation_secret'], $credentials['installation_id'], $credentials['license_key_hash'], self::KEY ) as $secret ) {
+			$this->assertStringNotContainsString( $secret, $json );
+		}
+
+		// The last check failed: recommended, with the error and the server host.
+		$kit->advance( 3600 );
+		$kit->server->queue[] = new WP_Error( 'http_request_failed', 'down' );
+		$manager->refresh();
+		$result = $manager->site_health_test();
+		$this->assertSame( 'recommended', $result['status'] );
+		$this->assertSame( 'orange', $result['badge']['color'] );
+		$this->assertSame( 'Test Add-on: the last license check failed', $result['label'] );
+		$this->assertStringContainsString( 'could not be reached', $result['description'] );
+		$this->assertStringContainsString( 'license.example', $result['description'] );
+
+		// A later successful check makes it good again; two days without a check: overdue.
+		$kit->advance( 3600 );
+		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->refresh()->state );
+		$this->assertSame( 'good', $manager->site_health_test()['status'] );
+		$kit->advance( 2 * DAY_IN_SECONDS );
+		$result = $manager->site_health_test();
+		$this->assertSame( 'recommended', $result['status'] );
+		$this->assertSame( 'Test Add-on: the license check is overdue', $result['label'] );
+
+		// Less than three days of the offline window left.
+		$kit->advance( 10 * DAY_IN_SECONDS );
+		$result = $manager->site_health_test();
+		$this->assertSame( 'recommended', $result['status'] );
+		$this->assertSame( 'Test Add-on: the offline period of the license ends soon', $result['label'] );
+
+		// Offline window used up: critical.
+		$kit->advance( 2 * DAY_IN_SECONDS );
+		$this->assertSame( LicenseStatus::STATE_STALE, $manager->status()->state );
+		$result = $manager->site_health_test();
+		$this->assertSame( 'critical', $result['status'] );
+		$this->assertSame( 'red', $result['badge']['color'] );
+		$this->assertSame( 'Test Add-on: the license could not be verified', $result['label'] );
+		$this->assertStringContainsString( 'could not be verified for too long', $result['description'] );
+
+		// A signed answer released the activation: still listed, critical.
+		$server               = $kit->server;
+		$kit->server->queue[] = static function ( array $request ) use ( $server ) {
+			$data = array(
+				'activation_id'     => 41,
+				'installation_id'   => '',
+				'activation_status' => 'deactivated',
+				'license_status'    => 'deactivated',
+				'access'            => false,
+				'entitlements'      => array(),
+				'server_time'       => gmdate( 'Y-m-d H:i:s', $server->now ),
+			);
+			return WPLC_Test_Server::error( 403, 'activation_deactivated', array( 'signed' => $server->envelope( $request, $data ) ) );
+		};
+		$manager->refresh();
+		$this->assertSame( LicenseStatus::STATE_DEACTIVATED, $manager->status()->state );
+		$this->assertArrayHasKey( 'test_addon_license_check', $manager->site_status_tests( $other )['direct'] );
+		$result = $manager->site_health_test();
+		$this->assertSame( 'critical', $result['status'] );
+		$this->assertSame( 'Test Add-on: the license of this site was released', $result['label'] );
 	}
 }

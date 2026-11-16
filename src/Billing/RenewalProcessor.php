@@ -71,12 +71,6 @@ final class RenewalProcessor {
 	 */
 	public const LEGACY_STATUS_REVIEW = 'payment_review';
 
-	/**
-	 * Seconds an attempt with unknown outcome is repeated with the same gateway
-	 * idempotency key (A-114). Same value as RESULT_UNKNOWN_WINDOW.
-	 */
-	public const UNKNOWN_RESULT_WINDOW = self::RESULT_UNKNOWN_WINDOW;
-
 	/** Seconds until a renewal blocked by a shop-side problem is tried again. */
 	public const BLOCKED_RETRY_SECONDS = 21600;
 
