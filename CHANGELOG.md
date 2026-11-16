@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Fixed (16 Nov 2026, found by the PHP 8.5 job)
+
+- Site URL normalization without the intl extension: a host with a capital letter from outside the handled scripts whose lower-case form lies inside them was accepted or rejected depending on the Unicode version of the running PHP (PHP 8.5 lower-cases U+A7DC to U+019B), while the path with intl rejects it. The fallback now checks the input before lower-casing and rejects such a host on every PHP version. Also rejected without intl now: U+2C7E, U+2C7F, the Kelvin sign and the Angstrom sign (intl maps them; a site without intl must write the host in lower case or as Punycode).
+- CI: PHP 8.5 runs as a fifth unit job and an eighth integration cell.
+
 ### Changed (16 Nov 2026, owner decisions)
 
 - **Price guarantee for renewals (INH-01).** A manual renewal now bills the amount stored on the license at purchase, exactly like the automatic renewal. Before, it used the current regular price of the purchased product, so a price change in the shop reached customers who renew by hand but not those who renew automatically. A license without a stored amount is still priced from the catalog when the customer renews by hand. A plan change scheduled for the next renewal is billed at the price of the new plan, as before. The support action "Change renewal amount" is now also offered for licenses without automatic renewal. **Behaviour change for shops:** raising a product price no longer changes what existing licenses pay.

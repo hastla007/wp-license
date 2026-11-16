@@ -20,8 +20,6 @@ permissions:
 jobs:
   unit:
     runs-on: ubuntu-latest
-    # The PHP 8.5 job informs and does not block until the PHP minimum is decided (INH-02, docs/QUALITY-GATES.md).
-    continue-on-error: ${{ matrix.php == '8.5' }}
     strategy:
       fail-fast: false
       matrix:
@@ -53,8 +51,6 @@ jobs:
   integration:
     name: integration (WP ${{ matrix.wp }}, WC ${{ matrix.wc }}, PHP ${{ matrix.php }}, ${{ matrix.hpos == '1' && 'HPOS' || 'legacy orders' }}${{ matrix.multisite == '1' && ', multisite' || '' }})
     runs-on: ubuntu-latest
-    # As for the unit job: the PHP 8.5 cell informs and does not block.
-    continue-on-error: ${{ matrix.php == '8.5' }}
     strategy:
       fail-fast: false
       matrix:
