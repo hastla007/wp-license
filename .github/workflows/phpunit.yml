@@ -23,7 +23,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ["7.4", "8.1", "8.2", "8.3"]
+        # 8.5 is the newest stable PHP version setup-php offers (INH-03); the declared minimum is 7.4.
+        php: ["7.4", "8.1", "8.2", "8.3", "8.5"]
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -66,6 +67,8 @@ jobs:
           - { wp: "latest", wc: "11.2.2", php: "8.3", hpos: "0" }
           # Multisite network (docs/MULTISITE.md); the WordPress test library reads WP_MULTISITE.
           - { wp: "latest", wc: "11.2.2", php: "8.3", hpos: "1", multisite: "1" }
+          # Newest stable PHP version (INH-03): shows early what a higher PHP minimum (INH-02) would meet.
+          - { wp: "latest", wc: "11.2.2", php: "8.5", hpos: "1" }
     services:
       mysql:
         image: mysql:8.0

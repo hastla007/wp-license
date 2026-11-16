@@ -507,6 +507,15 @@ final class SiteUrl {
 		if ( ! function_exists( 'mb_strtolower' ) || ! preg_match( '//u', $host ) ) {
 			return '';
 		}
+		// The input is checked before lower-casing: which capital letter mb_strtolower() knows depends on the
+		// Unicode version of the running PHP (PHP 8.5 lower-cases U+A7DC to U+019B, older versions leave it),
+		// and the Unicode version of intl depends on the installed ICU. A letter from outside the allowed
+		// blocks must therefore never enter them through case mapping; it is rejected on every PHP version.
+		foreach ( self::code_points( $host ) as $code_point ) {
+			if ( $code_point > 0x7f && ! self::fallback_allows_input( $code_point ) ) {
+				return '';
+			}
+		}
 		// UTS #46 maps capital sigma to σ everywhere; full case mapping would give ς at a word end.
 		$host = mb_strtolower( str_replace( 'Σ', 'σ', $host ), 'UTF-8' );
 
@@ -531,6 +540,40 @@ final class SiteUrl {
 		}
 
 		return implode( '.', $labels );
+	}
+
+	/**
+	 * Whether a code point of the input, before lower-casing, lies in a block the fallback handles.
+	 *
+	 * These are the blocks of fallback_allows() plus the capital letters of the same scripts. Their
+	 * case pairs have been part of Unicode since long before PHP 7.4, so the result of lower-casing
+	 * them does not depend on the PHP version. Whether the lower-cased letter is accepted is decided
+	 * by fallback_allows().
+	 *
+	 * @param int $cp Code point above U+007F.
+	 * @return bool
+	 */
+	private static function fallback_allows_input( int $cp ): bool {
+		$ranges = array(
+			array( 0x00C0, 0x00FF ), // Latin-1 letters, both cases (× and ÷ are refused after lower-casing).
+			array( 0x0100, 0x024F ), // Latin Extended-A and -B.
+			array( 0x0386, 0x03CE ), // Greek, both cases.
+			array( 0x0400, 0x04FF ), // Cyrillic, both cases.
+			array( 0x0E01, 0x0E30 ), // Thai consonants and vowels without marks.
+			array( 0x1E00, 0x1EFF ), // Latin Extended Additional.
+			array( 0x3041, 0x3096 ), // Hiragana.
+			array( 0x30A1, 0x30FA ), // Katakana.
+			array( 0x30FC, 0x30FC ), // Katakana prolonged sound mark.
+			array( 0x4E00, 0x9FFF ), // CJK unified ideographs.
+			array( 0xAC00, 0xD7A3 ), // Hangul syllables.
+		);
+		foreach ( $ranges as $range ) {
+			if ( $cp >= $range[0] && $cp <= $range[1] ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

@@ -98,7 +98,7 @@ foreach ( $licenses as $index => $license ) {
 	$key = e2e_key( $license );
 	e2e_ok( 0 === strpos( $key, 'WPLC-' ) && hash_equals( $license['license_key_hash'], \WPLC\License\LicenseKey::hash( $key ) ), 'license ' . ( $index + 1 ) . ': derived key matches the stored hash' );
 	e2e_eq(
-		array( (string) $alice_id, 'voucher-captain', 'pro', 'year', '4900', 'EUR', '0', '', (string) $order_id ),
+		array( (string) $alice_id, 'voucher-captain-pro', 'pro', 'year', '4900', 'EUR', '0', '', (string) $order_id ),
 		array( $license['customer_id'], $license['product_key'], $license['plan_key'], $license['billing_interval'], $license['renewal_amount_minor'], $license['renewal_currency'], $license['renewal_enabled'], $license['payment_gateway_id'], $license['source_order_id'] ),
 		'license ' . ( $index + 1 ) . ': customer, plan, renewal price 4900 EUR, no automatic renewal (bank transfer)'
 	);
@@ -222,7 +222,7 @@ foreach ( WC()->mailer()->get_emails() as $registry_key => $email ) {
 	}
 }
 ksort( $registered );
-e2e_eq( array( 'wplc_cancellation_confirmed', 'wplc_expiry_reminder', 'wplc_license_expired', 'wplc_license_issued', 'wplc_license_renewed', 'wplc_license_revoked', 'wplc_license_suspended', 'wplc_payment_failed', 'wplc_payment_method_missing', 'wplc_renewal_notice' ), array_keys( $registered ), 'ten license emails are registered with the WooCommerce mailer (cancellation confirmation, suspension, revocation and "saved card no longer available" were added)' );
+e2e_eq( array( 'wplc_cancellation_confirmed', 'wplc_expiry_reminder', 'wplc_license_expired', 'wplc_license_issued', 'wplc_license_renewed', 'wplc_license_revoked', 'wplc_license_suspended', 'wplc_payment_failed', 'wplc_payment_method_missing', 'wplc_price_change', 'wplc_price_change_withdrawn', 'wplc_renewal_notice' ), array_keys( $registered ), 'twelve license emails are registered with the WooCommerce mailer (cancellation confirmation, suspension, revocation, "saved card no longer available" and the two emails of an announced renewal price were added)' );
 $settings_ok = true;
 foreach ( $registered as $email ) {
 	ob_start();

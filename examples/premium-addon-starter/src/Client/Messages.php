@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 3b00fc4984dfb535bd46b56d3164de2fd2b8c3e08ad30c078adbad19dcea290e). Do not edit: change the server copy and re-vendor.
+ * (source sha256 3a8b48dc8d063dc7e5e8edf35e5b836fdb2cdfb90e16d899617c47d7d66b5408). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -33,7 +33,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.2';
+		const VERSION = '2.1.0';
 
 		/**
 		 * Text domain literal used in this file.
@@ -68,6 +68,35 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		 */
 		public function __construct( string $text_domain = '' ) {
 			$this->text_domain = '' === $text_domain ? self::SOURCE_DOMAIN : $text_domain;
+		}
+
+		/**
+		 * Whether texts may be built now: WordPress reached `init`, or this runs without WordPress.
+		 *
+		 * Before `init` the translations of the add-on are not loaded; asking for one makes
+		 * WordPress 6.7 and later report "Translation loading ... was triggered too early".
+		 * The library therefore builds no text before `init`: errors created that early carry
+		 * their code as message, and the text is looked up when it is shown (see
+		 * LicenseManager::error_text()).
+		 *
+		 * @since 2.1.0
+		 *
+		 * @return bool
+		 */
+		public static function ready(): bool {
+			return ! function_exists( 'did_action' ) || did_action( 'init' ) > 0;
+		}
+
+		/**
+		 * Message for a new WP_Error: the text for the code once texts may be built, the code itself before `init`.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param string $code Error code.
+		 * @return string
+		 */
+		public function error_message( string $code ): string {
+			return self::ready() ? $this->error( $code ) : $code;
 		}
 
 		/**
@@ -130,6 +159,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'error.wplc_not_activated'            => __( 'This site has not been activated with a license key yet.', 'premium-addon-starter' ),
 				'error.wplc_site_changed'             => __( 'The address of this site differs from the address the license was activated for. This looks like a copy of the site. Activate the license for this address.', 'premium-addon-starter' ),
 				'error.wplc_credentials_not_saved'    => __( 'The activation data could not be stored in the database of this site. Check the database and try again.', 'premium-addon-starter' ),
+				'error.wplc_state_not_saved'          => __( 'The answer of the license server could not be stored in the database of this site. Check the database; the check is repeated automatically.', 'premium-addon-starter' ),
+				'error.wplc_credentials_not_removed'  => __( 'The license data could not be removed from the database of this site. Check the database and try again.', 'premium-addon-starter' ),
 				'error.wplc_json_error'               => __( 'The request to the license server could not be prepared.', 'premium-addon-starter' ),
 				'error.wplc_http_error'               => __( 'The license server answered with an unexpected error.', 'premium-addon-starter' ),
 				'error.wplc_connection_failed'        => __( 'The license server could not be reached. Premium features keep working; the check is repeated automatically.', 'premium-addon-starter' ),
@@ -181,6 +212,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'state.site_changed'                  => __( 'Site address changed', 'premium-addon-starter' ),
 				'state.stale'                         => __( 'Could not be verified for too long', 'premium-addon-starter' ),
 				'state.misconfigured'                 => __( 'Not configured', 'premium-addon-starter' ),
+				'reason.clock_ahead'                  => __( 'The clock of this site is ahead, or the offline period has expired.', 'premium-addon-starter' ),
 				/* translators: %s: name of the add-on. */
 				'notice.unlicensed'                   => __( '%s: enter your license key to switch on the premium features and updates.', 'premium-addon-starter' ),
 				/* translators: 1: name of the add-on, 2: date. */
@@ -199,6 +231,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'notice.site_changed'                 => __( '%s: this site runs under another address than the one the license was activated for. Activate the license for this address.', 'premium-addon-starter' ),
 				/* translators: %s: name of the add-on. */
 				'notice.stale'                        => __( '%s: the license could not be verified for too long. The premium features are switched off until the license server can be reached again.', 'premium-addon-starter' ),
+				/* translators: %s: name of the add-on. */
+				'notice.stale_clock_ahead'            => __( '%s: the clock of this site is ahead, or the offline period has expired. The premium features are switched off until the license server confirms the license again. Please check the date and time of the web server.', 'premium-addon-starter' ),
 				/* translators: %s: name of the add-on. */
 				'notice.misconfigured'                => __( '%s: the license settings of this plugin are incomplete.', 'premium-addon-starter' ),
 				/* translators: 1: name of the add-on, 2: date. */
@@ -245,8 +279,22 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				/* translators: %s: address the license was activated for. */
 				'ui.move_confirm'                     => __( 'I confirm that the site moved and no longer runs at %s.', 'premium-addon-starter' ),
 				'ui.move_unconfirmed'                 => __( 'Nothing was transferred. Confirm that the site moved before you transfer the activation.', 'premium-addon-starter' ),
+				'ui.deactivate_confirm'               => __( 'I confirm that this site gives up its license. The premium features are switched off at once; to use them again, the license key must be entered again.', 'premium-addon-starter' ),
+				'ui.deactivate_unconfirmed'           => __( 'Nothing was removed. Confirm that this site gives up its license before you remove it.', 'premium-addon-starter' ),
+				'ui.reason'                           => __( 'Reason', 'premium-addon-starter' ),
 				'ui.forbidden'                        => __( 'You are not allowed to manage the license of this plugin.', 'premium-addon-starter' ),
 				'ui.utc'                              => __( 'UTC', 'premium-addon-starter' ),
+				// Site Health → Info.
+				'debug.offline_until'                 => __( 'Offline period ends', 'premium-addon-starter' ),
+				'debug.installation'                  => __( 'Installation ID (shortened)', 'premium-addon-starter' ),
+				'debug.server'                        => __( 'License server', 'premium-addon-starter' ),
+				'debug.signature'                     => __( 'Signature check', 'premium-addon-starter' ),
+				'debug.signature.native'              => __( 'PHP sodium extension', 'premium-addon-starter' ),
+				'debug.signature.compat'              => __( 'sodium_compat of WordPress (slower)', 'premium-addon-starter' ),
+				'debug.signature.none'                => __( 'not available: premium features stay off', 'premium-addon-starter' ),
+				'debug.keys'                          => __( 'Pinned server keys (fingerprints)', 'premium-addon-starter' ),
+				'debug.version'                       => __( 'License client version', 'premium-addon-starter' ),
+				'debug.none'                          => __( 'none', 'premium-addon-starter' ),
 				// Updater.
 				'update.license_expired'              => __( 'Your license has expired. Renew it to receive this update.', 'premium-addon-starter' ),
 				'update.license_suspended'            => __( 'Your license is suspended; updates are not available. Please contact support.', 'premium-addon-starter' ),

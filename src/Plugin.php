@@ -20,6 +20,7 @@ use WPLC\Account\SiteOverview;
 use WPLC\Admin\LicenseAdmin;
 use WPLC\Admin\Diagnostics;
 use WPLC\Admin\CatalogCsv;
+use WPLC\Admin\CatalogFileAdmin;
 use WPLC\Admin\KeyConfigurationNotice;
 use WPLC\Admin\ReleaseAdmin;
 use WPLC\Update\ReleaseRegistry;
@@ -365,6 +366,8 @@ final class Plugin {
 		\WPLC\License\AuditLog::register_hooks();
 		// A-42: release notification for the plugin itself (no automatic install).
 		\WPLC\Infrastructure\SelfUpdateCheck::register_hooks();
+		// E8b: own updates from the vendor's license server; off unless configured.
+		\WPLC\Infrastructure\SelfLicense::register_hooks();
 
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			add_action( 'admin_notices', array( self::class, 'render_woocommerce_notice' ) );
@@ -390,6 +393,8 @@ final class Plugin {
 		SiteOverview::register_hooks();
 		LicenseAdmin::register_hooks();
 		CatalogCsv::register_hooks();
+		CatalogFileAdmin::register_hooks();
+		\WPLC\Admin\PriceChangeAdmin::register_hooks();
 		Diagnostics::register_hooks();
 		KeyConfigurationNotice::register_hooks();
 		Requirements::register_hooks();
@@ -398,6 +403,7 @@ final class Plugin {
 		WithdrawalConsent::register_hooks();
 		RenewalProcessor::register_hooks();
 		ManualRenewal::register_hooks();
+		\WPLC\Billing\PriceChange::register_hooks();
 		\WPLC\Billing\RenewInsteadNotice::register_hooks();
 		PlanUpgrade::register_hooks();
 		StripeRecurringAdapter::register_hooks();

@@ -602,7 +602,7 @@ final class Retention {
 			$license_id = (int) $license_id;
 			$updated    = $wpdb->query(
 				$wpdb->prepare(
-					"UPDATE {$tables['licenses']} SET customer_id = 0, payment_token_id = 0, renewal_enabled = 0, next_payment_at = NULL WHERE id = %d AND status IN (%s,%s,%s)",
+					"UPDATE {$tables['licenses']} SET customer_id = 0, payment_token_id = 0, renewal_enabled = 0, next_payment_at = NULL, price_change_amount_minor = NULL, price_change_effective_at = NULL, price_change_announced_at = NULL, price_change_notified_at = NULL, price_change_notice_days = NULL WHERE id = %d AND status IN (%s,%s,%s)",
 					$license_id,
 					self::TERMINAL_STATES[0],
 					self::TERMINAL_STATES[1],

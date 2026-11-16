@@ -67,7 +67,16 @@ final class SettingsTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'sender_note' ), array_keys( $clean ) );
+		$this->assertSame( array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import', 'sender_note' ), array_keys( $clean ) );
+		// PROD-03: on by default, off only when the form says so.
+		$this->assertSame( 1, $clean['catalog_auto_import'] );
+		$this->assertSame( 0, Settings::sanitize( array( 'catalog_auto_import' => '0' ) )['catalog_auto_import'] );
+		$this->assertSame( 1, Settings::sanitize( array( 'catalog_auto_import' => '1' ) )['catalog_auto_import'] );
+		$this->assertSame( 60, $clean['price_change_notice_days'], 'INH-05: the default notice period.' );
+		// The floor of 30 days cannot be undercut in the settings, the ceiling is a year.
+		$this->assertSame( 30, Settings::sanitize( array( 'price_change_notice_days' => '5' ) )['price_change_notice_days'] );
+		$this->assertSame( 365, Settings::sanitize( array( 'price_change_notice_days' => '9999' ) )['price_change_notice_days'] );
+		$this->assertSame( 90, Settings::sanitize( array( 'price_change_notice_days' => '90' ) )['price_change_notice_days'] );
 		$this->assertSame( array( 'cdn.example.org' ), $clean['package_hosts'] );
 		$this->assertSame( '14', $clean['reminder_days'] );
 		$this->assertStringNotContainsString( '<', $clean['sender_note'] );

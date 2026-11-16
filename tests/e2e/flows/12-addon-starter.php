@@ -2,7 +2,7 @@
 /**
  * Flow 12: the premium add-on starter (examples/premium-addon-starter) against the real server.
  *
- * Generates an add-on with bin/init-addon.php (product key voucher-captain, pinned to this server's Ed25519 key,
+ * Generates an add-on with bin/init-addon.php (product key voucher-captain-pro, pinned to this server's Ed25519 key,
  * WooCommerce standing in for the core plugin), installs and activates it, activates a purchased license through
  * the settings page form, checks entitlements, refreshes, simulates an outage, tampers the cache, runs the update
  * check without a logged-in user, refuses a package with a wrong checksum, installs a verified update and uninstalls.
@@ -49,7 +49,7 @@ $generate = static function ( string $target, string $version ) use ( $starter, 
 		'--slug=' . $slug,
 		'--namespace=E2E\\VoucherPro',
 		'--prefix=' . $prefix,
-		'--product-key=voucher-captain',
+		'--product-key=voucher-captain-pro',
 		'--entitlement-prefix=voucher.',
 		'--core-name=WooCommerce',
 		'--core-slug=woocommerce',
@@ -81,7 +81,7 @@ e2e_ok( '' !== $public_key, 'the e2e server has an Ed25519 response signing key 
 list( $code, $output ) = $generate( $addon_dir, '1.0.0' );
 e2e_ok( 0 === $code && is_file( $addon_dir . '/' . $slug . '.php' ), 'bin/init-addon.php creates the add-on from the starter', $output );
 $config = (string) file_get_contents( $addon_dir . '/src/Config.php' );
-e2e_ok( false !== strpos( $config, "PRODUCT_KEY = 'voucher-captain'" ) && false !== strpos( $config, $public_key ) && false === strpos( $config, 'Vendor\\Product' ), 'generated Config carries product key, pinned server key and the new namespace' );
+e2e_ok( false !== strpos( $config, "PRODUCT_KEY = 'voucher-captain-pro'" ) && false !== strpos( $config, $public_key ) && false === strpos( $config, 'Vendor\\Product' ), 'generated Config carries product key, pinned server key and the new namespace' );
 $header = get_plugin_data( $addon_dir . '/' . $slug . '.php', false, false );
 e2e_eq( array( 'Voucher Captain Pro', '1.0.0', 'woocommerce', 'https://shop.test/voucher-captain-pro', 'voucher-captain-pro' ), array( $header['Name'], $header['Version'], $header['RequiresPlugins'] ?? '', $header['UpdateURI'], $header['TextDomain'] ), 'plugin header: name, version, Requires Plugins, Update URI (shop, not WordPress.org), text domain' );
 wp_clean_plugins_cache();
@@ -109,7 +109,7 @@ e2e_eq( false, $entitlements::has( 'voucher.custom_branding' ), 'before activati
 $zoe_id   = e2e_customer( 'zoe' );
 $order    = e2e_create_order( $zoe_id, array( (int) e2e_get( 'simple_id' ) => 1 ) );
 $licenses = e2e_order_licenses( $order->get_id() );
-e2e_ok( 1 === count( $licenses ) && 'voucher-captain' === $licenses[0]['product_key'], 'a paid order for the voucher-captain product issues one license', count( $licenses ) );
+e2e_ok( 1 === count( $licenses ) && 'voucher-captain-pro' === $licenses[0]['product_key'], 'a paid order for the voucher-captain-pro product issues one license', count( $licenses ) );
 if ( ! $licenses ) {
 	return;
 }
@@ -213,7 +213,7 @@ e2e_note( 'license status was toggled directly in the e2e database' );
 // --- Release 1.3.x of the add-on (built with bin/build-release.php) uploaded and published. ---
 // Releases are immutable: a re-run on the same database (WPLC_E2E_KEEP_DB=1) takes the next free patch version.
 $new_version = '1.3.0';
-for ( $patch = 0; $patch < 100 && null !== $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$t['releases']} WHERE product_key = 'voucher-captain' AND version = %s", '1.3.' . $patch ) ); $patch++ ) {
+for ( $patch = 0; $patch < 100 && null !== $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$t['releases']} WHERE product_key = 'voucher-captain-pro' AND version = %s", '1.3.' . $patch ) ); $patch++ ) {
 	$new_version = '1.3.' . ( $patch + 1 );
 }
 wp_mkdir_p( $tmp_root );
@@ -223,20 +223,20 @@ $zip_path = $tmp_root . '/dist/' . $slug . '-' . $new_version . '.zip';
 e2e_ok( 0 === $code && 0 === $build_code && is_file( $zip_path ) && is_file( $zip_path . '.sha256' ), 'bin/build-release.php builds the ' . $new_version . ' ZIP and its .sha256', implode( "\n", $build_output ) );
 $zip_bytes = (string) file_get_contents( $zip_path );
 e2e_eq( hash( 'sha256', $zip_bytes ), strtok( (string) file_get_contents( $zip_path . '.sha256' ), ' ' ), '.sha256 file matches the ZIP' );
-// B-53: flow 05 published voucher-captain packages in the folder "voucher-captain"; this add-on build uses
+// B-53: flow 05 published voucher-captain-pro packages in the folder "voucher-captain-pro"; this add-on build uses
 // its own folder, so the operator moves the product to it first (a later package must use the same folder).
-\WPLC\Update\ReleaseRegistry::set_product_slug( 'voucher-captain', $slug );
+\WPLC\Update\ReleaseRegistry::set_product_slug( 'voucher-captain-pro', $slug );
 $releases = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
 $create   = e2e_form( $releases['body'], array( 'value="wplc_release_create"' ) );
 $upload   = e2e_multipart(
-	array( 'action' => 'wplc_release_create', '_wpnonce' => (string) ( $create['_wpnonce'] ?? '' ), 'product_key' => 'voucher-captain', 'version' => $new_version, 'requires_php' => '7.4', 'requires_wp' => '6.5', 'tested_wp' => '6.8', 'release_notes' => 'Starter update' ),
+	array( 'action' => 'wplc_release_create', '_wpnonce' => (string) ( $create['_wpnonce'] ?? '' ), 'product_key' => 'voucher-captain-pro', 'version' => $new_version, 'requires_php' => '7.4', 'requires_wp' => '6.5', 'tested_wp' => '6.8', 'release_notes' => 'Starter update' ),
 	'package_zip',
 	$slug . '-' . $new_version . '.zip',
 	$zip_bytes,
 	'application/zip'
 );
 e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $admin_cookies, 'headers' => $upload['headers'], 'body' => $upload['body'] ) );
-$release  = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['releases']} WHERE product_key = 'voucher-captain' AND version = %s", $new_version ), ARRAY_A );
+$release  = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['releases']} WHERE product_key = 'voucher-captain-pro' AND version = %s", $new_version ), ARRAY_A );
 $releases = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
 if ( is_array( $release ) ) {
 	e2e_submit( (array) e2e_form( $releases['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $release['id'] . '"' ) ), $admin_cookies, array( 'reason' => 'e2e: starter release' ) ); // B-137: publishing needs a reason.

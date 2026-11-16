@@ -75,7 +75,7 @@ final class Settings {
 	 * Settings whose values are written to the audit log. Other keys are
 	 * recorded by name only (the sender note is free text shown to customers).
 	 */
-	private const AUDITED_VALUES = array( 'package_hosts', 'reminder_days', 'renewal_notice_days' );
+	private const AUDITED_VALUES = array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import' );
 
 	/**
 	 * Audit the first save of the option.
@@ -173,6 +173,8 @@ final class Settings {
 			'package_hosts' => array(),
 			'reminder_days' => '30,7',
 			'renewal_notice_days' => 7,
+			'price_change_notice_days' => \WPLC\Billing\PriceChange::DEFAULT_NOTICE_DAYS,
+			'catalog_auto_import' => 1,
 			'sender_note'   => '',
 		);
 	}
@@ -304,6 +306,14 @@ final class Settings {
 			array( 'label_for' => 'wplc_package_hosts' )
 		);
 
+		add_settings_field(
+			'wplc_catalog_auto_import',
+			__( 'Catalog file of release packages', 'wp-license' ),
+			array( self::class, 'render_catalog_auto_import_field' ),
+			self::PAGE,
+			'wplc_updates',
+			array( 'label_for' => 'wplc_catalog_auto_import' )
+		);
 		add_settings_section( 'wplc_emails', __( 'Customer emails', 'wp-license' ), '__return_false', self::PAGE );
 		add_settings_field(
 			'wplc_reminder_days',
@@ -320,6 +330,14 @@ final class Settings {
 			self::PAGE,
 			'wplc_emails',
 			array( 'label_for' => 'wplc_renewal_notice_days' )
+		);
+		add_settings_field(
+			'wplc_price_change_notice_days',
+			__( 'Price change notice period', 'wp-license' ),
+			array( self::class, 'render_price_change_notice_days_field' ),
+			self::PAGE,
+			'wplc_emails',
+			array( 'label_for' => 'wplc_price_change_notice_days' )
 		);
 		add_settings_field(
 			'wplc_sender_note',
@@ -413,11 +431,20 @@ final class Settings {
 			$notice_days = (int) trim( (string) $input['renewal_notice_days'] );
 		}
 
+		$change_days = isset( $current['price_change_notice_days'] ) && is_numeric( $current['price_change_notice_days'] ) ? (int) $current['price_change_notice_days'] : \WPLC\Billing\PriceChange::DEFAULT_NOTICE_DAYS;
+		if ( array_key_exists( 'price_change_notice_days', $input ) && is_scalar( $input['price_change_notice_days'] ) && ctype_digit( trim( (string) $input['price_change_notice_days'] ) ) ) {
+			$change_days = (int) trim( (string) $input['price_change_notice_days'] );
+		}
+
 		return array(
 			'package_hosts' => $hosts_out,
 			'reminder_days' => $days,
 			// B-41: at least one day; the notice cannot be switched off here.
 			'renewal_notice_days' => max( 1, min( 60, $notice_days ) ),
+			// INH-05: never below the floor of 30 days.
+			'price_change_notice_days' => \WPLC\Billing\PriceChange::clamp_notice_days( $change_days ),
+			// PROD-03: the form sends a hidden 0 before the checkbox, so an unticked box is stored as off.
+			'catalog_auto_import' => array_key_exists( 'catalog_auto_import', $input ) ? ( empty( $input['catalog_auto_import'] ) ? 0 : 1 ) : ( isset( $current['catalog_auto_import'] ) && ! $current['catalog_auto_import'] ? 0 : 1 ),
 			'sender_note'   => function_exists( 'mb_substr' ) ? mb_substr( $note, 0, 500 ) : substr( $note, 0, 500 ),
 		);
 	}
@@ -844,6 +871,28 @@ final class Settings {
 	public static function render_reminder_days_field(): void {
 		echo '<input type="text" id="wplc_reminder_days" name="' . esc_attr( self::OPTION ) . '[reminder_days]" value="' . esc_attr( (string) self::get( 'reminder_days' ) ) . '" class="regular-text" pattern="[0-9 ,]*" aria-describedby="wplc_reminder_days_help">';
 		echo '<p class="description" id="wplc_reminder_days_help">' . esc_html__( 'Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7.', 'wp-license' ) . '</p>';
+	}
+
+	/**
+	 * Render the switch for the catalog import from release packages (PROD-03).
+	 *
+	 * @return void
+	 */
+	public static function render_catalog_auto_import_field(): void {
+		echo '<input type="hidden" name="' . esc_attr( self::OPTION ) . '[catalog_auto_import]" value="0">';
+		echo '<label for="wplc_catalog_auto_import"><input type="checkbox" id="wplc_catalog_auto_import" name="' . esc_attr( self::OPTION ) . '[catalog_auto_import]" value="1"' . checked( (bool) self::get( 'catalog_auto_import' ), true, false ) . ' aria-describedby="wplc_catalog_auto_import_help"> ';
+		echo esc_html__( 'Import the catalog file from release packages', 'wp-license' ) . '</label>';
+		echo '<p class="description" id="wplc_catalog_auto_import_help">' . esc_html__( 'When a release is created from a ZIP, the file wplc-catalog.json in the plugin folder of the package is checked and imported into the license catalog. The release is created in any case; a file that is invalid or describes another product is not imported and reported. Plans and licenses are never changed.', 'wp-license' ) . '</p>';
+	}
+
+	/**
+	 * Render the notice period of a renewal price change (INH-05).
+	 *
+	 * @return void
+	 */
+	public static function render_price_change_notice_days_field(): void {
+		echo '<input type="number" id="wplc_price_change_notice_days" name="' . esc_attr( self::OPTION ) . '[price_change_notice_days]" value="' . esc_attr( (string) (int) self::get( 'price_change_notice_days' ) ) . '" min="' . esc_attr( (string) \WPLC\Billing\PriceChange::MIN_NOTICE_DAYS ) . '" max="' . esc_attr( (string) \WPLC\Billing\PriceChange::MAX_NOTICE_DAYS ) . '" step="1" class="small-text" aria-describedby="wplc_price_change_notice_days_help">';
+		echo '<p class="description" id="wplc_price_change_notice_days_help">' . esc_html__( 'Days between the email that announces a higher renewal price for an existing license and the first renewal at that price. Default: 60, at least 30. Have the period and the wording of the email checked by a lawyer.', 'wp-license' ) . '</p>';
 	}
 
 	/**

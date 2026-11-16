@@ -34,7 +34,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\OptionStore', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.2';
+		const VERSION = '2.1.0';
 
 		/**
 		 * Whether values are stored for the whole network.
@@ -91,17 +91,22 @@ if ( ! class_exists( __NAMESPACE__ . '\\OptionStore', false ) ) {
 		}
 
 		/**
-		 * Delete a value.
+		 * Delete a value and confirm that it is gone.
+		 *
+		 * @since 2.0.3 Returns whether the option is gone (was void).
 		 *
 		 * @param string $name Option name.
-		 * @return void
+		 * @return bool Whether the option no longer exists afterwards.
 		 */
-		public function delete( string $name ): void {
+		public function delete( string $name ): bool {
 			if ( $this->network ) {
 				delete_site_option( $name );
 			} else {
 				delete_option( $name );
 			}
+
+			// delete_option() also returns false for a missing option, so read back instead.
+			return null === $this->get( $name, null );
 		}
 
 		/**

@@ -196,14 +196,7 @@ final class Authenticator {
 		$activation['request_nonce'] = $nonce;
 
 		if ( 'active' !== (string) $activation['status'] && ! $allow_deactivated ) {
-			return new \WP_Error(
-				'activation_deactivated',
-				'This installation was deactivated on the license server.',
-				array(
-					'status' => 403,
-					'signed' => Response::envelope( self::deactivated_data( $activation ), $secret, $nonce, (string) $activation['installation_uuid'] ),
-				)
-			);
+			return self::deactivated_refusal( $activation, $secret, $nonce );
 		}
 
 		return $activation;
@@ -262,7 +255,31 @@ final class Authenticator {
 	}
 
 	/**
-	 * Signed data that tells a released installation to stop.
+	 * Signed `403 activation_deactivated` that tells a released installation to stop.
+	 *
+	 * Every activation that is no longer active gets it on the signed routes, whoever released it
+	 * (customer account, admin, replacement, end of the license; all through
+	 * ActivationManager::deactivate()). The client drops rights and credentials only on this signed
+	 * answer.
+	 *
+	 * @param array<string,mixed> $activation Activation row.
+	 * @param string              $secret     Installation secret.
+	 * @param string              $nonce      Nonce of the request.
+	 * @return \WP_Error
+	 */
+	public static function deactivated_refusal( array $activation, string $secret, string $nonce ): \WP_Error {
+		return new \WP_Error(
+			'activation_deactivated',
+			'This installation was deactivated on the license server.',
+			array(
+				'status' => 403,
+				'signed' => Response::envelope( self::deactivated_data( $activation ), $secret, $nonce, (string) $activation['installation_uuid'] ),
+			)
+		);
+	}
+
+	/**
+	 * Signed data of the refusal of an activation that is no longer active.
 	 *
 	 * @param array<string,mixed> $activation Activation row.
 	 * @return array<string,mixed>

@@ -77,7 +77,7 @@ $groups = array_values( array_unique( array_column( $items, 'group_id' ) ) );
 sort( $groups );
 e2e_ok( in_array( 'wp-license-captain-history', $groups, true ) && in_array( 'wp-license-captain-emails', $groups, true ), 'export also contains the license history and the email log (' . implode( ', ', $groups ) . ')' );
 $flat = wp_json_encode( $items );
-e2e_ok( false !== strpos( $flat, $alice_licenses[0]['key_prefix'] ) && false !== strpos( $flat, 'voucher-captain' ), 'export shows license reference and product' );
+e2e_ok( false !== strpos( $flat, $alice_licenses[0]['key_prefix'] ) && false !== strpos( $flat, 'voucher-captain-pro' ), 'export shows license reference and product' );
 e2e_ok( false !== strpos( $flat, 'site-c.example' ) || false !== strpos( $flat, 'site-b.example' ), 'export contains the activated site URLs of the customer', substr( $flat, 0, 400 ) );
 $leak = false;
 foreach ( $alice_licenses as $license ) {

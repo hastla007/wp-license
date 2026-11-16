@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hastla007/wp-license/blob/main/docs/catalog-file.schema.json",
+  "title": "WP License Captain catalog file (wplc-catalog.json), format 1",
+  "description": "One license product of a vendor: product key, entitlement prefix, name and the entitlements its add-on checks. See docs/CATALOG-FILE.md. Unknown fields are ignored by the server.",
+  "type": "object",
+  "required": ["format", "product_key", "name", "entitlements"],
+  "properties": {
+    "format": {
+      "description": "Version of this file format.",
+      "const": 1
+    },
+    "product_key": {
+      "description": "License product key: what the add-on sends to the server and what the shop enters on the license product.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,99}$"
+    },
+    "prefix": {
+      "description": "Part of every entitlement key before the first dot. May be left out when the file lists at least one entitlement; required otherwise.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,39}$"
+    },
+    "name": {
+      "description": "Name of the product, shown as the heading of its entitlements in the product editor.",
+      "$ref": "#/$defs/label"
+    },
+    "status": {
+      "description": "available: the product is released and the product editor suggests its key. planned: the key is reserved, nothing is offered. Default: available.",
+      "enum": ["available", "planned"]
+    },
+    "entitlements": {
+      "type": "array",
+      "maxItems": 500,
+      "items": { "$ref": "#/$defs/entitlement" }
+    }
+  },
+  "$defs": {
+    "locale": {
+      "description": "en (required, the fallback) or a WordPress locale such as de_DE or de_DE_formal.",
+      "type": "string",
+      "pattern": "^(?:en|[a-z]{2,3}_[A-Z]{2}(?:_[a-z0-9]+)?)$"
+    },
+    "label": {
+      "description": "Plain text, one line, no markup. A string is read as the English text.",
+      "oneOf": [
+        { "type": "string", "minLength": 1, "maxLength": 190 },
+        {
+          "type": "object",
+          "required": ["en"],
+          "propertyNames": { "$ref": "#/$defs/locale" },
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 190 }
+        }
+      ]
+    },
+    "description": {
+      "description": "Plain text, no markup. A string is read as the English text.",
+      "oneOf": [
+        { "type": "string", "minLength": 1, "maxLength": 1000 },
+        {
+          "type": "object",
+          "required": ["en"],
+          "propertyNames": { "$ref": "#/$defs/locale" },
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 1000 }
+        }
+      ]
+    },
+    "entitlement": {
+      "type": "object",
+      "required": ["key", "label"],
+      "properties": {
+        "key": {
+          "description": "Entitlement key the add-on checks. Starts with the prefix and a dot; lowercase snake_case after it is recommended.",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_.-]{1,120}$"
+        },
+        "label": { "$ref": "#/$defs/label" },
+        "description": { "$ref": "#/$defs/description" },
+        "status": {
+          "description": "available: a released version of the add-on checks this key; the product editor offers it. planned: reserved, not offered. Default: available.",
+          "enum": ["available", "planned"]
+        }
+      }
+    }
+  }
+}

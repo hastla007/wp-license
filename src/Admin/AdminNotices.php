@@ -117,10 +117,25 @@ final class AdminNotices {
 			'cancellation_not_pending'        => array( 'error', __( 'This license has no cancellation to withdraw.', 'wp-license' ) ),
 			'cancellation_withdraw_failed'    => array( 'error', __( 'The cancellation was not withdrawn. Once the paid period has ended, the customer renews in their account.', 'wp-license' ) ),
 			// A-11: amount of the next automatic renewals.
-			'renewal_amount_changed'          => array( 'success', __( 'The renewal amount was changed. It applies to the next automatic renewals; existing renewal orders keep their amount.', 'wp-license' ) ),
+			'renewal_amount_changed'          => array( 'success', __( 'The renewal amount was changed. It applies to the next renewals; existing renewal orders keep their amount.', 'wp-license' ) ),
 			'renewal_amount_missing_input'    => array( 'error', __( 'A license, a valid amount above zero and a reason are required.', 'wp-license' ) ),
 			'renewal_amount_stale'            => array( 'error', __( 'The renewal amount was not changed: it changed after you opened the page. Reload and decide again.', 'wp-license' ) ),
 			'renewal_amount_increase_refused' => array( 'error', __( 'The renewal amount can only be lowered. The customer agreed to automatic charges of the current amount; a higher amount needs their consent.', 'wp-license' ) ),
+			// INH-05: announced renewal price.
+			'price_change_announced'          => array( 'success', __( 'The new renewal price was announced. The notice email is sent to the customer; the license page shows when it was sent and from when the price is charged.', 'wp-license' ) ),
+			'price_change_withdrawn'          => array( 'success', __( 'The announcement was withdrawn. The license keeps its current price.', 'wp-license' ) ),
+			'price_change_missing_input'      => array( 'error', __( 'A valid amount, a date and a reason are required.', 'wp-license' ) ),
+			'price_change_not_an_increase'    => array( 'error', __( 'Nothing was announced: the amount is not higher than the current renewal amount. Use "Change renewal amount" to lower a price at once.', 'wp-license' ) ),
+			'price_change_notice_too_short'   => array( 'error', __( 'Nothing was announced: the date is earlier than the notice period allows.', 'wp-license' ) ),
+			'price_change_already_announced'  => array( 'error', __( 'Nothing was announced: this license already has an announcement. Withdraw it first.', 'wp-license' ) ),
+			'price_change_nothing_announced'  => array( 'error', __( 'This license has no announcement.', 'wp-license' ) ),
+			'price_change_stale'              => array( 'error', __( 'Nothing was changed: the license changed after you opened the page. Reload and decide again.', 'wp-license' ) ),
+			'price_change_failed'             => array( 'error', __( 'Nothing was announced. A new price can be announced for active and past-due licenses with a renewal amount only.', 'wp-license' ) ),
+			'price_change_not_confirmed'      => array( 'error', __( 'Nothing was announced: tick the confirmation to send the emails.', 'wp-license' ) ),
+			/* translators: 1: number of licenses with a new announcement, 2: number of skipped licenses. */
+			'price_change_plan_done'          => array( 'success', __( 'Announced for %1$d licenses; %2$d were skipped.', 'wp-license' ) ),
+			/* translators: 1: number of licenses with a new announcement, 2: number of skipped licenses. */
+			'price_change_plan_more'          => array( 'error', __( 'Announced for %1$d licenses; %2$d were skipped. More licenses remain: submit the form again.', 'wp-license' ) ),
 			'renewal_amount_failed'           => array( 'error', __( 'The renewal amount was not changed. It can be changed for active and past-due licenses only.', 'wp-license' ) ),
 		);
 	}

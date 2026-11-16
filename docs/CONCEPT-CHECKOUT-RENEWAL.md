@@ -112,7 +112,7 @@ Bekannte Grenze: Im Stripe-Modus mit Checkout Sessions (Adaptive Pricing) forder
 | `FeaturesUtil::declare_compatibility`, HPOS | älter als 8.9 | Durch das WooCommerce-Minimum abgedeckt. |
 | WooCommerce Stripe Gateway | 9.6.0, geprüft bis 11.2.0 | Siehe oben. |
 
-Action Scheduler vor 4.0.0 vergleicht bei `$unique = true` nur Hook und Gruppe, nicht die Argumente (`ActionScheduler_DBStore::build_where_clause_for_insert()`). Ein als eindeutig geplanter Auftrag für eine Lizenz verhindert dort denselben Hook für jede andere Lizenz, solange er aussteht. `Requirements::schedule_single_action()` und `Requirements::enqueue_async_action()` übergeben `$unique` deshalb erst ab 4.0.0 und prüfen darunter vorher mit `as_has_scheduled_action()` auf Hook, Argumente und Gruppe. Die bestehenden Aufrufe in `RenewalScheduler` und `RenewalProcessor` nutzen diese Wrapper noch nicht.
+Action Scheduler vor 4.0.0 vergleicht bei `$unique = true` nur Hook und Gruppe, nicht die Argumente (`ActionScheduler_DBStore::build_where_clause_for_insert()`). Ein als eindeutig geplanter Auftrag für eine Lizenz verhindert dort denselben Hook für jede andere Lizenz, solange er aussteht. `Requirements::schedule_single_action()` und `Requirements::enqueue_async_action()` übergeben `$unique` deshalb erst ab 4.0.0 und prüfen darunter vorher mit `as_has_scheduled_action()` auf Hook, Argumente und Gruppe. `RenewalScheduler` und `RenewalProcessor` planen ihre Aufträge über diese Wrapper (Stand 16.11.2026).
 
 ## Datenbank-Voraussetzungen
 
@@ -147,29 +147,30 @@ Die Regel steht an einer Stelle im Code: `LicenseLifecycle::has_access()`.
 - Lizenz mit Auto-Verlängerung: Rechte bleiben nach `paid_until` 14 Tage bestehen, solange die Verlängerung läuft oder fehlschlägt (`past_due`). Das gilt für Rechteprüfung, neue Aktivierungen, Updates und Downloads.
 - Nach der Kulanz setzt der Ablauf die Lizenz auf `expired`. `expired` und `revoked` schalten die Auto-Verlängerung ab und stornieren offene Verlängerungen, damit nie eine gesperrte Lizenz belastet wird.
 
-## Manuelle Verlängerung (noch zu bauen)
+## Manuelle Verlängerung (gebaut)
 
-Ziel: Der Kunde verlängert dieselbe Lizenz mit demselben Schlüssel, ohne Websites neu zu aktivieren.
+Stand 16.11.2026: Die manuelle Verlängerung ist umgesetzt und in Integrations- und E2E-Tests belegt. Die verbindliche Beschreibung steht in [RENEWALS.md](RENEWALS.md#manual-renewal); hier nur die Punkte, in denen der gebaute Stand vom ursprünglichen Konzept abweicht:
 
-1. **Auslöser:** Button „Jetzt verlängern“ im Kundenkonto. Sichtbar ab 30 Tagen vor `paid_until` und bis 30 Tage nach Ablauf.
-2. **Bestellung:** Das Plugin legt eine normale WooCommerce-Bestellung mit dem Ursprungsprodukt an (Metadaten `_wplc_renewal_for_license`, `_wplc_renewal_id`) und leitet auf die Bezahlseite (`order-pay`). Jede Zahlungsart ist erlaubt.
-3. **Preis:** der aktuelle Katalogpreis des Tarifs, Steuern berechnet WooCommerce. Kein gespeicherter Altpreis.
-4. **Wirkung:** Bei `woocommerce_payment_complete` verlängert `mark_renewed()` die Lizenz. Neue Laufzeit beginnt bei `max(paid_until, jetzt)`, damit frühes Verlängern keine Tage kostet und spätes Verlängern keine Lücke rückwirkend bezahlt.
-5. **Abgelaufene Lizenz:** Die Statusmaschine erhält den Übergang `expired → active` für die Aktion `renewal_succeeded`, begrenzt auf die 30 Tage Nachfrist. Danach ist ein Neukauf nötig.
-6. **Idempotenz:** Pro Lizenz und Zielperiode genau eine offene Verlängerungsbestellung (bestehender Schlüssel `idempotency_key` in `wplc_renewals`).
-7. **Admin:** Dieselbe Funktion als Admin-Aktion „Laufzeit verlängern“ mit Pflichtbegründung und Audit-Eintrag, für Kulanzfälle ohne Zahlung.
+- **Fenster:** 30 Tage vor bis 30 Tage nach `paid_until`, für `active`, `past_due` und `expired`; derselbe Schlüssel, dieselben Aktivierungen.
+- **Preis:** der aktuelle reguläre Preis des gekauften Produkts bzw. der gekauften Variante (`renewal_product_id`, T-132), nicht der Tarifpreis. Die automatische Verlängerung belastet dagegen genau den beim Kauf gespeicherten Betrag (siehe [RENEWALS.md](RENEWALS.md#renewal-price)).
+- **Neue Laufzeit:** Innerhalb der Kulanzzeit schließt die neue Periode an das alte Fälligkeitsdatum an (spätes Zahlen schenkt keine Tage); bei abgelaufener Lizenz oder nach der Kulanz beginnt sie mit der Zahlung.
+- **Buchung:** `RenewalProcessor::handle_paid_order()` für jede Zahlungsart; nicht anwendbare Zahlungen gehen in die Prüfung („Renewals to review“).
+- **Admin:** „Laufzeit verlängern“ mit Pflichtbegründung und Audit-Eintrag ist vorhanden ([SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md)).
 
-Der vorhandene Abgleich `RenewalProcessor::reconcile_paid_renewal_order()` deckt Schritt 4 bereits teilweise ab, ist aber auf Stripe und auf fehlgeschlagene Auto-Verlängerungen beschränkt. Er wird dafür verallgemeinert.
+## Erinnerungen (gebaut)
 
-## Erinnerungen (noch zu bauen)
+Stand 16.11.2026: umgesetzt (Protokoll in der Tabelle `wplc_reminder_log`, Einstellungen unter WooCommerce → License settings).
 
-- 30 und 7 Tage vor Ablauf: E-Mail mit Verlängerungslink (ohne Auto-Verlängerung) oder Ankündigung der Abbuchung mit Betrag und Datum (mit Auto-Verlängerung).
+- Vorgabe 30 und 7 Tage vor Ablauf (Einstellung `reminder_days`): E-Mail mit Verlängerungslink (ohne Auto-Verlängerung).
+- Mit Auto-Verlängerung: Ankündigung der Abbuchung mit Betrag und Datum (Einstellung `renewal_notice_days`); ohne versandte Ankündigung wird nicht abgebucht (B-41, [RENEWALS.md](RENEWALS.md#advance-notice-before-a-charge-b-41)).
 - Bei fehlgeschlagener Abbuchung: E-Mail mit Link zur Bezahlseite und dem Enddatum der Kulanz.
 
 ## Offene Entscheidungen
 
-| Frage | Empfehlung |
+Stand 16.11.2026. Die Fragen stehen mit ihren Aufgabennummern in [TODO.md](TODO.md), Abschnitt „Offene Entscheidungen“.
+
+| Frage | Stand |
 |---|---|
-| Eigenbau-Renewals behalten oder WooCommerce Subscriptions einsetzen? | Manuelle Verlängerung zuerst fertigstellen. Die automatische Verlängerung erst nach bestandener Stripe-Sandbox freischalten; scheitert sie dort, auf WooCommerce Subscriptions wechseln. |
-| Verlängerungspreis: aktueller Katalogpreis oder Kaufpreis? | Aktueller Katalogpreis, bei Auto-Verlängerung mit Ankündigung per E-Mail. Der heute gespeicherte Kaufpreis übernimmt sonst Aktionspreise dauerhaft. |
-| Preise im Shop inklusive oder exklusive Steuer? | Vor dem ersten Renewal-Test festlegen; die Renewal-Bestellung muss den Nettobetrag an WooCommerce übergeben. |
+| Eigenbau-Renewals behalten oder WooCommerce Subscriptions einsetzen? | Gebaut ist die eigene Verlängerung; `docs/IMPLEMENTATION-PLAN.md` nennt „kein WooCommerce Subscriptions“ als Produktregel. Die Bestätigung nach dem Stripe-Test steht aus (T-121, nach T-12). WooCommerce-Subscriptions-Produkte lassen sich nicht als Lizenzprodukt zuordnen (P-20). |
+| Verlängerungspreis: aktueller Katalogpreis oder Kaufpreis? | Umgesetzt (T-132): automatisch der beim Kauf gespeicherte reguläre Preis der gekauften Variante, manuell der aktuelle reguläre Preis derselben Variante. Dass beide Wege verschiedene Preise haben können, ist vom Inhaber noch nicht ausdrücklich bestätigt (TODO, „Offene Entscheidungen“). |
+| Preise im Shop inklusive oder exklusive Steuer? | Technisch gelöst: Die Lizenz speichert, ob ihr Betrag Steuer enthält (`renewal_amount_includes_tax`), und die Verlängerungsbestellung übergibt den Nettobetrag ([RENEWALS.md](RENEWALS.md#taxes)). Die Geschäftsentscheidung ist am 16.11.2026 gefallen: Alle Tarifpreise sind netto, zzgl. USt. (T-42). |

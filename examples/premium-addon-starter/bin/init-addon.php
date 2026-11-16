@@ -6,7 +6,7 @@
  * Usage (from the starter directory):
  *   php bin/init-addon.php --target=../voucher-captain-pro \
  *     --name="Voucher Captain Pro" --slug=voucher-captain-pro --namespace='VCAP\Pro' --prefix=vcap_pro \
- *     --product-key=voucher-captain --entitlement-prefix=voucher. \
+ *     --product-key=voucher-captain-pro --entitlement-prefix=voucher. \
  *     --core-name="Voucher Captain" --core-slug=voucher-captain --core-constant=VCAP_VERSION --core-min=1.1.0 \
  *     --requires-php=8.1 --server-url=https://shop.example.com --public-key=BASE64 [--public-key=OLD_BASE64] \
  *     [--version=1.0.0] [--author="Vendor"]

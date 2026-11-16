@@ -249,7 +249,8 @@ final class UpdateService {
 			exit;
 		}
 
-		// Resolve first: a resolver that fails must not cost the client its grant.
+		// With a reuse window (wplc_download_reuse_seconds > 0) the grant is still unused here: resolve first, so that
+		// a failing resolver does not cost the client its grant. With strict single use it was consumed above.
 		$download_url = apply_filters(
 			'wplc_resolve_update_package_url',
 			(string) $grant['package_url'],

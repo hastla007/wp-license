@@ -2,6 +2,8 @@
 
 Users who may manage the license catalog can export the current plans and import a file from **WooCommerce → License catalog CSV**.
 
+> The CSV transfers **plan mappings** (which WooCommerce product sells which plan with which entitlements). Which entitlement keys exist at all, with their labels, is defined by the **catalog files** of the add-ons (`wplc-catalog.json`); see [CATALOG-FILE.md](CATALOG-FILE.md). The CSV accepts any valid key in `entitlements_json`, also one that no catalog file lists; such a key is stored and shown in the advanced JSON field of the product editor.
+
 ## Who may use it
 
 The screen, the export and the import need the catalog capability: `manage_woocommerce` by default, changeable with the filter `wplc_capability` (second argument `manage_catalog`). The same capability is needed to see and save the license fields in the product editor. Being allowed to edit products is neither needed nor enough.
@@ -18,7 +20,7 @@ Columns, in this order:
 | `variation_id` | ID of the variation, `0` for a simple product or a plan stored on a variable parent. |
 | `sku` | Must equal the SKU of that product in this shop. This stops a file from another shop from being applied to the wrong products. |
 | `product_key` | 2 to 100 characters: lowercase letters, digits and hyphens, starting with a letter or digit. The three add-on keys are `voucher-captain-pro`, `pass-captain-pro` and `affiliate-captain-pro`. |
-| `plan_key` | 1 to 100 characters, same characters (`business`). |
+| `plan_key` | 1 to 100 characters, same characters. The decided catalog uses `single`, `business` and `agency` (1, 5 and 25 live sites, same features; [ENTITLEMENTS.md](ENTITLEMENTS.md#plans-and-entitlements)); the import accepts any key. |
 | `billing_interval` | `month` or `year`. |
 | `live_site_limit` | Whole number from 1 to 1000. |
 | `support_level` | `community`, `standard` or `priority`. |
@@ -29,6 +31,19 @@ Keys are validated, never rewritten: `Jährlich` or `my_plan` is rejected with a
 Comma and semicolon separated files are both accepted, with or without a UTF-8 byte order mark, so a file edited and saved in Excel imports. The header line must stay unchanged.
 
 Prices and currency are read from the WooCommerce product at import time; the CSV cannot set a price. The customer-facing name of a license product is not part of the file and is not changed by an import.
+
+## Example: Voucher Captain Pro
+
+The three plans of the decision of 16 Nov 2026 (`docs/ENTITLEMENTS.md`, "Proposed plan mapping"): every plan has the same Pro functions, plans differ by live sites, and Agency adds priority support. Product IDs and SKUs are those of your shop. `sites.live_limit` and `support.level` come from their own columns and are not repeated in the JSON.
+
+```csv
+product_id,variation_id,sku,product_key,plan_key,billing_interval,live_site_limit,support_level,entitlements_json
+120,121,VCP-SINGLE,voucher-captain-pro,single,year,1,standard,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true}"
+120,122,VCP-BUSINESS,voucher-captain-pro,business,year,5,standard,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true}"
+120,123,VCP-AGENCY,voucher-captain-pro,agency,year,25,priority,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true,""voucher.priority_support"":true}"
+```
+
+Importing this file changes the plans for new licenses only; existing licenses keep the keys they stored (see "Changing a plan that licenses already use" in `docs/ENTITLEMENTS.md`).
 
 ## Export
 

@@ -142,6 +142,10 @@ Checked when a ZIP is uploaded **and again** when a release is published (for `u
 
 The PHP extension `zip` is required; without it packages are refused.
 
+### The catalog file in the package
+
+When the plugin folder of the package contains `wplc-catalog.json`, the server imports it into the license catalog when the release is created from the ZIP (setting "Import the catalog file from release packages", on by default). The release is created whatever the file contains; an invalid file or a file for another product is not imported, and the screen and the audit log say why. Details: [CATALOG-FILE.md](CATALOG-FILE.md#import-from-the-release-package-prod-03).
+
 ### Which version is delivered
 
 The highest **published** version by `version_compare()` in the requested channel whose requirements the installation meets and whose file is present: `1.10.0` beats `1.9.0`, `2.0.0` beats `2.0.0-rc1`, which beats `2.0.0-beta2`. A pre-release published in the `stable` channel still beats a lower stable version, so use the `beta` channel for pre-releases.

@@ -13,7 +13,7 @@
  * invariants that must hold for EVERY interleaving (exactly one winner, no lost update,
  * audit trail consistent), not one expected order of events.
  *
- * Needs the state of flows 01-05 (products, a published release of voucher-captain).
+ * Needs the state of flows 01-05 (products, a published release of voucher-captain-pro).
  *
  * @package WPLC
  */
@@ -164,7 +164,7 @@ $order   = e2e_create_order( $customer_id, array( $simple_id => 1 ) );
 $license = e2e_order_licenses( (int) $order->get_id() )[0];
 $inst_id = wp_generate_uuid4();
 $secret  = bin2hex( random_bytes( 32 ) );
-$single  = e2e_parallel( array( $activation_request( e2e_key( $license ), 'voucher-captain', 'https://race-replay.example', $inst_id, $secret ) ) );
+$single  = e2e_parallel( array( $activation_request( e2e_key( $license ), 'voucher-captain-pro', 'https://race-replay.example', $inst_id, $secret ) ) );
 e2e_eq( 200, $single[0]['code'], '[replay] setup: one site activated', substr( $single[0]['body'], 0, 200 ) );
 for ( $round = 1; $round <= $rounds; $round++ ) {
 	$body      = '{"product_version":"1.0.0"}';
@@ -214,7 +214,7 @@ $order   = e2e_create_order( $customer_id, array( $simple_id => 1 ) );
 $license = e2e_order_licenses( (int) $order->get_id() )[0];
 delete_option( 'wplc_e2e_client_race_dl' );
 e2e_as_site( 'https://race-download.example' );
-$client = new LicenseClient( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_race_dl' );
+$client = new LicenseClient( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_race_dl' );
 $result = $client->activate( e2e_key( $license ) );
 e2e_ok( is_array( $result ), '[download] setup: site activated' );
 for ( $round = 1; $round <= $rounds; $round++ ) {

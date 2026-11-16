@@ -52,8 +52,10 @@ final class PricingTableIntegrationTest extends WPLC_Integration_TestCase {
 				'plan_key' => 'agency',
 				'live_site_limit' => 5,
 				'entitlements' => array(
+					'pass.write_api' => true,
+					'pass.white_label' => false,
 					'voucher.reports' => true,
-					'voucher.white_label' => false,
+					'affiliate.store_credit' => true,
 					'feature.secret_flag' => true,
 				),
 			)
@@ -71,7 +73,9 @@ final class PricingTableIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertStringContainsString( 'for 1 year', $html );
 		$this->assertStringContainsString( '5 live sites', $html );
 		$this->assertStringContainsString( '1 live site<', $html );
-		$this->assertStringContainsString( '<li>Reports</li>', $html, 'Label from EntitlementCatalog.' );
+		$this->assertStringContainsString( '<li>Write API</li>', $html, 'Label from EntitlementCatalog.' );
+		$this->assertStringNotContainsString( 'Reports', $html, 'R-07: a key of a core function has no label and is not advertised.' );
+		$this->assertStringNotContainsString( 'store credit', $html, 'R-09: a planned key is not advertised.' );
 		$this->assertStringNotContainsString( 'White label', $html, 'An entitlement set to false is not listed.' );
 		$this->assertStringNotContainsString( 'secret_flag', $html, 'Keys without a label stay out of the shop front.' );
 		$this->assertStringContainsString( 'add-to-cart=' . $agency->get_id(), $html );

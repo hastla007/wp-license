@@ -30,7 +30,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.2';
+		const VERSION = '2.1.0';
 
 		/**
 		 * Text domain literal used in this file.
@@ -65,6 +65,35 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		 */
 		public function __construct( string $text_domain = '' ) {
 			$this->text_domain = '' === $text_domain ? self::SOURCE_DOMAIN : $text_domain;
+		}
+
+		/**
+		 * Whether texts may be built now: WordPress reached `init`, or this runs without WordPress.
+		 *
+		 * Before `init` the translations of the add-on are not loaded; asking for one makes
+		 * WordPress 6.7 and later report "Translation loading ... was triggered too early".
+		 * The library therefore builds no text before `init`: errors created that early carry
+		 * their code as message, and the text is looked up when it is shown (see
+		 * LicenseManager::error_text()).
+		 *
+		 * @since 2.1.0
+		 *
+		 * @return bool
+		 */
+		public static function ready(): bool {
+			return ! function_exists( 'did_action' ) || did_action( 'init' ) > 0;
+		}
+
+		/**
+		 * Message for a new WP_Error: the text for the code once texts may be built, the code itself before `init`.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param string $code Error code.
+		 * @return string
+		 */
+		public function error_message( string $code ): string {
+			return self::ready() ? $this->error( $code ) : $code;
 		}
 
 		/**
@@ -127,6 +156,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'error.wplc_not_activated'            => __( 'This site has not been activated with a license key yet.', 'wp-license' ),
 				'error.wplc_site_changed'             => __( 'The address of this site differs from the address the license was activated for. This looks like a copy of the site. Activate the license for this address.', 'wp-license' ),
 				'error.wplc_credentials_not_saved'    => __( 'The activation data could not be stored in the database of this site. Check the database and try again.', 'wp-license' ),
+				'error.wplc_state_not_saved'          => __( 'The answer of the license server could not be stored in the database of this site. Check the database; the check is repeated automatically.', 'wp-license' ),
+				'error.wplc_credentials_not_removed'  => __( 'The license data could not be removed from the database of this site. Check the database and try again.', 'wp-license' ),
 				'error.wplc_json_error'               => __( 'The request to the license server could not be prepared.', 'wp-license' ),
 				'error.wplc_http_error'               => __( 'The license server answered with an unexpected error.', 'wp-license' ),
 				'error.wplc_connection_failed'        => __( 'The license server could not be reached. Premium features keep working; the check is repeated automatically.', 'wp-license' ),
@@ -178,6 +209,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'state.site_changed'                  => __( 'Site address changed', 'wp-license' ),
 				'state.stale'                         => __( 'Could not be verified for too long', 'wp-license' ),
 				'state.misconfigured'                 => __( 'Not configured', 'wp-license' ),
+				'reason.clock_ahead'                  => __( 'The clock of this site is ahead, or the offline period has expired.', 'wp-license' ),
 				/* translators: %s: name of the add-on. */
 				'notice.unlicensed'                   => __( '%s: enter your license key to switch on the premium features and updates.', 'wp-license' ),
 				/* translators: 1: name of the add-on, 2: date. */
@@ -196,6 +228,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'notice.site_changed'                 => __( '%s: this site runs under another address than the one the license was activated for. Activate the license for this address.', 'wp-license' ),
 				/* translators: %s: name of the add-on. */
 				'notice.stale'                        => __( '%s: the license could not be verified for too long. The premium features are switched off until the license server can be reached again.', 'wp-license' ),
+				/* translators: %s: name of the add-on. */
+				'notice.stale_clock_ahead'            => __( '%s: the clock of this site is ahead, or the offline period has expired. The premium features are switched off until the license server confirms the license again. Please check the date and time of the web server.', 'wp-license' ),
 				/* translators: %s: name of the add-on. */
 				'notice.misconfigured'                => __( '%s: the license settings of this plugin are incomplete.', 'wp-license' ),
 				/* translators: 1: name of the add-on, 2: date. */
@@ -242,8 +276,22 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				/* translators: %s: address the license was activated for. */
 				'ui.move_confirm'                     => __( 'I confirm that the site moved and no longer runs at %s.', 'wp-license' ),
 				'ui.move_unconfirmed'                 => __( 'Nothing was transferred. Confirm that the site moved before you transfer the activation.', 'wp-license' ),
+				'ui.deactivate_confirm'               => __( 'I confirm that this site gives up its license. The premium features are switched off at once; to use them again, the license key must be entered again.', 'wp-license' ),
+				'ui.deactivate_unconfirmed'           => __( 'Nothing was removed. Confirm that this site gives up its license before you remove it.', 'wp-license' ),
+				'ui.reason'                           => __( 'Reason', 'wp-license' ),
 				'ui.forbidden'                        => __( 'You are not allowed to manage the license of this plugin.', 'wp-license' ),
 				'ui.utc'                              => __( 'UTC', 'wp-license' ),
+				// Site Health → Info.
+				'debug.offline_until'                 => __( 'Offline period ends', 'wp-license' ),
+				'debug.installation'                  => __( 'Installation ID (shortened)', 'wp-license' ),
+				'debug.server'                        => __( 'License server', 'wp-license' ),
+				'debug.signature'                     => __( 'Signature check', 'wp-license' ),
+				'debug.signature.native'              => __( 'PHP sodium extension', 'wp-license' ),
+				'debug.signature.compat'              => __( 'sodium_compat of WordPress (slower)', 'wp-license' ),
+				'debug.signature.none'                => __( 'not available: premium features stay off', 'wp-license' ),
+				'debug.keys'                          => __( 'Pinned server keys (fingerprints)', 'wp-license' ),
+				'debug.version'                       => __( 'License client version', 'wp-license' ),
+				'debug.none'                          => __( 'none', 'wp-license' ),
 				// Updater.
 				'update.license_expired'              => __( 'Your license has expired. Renew it to receive this update.', 'wp-license' ),
 				'update.license_suspended'            => __( 'Your license is suspended; updates are not available. Please contact support.', 'wp-license' ),

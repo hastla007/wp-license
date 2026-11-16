@@ -160,7 +160,7 @@ foreach ( $modes as $mode => $include ) {
 	e2e_ok( ! $auto_mismatch, "{$label}: the automatic renewal charges exactly the total of a normal purchase (3 prices, German customer)", $auto_mismatch );
 }
 
-// --- Price change in the shop: manual renewal uses today's plan price, automatic renewal the agreed one. ---
+// --- Price change in the shop (INH-01, price guarantee): manual and automatic renewal both cost the price of the purchase day. ---
 update_option( 'woocommerce_prices_include_tax', 'yes' );
 WC_Cache_Helper::invalidate_cache_group( 'taxes' );
 $product_id = $make_product( '50.00', 'chg' );
@@ -173,12 +173,50 @@ $plan = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['plans']} WHERE wooco
 \WPLC\Catalog\Catalog::save_mapping( $product_id, 0, array( 'product_key' => $plan['product_key'], 'plan_key' => $plan['plan_key'], 'billing_interval' => 'year', 'live_site_limit' => 1, 'support_level' => 'standard', 'entitlements' => array() ) );
 e2e_move_paid_until( (int) $manual['id'], $utc( time() + 10 * DAY_IN_SECONDS ) );
 $manual_order = \WPLC\Billing\ManualRenewal::start( (int) $manual['id'], $german_id );
-e2e_eq( '60.00', is_wp_error( $manual_order ) ? $manual_order->get_error_code() : wc_format_decimal( $manual_order->get_total(), 2 ), 'after a price increase to 60.00 a manual renewal costs the current price' );
+e2e_eq( '50.00', is_wp_error( $manual_order ) ? $manual_order->get_error_code() : wc_format_decimal( $manual_order->get_total(), 2 ), 'after a price increase to 60.00 a manual renewal still costs the price of the purchase day (50.00)' );
 update_option( 'wplc_e2e_fake_charges', array(), false );
 $renewal_id = e2e_move_paid_until( (int) $auto['id'], $utc( time() - HOUR_IN_SECONDS ) );
 e2e_run_action( 'wplc_process_renewal', array( $renewal_id ) );
 $charges = e2e_charges();
 e2e_eq( '50.00', $charges ? wc_format_decimal( end( $charges )['total'], 2 ) : null, 'the automatic renewal still charges the price the customer agreed to (50.00)' );
+
+// --- INH-05: the price guarantee ends only with an announcement, a notice email and a notice period. ---
+$pc_tables = e2e_tables();
+$pc_manual = (int) $manual['id'];
+$pc_auto   = (int) $auto['id'];
+// Fresh periods: both licenses are paid for another 20 days.
+$wpdb->update( $pc_tables['licenses'], array( 'paid_until' => $utc( time() + 20 * DAY_IN_SECONDS ), 'next_payment_at' => $utc( time() + 20 * DAY_IN_SECONDS ), 'status' => 'active' ), array( 'id' => $pc_auto ) );
+$effective = time() + \WPLC\Billing\PriceChange::notice_days() * DAY_IN_SECONDS + 3600;
+e2e_eq( \WPLC\Billing\PriceChange::RESULT_NOTICE_TOO_SHORT, \WPLC\Billing\PriceChange::announce( $pc_auto, 6000, time() + 10 * DAY_IN_SECONDS, 'e2e price list', 1 ), 'a new price cannot be announced for a date inside the notice period' );
+e2e_eq( \WPLC\Billing\PriceChange::RESULT_OK, \WPLC\Billing\PriceChange::announce( $pc_auto, 6000, $effective, 'e2e price list', 1 ), 'a higher renewal price (60.00 instead of 50.00) is announced for a license with automatic renewal' );
+e2e_eq( \WPLC\Billing\PriceChange::RESULT_OK, \WPLC\Billing\PriceChange::announce( $pc_manual, 6000, $effective, 'e2e price list', 1 ), 'and for a license that renews by hand' );
+$notices = e2e_mails_with_subject( 'license changes' );
+e2e_eq( 2, count( $notices ), 'each customer gets one announcement email' );
+$notice_body = wp_strip_all_tags( (string) ( $notices[0]['message'] ?? '' ) );
+e2e_ok( false !== strpos( $notice_body, '50' ) && false !== strpos( $notice_body, '60' ), 'the email names the current and the new price', substr( $notice_body, 0, 400 ) );
+$pc_license = e2e_license( $pc_auto );
+e2e_ok( ! empty( $pc_license['price_change_notified_at'] ) && 5000 === (int) $pc_license['renewal_amount_minor'], 'the time of the notice is stored and the agreed amount is unchanged' );
+e2e_eq( 5000, \WPLC\Billing\RenewalOrder::price( $pc_license, false )['amount_minor'], 'before the date an automatic renewal still costs 50.00' );
+e2e_eq( 5000, \WPLC\Billing\RenewalOrder::price( e2e_license( $pc_manual ), true )['amount_minor'], 'before the date a manual renewal still costs 50.00' );
+
+// [time simulated] the notice period is over: announcement, notice and date lie in the past.
+$past = $utc( time() - ( \WPLC\Billing\PriceChange::notice_days() + 1 ) * DAY_IN_SECONDS );
+foreach ( array( $pc_auto, $pc_manual ) as $pc_id ) {
+	$wpdb->update( $pc_tables['licenses'], array( 'price_change_announced_at' => $past, 'price_change_notified_at' => $past, 'price_change_effective_at' => $utc( time() - HOUR_IN_SECONDS ) ), array( 'id' => $pc_id ) );
+}
+e2e_move_paid_until( $pc_manual, $utc( time() + 10 * DAY_IN_SECONDS ) );
+$pc_order = \WPLC\Billing\ManualRenewal::start( $pc_manual, $german_id );
+e2e_eq( '60.00', is_wp_error( $pc_order ) ? $pc_order->get_error_code() : wc_format_decimal( $pc_order->get_total(), 2 ), 'after the notice period a manual renewal costs the announced price (60.00)' );
+update_option( 'wplc_e2e_fake_charges', array(), false );
+// Two hours ago, not one: the period must differ from the renewal this license paid a moment ago in this flow.
+$pc_renewal = e2e_move_paid_until( $pc_auto, $utc( time() - 2 * HOUR_IN_SECONDS ) );
+e2e_run_action( 'wplc_process_renewal', array( $pc_renewal ) );
+$pc_charges = e2e_charges();
+e2e_eq( '60.00', $pc_charges ? wc_format_decimal( end( $pc_charges )['total'], 2 ) : null, 'after the notice period the automatic renewal charges the announced price (60.00)' );
+\WPLC\Billing\PriceChange::daily();
+$pc_license = e2e_license( $pc_auto );
+e2e_ok( 6000 === (int) $pc_license['renewal_amount_minor'] && empty( $pc_license['price_change_amount_minor'] ), 'the daily job makes the announced price the agreed amount and clears the announcement' );
+e2e_ok( in_array( 'renewal_price_change_applied', e2e_audit_actions( 'license', $pc_auto ), true ), 'the change is in the audit log' );
 
 // Back to a shop without taxes for the remaining flows.
 update_option( 'woocommerce_prices_include_tax', 'no' );

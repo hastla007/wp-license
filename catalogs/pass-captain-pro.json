@@ -1,0 +1,59 @@
+{
+  "format": 1,
+  "product_key": "pass-captain-pro",
+  "prefix": "pass",
+  "name": "Pass Captain Pro",
+  "status": "available",
+  "entitlements": [
+    {
+      "key": "pass.e_invoicing",
+      "label": {
+        "en": "E-invoice (XRechnung, ZUGFeRD)",
+        "de_DE": "E-Rechnung (XRechnung, ZUGFeRD)",
+        "de_DE_formal": "E-Rechnung (XRechnung, ZUGFeRD)"
+      },
+      "description": {
+        "en": "Invoices, corrections and organizer settlements as XRechnung 3.0 XML (UBL and CII) and as ZUGFeRD PDF/A-3 with the XML embedded.",
+        "de_DE": "Rechnungen, Korrekturen und Veranstalter-Abrechnungen als XRechnung 3.0 (XML in UBL und CII) und als ZUGFeRD-PDF/A-3 mit eingebettetem XML.",
+        "de_DE_formal": "Rechnungen, Korrekturen und Veranstalter-Abrechnungen als XRechnung 3.0 (XML in UBL und CII) und als ZUGFeRD-PDF/A-3 mit eingebettetem XML."
+      },
+      "status": "available"
+    },
+    {
+      "key": "pass.card_terminal",
+      "label": {
+        "en": "Card terminal (Stripe Terminal, SumUp)",
+        "de_DE": "Kartenterminal (Stripe Terminal, SumUp)",
+        "de_DE_formal": "Kartenterminal (Stripe Terminal, SumUp)"
+      },
+      "status": "available"
+    },
+    {
+      "key": "pass.waiting_room",
+      "label": {
+        "en": "Virtual waiting room",
+        "de_DE": "Virtueller Warteraum",
+        "de_DE_formal": "Virtueller Warteraum"
+      },
+      "status": "available"
+    },
+    {
+      "key": "pass.write_api",
+      "label": {
+        "en": "Write API",
+        "de_DE": "Schreibende API",
+        "de_DE_formal": "Schreibende API"
+      },
+      "status": "available"
+    },
+    {
+      "key": "pass.white_label",
+      "label": {
+        "en": "White label",
+        "de_DE": "White Label",
+        "de_DE_formal": "White Label"
+      },
+      "status": "available"
+    }
+  ]
+}

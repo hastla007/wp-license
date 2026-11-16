@@ -55,7 +55,7 @@ final class CatalogCsvIntegrationTest extends WPLC_Integration_TestCase {
 				'billing_interval'  => 'year',
 				'live_site_limit'   => '3',
 				'support_level'     => 'standard',
-				'entitlements_json' => '{"voucher.reports":true}',
+				'entitlements_json' => '{"voucher.bulk_orders":true}',
 			),
 			$overrides
 		);
@@ -142,7 +142,7 @@ final class CatalogCsvIntegrationTest extends WPLC_Integration_TestCase {
 	public function test_a58_semicolon_file_with_bom_imports(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'shop_manager' ) ) );
 		$product = $this->product_with_sku( 'CSV-DE' );
-		$csv     = "\xEF\xBB\xBF" . str_replace( ',', ';', self::HEADER ) . "\r\n" . rtrim( $this->row( $product, array( 'plan_key' => 'agency', 'entitlements_json' => '{"voucher.reports":true,"voucher.white_label":true}' ), ';' ), "\n" ) . "\r\n";
+		$csv     = "\xEF\xBB\xBF" . str_replace( ',', ';', self::HEADER ) . "\r\n" . rtrim( $this->row( $product, array( 'plan_key' => 'agency', 'entitlements_json' => '{"voucher.bulk_orders":true,"voucher.white_label":true}' ), ';' ), "\n" ) . "\r\n";
 
 		$result = CatalogCsv::import_file( $this->file( $csv ) );
 

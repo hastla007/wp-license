@@ -1,6 +1,6 @@
 # Entitlements
 
-Entitlements are the feature rights a license grants. The server stores them per license and sends them, signed, in the `entitlements` object of an activation and of every entitlement check ([API-V1.md](API-V1.md)). A premium add-on asks `LicenseManager::is_entitled( 'voucher.qr_redemption' )` ([CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md)).
+Entitlements are the feature rights a license grants. The server stores them per license and sends them, signed, in the `entitlements` object of an activation and of every entitlement check ([API-V1.md](API-V1.md)). A premium add-on asks `LicenseManager::is_entitled( 'pass.card_terminal' )` ([CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md)).
 
 ## Core plugins are free and ungated
 
@@ -16,7 +16,7 @@ Decision of 13 Nov 2026: the core plugin of each product stays completely free, 
 
 | Value | Example | How a client reads it |
 | --- | --- | --- |
-| `true` | `"voucher.qr_redemption": true` | The feature is granted. This is what a ticked feature of a plan becomes. |
+| `true` | `"pass.card_terminal": true` | The feature is granted. This is what a ticked feature of a plan becomes. |
 | number | `"sites.live_limit": 3` | A limit. `is_entitled()` is true for a number above zero; read the number with `status()->entitlement( $key )`. |
 | string | `"support.level": "standard"` | Information. `is_entitled()` is false for a string; read it with `entitlement()`. |
 | `false`, `0`, `null`, absent key | | Not granted. |
@@ -41,30 +41,40 @@ A client may keep the last signed answer and use it while the server cannot be r
 
 The shop can change the 14 days with the filter `wplc_offline_cache_days`.
 
+**The clock of the customer site** (client library 2.1.0, decision of 16 Nov 2026). The client measures the window from the signed `server_time` plus the local time that passed since the answer was stored, so a wrong time zone or a clock that is behind does not shorten it. On top of that there is an absolute limit that does not depend on anything stored next to the snapshot: the snapshot is void (state `stale`, reason `clock_ahead`) as soon as the local UTC time (`time()`) is later than the signed `cache_expires_at` plus a **tolerance of one day**. The tolerance is the constant `LicenseManager::OFFLINE_TOLERANCE`; an add-on can change it with the filter `{prefix}_license_offline_tolerance` (seconds), but never beyond seven days (`LicenseManager::MAX_OFFLINE_TOLERANCE`) or below zero. Consequences:
+
+- A clock that is constantly wrong does not matter as long as it is behind, or ahead by at most the tolerance.
+- A clock that is ahead by more than the tolerance shortens the offline window by the difference. A clock that is ahead by more than 14 + 1 days makes every snapshot `stale` right after the check that stored it; the license screen and the notice then say "the clock of this site is ahead, or the offline period has expired".
+- Someone who can write the options of the site can no longer extend the window by resetting the unsigned fields `fetched_at`, `clock_high` and `server_time_max` (audit of 16 Nov 2026): once the local time is past `cache_expires_at` plus the tolerance, only a new signed answer, or a system clock that is set back, makes the snapshot usable again.
+
+**Released activations and the retention of their rows.** A released activation (customer account, admin, replacement, end of the license) keeps its row with `status = deactivated`; every signed request of that installation is answered with a signed refusal, and the client locks at once. Only when the row is deleted does the server answer an unsigned `401 activation_not_found`, which the client may not trust and which therefore leaves the snapshot in force until its `cache_expires_at`. Keep the retention of deactivated activations (settings `activations` and `inactive_activations` of the data retention, default 365 days) **never shorter than the offline window** (14 days, or the value of `wplc_offline_cache_days`).
+
 ## Dates
 
 All date-time values of the API (`paid_until`, `access_until`, `grace_until`, `server_time`, `cache_expires_at`, `deactivated_at`) are **UTC** in the form `YYYY-MM-DD HH:MM:SS`, without a time zone suffix. Parse them as UTC (`strtotime( $value . ' UTC' )`) and convert for display. `paid_until`, `access_until` and `grace_until` can be `null`.
 
 ## Product keys (decided 14 Nov 2026, T-158)
 
-The product key on a license product in the shop and the key the premium add-on sends must be identical. Key = add-on folder = text domain; the add-ons live in hastla007/captain-pro. Each key maps to one entitlement prefix (`EntitlementCatalog::PRODUCT_KEYS`; further products via the filter `wplc_known_product_keys`).
+The product key on a license product in the shop and the key the premium add-on sends must be identical. Key = add-on folder = text domain; the add-ons live in hastla007/captain-pro. Each key maps to one entitlement prefix. Products, prefixes, keys and labels are not part of the server code: they come from the catalog file each add-on ships (`wplc-catalog.json`, [CATALOG-FILE.md](CATALOG-FILE.md)); the table below is what the catalog files of the Captain products contain (`catalogs/` in this repository until captain-pro delivers them). Further products are added by importing their file; the filter `wplc_known_product_keys` still works.
 
 | Product | Product key | Entitlement prefix | Premium add-on |
 |---|---|---|---|
 | Voucher Captain | `voucher-captain-pro` | `voucher.` | `voucher-captain-pro` |
-| WP Pass Captain | `pass-captain-pro` | `pass.` | `pass-captain-pro` |
+| Pass Captain | `pass-captain-pro` | `pass.` | `pass-captain-pro` |
 | Affiliate Captain | `affiliate-captain-pro` | `affiliate.` | `affiliate-captain-pro` |
 
-The product editor suggests these keys. The plan key (for example `solo`, `business`, `agency`) is set per product or variation and is independent of the product key.
+The product editor suggests these keys. The plan key (`single`, `business` or `agency`, see [Plans and entitlements](#plans-and-entitlements)) is set per product or variation and is independent of the product key.
+
+Planned add-ons, not released and not for sale yet (status `planned` in their catalog file): `workflow-captain-pro` (`workflow.`), `form-captain-pro` (`form.`), `review-captain-pro` (`review.`), `course-captain-pro` (`course.`).
 
 ## Identifier rules
 
-- Prefix keys by product: `affiliate.`, `voucher.`, or `pass.`.
+- Prefix keys by product: `affiliate.`, `voucher.`, or `pass.` (planned: `workflow.`, `form.`, `review.`, `course.`). One prefix belongs to one product.
 - Use lowercase snake_case after the prefix; never reuse a key for different behavior.
 - Server plans return a boolean or a documented numeric limit. Clients fail closed for new premium features when an entitlement is absent or invalid.
-- Plan key/SKU assignment is a separate configuration step; the table below is the proposed entitlement mapping, not live catalog data.
+- Plan key/SKU assignment is a separate configuration step; the tables below are the decided model, not live catalog data.
 - Site counts are license limits, not feature entitlements. Staging does not consume another live site.
-- The keys the shop offers as tick boxes in the product editor come from `WPLC\Catalog\EntitlementCatalog` (filter `wplc_entitlement_catalog`). Further keys and numeric limits can be entered as JSON.
+- The keys the shop offers as tick boxes in the product editor come from the imported catalog files (`WPLC\Catalog\CatalogStore`, read by `WPLC\Catalog\EntitlementCatalog`; filter `wplc_entitlement_catalog`). A key is offered when its product and the key itself have the status `available`. Further keys and numeric limits can be entered as JSON.
 - A license stores a snapshot of its plan's entitlements. A plan change (upgrade, downgrade at the next renewal, administrator change) replaces the whole snapshot with the new plan's entitlements; clients see the change at their next entitlement check, without re-activation. A lower live site limit deactivates no site, it only blocks new activations (see [RENEWALS.md](RENEWALS.md#plan-changes)).
 
 ## Changing a plan that licenses already use (A-23)
@@ -81,26 +91,54 @@ wp wplc sync-entitlements --product=voucher-captain-pro --plan=business --apply 
 - `--license=<id>` syncs one license; `--max-rows` and `--after-id` split large runs. Without `--apply` nothing is written. The command ends with exit code 1 while licenses remain that differ from their plan.
 - Each change is audited as `license_entitlements_synced` (before and after values of the changed keys) and fires `wplc/license_entitlements_synced`. Clients see it at their next entitlement check.
 
-## Proposed plan mapping
+## Plans and entitlements
 
-| Product / tier | Feature keys or limits |
+Decided on 14 Nov 2026 (captain-pro `docs/TARIFE.md`, `docs/PREMIUM-ENTSCHEIDUNGEN.md`): **every product has the same three plans, and every plan of a product contains every premium function of its add-on.** Plans differ only by the number of live sites and the support level.
+
+| Plan key | Name | Live sites (`sites.live_limit`) | Support (`support.level`) |
+|---|---|---:|---|
+| `single` | Single | 1 | `standard` |
+| `business` | Business | 5 | `standard` |
+| `agency` | Agency | 25 | `priority` |
+
+Prices are not part of this document. The prices proposed in captain-pro `docs/TARIFE.md` are not confirmed yet (see "Offene Entscheidungen" in [TODO.md](TODO.md), T-42). Confirmed by the owner on 16 Nov 2026 are only the prices of the planned Form Captain Pro: 59, 129 and 249 EUR per year net, plus VAT, for `single`, `business` and `agency` (owner decision of 16 Nov 2026, corrected from gross to net). Also decided on 16 Nov 2026: all prices of all Pro add-ons and plans are net, plus VAT; the amounts of the other products stay unconfirmed.
+
+The keys below are the ones the product editor offers as tick boxes (`WPLC\Catalog\EntitlementCatalog::all()`, filled from the catalog files). A key has the status `available` only when the premium add-on ships the function; the core plugins have no keys. The labels (English, `de_DE`, `de_DE_formal`) are in the catalog files, not in the translations of the server.
+
+| Product (product key) | Keys in every plan (`single`, `business`, `agency`) | State of the add-on (captain-pro, 16 Nov 2026) |
+|---|---|---|
+| Affiliate Captain Pro (`affiliate-captain-pro`) | `affiliate.extended_api`, `affiliate.automated_payouts`, `affiliate.white_label_portal`, `affiliate.webhooks` | Built. |
+| Pass Captain Pro (`pass-captain-pro`) | `pass.e_invoicing`, `pass.card_terminal`, `pass.waiting_room`, `pass.write_api`, `pass.white_label` | Built. `pass.e_invoicing` delivers XRechnung 3.0 XML (UBL and CII) and, since captain-pro `e54eda9` (16 Nov 2026), a ZUGFeRD PDF/A-3 with the CII XML embedded; the external validations of the PDF are still open there (captain-pro `docs/PASS-E-INVOICE.md`). |
+| Voucher Captain Pro (`voucher-captain-pro`) | none yet | No premium function is built. The cut of 16 Nov 2026 (owner decision) plans company orders, wallet passes, SMS delivery and white label (status `planned`, next section). Nothing can be sold for it yet. |
+| Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`), Course Captain Pro (`course-captain-pro`) | none yet | Planned (product status `planned` in the catalog file). The product keys resolve to the prefixes `workflow.`, `form.`, `review.`, `course.`; the product editor does not suggest them and offers no key for them. Six `workflow.*` keys are reserved (next section). |
+
+Support is the plan attribute `support.level` (`standard` or `priority`) and nothing else (owner decision of 16 Nov 2026, R-24). The three former keys `*.priority_support` (one each for `affiliate.`, `voucher.` and `pass.`), which no add-on checked, are no longer in the catalog. A plan or license that still stores one keeps it in the advanced JSON field; it has no effect.
+
+Plan keys and product keys are assigned in the product editor or by the catalog CSV ([CATALOG-CSV.md](CATALOG-CSV.md)). The server does not enforce the three plan keys: a shop can name plans differently, and a custom key is only a label. Clients must authorize by entitlement key, never by plan key.
+
+## Planned, not deliverable yet
+
+These keys are reserved for functions that are planned but that no released add-on checks. They are **not** offered in the product editor and not shown in the pricing table (status `planned` in the catalog file, `EntitlementCatalog::planned()`), so that a shop does not sell what does not exist. A shop that ships such a function itself can offer them with `add_filter( 'wplc_offer_planned_entitlements', '__return_true' );`.
+
+| Key | Planned function |
 |---|---|
-| Affiliate Captain (core, free on WordPress.org) | No entitlements. Which functions stay in the core is not decided yet (T-42); see the note below the table. |
-| Affiliate Captain Starter | `affiliate.partner_portal`, `affiliate.coupon_attribution`, `affiliate.order_refund_handling`, `affiliate.basic_commissions`, `affiliate.manual_payout_csv`, and in every plan (added 15 Nov 2026) `affiliate.store_credit`, `affiliate.stripe_connect`, `affiliate.leaderboard`, `affiliate.multi_tier` (needs Affiliate Captain 0.15.0); live sites: 1 |
-| Affiliate Captain Pro | Starter plus `affiliate.partner_groups`, `affiliate.product_category_rates`, `affiliate.recurring_commissions`, `affiliate.extended_api`, `affiliate.automated_payouts`; live sites: 3 |
-| Affiliate Captain Agency | Pro plus `affiliate.white_label_portal`, `affiliate.webhooks`, `affiliate.multiple_programs`, `affiliate.priority_support`; live sites: 10 |
-| Voucher Captain (core, free on WordPress.org) | No entitlements. Every core feature works without a license, a key or a server call. |
-| Voucher Captain Solo | Core plus `voucher.custom_branding`, `voucher.pdf_templates`, `voucher.automatic_delivery`; live sites: 1 |
-| Voucher Captain Business | Solo plus `voucher.qr_redemption`, `voucher.partial_balance`, `voucher.staff_roles`, `voucher.scheduled_delivery`, `voucher.bulk_import_export`, `voucher.reports`; live sites: 5 |
-| Voucher Captain Agency | Business plus `voucher.white_label`, `voucher.priority_support`; live sites: 25 |
-| WP Pass Captain (core, free on WordPress.org) | No entitlements. Every core feature works without a license, a key or a server call. |
-| WP Pass Captain Pro | Core plus `pass.e_invoicing`, `pass.card_terminal`, `pass.white_label`, `pass.waiting_room`, `pass.write_api`; live sites: 1 |
-| WP Pass Captain Business | Same Pro functions; live sites: 5 |
-| WP Pass Captain Agency | Same Pro functions plus `pass.priority_support`; live sites: 25 |
+| `affiliate.store_credit` | Payout as store credit |
+| `affiliate.stripe_connect` | Payouts via Stripe Connect |
+| `affiliate.leaderboard` | Leaderboard and milestone emails |
+| `affiliate.multi_tier` | Multi-tier commissions |
+| `affiliate.multiple_programs` | Multiple programs |
+| `voucher.bulk_orders` | Voucher Captain Pro: company orders (many vouchers from a CSV list) |
+| `voucher.wallet_passes` | Voucher Captain Pro: Apple and Google Wallet passes |
+| `voucher.sms_delivery` | Voucher Captain Pro: voucher link by SMS |
+| `voucher.white_label` | Voucher Captain Pro: white label, same scope as Pass Captain Pro (owner decision E2 of 16 Nov 2026) |
+| `workflow.suite_integrations` | Workflow Captain Pro: integrations with the other Captain plugins |
+| `workflow.webhooks` | Workflow Captain Pro: webhooks |
+| `workflow.event_correlation` | Workflow Captain Pro: event correlation |
+| `workflow.advanced_logic` | Workflow Captain Pro: advanced logic |
+| `workflow.recipe_templates` | Workflow Captain Pro: recipe templates |
+| `workflow.extended_logs` | Workflow Captain Pro: extended logs |
 
-**Open for Affiliate Captain (A-90, depends on T-42):** the Starter keys `affiliate.partner_portal`, `affiliate.coupon_attribution`, `affiliate.order_refund_handling`, `affiliate.basic_commissions` and `affiliate.manual_payout_csv` name functions that look like core functions of the free plugin, and they are still offered as tick boxes in the product editor (`EntitlementCatalog`). Under the rule above, a core function is never license-gated. Until the catalog is decided, the core plugin must not check these keys, an add-on checks only keys of functions it ships itself, and no plan should differ from another only by one of them. Once decided, keys that turn out to be core functions are removed from the catalog and listed under [Removed keys](#removed-keys).
-
-Add-on identifiers must be assigned from the eventual product SKU catalog and must not silently grant a whole higher tier. The precise plan/product IDs and add-on keys require validation against the real WooCommerce catalog before enabling entitlement enforcement.
+The six `workflow.*` keys are boolean and belong to every plan (`single`, `business`, `agency`) once the add-on is released; captain-pro uses the same names (its TODO, WFC-PRO-03). No Workflow add-on exists yet, and `workflow-captain-pro` is a planned product key that the product editor does not suggest.
 
 ## Contract examples
 
@@ -111,8 +149,8 @@ Signed data of a license with access:
   "access": true,
   "license_status": "active",
   "entitlements": {
-    "voucher.qr_redemption": true,
-    "voucher.reports": true,
+    "pass.e_invoicing": true,
+    "pass.card_terminal": true,
     "sites.live_limit": 5,
     "support.level": "standard"
   },
@@ -145,4 +183,6 @@ Removed on 14 Nov 2026 by decision of the owner. Licenses that stored one of the
 | `pass.team_assignment` | Ships in the free core: seven staff roles and per-event check-in staff. | Pass Captain (core). |
 | `affiliate.bonuses` | Ships in the free core: monthly tier bonuses (marginal or retroactive). | Affiliate Captain (core). |
 | `pass.woocommerce_sales`, `pass.membership_passes`, `pass.campaign_codes`, `pass.waitlist`, `pass.csv_export`, `pass.seating`, `pass.service_slots`, `pass.pos`, `pass.offline_checkin`, `pass.advanced_reports`, `pass.api_webhooks` | Pass Pro was re-cut on 14 Nov 2026 (captain-pro `docs/PASS-PRO.md`): these functions ship in the free Pass core; Pass Pro sells e-invoicing, card terminal, white label, waiting room and write API, in every plan (plans differ by sites). | Pass Captain (core). |
-
+| `affiliate.partner_portal`, `affiliate.coupon_attribution`, `affiliate.order_refund_handling`, `affiliate.basic_commissions`, `affiliate.manual_payout_csv`, `affiliate.partner_groups`, `affiliate.product_category_rates`, `affiliate.recurring_commissions` | Removed on 16 Nov 2026 (R-07): each names a function of the free Affiliate Captain core (checked against its code: partner portal, partner codes and coupon link, refund corrections in the ledger, commission rules by product, category, tag and SKU, payout runs with SEPA and CSV export, partner groups, lifetime and subscription commissions). A core function is never license-gated. | Affiliate Captain (core). |
+| `voucher.custom_branding`, `voucher.pdf_templates`, `voucher.automatic_delivery`, `voucher.qr_redemption`, `voucher.partial_balance`, `voucher.scheduled_delivery`, `voucher.bulk_import_export`, `voucher.reports` | Removed on 16 Nov 2026 (R-07): each names a function of the free Voucher Captain core (visual PDF designer with own templates, delivery at a chosen order status and scheduled delivery, QR scanner, balance-tracked gift cards, code import from CSV/XLS/XLSX/ODS, reports). | Voucher Captain (core). |
+| `voucher.staff_roles` | Removed on 16 Nov 2026 (R-08): the re-cut of Voucher Pro of 14 Nov 2026 moves the cashier role and locations into the free core (captain-pro `docs/PREMIUM-ENTSCHEIDUNGEN.md`, row "Voucher Pro neu zugeschnitten", and `docs/VOUCHER-PRO.md`); no add-on builds it. | Voucher Captain (core, from 1.2.0). |

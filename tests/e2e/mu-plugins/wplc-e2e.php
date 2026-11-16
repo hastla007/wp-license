@@ -442,3 +442,31 @@ function wplc_e2e_race_op( string $op, array $args ) {
 
 	return 'unknown op';
 }
+
+/*
+ * Fixture entitlements for the product editor flows. The built-in catalog lists only functions a
+ * released premium add-on ships; the flows tick these three keys, which a shop would add the same
+ * way (filter `wplc_entitlement_catalog`). They are test names, not sellable rights.
+ */
+add_filter(
+	'wplc_entitlement_catalog',
+	static function ( $catalog ) {
+		$catalog = is_array( $catalog ) ? $catalog : array();
+		foreach (
+			array(
+				'voucher'   => array( 'voucher.custom_branding' => 'E2E fixture: branding', 'voucher.pdf_templates' => 'E2E fixture: templates' ),
+				'affiliate' => array( 'affiliate.partner_portal' => 'E2E fixture: portal' ),
+			) as $group => $entries
+		) {
+			foreach ( $entries as $key => $label ) {
+				$catalog[ $group ][] = array(
+					'key'   => $key,
+					'label' => $label,
+				);
+			}
+		}
+
+		return $catalog;
+	}
+);
+

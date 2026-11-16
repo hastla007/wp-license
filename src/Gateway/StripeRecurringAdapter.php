@@ -1207,25 +1207,6 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	}
 
 	/**
-	 * Whether the request of this attempt may carry the attempt marker. Pure.
-	 *
-	 * Stripe rejects a repeated idempotency key whose parameters changed. A
-	 * request of this attempt that was sent before the marker existed (result
-	 * unknown, no marker recorded for the attempt) is therefore repeated
-	 * without it.
-	 *
-	 * @param string $unknown_since_meta Order meta RenewalProcessor::META_RESULT_UNKNOWN_SINCE.
-	 * @param string $marked_meta Attempt counter whose request carried the marker, '' when none.
-	 * @param int    $attempt Attempt counter of this request.
-	 * @return bool
-	 */
-	public static function attempt_marker_allowed( string $unknown_since_meta, string $marked_meta, int $attempt ): bool {
-		$sent_before = 0 < RenewalProcessor::unknown_since_from_meta( $unknown_since_meta, $attempt );
-
-		return ! $sent_before || (string) $attempt === $marked_meta;
-	}
-
-	/**
 	 * Store the PaymentIntent of the current attempt on the renewal order.
 	 *
 	 * Used to resolve disputes to the order and to look the payment up in Stripe.

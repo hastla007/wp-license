@@ -92,6 +92,8 @@ final class Orphans {
 				if ( ! $detached ) {
 					continue;
 				}
+				// INH-11: an announced renewal price belongs to the owner who was told about it.
+				$wpdb->query( $wpdb->prepare( 'UPDATE %i SET price_change_amount_minor = NULL, price_change_effective_at = NULL, price_change_announced_at = NULL, price_change_notified_at = NULL, price_change_notice_days = NULL WHERE id = %d AND customer_id = 0', $tables['licenses'], $license_id ) );
 				++$progress;
 				// Same follow-up as the privacy eraser (P-35, P-36): the open manual renewal order of
 				// a detached license could never be booked, and the deleted installations and the

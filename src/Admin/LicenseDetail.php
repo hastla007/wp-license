@@ -326,14 +326,16 @@ final class LicenseDetail {
 	 * @return void
 	 */
 	private static function render_renewal_actions( array $license ): void {
-		if ( ! in_array( (string) $license['status'], array( 'active', 'past_due' ), true ) || empty( $license['renewal_enabled'] ) ) {
+		// INH-01: the agreed amount is also the price of a manual renewal, so it can be changed without automatic renewal.
+		$automatic = ! empty( $license['renewal_enabled'] );
+		if ( ! in_array( (string) $license['status'], array( 'active', 'past_due' ), true ) || ( ! $automatic && (int) $license['renewal_amount_minor'] <= 0 ) ) {
 			return;
 		}
 		$license_id = (int) $license['id'];
 		$post_url   = admin_url( 'admin-post.php' );
 
-		echo '<h3>' . esc_html__( 'Automatic renewal', 'wp-license' ) . '</h3>';
-		if ( empty( $license['cancel_at_period_end'] ) ) {
+		echo '<h3>' . esc_html( $automatic ? __( 'Automatic renewal', 'wp-license' ) : __( 'Renewal', 'wp-license' ) ) . '</h3>';
+		if ( $automatic && empty( $license['cancel_at_period_end'] ) ) {
 			echo '<form method="post" class="wplc-inline-form" action="' . esc_url( $post_url ) . '" data-wplc-confirm="' . esc_attr__( 'Cancel the automatic renewal of this license for the end of the paid period?', 'wp-license' ) . '">';
 			echo '<input type="hidden" name="action" value="wplc_admin_cancel_renewal">';
 			echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
@@ -342,7 +344,7 @@ final class LicenseDetail {
 			echo '<input type="text" id="wplc-cancel-renewal-reason" name="reason" required maxlength="255">';
 			echo '<button class="button" type="submit">' . esc_html__( 'Cancel at the end of the paid period', 'wp-license' ) . '</button></form>';
 			echo '<p class="description">' . esc_html__( 'The same cancellation the customer can make in their account: the license keeps running until the end of the paid period, nothing more is charged, and the customer gets a confirmation email. It can be withdrawn here until the period ends.', 'wp-license' ) . '</p>';
-		} else {
+		} elseif ( $automatic ) {
 			echo '<form method="post" class="wplc-inline-form" action="' . esc_url( $post_url ) . '">';
 			echo '<input type="hidden" name="action" value="wplc_admin_withdraw_cancellation">';
 			echo '<input type="hidden" name="license_id" value="' . esc_attr( (string) $license_id ) . '">';
@@ -366,7 +368,10 @@ final class LicenseDetail {
 		echo '<label for="wplc-renewal-amount-reason">' . esc_html__( 'Reason', 'wp-license' ) . '</label>';
 		echo '<input type="text" id="wplc-renewal-amount-reason" name="reason" required maxlength="255">';
 		echo '<button class="button" type="submit">' . esc_html__( 'Change renewal amount', 'wp-license' ) . '</button></form>';
-		echo '<p class="description">' . esc_html__( 'The amount of the next automatic renewals, in the same form as the product price in the shop (taxes are added as at purchase). It can only be lowered: the customer agreed to automatic charges of the current amount. Renewal orders that already exist keep their amount; change those on the order screen.', 'wp-license' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'The amount of the next renewals, automatic and manual, in the same form as the product price in the shop (taxes are added as at purchase). It is the price agreed at purchase; a price change in the shop does not change it. It can only be lowered: the customer agreed to the current amount. Renewal orders that already exist keep their amount; change those on the order screen.', 'wp-license' ) . '</p>';
+
+		// INH-05: raising needs an announcement with a notice period.
+		PriceChangeAdmin::render_license_section( $license );
 	}
 
 	/**

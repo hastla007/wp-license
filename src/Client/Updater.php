@@ -39,7 +39,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.0.2';
+		const VERSION = '2.1.0';
 
 		/**
 		 * Seconds a successful check is cached.
@@ -170,6 +170,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		 * Cached update data of the server.
 		 *
 		 * @param bool $fresh Ignore the cache.
+		 * After a failed check the last successful answer is returned until its own expiry (12 h), with the
+		 * error code in `last_error` (since 2.0.3); without one, `array( 'error' => code )`.
+		 *
 		 * @return array<string,mixed> Signed data of `POST /updates/check`, or `array( 'error' => code )` after a failure.
 		 */
 		public function metadata( bool $fresh = false ): array {
@@ -196,27 +199,64 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 					return $client->check_update( false, $fields );
 				}
 			);
+			$offer_until = 0;
 			if ( null === $data ) {
 				// Per-site activations on a network, and no site is activated.
 				$data = array( 'error' => 'wplc_not_activated' );
 				$ttl  = self::CACHE_FAILURE;
 			} elseif ( is_wp_error( $data ) ) {
-				$data = array( 'error' => (string) $data->get_error_code() );
-				$ttl  = self::CACHE_FAILURE;
+				$code        = (string) $data->get_error_code();
+				// A signed refusal ended the activation: nothing is offered any more.
+				$offer_until = LicenseClient::is_signed_refusal( $data ) ? 0 : $this->offer_until( $cached, $now );
+				if ( $offer_until > $now ) {
+					// The last valid offer (version and requirements, never a link) stays until its own expiry; the
+					// error is kept next to it and the check is repeated after CACHE_FAILURE. The package link is
+					// fetched, signed, at download time anyway.
+					$data = array_merge( (array) $cached['data'], array( 'last_error' => $code ) );
+					$ttl  = min( self::CACHE_FAILURE, $offer_until - $now );
+				} else {
+					$data        = array( 'error' => $code );
+					$ttl         = self::CACHE_FAILURE;
+					$offer_until = 0;
+				}
 			} else {
 				// A download link is never part of the periodic answer; make sure none is kept.
 				unset( $data['package'], $data['package_url'], $data['download_expires_at'] );
-				$ttl = self::CACHE_SUCCESS;
+				$ttl         = self::CACHE_SUCCESS;
+				$offer_until = $now + self::CACHE_SUCCESS;
 			}
-			$this->cache_set(
-				array(
-					'data'    => $data,
-					'expires' => $now + $ttl,
-					'version' => $client->product_version(),
-				)
+			$entry = array(
+				'data'    => $data,
+				'expires' => $now + $ttl,
+				'version' => $client->product_version(),
 			);
+			if ( $offer_until > 0 ) {
+				$entry['offer_until'] = $offer_until;
+			}
+			$this->cache_set( $entry );
 
 			return $data;
+		}
+
+		/**
+		 * End of the last successful answer in the cache that may stand in for a failed check; 0 when there is none.
+		 *
+		 * @param mixed $cached Stored cache entry.
+		 * @param int   $now    Current time.
+		 * @return int
+		 */
+		private function offer_until( $cached, int $now ): int {
+			if ( ! is_array( $cached ) || ! isset( $cached['data'], $cached['expires'], $cached['version'] ) || ! is_array( $cached['data'] ) || isset( $cached['data']['error'] ) ) {
+				return 0;
+			}
+			if ( $cached['version'] !== $this->manager->client()->product_version() || empty( $cached['data']['version'] ) ) {
+				return 0;
+			}
+			// Entries of 2.0.2 carry no offer_until: the expiry of a successful answer is its own end.
+			$until = isset( $cached['offer_until'] ) ? (int) $cached['offer_until'] : (int) $cached['expires'];
+
+			// An end further away than one successful period was not written by this class.
+			return $until > $now && $until <= $now + self::CACHE_SUCCESS ? $until : 0;
 		}
 
 		/**

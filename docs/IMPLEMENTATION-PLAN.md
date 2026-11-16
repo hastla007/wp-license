@@ -6,7 +6,7 @@
 
 ## 1. Ziel und Ausgangslage
 
-Dieses Repository wird zum WooCommerce-Plugin, das als Lizenzserver für WP Affiliate Captain, Voucher Captain und WP Pass Captain dient. Die API erhält von Beginn an eine Versionierung, damit sie später aus dem Shop-Plugin herausgelöst werden kann.
+Dieses Repository wird zum WooCommerce-Plugin, das als Lizenzserver für die Premium-Add-ons von Affiliate Captain, Voucher Captain und Pass Captain dient. Die API erhält von Beginn an eine Versionierung, damit sie später aus dem Shop-Plugin herausgelöst werden kann.
 
 Die früheren 37 gestapelten `codex/*`-Branches sind in einem Integrationsstand zusammengeführt. Die alten Checklisten (PR01–12, Phasen 13–40, Aufgaben 41–61) wurden in [TODO.md](TODO.md) überführt; ihr Verlauf steht in der Git-Historie.
 
@@ -21,13 +21,15 @@ Die früheren 37 gestapelten `codex/*`-Branches sind in einem Integrationsstand 
 - Das Kern-Plugin darf auf das Add-on hinweisen, aber keine Funktion vortäuschen, die erst nach Kauf freigeschaltet wird.
 
 
-- Affiliate Captain: Starter 1, Pro 3, Agency 10 Live-Websites.
-- Voucher Captain: Solo 1, Business 5, Agency 25 Live-Websites; Free ohne Lizenzschlüssel.
-- WP Pass Captain: Pro 1, Business 5, Agency 25 Live-Websites; Core ohne Lizenzschlüssel.
+**Tarife (Entscheidung vom 14.11.2026, captain-pro `docs/TARIFE.md`)**
+
+- Jedes Premium-Add-on (Voucher Captain Pro, Pass Captain Pro, Affiliate Captain Pro; geplant: Workflow, Form und Review Captain Pro) hat dieselben drei Tarife: `single` (1 Live-Website), `business` (5 Live-Websites), `agency` (25 Live-Websites).
+- Alle Tarife eines Produkts enthalten denselben Funktionsumfang; sie unterscheiden sich nur in der Zahl der Live-Websites und im Support (`standard`, bei `agency` `priority`). Die früheren Modelle (Affiliate Starter/Pro/Agency mit 1/3/10, Voucher Solo/Business/Agency, Pass Pro/Business/Agency) gelten nicht mehr.
+- Die Kern-Plugins brauchen keinen Lizenzschlüssel. Die Preise sind noch nicht bestätigt ([TODO.md](TODO.md), „Offene Entscheidungen“, T-42).
 - Je Live-Site ist eine verknüpfte Staging-Site ohne zusätzlichen Platz enthalten.
 - Die bestehenden öffentlichen Funktionen der drei Produkte bleiben verfügbar. Neue Premiumrechte werden nur für neu entwickelte Funktionen verwendet.
-- Lizenzserver zunächst als Plugin im WooCommerce-Verkaufsshop; kein WooCommerce Subscriptions.
-- Automatische Verlängerungen mit Stripe und PayPal nur bei geeigneter Token-/Recurring-Unterstützung. Zahlungskartendaten oder CVV werden nicht im Lizenzserver gespeichert.
+- Lizenzserver zunächst als Plugin im WooCommerce-Verkaufsshop; kein WooCommerce Subscriptions. (Entschieden vom Inhaber am 16.11.2026, T-121; er bestätigt es nach dem Stripe-Test endgültig, T-12.)
+- Automatische Verlängerung zum Start nur mit Karte über Stripe (Entscheidung vom 14.11.2026); PayPal, SEPA-Lastschrift und andere Zahlarten verlängern manuell. Fehlt die gespeicherte Karte, wird keine andere Karte belastet. Zahlungskartendaten oder CVV werden nicht im Lizenzserver gespeichert.
 - Wiederholungsversuche bei fehlgeschlagener Zahlung: Tag 1, 3 und 7; Kulanzzeit: 14 Tage.
 - Kündigung beendet die Lizenz am Ende der bezahlten Laufzeit. Bis dahin bleiben die Rechte aktiv.
 - Add-ons werden anteilig bis zum nächsten Hauptverlängerungstermin berechnet und danach gemeinsam verlängert.
@@ -204,6 +206,8 @@ Die früheren 37 gestapelten `codex/*`-Branches sind in einem Integrationsstand 
 
 ## Ergänzung: geplante Produkte der Captain Suite
 
-WP License Captain lizenziert Premium-Add-ons; die kostenlosen Kern-Plugins bleiben lizenzfrei. Die bereits gebauten Add-ons für Voucher, Pass und Affiliate verwenden das bestehende Client-/Update-Modell. Die geplanten Add-ons `form-captain-pro` und `review-captain-pro` werden nach demselben Muster aufgenommen, sobald sie im Captain-Pro-Repository implementiert sind. Produktkey/Slug/Add-on-Ordner/Textdomain müssen identisch sein; Feature-Rechte folgen den Präfixen `form.*` und `review.*`. Die vorgeschlagenen Produktpläne Solo/Studio/Agency entsprechen 1/5/25 Live-Sites; Preise und Produkt-Tarife bleiben pro Produkt separat.
+WP License Captain lizenziert Premium-Add-ons; die kostenlosen Kern-Plugins bleiben lizenzfrei. Die bereits gebauten Add-ons für Voucher, Pass und Affiliate verwenden das bestehende Client-/Update-Modell. Die geplanten Add-ons `form-captain-pro` und `review-captain-pro` werden nach demselben Muster aufgenommen, sobald sie im Captain-Pro-Repository implementiert sind. Produktkey/Slug/Add-on-Ordner/Textdomain müssen identisch sein; Feature-Rechte folgen den Präfixen `form.*` und `review.*`. Es gelten dieselben Tarife wie für alle Add-ons: `single`/`business`/`agency` mit 1/5/25 Live-Sites und demselben Funktionsumfang; Preise bleiben pro Produkt separat und sind für Form und Review noch nicht genannt. Dasselbe gilt für das geplante `workflow-captain-pro` (Präfix `workflow.*`, TODO Abschnitt 12).
 
-Lizenzserveraufgaben: Katalogprodukte und Entitlements registrieren, WooCommerce-Tarife und Updatepakete zuordnen, Client-Kompatibilität und Signaturschlüssel prüfen, Staging-/Live-Limits validieren und Ende-zu-Ende-Kauf, Aktivierung, Offline-Cache, Refund/Widerruf und Updatezustellung für beide neuen Add-ons nachweisen. Bis dahin sind die beiden Produktschlüssel geplante Produktkonfiguration, keine bereits verkaufsfähigen Lizenzen.
+Lizenzserveraufgaben: Katalogprodukte und Entitlements registrieren, WooCommerce-Tarife und Updatepakete zuordnen, Client-Kompatibilität und Signaturschlüssel prüfen, Staging-/Live-Limits validieren und Ende-zu-Ende-Kauf, Aktivierung, Offline-Cache, Refund/Widerruf und Updatezustellung für beide neuen Add-ons nachweisen. Bis dahin sind die beiden Produktschlüssel geplante Produktkonfiguration, keine bereits verkaufsfähigen Lizenzen. Im Rechtekatalog sind die drei geplanten Schlüssel vorgemerkt (`EntitlementCatalog::PLANNED_PRODUCT_KEYS`): Der Produkteditor schlägt sie nicht vor und bietet keine Rechte dazu an.
+
+**Produktgrenze (Aussage des Inhabers vom 15.11.2026, nicht ausgearbeitet):** README und `docs/CLIENT-INTEGRATION.md` nennen den Lizenzserver ein separat verkauftes Produkt für andere Hersteller und ein Plugin „License Captain Client“. Abschnitt 1 dieses Plans beschreibt dagegen einen Lizenzserver für die eigenen Add-ons, und die Add-ons liefern die Client-Bibliothek mit. Bis der Inhaber die Fragen in [TODO.md](TODO.md) (R-21) beantwortet hat, gilt Abschnitt 1; für den Verkauf an Dritte gibt es weder Aufgaben noch Preis noch Supportmodell.

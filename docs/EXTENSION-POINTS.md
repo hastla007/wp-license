@@ -10,6 +10,10 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 - **`wplc/license_issued` passes the plaintext license key** (arguments: license ID, key, order ID). It exists so the key email can be sent; the key is never stored in plaintext. Listeners that do not need the key must use `wplc/license_issued_followup` (license ID, order ID), which also runs when the issuing request ended early. Never log or store the key argument.
 - Hooks not listed here are internal (WordPress, WooCommerce or Action Scheduler hooks the plugin listens to) and can change without notice.
 
+## Catalog files instead of filters
+
+Products, entitlement keys and their labels are data: an add-on ships a catalog file (`wplc-catalog.json`) and the shop imports it ([CATALOG-FILE.md](CATALOG-FILE.md)). This is the supported way to make a product and its entitlements known to the product editor. The filters `wplc_entitlement_catalog`, `wplc_known_product_keys` and `wplc_offer_planned_entitlements` remain for shops that adjust what the editor offers in code; they receive what the imported catalog offers.
+
 ## Actions
 
 | Hook | Where | Summary |
@@ -36,6 +40,7 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc/license_plan_changed` | `src/License/PlanChange.php` | Fires after the plan of a license changed (upgrade, downgrade at renewal, administrator change, revert). |
 | `wplc/license_status_changed` | `src/License/LicenseLifecycle.php` | Fires after every successful license status transition and renewal. |
 | `wplc/loaded` | `src/Plugin.php` | Fires after WP License Captain has confirmed its WooCommerce dependency. |
+| `wplc/price_change_not_applied` | `src/Billing/PriceChange.php` | Fires once when the date of an announced renewal price passed without a recorded notice email. |
 | `wplc/renewal_blocked` | `src/Billing/RenewalProcessor.php` | Fires when a renewal could not be attempted because of a shop-side problem. |
 | `wplc/renewal_disabled_token_deleted` | `src/Maintenance/Orphans.php` | Fires after automatic renewal was switched off because the saved payment method was deleted. |
 | `wplc/renewal_lock_unavailable` | `src/Billing/RenewalProcessor.php` | Fires when the lock of a renewal could repeatedly not be taken. |
@@ -50,7 +55,9 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc/review_case_changed` | `src/Billing/RenewalReview.php` |  |
 | `wplc/stripe_early_fraud_warning` | `src/Gateway/StripeEventHandler.php` | Fires when Stripe reports an early fraud warning for a license payment. |
 | `wplc/stripe_webhook_received` | `src/Api/V1/StripeWebhook.php` |  |
+| `wplc_catalog_auto_import` | `src/Catalog/ReleaseCatalog.php` | Filters whether the catalog file of an uploaded release package is imported. |
 | `wplc_daily_lifecycle` | `src/Maintenance/DailyRunner.php` |  |
+| `wplc_price_change_notice_days` | `src/Billing/PriceChange.php` | Filters the notice period of a renewal price change in days. |
 | `wplc_release_package_missing` | `src/Update/ReleaseRegistry.php` | Fires when a published release cannot be offered because its file is missing on this server (A-111). |
 
 ## Filters
@@ -98,6 +105,7 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc_log_api_rejection` | `src/Api/V1/ApiLog.php` | Filter whether this rejection is written to the log. |
 | `wplc_log_debug` | `src/Infrastructure/Log.php` | Filters whether the plugin writes debug lines to the WooCommerce log (A-133). |
 | `wplc_new_activations_per_hour` | `src/Api/V1/ActivationService.php` | Filter how many new installations one license may activate per hour. |
+| `wplc_offer_planned_entitlements` | `src/Catalog/EntitlementCatalog.php` | Filters whether entitlements that are planned but not shipped by any add-on yet are offered in the product editor (default: no). |
 | `wplc_offline_cache_days` | `src/Api/V1/EntitlementService.php` | Filter the number of days a client may rely on a signed snapshot offline. |
 | `wplc_package_max_upload_bytes` | `src/Update/LocalPackageStorage.php` |  |
 | `wplc_package_offload_header` | `src/Update/PackageStream.php` | Filters a header that hands the file to the web server instead of PHP (B-25). |
@@ -144,6 +152,7 @@ Actions and filters of the license server plugin (A-134). The tables are generat
 | `wplc_update_packages` | `src/Api/V1/UpdateService.php` | Filters the update packages on offer. |
 | `wplc_update_product_homepage` | `src/Update/ReleaseRegistry.php` | Filters the homepage shown for a product in the WordPress update details. |
 | `wplc_update_product_icons` | `src/Update/ReleaseRegistry.php` | Filters the icons of a product, in the shape WordPress expects: array( '1x' => url, '2x' => url, 'svg' => url ). |
+| `wplc_vendor_license_config` | `src/Infrastructure/SelfLicense.php` | Filters where this plugin gets its own updates from (the license server of its vendor). |
 | `wplc_verify_url_release_on_publish` | `src/Update/ReleaseRegistry.php` | Filters whether a URL package is downloaded and verified when its release is published. |
 | `wplc_withdrawal_consent_enabled` | `src/Billing/WithdrawalConsent.php` | Filters whether the checkout asks for consent to the immediate start of the license. |
 | `wplc_withdrawal_consent_required` | `src/Billing/WithdrawalConsent.php` | Filters whether a license can only be bought with the consent to the immediate start. |

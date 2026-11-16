@@ -337,6 +337,126 @@ final class LicenseClientTest extends TestCase {
 		$this->assertTrue( $client->is_activated() );
 	}
 
+	/**
+	 * Add-on audit 16 Nov 2026, item 7 (captain-pro docs/AUDIT-LIZENZ-PRS.md): a signed answer without
+	 * `product_key` is refused; only the signed "deactivated" answer, which grants nothing, may omit it.
+	 */
+	public function test_audit16_signed_answers_without_product_key_are_refused(): void {
+		$server  = $this->kit->server;
+		$without = static function ( array $data ): array {
+			unset( $data['product_key'] );
+			return $data;
+		};
+
+		$server->queue[] = $server->signed( $without( $server->entitlement() ) );
+		$this->assertSame( 'wplc_response_invalid', $this->kit->client()->activate( self::KEY )->get_error_code() );
+		$this->assertFalse( $this->kit->client()->is_activated(), 'Nothing is stored for an activation answer without product key.' );
+		$server->queue[] = $server->signed( $server->entitlement( array( 'product_key' => '' ) ) );
+		$this->assertSame( 'wplc_response_invalid', $this->kit->client()->activate( self::KEY )->get_error_code() );
+		$this->assertFalse( $this->kit->client()->is_activated() );
+
+		$client          = $this->activated();
+		$server->queue[] = $server->signed( $without( $server->entitlement() ) );
+		$this->assertSame( 'wplc_response_invalid', $client->check_entitlements()->get_error_code() );
+		$this->assertTrue( $client->is_activated(), 'An unusable answer takes nothing away.' );
+
+		$server->queue[] = static function ( array $request ) use ( $server ) {
+			return WPLC_Test_Server::json( 200, $server->envelope( $request, array( 'update_available' => true, 'version' => '9.0.0', 'license_active' => true ) ) );
+		};
+		$this->assertSame( 'wplc_response_invalid', $client->check_update()->get_error_code() );
+		$server->queue[] = static function ( array $request ) use ( $server ) {
+			return WPLC_Test_Server::json( 200, $server->envelope( $request, array( 'update_available' => false, 'product_key' => 'other-addon', 'license_active' => true ) ) );
+		};
+		$this->assertSame( 'wplc_product_mismatch', $client->check_update()->get_error_code() );
+		$this->assertIsArray( $client->check_update(), 'The answer of the server names the product.' );
+
+		// The signed "deactivated" of a released installation (Authenticator::deactivated_data()) names no product.
+		$server->queue[] = $server->signed( $without( $server->entitlement( array( 'activation_status' => 'deactivated', 'license_status' => 'deactivated', 'access' => false, 'entitlements' => array() ) ) ) );
+		$data            = $client->check_entitlements();
+		$this->assertIsArray( $data );
+		$this->assertSame( 'deactivated', $data['activation_status'] );
+		$this->assertFalse( $client->is_activated() );
+
+		// A stored snapshot without product key grants nothing either.
+		$client  = $this->activated();
+		$request = array( 'headers' => array( 'x-wplc-installation-id' => $client->installation_id() ), 'body' => array() );
+		$this->assertIsArray( $client->verified_snapshot_data( $server->envelope( $request, $server->entitlement() ) ) );
+		$this->assertSame( 'wplc_response_invalid', $client->verified_snapshot_data( $server->envelope( $request, $without( $server->entitlement() ) ) ) );
+		$this->assertSame( 'wplc_product_mismatch', $client->verified_snapshot_data( $server->envelope( $request, $server->entitlement( array( 'product_key' => 'other-addon' ) ) ) ) );
+	}
+
+	/**
+	 * Add-on audit 16 Nov 2026, item 8: the activation ID must be a positive integer before anything is stored.
+	 *
+	 * @dataProvider data_activation_ids
+	 *
+	 * @param mixed $id       Activation ID of the signed answer.
+	 * @param int   $expected Stored ID; 0 when the answer is refused.
+	 */
+	public function test_audit16_the_activation_id_must_be_a_positive_integer( $id, int $expected ): void {
+		$server          = $this->kit->server;
+		$server->queue[] = $server->signed( $server->entitlement( array( 'activation_id' => $id ) ) );
+		$client          = $this->kit->client();
+
+		$result = $client->activate( self::KEY );
+
+		if ( 0 === $expected ) {
+			$this->assertInstanceOf( WP_Error::class, $result );
+			$this->assertSame( 'wplc_response_invalid', $result->get_error_code() );
+			$this->assertFalse( $client->is_activated() );
+			$this->assertArrayNotHasKey( 'test_addon_license', $this->kit->store->data, 'No credentials are stored.' );
+			$this->assertArrayHasKey( 'test_addon_license_pending', $this->kit->store->data, 'The pending installation stays for the next attempt.' );
+		} else {
+			$this->assertIsArray( $result );
+			$this->assertSame( $expected, $this->kit->credentials()['activation_id'] );
+		}
+	}
+
+	/** @return array<string,array{0:mixed,1:int}> */
+	public function data_activation_ids(): array {
+		return array(
+			'negative'        => array( -5, 0 ),
+			'zero'            => array( 0, 0 ),
+			'text'            => array( 'abc', 0 ),
+			'leading zero'    => array( '07', 0 ),
+			'number and text' => array( '12abc', 0 ),
+			'float'           => array( 1.5, 0 ),
+			'boolean'         => array( true, 0 ),
+			'missing'         => array( null, 0 ),
+			'integer'         => array( 42, 42 ),
+			'decimal string'  => array( '43', 43 ),
+		);
+	}
+
+	/**
+	 * Add-on audit 16 Nov 2026, item 10: forget() and deactivate() report credentials that could not be removed.
+	 */
+	public function test_audit16_credentials_that_cannot_be_removed_are_reported(): void {
+		$client                       = $this->activated();
+		$this->kit->store->fail_delete = true;
+
+		$this->assertFalse( $client->forget() );
+		$result = $client->deactivate();
+
+		$this->assertInstanceOf( WP_Error::class, $result, 'No success while the credentials are still stored.' );
+		$this->assertSame( 'wplc_credentials_not_removed', $result->get_error_code() );
+		$this->assertTrue( $result->get_error_data()['released'], 'The server released the activation.' );
+		$this->assertNotSame( '', $result->get_error_message() );
+		$this->assertSame( array( 'DELETE /wplc/v1/activations/41' ), $this->routes() );
+		$this->assertTrue( $client->is_activated() );
+
+		// A copy of the site: nothing is sent, and nothing was released.
+		$this->kit->store->site = 'https://copy.example';
+		$copy                   = $client->deactivate();
+		$this->assertSame( 'wplc_credentials_not_removed', $copy->get_error_code() );
+		$this->assertFalse( $copy->get_error_data()['released'] );
+
+		$this->kit->store->fail_delete = false;
+		$this->assertTrue( $client->forget() );
+		$this->assertFalse( $client->is_activated() );
+		$this->assertTrue( $client->forget(), 'Nothing stored is also "removed".' );
+	}
+
 	// ------------------------------------------------------------------
 	// Signed requests: A-34, A-108, A-109, B-18, B-52, B-70.
 	// ------------------------------------------------------------------

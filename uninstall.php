@@ -10,7 +10,7 @@
  * - the {prefix}wplc_* tables,
  * - the options wplc_schema_version, wplc_reminder_log_version, wplc_settings,
  *   wplc_site_fingerprint, wplc_rewrite_version, wplc_release_product_slugs,
- *   wplc_sites_endpoint_rules, wplc_response_signing_key,
+ *   wplc_sites_endpoint_rules, wplc_entitlement_catalog, wplc_response_signing_key,
  *   wplc_response_signing_key_id and wplc_response_signing_key_next (the
  *   signing key the delivered add-ons verify responses with and a prepared
  *   successor),
@@ -68,6 +68,10 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 
 		$working_state = array(
 			'wplc_reminder_cursor',
+			// E8b: the plugin's own license (client library, prefix wplc_vendor).
+			'wplc_vendor_license',
+			'wplc_vendor_license_state',
+			'wplc_vendor_update_meta',
 			'wplc_deactivated_at',
 			// Former heartbeat options, folded into wplc_last_run by schema step 19.
 			'wplc_last_daily_run',
@@ -117,7 +121,7 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 			$wpdb->query( "DROP TABLE IF EXISTS `{$name}`" );
 		}
 		// Also the version options: a later reinstall must create the tables again.
-		foreach ( array( 'wplc_schema_version', 'wplc_reminder_log_version', 'wplc_settings', 'wplc_site_fingerprint', 'wplc_rewrite_version', 'wplc_response_signing_key', 'wplc_response_signing_key_id', 'wplc_response_signing_key_next', 'wplc_release_product_slugs', 'wplc_sites_endpoint_rules' ) as $option ) {
+		foreach ( array( 'wplc_schema_version', 'wplc_reminder_log_version', 'wplc_settings', 'wplc_site_fingerprint', 'wplc_rewrite_version', 'wplc_response_signing_key', 'wplc_response_signing_key_id', 'wplc_response_signing_key_next', 'wplc_release_product_slugs', 'wplc_sites_endpoint_rules', 'wplc_entitlement_catalog' ) as $option ) {
 			delete_option( $option );
 		}
 	}

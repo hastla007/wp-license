@@ -28,12 +28,15 @@ $saved = e2e_submit(
 		'wplc_settings[package_hosts]' => "downloads.example.com\nhttps://not-a-host.example/path\n",
 		'wplc_settings[reminder_days]' => '14, 7, abc, 0',
 		'wplc_settings[sender_note]'   => "Questions? support@shop.test\n<script>x</script>",
+		// e2e_form() leaves tick boxes out; a browser sends a ticked one after its hidden "0" field (PROD-03).
+		'wplc_settings[catalog_auto_import]' => '1',
 	)
 );
 wp_cache_delete( 'wplc_settings', 'options' );
 wp_cache_delete( 'alloptions', 'options' );
 $settings = get_option( 'wplc_settings' );
 e2e_ok( 302 === $saved['code'] && false !== strpos( $saved['location'], 'settings-updated' ), 'saving the settings redirects back with settings-updated', array( $saved['code'], $saved['location'] ) );
+e2e_ok( 1 === (int) ( $settings['catalog_auto_import'] ?? -1 ) && \WPLC\Catalog\ReleaseCatalog::enabled() && false !== strpos( $page['body'], 'name="wplc_settings[catalog_auto_import]" value="1" checked' ), 'settings: the catalog import from release packages is ticked by default and stays on when the form is saved', $settings['catalog_auto_import'] ?? null );
 e2e_eq( array( 'downloads.example.com' ), $settings['package_hosts'] ?? null, 'settings: valid package host stored, URL-with-path line rejected' );
 e2e_eq( '14,7', str_replace( ' ', '', (string) ( $settings['reminder_days'] ?? '' ) ), 'settings: reminder days sanitized to 14,7' );
 e2e_ok( false === strpos( (string) ( $settings['sender_note'] ?? '' ), '<script' ) && false !== strpos( (string) ( $settings['sender_note'] ?? '' ), 'support@shop.test' ), 'settings: sender note stored without markup', $settings['sender_note'] ?? null );

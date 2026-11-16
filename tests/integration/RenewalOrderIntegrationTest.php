@@ -21,7 +21,7 @@ final class RenewalOrderIntegrationTest extends WPLC_Renewal_TestCase {
 		return wc_get_order( $order->get_id() );
 	}
 
-	/** A-03: the manual renewal price is the price of the license's own plan, not of the plan saved last. */
+	/** A-03, INH-01: the manual renewal bills the amount agreed at purchase, with the license's own plan, not the plan saved last. */
 	public function test_a03_manual_renewal_uses_the_plan_of_the_purchased_product(): void {
 		$yearly  = $this->create_license_product( array( 'billing_interval' => 'year' ), '100.00' );
 		$monthly = $this->create_license_product( array( 'billing_interval' => 'month' ), '10.00' );
@@ -38,13 +38,16 @@ final class RenewalOrderIntegrationTest extends WPLC_Renewal_TestCase {
 		$price = RenewalOrder::price( $license, true );
 
 		$this->assertSame( $yearly->get_id(), (int) $plan['woocommerce_product_id'] );
-		$this->assertSame( 12000, $price['amount_minor'], 'A yearly customer must not renew at the monthly price.' );
+		$this->assertSame( 10000, $price['amount_minor'], 'The price of the purchase day, neither the raised yearly price nor the monthly price.' );
+		$this->assertSame( RenewalOrder::price( $license, false )['amount_minor'], $price['amount_minor'], 'Manual and automatic renewal cost the same.' );
+		// A license without a stored amount is priced from the catalog: the product it was bought as.
+		$this->assertSame( 12000, RenewalOrder::price( array_merge( $license, array( 'renewal_amount_minor' => 0 ) ), true )['amount_minor'] );
 
 		$monthly_license = $this->buy( $monthly, $this->customer(), false );
 		$this->assertSame( 1000, RenewalOrder::price( $monthly_license, true )['amount_minor'] );
 	}
 
-	/** A-03: without a source order an ambiguous key pair falls back to the interval, then to the agreed amount. */
+	/** A-03, INH-01: the agreed amount is billed; without one and without a source order the plan is matched by interval. */
 	public function test_a03_license_without_source_order_is_matched_by_interval(): void {
 		$this->create_license_product( array( 'billing_interval' => 'year' ), '100.00' );
 		$this->create_license_product( array( 'billing_interval' => 'month' ), '10.00' );
@@ -57,13 +60,16 @@ final class RenewalOrderIntegrationTest extends WPLC_Renewal_TestCase {
 			)['id']
 		);
 
-		$this->assertSame( 10000, RenewalOrder::price( $license, true )['amount_minor'] );
+		$this->assertSame( 9000, RenewalOrder::price( $license, true )['amount_minor'] );
+		$unpriced = array_merge( $license, array( 'renewal_amount_minor' => 0 ) );
+		$this->assertSame( 10000, RenewalOrder::price( $unpriced, true )['amount_minor'], 'Without an agreed amount: the yearly plan, not the monthly one.' );
 
 		// Two yearly plans with different prices: no guess, the amount agreed at purchase is used.
 		$this->create_license_product( array( 'billing_interval' => 'year' ), '70.00' );
 		$plan = RenewalOrder::plan_for_license( $license );
 		$this->assertTrue( ! empty( $plan['_ambiguous'] ) );
 		$this->assertSame( 9000, RenewalOrder::price( $license, true )['amount_minor'] );
+		$this->assertSame( 0, RenewalOrder::price( $unpriced, true )['amount_minor'], 'An ambiguous plan never sets a price.' );
 	}
 
 	/** T-132: a variation bought under a plan mapped on the parent renews at the variation's price. */

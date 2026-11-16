@@ -276,7 +276,7 @@ final class LicenseService {
 	/**
 	 * Whether a premium feature is unlocked. Fails closed.
 	 *
-	 * @param string $key Entitlement key with this product's prefix, e.g. "voucher.pdf_templates".
+	 * @param string $key Entitlement key with this product's prefix, e.g. "voucher.example_feature".
 	 */
 	public function has( string $key ): bool {
 		$value = $this->value( $key );

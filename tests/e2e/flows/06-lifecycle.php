@@ -85,7 +85,7 @@ e2e_login( 0 );
 // --- Partial refund revokes exactly one license (the highest unit). ---
 e2e_as_site( 'https://carol-site.example' );
 delete_option( 'wplc_e2e_client_carol3' );
-$client_carol3 = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_carol3' );
+$client_carol3 = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_carol3' );
 $activated     = $client_carol3->activate( e2e_key( $licenses[2] ) );
 e2e_ok( is_array( $activated ), 'the license that will be refunded is activated on a site first', $error_of( $activated ) );
 
@@ -112,7 +112,7 @@ $check = $client_carol3->check_entitlements();
 e2e_ok( ( is_array( $check ) && in_array( $check['license_status'] ?? '', array( 'revoked', 'deactivated' ), true ) && false === ( $check['access'] ?? null ) && empty( $check['entitlements'] ) ) || is_wp_error( $check ), 'the activated site of the revoked license gets no entitlements any more', is_array( $check ) ? $check : $error_of( $check ) );
 e2e_note( 'entitlements check after revocation answered: ' . ( is_array( $check ) ? wp_json_encode( array( 'license_status' => $check['license_status'] ?? null, 'entitlements' => $check['entitlements'] ?? null ) ) : $error_of( $check ) ) );
 delete_option( 'wplc_e2e_client_other' );
-$other_site = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_other' );
+$other_site = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_other' );
 $GLOBALS['wplc_e2e_home'] = 'https://carol-new.example';
 $denied = $other_site->activate( e2e_key( $licenses[2] ) );
 e2e_ok( is_wp_error( $denied ) && 403 === (int) ( $denied->get_error_data()['status'] ?? 0 ), 'a revoked license cannot be activated (403)', $error_of( $denied ) );
@@ -164,7 +164,7 @@ e2e_ok( 200 === $detail['code'] && false !== strpos( $detail['body'], 'notice-su
 e2e_ok( null === e2e_form( $detail['body'], array( 'value="wplc_admin_extend_license"' ) ), 'a suspended license has no "Change term" form' );
 delete_option( 'wplc_e2e_client_suspended' );
 $GLOBALS['wplc_e2e_home'] = 'https://suspended.example';
-$suspended_client = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_suspended' );
+$suspended_client = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_suspended' );
 $denied           = $suspended_client->activate( e2e_key( $before ) );
 e2e_ok( is_wp_error( $denied ) && 403 === (int) ( $denied->get_error_data()['status'] ?? 0 ), 'a suspended license cannot be activated (403)', $error_of( $denied ) );
 

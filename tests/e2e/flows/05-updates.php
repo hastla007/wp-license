@@ -12,7 +12,7 @@ $t           = e2e_tables();
 $license_ids = (array) e2e_get( 'license_ids' );
 $license     = e2e_license( (int) $license_ids[0] );
 $server      = 'https://shop.test';
-$client      = e2e_client( $server, 'voucher-captain', '1.0.0', 'wplc_e2e_client_site_c' );
+$client      = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_site_c' );
 $error_of    = static function ( $result ) {
 	return is_wp_error( $result ) ? $result->get_error_code() . ': ' . $result->get_error_message() : 'no error';
 };
@@ -24,8 +24,12 @@ $build_zip = static function ( string $version ) {
 	$file = wp_tempnam( 'wplc-e2e.zip' );
 	$zip  = new ZipArchive();
 	$zip->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE );
-	$zip->addFromString( 'voucher-captain/voucher-captain.php', "<?php\n/**\n * Plugin Name: Voucher Captain\n * Version: {$version}\n */\n" );
-	$zip->addFromString( 'voucher-captain/readme.txt', "=== Voucher Captain ===\nStable tag: {$version}\n" . str_repeat( 'e2e payload ', 2000 ) );
+	$zip->addFromString( 'voucher-captain-pro/voucher-captain-pro.php', "<?php\n/**\n * Plugin Name: Voucher Captain\n * Version: {$version}\n */\n" );
+	// PROD-03: the add-on ships its catalog file in its folder; here the shipped one plus one planned key.
+	$catalog                   = json_decode( (string) file_get_contents( WPLC_PATH . 'catalogs/voucher-captain-pro.json' ), true );
+	$catalog['entitlements'][] = array( 'key' => 'voucher.e2e_packaged', 'label' => 'Packaged with the release', 'status' => 'planned' );
+	$zip->addFromString( 'voucher-captain-pro/wplc-catalog.json', (string) wp_json_encode( $catalog ) );
+	$zip->addFromString( 'voucher-captain-pro/readme.txt', "=== Voucher Captain ===\nStable tag: {$version}\n" . str_repeat( 'e2e payload ', 2000 ) );
 	$zip->close();
 	$bytes = file_get_contents( $file );
 	unlink( $file );
@@ -66,22 +70,22 @@ e2e_ok( is_array( $result ) && false === ( $result['update_available'] ?? null )
 $admin_cookies = e2e_login( (int) e2e_get( 'admin_id' ) );
 $page          = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
 $create_form   = e2e_form( $page['body'], array( 'value="wplc_release_create"' ) );
-e2e_ok( is_array( $create_form ) && ! empty( $create_form['_wpnonce'] ) && false !== strpos( $page['body'], '<option value="voucher-captain"' ), 'releases screen has the create form and offers the catalog product', $page['code'] );
+e2e_ok( is_array( $create_form ) && ! empty( $create_form['_wpnonce'] ) && false !== strpos( $page['body'], '<option value="voucher-captain-pro"' ), 'releases screen has the create form and offers the catalog product', $page['code'] );
 $zip_110 = $build_zip( '1.1.0' );
 $fields  = array(
 	'action'        => 'wplc_release_create',
 	'_wpnonce'      => (string) ( $create_form['_wpnonce'] ?? '' ),
-	'product_key'   => 'voucher-captain',
+	'product_key'   => 'voucher-captain-pro',
 	'version'       => '1.1.0',
 	'requires_php'  => '7.4',
 	'requires_wp'   => '6.5',
 	'tested_wp'     => '6.8',
 	'release_notes' => '<p>Fixes &amp; improvements.</p><script>alert(1)</script>',
 );
-$upload  = e2e_multipart( $fields, 'package_zip', 'voucher-captain-1.1.0.zip', $zip_110, 'application/zip' );
+$upload  = e2e_multipart( $fields, 'package_zip', 'voucher-captain-pro-1.1.0.zip', $zip_110, 'application/zip' );
 $created = e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $admin_cookies, 'headers' => $upload['headers'], 'body' => $upload['body'] ) );
 e2e_ok( 302 === $created['code'] && false !== strpos( $created['location'], 'wplc-releases' ), 'creating the release redirects back to the releases screen', array( $created['code'], $created['location'], substr( wp_strip_all_tags( $created['body'] ), 0, 200 ) ) );
-$release = $wpdb->get_row( "SELECT * FROM {$t['releases']} WHERE product_key = 'voucher-captain' AND version = '1.1.0'", ARRAY_A );
+$release = $wpdb->get_row( "SELECT * FROM {$t['releases']} WHERE product_key = 'voucher-captain-pro' AND version = '1.1.0'", ARRAY_A );
 e2e_ok( is_array( $release ), 'release row 1.1.0 exists' );
 $release = is_array( $release ) ? $release : array( 'id' => 0, 'status' => '', 'storage' => '', 'sha256' => '', 'package_url' => '', 'release_notes' => '' );
 e2e_eq( array( 'draft', 'local', hash( 'sha256', $zip_110 ) ), array( $release['status'], $release['storage'], $release['sha256'] ), 'release is a draft, stored locally, with the SHA-256 of the uploaded bytes' );
@@ -90,9 +94,12 @@ $stored_path = \WPLC\Update\LocalPackageStorage::path_for_key( (string) $release
 e2e_ok( null !== $stored_path && is_file( $stored_path ) && hash_file( 'sha256', $stored_path ) === $release['sha256'], 'package file is in the storage directory and matches the checksum', $stored_path );
 $storage_dir = \WPLC\Update\LocalPackageStorage::base_dir();
 e2e_ok( is_file( $storage_dir . '/.htaccess' ) && is_file( $storage_dir . '/index.html' ) && is_file( $storage_dir . '/web.config' ) && is_file( $storage_dir . '/index.php' ), 'storage directory has .htaccess, web.config, index.html and index.php guards' );
-e2e_ok( (bool) preg_match( '/^voucher-captain-1\.1\.0-[a-f0-9]{32}\.zip$/', (string) $release['package_url'] ), 'stored file name carries 128 random bits (not guessable where .htaccess is ignored, e.g. nginx)', $release['package_url'] );
+e2e_ok( (bool) preg_match( '/^voucher-captain-pro-1\.1\.0-[a-f0-9]{32}\.zip$/', (string) $release['package_url'] ), 'stored file name carries 128 random bits (not guessable where .htaccess is ignored, e.g. nginx)', $release['package_url'] );
 $result_page = e2e_http( 'GET', $created['location'], array( 'cookies' => $admin_cookies ) );
 e2e_ok( 200 === $result_page['code'] && false !== strpos( $result_page['body'], 'Draft release created' ) && false !== strpos( $result_page['body'], '1.1.0' ), 'releases screen shows the notice and the draft', $result_page['code'] );
+\WPLC\Catalog\CatalogStore::reset_cache();
+$packaged = \WPLC\Catalog\CatalogStore::get( 'voucher-captain-pro' );
+e2e_ok( is_array( $packaged ) && 'release' === ( $packaged['source'] ?? '' ) && in_array( 'voucher.e2e_packaged', array_column( (array) $packaged['entitlements'], 'key' ), true ) && false !== strpos( $result_page['body'], 'catalog file of the package was imported' ), 'the catalog file in the uploaded package was imported into the license catalog and the screen says so (PROD-03)', array( $packaged['source'] ?? null ) );
 
 // A draft is not delivered.
 $result = $check_update( $client );
@@ -118,7 +125,7 @@ e2e_ok( is_array( $metadata ) && true === ( $metadata['update_available'] ?? nul
 $update = $check_update( $client, true );
 e2e_ok( is_array( $update ) && true === ( $update['update_available'] ?? null ), 'client check_update() reports an update', $error_of( $update ) );
 $update = is_array( $update ) ? $update : array();
-e2e_eq( array( '1.1.0', $release['sha256'], '7.4', '6.5', '6.8', 'voucher-captain' ), array( $update['version'] ?? null, $update['sha256'] ?? null, $update['requires_php'] ?? null, $update['requires_wp'] ?? null, $update['tested_wp'] ?? null, $update['product_key'] ?? null ), 'update metadata: version, checksum, requirements' );
+e2e_eq( array( '1.1.0', $release['sha256'], '7.4', '6.5', '6.8', 'voucher-captain-pro' ), array( $update['version'] ?? null, $update['sha256'] ?? null, $update['requires_php'] ?? null, $update['requires_wp'] ?? null, $update['tested_wp'] ?? null, $update['product_key'] ?? null ), 'update metadata: version, checksum, requirements' );
 $package_url = (string) ( $update['package_url'] ?? '' );
 e2e_ok( (bool) preg_match( '#^https://shop\.test/wp-json/wplc/v1/updates/download/[a-f0-9]{64}$#', $package_url ), 'package_url is an HTTPS one-time download URL on the license server', $package_url );
 e2e_ok( false === strpos( wp_json_encode( $update ), (string) $release['package_url'] ) && false === strpos( wp_json_encode( $update ), 'wplc-packages' ), 'the storage key / path is not disclosed to the client' );
@@ -136,7 +143,7 @@ $tmp = wp_tempnam( 'wplc-e2e-dl.zip' );
 file_put_contents( $tmp, $download['body'] );
 $zip    = new ZipArchive();
 $opened = true === $zip->open( $tmp );
-e2e_ok( $opened && false !== $zip->locateName( 'voucher-captain/voucher-captain.php' ), 'the downloaded file is a valid ZIP with the plugin main file' );
+e2e_ok( $opened && false !== $zip->locateName( 'voucher-captain-pro/voucher-captain-pro.php' ), 'the downloaded file is a valid ZIP with the plugin main file' );
 if ( $opened ) {
 	$zip->close();
 }
@@ -158,7 +165,7 @@ $unknown = e2e_http( 'GET', $server . '/wp-json/wplc/v1/updates/download/' . str
 e2e_eq( 404, $unknown['code'], 'an unknown download token answers 404' );
 
 // A client that already runs the published version gets no update.
-$current_client = e2e_client( $server, 'voucher-captain', '1.1.0', 'wplc_e2e_client_site_c' );
+$current_client = e2e_client( $server, 'voucher-captain-pro', '1.1.0', 'wplc_e2e_client_site_c' );
 $result         = $check_update( $current_client );
 e2e_ok( is_array( $result ) && false === ( $result['update_available'] ?? null ), 'an installation on 1.1.0 is not offered 1.1.0 again', $error_of( $result ) );
 
@@ -197,9 +204,9 @@ $admin_cookies = e2e_login( (int) e2e_get( 'admin_id' ) );
 $page          = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
 $create_form   = e2e_form( $page['body'], array( 'value="wplc_release_create"' ) );
 $zip_120       = $build_zip( '1.2.0' );
-$upload        = e2e_multipart( array_merge( $fields, array( '_wpnonce' => (string) $create_form['_wpnonce'], 'version' => '1.2.0', 'release_notes' => 'Second release' ) ), 'package_zip', 'voucher-captain-1.2.0.zip', $zip_120, 'application/zip' );
+$upload        = e2e_multipart( array_merge( $fields, array( '_wpnonce' => (string) $create_form['_wpnonce'], 'version' => '1.2.0', 'release_notes' => 'Second release' ) ), 'package_zip', 'voucher-captain-pro-1.2.0.zip', $zip_120, 'application/zip' );
 e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $admin_cookies, 'headers' => $upload['headers'], 'body' => $upload['body'] ) );
-$release_120 = $wpdb->get_row( "SELECT * FROM {$t['releases']} WHERE product_key = 'voucher-captain' AND version = '1.2.0'", ARRAY_A );
+$release_120 = $wpdb->get_row( "SELECT * FROM {$t['releases']} WHERE product_key = 'voucher-captain-pro' AND version = '1.2.0'", ARRAY_A );
 $page        = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
 e2e_submit( (array) e2e_form( $page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) $release_120['id'] . '"' ) ), $admin_cookies, array( 'reason' => 'e2e: second release' ) );
 $update = $check_update( $client, true );
@@ -208,7 +215,7 @@ e2e_ok( is_array( $update ) && '1.2.0' === ( $update['version'] ?? null ) && has
 $page   = e2e_http( 'GET', admin_url( 'admin.php?page=wplc-releases' ), array( 'cookies' => $admin_cookies ) );
 $upload = e2e_multipart( array_merge( $fields, array( '_wpnonce' => (string) e2e_form( $page['body'], array( 'value="wplc_release_create"' ) )['_wpnonce'], 'version' => '1.2.0' ) ), 'package_zip', 'dup.zip', $zip_120, 'application/zip' );
 e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $admin_cookies, 'headers' => $upload['headers'], 'body' => $upload['body'] ) );
-e2e_eq( 1, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$t['releases']} WHERE product_key = 'voucher-captain' AND version = '1.2.0'" ), 'a second release with the same version is refused' );
+e2e_eq( 1, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$t['releases']} WHERE product_key = 'voucher-captain-pro' AND version = '1.2.0'" ), 'a second release with the same version is refused' );
 e2e_eq( 2, count( glob( $storage_dir . '/*.zip' ) ), 'the refused duplicate upload leaves no extra file (2 packages stored)' );
 // Withdraw 1.2.0.
 $withdraw_form = e2e_form( $page['body'], array( 'value="wplc_release_withdraw"', 'name="release_id" value="' . (int) $release_120['id'] . '"' ) );

@@ -8,6 +8,7 @@
 namespace WPLC\Notifications;
 
 use WPLC\Billing\Money;
+use WPLC\Billing\PriceChange;
 use WPLC\Infrastructure\Database\Schema;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -32,6 +33,8 @@ final class RenewalTerms {
 	 * @return array{minor:int,tax_minor:int,decimals:int,currency:string,includes_tax:bool}
 	 */
 	public static function gross( array $license ): array {
+		// INH-05: the next renewal is billed at its due date; an announced price that applies by then is the amount to name.
+		$license  = PriceChange::license_at( $license, max( time(), self::charge_timestamp( $license ) ) );
 		$fallback = function_exists( 'wc_get_price_decimals' ) ? (int) wc_get_price_decimals() : 2;
 		$decimals = max( 0, min( 6, (int) ( $license['renewal_currency_decimals'] ?? $fallback ) ) );
 		$minor    = max( 0, (int) ( $license['renewal_amount_minor'] ?? 0 ) );
@@ -263,11 +266,41 @@ final class RenewalTerms {
 			__( 'Interval', 'wp-license' )     => self::interval_label( (string) ( $license['billing_interval'] ?? 'year' ) ),
 		);
 
+		$announced = self::announced_change( $license );
+		if ( $announced ) {
+			/* translators: %s: date from which a new renewal price applies. */
+			$rows[ sprintf( __( 'Amount from %s', 'wp-license' ), $announced['from'] ) ] = $announced['amount'];
+		}
+
 		return array_filter(
 			$rows,
 			static function ( string $value ): bool {
 				return '' !== $value;
 			}
+		);
+	}
+
+	/**
+	 * An announced renewal price the customer was told about and that does not apply yet (INH-05).
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return array{from:string,amount:string,old_amount:string,from_timestamp:int}|null
+	 */
+	public static function announced_change( array $license ): ?array {
+		$pending = PriceChange::pending( $license );
+		if ( null === $pending || $pending['applies_at'] <= 0 || PriceChange::applies( $license, max( time(), self::charge_timestamp( $license ) ) ) ) {
+			return null;
+		}
+		$plain = $license;
+		unset( $plain['price_change_amount_minor'], $plain['price_change_effective_at'] );
+		$new                         = $plain;
+		$new['renewal_amount_minor'] = $pending['amount_minor'];
+
+		return array(
+			'from'           => Notifications::format_date( $pending['applies_at'] ),
+			'amount'         => self::amount_text( self::gross( $new ) ),
+			'old_amount'     => self::amount_text( self::gross( $plain ) ),
+			'from_timestamp' => $pending['applies_at'],
 		);
 	}
 

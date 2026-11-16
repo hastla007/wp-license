@@ -21,6 +21,8 @@ else
 	exit 1
 fi
 
+# build/ and dist/ hold the output of bin/build-zip.sh (a copy of src/), examples/ has its own text domain.
+
 # The catalog header carries the plugin version (wp i18n make-pot would otherwise keep an old one).
 version="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*\([^[:space:]]*\).*$/\1/p' wp-license.php | head -n 1)"
 
@@ -32,11 +34,21 @@ version="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*\([^[:space:
 	--domain=wp-license \
 	--package-name="WP License Captain" \
 	--include=src,templates,wp-license.php,assets/js \
-	--exclude=vendor,tests,tools,docs,bin,.github,.claude,src/Client \
+	--exclude=vendor,tests,tools,docs,bin,build,dist,examples,.github,.claude,src/Client \
 	--headers="{\"Project-Id-Version\":\"WP License Captain ${version}\",\"Report-Msgid-Bugs-To\":\"\",\"Last-Translator\":\"\",\"Language-Team\":\"\"}"
 
 # Merge new/changed strings into the translations (marks changed ones fuzzy).
 "${wp_cli[@]}" --allow-root i18n update-po languages/wp-license.pot languages/
+
+# update-po keeps the old header lines: carry the version and the creation date of the template over.
+pot_date="$(sed -n 's/^"POT-Creation-Date: \(.*\)\\n"$/\1/p' languages/wp-license.pot | head -n 1)"
+for po in languages/*.po; do
+	[ -e "$po" ] || continue
+	sed -i \
+		-e "s/^\"Project-Id-Version: .*\\\\n\"\$/\"Project-Id-Version: WP License Captain ${version}\\\\n\"/" \
+		-e "s/^\"POT-Creation-Date: .*\\\\n\"\$/\"POT-Creation-Date: ${pot_date}\\\\n\"/" \
+		"$po"
+done
 
 if command -v msgfmt >/dev/null 2>&1; then
 	for po in languages/*.po; do

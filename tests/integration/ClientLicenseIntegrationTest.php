@@ -123,6 +123,9 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$this->assertIsArray( $update );
 		$this->assertFalse( $update['update_available'] );
 		$this->assertTrue( $update['license_active'] );
+		// Client 2.0.3 refuses signed answers without product_key: activation, check and update check above
+		// only succeed because the real server names the product in each of them.
+		$this->assertSame( 'test-product', $update['product_key'] );
 		$this->assertSame( 0, (int) $GLOBALS['wpdb']->get_var( "SELECT COUNT(*) FROM {$this->tables()['download_tokens']}" ) );
 
 		// Deactivate: signed DELETE with the site address; credentials and snapshot are removed.
@@ -304,6 +307,68 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$this->assertSame( LicenseStatus::STATE_ACTIVE, $status->state );
 		$this->assertNotSame( $first, $manager->client()->installation_id() );
 		$this->assertCount( 1, $this->active_activations( $license['id'] ) );
+	}
+
+	/**
+	 * AL-3: the release goes through the real paths, not through a status written into the table.
+	 *
+	 * The customer account calls CustomerPortal::deactivate_site() (private, reached by reflection, as the
+	 * customer who owns the license); support and WP-CLI call ActivationManager::deactivate() with the
+	 * audit action `admin_site_released`.
+	 */
+	public function test_al3_release_in_the_customer_account_through_the_real_path_reaches_the_site_signed(): void {
+		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
+		$license  = $this->seed_license( array( 'customer_id' => $customer ) );
+		$manager  = $this->manager();
+		$manager->activate( $license['key'] );
+		$row = $this->active_activations( $license['id'] )[0];
+
+		wp_set_current_user( $customer );
+		$release = new ReflectionMethod( \WPLC\Account\CustomerPortal::class, 'deactivate_site' );
+		$release->setAccessible( true );
+		$this->assertSame( 'site_deactivated', $release->invoke( null, (int) $row['id'] ) );
+		wp_set_current_user( 0 );
+		$this->assertCount( 0, $this->active_activations( $license['id'] ) );
+
+		// Any signed route: the update check answers 403 with the signed envelope of Authenticator::deactivated_refusal().
+		$update = $manager->client()->check_update();
+		$this->assertSame( 'activation_deactivated', $update->get_error_code() );
+		$this->assertTrue( LicenseClient::is_signed_refusal( $update ) );
+		$this->assertFalse( $manager->client()->is_activated() );
+		$this->assertFalse( $manager->is_entitled( 'feature.export' ) );
+	}
+
+	public function test_al3_release_by_support_through_activation_manager_reaches_the_site_signed(): void {
+		$license = $this->seed_license();
+		$manager = $this->manager();
+		$manager->activate( $license['key'] );
+		$row = $this->active_activations( $license['id'] )[0];
+
+		$this->assertTrue( \WPLC\License\ActivationManager::deactivate( (int) $row['id'], 'Released by support', 1, 'admin_site_released' ) );
+
+		// The entitlement check answers 200 with signed `activation_status: deactivated`.
+		$status = $manager->refresh();
+		$this->assertSame( LicenseStatus::STATE_DEACTIVATED, $status->state );
+		$this->assertFalse( $manager->is_entitled( 'feature.export' ) );
+		$this->assertFalse( $manager->client()->is_activated() );
+	}
+
+	/**
+	 * AL-6: DELETE from an address the activation does not belong to gets the signed 409 of the real server.
+	 */
+	public function test_al6_release_from_another_address_gets_a_signed_site_mismatch(): void {
+		global $wpdb;
+		$license = $this->seed_license();
+		$manager = $this->manager();
+		$manager->activate( $license['key'] );
+		$row = $this->active_activations( $license['id'] )[0];
+
+		// The activation was moved to another address on the server (move() from a copy of the site).
+		$wpdb->update( $this->tables()['activations'], array( 'site_url' => 'https://moved.example' ), array( 'id' => $row['id'] ) );
+
+		$this->assertSame( array( 'status' => 'removed_locally', 'reason' => 'site_mismatch' ), $manager->deactivate() );
+		$this->assertFalse( $manager->client()->is_activated() );
+		$this->assertCount( 1, $this->active_activations( $license['id'] ), 'The activation of the other address stays.' );
 	}
 
 	public function test_a110_unknown_installation_keeps_the_cache_and_asks_for_the_key(): void {
@@ -589,8 +654,9 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$outcome = $this->run_admin_post(
 			'test_product_license',
 			array(
-				'_wpnonce' => wp_create_nonce( 'test_product_license' ),
-				'wplc_do'  => 'deactivate',
+				'_wpnonce'                => wp_create_nonce( 'test_product_license' ),
+				'wplc_do'                 => 'deactivate',
+				'wplc_confirm_deactivate' => '1', // AL-5: the release needs the confirmation box.
 			)
 		);
 		$this->assertSame( 'redirect', $outcome['outcome'] );

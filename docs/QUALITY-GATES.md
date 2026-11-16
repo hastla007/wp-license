@@ -9,16 +9,26 @@ No `composer.lock` is committed: the dependencies are development tools only and
 | Gate | Workflow / job | Blocking | What it proves |
 |---|---|---|---|
 | Composer metadata | `phpunit.yml` / `unit (X)` | yes | `composer.json` is valid |
-| PHP syntax | `phpunit.yml` / `unit (X)` | yes | Every PHP file parses on PHP 7.4, 8.1, 8.2 and 8.3 |
-| Unit tests | `phpunit.yml` / `unit (X)` | yes | Pure logic without WordPress, on PHP 7.4, 8.1, 8.2 and 8.3 |
+| PHP syntax | `phpunit.yml` / `unit (X)` | yes | Every PHP file parses on PHP 7.4, 8.1, 8.2, 8.3 and 8.5 |
+| Unit tests | `phpunit.yml` / `unit (X)` | yes | Pure logic without WordPress, on PHP 7.4, 8.1, 8.2, 8.3 and 8.5 |
 | Site URL rules without intl | `phpunit.yml` / `unit (X)` | yes | `SiteUrl::normalize()` behaves as documented when `idn_to_ascii()` is unavailable |
-| Integration tests | `phpunit.yml` / `integration (…)` (5 cells), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
+| Documents agree with the repository | `phpunit.yml` / `unit (X)` (`ConsistencyCheckTest`, runs `bin/check-consistency.php`) | yes | The counted overview of [TODO.md](TODO.md) matches its task lines; the job and cell numbers in this file and in TODO.md match `.github/workflows`; every `.po` file has exactly the texts of `languages/wp-license.pot`, all translated, and the template carries the plugin version |
+| Integration tests | `phpunit.yml` / `integration (…)` (8 cells: WooCommerce 8.9.3, 9.4.3 and 11.2.2, each with HPOS and legacy orders, plus one multisite cell and one cell on PHP 8.5), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
 | PHPCS security + compatibility | `quality.yml` / `phpcs` | yes (new findings) | Escaping, nonces, input sanitization, prepared SQL, PHP 7.4 compatibility |
 | PHPCS coding standard | `quality.yml` / `phpcs` | no (report only) | WordPress-Extra and WordPress-Docs style |
 | PHPStan level 5 | `quality.yml` / `phpstan` | yes (new errors) | Undefined methods/variables, wrong argument counts and types in `src/` and `wp-license.php` |
 | Plugin ZIP | `package.yml` / `zip` | yes | `bin/build-zip.sh` (the release build) on PHP 7.4: versions agree, ZIP contents, class map covers `src/` |
+| End-to-end run | `e2e.yml` / `e2e (WP latest, WC 11.2.2, PHP 8.3)` | yes | The 15 flows of `tests/e2e/` in a real WordPress + WooCommerce shop with MySQL 8.0, including concurrent requests ([tests/e2e/README.md](../tests/e2e/README.md)) |
 
-`wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (7.4)` … `unit (8.3)`, `phpcs`, `phpstan`, `zip`) as required checks.
+`wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (7.4)` … `unit (8.3)`, `phpcs`, `phpstan`, `zip`, `e2e (…)`) as required checks.
+
+A pull request or a push to `main` starts 18 jobs: 5 unit, 8 integration cells, `wordpress-integration`, `phpcs`, `phpstan`, `zip` and `e2e`. The browser pass of [BROWSER-ACCEPTANCE.md](BROWSER-ACCEPTANCE.md) is not one of them; it runs locally only.
+
+**Newest PHP version (INH-03).** `unit (8.5)` and the integration cell on PHP 8.5 (latest WordPress, WooCommerce 11.2.2, HPOS) run the newest stable PHP version that `shivammathur/setup-php` offers. They are ordinary blocking jobs. Raise the version in `.github/workflows/phpunit.yml` when a newer PHP release becomes available on the runners. The development environment has PHP 8.3 only, so these jobs are the only place where the code runs on 8.5. Their first run (16 Nov 2026) found a real difference: `mb_strtolower()` of PHP 8.5 knows the case pair U+A7DC/U+019B of Unicode 16, so the host normalization without intl accepted a capital letter that intl rejected; `SiteUrl::fallback_to_ascii()` now checks the input before lower-casing (`SiteUrlNormalizationTest::test_idn_fallback_rejects_capitals_whose_lower_case_lies_in_an_accepted_block`).
+
+These numbers are checked: `php bin/check-consistency.php` fails when they differ from the workflow files. It cannot see a text that changed in the code after the last run of `bin/make-pot.sh`; regenerating the template before a release stays a manual step ([RELEASE-READINESS.md](RELEASE-READINESS.md)).
+
+A red job on a commit that did not change code is a defect of the test suite, not noise: find the failing test and its cause before restarting the job (rule in [RELEASE-READINESS.md](RELEASE-READINESS.md)).
 
 ## Syntax and unit tests
 

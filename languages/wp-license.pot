@@ -1,18 +1,18 @@
-# Copyright (C) 2026
-# This file is distributed under the same license as the WP License Captain plugin.
+# Copyright (C) 2026 
+# This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: WP License Captain 0.1.0\n"
+"Project-Id-Version: WP License Captain 0.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15T15:11:26+00:00\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Domain: wp-license\n"
+"POT-Creation-Date: 2026-11-16T09:09:27+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: wp-license\n"
 
 #. Plugin Name of the plugin
 #: wp-license.php
@@ -57,6 +57,9 @@ msgid "Release notes of the published versions of a product."
 msgstr ""
 
 #: src/Account/Blocks.php:146
+#: src/Admin/CatalogFileAdmin.php:80
+#: src/Admin/PriceChangeAdmin.php:166
+#: src/Admin/PriceChangeAdmin.php:182
 msgid "Product key"
 msgstr ""
 
@@ -99,11 +102,12 @@ msgstr ""
 msgid "Sign in"
 msgstr ""
 
+#. translators: %s: date.
 #: src/Account/CustomerPortal.php:590
-#: src/Account/CustomerPortal.php:621
+#: src/Account/CustomerPortal.php:629
 #: src/Account/SiteOverview.php:320
 #: src/Billing/RenewInsteadNotice.php:202
-#: src/Notifications/Notifications.php:894
+#: src/Notifications/Notifications.php:943
 msgid "No expiry"
 msgstr ""
 
@@ -113,334 +117,340 @@ msgstr ""
 msgid "%1$d of %2$d"
 msgstr ""
 
+#. translators: 1: date, 2: amount.
+#: src/Account/CustomerPortal.php:616
+#, php-format
+msgid "From %1$s a renewal costs %2$s."
+msgstr ""
+
 #. translators: %s: email address.
-#: src/Account/CustomerPortal.php:688
+#: src/Account/CustomerPortal.php:696
 #, php-format
 msgid "Please contact our support: %s"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:689
+#: src/Account/CustomerPortal.php:697
 msgid "Please contact our support."
 msgstr ""
 
 #. translators: %s: date.
-#: src/Account/CustomerPortal.php:696
+#: src/Account/CustomerPortal.php:704
 #, php-format
 msgid "We could not collect the renewal payment. The license keeps working until %s; without a payment it expires then."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:699
+#: src/Account/CustomerPortal.php:707
 msgid "We could not collect the renewal payment."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:701
+#: src/Account/CustomerPortal.php:709
 msgid "Use \"Complete renewal payment\" to pay now."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:703
+#: src/Account/CustomerPortal.php:711
 msgid "Use \"Renew now\" to pay with any payment method."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:703
+#: src/Account/CustomerPortal.php:711
 msgid "Please check your payment method."
 msgstr ""
 
 #. translators: %s: date.
-#: src/Account/CustomerPortal.php:709
+#: src/Account/CustomerPortal.php:717
 #, php-format
 msgid "This license has expired: updates, downloads and new site activations are not available. You can still renew it until %s with \"Renew now\"; it then continues with the same key and the same sites."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:713
+#: src/Account/CustomerPortal.php:721
 msgid "This license has expired and can no longer be renewed. Updates, downloads and site activations are not available. To use the product again, please buy a new license."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:716
+#: src/Account/CustomerPortal.php:724
 msgid "This license is suspended. Updates, downloads and premium features are not available until the suspension is lifted."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:719
+#: src/Account/CustomerPortal.php:727
 msgid "This license was revoked, for example because its order was refunded. It can no longer be used."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:734
+#: src/Account/CustomerPortal.php:742
 msgid "Cancelled. The license ends at the end of the paid period."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:737
+#: src/Account/CustomerPortal.php:745
 msgid "Renews automatically at the end of the paid period."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:739
+#: src/Account/CustomerPortal.php:747
 msgid "Does not renew automatically. Renew it yourself before it ends to keep updates and premium features."
 msgstr ""
 
 #. translators: 1: product name, 2: license reference such as WPLC-1A2B3C4D.
-#: src/Account/CustomerPortal.php:803
+#: src/Account/CustomerPortal.php:811
 #: src/Account/PaymentMethods.php:116
 #, php-format
 msgid "%1$s, license %2$s"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:844
+#: src/Account/CustomerPortal.php:852
 msgid "The site was deactivated. Its place is free again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:845
+#: src/Account/CustomerPortal.php:853
 msgid "The site activation was not found for this account."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:846
+#: src/Account/CustomerPortal.php:854
 msgid "This site was already deactivated."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:847
+#: src/Account/CustomerPortal.php:855
 msgid "The site could not be deactivated. Please try again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:849
+#: src/Account/CustomerPortal.php:857
 msgid "The site was moved to your other license. The installed plugin keeps working without entering the new key."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:850
+#: src/Account/CustomerPortal.php:858
 msgid "The site cannot be moved to this license. Sites can only be moved from a license that has ended or is ending to a newer license of the same product."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:851
+#: src/Account/CustomerPortal.php:859
 msgid "A staging site moves together with its live site. Move the live site instead."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:852
+#: src/Account/CustomerPortal.php:860
 msgid "This site is already activated on the other license. Deactivate it here to free the place."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:853
+#: src/Account/CustomerPortal.php:861
 msgid "The other license has no free place for this site. Deactivate a site there first."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:854
+#: src/Account/CustomerPortal.php:862
 msgid "One of the licenses is being changed right now. Please try again in a few minutes."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:855
+#: src/Account/CustomerPortal.php:863
 msgid "The site could not be moved. Please try again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:856
+#: src/Account/CustomerPortal.php:864
 msgid "Your cancellation is recorded. The license stays valid until the end of the paid period."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:857
+#: src/Account/CustomerPortal.php:865
 msgid "The license could not be cancelled. It may already be cancelled or no longer be active."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:858
+#: src/Account/CustomerPortal.php:866
 msgid "Your cancellation was withdrawn. The license continues as before."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:859
+#: src/Account/CustomerPortal.php:867
 msgid "The cancellation could not be withdrawn. The license may already have ended."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:860
+#: src/Account/CustomerPortal.php:868
 msgid "The license was not found for this account."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:862
+#: src/Account/CustomerPortal.php:870
 msgid "Your session has expired, so nothing was changed. Please try again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:863
+#: src/Account/CustomerPortal.php:871
 msgid "Please sign in to manage your licenses."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:864
+#: src/Account/CustomerPortal.php:872
 msgid "This action is not available at the moment."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:866
+#: src/Account/CustomerPortal.php:874
 msgid "The payment method for the automatic renewal was changed."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:867
+#: src/Account/CustomerPortal.php:875
 msgid "The payment method could not be used for the automatic renewal. Please choose another one."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:868
+#: src/Account/CustomerPortal.php:876
 msgid "Automatic renewal is now switched on for this license."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:869
+#: src/Account/CustomerPortal.php:877
 msgid "Automatic renewal could not be switched on. Please check the payment method and try again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:870
+#: src/Account/CustomerPortal.php:878
 msgid "Please confirm the renewal terms to switch on automatic renewal."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:872
+#: src/Account/CustomerPortal.php:880
 #: src/Billing/ManualRenewal.php:163
 msgid "This license cannot be renewed at the moment."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:873
+#: src/Account/CustomerPortal.php:881
 #: src/Billing/ManualRenewal.php:177
 #: src/Billing/ManualRenewal.php:196
 msgid "A renewal for this license is being processed. Please try again in a few minutes."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:874
+#: src/Account/CustomerPortal.php:882
 #: src/Billing/ManualRenewal.php:215
 msgid "Your payment for this renewal has been received and is being processed."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:875
+#: src/Account/CustomerPortal.php:883
 #: src/Billing/ManualRenewal.php:218
 msgid "A renewal order for this license is already waiting for your payment to arrive."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:877
+#: src/Account/CustomerPortal.php:885
 #: src/Billing/PlanUpgrade.php:249
 msgid "This license cannot be upgraded to the chosen plan at the moment."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:878
-#: src/Account/CustomerPortal.php:884
+#: src/Account/CustomerPortal.php:886
+#: src/Account/CustomerPortal.php:892
 #: src/Billing/PlanUpgrade.php:360
 msgid "This license is being changed right now. Please try again in a few minutes."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:879
+#: src/Account/CustomerPortal.php:887
 #: src/Billing/PlanUpgrade.php:283
 msgid "Your upgrade payment has been received and is being processed."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:880
+#: src/Account/CustomerPortal.php:888
 #: src/Billing/PlanUpgrade.php:286
 msgid "An upgrade order for this license is already waiting for your payment to arrive."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:881
+#: src/Account/CustomerPortal.php:889
 #: src/Billing/PlanUpgrade.php:266
 msgid "Please agree to the new amount of the automatic renewal to upgrade."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:882
+#: src/Account/CustomerPortal.php:890
 msgid "The plan change is recorded. It takes effect with the next renewal."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:883
+#: src/Account/CustomerPortal.php:891
 msgid "This plan change is not available for the license."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:885
+#: src/Account/CustomerPortal.php:893
 msgid "The scheduled plan change was withdrawn. The license keeps its current plan."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:886
+#: src/Account/CustomerPortal.php:894
 #: src/Admin/AdminNotices.php:85
 msgid "There is no scheduled plan change to withdraw."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1195
+#: src/Account/CustomerPortal.php:1203
 msgid "You are not allowed to deactivate this site."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1210
+#: src/Account/CustomerPortal.php:1218
 msgid "You are not allowed to cancel this license."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1225
+#: src/Account/CustomerPortal.php:1233
 #: src/Billing/PlanUpgrade.php:205
 #: src/Billing/PlanUpgrade.php:224
 msgid "You are not allowed to change this license."
 msgstr ""
 
 #. translators: %s: site URL.
-#: src/Account/CustomerPortal.php:1311
+#: src/Account/CustomerPortal.php:1319
 #, php-format
 msgid "Deactivate %s? The site loses updates and premium features until it is activated again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1321
+#: src/Account/CustomerPortal.php:1329
 msgid "Deactivate"
 msgstr ""
 
 #. translators: %s: site URL.
-#: src/Account/CustomerPortal.php:1323
+#: src/Account/CustomerPortal.php:1331
 #, php-format
 msgid "site %s"
 msgstr ""
 
 #. translators: 1: site URL, 2: license reference such as WPLC-1A2B3C4D, 3: date.
-#: src/Account/CustomerPortal.php:1348
+#: src/Account/CustomerPortal.php:1356
 #, php-format
 msgid "Move %1$s to license %2$s (valid through %3$s)? The site then counts towards that license, and the installed plugin keeps working without entering the new key."
 msgstr ""
 
 #. translators: %s: license reference such as WPLC-1A2B3C4D.
-#: src/Account/CustomerPortal.php:1364
+#: src/Account/CustomerPortal.php:1372
 #, php-format
 msgid "Move to %s"
 msgstr ""
 
 #. translators: 1: button label, 2: site URL.
-#: src/Account/CustomerPortal.php:1366
+#: src/Account/CustomerPortal.php:1374
 #, php-format
 msgid "%1$s: site %2$s"
 msgstr ""
 
 #. translators: %s: date.
-#: src/Account/CustomerPortal.php:1395
+#: src/Account/CustomerPortal.php:1403
 #, php-format
 msgid "Cancel the automatic renewal? The license stays valid until %s and ends then. You will receive a confirmation by email."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1396
+#: src/Account/CustomerPortal.php:1404
 msgid "the end of the paid period"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1399
+#: src/Account/CustomerPortal.php:1407
 msgid "Cancel at period end"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1415
+#: src/Account/CustomerPortal.php:1423
 msgid "Undo the cancellation? The license then continues after the paid period."
 msgstr ""
 
 #. translators: 1: formatted amount, 2: date, 3: interval such as "every year".
-#: src/Account/CustomerPortal.php:1423
+#: src/Account/CustomerPortal.php:1431
 #, php-format
 msgid "Undo the cancellation? The license then renews automatically again: %1$s will be charged to your saved payment method on %2$s and then %3$s, until you cancel."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1429
+#: src/Account/CustomerPortal.php:1437
 msgid "Undo the cancellation? The license then renews automatically again and your saved payment method is charged on the renewal date."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1433
+#: src/Account/CustomerPortal.php:1441
 msgid "Undo cancellation"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1446
+#: src/Account/CustomerPortal.php:1454
 #: templates/emails/plain/wplc-expiry-reminder.php:53
 #: templates/emails/wplc-expiry-reminder.php:53
 msgid "Renew now"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1485
+#: src/Account/CustomerPortal.php:1493
 msgid "Your license is ready. You will find the license key, the download and the installation steps in your account under \"Licenses\"."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1486
+#: src/Account/CustomerPortal.php:1494
 msgid "Your license is created as soon as your payment has been confirmed. You will then receive an email, and the license appears in your account under \"Licenses\"."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1489
+#: src/Account/CustomerPortal.php:1497
 msgid "Your license"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1491
+#: src/Account/CustomerPortal.php:1499
 msgid "Go to your licenses"
 msgstr ""
 
@@ -564,7 +574,7 @@ msgid "No site matches the selection."
 msgstr ""
 
 #: src/Account/SiteOverview.php:281
-#: src/Admin/LicenseDetail.php:541
+#: src/Admin/LicenseDetail.php:546
 #: templates/myaccount/wplc-license.php:136
 #: templates/myaccount/wplc-license.php:145
 msgid "Site"
@@ -572,7 +582,7 @@ msgstr ""
 
 #: src/Account/SiteOverview.php:282
 #: src/Admin/LicenseDetail.php:199
-#: src/Admin/ReleaseAdmin.php:462
+#: src/Admin/ReleaseAdmin.php:467
 #: src/Privacy/PersonalData.php:361
 #: templates/emails/plain/wplc-cancellation-confirmed.php:39
 #: templates/emails/plain/wplc-expiry-reminder.php:46
@@ -582,6 +592,8 @@ msgstr ""
 #: templates/emails/plain/wplc-license-renewed.php:35
 #: templates/emails/plain/wplc-payment-failed.php:38
 #: templates/emails/plain/wplc-payment-method-missing.php:36
+#: templates/emails/plain/wplc-price-change-withdrawn.php:36
+#: templates/emails/plain/wplc-price-change.php:39
 #: templates/emails/plain/wplc-renewal-notice.php:45
 #: templates/emails/wplc-cancellation-confirmed.php:39
 #: templates/emails/wplc-expiry-reminder.php:46
@@ -591,13 +603,14 @@ msgstr ""
 #: templates/emails/wplc-license-renewed.php:35
 #: templates/emails/wplc-payment-failed.php:38
 #: templates/emails/wplc-payment-method-missing.php:36
+#: templates/emails/wplc-price-change-withdrawn.php:36
+#: templates/emails/wplc-price-change.php:39
 #: templates/emails/wplc-renewal-notice.php:45
 msgid "Product"
 msgstr ""
 
 #: src/Account/SiteOverview.php:283
-#: src/Admin/LicenseDetail.php:541
-#: src/Client/Messages.php:222
+#: src/Admin/LicenseDetail.php:546
 #: templates/myaccount/wplc-license.php:137
 #: templates/myaccount/wplc-license.php:146
 msgid "Environment"
@@ -605,7 +618,7 @@ msgstr ""
 
 #: src/Account/SiteOverview.php:284
 #: src/Admin/ReleaseAdmin.php:123
-#: src/Admin/ReleaseAdmin.php:468
+#: src/Admin/ReleaseAdmin.php:473
 #: src/Update/CustomerDownload.php:137
 msgid "Version"
 msgstr ""
@@ -618,11 +631,10 @@ msgstr ""
 #: src/Admin/AuditLogAdmin.php:168
 #: src/Admin/LicenseBulkActions.php:556
 #: src/Admin/LicenseDetail.php:52
-#: src/Admin/LicenseDetail.php:679
+#: src/Admin/LicenseDetail.php:684
 #: src/Admin/LicenseListTable.php:98
 #: src/Admin/RenewalReviewAdmin.php:190
-#: src/Billing/RenewalOrder.php:876
-#: src/Client/Messages.php:209
+#: src/Billing/RenewalOrder.php:880
 #: src/License/LicenseIssuer.php:239
 msgid "License"
 msgstr ""
@@ -633,6 +645,7 @@ msgid "Needs attention"
 msgstr ""
 
 #: src/Account/SiteOverview.php:288
+#: src/Admin/CatalogFileAdmin.php:80
 #: src/Admin/LicenseDetail.php:240
 #: src/Admin/ReleaseAdmin.php:129
 #: src/Admin/RenewalReviewAdmin.php:190
@@ -648,7 +661,6 @@ msgid "Update: %s"
 msgstr ""
 
 #: src/Account/SiteOverview.php:317
-#: src/Client/Messages.php:228
 msgid "never"
 msgstr ""
 
@@ -1028,7 +1040,7 @@ msgid "The cancellation was not withdrawn. Once the paid period has ended, the c
 msgstr ""
 
 #: src/Admin/AdminNotices.php:120
-msgid "The renewal amount was changed. It applies to the next automatic renewals; existing renewal orders keep their amount."
+msgid "The renewal amount was changed. It applies to the next renewals; existing renewal orders keep their amount."
 msgstr ""
 
 #: src/Admin/AdminNotices.php:121
@@ -1043,7 +1055,60 @@ msgstr ""
 msgid "The renewal amount can only be lowered. The customer agreed to automatic charges of the current amount; a higher amount needs their consent."
 msgstr ""
 
-#: src/Admin/AdminNotices.php:124
+#: src/Admin/AdminNotices.php:125
+msgid "The new renewal price was announced. The notice email is sent to the customer; the license page shows when it was sent and from when the price is charged."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:126
+#: src/CLI/PriceChangeCommand.php:153
+msgid "The announcement was withdrawn. The license keeps its current price."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:127
+msgid "A valid amount, a date and a reason are required."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:128
+msgid "Nothing was announced: the amount is not higher than the current renewal amount. Use \"Change renewal amount\" to lower a price at once."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:129
+msgid "Nothing was announced: the date is earlier than the notice period allows."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:130
+msgid "Nothing was announced: this license already has an announcement. Withdraw it first."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:131
+msgid "This license has no announcement."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:132
+msgid "Nothing was changed: the license changed after you opened the page. Reload and decide again."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:133
+msgid "Nothing was announced. A new price can be announced for active and past-due licenses with a renewal amount only."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:134
+msgid "Nothing was announced: tick the confirmation to send the emails."
+msgstr ""
+
+#. translators: 1: number of licenses with a new announcement, 2: number of skipped licenses.
+#: src/Admin/AdminNotices.php:136
+#, php-format
+msgid "Announced for %1$d licenses; %2$d were skipped."
+msgstr ""
+
+#. translators: 1: number of licenses with a new announcement, 2: number of skipped licenses.
+#: src/Admin/AdminNotices.php:138
+#, php-format
+msgid "Announced for %1$d licenses; %2$d were skipped. More licenses remain: submit the form again."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:139
 msgid "The renewal amount was not changed. It can be changed for active and past-due licenses only."
 msgstr ""
 
@@ -1055,19 +1120,20 @@ msgid "License audit log"
 msgstr ""
 
 #: src/Admin/AuditLogAdmin.php:169
-#: src/Admin/LicenseDetail.php:680
+#: src/Admin/LicenseDetail.php:685
 msgid "Activation"
 msgstr ""
 
 #: src/Admin/AuditLogAdmin.php:170
 #: src/Admin/LicenseDetail.php:206
-#: src/Admin/LicenseDetail.php:681
+#: src/Admin/LicenseDetail.php:337
+#: src/Admin/LicenseDetail.php:686
 #: src/Admin/LicenseListTable.php:104
 msgid "Renewal"
 msgstr ""
 
 #: src/Admin/AuditLogAdmin.php:171
-#: src/Admin/ReleaseAdmin.php:541
+#: src/Admin/ReleaseAdmin.php:546
 msgid "Release"
 msgstr ""
 
@@ -1080,7 +1146,7 @@ msgid "Catalog"
 msgstr ""
 
 #: src/Admin/AuditLogAdmin.php:174
-#: src/Admin/LicenseDetail.php:721
+#: src/Admin/LicenseDetail.php:726
 msgid "System"
 msgstr ""
 
@@ -1090,7 +1156,7 @@ msgstr ""
 
 #: src/Admin/AuditLogAdmin.php:186
 #: src/Admin/LicenseDetail.php:198
-#: src/Admin/LicenseDetail.php:856
+#: src/Admin/LicenseDetail.php:861
 #: src/Admin/LicenseListTable.php:99
 #: src/Admin/RenewalReviewAdmin.php:190
 msgid "Customer"
@@ -1117,9 +1183,9 @@ msgid "Internal"
 msgstr ""
 
 #: src/Admin/AuditLogAdmin.php:203
-#: src/Admin/Diagnostics.php:880
-#: src/Admin/Diagnostics.php:896
-#: src/Admin/Diagnostics.php:973
+#: src/Admin/Diagnostics.php:881
+#: src/Admin/Diagnostics.php:897
+#: src/Admin/Diagnostics.php:974
 msgid "Unknown"
 msgstr ""
 
@@ -1155,14 +1221,14 @@ msgstr ""
 
 #: src/Admin/AuditLogAdmin.php:487
 #: src/Admin/AuditLogTable.php:52
-#: src/Admin/LicenseDetail.php:691
-#: src/Admin/ReleaseAdmin.php:542
+#: src/Admin/LicenseDetail.php:696
+#: src/Admin/ReleaseAdmin.php:547
 msgid "Action"
 msgstr ""
 
 #: src/Admin/AuditLogAdmin.php:489
 #: src/Admin/AuditLogTable.php:54
-#: src/Admin/LicenseDetail.php:691
+#: src/Admin/LicenseDetail.php:696
 msgid "By"
 msgstr ""
 
@@ -1172,7 +1238,7 @@ msgstr ""
 
 #: src/Admin/AuditLogAdmin.php:491
 #: src/Admin/AuditLogTable.php:55
-#: src/Admin/LicenseDetail.php:691
+#: src/Admin/LicenseDetail.php:696
 msgid "Source"
 msgstr ""
 
@@ -1216,7 +1282,7 @@ msgid "(unreadable)"
 msgstr ""
 
 #: src/Admin/AuditLogTable.php:53
-#: src/Admin/LicenseDetail.php:691
+#: src/Admin/LicenseDetail.php:696
 msgid "Object"
 msgstr ""
 
@@ -1225,28 +1291,31 @@ msgstr ""
 #: src/Admin/LicenseAdmin.php:385
 #: src/Admin/LicenseDetail.php:270
 #: src/Admin/LicenseDetail.php:300
-#: src/Admin/LicenseDetail.php:341
-#: src/Admin/LicenseDetail.php:350
-#: src/Admin/LicenseDetail.php:366
-#: src/Admin/LicenseDetail.php:392
-#: src/Admin/LicenseDetail.php:425
-#: src/Admin/LicenseDetail.php:436
-#: src/Admin/LicenseDetail.php:449
-#: src/Admin/LicenseDetail.php:498
-#: src/Admin/LicenseDetail.php:499
-#: src/Admin/LicenseDetail.php:521
-#: src/Admin/LicenseDetail.php:571
-#: src/Admin/LicenseDetail.php:691
-#: src/Admin/LicenseDetail.php:885
-#: src/Admin/ReleaseAdmin.php:434
-#: src/Admin/ReleaseAdmin.php:543
+#: src/Admin/LicenseDetail.php:343
+#: src/Admin/LicenseDetail.php:352
+#: src/Admin/LicenseDetail.php:368
+#: src/Admin/LicenseDetail.php:397
+#: src/Admin/LicenseDetail.php:430
+#: src/Admin/LicenseDetail.php:441
+#: src/Admin/LicenseDetail.php:454
+#: src/Admin/LicenseDetail.php:503
+#: src/Admin/LicenseDetail.php:504
+#: src/Admin/LicenseDetail.php:526
+#: src/Admin/LicenseDetail.php:576
+#: src/Admin/LicenseDetail.php:696
+#: src/Admin/LicenseDetail.php:890
+#: src/Admin/PriceChangeAdmin.php:121
+#: src/Admin/PriceChangeAdmin.php:138
+#: src/Admin/PriceChangeAdmin.php:187
+#: src/Admin/ReleaseAdmin.php:439
+#: src/Admin/ReleaseAdmin.php:548
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Admin/RenewalReviewAdmin.php:282
 msgid "Reason"
 msgstr ""
 
 #: src/Admin/AuditLogTable.php:57
-#: src/Admin/LicenseDetail.php:691
+#: src/Admin/LicenseDetail.php:696
 msgid "Change"
 msgstr ""
 
@@ -1255,12 +1324,12 @@ msgid "Details"
 msgstr ""
 
 #: src/Admin/AuditLogTable.php:219
-#: src/Privacy/PersonalData.php:573
+#: src/Privacy/PersonalData.php:583
 msgid "Before"
 msgstr ""
 
 #: src/Admin/AuditLogTable.php:222
-#: src/Privacy/PersonalData.php:574
+#: src/Privacy/PersonalData.php:584
 msgid "After"
 msgstr ""
 
@@ -1281,6 +1350,8 @@ msgstr ""
 
 #: src/Admin/CatalogCsv.php:83
 #: src/Admin/CatalogCsv.php:579
+#: src/Admin/CatalogFileAdmin.php:68
+#: src/Admin/CatalogFileAdmin.php:373
 msgid "You do not have permission to manage license mappings."
 msgstr ""
 
@@ -1289,6 +1360,7 @@ msgid "CSV contains product IDs, variation IDs, SKU, plan keys, billing interval
 msgstr ""
 
 #: src/Admin/CatalogCsv.php:90
+#: src/Admin/CatalogFileAdmin.php:147
 msgid "Export"
 msgstr ""
 
@@ -1384,6 +1456,231 @@ msgstr ""
 msgid "The product is being edited by another user right now. Close the product editor and import the row again."
 msgstr ""
 
+#: src/Admin/CatalogFileAdmin.php:52
+#: src/Admin/CatalogFileAdmin.php:53
+#: src/Admin/CatalogFileAdmin.php:58
+#: src/Admin/CatalogFileAdmin.php:71
+msgid "License catalog files"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:73
+msgid "A catalog file (wplc-catalog.json) describes one license product: its product key, the prefix of its entitlement keys, and every entitlement with its labels. The add-on of the product ships the file. The product editor offers the entitlements listed here as tick boxes; planned products and planned entitlements are not offered."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:77
+msgid "No catalog file has been imported yet. The product editor offers no entitlements until one is imported; entitlements can still be entered as JSON."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:80
+msgid "Name"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:80
+msgid "Prefix"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:80
+#: src/Admin/LicenseBulkActions.php:556
+#: src/Admin/LicenseDetail.php:201
+#: src/Admin/LicenseDetail.php:546
+#: src/Admin/LicenseDetail.php:600
+#: src/Admin/LicenseDetail.php:629
+#: src/Admin/LicenseListTable.php:101
+#: src/Admin/ReleaseAdmin.php:124
+#: src/Admin/Settings.php:568
+#: src/Privacy/PersonalData.php:363
+#: src/Privacy/PersonalData.php:554
+#: templates/emails/plain/wplc-license-blocked.php:43
+#: templates/emails/wplc-license-blocked.php:43
+msgid "Status"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:80
+#: src/Admin/LicenseDetail.php:622
+#: src/Catalog/ProductEditor.php:342
+msgid "Entitlements"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:80
+msgid "Imported"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:90
+msgid "Import a catalog file"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:94
+msgid "Catalog file (JSON)"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:96
+msgid "Import catalog file"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:97
+msgid "The import replaces the whole definition of the product named in the file. An entitlement that is no longer in the file leaves the list; plans and licenses that store it keep it. Importing the same file again changes nothing. Every import is recorded in the audit log."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:109
+#: src/Admin/Diagnostics.php:980
+#: src/Admin/Diagnostics.php:1024
+#: src/Admin/Diagnostics.php:1036
+#: src/Admin/Settings.php:767
+msgid "Available"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:110
+msgid "Planned"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:113
+msgid "shipped with the plugin"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:114
+msgid "uploaded"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:115
+msgid "command line"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:116
+msgid "release package"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:134
+msgid "planned, not offered"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:157
+msgid "Remove from the catalog (plans and licenses keep their entitlements)"
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:158
+msgid "Remove"
+msgstr ""
+
+#. translators: 1: product key, 2: number of entitlements.
+#: src/Admin/CatalogFileAdmin.php:199
+#, php-format
+msgid "Product %1$s was added to the catalog with %2$d entitlements."
+msgstr ""
+
+#. translators: 1: product key, 2: number of added entitlements, 3: number of removed entitlements, 4: number of changed entitlements.
+#: src/Admin/CatalogFileAdmin.php:202
+#, php-format
+msgid "Product %1$s was updated: %2$d entitlements added, %3$d removed, %4$d changed."
+msgstr ""
+
+#. translators: %s: product key.
+#: src/Admin/CatalogFileAdmin.php:205
+#, php-format
+msgid "Product %s is already in the catalog exactly as in this file. Nothing was changed."
+msgstr ""
+
+#. translators: %s: product key.
+#: src/Admin/CatalogFileAdmin.php:208
+#, php-format
+msgid "Product %s was removed from the catalog."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:211
+msgid "The catalog file was not imported."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:211
+msgid "The catalog was not changed."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:222
+msgid "The file could not be uploaded."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:223
+msgid "The file is larger than 256 KB."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:224
+msgid "The file is not a JSON object."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:225
+msgid "The field \"format\" is missing or not a whole number."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:226
+msgid "This version reads catalog files of format 1 only."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:227
+msgid "The product key must consist of lowercase letters, digits and hyphens (2 to 100 characters)."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:228
+msgid "The field \"prefix\" is required when the file lists no entitlement."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:229
+msgid "The prefix must start with a lowercase letter and contain lowercase letters, digits, hyphens or underscores only."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:230
+msgid "Another product in the catalog already uses this prefix."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:231
+msgid "The status must be \"available\" or \"planned\"."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:232
+msgid "The field \"entitlements\" must be a list (it may be empty)."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:233
+msgid "The file lists more than 500 entitlements."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:234
+msgid "An entitlement must be an object."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:235
+msgid "The entitlement key is missing or contains characters other than letters, digits, dots, hyphens and underscores."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:236
+msgid "The entitlement key does not start with the prefix of the product and a dot."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:237
+msgid "The entitlement key is listed twice."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:238
+msgid "A name or label needs at least the English text (\"en\")."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:239
+msgid "A text is empty, not a string, or contains markup or control characters."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:240
+msgid "A text is too long (name and label: 190 characters, description: 1000)."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:241
+msgid "A locale must be \"en\" or a WordPress locale such as \"de_DE\" or \"de_DE_formal\"."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:242
+msgid "This product is not in the catalog."
+msgstr ""
+
+#: src/Admin/CatalogFileAdmin.php:243
+msgid "Nothing was removed: tick the box next to \"Remove\" to confirm."
+msgstr ""
+
 #: src/Admin/CsvExport.php:47
 msgid "The export could not be started."
 msgstr ""
@@ -1410,774 +1707,772 @@ msgid_plural "Your last license export stopped at %s licenses. Narrow the filter
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Diagnostics.php:322
+#: src/Admin/Diagnostics.php:323
 msgid "WP License Captain: the daily background run is not working."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:325
+#: src/Admin/Diagnostics.php:326
 msgid "The last run started but did not finish; one of its tasks failed."
 msgstr ""
 
 #. translators: %s: date and time of the last run.
-#: src/Admin/Diagnostics.php:328
+#: src/Admin/Diagnostics.php:329
 #, php-format
 msgid "It last finished on %s, more than 26 hours ago."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:330
+#: src/Admin/Diagnostics.php:331
 msgid "It has never run on this site."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:332
+#: src/Admin/Diagnostics.php:333
 msgid "Until it runs again, licenses do not expire, failed payments are not retried and reminders are not sent. Check WP-Cron or the server cron job and the PHP error log."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:333
-#: src/Admin/Settings.php:628
+#: src/Admin/Diagnostics.php:334
+#: src/Admin/Settings.php:655
 msgid "Open diagnostics"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:794
-#: src/Admin/Diagnostics.php:1261
+#: src/Admin/Diagnostics.php:795
+#: src/Admin/Diagnostics.php:1262
 msgid "You do not have permission to view diagnostics."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:809
+#: src/Admin/Diagnostics.php:810
 msgid "WPLC_PACKAGE_STORAGE_DIR constant"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:810
+#: src/Admin/Diagnostics.php:811
 msgid "wplc_package_storage_dir filter"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:811
+#: src/Admin/Diagnostics.php:812
 msgid "Default (uploads directory)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:814
+#: src/Admin/Diagnostics.php:815
 msgid "Directory"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:815
+#: src/Admin/Diagnostics.php:816
 msgid "Configured by"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:816
+#: src/Admin/Diagnostics.php:817
 msgid "Writable"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:816
+#: src/Admin/Diagnostics.php:817
 #: src/Admin/LicenseDetail.php:205
 #: src/Privacy/PersonalData.php:355
 msgid "Yes"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:816
+#: src/Admin/Diagnostics.php:817
 #: src/Admin/LicenseDetail.php:205
 #: src/Privacy/PersonalData.php:356
 msgid "No"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:817
+#: src/Admin/Diagnostics.php:818
 msgid "Public access"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:820
+#: src/Admin/Diagnostics.php:821
 msgid "Last checked (UTC)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:823
+#: src/Admin/Diagnostics.php:824
 msgid "Package storage"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:825
-#: src/Admin/ReleaseAdmin.php:625
+#: src/Admin/Diagnostics.php:826
+#: src/Admin/ReleaseAdmin.php:630
 msgid "The constant is ignored and the default directory is used."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:834
+#: src/Admin/Diagnostics.php:835
 msgid "The directory lies inside the web root. Apache and IIS honour the generated .htaccess and web.config; nginx does not. Recommended: set WPLC_PACKAGE_STORAGE_DIR in wp-config.php to a directory outside the web root, or add this rule to the nginx server block:"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:841
-#: src/Admin/ReleaseAdmin.php:315
+#: src/Admin/Diagnostics.php:842
+#: src/Admin/ReleaseAdmin.php:320
 msgid "Check again"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:849
 #: src/Admin/Diagnostics.php:850
-#: src/Admin/Diagnostics.php:855
+#: src/Admin/Diagnostics.php:851
+#: src/Admin/Diagnostics.php:856
 msgid "License diagnostics"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:880
+#: src/Admin/Diagnostics.php:881
 msgid "Plugin version"
 msgstr ""
 
 #. translators: 1: version number, 2: address of the release page.
-#: src/Admin/Diagnostics.php:884
-#: src/Admin/Diagnostics.php:886
-#: src/Admin/Diagnostics.php:889
-#: src/Admin/Diagnostics.php:891
+#: src/Admin/Diagnostics.php:885
+#: src/Admin/Diagnostics.php:887
+#: src/Admin/Diagnostics.php:890
+#: src/Admin/Diagnostics.php:892
 msgid "Newest release"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:884
+#: src/Admin/Diagnostics.php:885
 msgid "Check switched off (WPLC_DISABLE_UPDATE_CHECK)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:886
+#: src/Admin/Diagnostics.php:887
 msgid "Not known yet. WordPress checks for updates twice a day."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:889
+#. translators: 1: version number, 2: address of the release page.
+#: src/Admin/Diagnostics.php:890
 #, php-format
 msgid "%1$s is available: %2$s"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:889
+#. translators: 1: version number, 2: address of the release page.
+#: src/Admin/Diagnostics.php:890
 msgid "Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/PRODUCTION-OPERATIONS.md)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:893
+#: src/Admin/Diagnostics.php:894
 msgid "PHP"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:894
+#: src/Admin/Diagnostics.php:895
 msgid "WordPress"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:895
+#: src/Admin/Diagnostics.php:896
 msgid "WooCommerce"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:895
-#: src/Admin/Diagnostics.php:979
-#: src/Admin/Diagnostics.php:1023
+#: src/Admin/Diagnostics.php:896
+#: src/Admin/Diagnostics.php:980
+#: src/Admin/Diagnostics.php:1024
 msgid "Unavailable"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:896
+#: src/Admin/Diagnostics.php:897
 msgid "Database"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:902
+#: src/Admin/Diagnostics.php:903
 msgid "The database migration did not finish. Deactivate and reactivate the plugin, then check the PHP error log."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:905
+#: src/Admin/Diagnostics.php:906
 msgid "The database was already updated by a newer plugin version. This older version may not handle the data correctly; install the newer version again."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:907
+#: src/Admin/Diagnostics.php:908
 msgid "License schema (installed / expected)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:911
+#: src/Admin/Diagnostics.php:912
 msgid "Last migration error"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:915
+#: src/Admin/Diagnostics.php:916
 msgid "License tables"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:916
+#: src/Admin/Diagnostics.php:917
 msgid "All present"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:918
+#: src/Admin/Diagnostics.php:919
 msgid "These tables are missing. Deactivate and reactivate the plugin."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:926
+#: src/Admin/Diagnostics.php:927
 msgid "Table structure"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:927
+#: src/Admin/Diagnostics.php:928
 msgid "Matches this plugin version"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:929
+#: src/Admin/Diagnostics.php:930
 msgid "Columns are missing or have another type than this version expects. The plugin repairs this in the next admin or cron request; if the row stays, check the database user's ALTER privilege."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:934
+#: src/Admin/Diagnostics.php:935
 msgid "WPLC_PAUSE_BILLING is set in wp-config.php"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:935
+#: src/Admin/Diagnostics.php:936
 msgid "the database belongs to a newer plugin version"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:936
+#: src/Admin/Diagnostics.php:937
 msgid "the site address or database changed (copy or restore); confirm the notice at the top of the admin pages"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:937
+#: src/Admin/Diagnostics.php:938
 msgid "the environment type is not \"production\""
 msgstr ""
 
-#: src/Admin/Diagnostics.php:941
-#: src/Admin/Diagnostics.php:984
+#: src/Admin/Diagnostics.php:942
+#: src/Admin/Diagnostics.php:985
 msgid "Running"
 msgstr ""
 
 #. translators: %s: reason.
-#: src/Admin/Diagnostics.php:944
+#: src/Admin/Diagnostics.php:945
 #, php-format
 msgid "Paused: %s"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:944
+#. translators: %s: reason.
+#: src/Admin/Diagnostics.php:945
 msgid "the filter wplc_billing_paused"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:946
+#: src/Admin/Diagnostics.php:947
 msgid "Running (the pause was lifted by the filter wplc_billing_paused)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:949
+#: src/Admin/Diagnostics.php:950
 msgid "Charges, expiry and customer emails"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:952
+#: src/Admin/Diagnostics.php:953
 msgid "While paused nothing is charged, no license expires and no reminder or status email is sent. The API keeps answering."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:957
+#: src/Admin/Diagnostics.php:958
 msgid "Processing gap"
 msgstr ""
 
 #. translators: %s: date and time.
-#: src/Admin/Diagnostics.php:959
+#: src/Admin/Diagnostics.php:960
 #, php-format
 msgid "Licenses that became due during the gap are not expired before %s"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:961
+#: src/Admin/Diagnostics.php:962
 msgid "The plugin was inactive, billing was paused or the daily run stood still. Renewals and orders of that time are caught up first."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:966
+#: src/Admin/Diagnostics.php:967
 msgid "Server time (UTC) / site time"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:972
+#: src/Admin/Diagnostics.php:973
 msgid "Database time (UTC)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:975
+#: src/Admin/Diagnostics.php:976
 msgid "The clocks of the web server and the database differ by more than two minutes. Signed API requests and expiry dates depend on them."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:978
+#: src/Admin/Diagnostics.php:979
 msgid "HTTPS"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:978
+#: src/Admin/Diagnostics.php:979
 msgid "Enabled"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:978
+#: src/Admin/Diagnostics.php:979
 msgid "Not detected"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:979
+#: src/Admin/Diagnostics.php:980
 msgid "OpenSSL"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:979
-#: src/Admin/Diagnostics.php:1023
-#: src/Admin/Diagnostics.php:1035
-#: src/Admin/Settings.php:740
-msgid "Available"
-msgstr ""
-
-#: src/Admin/Diagnostics.php:985
+#: src/Admin/Diagnostics.php:986
 msgid "Not run yet"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:986
+#: src/Admin/Diagnostics.php:987
 msgid "Not run for more than 26 hours"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:987
+#: src/Admin/Diagnostics.php:988
 msgid "Started, but did not finish"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:990
+#: src/Admin/Diagnostics.php:991
 msgid "Last daily run"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:993
+#: src/Admin/Diagnostics.php:994
 msgid "Licenses do not expire, failed payments are not retried and reminders are not sent. Check WP-Cron or the server cron job and the PHP error log."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:997
+#: src/Admin/Diagnostics.php:998
 msgid "Next daily run"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:998
+#: src/Admin/Diagnostics.php:999
 msgid "Not scheduled"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1000
+#: src/Admin/Diagnostics.php:1001
 msgid "Deactivate and reactivate the plugin to schedule it again."
 msgstr ""
 
 #. translators: %s: internal job name.
-#: src/Admin/Diagnostics.php:1007
+#: src/Admin/Diagnostics.php:1008
 #, php-format
 msgid "Last run: %s"
 msgstr ""
 
 #. translators: %s: internal job name.
-#: src/Admin/Diagnostics.php:1013
+#: src/Admin/Diagnostics.php:1014
 #, php-format
 msgid "Last failure: %s"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1016
+#: src/Admin/Diagnostics.php:1017
 msgid "The job threw an error and was skipped; the jobs after it still ran. The full message is in the WooCommerce log (source wp-license)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1022
-#: src/Admin/Settings.php:739
+#: src/Admin/Diagnostics.php:1023
+#: src/Admin/Settings.php:766
 msgid "Action Scheduler"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1025
+#: src/Admin/Diagnostics.php:1026
 msgid "Scheduled work falls back to WP-Cron, which is less reliable."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1028
+#: src/Admin/Diagnostics.php:1029
 msgid "Failed scheduled actions (group wplc)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1028
+#: src/Admin/Diagnostics.php:1029
 msgid "Open WooCommerce → Status → Scheduled Actions, filter by \"Failed\" and search for \"wplc\" to see the error of each action."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1034
-#: src/Admin/Settings.php:729
+#: src/Admin/Diagnostics.php:1035
+#: src/Admin/Settings.php:756
 msgid "Automatic renewal (Stripe)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1041
+#: src/Admin/Diagnostics.php:1042
 msgid "License emails switched off"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1042
-#: src/Admin/Diagnostics.php:1137
+#: src/Admin/Diagnostics.php:1043
+#: src/Admin/Diagnostics.php:1138
 msgid "None"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1044
+#: src/Admin/Diagnostics.php:1045
 msgid "These emails are switched off under WooCommerce → Settings → Emails and are not sent to customers (each skipped email is logged under the source wp-license)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1046
+#: src/Admin/Diagnostics.php:1047
 msgid "Stripe gateway version"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1046
+#: src/Admin/Diagnostics.php:1047
 msgid "Not loaded"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1048
-#: src/Admin/Settings.php:679
+#: src/Admin/Diagnostics.php:1049
+#: src/Admin/Settings.php:706
 msgid "Stripe webhook secret"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1048
+#: src/Admin/Diagnostics.php:1049
 msgid "Set"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1048
+#: src/Admin/Diagnostics.php:1049
 msgid "Not set. Stripe events are rejected."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1049
+#: src/Admin/Diagnostics.php:1050
 msgid "Last valid Stripe event"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1051
+#: src/Admin/Diagnostics.php:1052
 msgid "Last Stripe event in live mode"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1051
+#: src/Admin/Diagnostics.php:1052
 msgid "Last Stripe event in test mode"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1058
+#: src/Admin/Diagnostics.php:1059
 msgid "Last rejected Stripe webhook request"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1061
+#: src/Admin/Diagnostics.php:1062
 msgid "A request to the webhook URL had no valid signature. If this repeats, the signing secret in wp-config.php does not match the endpoint in the Stripe dashboard (live and test mode have different secrets)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1064
+#: src/Admin/Diagnostics.php:1065
 msgid "Minutes with rejected Stripe webhook requests (24 hours)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1064
+#: src/Admin/Diagnostics.php:1065
 msgid "Requests to the webhook URL without a valid signature, counted at most once a minute. A few can be scans of the URL; many mean that the signing secret does not match the endpoint in the Stripe dashboard."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1065
+#: src/Admin/Diagnostics.php:1066
 msgid "Pending Stripe events"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1065
+#: src/Admin/Diagnostics.php:1066
 msgid "Events that were received but not processed yet. They are retried by the background queue."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1066
+#: src/Admin/Diagnostics.php:1067
 msgid "Stripe events needing review (24 hours)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1066
+#: src/Admin/Diagnostics.php:1067
 msgid "The event could not be matched to a renewal. Compare the payment in the Stripe dashboard with the renewal order."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1067
+#: src/Admin/Diagnostics.php:1068
 msgid "Stuck renewals (job not run, grace period over)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1067
+#: src/Admin/Diagnostics.php:1068
 msgid "Renewals whose queued attempt or check should have run more than an hour ago, or whose grace period ended without the license being expired. Renewals waiting for their next retry are not counted."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1068
+#: src/Admin/Diagnostics.php:1069
 msgid "Renewals stuck in processing (over 1 hour)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1068
+#: src/Admin/Diagnostics.php:1069
 msgid "A payment attempt started and never reported back. Check the renewal order and the payment in Stripe before anything is retried."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1069
+#: src/Admin/Diagnostics.php:1070
 msgid "Renewals needing review (unknown payment result, payment not applied)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1069
+#: src/Admin/Diagnostics.php:1070
 msgid "The payment provider did not give a final answer and the automatic check could not resolve it. Compare the renewal order with the payment in the provider's dashboard, then extend the license by hand or cancel the order. Nothing is charged again automatically."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1070
+#: src/Admin/Diagnostics.php:1071
 msgid "Licenses with automatic renewal but no open renewal"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1070
+#: src/Admin/Diagnostics.php:1071
 msgid "These licenses would not be charged at the end of their term. The daily run schedules missing renewals."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1071
+#: src/Admin/Diagnostics.php:1072
 msgid "Paid renewals without extension"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1071
+#: src/Admin/Diagnostics.php:1072
 msgid "The latest renewal of these licenses is paid, but the license does not run until the end of the paid period. Extend the term by hand or refund the order."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1072
+#: src/Admin/Diagnostics.php:1073
 msgid "Unused expired download grants"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1075
+#: src/Admin/Diagnostics.php:1076
 msgid "License products without a plan"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1075
+#: src/Admin/Diagnostics.php:1076
 msgid "These products are ticked as license product but have no product key and plan. They are sold without a license. Open the product and complete the license fields."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1077
+#: src/Admin/Diagnostics.php:1078
 msgid "Paid orders without their licenses"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1077
+#: src/Admin/Diagnostics.php:1078
 msgid "A license could not be created for these orders; the reason is in the order notes. Issuing is retried daily."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1081
+#: src/Admin/Diagnostics.php:1082
 msgid "Update packages"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1088
-#: src/Admin/Settings.php:718
+#: src/Admin/Diagnostics.php:1089
+#: src/Admin/Settings.php:745
 msgid "License keys verifiable with the current secret"
 msgstr ""
 
 #. translators: 1: number of verifiable keys, 2: number of checked keys.
-#: src/Admin/Diagnostics.php:1090
-#: src/Admin/Settings.php:720
+#: src/Admin/Diagnostics.php:1091
+#: src/Admin/Settings.php:747
 #, php-format
 msgid "%1$s of the %2$s most recent key"
 msgid_plural "%1$s of the %2$s most recent keys"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Diagnostics.php:1092
+#: src/Admin/Diagnostics.php:1093
 msgid "The secret or the salts were changed. Customers with these keys see \"not available\" and their sites cannot be activated again. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1096
+#: src/Admin/Diagnostics.php:1097
 msgid "Secrets in wp-config.php"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1097
+#: src/Admin/Diagnostics.php:1098
 msgid "Not configured; the WordPress salts are used"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1097
+#: src/Admin/Diagnostics.php:1098
 msgid "Configured"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1102
+#: src/Admin/Diagnostics.php:1103
 msgid "the PHP extension sodium is missing"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1103
+#: src/Admin/Diagnostics.php:1104
 msgid "WPLC_RESPONSE_SIGNING_KEY is not a valid key"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1104
+#: src/Admin/Diagnostics.php:1105
 msgid "the stored key cannot be decrypted with the configured secrets"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1105
+#: src/Admin/Diagnostics.php:1106
 msgid "the stored key is damaged"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1106
+#: src/Admin/Diagnostics.php:1107
 msgid "the stored key is gone"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1107
+#: src/Admin/Diagnostics.php:1108
 msgid "the key could not be encrypted for storage"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1108
+#: src/Admin/Diagnostics.php:1109
 msgid "the key could not be stored"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1109
+#: src/Admin/Diagnostics.php:1110
 msgid "another request is creating the key"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1110
+#: src/Admin/Diagnostics.php:1111
 msgid "no key available"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1114
+#: src/Admin/Diagnostics.php:1115
 msgid "Response signing key (Ed25519, public)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1116
+#: src/Admin/Diagnostics.php:1117
 msgid "stored in the database"
 msgstr ""
 
 #. translators: %s: reason.
-#: src/Admin/Diagnostics.php:1118
+#: src/Admin/Diagnostics.php:1119
 #, php-format
 msgid "Unavailable: %s"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1121
+#: src/Admin/Diagnostics.php:1122
 msgid "The key is stored encrypted in the database. For a production server, keep it in wp-config.php as WPLC_RESPONSE_SIGNING_KEY (\"wp wplc signing-key\"), so a restored or copied database cannot change it."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1122
+#: src/Admin/Diagnostics.php:1123
 msgid "API responses are sent without the Ed25519 signature. Add-ons that require it treat the license server as unreachable."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1126
+#: src/Admin/Diagnostics.php:1127
 msgid "Installation secrets encrypted with an old key"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1129
+#: src/Admin/Diagnostics.php:1130
 msgid "Run \"wp wplc rotate-installation-secrets\" before you remove the previous encryption key from wp-config.php."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1131
+#: src/Admin/Diagnostics.php:1132
 msgid "Rejected API requests today (UTC)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1131
+#: src/Admin/Diagnostics.php:1132
 msgid "Rejected API requests yesterday (UTC)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1143
+#: src/Admin/Diagnostics.php:1144
 msgid "Database locks (GET_LOCK)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1144
+#: src/Admin/Diagnostics.php:1145
 msgid "Working"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1144
+#: src/Admin/Diagnostics.php:1145
 msgid "Not working"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1146
+#: src/Admin/Diagnostics.php:1147
 msgid "Activations and renewals rely on named database locks. They fail behind database proxies that spread a request over several connections and on clusters with several writing nodes."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1151
+#: src/Admin/Diagnostics.php:1152
 msgid "This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/SECURITY-OPERATIONS.md)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1152
+#: src/Admin/Diagnostics.php:1153
 msgid "This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/SECURITY-OPERATIONS.md)."
 msgstr ""
 
 #. translators: %s: PHP class name of the database layer.
-#: src/Admin/Diagnostics.php:1154
-#: src/Admin/Diagnostics.php:1157
-#: src/Admin/Diagnostics.php:1159
+#: src/Admin/Diagnostics.php:1155
+#: src/Admin/Diagnostics.php:1158
+#: src/Admin/Diagnostics.php:1160
 msgid "Database layer"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1154
+#. translators: %s: PHP class name of the database layer.
+#: src/Admin/Diagnostics.php:1155
 #, php-format
 msgid "%s (read/write splitting)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1157
+#. translators: %s: PHP class name of the database layer.
+#: src/Admin/Diagnostics.php:1158
 #, php-format
 msgid "%s (db.php drop-in)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1163
+#: src/Admin/Diagnostics.php:1164
 msgid "Client address of this request"
 msgstr ""
 
 #. translators: 1: address used for rate limits, 2: address of the direct peer.
-#: src/Admin/Diagnostics.php:1165
+#: src/Admin/Diagnostics.php:1166
 #, php-format
 msgid "%1$s (direct peer: %2$s)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1167
+#: src/Admin/Diagnostics.php:1168
 msgid "The direct peer is a private address, so a proxy or load balancer sits in front of this server, but WPLC_TRUSTED_PROXY_HEADER and WPLC_TRUSTED_PROXIES are not both defined. All customers then share one rate limit."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1170
+#: src/Admin/Diagnostics.php:1171
 msgid "Proxy constants"
 msgstr ""
 
 #. translators: 1: header name or "not set", 2: "set" or "not set".
-#: src/Admin/Diagnostics.php:1173
+#: src/Admin/Diagnostics.php:1174
 #, php-format
 msgid "WPLC_TRUSTED_PROXY_HEADER: %1$s; WPLC_TRUSTED_PROXIES: %2$s"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1174
 #: src/Admin/Diagnostics.php:1175
+#: src/Admin/Diagnostics.php:1176
 msgid "not set"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1175
+#: src/Admin/Diagnostics.php:1176
 msgid "set"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1180
+#: src/Admin/Diagnostics.php:1181
 msgid "Proxy header ignored"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1180
+#: src/Admin/Diagnostics.php:1181
 msgid "Not used"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1209
+#: src/Admin/Diagnostics.php:1210
 msgid "None received yet"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1219
+#: src/Admin/Diagnostics.php:1220
 msgid "Site cleanup helper (must-use)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1222
+#: src/Admin/Diagnostics.php:1223
 msgid "Installed"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1226
+#: src/Admin/Diagnostics.php:1227
 msgid "Older copy installed"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1226
+#: src/Admin/Diagnostics.php:1227
 msgid "Run wp wplc schema install-mu-helper to replace it with the version shipped with this plugin."
 msgstr ""
 
 #. translators: %s: file name.
-#: src/Admin/Diagnostics.php:1231
+#: src/Admin/Diagnostics.php:1232
 #, php-format
 msgid "Another file named %s is in the must-use directory"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1235
+#: src/Admin/Diagnostics.php:1236
 msgid "Not installed (not needed while the plugin is network-activated)"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1238
+#: src/Admin/Diagnostics.php:1239
 msgid "Not installed"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1238
+#: src/Admin/Diagnostics.php:1239
 msgid "If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/MULTISITE.md)."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1263
+#: src/Admin/Diagnostics.php:1264
 msgid "WP License Captain diagnostics"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1264
+#: src/Admin/Diagnostics.php:1265
 msgid "Read-only environment details for support. No license key, installation secret, token, or payment credential is displayed."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1269
+#: src/Admin/Diagnostics.php:1270
 msgid "OK:"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1271
+#: src/Admin/Diagnostics.php:1272
 msgid "Warning:"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1282
+#: src/Admin/Diagnostics.php:1283
 msgid "Open \"Renewals to review\""
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1308
+#: src/Admin/Diagnostics.php:1309
 msgid "Stripe events that need attention"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1310
+#: src/Admin/Diagnostics.php:1311
 msgid "None."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1313
+#: src/Admin/Diagnostics.php:1314
 msgid "Look the event up in the Stripe dashboard by its ID and compare the payment with the renewal order of the license. The latest 50 are shown."
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1315
+#: src/Admin/Diagnostics.php:1316
 msgid "Received"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1315
+#: src/Admin/Diagnostics.php:1316
 msgid "Stripe event ID"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1315
+#: src/Admin/Diagnostics.php:1316
 msgid "Type"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1315
+#: src/Admin/Diagnostics.php:1316
 msgid "Outcome"
 msgstr ""
 
-#: src/Admin/Diagnostics.php:1315
+#: src/Admin/Diagnostics.php:1316
 msgid "Processed"
 msgstr ""
 
@@ -2187,7 +2482,6 @@ msgstr ""
 
 #: src/Admin/Format.php:27
 #: src/Admin/Format.php:52
-#: src/Client/Messages.php:171
 msgid "Active"
 msgstr ""
 
@@ -2197,7 +2491,6 @@ msgid "Payment overdue"
 msgstr ""
 
 #: src/Admin/Format.php:29
-#: src/Client/Messages.php:174
 #: templates/emails/plain/wplc-license-blocked.php:43
 #: templates/emails/wplc-license-blocked.php:43
 msgid "Suspended"
@@ -2205,7 +2498,6 @@ msgstr ""
 
 #: src/Admin/Format.php:30
 #: src/Admin/LicenseDetail.php:214
-#: src/Client/Messages.php:175
 #: templates/emails/plain/wplc-license-blocked.php:43
 #: templates/emails/wplc-license-blocked.php:43
 msgid "Revoked"
@@ -2213,7 +2505,6 @@ msgstr ""
 
 #: src/Admin/Format.php:31
 #: src/Admin/Format.php:87
-#: src/Client/Messages.php:173
 msgid "Expired"
 msgstr ""
 
@@ -2342,135 +2633,174 @@ msgid "Renewal amount changed by support"
 msgstr ""
 
 #: src/Admin/Format.php:272
-msgid "Plan change scheduled"
+msgid "New renewal price announced"
 msgstr ""
 
 #: src/Admin/Format.php:273
-msgid "Plan change withdrawn"
+msgid "Customer notified of the new renewal price"
 msgstr ""
 
 #: src/Admin/Format.php:274
-msgid "New key issued"
+msgid "New renewal price took effect"
 msgstr ""
 
 #: src/Admin/Format.php:275
-msgid "Key email sent again"
+msgid "Announced renewal price withdrawn"
 msgstr ""
 
 #: src/Admin/Format.php:276
-msgid "Owner changed"
+msgid "Announced renewal price dropped (plan changed)"
 msgstr ""
 
 #: src/Admin/Format.php:277
-msgid "Cancelled for the end of the term"
+msgid "Announced renewal price not applied (no notice sent)"
 msgstr ""
 
 #: src/Admin/Format.php:278
-msgid "Cancellation withdrawn"
+msgid "Catalog file imported"
 msgstr ""
 
 #: src/Admin/Format.php:279
-msgid "Automatic renewal switched on"
+msgid "Catalog file of a release package not imported"
 msgstr ""
 
 #: src/Admin/Format.php:280
-msgid "Automatic renewal switched off"
+msgid "Catalog import removed entitlements that plans still grant"
 msgstr ""
 
 #: src/Admin/Format.php:281
-msgid "Renewal paid"
+msgid "Product removed from the catalog"
 msgstr ""
 
 #: src/Admin/Format.php:282
+msgid "Plan change scheduled"
+msgstr ""
+
+#: src/Admin/Format.php:283
+msgid "Plan change withdrawn"
+msgstr ""
+
+#: src/Admin/Format.php:284
+msgid "New key issued"
+msgstr ""
+
+#: src/Admin/Format.php:285
+msgid "Key email sent again"
+msgstr ""
+
+#: src/Admin/Format.php:286
+msgid "Owner changed"
+msgstr ""
+
+#: src/Admin/Format.php:287
+msgid "Cancelled for the end of the term"
+msgstr ""
+
+#: src/Admin/Format.php:288
+msgid "Cancellation withdrawn"
+msgstr ""
+
+#: src/Admin/Format.php:289
+msgid "Automatic renewal switched on"
+msgstr ""
+
+#: src/Admin/Format.php:290
+msgid "Automatic renewal switched off"
+msgstr ""
+
+#: src/Admin/Format.php:291
+msgid "Renewal paid"
+msgstr ""
+
+#: src/Admin/Format.php:292
 #: src/Admin/LicenseListTable.php:350
 msgid "Renewal payment failed"
 msgstr ""
 
-#: src/Admin/Format.php:283
+#: src/Admin/Format.php:293
 #: src/Admin/LicenseListTable.php:348
 msgid "Renewal needs review"
 msgstr ""
 
-#: src/Admin/Format.php:284
+#: src/Admin/Format.php:294
 msgid "Reviewed renewal booked"
 msgstr ""
 
-#: src/Admin/Format.php:285
+#: src/Admin/Format.php:295
 msgid "Renewal review closed"
 msgstr ""
 
-#: src/Admin/Format.php:286
+#: src/Admin/Format.php:296
 msgid "Renewal refunded"
 msgstr ""
 
-#: src/Admin/Format.php:287
+#: src/Admin/Format.php:297
 msgid "Renewal cancelled"
 msgstr ""
 
-#: src/Admin/Format.php:288
+#: src/Admin/Format.php:298
 msgid "Manual renewal started"
 msgstr ""
 
-#: src/Admin/Format.php:289
+#: src/Admin/Format.php:299
 msgid "Manual renewal paid"
 msgstr ""
 
-#: src/Admin/Format.php:290
+#: src/Admin/Format.php:300
 msgid "Site activated"
 msgstr ""
 
-#: src/Admin/Format.php:291
+#: src/Admin/Format.php:301
 msgid "Site deactivated"
 msgstr ""
 
-#: src/Admin/Format.php:292
-#: src/Client/Messages.php:178
+#: src/Admin/Format.php:302
 msgid "Site address changed"
 msgstr ""
 
-#: src/Admin/Format.php:293
-#: src/Admin/Format.php:294
+#: src/Admin/Format.php:303
+#: src/Admin/Format.php:304
 msgid "Site moved to another license"
 msgstr ""
 
-#: src/Admin/Format.php:295
+#: src/Admin/Format.php:305
 msgid "Site taken over from another license"
 msgstr ""
 
-#: src/Admin/Format.php:296
+#: src/Admin/Format.php:306
 msgid "Chargeback received"
 msgstr ""
 
-#: src/Admin/Format.php:297
+#: src/Admin/Format.php:307
 msgid "Payment method changed"
 msgstr ""
 
-#: src/Admin/Format.php:298
+#: src/Admin/Format.php:308
 msgid "Package downloaded"
 msgstr ""
 
-#: src/Admin/Format.php:299
+#: src/Admin/Format.php:309
 msgid "Settings changed"
 msgstr ""
 
-#: src/Admin/Format.php:300
+#: src/Admin/Format.php:310
 msgid "Licenses exported"
 msgstr ""
 
-#: src/Admin/Format.php:301
+#: src/Admin/Format.php:311
 msgid "Audit log exported"
 msgstr ""
 
-#: src/Admin/Format.php:302
+#: src/Admin/Format.php:312
 msgid "Personal data erased"
 msgstr ""
 
-#: src/Admin/Format.php:303
+#: src/Admin/Format.php:313
 msgid "License anonymized"
 msgstr ""
 
 #. translators: %s: site timezone, for example Europe/Berlin or +02:00.
-#: src/Admin/Format.php:343
+#: src/Admin/Format.php:353
 #, php-format
 msgid "Date (%s)"
 msgstr ""
@@ -2532,13 +2862,12 @@ msgid "The secrets for license keys are not configured in wp-config.php, or issu
 msgstr ""
 
 #: src/Admin/KeyConfigurationNotice.php:220
-#: src/Client/Messages.php:207
 msgid "Open license settings"
 msgstr ""
 
 #. translators: %d: user ID.
 #: src/Admin/LicenseAdmin.php:200
-#: src/Admin/LicenseDetail.php:725
+#: src/Admin/LicenseDetail.php:730
 #, php-format
 msgid "Deleted user #%d"
 msgstr ""
@@ -2554,7 +2883,7 @@ msgid "You do not have permission to add licenses."
 msgstr ""
 
 #: src/Admin/LicenseAdmin.php:251
-#: src/Admin/LicenseDetail.php:836
+#: src/Admin/LicenseDetail.php:841
 msgid "Add license manually"
 msgstr ""
 
@@ -2598,6 +2927,10 @@ msgstr ""
 
 #: src/Admin/LicenseAdmin.php:419
 #: src/Admin/LicenseBulkActions.php:208
+#: src/Admin/PriceChangeAdmin.php:150
+#: src/Admin/PriceChangeAdmin.php:263
+#: src/Admin/PriceChangeAdmin.php:286
+#: src/Admin/PriceChangeAdmin.php:306
 #: src/Admin/RenewalReviewAdmin.php:168
 #: src/Admin/RenewalReviewAdmin.php:303
 msgid "You do not have permission to change licenses."
@@ -2698,22 +3031,6 @@ msgid "Done:"
 msgstr ""
 
 #: src/Admin/LicenseBulkActions.php:556
-#: src/Admin/LicenseDetail.php:201
-#: src/Admin/LicenseDetail.php:541
-#: src/Admin/LicenseDetail.php:595
-#: src/Admin/LicenseDetail.php:624
-#: src/Admin/LicenseListTable.php:101
-#: src/Admin/ReleaseAdmin.php:124
-#: src/Admin/Settings.php:541
-#: src/Client/Messages.php:218
-#: src/Privacy/PersonalData.php:363
-#: src/Privacy/PersonalData.php:544
-#: templates/emails/plain/wplc-license-blocked.php:43
-#: templates/emails/wplc-license-blocked.php:43
-msgid "Status"
-msgstr ""
-
-#: src/Admin/LicenseBulkActions.php:556
 msgid "Skipped because"
 msgstr ""
 
@@ -2728,7 +3045,7 @@ msgid "License %1$s (#%2$d)"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:80
-#: src/Admin/LicenseDetail.php:837
+#: src/Admin/LicenseDetail.php:842
 #: src/Admin/LicenseListTable.php:272
 #: src/Admin/RenewalReviewAdmin.php:173
 msgid "All licenses"
@@ -2761,7 +3078,7 @@ msgid "None (added manually)"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:200
-#: src/Admin/LicenseDetail.php:860
+#: src/Admin/LicenseDetail.php:865
 #: src/Privacy/PersonalData.php:362
 #: templates/emails/plain/wplc-cancellation-confirmed.php:40
 #: templates/emails/plain/wplc-expiry-reminder.php:47
@@ -2771,6 +3088,8 @@ msgstr ""
 #: templates/emails/plain/wplc-license-renewed.php:36
 #: templates/emails/plain/wplc-payment-failed.php:39
 #: templates/emails/plain/wplc-payment-method-missing.php:37
+#: templates/emails/plain/wplc-price-change-withdrawn.php:37
+#: templates/emails/plain/wplc-price-change.php:40
 #: templates/emails/plain/wplc-renewal-notice.php:46
 #: templates/emails/wplc-cancellation-confirmed.php:40
 #: templates/emails/wplc-expiry-reminder.php:47
@@ -2780,13 +3099,15 @@ msgstr ""
 #: templates/emails/wplc-license-renewed.php:36
 #: templates/emails/wplc-payment-failed.php:39
 #: templates/emails/wplc-payment-method-missing.php:37
+#: templates/emails/wplc-price-change-withdrawn.php:37
+#: templates/emails/wplc-price-change.php:40
 #: templates/emails/wplc-renewal-notice.php:46
 msgid "Plan"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:202
 #: src/Privacy/PersonalData.php:369
-#: src/Privacy/PersonalData.php:595
+#: src/Privacy/PersonalData.php:605
 msgid "Billing interval"
 msgstr ""
 
@@ -2806,9 +3127,8 @@ msgid "Started"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:204
-#: src/Admin/LicenseDetail.php:878
+#: src/Admin/LicenseDetail.php:883
 #: src/Admin/LicenseListTable.php:102
-#: src/Client/Messages.php:219
 msgid "Paid until"
 msgstr ""
 
@@ -2826,6 +3146,7 @@ msgstr ""
 msgid "Live sites"
 msgstr ""
 
+#. translators: 1: active live sites, 2: allowed live sites.
 #. translators: 1: number of active live sites, 2: allowed number of live sites.
 #: src/Admin/LicenseDetail.php:209
 #: src/Admin/LicenseListTable.php:876
@@ -2851,7 +3172,7 @@ msgstr ""
 
 #: src/Admin/LicenseDetail.php:215
 #: src/Admin/LicenseListTable.php:105
-#: src/Privacy/PersonalData.php:547
+#: src/Privacy/PersonalData.php:557
 msgid "Created"
 msgstr ""
 
@@ -2901,7 +3222,7 @@ msgid "Change term"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:298
-#: src/Admin/LicenseDetail.php:390
+#: src/Admin/LicenseDetail.php:395
 msgid "New end date"
 msgstr ""
 
@@ -2919,7 +3240,7 @@ msgstr ""
 msgid "The customer still has an unpaid renewal order for this license. Changing the term does not cancel it: if the customer pays it later, the payment is accepted but may not extend the license. Cancel the order in WooCommerce first, or leave the term unchanged."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:335
+#: src/Admin/LicenseDetail.php:337
 #: src/Admin/LicenseListTable.php:363
 #: src/Billing/RecurringConsent.php:182
 #: src/Privacy/PersonalData.php:368
@@ -2928,279 +3249,273 @@ msgstr ""
 msgid "Automatic renewal"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:337
+#: src/Admin/LicenseDetail.php:339
 msgid "Cancel the automatic renewal of this license for the end of the paid period?"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:343
+#: src/Admin/LicenseDetail.php:345
 msgid "Cancel at the end of the paid period"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:344
+#: src/Admin/LicenseDetail.php:346
 msgid "The same cancellation the customer can make in their account: the license keeps running until the end of the paid period, nothing more is charged, and the customer gets a confirmation email. It can be withdrawn here until the period ends."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:352
+#: src/Admin/LicenseDetail.php:354
 msgid "Withdraw cancellation"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:353
+#: src/Admin/LicenseDetail.php:355
 msgid "The license is cancelled for the end of the paid period. Withdraw the cancellation only when the customer asked for it: the license is then charged automatically again with the stored payment method."
 msgstr ""
 
 #. translators: %s: currency code, for example EUR.
-#: src/Admin/LicenseDetail.php:364
+#: src/Admin/LicenseDetail.php:366
 #, php-format
 msgid "Renewal amount (%s)"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:368
+#: src/Admin/LicenseDetail.php:370
 msgid "Change renewal amount"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:369
-msgid "The amount of the next automatic renewals, in the same form as the product price in the shop (taxes are added as at purchase). It can only be lowered: the customer agreed to automatic charges of the current amount. Renewal orders that already exist keep their amount; change those on the order screen."
+#: src/Admin/LicenseDetail.php:371
+msgid "The amount of the next renewals, automatic and manual, in the same form as the product price in the shop (taxes are added as at purchase). It is the price agreed at purchase; a price change in the shop does not change it. It can only be lowered: the customer agreed to the current amount. Renewal orders that already exist keep their amount; change those on the order screen."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:384
+#: src/Admin/LicenseDetail.php:389
 msgid "Restore with a new end date"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:385
+#: src/Admin/LicenseDetail.php:390
 msgid "Restore this revoked license? The customer gets access again."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:394
+#: src/Admin/LicenseDetail.php:399
 msgid "Restore license"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:398
+#: src/Admin/LicenseDetail.php:403
 msgid "Use this to undo a revocation that happened by mistake, for example an order set to \"refunded\" by accident. The license becomes active until the end of that day. Automatic renewal stays off. No payment is taken."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:399
+#: src/Admin/LicenseDetail.php:404
 msgid "The paid period of this suspended license has ended. It becomes active again until the end of that day. No payment is taken."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:419
-#: src/Client/Messages.php:210
+#: src/Admin/LicenseDetail.php:424
 #: src/Notifications/Emails/LicenseIssuedEmail.php:65
 #: templates/emails/plain/wplc-license-issued.php:43
 #: templates/emails/wplc-license-issued.php:43
 msgid "License key"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:420
+#: src/Admin/LicenseDetail.php:425
 msgid "Issue a new key? The old key stops working immediately."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:424
+#: src/Admin/LicenseDetail.php:429
 msgid "Reason for the new key"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:426
-#: src/Admin/LicenseDetail.php:455
+#: src/Admin/LicenseDetail.php:431
+#: src/Admin/LicenseDetail.php:460
 msgid "Also release all activated sites"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:427
+#: src/Admin/LicenseDetail.php:432
 msgid "Issue new key"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:428
+#: src/Admin/LicenseDetail.php:433
 msgid "For a key that was published or passed on. The license keeps its term, its order and its renewal. Sites that are already activated keep working unless you release them; release unknown sites below. The customer finds the new key in their account."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:435
+#: src/Admin/LicenseDetail.php:440
 msgid "Reason for sending the key again"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:437
+#: src/Admin/LicenseDetail.php:442
 msgid "Send key email again"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:441
-#: src/Admin/LicenseDetail.php:457
+#: src/Admin/LicenseDetail.php:446
+#: src/Admin/LicenseDetail.php:462
 msgid "Change owner"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:442
+#: src/Admin/LicenseDetail.php:447
 msgid "Hand this license over to another customer?"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:447
+#: src/Admin/LicenseDetail.php:452
 msgid "New customer (user ID or email)"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:454
+#: src/Admin/LicenseDetail.php:459
 msgid "Issue a new key (the previous key stops working)"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:458
+#: src/Admin/LicenseDetail.php:463
 msgid "The new customer sees the license and its key in their account; the previous owner no longer sees it there. Automatic renewal is switched off, because the stored payment method belongs to the previous owner."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:459
+#: src/Admin/LicenseDetail.php:464
 msgid "The previous owner still knows the current key from their emails and could activate further sites with it. Keep \"Issue a new key\" ticked unless both sides agree otherwise; the new owner then gets the new key. Activated sites stay connected unless you release them."
 msgstr ""
 
 #. translators: %s: plan key the license changes to.
-#: src/Admin/LicenseDetail.php:472
+#: src/Admin/LicenseDetail.php:477
 #, php-format
 msgid "changes to %s with the next renewal"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:490
-#: src/Admin/LicenseDetail.php:523
+#: src/Admin/LicenseDetail.php:495
+#: src/Admin/LicenseDetail.php:528
 #: src/Billing/PlanUpgrade.php:812
 #: src/Billing/PlanUpgrade.php:837
 msgid "Change plan"
 msgstr ""
 
 #. translators: %s: plan key.
-#: src/Admin/LicenseDetail.php:497
+#: src/Admin/LicenseDetail.php:502
 #, php-format
 msgid "Scheduled for the next renewal: %s."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:500
+#: src/Admin/LicenseDetail.php:505
 msgid "Withdraw plan change"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:503
+#: src/Admin/LicenseDetail.php:508
 msgid "No other plan of this product with the same billing interval is mapped in the catalog."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:510
+#: src/Admin/LicenseDetail.php:515
 msgid "New plan"
 msgstr ""
 
 #. translators: 1: plan key, 2: product name, 3: price, 4: currency, 5: live sites.
-#: src/Admin/LicenseDetail.php:515
+#: src/Admin/LicenseDetail.php:520
 #, php-format
 msgid "%1$s — %2$s (%3$s %4$s, live sites: %5$s)"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:519
+#: src/Admin/LicenseDetail.php:524
 msgid "When"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:520
+#: src/Admin/LicenseDetail.php:525
 msgid "Now"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:520
+#: src/Admin/LicenseDetail.php:525
 msgid "With the next renewal"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:524
+#: src/Admin/LicenseDetail.php:529
 msgid "No payment is taken and nothing is refunded. The paid period stays. \"Now\" replaces the entitlements and the live site limit at once; sites above a lower limit stay active, but no new sites can be activated. Future renewals use the product of the new plan; an automatic renewal amount is never raised without the consent of the customer (it stays as it is for a more expensive plan)."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:534
+#: src/Admin/LicenseDetail.php:539
 msgid "Site activations"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:536
+#: src/Admin/LicenseDetail.php:541
 msgid "No site has been activated with this license."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:541
+#: src/Admin/LicenseDetail.php:546
 msgid "Versions"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:541
+#: src/Admin/LicenseDetail.php:546
 #: templates/myaccount/wplc-license.php:138
 #: templates/myaccount/wplc-license.php:147
 msgid "Activated"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:541
+#: src/Admin/LicenseDetail.php:546
 msgid "Last seen"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:541
-#: src/Admin/LicenseDetail.php:572
+#: src/Admin/LicenseDetail.php:546
+#: src/Admin/LicenseDetail.php:577
 msgctxt "verb: free the place of a site activation"
 msgid "Release"
 msgstr ""
 
 #. translators: 1: environment label, 2: activation ID of the live site.
-#: src/Admin/LicenseDetail.php:550
+#: src/Admin/LicenseDetail.php:555
 #, php-format
 msgid "%1$s (of #%2$d)"
 msgstr ""
 
 #. translators: 1: product version, 2: WordPress version, 3: PHP version.
-#: src/Admin/LicenseDetail.php:553
+#: src/Admin/LicenseDetail.php:558
 #, php-format
 msgid "Plugin %1$s, WP %2$s, PHP %3$s"
 msgstr ""
 
 #. translators: %s: site URL.
-#: src/Admin/LicenseDetail.php:564
+#: src/Admin/LicenseDetail.php:569
 #, php-format
 msgid "Release %s? The site loses its connection until it is activated again."
 msgstr ""
 
 #. translators: %s: site URL.
-#: src/Admin/LicenseDetail.php:570
+#: src/Admin/LicenseDetail.php:575
 #, php-format
 msgid "Reason for releasing %s"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:588
+#: src/Admin/LicenseDetail.php:593
 msgid "Renewals"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:590
+#: src/Admin/LicenseDetail.php:595
 msgid "No renewal has been scheduled or paid for this license."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:595
+#: src/Admin/LicenseDetail.php:600
 msgid "Period"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:595
+#: src/Admin/LicenseDetail.php:600
 #: src/Admin/RenewalReviewAdmin.php:190
-#: src/Privacy/PersonalData.php:586
+#: src/Privacy/PersonalData.php:596
 msgid "Order"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:595
+#: src/Admin/LicenseDetail.php:600
 msgid "Attempts"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:595
+#: src/Admin/LicenseDetail.php:600
 msgid "Next attempt"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:595
+#: src/Admin/LicenseDetail.php:600
 msgid "Grace ends"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:617
-#: src/Catalog/ProductEditor.php:342
-msgid "Entitlements"
-msgstr ""
-
-#: src/Admin/LicenseDetail.php:619
+#: src/Admin/LicenseDetail.php:624
 msgid "This license has no entitlements."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:624
+#: src/Admin/LicenseDetail.php:629
 msgid "Key"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:624
+#: src/Admin/LicenseDetail.php:629
 msgid "Value"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:624
+#: src/Admin/LicenseDetail.php:629
 msgid "Valid from"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:624
+#: src/Admin/LicenseDetail.php:629
 #: templates/emails/plain/wplc-expiry-reminder.php:49
 #: templates/emails/plain/wplc-license-expired.php:34
 #: templates/emails/plain/wplc-license-issued.php:44
@@ -3212,92 +3527,92 @@ msgstr ""
 msgid "Valid until"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:668
+#: src/Admin/LicenseDetail.php:673
 msgid "Audit log"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:670
+#: src/Admin/LicenseDetail.php:675
 msgid "No audit entries exist for this license."
 msgstr ""
 
 #. translators: %s: maximum number of entries.
-#: src/Admin/LicenseDetail.php:685
+#: src/Admin/LicenseDetail.php:690
 #, php-format
 msgid "Latest %s entry, newest first."
 msgid_plural "Latest %s entries, newest first."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/LicenseDetail.php:687
+#: src/Admin/LicenseDetail.php:692
 msgid "Open the complete audit log of this license"
 msgstr ""
 
 #. translators: %d: order ID.
-#: src/Admin/LicenseDetail.php:803
+#: src/Admin/LicenseDetail.php:808
 #: src/Admin/RenewalReviewAdmin.php:233
 #, php-format
 msgid "Order #%d"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:806
+#: src/Admin/LicenseDetail.php:811
 msgid "(not found)"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:839
+#: src/Admin/LicenseDetail.php:844
 msgid "Use this for goodwill or migrated customers. No order is created and nothing is charged. The license does not renew automatically; the customer can renew it in their account."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:842
+#: src/Admin/LicenseDetail.php:847
 msgid "There is no active plan in the catalog yet. Mark a WooCommerce product as a license product first."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:858
+#: src/Admin/LicenseDetail.php:863
 msgid "User ID or email address of an existing user account."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:861
+#: src/Admin/LicenseDetail.php:866
 msgid "Select a plan"
 msgstr ""
 
 #. translators: 1: product name, 2: plan key, 3: billing interval ("monthly" or "yearly"), 4: number of live sites.
-#: src/Admin/LicenseDetail.php:867
+#: src/Admin/LicenseDetail.php:872
 #, php-format
 msgid "%1$s — %2$s (%3$s, %4$d live site)"
 msgid_plural "%1$s — %2$s (%3$s, %4$d live sites)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/LicenseDetail.php:870
+#: src/Admin/LicenseDetail.php:875
 msgid "monthly"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:870
+#: src/Admin/LicenseDetail.php:875
 msgid "yearly"
 msgstr ""
 
 #. translators: %s: site timezone, for example Europe/Berlin.
-#: src/Admin/LicenseDetail.php:882
+#: src/Admin/LicenseDetail.php:887
 #, php-format
 msgid "The license runs until the end of that day in the site timezone (%s)."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:887
+#: src/Admin/LicenseDetail.php:892
 msgid "Stored in the audit log. Do not enter license keys or passwords."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:889
+#: src/Admin/LicenseDetail.php:894
 msgid "Email"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:890
+#: src/Admin/LicenseDetail.php:895
 msgid "Do not send the license email with the key"
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:891
+#: src/Admin/LicenseDetail.php:896
 msgid "Tick this for a migrated customer who already has a key or should not get an email now. The customer finds the key in their account either way."
 msgstr ""
 
-#: src/Admin/LicenseDetail.php:894
+#: src/Admin/LicenseDetail.php:899
 msgid "Add license"
 msgstr ""
 
@@ -3419,6 +3734,119 @@ msgstr ""
 msgid "issued for this order"
 msgstr ""
 
+#: src/Admin/PriceChangeAdmin.php:53
+#: src/Admin/PriceChangeAdmin.php:54
+#: src/Admin/PriceChangeAdmin.php:59
+#: src/Admin/PriceChangeAdmin.php:157
+msgid "Renewal price change"
+msgstr ""
+
+#. translators: %d: notice period in days.
+#: src/Admin/PriceChangeAdmin.php:70
+#, php-format
+msgid "The customer gets an email with the current price, the new price, the date and how to cancel. Until that date every renewal is charged at the current price. The new price is only charged when the email was sent at least %d days before; otherwise the current price stays and the diagnostics report it. An announcement can be withdrawn until it takes effect. Lowering a price needs no announcement (\"Change renewal amount\")."
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:91
+msgid "New renewal price with notice"
+msgstr ""
+
+#. translators: 1: amount, 2: currency, 3: date.
+#: src/Admin/PriceChangeAdmin.php:97
+#, php-format
+msgid "Announced: %1$s %2$s from %3$s."
+msgstr ""
+
+#. translators: 1: date and time the notice was sent, 2: date from which the new price is charged.
+#: src/Admin/PriceChangeAdmin.php:108
+#, php-format
+msgid "The customer was notified on %1$s. The new price is charged from %2$s."
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:114
+msgid "The notice email has not been sent yet (email switched off, mailer refused it, or billing is paused). It is tried again every day; until it is sent, the current price stays."
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:123
+msgid "Withdraw announcement"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:124
+msgid "The license keeps its current price. A customer who was notified gets an email that the change is off."
+msgstr ""
+
+#. translators: %s: currency code, for example EUR.
+#: src/Admin/PriceChangeAdmin.php:134
+#, php-format
+msgid "New renewal amount (%s)"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:136
+#: src/Admin/PriceChangeAdmin.php:186
+msgid "Applies from (UTC)"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:140
+#: src/Admin/PriceChangeAdmin.php:190
+msgid "Announce new price"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:158
+msgid "Announce a new renewal price for every active license of a product and plan whose price is lower today. Licenses that already pay the new price or more, licenses in another currency and licenses with an announcement are skipped."
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:161
+msgid "There are no active licenses."
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:166
+#: src/Admin/PriceChangeAdmin.php:183
+msgid "Plan key"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:166
+#: src/Admin/PriceChangeAdmin.php:184
+#: templates/emails/plain/wplc-renewal-notice.php:50
+#: templates/emails/wplc-renewal-notice.php:50
+msgid "Currency"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:166
+msgid "Active licenses"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:166
+msgid "Renewal amounts today"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:166
+msgid "With an announcement"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:178
+msgid "Announce for a plan"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:185
+msgid "New renewal amount"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:185
+msgid "In the same form as the product price in the shop (taxes are added as at purchase)."
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:188
+msgid "Confirmation"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:188
+msgid "Send the announcement email to every customer of these licenses now"
+msgstr ""
+
+#: src/Admin/PriceChangeAdmin.php:191
+msgid "Up to 500 licenses are handled per submission. When more remain, submit the form again: licenses that already have the announcement are skipped."
+msgstr ""
+
 #: src/Admin/ReleaseAdmin.php:52
 #: src/Admin/ReleaseAdmin.php:53
 #: src/Admin/ReleaseAdmin.php:58
@@ -3427,7 +3855,7 @@ msgid "License releases"
 msgstr ""
 
 #: src/Admin/ReleaseAdmin.php:83
-#: src/Admin/ReleaseAdmin.php:297
+#: src/Admin/ReleaseAdmin.php:302
 msgid "You do not have permission to manage releases."
 msgstr ""
 
@@ -3450,12 +3878,12 @@ msgid "Plugin folder: not set yet. The first published package defines it."
 msgstr ""
 
 #: src/Admin/ReleaseAdmin.php:125
-#: src/Privacy/PersonalData.php:626
+#: src/Privacy/PersonalData.php:636
 msgid "Package"
 msgstr ""
 
 #: src/Admin/ReleaseAdmin.php:126
-#: src/Admin/ReleaseAdmin.php:486
+#: src/Admin/ReleaseAdmin.php:491
 msgid "SHA-256"
 msgstr ""
 
@@ -3464,8 +3892,8 @@ msgid "Requires"
 msgstr ""
 
 #: src/Admin/ReleaseAdmin.php:128
-#: src/Admin/ReleaseAdmin.php:530
-#: src/Admin/ReleaseAdmin.php:592
+#: src/Admin/ReleaseAdmin.php:535
+#: src/Admin/ReleaseAdmin.php:597
 msgid "Published"
 msgstr ""
 
@@ -3479,271 +3907,272 @@ msgstr ""
 msgid "Draft release created. Publish it to make it available."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:213
+#: src/Admin/ReleaseAdmin.php:218
 msgid "The manifest upload failed or the file is larger than 1 MB."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:221
+#: src/Admin/ReleaseAdmin.php:226
 msgid "Upload a manifest file or paste the manifest JSON."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:232
+#: src/Admin/ReleaseAdmin.php:237
 msgid "Manifest imported as a draft release. Publish it to make it available."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:253
+#: src/Admin/ReleaseAdmin.php:258
 msgid "Release published."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:264
+#: src/Admin/ReleaseAdmin.php:269
 msgid "Release withdrawn. Installations are now offered the next highest published version."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:275
+#: src/Admin/ReleaseAdmin.php:280
 msgid "Draft release deleted."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:329
+#: src/Admin/ReleaseAdmin.php:334
 msgid "Releases with a package URL are not delivered: without a resolver that returns a short-lived signed URL, every licensed customer would learn the permanent address and could keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md)."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:329
+#: src/Admin/ReleaseAdmin.php:334
 msgid "Releases with a package URL are delivered by redirecting licensed installations to that URL. Without a resolver that returns a short-lived signed URL, every licensed customer learns the permanent address and can keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md)."
 msgstr ""
 
 #. translators: %s: PHP version.
-#: src/Admin/ReleaseAdmin.php:346
+#: src/Admin/ReleaseAdmin.php:351
 #, php-format
 msgid "PHP %s"
 msgstr ""
 
 #. translators: %s: WordPress version.
-#: src/Admin/ReleaseAdmin.php:350
+#: src/Admin/ReleaseAdmin.php:355
 #, php-format
 msgid "WP %s"
 msgstr ""
 
 #. translators: %s: WordPress version.
-#: src/Admin/ReleaseAdmin.php:354
+#: src/Admin/ReleaseAdmin.php:359
 #, php-format
 msgid "tested up to WP %s"
 msgstr ""
 
 #. translators: %s: version of the free core plugin.
-#: src/Admin/ReleaseAdmin.php:358
+#: src/Admin/ReleaseAdmin.php:363
 #, php-format
 msgid "core plugin %s"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:366
+#: src/Admin/ReleaseAdmin.php:371
 msgid "current"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:371
+#: src/Admin/ReleaseAdmin.php:376
 msgid "Uploaded file (private storage)"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:375
+#: src/Admin/ReleaseAdmin.php:380
 msgid "Host not allowed: add it under License settings before publishing."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:389
+#: src/Admin/ReleaseAdmin.php:394
 msgid "Publish again"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:389
+#: src/Admin/ReleaseAdmin.php:394
 msgid "Publish"
 msgstr ""
 
 #. translators: %s: product key and version.
-#: src/Admin/ReleaseAdmin.php:392
+#: src/Admin/ReleaseAdmin.php:397
 #, php-format
 msgid "Publish %s? Licensed installations will be offered this package as an update."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:399
+#: src/Admin/ReleaseAdmin.php:404
 msgid "Withdraw"
 msgstr ""
 
 #. translators: %s: product key and version.
-#: src/Admin/ReleaseAdmin.php:402
+#: src/Admin/ReleaseAdmin.php:407
 #, php-format
 msgid "Withdraw %s? It is no longer offered; installations that already have it keep it."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:409
+#: src/Admin/ReleaseAdmin.php:414
 msgid "Delete draft"
 msgstr ""
 
 #. translators: %s: product key and version.
-#: src/Admin/ReleaseAdmin.php:412
+#: src/Admin/ReleaseAdmin.php:417
 #, php-format
 msgid "Delete the draft %s and its uploaded file? This cannot be undone."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:435
+#: src/Admin/ReleaseAdmin.php:440
 msgid "Reason (required)"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:447
+#: src/Admin/ReleaseAdmin.php:452
 msgid "Add release"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:449
+#: src/Admin/ReleaseAdmin.php:454
 msgid "No licensed products exist yet. Map a WooCommerce product to a license plan first."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:468
+#: src/Admin/ReleaseAdmin.php:473
 msgid "Three numbers, optionally followed by -alpha, -beta or -rc and a number: 1.2.3, 1.2.3-beta1, 1.2.3-rc2. It must equal the \"Version:\" header of the plugin in the ZIP."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:470
+#: src/Admin/ReleaseAdmin.php:475
 msgid "Channel"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:471
+#: src/Admin/ReleaseAdmin.php:476
 msgid "Stable: all installations"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:472
+#: src/Admin/ReleaseAdmin.php:477
 msgid "Beta: only installations that asked for pre-releases"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:475
+#: src/Admin/ReleaseAdmin.php:480
 msgid "Package ZIP"
 msgstr ""
 
 #. translators: %s: maximum file size, for example "50 MB".
-#: src/Admin/ReleaseAdmin.php:480
+#: src/Admin/ReleaseAdmin.php:485
 #, php-format
 msgid "Stored in a private directory and delivered through short-lived links. The ZIP must contain exactly one top-level folder (the plugin folder). The SHA-256 checksum is computed automatically. Maximum size: %s."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:485
+#: src/Admin/ReleaseAdmin.php:490
 msgid "or package URL"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:485
+#: src/Admin/ReleaseAdmin.php:490
 msgid "HTTPS URL on an allowed package host (License settings → Additional trusted package hosts). Ignored when a ZIP is uploaded. The file is downloaded once and checked when the release is published."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:486
+#: src/Admin/ReleaseAdmin.php:491
 msgid "Required for a package URL: 64 hexadecimal characters. Compute it with \"sha256sum file.zip\" (Linux), \"shasum -a 256 file.zip\" (macOS) or \"Get-FileHash file.zip\" (Windows PowerShell)."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:487
+#: src/Admin/ReleaseAdmin.php:492
 msgid "Requires PHP"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:487
-#: src/Admin/ReleaseAdmin.php:488
+#: src/Admin/ReleaseAdmin.php:492
+#: src/Admin/ReleaseAdmin.php:493
 msgid "Empty: taken from the plugin header of an uploaded ZIP."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:488
+#: src/Admin/ReleaseAdmin.php:493
 msgid "Requires WordPress"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:489
+#: src/Admin/ReleaseAdmin.php:494
 msgid "Tested up to WordPress"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:490
+#: src/Admin/ReleaseAdmin.php:495
 msgid "Requires core plugin"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:490
+#: src/Admin/ReleaseAdmin.php:495
 msgid "Minimum version of the free core plugin this add-on release needs. Installations that report an older core plugin are not offered this release."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:492
+#: src/Admin/ReleaseAdmin.php:497
 msgid "Release notes"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:495
+#: src/Admin/ReleaseAdmin.php:500
 msgid "Create draft release"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:504
+#: src/Admin/ReleaseAdmin.php:509
 msgid "Import release manifest"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:505
+#: src/Admin/ReleaseAdmin.php:510
 msgid "Import a manifest JSON created by tools/create-release-manifest.php. The package stays at its HTTPS URL; the release is created as a draft."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:509
+#: src/Admin/ReleaseAdmin.php:514
 msgid "Manifest file"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:511
+#: src/Admin/ReleaseAdmin.php:516
 msgid "or paste the manifest JSON"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:513
+#: src/Admin/ReleaseAdmin.php:518
 msgid "Import manifest"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:528
+#: src/Admin/ReleaseAdmin.php:533
 msgid "Draft created"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:529
+#: src/Admin/ReleaseAdmin.php:534
 msgid "Changed"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:531
-#: src/Admin/ReleaseAdmin.php:593
+#: src/Admin/ReleaseAdmin.php:536
+#: src/Admin/ReleaseAdmin.php:598
 msgid "Withdrawn"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:532
+#: src/Admin/ReleaseAdmin.php:537
 msgid "Draft deleted"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:533
+#: src/Admin/ReleaseAdmin.php:538
 msgid "Plugin folder set"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:535
+#: src/Admin/ReleaseAdmin.php:540
 msgid "Release log"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:536
+#: src/Admin/ReleaseAdmin.php:541
 msgid "The last 50 changes to releases."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:539
+#: src/Admin/ReleaseAdmin.php:544
 msgid "Date"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:540
+#: src/Admin/ReleaseAdmin.php:545
 msgid "User"
 msgstr ""
 
 #. translators: %d: user ID.
-#: src/Admin/ReleaseAdmin.php:551
+#: src/Admin/ReleaseAdmin.php:556
 #, php-format
 msgid "User #%d"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:551
+#. translators: %d: user ID.
+#: src/Admin/ReleaseAdmin.php:556
 msgid "System / WP-CLI"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:591
+#: src/Admin/ReleaseAdmin.php:596
 msgid "Draft"
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:628
+#: src/Admin/ReleaseAdmin.php:633
 msgid "Uploaded release packages are publicly readable."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:629
+#: src/Admin/ReleaseAdmin.php:634
 msgid "The web server delivered a test file from the private package directory, so it ignores the generated .htaccess (for example nginx). Only the random file names protect the ZIPs. Move the directory outside the web root with WPLC_PACKAGE_STORAGE_DIR or add a deny rule."
 msgstr ""
 
-#: src/Admin/ReleaseAdmin.php:630
+#: src/Admin/ReleaseAdmin.php:635
 msgid "Show the rule and check again"
 msgstr ""
 
@@ -3804,8 +4233,8 @@ msgstr ""
 
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Notifications/Emails/LicenseEmail.php:170
-#: src/Notifications/RenewalTerms.php:262
-#: src/Privacy/PersonalData.php:552
+#: src/Notifications/RenewalTerms.php:265
+#: src/Privacy/PersonalData.php:562
 #: templates/emails/plain/wplc-renewal-notice.php:49
 #: templates/emails/wplc-renewal-notice.php:49
 msgid "Amount"
@@ -3874,263 +4303,283 @@ msgid "You do not have permission to extend licenses."
 msgstr ""
 
 #: src/Admin/Settings.php:69
-#: src/Admin/Settings.php:642
+#: src/Admin/Settings.php:669
 msgid "Getting started"
 msgstr ""
 
-#: src/Admin/Settings.php:272
-#: src/Admin/Settings.php:273
-#: src/Admin/Settings.php:278
-#: src/Admin/Settings.php:537
+#: src/Admin/Settings.php:274
+#: src/Admin/Settings.php:275
+#: src/Admin/Settings.php:280
+#: src/Admin/Settings.php:564
 msgid "License settings"
 msgstr ""
 
-#: src/Admin/Settings.php:297
+#: src/Admin/Settings.php:299
 msgid "Updates"
 msgstr ""
 
-#: src/Admin/Settings.php:300
+#: src/Admin/Settings.php:302
 msgid "Additional trusted package hosts"
 msgstr ""
 
-#: src/Admin/Settings.php:307
+#: src/Admin/Settings.php:311
+msgid "Catalog file of release packages"
+msgstr ""
+
+#: src/Admin/Settings.php:317
 msgid "Customer emails"
 msgstr ""
 
-#: src/Admin/Settings.php:310
+#: src/Admin/Settings.php:320
 msgid "Reminder lead days"
 msgstr ""
 
-#: src/Admin/Settings.php:318
+#: src/Admin/Settings.php:328
 msgid "Renewal notice lead days"
 msgstr ""
 
-#: src/Admin/Settings.php:326
+#: src/Admin/Settings.php:336
+msgid "Price change notice period"
+msgstr ""
+
+#: src/Admin/Settings.php:344
 msgid "Sender note"
 msgstr ""
 
 #. translators: %d: number of rejected lines.
-#: src/Admin/Settings.php:367
+#: src/Admin/Settings.php:385
 #, php-format
 msgid "%d package host line was not a valid host name and was ignored. Enter host names only, without https:// or a path."
 msgid_plural "%d package host lines were not valid host names and were ignored. Enter host names only, without https:// or a path."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Settings.php:389
+#: src/Admin/Settings.php:407
 msgid "The trusted package hosts were not changed: only an administrator may change them."
 msgstr ""
 
-#: src/Admin/Settings.php:391
+#: src/Admin/Settings.php:409
 msgid "The trusted package hosts were not changed: someone else changed them after you opened this page. Check the list below and save again."
 msgstr ""
 
-#: src/Admin/Settings.php:534
+#: src/Admin/Settings.php:561
 msgid "You do not have permission to change license settings."
 msgstr ""
 
-#: src/Admin/Settings.php:548
+#: src/Admin/Settings.php:575
 #: templates/myaccount/wplc-license.php:58
 msgid "Copied"
 msgstr ""
 
-#: src/Admin/Settings.php:548
+#: src/Admin/Settings.php:575
 msgid "Copying failed. Select the address and copy it by hand."
 msgstr ""
 
-#: src/Admin/Settings.php:548
+#: src/Admin/Settings.php:575
 #: templates/myaccount/wplc-license.php:58
 msgid "Copy"
 msgstr ""
 
-#: src/Admin/Settings.php:565
+#: src/Admin/Settings.php:592
 msgid "Secrets are never stored in the database. Define them as constants in wp-config.php."
 msgstr ""
 
-#: src/Admin/Settings.php:592
+#: src/Admin/Settings.php:619
 msgid "Define the secrets in wp-config.php"
 msgstr ""
 
-#: src/Admin/Settings.php:593
+#: src/Admin/Settings.php:620
 msgid "Set WPLC_LICENSE_KEY_SECRETS (with WPLC_LICENSE_KEY_ID) and WPLC_INSTALLATION_ENCRYPTION_KEYS before the first license is sold. Keys issued without them depend on the WordPress salts and stop working when the salts change."
 msgstr ""
 
-#: src/Admin/Settings.php:600
+#: src/Admin/Settings.php:627
 msgid "Turn a product into a license product"
 msgstr ""
 
-#: src/Admin/Settings.php:601
+#: src/Admin/Settings.php:628
 msgid "Edit the WooCommerce product, tick \"License product\" and enter the license product key and a plan key. The product key is the identifier the premium add-on asks the server for (for example voucher-captain-pro); every plan of it (for example single or agency, one per product or variation) has its own plan key. Keep both unchanged once the product is sold."
 msgstr ""
 
-#: src/Admin/Settings.php:604
+#: src/Admin/Settings.php:631
 msgid "Open products"
 msgstr ""
 
-#: src/Admin/Settings.php:608
+#: src/Admin/Settings.php:635
 msgid "Connect the Stripe webhook"
 msgstr ""
 
-#: src/Admin/Settings.php:609
+#: src/Admin/Settings.php:636
 msgid "In the Stripe dashboard, add an endpoint with the webhook URL shown under \"Status\" below and the events listed in the documentation (docs/STRIPE-WEBHOOKS.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected."
 msgstr ""
 
-#: src/Admin/Settings.php:616
+#: src/Admin/Settings.php:643
 msgid "Publish the first release"
 msgstr ""
 
-#: src/Admin/Settings.php:617
+#: src/Admin/Settings.php:644
 msgid "Upload the add-on package and publish it, so that licensed sites can download it and receive updates."
 msgstr ""
 
-#: src/Admin/Settings.php:620
+#: src/Admin/Settings.php:647
 msgid "Open license releases"
 msgstr ""
 
-#: src/Admin/Settings.php:624
+#: src/Admin/Settings.php:651
 msgid "Make a test purchase"
 msgstr ""
 
-#: src/Admin/Settings.php:625
+#: src/Admin/Settings.php:652
 msgid "Buy the product with a test customer, check the license under Licenses and activate it in the add-on on a test site. The diagnostics page shows whether the daily background run works."
 msgstr ""
 
-#: src/Admin/Settings.php:647
+#: src/Admin/Settings.php:674
 msgid "Done"
 msgstr ""
 
-#: src/Admin/Settings.php:649
+#: src/Admin/Settings.php:676
 msgid "To do"
 msgstr ""
 
-#: src/Admin/Settings.php:670
+#: src/Admin/Settings.php:697
 msgid "Database schema version"
 msgstr ""
 
 #. translators: 1: installed schema version, 2: schema version expected by the code.
-#: src/Admin/Settings.php:672
+#: src/Admin/Settings.php:699
 #, php-format
 msgid "%1$s (expected: %2$s)"
 msgstr ""
 
-#: src/Admin/Settings.php:680
+#: src/Admin/Settings.php:707
 msgid "A webhook signing secret is configured in wp-config.php."
 msgstr ""
 
-#: src/Admin/Settings.php:680
+#: src/Admin/Settings.php:707
 msgid "No webhook signing secret is configured (WPLC_STRIPE_WEBHOOK_SECRET in wp-config.php). Stripe events are rejected."
 msgstr ""
 
-#: src/Admin/Settings.php:684
+#: src/Admin/Settings.php:711
 msgid "Stripe webhook URL"
 msgstr ""
 
-#: src/Admin/Settings.php:686
+#: src/Admin/Settings.php:713
 msgid "Enter this URL as the endpoint in the Stripe dashboard."
 msgstr ""
 
-#: src/Admin/Settings.php:695
+#: src/Admin/Settings.php:722
 msgid "License key secret"
 msgstr ""
 
-#: src/Admin/Settings.php:697
+#: src/Admin/Settings.php:724
 msgid "Not configured. Keys are derived from the WordPress salts; rotating the salts invalidates every issued key. Define WPLC_LICENSE_KEY_SECRETS."
 msgstr ""
 
-#: src/Admin/Settings.php:698
-#: src/Admin/Settings.php:711
+#: src/Admin/Settings.php:725
+#: src/Admin/Settings.php:738
 msgid "Configured through a constant."
 msgstr ""
 
-#: src/Admin/Settings.php:708
+#: src/Admin/Settings.php:735
 msgid "Installation secret encryption key"
 msgstr ""
 
-#: src/Admin/Settings.php:710
+#: src/Admin/Settings.php:737
 msgid "Not configured. The WordPress salts are used; define WPLC_INSTALLATION_ENCRYPTION_KEYS."
 msgstr ""
 
-#: src/Admin/Settings.php:722
+#: src/Admin/Settings.php:749
 msgid "Some customers see \"not available\" instead of their key. The secret or the salts were changed. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS, or run \"wp wplc recover-license-key-ids\"."
 msgstr ""
 
-#: src/Admin/Settings.php:731
+#: src/Admin/Settings.php:758
 msgid "Available. Customers can opt in at checkout."
 msgstr ""
 
 #. translators: %s: reason, a full sentence.
-#: src/Admin/Settings.php:733
+#: src/Admin/Settings.php:760
 #, php-format
 msgid "Switched off. %s Customers are not offered automatic renewal and renew manually in their account."
 msgstr ""
 
-#: src/Admin/Settings.php:740
+#: src/Admin/Settings.php:767
 msgid "Unavailable. Scheduled work falls back to WP-Cron, which is less reliable."
 msgstr ""
 
-#: src/Admin/Settings.php:746
+#: src/Admin/Settings.php:773
 msgid "Classic checkout"
 msgstr ""
 
-#: src/Admin/Settings.php:749
+#: src/Admin/Settings.php:776
 msgid "Block checkout. The option for automatic renewal is offered as an additional checkout field."
 msgstr ""
 
-#: src/Admin/Settings.php:750
+#: src/Admin/Settings.php:777
 msgid "The checkout page uses the block checkout, but this WooCommerce version has no additional checkout fields. Licenses bought here never renew automatically."
 msgstr ""
 
-#: src/Admin/Settings.php:753
+#: src/Admin/Settings.php:780
 msgid "Checkout type"
 msgstr ""
 
-#: src/Admin/Settings.php:759
+#: src/Admin/Settings.php:786
 msgid "Renewal grace period"
 msgstr ""
 
 #. translators: %d: number of days.
-#: src/Admin/Settings.php:761
+#: src/Admin/Settings.php:788
 #, php-format
 msgid "%d day"
 msgid_plural "%d days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Settings.php:767
+#: src/Admin/Settings.php:794
 msgid "Anonymisation of ended licenses"
 msgstr ""
 
 #. translators: %s: number of days.
-#: src/Admin/Settings.php:770
+#: src/Admin/Settings.php:797
 #, php-format
 msgid "%s day after the end of the license"
 msgid_plural "%s days after the end of the license"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Settings.php:771
+#: src/Admin/Settings.php:798
 msgid "Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice with the filter wplc_retention_days (key anonymize_licenses)."
 msgstr ""
 
-#: src/Admin/Settings.php:823
+#: src/Admin/Settings.php:850
 msgid "Only an administrator may change the trusted package hosts, because update packages for all customer sites are delivered from them."
 msgstr ""
 
 #. translators: %s: host name of this site.
-#: src/Admin/Settings.php:832
+#: src/Admin/Settings.php:859
 #, php-format
 msgid "One host name per line, for example downloads.example.com. Update packages are only delivered from HTTPS URLs on these hosts. This site (%s) is always trusted."
 msgstr ""
 
-#: src/Admin/Settings.php:846
+#: src/Admin/Settings.php:873
 msgid "Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7."
 msgstr ""
 
-#: src/Admin/Settings.php:856
+#: src/Admin/Settings.php:884
+msgid "Import the catalog file from release packages"
+msgstr ""
+
+#: src/Admin/Settings.php:885
+msgid "When a release is created from a ZIP, the file wplc-catalog.json in the plugin folder of the package is checked and imported into the license catalog. The release is created in any case; a file that is invalid or describes another product is not imported and reported. Plans and licenses are never changed."
+msgstr ""
+
+#: src/Admin/Settings.php:895
+msgid "Days between the email that announces a higher renewal price for an existing license and the first renewal at that price. Default: 60, at least 30. Have the period and the wording of the email checked by a lawyer."
+msgstr ""
+
+#: src/Admin/Settings.php:905
 msgid "Days before an automatic charge on which the customer is told the date and the amount. Default: 7. A license is only charged after this email was accepted for sending; otherwise the charge is postponed and reported under Diagnostics."
 msgstr ""
 
-#: src/Admin/Settings.php:866
+#: src/Admin/Settings.php:915
 msgid "Optional short text that license emails may show below their content, for example a support contact."
 msgstr ""
 
@@ -4180,6 +4629,7 @@ msgstr ""
 msgid "Plan upgrade"
 msgstr ""
 
+#. translators: %s: end of the paid period (date).
 #: src/Billing/PlanUpgrade.php:309
 #, php-format
 msgid "Prorated price for the rest of the paid period until %s"
@@ -4299,42 +4749,6 @@ msgstr ""
 msgid "You asked for automatic renewal, but the payment method you chose does not support it. Your license will not renew automatically and ends after the paid term. You can renew it in your account before it ends."
 msgstr ""
 
-#. translators: 1: license reference such as WPLC-1A2B3C4D, 2: date.
-#: src/Billing/RenewInsteadNotice.php:205
-#, php-format
-msgid "Your license %1$s for this product expired on %2$s."
-msgstr ""
-
-#. translators: 1: license reference such as WPLC-1A2B3C4D, 2: date.
-#: src/Billing/RenewInsteadNotice.php:208
-#, php-format
-msgid "You already have the license %1$s for this product, valid through %2$s."
-msgstr ""
-
-#: src/Billing/RenewInsteadNotice.php:210
-msgid "Buying it again adds a second license with a new key."
-msgstr ""
-
-#: src/Billing/RenewInsteadNotice.php:212
-msgid "To keep your key and your sites, renew the existing license instead."
-msgstr ""
-
-#: src/Billing/RenewInsteadNotice.php:215
-msgid "The existing license renews automatically."
-msgstr ""
-
-#: src/Billing/RenewInsteadNotice.php:313
-msgid "Renew instead"
-msgstr ""
-
-#: src/Billing/RenewInsteadNotice.php:315
-msgid "View your licenses"
-msgstr ""
-
-#: src/Billing/RenewInsteadNotice.php:317
-msgid "Dismiss"
-msgstr ""
-
 #. translators: 1: old net amount, 2: new net amount.
 #: src/Billing/RenewalOrder.php:142
 #, php-format
@@ -4422,12 +4836,12 @@ msgid "Existing renewal orders could not be checked safely."
 msgstr ""
 
 #. translators: %s: product name.
-#: src/Billing/RenewalOrder.php:868
+#: src/Billing/RenewalOrder.php:872
 #, php-format
 msgid "%s (license renewal)"
 msgstr ""
 
-#: src/Billing/RenewalOrder.php:878
+#: src/Billing/RenewalOrder.php:882
 #: src/License/LicenseIssuer.php:242
 msgid "Service period (UTC)"
 msgstr ""
@@ -4559,6 +4973,42 @@ msgstr ""
 msgid "The renewal is charged automatically again"
 msgstr ""
 
+#. translators: 1: license reference such as WPLC-1A2B3C4D, 2: date.
+#: src/Billing/RenewInsteadNotice.php:205
+#, php-format
+msgid "Your license %1$s for this product expired on %2$s."
+msgstr ""
+
+#. translators: 1: license reference such as WPLC-1A2B3C4D, 2: date.
+#: src/Billing/RenewInsteadNotice.php:208
+#, php-format
+msgid "You already have the license %1$s for this product, valid through %2$s."
+msgstr ""
+
+#: src/Billing/RenewInsteadNotice.php:210
+msgid "Buying it again adds a second license with a new key."
+msgstr ""
+
+#: src/Billing/RenewInsteadNotice.php:212
+msgid "To keep your key and your sites, renew the existing license instead."
+msgstr ""
+
+#: src/Billing/RenewInsteadNotice.php:215
+msgid "The existing license renews automatically."
+msgstr ""
+
+#: src/Billing/RenewInsteadNotice.php:313
+msgid "Renew instead"
+msgstr ""
+
+#: src/Billing/RenewInsteadNotice.php:315
+msgid "View your licenses"
+msgstr ""
+
+#: src/Billing/RenewInsteadNotice.php:317
+msgid "Dismiss"
+msgstr ""
+
 #: src/Billing/WithdrawalConsent.php:125
 msgid "I expressly agree that you start providing the license and the download before the withdrawal period ends. I am aware that I lose my right of withdrawal once the license has been provided."
 msgstr ""
@@ -4571,6 +5021,199 @@ msgstr ""
 #: src/Billing/WithdrawalConsent.php:328
 #, php-format
 msgid "Start of the license: on %1$s (UTC) you agreed: \"%2$s\""
+msgstr ""
+
+#: src/Catalog/Catalog.php:114
+msgid "The license product key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and needs 2 to 100 characters (for example voucher-captain)."
+msgstr ""
+
+#: src/Catalog/Catalog.php:116
+msgid "The license plan key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and may have up to 100 characters (for example business)."
+msgstr ""
+
+#: src/Catalog/Catalog.php:118
+msgid "The billing interval must be \"month\" or \"year\"."
+msgstr ""
+
+#: src/Catalog/Catalog.php:120
+msgid "The entitlements contain a value that cannot be stored (for example a number that is too large)."
+msgstr ""
+
+#: src/Catalog/Catalog.php:123
+msgid "The WooCommerce product does not exist."
+msgstr ""
+
+#: src/Catalog/Catalog.php:125
+msgid "The product needs a valid regular price before it can become a license product."
+msgstr ""
+
+#: src/Catalog/Catalog.php:127
+msgid "WooCommerce Subscriptions products cannot be license products: Subscriptions bills its own renewals and WP License Captain renews licenses itself, so the customer would be charged twice. Use a simple or variable product."
+msgstr ""
+
+#: src/Catalog/Catalog.php:129
+msgid "The license plan could not be written to the database."
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:174
+#: src/Catalog/ProductEditor.php:210
+msgid "License product"
+msgstr ""
+
+#. translators: 1: license product key, 2: license plan key.
+#: src/Catalog/ProductEditor.php:178
+#, php-format
+msgid "This product issues licenses for %1$s (plan %2$s). Only users who may manage the license catalog can change this."
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:204
+msgid "This product is marked as a license product but has no plan in the license catalog (for example after a copy or an import). Customers who buy it do not receive a license. Tick \"License product\" and save to create the plan."
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:214
+msgid "Issue or renew a WP License Captain license when this product is paid."
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:220
+msgid "License product key"
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:224
+msgid "Stable product identifier. Must match the key of the premium add-on: voucher-captain-pro, pass-captain-pro or affiliate-captain-pro. Lowercase letters, digits and hyphens only."
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:246
+msgid "License product name"
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:250
+msgid "Name of the license product as customers see it in their account and in emails. It is shared by all plans with the same license product key. Leave empty to keep the current name."
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:258
+msgid "License plan key"
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:262
+msgid "Identifier of this plan within the license product, for example single or agency; each plan (product or variation) of one license product needs its own. Licenses store it, so keep it unchanged once the plan is sold. Lowercase letters, digits and hyphens only."
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:272
+msgid "License billing interval"
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:283
+msgid "Live site limit"
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:296
+msgid "License support level"
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:299
+msgid "Community"
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:300
+msgid "Standard"
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:301
+msgid "Priority"
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:313
+msgid "Advanced: additional entitlements (JSON)"
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:317
+msgid "Optional JSON object for numeric limits and entitlement keys that are not in the list above. The live-site limit and support level are added automatically."
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:420
+msgid "WP License Captain: the license fields (product key, plan, entitlements) are only available in the classic product editor. The new block-based product editor is switched on in this shop and does not show them. Switch it off under WooCommerce → Settings → Advanced → Features, or maintain the plans with the license catalog CSV."
+msgstr ""
+
+#. translators: %d: variation ID.
+#: src/Catalog/ProductEditor.php:586
+#, php-format
+msgid "Variation #%d"
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:590
+msgid "The advanced entitlements field must contain a valid JSON object. The license settings were not saved."
+msgstr ""
+
+#: src/Catalog/ProductEditor.php:629
+msgid "The license settings were not saved."
+msgstr ""
+
+#. translators: 1: product name or variation, 2: error message.
+#: src/Catalog/ProductEditor.php:784
+#, php-format
+msgid "License settings of \"%1$s\": %2$s"
+msgstr ""
+
+#. translators: 1: number of added entitlements, 2: number of removed entitlements, 3: number of changed entitlements.
+#: src/Catalog/ReleaseCatalog.php:209
+#, php-format
+msgid "The catalog file of the package was imported: %1$d entitlements added, %2$d removed, %3$d changed."
+msgstr ""
+
+#. translators: %s: comma-separated entitlement keys.
+#: src/Catalog/ReleaseCatalog.php:216
+#, php-format
+msgid "Active plans still grant entitlements that left the catalog: %s. Plans and licenses keep them; the product editor shows them in the JSON field."
+msgstr ""
+
+#: src/Catalog/ReleaseCatalog.php:221
+msgid "it describes another product"
+msgstr ""
+
+#: src/Catalog/ReleaseCatalog.php:222
+msgid "it is larger than 256 KB"
+msgstr ""
+
+#: src/Catalog/ReleaseCatalog.php:223
+msgid "it could not be read"
+msgstr ""
+
+#: src/Catalog/ReleaseCatalog.php:224
+msgid "it is not a valid catalog file"
+msgstr ""
+
+#. translators: 1: reason, 2: detail in brackets or empty.
+#: src/Catalog/ReleaseCatalog.php:232
+#, php-format
+msgid "The catalog file of the package was NOT imported: %1$s%2$s. The release was created; the license catalog is unchanged."
+msgstr ""
+
+#: src/Catalog/ReleaseCatalog.php:234
+msgid "The catalog file of the package was not imported, because a release with a higher version exists for this product."
+msgstr ""
+
+#: src/Catalog/TermDisplay.php:43
+msgid "1 month"
+msgstr ""
+
+#: src/Catalog/TermDisplay.php:43
+msgid "1 year"
+msgstr ""
+
+#: src/Catalog/TermDisplay.php:108
+msgid "License term"
+msgstr ""
+
+#: src/Catalog/TermDisplay.php:114
+msgid "Automatic renewal (optional)"
+msgstr ""
+
+#: src/Catalog/TermDisplay.php:121
+msgid "Please note"
+msgstr ""
+
+#: src/Catalog/TermDisplay.php:122
+msgid "You already have a license for this product. This purchase adds another license with a new key. To extend the existing license, use \"Renew\" in your account instead."
 msgstr ""
 
 #. translators: %s: number of activations.
@@ -4627,8 +5270,79 @@ msgstr ""
 msgid "--environment must be \"production\", \"staging\" or \"development\"."
 msgstr ""
 
+#: src/CLI/CatalogCommand.php:62
+msgid "At least one catalog file was not imported."
+msgstr ""
+
+#: src/CLI/CatalogCommand.php:64
+msgid "Every file is valid. Nothing was written."
+msgstr ""
+
+#: src/CLI/CatalogCommand.php:64
+msgid "Catalog files imported."
+msgstr ""
+
+#. translators: %s: product key.
+#: src/CLI/CatalogCommand.php:163
+#, php-format
+msgid "Remove product %s from the catalog?"
+msgstr ""
+
+#. translators: 1: product key, 2: result (created, updated, unchanged), 3: number of added keys, 4: number of removed keys, 5: number of changed keys.
+#: src/CLI/CatalogCommand.php:204
+#, php-format
+msgid "valid; product %1$s would be %2$s (%3$d added, %4$d removed, %5$d changed)."
+msgstr ""
+
 #: src/CLI/LicenseCommand.php:48
+#: src/CLI/PriceChangeCommand.php:81
 msgid "License not found."
+msgstr ""
+
+#: src/CLI/PriceChangeCommand.php:73
+msgid "Give --reason and --effective=YYYY-MM-DD."
+msgstr ""
+
+#. translators: %s: reason code.
+#: src/CLI/PriceChangeCommand.php:91
+#, php-format
+msgid "Not announced: %s"
+msgstr ""
+
+#: src/CLI/PriceChangeCommand.php:94
+msgid "Announced; the notice email was handed to the mailer or will be retried by the daily job."
+msgstr ""
+
+#: src/CLI/PriceChangeCommand.php:94
+msgid "Dry run: the announcement is possible. Add --apply to write it and send the email."
+msgstr ""
+
+#: src/CLI/PriceChangeCommand.php:103
+msgid "Give --license=<id>, or --product=<product-key> with --currency and a valid --amount."
+msgstr ""
+
+#. translators: 1: number of licenses, 2: reason code.
+#: src/CLI/PriceChangeCommand.php:120
+#, php-format
+msgid "%1$d licenses skipped: %2$s"
+msgstr ""
+
+#. translators: %d: number of licenses.
+#: src/CLI/PriceChangeCommand.php:125
+#, php-format
+msgid "Announced for %d licenses."
+msgstr ""
+
+#. translators: %d: number of licenses.
+#: src/CLI/PriceChangeCommand.php:127
+#, php-format
+msgid "Dry run: %d licenses would get the announcement. Add --apply to write it and send the emails."
+msgstr ""
+
+#. translators: %s: reason code.
+#: src/CLI/PriceChangeCommand.php:150
+#, php-format
+msgid "Not withdrawn: %s"
 msgstr ""
 
 #: src/CLI/RecoverLicenseKeyIdsCommand.php:71
@@ -4647,12 +5361,14 @@ msgstr ""
 msgid "Mode: %1$s; inspected: %2$d; already verified: %3$d; recoverable: %4$d; unmatched: %5$d; changed concurrently: %6$d; last ID: %7$d"
 msgstr ""
 
+#. translators: %s: "apply" or "dry-run".
 #: src/CLI/RecoverLicenseKeyIdsCommand.php:158
 #: src/CLI/RotateInstallationSecretsCommand.php:88
 #: src/CLI/SyncEntitlementsCommand.php:138
 msgid "apply"
 msgstr ""
 
+#. translators: %s: "apply" or "dry-run".
 #: src/CLI/RecoverLicenseKeyIdsCommand.php:158
 #: src/CLI/RotateInstallationSecretsCommand.php:88
 #: src/CLI/SyncEntitlementsCommand.php:138
@@ -4682,6 +5398,7 @@ msgstr ""
 msgid "Key ID %1$s: %2$d licenses %3$s"
 msgstr ""
 
+#. translators: 1: license key ID, 2: number of licenses, 3: "current" or an empty string.
 #: src/CLI/RekeyLicensesCommand.php:72
 msgid "(current)"
 msgstr ""
@@ -5043,802 +5760,6 @@ msgstr ""
 msgid "More licenses follow (--max-rows). Continue with --after-id=%d."
 msgstr ""
 
-#: src/Catalog/Catalog.php:140
-msgid "The license product key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and needs 2 to 100 characters (for example voucher-captain)."
-msgstr ""
-
-#: src/Catalog/Catalog.php:142
-msgid "The license plan key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and may have up to 100 characters (for example business)."
-msgstr ""
-
-#: src/Catalog/Catalog.php:144
-msgid "The billing interval must be \"month\" or \"year\"."
-msgstr ""
-
-#: src/Catalog/Catalog.php:146
-msgid "The entitlements contain a value that cannot be stored (for example a number that is too large)."
-msgstr ""
-
-#: src/Catalog/Catalog.php:149
-msgid "The WooCommerce product does not exist."
-msgstr ""
-
-#: src/Catalog/Catalog.php:151
-msgid "The product needs a valid regular price before it can become a license product."
-msgstr ""
-
-#: src/Catalog/Catalog.php:153
-msgid "WooCommerce Subscriptions products cannot be license products: Subscriptions bills its own renewals and WP License Captain renews licenses itself, so the customer would be charged twice. Use a simple or variable product."
-msgstr ""
-
-#: src/Catalog/Catalog.php:155
-msgid "The license plan could not be written to the database."
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:36
-msgid "Partner portal"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:37
-msgid "Coupon attribution"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:38
-msgid "Order refund handling"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:39
-msgid "Basic commissions"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:40
-msgid "Manual payout CSV"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:41
-msgid "Partner groups"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:42
-msgid "Product and category rates"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:43
-msgid "Recurring commissions"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:44
-msgid "Extended API"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:45
-msgid "Automated payouts"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:46
-msgid "White-label portal"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:47
-msgid "Webhooks"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:49
-msgid "Payout as store credit"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:50
-msgid "Payouts via Stripe Connect"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:51
-msgid "Leaderboard and milestone emails"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:52
-msgid "Multi-tier commissions"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:53
-msgid "Multiple programs"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:54
-#: src/Catalog/EntitlementCatalog.php:67
-#: src/Catalog/EntitlementCatalog.php:78
-msgid "Priority support"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:57
-msgid "Custom branding"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:58
-msgid "PDF templates"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:59
-msgid "Automatic delivery"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:60
-msgid "QR redemption"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:61
-msgid "Partial balance"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:62
-msgid "Staff roles"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:63
-msgid "Scheduled delivery"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:64
-msgid "Bulk import and export"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:65
-msgid "Reports"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:66
-#: src/Catalog/EntitlementCatalog.php:77
-msgid "White label"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:73
-msgid "E-invoicing (XRechnung, ZUGFeRD)"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:74
-msgid "Card terminal (Stripe Terminal, SumUp)"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:75
-msgid "Virtual waiting room"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:76
-msgid "Write API"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:101
-msgid "Affiliate Captain"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:102
-msgid "Voucher Captain"
-msgstr ""
-
-#: src/Catalog/EntitlementCatalog.php:103
-msgid "WP Pass Captain"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:174
-#: src/Catalog/ProductEditor.php:210
-msgid "License product"
-msgstr ""
-
-#. translators: 1: license product key, 2: license plan key.
-#: src/Catalog/ProductEditor.php:178
-#, php-format
-msgid "This product issues licenses for %1$s (plan %2$s). Only users who may manage the license catalog can change this."
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:204
-msgid "This product is marked as a license product but has no plan in the license catalog (for example after a copy or an import). Customers who buy it do not receive a license. Tick \"License product\" and save to create the plan."
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:214
-msgid "Issue or renew a WP License Captain license when this product is paid."
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:220
-msgid "License product key"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:224
-msgid "Stable product identifier. Must match the key of the premium add-on: voucher-captain-pro, pass-captain-pro or affiliate-captain-pro. Lowercase letters, digits and hyphens only."
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:246
-msgid "License product name"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:250
-msgid "Name of the license product as customers see it in their account and in emails. It is shared by all plans with the same license product key. Leave empty to keep the current name."
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:258
-msgid "License plan key"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:262
-msgid "Identifier of this plan within the license product, for example single or agency; each plan (product or variation) of one license product needs its own. Licenses store it, so keep it unchanged once the plan is sold. Lowercase letters, digits and hyphens only."
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:272
-msgid "License billing interval"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:283
-msgid "Live site limit"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:296
-msgid "License support level"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:299
-msgid "Community"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:300
-msgid "Standard"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:301
-msgid "Priority"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:313
-msgid "Advanced: additional entitlements (JSON)"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:317
-msgid "Optional JSON object for numeric limits and entitlement keys that are not in the list above. The live-site limit and support level are added automatically."
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:420
-msgid "WP License Captain: the license fields (product key, plan, entitlements) are only available in the classic product editor. The new block-based product editor is switched on in this shop and does not show them. Switch it off under WooCommerce → Settings → Advanced → Features, or maintain the plans with the license catalog CSV."
-msgstr ""
-
-#. translators: %d: variation ID.
-#: src/Catalog/ProductEditor.php:586
-#, php-format
-msgid "Variation #%d"
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:590
-msgid "The advanced entitlements field must contain a valid JSON object. The license settings were not saved."
-msgstr ""
-
-#: src/Catalog/ProductEditor.php:629
-msgid "The license settings were not saved."
-msgstr ""
-
-#. translators: 1: product name or variation, 2: error message.
-#: src/Catalog/ProductEditor.php:784
-#, php-format
-msgid "License settings of \"%1$s\": %2$s"
-msgstr ""
-
-#: src/Catalog/TermDisplay.php:43
-msgid "1 month"
-msgstr ""
-
-#: src/Catalog/TermDisplay.php:43
-msgid "1 year"
-msgstr ""
-
-#: src/Catalog/TermDisplay.php:108
-msgid "License term"
-msgstr ""
-
-#: src/Catalog/TermDisplay.php:114
-msgid "Automatic renewal (optional)"
-msgstr ""
-
-#: src/Catalog/TermDisplay.php:121
-msgid "Please note"
-msgstr ""
-
-#: src/Catalog/TermDisplay.php:122
-msgid "You already have a license for this product. This purchase adds another license with a new key. To extend the existing license, use \"Renew\" in your account instead."
-msgstr ""
-
-#. translators: %s: error code of the license server.
-#: src/Client/Messages.php:124
-#, php-format
-msgid "The license server answered with the error \"%s\"."
-msgstr ""
-
-#: src/Client/Messages.php:125
-msgid "The license settings of this plugin are incomplete (server address, product key or signature key)."
-msgstr ""
-
-#: src/Client/Messages.php:126
-msgid "Please enter your license key."
-msgstr ""
-
-#: src/Client/Messages.php:127
-msgid "This site has not been activated with a license key yet."
-msgstr ""
-
-#: src/Client/Messages.php:128
-msgid "The address of this site differs from the address the license was activated for. This looks like a copy of the site. Activate the license for this address."
-msgstr ""
-
-#: src/Client/Messages.php:129
-msgid "The activation data could not be stored in the database of this site. Check the database and try again."
-msgstr ""
-
-#: src/Client/Messages.php:130
-msgid "The request to the license server could not be prepared."
-msgstr ""
-
-#: src/Client/Messages.php:131
-msgid "The license server answered with an unexpected error."
-msgstr ""
-
-#: src/Client/Messages.php:132
-msgid "The license server could not be reached. Premium features keep working; the check is repeated automatically."
-msgstr ""
-
-#: src/Client/Messages.php:133
-msgid "The request was answered by a firewall or security service instead of the license server. Please ask your host to allow outgoing requests to the license server."
-msgstr ""
-
-#: src/Client/Messages.php:134
-msgid "The license server sent an answer this plugin cannot read."
-msgstr ""
-
-#: src/Client/Messages.php:135
-msgid "The answer of the license server could not be verified and was ignored."
-msgstr ""
-
-#: src/Client/Messages.php:136
-msgid "The answer does not carry a valid signature of the license server and was ignored. Updating this plugin may solve this."
-msgstr ""
-
-#: src/Client/Messages.php:137
-msgid "The answer of the license server does not belong to this request and was ignored."
-msgstr ""
-
-#: src/Client/Messages.php:138
-msgid "The answer of the license server is for another product and was ignored."
-msgstr ""
-
-#: src/Client/Messages.php:139
-msgid "The answer of the license server is older than one already received and was ignored."
-msgstr ""
-
-#: src/Client/Messages.php:140
-msgid "This web server cannot check the signature of the license server (the PHP sodium functions are missing). Premium features stay off until PHP provides them."
-msgstr ""
-
-#: src/Client/Messages.php:142
-msgid "The activation request was rejected as incomplete. Check the license key."
-msgstr ""
-
-#: src/Client/Messages.php:143
-msgid "This license key is unknown. Please check it for typing errors."
-msgstr ""
-
-#: src/Client/Messages.php:144
-msgid "This license key belongs to another product."
-msgstr ""
-
-#: src/Client/Messages.php:145
-msgid "This license has expired. Renew it to activate this site."
-msgstr ""
-
-#: src/Client/Messages.php:146
-msgid "This license is suspended. Please contact support."
-msgstr ""
-
-#: src/Client/Messages.php:147
-msgid "This license has been revoked."
-msgstr ""
-
-#: src/Client/Messages.php:148
-msgid "This license is not active."
-msgstr ""
-
-#: src/Client/Messages.php:149
-msgid "The license of this activation no longer exists on the license server."
-msgstr ""
-
-#: src/Client/Messages.php:150
-msgid "All sites of this license are in use. Release a site in your customer account or upgrade the license."
-msgstr ""
-
-#: src/Client/Messages.php:151
-msgid "The live site already has a staging site. Release it in your customer account first."
-msgstr ""
-
-#: src/Client/Messages.php:152
-msgid "Too many development sites are activated for this license. Release unused ones in your customer account."
-msgstr ""
-
-#: src/Client/Messages.php:153
-msgid "A development activation is only possible on a local address (localhost, *.test, *.local)."
-msgstr ""
-
-#: src/Client/Messages.php:154
-msgid "A staging site must be linked to an activated live site of the same license."
-msgstr ""
-
-#: src/Client/Messages.php:155
-msgid "The live site this staging site belongs to is not activated for this license."
-msgstr ""
-
-#: src/Client/Messages.php:156
-msgid "A staging activation cannot move to an address that is unrelated to its live site."
-msgstr ""
-
-#: src/Client/Messages.php:157
-msgid "The activation data of this site does not match the license server. Please activate again."
-msgstr ""
-
-#: src/Client/Messages.php:158
-msgid "The activation was interrupted by a parallel request. Please try again."
-msgstr ""
-
-#: src/Client/Messages.php:159
-msgid "The activation of this site was released. Enter the license key to activate it again."
-msgstr ""
-
-#: src/Client/Messages.php:160
-msgid "The license server does not know the activation of this site. Enter the license key to activate it again."
-msgstr ""
-
-#: src/Client/Messages.php:161
-msgid "The license server cannot read the activation of this site. Enter the license key to activate it again."
-msgstr ""
-
-#: src/Client/Messages.php:162
-msgid "The stored activation does not belong to this installation."
-msgstr ""
-
-#: src/Client/Messages.php:163
-msgid "This site is not the one the license was activated for."
-msgstr ""
-
-#: src/Client/Messages.php:164
-msgid "A live site activation cannot be moved to a staging, local or test address. Activate this copy as a staging site instead."
-msgstr ""
-
-#: src/Client/Messages.php:165
-msgid "The license server rejected the signature of this site."
-msgstr ""
-
-#: src/Client/Messages.php:166
-msgid "The clock of this server differs too much from the clock of the license server."
-msgstr ""
-
-#: src/Client/Messages.php:167
-msgid "Too many requests. Please try again in a few minutes."
-msgstr ""
-
-#: src/Client/Messages.php:168
-msgid "The license is being changed right now. Please try again in a moment."
-msgstr ""
-
-#: src/Client/Messages.php:170
-msgid "Not activated"
-msgstr ""
-
-#: src/Client/Messages.php:172
-msgid "Payment overdue (grace period)"
-msgstr ""
-
-#: src/Client/Messages.php:176
-msgid "Not active"
-msgstr ""
-
-#: src/Client/Messages.php:177
-msgid "Released on the license server"
-msgstr ""
-
-#: src/Client/Messages.php:179
-msgid "Could not be verified for too long"
-msgstr ""
-
-#: src/Client/Messages.php:180
-msgid "Not configured"
-msgstr ""
-
-#. translators: %s: name of the add-on.
-#: src/Client/Messages.php:182
-#, php-format
-msgid "%s: enter your license key to switch on the premium features and updates."
-msgstr ""
-
-#. translators: 1: name of the add-on, 2: date.
-#: src/Client/Messages.php:184
-#, php-format
-msgid "%1$s: the renewal payment is overdue. The premium features stay available until %2$s."
-msgstr ""
-
-#. translators: %s: name of the add-on.
-#: src/Client/Messages.php:186
-#, php-format
-msgid "%s: the license has expired. The premium features are switched off; your data is kept."
-msgstr ""
-
-#. translators: %s: name of the add-on.
-#: src/Client/Messages.php:188
-#, php-format
-msgid "%s: the license is suspended. Please contact support."
-msgstr ""
-
-#. translators: %s: name of the add-on.
-#: src/Client/Messages.php:190
-#, php-format
-msgid "%s: the license has been revoked. The premium features are switched off."
-msgstr ""
-
-#. translators: %s: name of the add-on.
-#: src/Client/Messages.php:192
-#, php-format
-msgid "%s: the license is not active. The premium features are switched off."
-msgstr ""
-
-#. translators: %s: name of the add-on.
-#: src/Client/Messages.php:194
-#, php-format
-msgid "%s: the activation of this site was released. Enter the license key to activate it again."
-msgstr ""
-
-#. translators: %s: name of the add-on.
-#: src/Client/Messages.php:196
-#, php-format
-msgid "%s: this site runs under another address than the one the license was activated for. Activate the license for this address."
-msgstr ""
-
-#. translators: %s: name of the add-on.
-#: src/Client/Messages.php:198
-#, php-format
-msgid "%s: the license could not be verified for too long. The premium features are switched off until the license server can be reached again."
-msgstr ""
-
-#. translators: %s: name of the add-on.
-#: src/Client/Messages.php:200
-#, php-format
-msgid "%s: the license settings of this plugin are incomplete."
-msgstr ""
-
-#. translators: 1: name of the add-on, 2: date.
-#: src/Client/Messages.php:202
-#, php-format
-msgid "%1$s: the license server cannot be reached. The premium features stay available until %2$s; the check is repeated automatically."
-msgstr ""
-
-#. translators: %s: name of the add-on.
-#: src/Client/Messages.php:204
-#, php-format
-msgid "%s: the license server no longer knows the activation of this site. Enter the license key again."
-msgstr ""
-
-#. translators: %s: name of the add-on.
-#: src/Client/Messages.php:206
-#, php-format
-msgid "%s: the plugin header \"Update URI\" is missing, so updates cannot be delivered. Please report this to the vendor."
-msgstr ""
-
-#: src/Client/Messages.php:211
-msgid "Activate"
-msgstr ""
-
-#: src/Client/Messages.php:212
-msgid "Remove license from this site"
-msgstr ""
-
-#: src/Client/Messages.php:213
-msgid "Check now"
-msgstr ""
-
-#: src/Client/Messages.php:214
-msgid "Activate this address"
-msgstr ""
-
-#: src/Client/Messages.php:215
-msgid "The site moved here: transfer the activation"
-msgstr ""
-
-#: src/Client/Messages.php:216
-msgid "Remove the copied activation data from this site"
-msgstr ""
-
-#: src/Client/Messages.php:217
-msgid "Remove the license data from this site only"
-msgstr ""
-
-#: src/Client/Messages.php:220
-msgid "Premium features until"
-msgstr ""
-
-#: src/Client/Messages.php:221
-msgid "Live sites in use"
-msgstr ""
-
-#: src/Client/Messages.php:223
-msgid "Live site"
-msgstr ""
-
-#: src/Client/Messages.php:224
-msgid "Staging site"
-msgstr ""
-
-#: src/Client/Messages.php:225
-msgid "Development site"
-msgstr ""
-
-#: src/Client/Messages.php:226
-msgid "Last check"
-msgstr ""
-
-#: src/Client/Messages.php:227
-msgid "Last check failed"
-msgstr ""
-
-#: src/Client/Messages.php:229
-msgid "no end date"
-msgstr ""
-
-#: src/Client/Messages.php:230
-msgid "The license key is not stored on this site. Enter it again to change the license."
-msgstr ""
-
-#: src/Client/Messages.php:231
-msgid "The license was activated for this site."
-msgstr ""
-
-#: src/Client/Messages.php:232
-msgid "The license was removed from this site."
-msgstr ""
-
-#: src/Client/Messages.php:233
-msgid "The activation data was removed from this site. The activation of the original site was not changed."
-msgstr ""
-
-#: src/Client/Messages.php:234
-msgid "The license data was removed from this site without asking the license server. If the server still lists this activation, release it in your customer account."
-msgstr ""
-
-#: src/Client/Messages.php:235
-msgid "The license was checked."
-msgstr ""
-
-#: src/Client/Messages.php:236
-msgid "The activation was transferred to this address."
-msgstr ""
-
-#: src/Client/Messages.php:237
-msgid "Activated for"
-msgstr ""
-
-#: src/Client/Messages.php:238
-msgid "Address of this site"
-msgstr ""
-
-#. translators: 1: address the license was activated for, 2: address of this site.
-#: src/Client/Messages.php:240
-#, php-format
-msgid "Only if the site really moved: transferring moves the activation from %1$s to %2$s. The site at %1$s then loses the license. For a staging or test copy, activate this address instead."
-msgstr ""
-
-#: src/Client/Messages.php:241
-msgid "This site reports itself as a staging or development site."
-msgstr ""
-
-#. translators: %s: address the license was activated for.
-#: src/Client/Messages.php:243
-#, php-format
-msgid "I confirm that the site moved and no longer runs at %s."
-msgstr ""
-
-#: src/Client/Messages.php:244
-msgid "Nothing was transferred. Confirm that the site moved before you transfer the activation."
-msgstr ""
-
-#: src/Client/Messages.php:245
-msgid "You are not allowed to manage the license of this plugin."
-msgstr ""
-
-#: src/Client/Messages.php:246
-msgid "UTC"
-msgstr ""
-
-#: src/Client/Messages.php:248
-msgid "Your license has expired. Renew it to receive this update."
-msgstr ""
-
-#: src/Client/Messages.php:249
-msgid "Your license is suspended; updates are not available. Please contact support."
-msgstr ""
-
-#: src/Client/Messages.php:250
-msgid "Your license has been revoked; updates are not available."
-msgstr ""
-
-#: src/Client/Messages.php:251
-msgid "Your license is not active yet; updates become available once it is."
-msgstr ""
-
-#: src/Client/Messages.php:252
-msgid "Your license is not active; updates are not available."
-msgstr ""
-
-#: src/Client/Messages.php:253
-msgid "Enter your license key to receive updates."
-msgstr ""
-
-#. translators: 1: version that cannot be installed, 2: list of unmet requirements.
-#: src/Client/Messages.php:255
-#, php-format
-msgid "Version %1$s is available but cannot be installed on this site: %2$s."
-msgstr ""
-
-#. translators: %s: version number.
-#: src/Client/Messages.php:257
-#, php-format
-msgid "PHP %s or newer is required"
-msgstr ""
-
-#. translators: %s: version number.
-#: src/Client/Messages.php:259
-#, php-format
-msgid "WordPress %s or newer is required"
-msgstr ""
-
-#. translators: %s: version number.
-#: src/Client/Messages.php:261
-#, php-format
-msgid "version %s or newer of the free base plugin is required"
-msgstr ""
-
-#: src/Client/Messages.php:262
-msgid "The update is no longer offered by the license server. Please check for updates again."
-msgstr ""
-
-#. translators: %s: reason.
-#: src/Client/Messages.php:264
-#, php-format
-msgid "The update could not be prepared: %s"
-msgstr ""
-
-#: src/Client/Messages.php:265
-msgid "The downloaded update does not match the checksum signed by the license server and was deleted."
-msgstr ""
-
-#: src/Client/Messages.php:266
-msgid "The license server offered a package for another product."
-msgstr ""
-
-#: src/Client/Messages.php:267
-msgid "The update package does not contain this plugin and was not installed."
-msgstr ""
-
-#: src/Client/Messages.php:268
-msgid "The update was offered over an insecure connection (not HTTPS) and was not downloaded."
-msgstr ""
-
-#. translators: %s: size limit in megabytes.
-#: src/Client/Messages.php:270
-#, php-format
-msgid "The update package is larger than %s MB and was not downloaded."
-msgstr ""
-
-#: src/Client/Messages.php:271
-msgid "The download of the update was redirected too often and was stopped."
-msgstr ""
-
-#: src/Client/Messages.php:273
-msgid "License check and updates"
-msgstr ""
-
-#. translators: 1: name of the add-on, 2: host name of the license server.
-#: src/Client/Messages.php:275
-#, php-format
-msgid "%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), for a staging site the installation ID of its live site, and the versions of the plugin, of the base plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent. Legal basis: our legitimate interest in the use of licensed software and in security updates (Art. 6(1)(f) GDPR)."
-msgstr ""
-
 #. translators: 1: required WooCommerce version, 2: installed WooCommerce version.
 #: src/Compatibility/Requirements.php:147
 #, php-format
@@ -5846,7 +5767,7 @@ msgid "WP License Captain requires WooCommerce %1$s or later; version %2$s is in
 msgstr ""
 
 #: src/Compatibility/Requirements.php:149
-#: src/Gateway/StripeRecurringAdapter.php:1307
+#: src/Gateway/StripeRecurringAdapter.php:1288
 msgid "unknown"
 msgstr ""
 
@@ -6046,27 +5967,27 @@ msgid "%1$s: renewal of %2$s, order #%3$d"
 msgstr ""
 
 #. translators: %s: Stripe payment method type, e.g. link.
-#: src/Gateway/StripeRecurringAdapter.php:1306
+#: src/Gateway/StripeRecurringAdapter.php:1287
 #, php-format
 msgid "WP License Captain: automatic renewal was requested, but the payment method of this order (%s) is not a saved card. The license will not renew automatically."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:1320
+#: src/Gateway/StripeRecurringAdapter.php:1301
 msgid "You asked for automatic renewal, but the payment method you used cannot be charged automatically. Your license runs until the end of the paid period. We will remind you before it ends so you can renew it yourself; to renew automatically, add a card in your account."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:1450
+#: src/Gateway/StripeRecurringAdapter.php:1431
 msgid "WP License Captain: future automatic renewals of this license use the card this order was paid with."
 msgstr ""
 
 #. translators: 1: installed database schema version, 2: schema version this plugin version supports.
-#: src/Infrastructure/Database/Schema.php:492
+#: src/Infrastructure/Database/Schema.php:500
 #, php-format
 msgid "WP License Captain: the database was upgraded by a newer plugin version (schema %1$s, this version supports %2$s). Renewal charges and customer emails are paused. Install the newer plugin version again."
 msgstr ""
 
 #. translators: %s: technical error details.
-#: src/Infrastructure/Database/Schema.php:516
+#: src/Infrastructure/Database/Schema.php:524
 #, php-format
 msgid "WP License Captain could not update its database tables. The plugin keeps working with the previous structure and retries automatically. Details: %s"
 msgstr ""
@@ -6575,7 +6496,7 @@ msgstr ""
 msgid "WP License Captain: the license ended; this renewal order is closed."
 msgstr ""
 
-#: src/Maintenance/Orphans.php:99
+#: src/Maintenance/Orphans.php:101
 msgid "WP License Captain: the customer account was deleted; this renewal was cancelled."
 msgstr ""
 
@@ -6648,12 +6569,12 @@ msgid "Your license is about to end"
 msgstr ""
 
 #: src/Notifications/Emails/LicenseEmail.php:169
-#: src/Notifications/RenewalTerms.php:261
+#: src/Notifications/RenewalTerms.php:264
 msgid "Next renewal"
 msgstr ""
 
 #: src/Notifications/Emails/LicenseEmail.php:171
-#: src/Notifications/RenewalTerms.php:263
+#: src/Notifications/RenewalTerms.php:266
 #: templates/emails/plain/wplc-renewal-notice.php:51
 #: templates/emails/wplc-renewal-notice.php:51
 msgid "Interval"
@@ -6788,75 +6709,113 @@ msgstr ""
 msgid "Your {product} license renews on {charge_date}"
 msgstr ""
 
-#: src/Notifications/Notifications.php:924
+#: src/Notifications/Emails/RenewalPriceChangeEmail.php:34
+msgid "License renewal: new price announced"
+msgstr ""
+
+#: src/Notifications/Emails/RenewalPriceChangeEmail.php:35
+msgid "Sent when the shop announces a higher renewal price for an existing license. Names the current and the new price, the date from which the new price applies, and how to cancel. The new price is only charged when this email was sent at least the notice period before."
+msgstr ""
+
+#: src/Notifications/Emails/RenewalPriceChangeEmail.php:45
+msgid "The renewal price of your {product} license changes"
+msgstr ""
+
+#: src/Notifications/Emails/RenewalPriceChangeEmail.php:54
+msgid "New renewal price for your license"
+msgstr ""
+
+#: src/Notifications/Emails/RenewalPriceChangeWithdrawnEmail.php:30
+msgid "License renewal: announced price withdrawn"
+msgstr ""
+
+#: src/Notifications/Emails/RenewalPriceChangeWithdrawnEmail.php:31
+msgid "Sent when the shop withdraws an announced renewal price before it took effect. The license keeps its current price."
+msgstr ""
+
+#: src/Notifications/Emails/RenewalPriceChangeWithdrawnEmail.php:41
+msgid "The renewal price of your {product} license stays the same"
+msgstr ""
+
+#: src/Notifications/Emails/RenewalPriceChangeWithdrawnEmail.php:50
+msgid "Your renewal price stays the same"
+msgstr ""
+
+#: src/Notifications/Notifications.php:1007
 msgid "Sample product"
 msgstr ""
 
-#: src/Notifications/Notifications.php:925
+#: src/Notifications/Notifications.php:1008
 msgid "Sample plan"
 msgstr ""
 
-#: src/Notifications/Notifications.php:1000
+#: src/Notifications/Notifications.php:1087
 msgid "You chose automatic renewal for your license. The email with your license lists the renewal date, the amount including tax and the interval."
 msgstr ""
 
-#: src/Notifications/Notifications.php:1016
+#: src/Notifications/Notifications.php:1103
 msgid "Download the plugin ZIP file in your account under \"Licenses\"."
 msgstr ""
 
-#: src/Notifications/Notifications.php:1017
+#: src/Notifications/Notifications.php:1104
 msgid "In the WordPress dashboard of your site, go to Plugins > Add New > Upload Plugin, choose the ZIP file, then install and activate it."
 msgstr ""
 
-#: src/Notifications/Notifications.php:1018
+#: src/Notifications/Notifications.php:1105
 msgid "Open the license settings of the plugin, enter your license key and activate the license for the site."
 msgstr ""
 
 #. translators: %s: price, for example "9,90 €".
-#: src/Notifications/RenewalTerms.php:138
+#: src/Notifications/RenewalTerms.php:141
 #, php-format
 msgid "%s per month"
 msgstr ""
 
 #. translators: %s: price, for example "59,00 €".
-#: src/Notifications/RenewalTerms.php:140
+#: src/Notifications/RenewalTerms.php:143
 #, php-format
 msgid "%s per year"
 msgstr ""
 
 #. translators: %s: formatted amount.
-#: src/Notifications/RenewalTerms.php:208
+#: src/Notifications/RenewalTerms.php:211
 #, php-format
 msgid "%s incl. tax"
 msgstr ""
 
-#: src/Notifications/RenewalTerms.php:236
+#: src/Notifications/RenewalTerms.php:239
 msgid "every month"
 msgstr ""
 
-#: src/Notifications/RenewalTerms.php:236
+#: src/Notifications/RenewalTerms.php:239
 msgid "every year"
 msgstr ""
 
-#: src/Notifications/RenewalTerms.php:245
+#: src/Notifications/RenewalTerms.php:248
 msgid "You can cancel the automatic renewal at any time before the renewal date in your account under \"Licenses\". The license then stays valid until the end of the paid period and is not charged again."
 msgstr ""
 
-#: src/Plugin.php:128
+#. translators: %s: date from which a new renewal price applies.
+#: src/Notifications/RenewalTerms.php:272
+#, php-format
+msgid "Amount from %s"
+msgstr ""
+
+#: src/Plugin.php:129
 msgid "WP License Captain requires PHP 7.4 or later."
 msgstr ""
 
-#: src/Plugin.php:132
+#: src/Plugin.php:133
 msgid "Please activate WooCommerce before activating WP License Captain."
 msgstr ""
 
 #. translators: %s: minimum WooCommerce version.
-#: src/Plugin.php:140
+#: src/Plugin.php:141
 #, php-format
 msgid "WP License Captain requires WooCommerce %s or later."
 msgstr ""
 
-#: src/Plugin.php:444
+#: src/Plugin.php:450
 msgid "WP License Captain requires WooCommerce to be installed and active."
 msgstr ""
 
@@ -6889,10 +6848,10 @@ msgid "You can request an export or the erasure of this data, with the e-mail ad
 msgstr ""
 
 #: src/Privacy/PersonalData.php:360
-#: src/Privacy/PersonalData.php:541
-#: src/Privacy/PersonalData.php:585
-#: src/Privacy/PersonalData.php:606
-#: src/Privacy/PersonalData.php:617
+#: src/Privacy/PersonalData.php:551
+#: src/Privacy/PersonalData.php:595
+#: src/Privacy/PersonalData.php:616
+#: src/Privacy/PersonalData.php:627
 #: templates/emails/plain/wplc-cancellation-confirmed.php:41
 #: templates/emails/plain/wplc-expiry-reminder.php:48
 #: templates/emails/plain/wplc-license-blocked.php:42
@@ -6901,6 +6860,8 @@ msgstr ""
 #: templates/emails/plain/wplc-license-renewed.php:37
 #: templates/emails/plain/wplc-payment-failed.php:40
 #: templates/emails/plain/wplc-payment-method-missing.php:38
+#: templates/emails/plain/wplc-price-change-withdrawn.php:38
+#: templates/emails/plain/wplc-price-change.php:41
 #: templates/emails/plain/wplc-renewal-notice.php:47
 #: templates/emails/wplc-cancellation-confirmed.php:41
 #: templates/emails/wplc-expiry-reminder.php:48
@@ -6910,6 +6871,8 @@ msgstr ""
 #: templates/emails/wplc-license-renewed.php:37
 #: templates/emails/wplc-payment-failed.php:40
 #: templates/emails/wplc-payment-method-missing.php:38
+#: templates/emails/wplc-price-change-withdrawn.php:38
+#: templates/emails/wplc-price-change.php:41
 #: templates/emails/wplc-renewal-notice.php:47
 msgid "License reference"
 msgstr ""
@@ -6921,8 +6884,10 @@ msgstr ""
 #: src/Privacy/PersonalData.php:366
 #: templates/emails/plain/wplc-payment-failed.php:41
 #: templates/emails/plain/wplc-payment-method-missing.php:39
+#: templates/emails/plain/wplc-price-change.php:42
 #: templates/emails/wplc-payment-failed.php:41
 #: templates/emails/wplc-payment-method-missing.php:39
+#: templates/emails/wplc-price-change.php:42
 msgid "Paid through"
 msgstr ""
 
@@ -6931,202 +6896,218 @@ msgid "Cancellation at period end"
 msgstr ""
 
 #: src/Privacy/PersonalData.php:373
-#: src/Privacy/PersonalData.php:592
+#: src/Privacy/PersonalData.php:602
 msgid "Renewal amount"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:378
-msgid "Next payment"
-msgstr ""
-
-#: src/Privacy/PersonalData.php:381
-msgid "Payment method on file for renewal"
+#: src/Privacy/PersonalData.php:380
+msgid "Announced renewal amount"
 msgstr ""
 
 #: src/Privacy/PersonalData.php:383
+msgid "Announced amount applies from"
+msgstr ""
+
+#: src/Privacy/PersonalData.php:384
+msgid "Price change announced"
+msgstr ""
+
+#: src/Privacy/PersonalData.php:385
+msgid "Price change notice sent"
+msgstr ""
+
+#: src/Privacy/PersonalData.php:388
+msgid "Next payment"
+msgstr ""
+
+#: src/Privacy/PersonalData.php:391
+msgid "Payment method on file for renewal"
+msgstr ""
+
+#: src/Privacy/PersonalData.php:393
 msgid "Payment provider"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:389
-#: src/Privacy/PersonalData.php:551
+#: src/Privacy/PersonalData.php:399
+#: src/Privacy/PersonalData.php:561
 msgid "WooCommerce order"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:392
+#: src/Privacy/PersonalData.php:402
 msgid "Consent to automatic renewal given at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:396
+#: src/Privacy/PersonalData.php:406
 msgid "Consent to the immediate start (withdrawal right) given at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:415
-#: src/Privacy/PersonalData.php:533
+#: src/Privacy/PersonalData.php:425
+#: src/Privacy/PersonalData.php:543
 msgid "WP License Captain licenses"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:542
+#: src/Privacy/PersonalData.php:552
 msgid "Period start"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:543
+#: src/Privacy/PersonalData.php:553
 msgid "Period end"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:545
+#: src/Privacy/PersonalData.php:555
 msgid "Payment attempts"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:546
+#: src/Privacy/PersonalData.php:556
 msgid "Reason for review"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:556
+#: src/Privacy/PersonalData.php:566
 msgid "WP License Captain renewals"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:565
+#: src/Privacy/PersonalData.php:575
 msgid "WP License Captain license history"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:568
+#: src/Privacy/PersonalData.php:578
 msgid "Date (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:569
+#: src/Privacy/PersonalData.php:579
 msgid "Event"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:570
+#: src/Privacy/PersonalData.php:580
 msgid "Concerns"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:571
+#: src/Privacy/PersonalData.php:581
 msgid "Note"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:582
+#: src/Privacy/PersonalData.php:592
 msgid "WP License Captain consents to automatic renewal"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:587
+#: src/Privacy/PersonalData.php:597
 msgid "Consent given at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:588
+#: src/Privacy/PersonalData.php:598
 msgid "Given through"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:589
+#: src/Privacy/PersonalData.php:599
 msgid "Language"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:590
+#: src/Privacy/PersonalData.php:600
 msgid "Text you agreed to"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:603
+#: src/Privacy/PersonalData.php:613
 msgid "WP License Captain email log"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:607
+#: src/Privacy/PersonalData.php:617
 msgid "Email type"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:608
+#: src/Privacy/PersonalData.php:618
 msgid "For the period ending"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:609
+#: src/Privacy/PersonalData.php:619
 msgid "Sent at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:618
+#: src/Privacy/PersonalData.php:628
 msgid "Download link created at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:621
+#: src/Privacy/PersonalData.php:631
 msgid "Downloaded at (UTC)"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:624
+#: src/Privacy/PersonalData.php:634
 msgid "Requested through"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:631
+#: src/Privacy/PersonalData.php:641
 msgid "WP License Captain downloads"
-msgstr ""
-
-#. translators: %d: running number of the installation.
-#: src/Privacy/PersonalData.php:652
-#, php-format
-msgid "Installation %d identifier"
-msgstr ""
-
-#. translators: %d: running number of the installation.
-#: src/Privacy/PersonalData.php:654
-#, php-format
-msgid "Installation %d site URL"
-msgstr ""
-
-#. translators: %d: running number of the installation.
-#: src/Privacy/PersonalData.php:656
-#, php-format
-msgid "Installation %d environment"
-msgstr ""
-
-#. translators: %d: running number of the installation.
-#: src/Privacy/PersonalData.php:658
-#, php-format
-msgid "Installation %d status"
-msgstr ""
-
-#. translators: %d: running number of the installation.
-#: src/Privacy/PersonalData.php:660
-#, php-format
-msgid "Installation %d product version"
 msgstr ""
 
 #. translators: %d: running number of the installation.
 #: src/Privacy/PersonalData.php:662
 #, php-format
-msgid "Installation %d WordPress version"
+msgid "Installation %d identifier"
 msgstr ""
 
 #. translators: %d: running number of the installation.
 #: src/Privacy/PersonalData.php:664
 #, php-format
-msgid "Installation %d PHP version"
+msgid "Installation %d site URL"
 msgstr ""
 
 #. translators: %d: running number of the installation.
 #: src/Privacy/PersonalData.php:666
 #, php-format
-msgid "Installation %d activated at"
+msgid "Installation %d environment"
 msgstr ""
 
 #. translators: %d: running number of the installation.
 #: src/Privacy/PersonalData.php:668
 #, php-format
-msgid "Installation %d last seen at"
+msgid "Installation %d status"
 msgstr ""
 
 #. translators: %d: running number of the installation.
 #: src/Privacy/PersonalData.php:670
 #, php-format
+msgid "Installation %d product version"
+msgstr ""
+
+#. translators: %d: running number of the installation.
+#: src/Privacy/PersonalData.php:672
+#, php-format
+msgid "Installation %d WordPress version"
+msgstr ""
+
+#. translators: %d: running number of the installation.
+#: src/Privacy/PersonalData.php:674
+#, php-format
+msgid "Installation %d PHP version"
+msgstr ""
+
+#. translators: %d: running number of the installation.
+#: src/Privacy/PersonalData.php:676
+#, php-format
+msgid "Installation %d activated at"
+msgstr ""
+
+#. translators: %d: running number of the installation.
+#: src/Privacy/PersonalData.php:678
+#, php-format
+msgid "Installation %d last seen at"
+msgstr ""
+
+#. translators: %d: running number of the installation.
+#: src/Privacy/PersonalData.php:680
+#, php-format
 msgid "Installation %d deactivated at"
 msgstr ""
 
-#: src/Privacy/PersonalData.php:815
+#: src/Privacy/PersonalData.php:825
 msgid "The license data could not be read. Please try again."
 msgstr ""
 
-#: src/Privacy/PersonalData.php:854
+#: src/Privacy/PersonalData.php:864
 msgid "WP License Captain found no customer account and no order billing address with this e-mail address, so no license data was erased. Licenses belong to customer accounts: if the person used another e-mail address for the account, run the request for that address."
 msgstr ""
 
 #. translators: %d: number of licenses.
-#: src/Privacy/PersonalData.php:995
+#: src/Privacy/PersonalData.php:1005
 #, php-format
 msgid "%d ended license was detached from the account; its installations, email log and download records were deleted. WooCommerce order records were preserved."
 msgid_plural "%d ended licenses were detached from the account; their installations, email log and download records were deleted. WooCommerce order records were preserved."
@@ -7134,7 +7115,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of licenses.
-#: src/Privacy/PersonalData.php:1007
+#: src/Privacy/PersonalData.php:1017
 #, php-format
 msgid "Automatic renewal was switched off for %d license; the stored payment method reference was removed and open renewals were cancelled."
 msgid_plural "Automatic renewal was switched off for %d licenses; the stored payment method references were removed and open renewals were cancelled."
@@ -7142,7 +7123,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: number of licenses.
-#: src/Privacy/PersonalData.php:1019
+#: src/Privacy/PersonalData.php:1029
 #, php-format
 msgid "The payment provider references (customer and payment method) were removed from %s license."
 msgid_plural "The payment provider references (customer and payment method) were removed from %s licenses."
@@ -7150,18 +7131,18 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of licenses.
-#: src/Privacy/PersonalData.php:1031
+#: src/Privacy/PersonalData.php:1041
 #, php-format
 msgid "%d license that is still in force was retained to preserve the paid service, together with its active installations. It ends with its paid period and can be erased afterwards."
 msgid_plural "%d licenses that are still in force were retained to preserve the paid service, together with their active installations. They end with their paid period and can be erased afterwards."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Privacy/PersonalData.php:1041
+#: src/Privacy/PersonalData.php:1051
 msgid "Some license records could not be erased because of a database error. They were retained; run the erasure request again."
 msgstr ""
 
-#: src/Privacy/PersonalData.php:1131
+#: src/Privacy/PersonalData.php:1141
 msgid "WP License Captain: the customer requested erasure of their license data; this renewal was cancelled."
 msgstr ""
 
@@ -7333,143 +7314,143 @@ msgid "Version %1$s is not higher than the highest published version %2$s. Insta
 msgstr ""
 
 #. translators: %s: product key and version.
-#: src/Update/ReleaseRegistry.php:1283
+#: src/Update/ReleaseRegistry.php:1297
 #, php-format
 msgid "The uploaded package of %s is missing on this server. It is not offered as an update. With several web servers the package directory must be shared between them."
 msgstr ""
 
 #. translators: 1: product key and version, 2: host name.
-#: src/Update/ReleaseRegistry.php:1292
+#: src/Update/ReleaseRegistry.php:1306
 #, php-format
 msgid "The package URL of %1$s points to \"%2$s\", which is not an allowed package host (any more). Update checks for this product fail until the host is added under License settings or the release is replaced. This happens after the shop moved to another domain."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1310
+#: src/Update/ReleaseRegistry.php:1324
 msgid "The package directory can be read over HTTP: this web server ignores the .htaccess protection (nginx). Packages are only protected by their random file name. Add a deny rule for the directory or move it outside the web root with the wplc_package_storage_dir filter (see docs/UPDATE-STORAGE.md)."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1365
+#: src/Update/ReleaseRegistry.php:1379
 msgid "The product key is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1366
+#: src/Update/ReleaseRegistry.php:1380
 msgid "The version must have three numeric parts, optionally followed by -alpha, -beta or -rc and a number: 1.2.3, 1.2.3-beta1, 1.2.3-rc2. Other suffixes are sorted wrongly by WordPress."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1367
+#: src/Update/ReleaseRegistry.php:1381
 msgid "The release channel is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1368
+#: src/Update/ReleaseRegistry.php:1382
 msgid "The package storage type is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1369
+#: src/Update/ReleaseRegistry.php:1383
 msgid "The package URL must be a valid HTTPS URL without credentials."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1370
+#: src/Update/ReleaseRegistry.php:1384
 msgid "The stored package file reference is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1371
+#: src/Update/ReleaseRegistry.php:1385
 msgid "The SHA-256 checksum must consist of exactly 64 hexadecimal characters."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1372
+#: src/Update/ReleaseRegistry.php:1386
 msgid "The required PHP version is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1373
+#: src/Update/ReleaseRegistry.php:1387
 msgid "The required WordPress version is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1374
+#: src/Update/ReleaseRegistry.php:1388
 msgid "The tested WordPress version is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1375
+#: src/Update/ReleaseRegistry.php:1389
 msgid "The required version of the free core plugin is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1376
+#: src/Update/ReleaseRegistry.php:1390
 msgid "The plugin file of the package is invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1377
+#: src/Update/ReleaseRegistry.php:1391
 msgid "The release notes are invalid."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1378
+#: src/Update/ReleaseRegistry.php:1392
 msgid "The manifest is not a valid release manifest JSON object."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1379
+#: src/Update/ReleaseRegistry.php:1393
 msgid "The manifest does not contain a product key."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1380
+#: src/Update/ReleaseRegistry.php:1394
 msgid "The manifest does not contain a version."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1381
+#: src/Update/ReleaseRegistry.php:1395
 msgid "The manifest does not contain a package URL."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1382
+#: src/Update/ReleaseRegistry.php:1396
 msgid "The manifest does not contain a SHA-256 checksum."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1383
+#: src/Update/ReleaseRegistry.php:1397
 msgid "This product key is not registered. Map a WooCommerce product to it first."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1384
+#: src/Update/ReleaseRegistry.php:1398
 msgid "A release with this version already exists for the product."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1385
+#: src/Update/ReleaseRegistry.php:1399
 msgid "The release does not exist."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1386
+#: src/Update/ReleaseRegistry.php:1400
 msgid "Version, package and checksum of a published release cannot be changed. Withdraw it and publish a new version instead."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1387
+#: src/Update/ReleaseRegistry.php:1401
 msgid "The release cannot change to this status from its current status."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1388
+#: src/Update/ReleaseRegistry.php:1402
 msgid "The stored package file is missing."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1389
+#: src/Update/ReleaseRegistry.php:1403
 msgid "The stored package file does not match its SHA-256 checksum."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1390
+#: src/Update/ReleaseRegistry.php:1404
 msgid "The file at the package URL does not match the SHA-256 checksum of the release."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1391
+#: src/Update/ReleaseRegistry.php:1405
 msgid "The host of the package URL is not allowed. Add it under WooCommerce → License settings → \"Additional trusted package hosts\". The URL must use HTTPS on the standard port."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1392
+#: src/Update/ReleaseRegistry.php:1406
 msgid "Please enter a reason. It is stored in the release log."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1393
+#: src/Update/ReleaseRegistry.php:1407
 msgid "The release could not be saved."
 msgstr ""
 
-#: src/Update/ReleaseRegistry.php:1396
+#: src/Update/ReleaseRegistry.php:1410
 msgid "The release data is invalid."
 msgstr ""
 
 #. translators: %s: error message of the download.
-#: src/Update/ReleaseRegistry.php:1442
+#: src/Update/ReleaseRegistry.php:1456
 #, php-format
 msgid "The package could not be downloaded from its URL to verify it: %s"
 msgstr ""
@@ -7701,8 +7682,66 @@ msgid "Renewal possible until"
 msgstr ""
 
 #: templates/emails/plain/wplc-payment-method-missing.php:43
+#: templates/emails/plain/wplc-price-change-withdrawn.php:42
+#: templates/emails/plain/wplc-price-change.php:48
 #: templates/emails/wplc-payment-method-missing.php:43
+#: templates/emails/wplc-price-change-withdrawn.php:42
+#: templates/emails/wplc-price-change.php:48
 msgid "Open your licenses"
+msgstr ""
+
+#. translators: 1: announced price, 2: date, 3: current price.
+#: templates/emails/plain/wplc-price-change-withdrawn.php:28
+#: templates/emails/wplc-price-change-withdrawn.php:28
+#, php-format
+msgid "We told you that the renewal of your license would cost %1$s from %2$s. We have withdrawn this change: your license keeps renewing at %3$s."
+msgstr ""
+
+#: templates/emails/plain/wplc-price-change-withdrawn.php:33
+#: templates/emails/wplc-price-change-withdrawn.php:33
+msgid "You do not need to do anything."
+msgstr ""
+
+#: templates/emails/plain/wplc-price-change-withdrawn.php:39
+#: templates/emails/wplc-price-change-withdrawn.php:39
+msgid "Renewal price"
+msgstr ""
+
+#. translators: 1: date, 2: new price, 3: current price.
+#: templates/emails/plain/wplc-price-change.php:28
+#: templates/emails/wplc-price-change.php:28
+#, php-format
+msgid "From %1$s the renewal of your license costs %2$s instead of %3$s. Renewals before that date are still charged at the current price."
+msgstr ""
+
+#: templates/emails/plain/wplc-price-change.php:34
+#: templates/emails/wplc-price-change.php:34
+msgid "Your license renews automatically. If you do not agree with the new price, you can cancel the automatic renewal at any time in your account under \"Licenses\"; the license then stays valid until the end of the paid period and nothing more is charged."
+msgstr ""
+
+#: templates/emails/plain/wplc-price-change.php:35
+#: templates/emails/wplc-price-change.php:35
+msgid "Your license does not renew automatically. Nothing is charged unless you renew it yourself in your account under \"Licenses\"."
+msgstr ""
+
+#: templates/emails/plain/wplc-price-change.php:36
+#: templates/emails/wplc-price-change.php:36
+msgid "Everything else about your license stays as it is."
+msgstr ""
+
+#: templates/emails/plain/wplc-price-change.php:43
+#: templates/emails/wplc-price-change.php:43
+msgid "Current renewal price"
+msgstr ""
+
+#: templates/emails/plain/wplc-price-change.php:44
+#: templates/emails/wplc-price-change.php:44
+msgid "New renewal price"
+msgstr ""
+
+#: templates/emails/plain/wplc-price-change.php:45
+#: templates/emails/wplc-price-change.php:45
+msgid "New price applies from"
 msgstr ""
 
 #. translators: 1: date, 2: formatted amount.
@@ -7732,11 +7771,6 @@ msgstr ""
 #: templates/emails/plain/wplc-renewal-notice.php:48
 #: templates/emails/wplc-renewal-notice.php:48
 msgid "Renewal date"
-msgstr ""
-
-#: templates/emails/plain/wplc-renewal-notice.php:50
-#: templates/emails/wplc-renewal-notice.php:50
-msgid "Currency"
 msgstr ""
 
 #: templates/emails/plain/wplc-renewal-notice.php:54

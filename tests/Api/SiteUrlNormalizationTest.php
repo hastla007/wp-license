@@ -281,6 +281,28 @@ final class SiteUrlNormalizationTest extends TestCase {
 	}
 
 	/**
+	 * Found by the PHP 8.5 job (INH-03): mb_strtolower() of PHP 8.5 lower-cases U+A7DC (added in
+	 * Unicode 16) to U+019B, which lies in an accepted block, while intl with an older ICU rejects
+	 * the host. A capital letter from outside the handled blocks must not enter them through case
+	 * mapping, whatever Unicode version PHP and ICU have: it is rejected before lower-casing.
+	 */
+	public function test_idn_fallback_rejects_capitals_whose_lower_case_lies_in_an_accepted_block(): void {
+		// U+A7DC → U+019B only since Unicode 16 (PHP 8.5); U+2C7E → U+023F and U+2C7F → U+0240 on every PHP;
+		// U+212A (Kelvin sign) → k and U+212B (Angstrom sign) → å are compatibility characters.
+		foreach ( array( 0xA7DC, 0x2C7E, 0x2C7F, 0x212A, 0x212B, 0xA7CB, 0xA7CC ) as $code_point ) {
+			$char = mb_chr( $code_point, 'UTF-8' );
+			$this->assertSame( '', SiteUrl::fallback_to_ascii( $char . '.de' ), sprintf( 'U+%04X alone', $code_point ) );
+			$this->assertSame( '', SiteUrl::fallback_to_ascii( 'a' . $char . 'b.de' ), sprintf( 'U+%04X between letters', $code_point ) );
+			$this->assertSame( '', SiteUrl::normalize_with( 'https://a' . $char . 'b.de', false ), sprintf( 'U+%04X in a URL', $code_point ) );
+		}
+		// The lower-case letters themselves and capitals of the handled blocks still work without intl.
+		$this->assertSame( SiteUrl::fallback_to_ascii( 'müller.de' ), SiteUrl::fallback_to_ascii( 'MÜLLER.de' ) );
+		$this->assertNotSame( '', SiteUrl::fallback_to_ascii( 'MÜLLER.de' ) );
+		$this->assertNotSame( '', SiteUrl::fallback_to_ascii( mb_chr( 0x019B, 'UTF-8' ) . '.de' ) );
+		$this->assertSame( SiteUrl::fallback_to_ascii( 'пример.de' ), SiteUrl::fallback_to_ascii( 'ПРИМЕР.de' ) );
+	}
+
+	/**
 	 * The fallback either rejects a label or produces exactly the intl result.
 	 * Checks every code point of the Basic Multilingual Plane, alone and between
 	 * ASCII letters, plus random multi-character labels.

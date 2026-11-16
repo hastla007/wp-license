@@ -17,7 +17,7 @@ Premium Add-on Starter talks to exactly one server: the vendor's license server 
 **Activation (once):**
 
 - the license key as entered (the add-on stores only its SHA-256 hash and the last four characters),
-- the product key (fixed per add-on, e.g. `voucher-captain`),
+- the product key (fixed per add-on, e.g. `voucher-captain-pro`),
 - the site URL (`home_url()`),
 - the environment chosen (production, staging, development) and, for staging, the installation ID of the live site,
 - a random installation ID and a random installation secret created on this site,
