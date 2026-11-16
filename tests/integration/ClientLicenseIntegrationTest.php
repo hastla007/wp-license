@@ -654,8 +654,9 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$outcome = $this->run_admin_post(
 			'test_product_license',
 			array(
-				'_wpnonce' => wp_create_nonce( 'test_product_license' ),
-				'wplc_do'  => 'deactivate',
+				'_wpnonce'                => wp_create_nonce( 'test_product_license' ),
+				'wplc_do'                 => 'deactivate',
+				'wplc_confirm_deactivate' => '1', // AL-5: the release needs the confirmation box.
 			)
 		);
 		$this->assertSame( 'redirect', $outcome['outcome'] );
