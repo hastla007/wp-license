@@ -726,3 +726,10 @@ Produktentscheidung: Produktkey workflow-captain-pro, Präfix workflow.; Jahresp
 - [ ] WFC-LIC-05 – Read-only Grenze absichern. Workflow darf Status und Entitlements lesen, aber Lizenzen, Zahlungen, Aktivierungen oder Site-Limits nicht verändern; Schleifen durch die eigene Workflow-Lizenz verhindern.
 - [ ] WFC-LIC-06 – Shop-/Lizenz-E2E abnehmen. Kauf, Refund, Aktivierung, Site-Limit, Staging, Entitlementänderung, Offline-Cache, Ablauf und Update für alle drei Pläne prüfen; Testprodukte von Live-Produkten trennen.
 - Abnahme: Produktkey, Plan-IDs und Rechte stimmen in Lizenzserver, Shop, Captain Pro und Workflow überein. Der Free-Kern funktioniert ohne Lizenzserver; Pro-Ablauf löscht keine Workflow-Daten.
+
+## Mindestversionen: neueste PHP-, MySQL- und MariaDB-Version (Entscheidung der Inhaberin, 16.11.2026)
+
+- [ ] **MINVER-1 — Auf die neuesten Versionen umstellen und testen.** Die Inhaberin hat am 16.11.2026 für alle Captain-Plugins entschieden: Mindestversionen sind die jeweils neuesten – **PHP 8.5** (PHP 8.6 erscheint am 19.11.2026 und kommt in die Test-Matrix), **MySQL 9.7 (LTS)** und **MariaDB 12.3 (LTS)**. Heute verlangt dieses Repository PHP 7.4.
+  - *Zu tun:* Plugin-Header `Requires PHP`, Laufzeitprüfung, `readme.txt`, README, `composer.json`, PHPCS `testVersion`, PHPStan `phpVersion` und die CI-Zellen (Unit-Matrix ab 8.5, Integration auf MySQL 9.7 und MariaDB 12.3) einheitlich umstellen; eine Warnung (keine Sperre), wenn die Datenbank älter ist; Changelog-Eintrag.
+  - *Test (Inhaberin):* auf einem echten Host mit PHP 8.5/8.6 und MySQL 9.7 bzw. MariaDB 12.3 installieren, aktualisieren und die Hauptabläufe durchspielen.
+  - *Vorbild:* Affiliate Captain (`hastla007/wpaffiliatemaster`, Aufgaben PHP-1/PHP-2).
