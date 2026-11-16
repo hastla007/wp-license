@@ -18,8 +18,8 @@ Versions are `MAJOR.MINOR.PATCH`, optionally followed by `-alphaN`, `-betaN` or 
 
 **In the admin:** **WooCommerce → License releases** (capability `wplc_publish_releases`).
 
-- **Create draft:** product, version, channel (`stable` or `beta`), an uploaded ZIP (up to 50 MB by default; PHP's `upload_max_filesize` and `post_max_size` apply) **or** an HTTPS package URL on an allowed host plus its SHA-256, optional requirements (PHP, WordPress, tested up to, minimum version of your free core plugin) and release notes (HTML). Empty PHP and WordPress requirements are filled from the plugin header of an uploaded ZIP.
-- **Import manifest:** upload or paste a JSON object with `product_key`, `version`, `package_url` (HTTPS) and `sha256`, optionally `requires_php`, `requires_wp`, `tested_wp`, `requires_core` and `release_notes`. A manifest always creates a URL release.
+- **Create draft:** product, version, channel (`stable` or `beta`), an uploaded ZIP (up to 50 MB by default; PHP's `upload_max_filesize` and `post_max_size` apply) **or** an HTTPS package URL on an allowed host (or `s3://bucket/key` with object storage, see below) plus its SHA-256, optional requirements (PHP, WordPress, tested up to, minimum version of your free core plugin) and release notes (HTML). Empty PHP and WordPress requirements are filled from the plugin header of an uploaded ZIP.
+- **Import manifest:** upload or paste a JSON object with `product_key`, `version`, `package_url` (HTTPS, or `s3://bucket/key`) and `sha256`, optionally `requires_php`, `requires_wp`, `tested_wp`, `requires_core` and `release_notes`. A manifest always creates a URL release.
 - **Publish**, **Withdraw** (reason required) and **Delete** (drafts only) ask for confirmation. The last 50 changes are shown as "Release log".
 
 **On the command line** (for your build pipeline):
@@ -57,8 +57,8 @@ A cache, link scanner or security proxy that fetches a download link first uses 
 
 | | Uploaded ZIP (`local`) | Package URL (`url`) |
 | --- | --- | --- |
-| Where the ZIP lives | Private directory on the shop server | Any HTTPS host: S3, GCS, a download server |
-| Delivered by | Streaming route of the shop (PHP, or the web server via `X-Accel-Redirect`/`X-Sendfile`) | Redirect to a short-lived pre-signed URL from your resolver |
+| Where the ZIP lives | Private directory on the shop server | A private S3-compatible bucket, or any HTTPS host |
+| Delivered by | Streaming route of the shop (PHP, or the web server via `X-Accel-Redirect`/`X-Sendfile`) | Redirect to a short-lived pre-signed URL (built in for S3-compatible storage, or from your resolver) |
 | Good for | Small catalogs, no extra infrastructure | Large files, many downloads, CDN |
 
 ### Uploaded packages: keep them out of the web root
@@ -111,30 +111,74 @@ Apache with mod_xsendfile: return `'X-Sendfile: ' . $path`; LiteSpeed: `'X-LiteS
 
 The package directory must be the same directory on every node (NFS, EFS, a shared volume). On a node without the file a release is skipped in the feed and the releases screen shows "The uploaded package … is missing on this server". Alternatively use URL storage.
 
-### Object storage (S3, GCS)
+### Object storage (S3-compatible, built in)
 
-Register the release with the permanent object URL, keep the object private, allow the bucket host, and return a pre-signed URL from a resolver:
+Packages can live in a private bucket of any storage that speaks the S3 API with Signature Version 4: AWS S3, Cloudflare R2, MinIO, Backblaze B2 (S3 API), Google Cloud Storage (XML API with HMAC keys) and others. The plugin signs the download links itself; no SDK is needed.
+
+**1. Configure the bucket in `wp-config.php`** (above the line that loads `wp-settings.php`). The values are read from these constants only; they are never stored in the database, shown in the admin or written to a log.
+
+```php
+define( 'WPLC_S3_BUCKET', 'acme-releases' );
+define( 'WPLC_S3_REGION', 'eu-central-1' );              // Default us-east-1; "auto" for Cloudflare R2.
+define( 'WPLC_S3_ENDPOINT', 'https://s3.eu-central-1.amazonaws.com' ); // Default: AWS for the region.
+define( 'WPLC_S3_ACCESS_KEY_ID', '…' );
+define( 'WPLC_S3_SECRET_ACCESS_KEY', '…' );
+// define( 'WPLC_S3_PATH_STYLE', true );                // https://endpoint/bucket/key instead of https://bucket.endpoint/key.
+```
+
+| Storage | `WPLC_S3_ENDPOINT` | `WPLC_S3_REGION` | Path-style |
+| --- | --- | --- | --- |
+| AWS S3 | omit (or `https://s3.<region>.amazonaws.com`) | bucket region | no |
+| Cloudflare R2 | `https://<account-id>.r2.cloudflarestorage.com` | `auto` | either |
+| MinIO | `https://minio.example.com` | your MinIO region (default `us-east-1`) | usually yes |
+| Backblaze B2 | `https://s3.<region>.backblazeb2.com` | e.g. `eu-central-003` | either |
+| Google Cloud Storage | `https://storage.googleapis.com` | `auto` | either |
+
+- The endpoint must be HTTPS on the standard port 443, without a path. Put a MinIO server that listens on another port behind a reverse proxy.
+- A bucket name with dots or capital letters is always addressed path-style (TLS certificates do not cover it otherwise).
+- Give the key **read access to the release objects only** (for example `s3:GetObject` on `arn:aws:s3:::acme-releases/*`). Write access stays with your build pipeline. Keep the bucket private.
+- The request host of the bucket is added to the trusted package hosts automatically.
+- **WooCommerce → License diagnostics** shows "Object storage (S3-compatible)": the bucket and the endpoint host, or what is wrong with the configuration. Never a key.
+
+**2. Check the credentials:**
+
+```sh
+wp wplc storage check                       # signed HEAD on the bucket (needs list permission on AWS)
+wp wplc storage check --key=acme-pro/acme-pro-1.4.0.zip   # signed HEAD on one object (read permission is enough)
+```
+
+**3. Upload the ZIP to the bucket** with your own tooling (one key per version; never overwrite an object), then register it as package location `s3://<bucket>/<key>`, together with the SHA-256:
+
+- **Admin:** in **Create draft**, enter `s3://acme-releases/acme-pro/acme-pro-1.4.0.zip` as package URL.
+- **WP-CLI:** `wp wplc release create --product=acme-pro --version=1.4.0 --object=acme-pro/acme-pro-1.4.0.zip --sha256=<sha256> --publish` (`--object` takes `s3://bucket/key` or only the key).
+- **Manifest:** `"package_url": "s3://acme-releases/acme-pro/acme-pro-1.4.0.zip"`.
+
+The key is taken as written (spaces and non-ASCII characters are fine; no `.` or `..` segments). The release stores the permanent object URL (`https://…/acme-pro/acme-pro-1.4.0.zip`). Publishing downloads the object once through a signed link and checks SHA-256, folder and `Version:` header.
+
+**How it is delivered:** when a licensed installation redeems its one-time download link, or a customer downloads from the account, the server checks license, installation and release, then redirects to a pre-signed `GET` URL of the object. It is valid for 300 seconds by default (filter `wplc_s3_presign_expires`, 1 second to 7 days). The client never learns a permanent address, and a link stops working after it expires. The server clock must be correct (NTP): the storage refuses links whose time stamp is off.
+
+### Object storage with your own resolver
+
+For a storage that is not S3-compatible, or to sign links differently, register a resolver: it receives the stored URL and returns a short-lived URL. Your resolver runs **before** the built-in one (use the default priority 10, or any priority below 20); a URL it changed is not signed again, so it takes precedence.
 
 ```php
 add_filter( 'wplc_update_package_hosts', function ( array $hosts ) {
-	$hosts[] = 'acme-releases.s3.eu-central-1.amazonaws.com';
+	$hosts[] = 'downloads.example.com';
 	return $hosts;
 } );
 
 add_filter( 'wplc_resolve_update_package_url', function ( $url, $license_id ) {
-	if ( 'acme-releases.s3.eu-central-1.amazonaws.com' !== wp_parse_url( $url, PHP_URL_HOST ) ) {
+	if ( 'downloads.example.com' !== wp_parse_url( $url, PHP_URL_HOST ) ) {
 		return $url; // Not ours, for example an uploaded package.
 	}
-	// Build a pre-signed GET URL valid for about five minutes with your storage SDK,
-	// with credentials from the server environment, never from the database.
-	return acme_presign_s3_url( $url, '+5 minutes' );
+	// Return a signed URL valid for about five minutes, built with credentials from the server environment.
+	return acme_sign_download_url( $url, '+5 minutes' );
 }, 10, 2 );
 ```
 
-- The bucket host can also be added under **License settings → Additional trusted package hosts**. Only HTTPS on port 443 on an allowed host is delivered.
+- The host can also be added under **License settings → Additional trusted package hosts**. Only HTTPS on port 443 on an allowed host is delivered.
 - **Without a resolver a URL release is not delivered**, because every licensed site would learn the permanent address. A shop that accepts that (a public mirror) can allow it with `add_filter( 'wplc_require_package_resolver', '__return_false' );`.
 - The resolver also runs once when a URL release is published: the server downloads the package to verify SHA-256, folder and `Version:` header. Upload each version under its own object key and never overwrite objects.
-- The plugin ships no storage SDK; credentials, bucket policy and retention belong to your deployment.
 
 ## Problems shown on the releases screen
 
@@ -150,6 +194,7 @@ add_filter( 'wplc_resolve_update_package_url', function ( $url, $license_id ) {
 | `wplc_update_package_hosts` | Allowed package hosts (the shop host is always kept). |
 | `wplc_resolve_update_package_url` | Turn a stored URL into the URL to deliver (pre-signed). |
 | `wplc_require_package_resolver` | `false` delivers URL releases at their permanent address. |
+| `wplc_s3_presign_expires` | Validity of pre-signed object storage links in seconds (default 300, at most 7 days). |
 | `wplc_download_reuse_seconds` | Reuse window of download links (default 0). |
 | `wplc_update_product_homepage`, `wplc_update_product_icons` | Homepage and icons in the "View details" window. |
 | `wplc_package_storage_dir`, `wplc_package_max_upload_bytes`, `wplc_package_offload_header` | Local storage. |

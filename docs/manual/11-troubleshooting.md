@@ -30,6 +30,8 @@ Start with **WooCommerce → License diagnostics**: every row with a problem nam
 | Update checks answer 503 `package_configuration_invalid` | A URL release points to a host that is no longer allowed (often after a domain move) | Add the host under trusted package hosts or publish a new release. |
 | "The uploaded package … is missing on this server" | Several web nodes without shared storage, or a restore without the package directory | Share the directory between nodes; restore the files. |
 | A URL release is never delivered | No resolver returns a pre-signed URL | Add a `wplc_resolve_update_package_url` resolver (chapter 5). |
+| Object storage downloads fail with 403 at the storage | Wrong key or region, the key may not read the object, or the server clock is off | Run `wp wplc storage check --key=<key>`; fix the `WPLC_S3_*` constants or the key's permissions; check NTP. |
+| An `s3://` package location is refused | Object storage not configured, another bucket than `WPLC_S3_BUCKET`, or a key with `.`/`..` segments | Check the diagnostics row "Object storage (S3-compatible)" and the location. |
 | The upload is refused | More than one top-level folder, wrong folder name, `Version:` header differs from the release version, PHP `zip` missing, file too large | Fix the package; raise `upload_max_filesize`/`post_max_size` or `wplc_package_max_upload_bytes`; or use `wp wplc release create --zip=…`. |
 | "This product key is not registered" when uploading | No WooCommerce product carries the product key yet | Create the license product first (chapter 4). |
 | The package directory is "Publicly readable" | nginx ignores `.htaccess` | Set `WPLC_PACKAGE_STORAGE_DIR` or add the deny rule (chapter 5). |

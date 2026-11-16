@@ -84,7 +84,7 @@ With `WPLC_RESPONSE_SIGNING_KEY` in `wp-config.php`, `--prepare` and `--rotate` 
 
 ### Diagnostics page
 
-**WooCommerce → License diagnostics** (capability `wplc_view_diagnostics`) is read-only and shows no keys, secrets or customer data. Rows with a problem carry a warning and one sentence on what to do: versions, schema, tables, server and database time, the last and next daily run and every job's heartbeat, Action Scheduler and failed actions, Stripe gateway and webhook state, pending and review Stripe events, stuck and overdue renewals, licenses with automatic renewal but no open renewal, license products without a plan, keys verifiable with the current secret, secrets configured, database lock self-test, database layer (read/write splitting), client address and proxy constants, package storage and the newest plugin release.
+**WooCommerce → License diagnostics** (capability `wplc_view_diagnostics`) is read-only and shows no keys, secrets or customer data. Rows with a problem carry a warning and one sentence on what to do: versions, schema, tables, server and database time, the last and next daily run and every job's heartbeat, Action Scheduler and failed actions, Stripe gateway and webhook state, pending and review Stripe events, stuck and overdue renewals, licenses with automatic renewal but no open renewal, license products without a plan, keys verifiable with the current secret, secrets configured, database lock self-test, database layer (read/write splitting), client address and proxy constants, package storage, object storage (bucket and endpoint host only) and the newest plugin release.
 
 ### Heartbeat
 

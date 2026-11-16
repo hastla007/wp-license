@@ -516,7 +516,7 @@ final class ReleaseRegistry {
 	}
 
 	/**
-	 * Validate and normalize release input. Pure helper (no WordPress calls).
+	 * Validate and normalize release input. Pure helper (no WordPress calls; an s3:// location reads the WPLC_S3_* constants).
 	 *
 	 * @param array<string,mixed> $input Raw release fields.
 	 * @return array{errors:string[],data:array<string,string>}
@@ -552,7 +552,11 @@ final class ReleaseRegistry {
 		if ( ! in_array( $data['storage'], array( self::STORAGE_URL, self::STORAGE_LOCAL ), true ) ) {
 			$errors[] = 'invalid_storage';
 		} elseif ( self::STORAGE_URL === $data['storage'] ) {
-			if ( ! self::is_https_url( $data['package_url'] ) ) {
+			// T-31: "s3://bucket/key" of the configured bucket becomes its permanent object URL.
+			$data['package_url'] = S3Storage::normalize_package_url( $data['package_url'] );
+			if ( S3Storage::is_object_uri( $data['package_url'] ) ) {
+				$errors[] = 'object_storage_unavailable';
+			} elseif ( ! self::is_https_url( $data['package_url'] ) ) {
 				$errors[] = 'invalid_package_url';
 			}
 		} elseif ( ! LocalPackageStorage::is_valid_key( $data['package_url'] ) ) {
@@ -1389,6 +1393,7 @@ final class ReleaseRegistry {
 			'invalid_channel' => __( 'The release channel is invalid.', 'wp-license' ),
 			'invalid_storage' => __( 'The package storage type is invalid.', 'wp-license' ),
 			'invalid_package_url' => __( 'The package URL must be a valid HTTPS URL without credentials.', 'wp-license' ),
+			'object_storage_unavailable' => __( 'An s3:// package location needs configured object storage (WPLC_S3_* constants), the bucket named in WPLC_S3_BUCKET and a valid object key.', 'wp-license' ),
 			'invalid_package_key' => __( 'The stored package file reference is invalid.', 'wp-license' ),
 			'invalid_sha256' => __( 'The SHA-256 checksum must consist of exactly 64 hexadecimal characters.', 'wp-license' ),
 			'invalid_requires_php' => __( 'The required PHP version is invalid.', 'wp-license' ),
@@ -1462,7 +1467,8 @@ final class ReleaseRegistry {
 				sprintf(
 					/* translators: %s: error message of the download. */
 					__( 'The package could not be downloaded from its URL to verify it: %s', 'wp-license' ),
-					$file->get_error_message()
+					// A signed URL is a working download link for a few minutes: never repeat it.
+					str_replace( $url, (string) wp_parse_url( $url, PHP_URL_HOST ), $file->get_error_message() )
 				)
 			);
 		}

@@ -89,13 +89,15 @@ Announces a higher renewal price with notice, or withdraws an announcement (chap
 
 ### `wp wplc release create`
 
-Creates a release from a ZIP on this server; the ZIP is copied into the private package directory.
+Creates a release from a ZIP on this server (copied into the private package directory), or from an object in the configured S3-compatible bucket (chapter 5).
 
 | Option | Meaning |
 | --- | --- |
 | `--product=<product_key>` | Product key from the catalog (required). |
 | `--version=<version>` | `1.2.3`, `1.2.3-alpha1`, `1.2.3-beta1` or `1.2.3-rc1` (required). |
-| `--zip=<path>` | Path of the package (required). |
+| `--zip=<path>` | Path of the package. Either `--zip` or `--object`. |
+| `--object=<location>` | Object in the configured bucket: `s3://bucket/key` or only the key. Needs `--sha256`. |
+| `--sha256=<checksum>` | SHA-256 of the object (with `--object`). |
 | `--channel=<channel>` | `stable` (default) or `beta`. |
 | `--requires-php=<version>`, `--requires-wp=<version>` | Default: the plugin header. |
 | `--tested-wp=<version>` | WordPress version tested with. |
@@ -108,6 +110,10 @@ Creates a release from a ZIP on this server; the ZIP is copied into the private 
 ### `wp wplc release publish <id> --reason=<text>` / `wp wplc release withdraw <id> --reason=<text>`
 
 Publish a draft, or withdraw a published release.
+
+### `wp wplc storage check [--key=<key>]`
+
+Shows endpoint host, bucket, region and addressing style of the S3-compatible object storage (`WPLC_S3_*` constants, chapter 5) and sends a signed `HEAD` request to the bucket, or with `--key` to one object (enough when the key may only read objects). Exit code 1 with the reason (access denied, not found, wrong region or endpoint, unreachable) when it fails. Neither the secret nor the signed URL is printed.
 
 ## Keys and secrets
 
