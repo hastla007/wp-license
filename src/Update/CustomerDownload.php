@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Lets a logged-in customer download a release of a licensed product.
  *
  * The update feed needs an activated installation, so the very first ZIP is
- * delivered here: from the customer account, to the owner of the license.
+ * delivered here: from the customer account, to the owner of the license and its co-users (B-139).
  * A local package is sent in the response to the POST form, so no download
  * token appears in a URL (T-108); an external package is a redirect to the
  * resolved, allow-listed URL.
@@ -106,7 +106,7 @@ final class CustomerDownload {
 	 */
 	public static function render_button( array $license_row ): void {
 		$license_id = (int) ( $license_row['id'] ?? 0 );
-		if ( $license_id <= 0 || ! is_user_logged_in() || ! self::is_owner( $license_row, get_current_user_id() ) ) {
+		if ( $license_id <= 0 || ! is_user_logged_in() || ! self::may_download( $license_row, get_current_user_id() ) ) {
 			return;
 		}
 		$scope = self::download_scope( $license_row );
@@ -229,7 +229,7 @@ final class CustomerDownload {
 		$tables = Schema::table_names();
 		$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$tables['licenses']} WHERE id = %d LIMIT 1", $license_id ), ARRAY_A );
 		// Same answer for "not found" and "not yours" so license IDs cannot be probed.
-		if ( ! is_array( $license ) || $user_id <= 0 || ! self::is_owner( $license, $user_id ) ) {
+		if ( ! is_array( $license ) || $user_id <= 0 || ! self::may_download( $license, $user_id ) ) {
 			self::fail( __( 'This license does not belong to your account.', 'wp-license' ), 403 );
 		}
 		$scope = self::download_scope( $license );
@@ -350,14 +350,14 @@ final class CustomerDownload {
 	}
 
 	/**
-	 * Whether the user owns the license.
+	 * Whether the user owns the license or is one of its co-users (B-139).
 	 *
 	 * @param array<string,mixed> $license License row.
 	 * @param int                 $user_id User ID.
 	 * @return bool
 	 */
-	private static function is_owner( array $license, int $user_id ): bool {
-		return $user_id > 0 && (int) ( $license['customer_id'] ?? 0 ) === $user_id;
+	private static function may_download( array $license, int $user_id ): bool {
+		return \WPLC\License\LicenseMembers::can_view( $license, $user_id );
 	}
 
 	/**

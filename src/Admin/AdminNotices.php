@@ -98,6 +98,10 @@ final class AdminNotices {
 			'owner_stale'             => array( 'error', __( 'The owner was not changed: the license was changed after you opened the page. Check it and try again.', 'wp-license' ) ),
 			'owner_processing'        => array( 'error', __( 'The owner was not changed: an automatic payment for this license is being processed right now. Try again in a few minutes.', 'wp-license' ) ),
 			'owner_failed'            => array( 'error', __( 'The owner was not changed. The license may already belong to this customer.', 'wp-license' ) ),
+			// Co-users (B-139).
+			'member_removed'          => array( 'success', __( 'The co-user was removed. The license no longer appears in their account.', 'wp-license' ) ),
+			'member_missing_input'    => array( 'error', __( 'A co-user and a reason are required.', 'wp-license' ) ),
+			'member_remove_failed'    => array( 'error', __( 'The co-user was not found. They may have left or been removed already.', 'wp-license' ) ),
 			'license_restored'        => array( 'success', __( 'The license is active again with the new end date.', 'wp-license' ) ),
 			'restore_missing_input'   => array( 'error', __( 'A license, a new end date in the future and a reason are required.', 'wp-license' ) ),
 			'restore_stale'           => array( 'error', __( 'The license was not restored: its status changed after you opened the page.', 'wp-license' ) ),

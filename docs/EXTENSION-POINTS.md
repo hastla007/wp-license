@@ -25,6 +25,10 @@ For plugins that run in the shop next to the server (the workflow add-on is the 
 
 To look up more than an event carries, by the public reference from the event: `get( $reference, $customer_user_id = 0 )` (summary: license, product_key, plan_key, status, access, expires_at, access_until, customer_user_id), `status()`, `plan()`, `expires_at()`, `entitlements()` (granted now; empty without access), `is_entitled( $reference, $key )` and `for_user( $user_id, $product_key = '' )`. Every method runs SELECT queries only and returns no key, key hash, email address, secret or database ID; an unknown or ambiguous reference returns null (pass the owner's user ID to narrow it). Changing a license stays behind the capabilities `wplc_*` and nonces of the plugin's own screens and APIs.
 
+## Co-users and transfers (B-139)
+
+The co-user and transfer hooks (`wplc/license_member_*`, `wplc/license_transfer_started`, `wplc/license_transferred`, `wplc_license_member_limit` default 5, `wplc_license_invitation_days` default 14, `wplc_license_transfer_enabled` default true, `wplc_license_transfer_new_key` default false) are described in [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#co-users-and-transfers-by-the-customer). An accepted transfer also fires `wplc/license_owner_changed` first, like the owner change in the admin. The account template `myaccount/wplc-license.php` prints the co-user and transfer forms through its template action `wplc_account_license_sharing` (license row, display values); a theme copy made before this version needs that line added.
+
 ## Catalog files instead of filters
 
 Products, entitlement keys and their labels are data: an add-on ships a catalog file (`wplc-catalog.json`) and the shop imports it ([CATALOG-FILE.md](CATALOG-FILE.md)). This is the supported way to make a product and its entitlements known to the product editor. The filters `wplc_entitlement_catalog`, `wplc_known_product_keys` and `wplc_offer_planned_entitlements` remain for shops that adjust what the editor offers in code; they receive what the imported catalog offers.
@@ -57,10 +61,15 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc/license_issued_followup` | `src/License/LicenseIssuer.php` | Fires once the follow-up work for an issued license is done. No key is passed. |
 | `wplc/license_key_reissued` | `src/Admin/SupportActions.php` | Fires after a license received a new key. |
 | `wplc/license_key_resend_requested` | `src/Admin/SupportActions.php` | Fires when an administrator asks for the key email to be sent again. |
+| `wplc/license_member_added` | `src/License/LicenseMembers.php` | Fires after a user accepted a co-user invitation. |
+| `wplc/license_member_invited` | `src/License/LicenseMembers.php` | Fires after the owner invited a co-user. |
+| `wplc/license_member_removed` | `src/License/LicenseMembers.php` | Fires after a co-user was removed or an open invitation withdrawn. |
 | `wplc/license_needs_review` | `src/License/LicenseLifecycle.php` | Fires when a license was suspended and needs a decision by the shop. |
 | `wplc/license_owner_changed` | `src/Admin/SupportActions.php` | Fires after a license was handed over to another user. |
 | `wplc/license_plan_changed` | `src/License/PlanChange.php` | Fires after the plan of a license changed (upgrade, downgrade at renewal, administrator change, revert). |
 | `wplc/license_status_changed` | `src/License/LicenseLifecycle.php` | Fires after every successful license status transition and renewal. |
+| `wplc/license_transfer_started` | `src/License/LicenseMembers.php` | Fires after the owner started a transfer of a license. |
+| `wplc/license_transferred` | `src/License/LicenseMembers.php` | Fires after a transfer started by the owner was accepted by the recipient. |
 | `wplc/loaded` | `src/Plugin.php` | Fires after WP License Captain has confirmed its WooCommerce dependency. |
 | `wplc/price_change_not_applied` | `src/Billing/PriceChange.php` | Fires once when the date of an announced renewal price passed without a recorded notice email. |
 | `wplc/renewal_blocked` | `src/Billing/RenewalProcessor.php` | Fires when a renewal could not be attempted because of a shop-side problem. |
@@ -121,8 +130,12 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_known_product_keys` | `src/Catalog/EntitlementCatalog.php` | Filter the product keys suggested in the product editor. |
 | `wplc_license_email_locale` | `src/Notifications/PurchaseLocale.php` | Filter the locale used for the emails of one license. |
 | `wplc_license_email_recipient` | `src/Notifications/Emails/LicenseEmail.php` | Filter the recipient of the emails of one license. |
+| `wplc_license_invitation_days` | `src/License/LicenseMembers.php` | Filters how many days an invitation link can be used. |
 | `wplc_license_lock_timeout` | `src/License/LicenseLifecycle.php` | Seconds a lifecycle change waits for another request that changes the same license. |
+| `wplc_license_member_limit` | `src/License/LicenseMembers.php` | Filters how many co-users a license can have (accepted plus open invitations). |
 | `wplc_license_owner_for_guest_order` | `src/License/LicenseIssuer.php` | Filters the owner of the licenses of an order without a customer account. |
+| `wplc_license_transfer_enabled` | `src/License/LicenseMembers.php` | Filters whether the owner can transfer a license to another customer from the account. |
+| `wplc_license_transfer_new_key` | `src/License/LicenseMembers.php` | Filters whether a transfer accepted in the account also issues a new license key. |
 | `wplc_lock_self_test` | `src/Admin/Diagnostics.php` | Lets the package that owns the lock helper answer the self-test with its own implementation. |
 | `wplc_log_api_rejection` | `src/Api/V1/ApiLog.php` | Filter whether this rejection is written to the log. |
 | `wplc_log_debug` | `src/Infrastructure/Log.php` | Filters whether the plugin writes debug lines to the WooCommerce log (A-133). |

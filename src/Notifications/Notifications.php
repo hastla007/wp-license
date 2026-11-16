@@ -44,6 +44,10 @@ final class Notifications {
 		'revoked' => 'LicenseRevokedEmail',
 		'price_change' => 'RenewalPriceChangeEmail',
 		'price_change_withdrawn' => 'RenewalPriceChangeWithdrawnEmail',
+		// Co-users and transfers by the customer (B-139).
+		'member_invitation' => 'MemberInvitationEmail',
+		'transfer_offer' => 'TransferOfferEmail',
+		'transferred' => 'LicenseTransferredEmail',
 	);
 
 	/**
@@ -371,6 +375,29 @@ final class Notifications {
 			return $sent;
 		} catch ( \Throwable $error ) {
 			self::log( 'error', 'Price change withdrawal email failed: ' . $error->getMessage(), (int) ( $license['id'] ?? 0 ) );
+			return false;
+		}
+	}
+
+	/**
+	 * B-139: send a co-user or transfer email to an explicit address.
+	 *
+	 * Not retried: an invitation the mailer refused can be sent again by the owner
+	 * (withdraw and invite again). The failure is logged.
+	 *
+	 * @param string              $email_key member_invitation, transfer_offer or transferred.
+	 * @param array<string,mixed> $license   License row.
+	 * @param array<string,mixed> $context   `recipient` plus accept_url, expires_at, inviter, role, other_party.
+	 * @return bool True when the mailer accepted the message (or the email is switched off).
+	 */
+	public static function send_sharing_email( string $email_key, array $license, array $context ): bool {
+		if ( ! in_array( $email_key, array( 'member_invitation', 'transfer_offer', 'transferred' ), true ) ) {
+			return false;
+		}
+		try {
+			return self::deliver( $email_key, $license, $context );
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'The "' . $email_key . '" email failed: ' . $error->getMessage(), (int) ( $license['id'] ?? 0 ) );
 			return false;
 		}
 	}

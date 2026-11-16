@@ -14,6 +14,7 @@ use WPLC\License\AuditLog;
 use WPLC\License\AuditReason;
 use WPLC\License\LicenseKey;
 use WPLC\License\LicenseLifecycle;
+use WPLC\License\LicenseMembers;
 use WPLC\License\LicenseStateMachine;
 use WPLC\Notifications\Notifications;
 use WPLC\Notifications\ReminderSchedule;
@@ -111,6 +112,7 @@ final class CustomerPortal {
 		}
 
 		PaymentMethods::register_hooks();
+		LicenseSharing::register_hooks();
 		PublicCancellation::register_hooks();
 		Blocks::register_hooks();
 	}
@@ -395,9 +397,14 @@ final class CustomerPortal {
 			wc_print_notices();
 		}
 		self::print_fallback_notice();
+		// B-139: an invitation link that was opened (accepting it needs a click and a nonce).
+		LicenseSharing::render_invitation_prompt();
 
+		// The customer's own licenses and the licenses shared with them as a co-user (B-139).
+		list( $visible, $visible_args ) = LicenseMembers::visible_condition( '', $user_id );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- fixed fragment with placeholders.
 		$total = (int) $wpdb->get_var(
-			$wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE customer_id = %d', $tables['licenses'], $user_id )
+			$wpdb->prepare( "SELECT COUNT(*) FROM {$tables['licenses']} WHERE {$visible}", $visible_args )
 		);
 
 		$pages    = self::page_count( $total );
@@ -406,16 +413,14 @@ final class CustomerPortal {
 		if ( $total ) {
 			$licenses = $wpdb->get_results(
 				$wpdb->prepare(
-					'SELECT * FROM %i WHERE customer_id = %d ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d',
-					$tables['licenses'],
-					$user_id,
-					self::PER_PAGE,
-					( $page - 1 ) * self::PER_PAGE
+					"SELECT * FROM {$tables['licenses']} WHERE {$visible} ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d",
+					array_merge( $visible_args, array( self::PER_PAGE, ( $page - 1 ) * self::PER_PAGE ) )
 				),
 				ARRAY_A
 			);
 			$licenses = is_array( $licenses ) ? $licenses : array();
 		}
+		// phpcs:enable
 
 		$related = self::load_related( $licenses );
 		// A-22: newer licenses of the same product that can take over sites.
@@ -603,14 +608,16 @@ final class CustomerPortal {
 			? LicenseKey::for_uuid( (string) $license['license_uuid'], $key_id )
 			: '';
 
-		$auto        = $running && ReminderSchedule::renews_automatically( $license );
-		$can_renew   = self::can_renew( $license );
-		$pay_url     = 'past_due' === $status && isset( $related['renewal_orders'][ $license_id ] ) ? self::payment_url( (int) $related['renewal_orders'][ $license_id ] ) : '';
+		// B-139: a co-user sees status, plan, term, key, sites and downloads; money matters stay with the owner.
+		$owner       = (int) ( $license['customer_id'] ?? 0 ) === get_current_user_id();
+		$auto        = $owner && $running && ReminderSchedule::renews_automatically( $license );
+		$can_renew   = $owner && self::can_renew( $license );
+		$pay_url     = $owner && 'past_due' === $status && isset( $related['renewal_orders'][ $license_id ] ) ? self::payment_url( (int) $related['renewal_orders'][ $license_id ] ) : '';
 		$has_release = self::has_release( $product_key );
 
-		$renewal_text = $running ? self::renewal_text( $license ) : '';
+		$renewal_text = $owner && $running ? self::renewal_text( $license ) : '';
 		// INH-05: a license without automatic renewal has no terms table; name an announced price here.
-		$announced = $running && ! $auto ? RenewalTerms::announced_change( $license ) : null;
+		$announced = $owner && $running && ! $auto ? RenewalTerms::announced_change( $license ) : null;
 		if ( $announced ) {
 			/* translators: 1: date, 2: amount. */
 			$renewal_text = trim( $renewal_text . ' ' . sprintf( __( 'From %1$s a renewal costs %2$s.', 'wp-license' ), $announced['from'], $announced['amount'] ) );
@@ -640,6 +647,8 @@ final class CustomerPortal {
 			'download_hint' => '',
 			'install_steps' => $has_access ? Notifications::install_steps( $license ) : array(),
 			'docs_url'      => $has_access ? Notifications::docs_url( $product_key ) : '',
+			// B-139: 'owner', or 'member' for a license shared with the current user.
+			'role'          => $owner ? 'owner' : 'member',
 		);
 
 		/**
@@ -779,6 +788,12 @@ final class CustomerPortal {
 		$name       = self::accessible_name( $license, (string) ( $view['title'] ?? '' ) );
 		$auto       = ReminderSchedule::renews_automatically( $license );
 
+		if ( (int) ( $license['customer_id'] ?? 0 ) !== get_current_user_id() ) {
+			// B-139: a co-user downloads; renewing and cancelling are the owner's.
+			self::render_download_form( $license );
+			return;
+		}
+
 		// With automatic renewal the saved payment method is charged on the renewal date; an extra
 		// manual payment before that would only collide with it. Offered again once that charge failed.
 		$can_renew = isset( $view['can_renew'] ) ? (bool) $view['can_renew'] : self::can_renew( $license );
@@ -848,7 +863,7 @@ final class CustomerPortal {
 	 * @return array<string,array{0:string,1:string}> Code => [ WooCommerce notice type, message ].
 	 */
 	public static function notice_messages(): array {
-		return array(
+		return LicenseSharing::notice_messages() + array(
 			'site_deactivated'   => array( 'success', __( 'The site was deactivated. Its place is free again.', 'wp-license' ) ),
 			'site_not_found'     => array( 'error', __( 'The site activation was not found for this account.', 'wp-license' ) ),
 			'site_not_active'    => array( 'notice', __( 'This site was already deactivated.', 'wp-license' ) ),
@@ -989,6 +1004,9 @@ final class CustomerPortal {
 		$object = in_array( $action, array( 'wplc_deactivate_site', 'wplc_transfer_site' ), true )
 			? ( isset( $_POST['activation_id'] ) ? absint( wp_unslash( $_POST['activation_id'] ) ) : 0 )
 			: ( isset( $_POST['license_id'] ) ? absint( wp_unslash( $_POST['license_id'] ) ) : 0 );
+		if ( 'wplc_accept_invitation' === $action ) {
+			$object = isset( $_POST['invitation_id'] ) ? absint( wp_unslash( $_POST['invitation_id'] ) ) : 0;
+		}
 		$nonce  = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
 		// phpcs:enable
 
@@ -1001,7 +1019,7 @@ final class CustomerPortal {
 			'wplc_download_package'   => 'wplc_download_package_',
 			'wplc_set_payment_method' => 'wplc_set_payment_method_',
 			'wplc_enable_renewal'     => 'wplc_enable_renewal_',
-		);
+		) + LicenseSharing::ACTIONS;
 		if ( ! isset( $nonce_actions[ $action ] ) ) {
 			return;
 		}
@@ -1016,6 +1034,19 @@ final class CustomerPortal {
 		}
 		if ( ! $object || ! wp_verify_nonce( $nonce, $nonce_actions[ $action ] . $object ) ) {
 			self::finish( 'session_expired' );
+		}
+
+		if ( isset( LicenseSharing::ACTIONS[ $action ] ) ) {
+			// B-139: co-users and transfers. Only the fields these forms send are read.
+			// phpcs:disable WordPress.Security.NonceVerification.Missing -- Verified above for this object.
+			$fields = array();
+			foreach ( array( 'email', 'member_id', 'confirm_transfer', 'token' ) as $field ) {
+				if ( isset( $_POST[ $field ] ) && is_string( $_POST[ $field ] ) ) {
+					$fields[ $field ] = sanitize_text_field( wp_unslash( $_POST[ $field ] ) );
+				}
+			}
+			// phpcs:enable
+			self::finish( LicenseSharing::handle( $action, $object, $fields ) );
 		}
 
 		switch ( $action ) {
@@ -1078,14 +1109,15 @@ final class CustomerPortal {
 		global $wpdb;
 
 		$tables = Schema::table_names();
-		$row    = $wpdb->get_row(
+		// The owner, or a co-user of the license (B-139): both may release sites.
+		list( $visible, $visible_args ) = LicenseMembers::visible_condition( 'l', get_current_user_id() );
+		$row = $wpdb->get_row(
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- fixed fragment with placeholders.
 			$wpdb->prepare(
-				'SELECT a.* FROM %i a INNER JOIN %i l ON l.id = a.license_id WHERE a.id = %d AND l.customer_id = %d LIMIT 1',
-				$tables['activations'],
-				$tables['licenses'],
-				$activation_id,
-				get_current_user_id()
+				"SELECT a.*, l.customer_id AS license_owner FROM {$tables['activations']} a INNER JOIN {$tables['licenses']} l ON l.id = a.license_id WHERE a.id = %d AND {$visible} LIMIT 1",
+				array_merge( array( $activation_id ), $visible_args )
 			),
+			// phpcs:enable
 			ARRAY_A
 		);
 		if ( ! is_array( $row ) ) {
@@ -1094,11 +1126,13 @@ final class CustomerPortal {
 		if ( 'active' !== $row['status'] ) {
 			return 'site_not_active';
 		}
+		$reason = (int) $row['license_owner'] === get_current_user_id() ? AuditReason::DEACTIVATED_BY_OWNER : AuditReason::DEACTIVATED_BY_CO_USER;
+		unset( $row['license_owner'] );
 
 		$manager = '\\WPLC\\License\\ActivationManager';
 		if ( class_exists( $manager ) && method_exists( $manager, 'deactivate' ) ) {
 			// Shared implementation: also deactivates staging children and writes the audit entries.
-			$deactivated = (bool) call_user_func( array( $manager, 'deactivate' ), $activation_id, AuditReason::DEACTIVATED_BY_OWNER, get_current_user_id() );
+			$deactivated = (bool) call_user_func( array( $manager, 'deactivate' ), $activation_id, $reason, get_current_user_id() );
 			return $deactivated ? 'site_deactivated' : 'site_failed';
 		}
 
@@ -1125,7 +1159,7 @@ final class CustomerPortal {
 				'site_deactivated',
 				'activation',
 				$activation_id,
-				AuditReason::DEACTIVATED_BY_OWNER,
+				$reason,
 				array(
 					'status'   => 'active',
 					'site_url' => $row['site_url'],

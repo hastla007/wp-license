@@ -11,7 +11,7 @@ The plugin has its own capabilities (`src/Admin/Capabilities.php`). Nothing is w
 | Capability | Allows | Granted by default to users with |
 | --- | --- | --- |
 | `wplc_view_licenses` | License list, license detail, CSV export of licenses | `manage_woocommerce` (shop manager, administrator) |
-| `wplc_manage_licenses` | Suspend, revoke, reactivate, change term, release a site, new key, send key email again, change owner, restore a suspended license, bulk actions, renewals to review | `manage_woocommerce` |
+| `wplc_manage_licenses` | Suspend, revoke, reactivate, change term, release a site, new key, send key email again, change owner, remove a co-user, restore a suspended license, bulk actions, renewals to review | `manage_woocommerce` |
 | `wplc_grant_licenses` | Add a license manually, extend several licenses at once, issue missing licenses for an order, book a renewal under review | `manage_woocommerce` |
 | `wplc_restore_licenses` | Restore a **revoked** license | `manage_options` (administrator) |
 | `wplc_manage_catalog` | License fields of products, catalog CSV | `manage_woocommerce` |
@@ -59,6 +59,7 @@ add_filter( 'wplc_capability', function ( $capability, $action ) {
 | Send key email again | License detail | `wplc_manage_licenses` | yes | `license_key_resend_requested` |
 | Change owner (by default with a new key) | License detail | `wplc_manage_licenses` | yes | `license_owner_changed`, with a new key also `license_key_reissued` |
 | Release a site activation | License detail | `wplc_manage_licenses` | yes | `admin_site_released` |
+| Remove a co-user or withdraw an open co-user invitation | License detail → Co-users and transfer | `wplc_manage_licenses` | yes | `license_member_removed` |
 | Add license manually | Licenses → Add license manually | `wplc_grant_licenses` | yes | `license_issued_manually` |
 | Issue missing licenses for an order | Licenses, below the list | `wplc_grant_licenses` | yes | `admin_issue_for_order` |
 | Book a renewal under review | Renewals to review | `wplc_manage_licenses` and `wplc_grant_licenses` | yes | `renewal_review_booked` (renewal), `renewal_booked_after_review` (license) |
@@ -211,6 +212,11 @@ Hands the license over to another existing user account (user ID or email), for 
 - Activated sites stay connected unless "Also release all activated sites" is ticked.
 - The public cancellation page accepts only the new owner's addresses: the billing address of the source order stops counting once the order belongs to someone else.
 - The source order stays with the previous owner's order history.
+- Co-users, open co-user invitations and an open transfer offer of the customer are removed (`license_members_removed`, reason "Co-users and open invitations were removed because the license has a new owner").
+
+### Co-users and transfer
+
+Lists the co-users of the license (with a link to their user account and the time they accepted), open co-user invitations (address and expiry) and an open transfer the owner offered (recipient address and expiry). **Remove** (with reason) removes a co-user or withdraws an open invitation; the license disappears from that person's account at once. An open transfer cannot be cancelled here: the customer cancels it in the account, or *Change owner* replaces it. See [Co-users and transfers by the customer](#co-users-and-transfers-by-the-customer).
 
 ### Change plan
 
@@ -329,7 +335,31 @@ Details: [UPDATES.md](UPDATES.md), [UPDATE-STORAGE.md](UPDATE-STORAGE.md).
 ## Not available in the admin
 
 - Showing a customer's license key. Issue a new key or send the key email again instead.
-- Co-users of a license: a license has exactly one owner.
+- Inviting co-users or offering a transfer in the customer's name: the owner does that in the account. Use *Change owner* to hand a license over directly.
 - Charging or refunding a plan change from the admin: the customer upgrades in the account (prorated order); refunds are made on that WooCommerce order.
 - Retrying a failed renewal or a Stripe event by hand. The diagnostics page lists what needs attention; see [MONITORING.md](MONITORING.md).
 - Refunds and disputes: refunds are made on the WooCommerce order and change the license automatically; a Stripe dispute suspends the license (see [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md)). "Renewals to review" links to the order but never triggers a gateway refund.
+
+## Co-users and transfers by the customer
+
+A license has exactly one owner (its customer), who pays and decides. Since schema 26 the owner can share a license and hand it over in the account (My Account → Licenses), without the shop's help.
+
+**Co-users.** The owner invites a person by email. The email "License co-user invitation" carries a link that works once and expires after 14 days (`wplc_license_invitation_days`); only the SHA-256 hash of its token is stored (table `wplc_license_members`). The invitee must be signed in with an account whose email address is the invited address (case-insensitive) and confirms with a button; opening the link changes nothing. A license has at most 5 co-users including open invitations (`wplc_license_member_limit`, 0 switches inviting off).
+
+| | Owner | Co-user |
+| --- | --- | --- |
+| See status, plan, end date, key, sites (also on the Sites page), download releases | yes | yes |
+| Deactivate a site | yes (`deactivated_by_owner`) | yes (`deactivated_by_co_user`) |
+| See renewal terms and prices, renew, pay an open renewal, cancel or resume, change plan or payment method, switch automatic renewal on | yes | no |
+| Move a site to another of the owner's licenses | yes | no |
+| Invite and remove co-users, transfer | yes | no; a co-user can only leave |
+
+Every refusal answers like a license that does not exist ("The license was not found for this account"), so license IDs cannot be probed.
+
+**Transfer.** The owner enters the recipient's address and confirms that automatic renewal ends. The recipient gets "License transfer offered" (same link rules) and accepts in their own account. Until then nothing changes, and the owner can cancel the offer (one open offer per license). On acceptance the owner change of the admin runs (`SupportActions::change_owner()`, compare-and-set on the owner who made the offer, actor = recipient, reason `license_transferred_by_customer`): `customer_id` becomes the recipient, automatic renewal is switched off, the payment token and the payment provider references are removed, open automatic renewals are cancelled (`renewal_cancelled`), co-users and open invitations are removed (`license_members_removed`), and both sides get "License transferred". The key stays by default, so activated sites keep working (`wplc_license_transfer_new_key` returns true to issue a new key for the recipient). While a renewal payment is `processing`, accepting is refused and the link stays valid. An offer whose license changed hands in the meantime is void. `wplc_license_transfer_enabled` hides the transfer.
+
+**Audit entries** (object `license`): `license_member_invited`, `license_member_added`, `license_member_removed` (owner, or administrator with the typed reason), `license_member_left`, `license_transfer_started`, `license_transfer_cancelled`, `license_owner_changed`, `license_members_removed`. The snapshots name invitation and user IDs, never an address.
+
+**Clean-up and privacy.** Expired invitations are deleted by the daily job. Deleting a user account removes their co-user accesses, open invitations to their address and open invitations they sent (an accepted co-user they invited stays). The personal data export of a person lists the licenses they use as a co-user and open invitations to their address (group "shared licenses"); the eraser deletes the same rows. Erasing an ended license deletes its co-users. Details: [PRIVACY-DATA-FLOWS.md](PRIVACY-DATA-FLOWS.md).
+
+**Hooks:** `wplc/license_member_invited`, `wplc/license_member_added`, `wplc/license_member_removed`, `wplc/license_transfer_started`, `wplc/license_transferred` (after `wplc/license_owner_changed`); see [EXTENSION-POINTS.md](EXTENSION-POINTS.md).

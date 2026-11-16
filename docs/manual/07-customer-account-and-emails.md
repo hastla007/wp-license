@@ -10,11 +10,33 @@ WP License Captain adds a page **Licenses** to the WooCommerce customer account 
 - cancel or resume the automatic renewal;
 - upgrade to a more expensive plan (prorated) or switch to a cheaper one at the next renewal;
 - "Move to …" for the sites of an ending license when the customer owns a newer license of the same product;
-- a download of the latest release (or one of up to nine older versions).
+- a download of the latest release (or one of up to nine older versions);
+- **Co-users** and **Transfer** (below).
 
-The key is shown only to the logged-in owner and only when it can be reproduced with the configured secret; otherwise the page says "Currently unavailable" (chapter 11). Customer forms post to the account page itself, so they also work on shops that lock `wp-admin` down.
+The key is shown only to the logged-in owner (and the license's co-users) and only when it can be reproduced with the configured secret; otherwise the page says "Currently unavailable" (chapter 11). Customer forms post to the account page itself, so they also work on shops that lock `wp-admin` down.
 
 The templates live in `templates/myaccount/` of the plugin; copy them to `wp-license/myaccount/` in your theme to change the markup.
+
+## Co-users and transfers
+
+The owner of a license can share it and hand it over from the account page; you do not need to do anything.
+
+**Co-users.** Under "Co-users" the owner enters an email address and sends an invitation. The invited person receives the email "License co-user invitation" with a link. To accept, they open the link while signed in with an account whose email address is the invited address (a new customer registers with that address first), and press "Accept the invitation". A co-user then sees the license in their own account under **Licenses** (and its sites under **Sites**): status, plan, end date, key, sites, downloads, and they can deactivate sites. They cannot renew, pay, cancel, change the plan or the payment method, invite others or transfer the license; prices and renewal terms are not shown to them. The owner sees the co-users and open invitations and can remove a co-user or withdraw an invitation; a co-user can leave with "Leave license".
+
+- At most 5 co-users per license, counting open invitations (filter `wplc_license_member_limit`, 0 switches inviting off).
+- An invitation link works once and expires after 14 days (filter `wplc_license_invitation_days`). Only a hash of the link's token is stored. Opening the link changes nothing; only the button accepts. A link opened in an account with another email address is refused and stays valid for the right account.
+
+**Transfer.** Under "Transfer" the owner enters the recipient's address and confirms that automatic renewal ends. The recipient receives the email "License transfer offered" and accepts it in their own account, under the same rules (matching email address, single use, 14 days). Until then the license stays with the owner, who can cancel the offer. When the recipient accepts:
+
+- the license, its key and its sites belong to the recipient; the key stays the same by default (filter `wplc_license_transfer_new_key` issues a new one), activated sites keep working;
+- automatic renewal is switched off and the stored payment method and payment provider references are removed: the recipient renews manually or switches automatic renewal on with their own payment method;
+- co-users and open invitations are removed;
+- both sides receive the email "License transferred";
+- the license history records the start of the offer, the change of owner (as the same entry the admin action "Change owner" writes, with the reason "transferred by the previous owner") and the removal of co-users.
+
+While a renewal payment of the license is being processed, accepting is refused for a few minutes. The admin action **Change owner** (chapter 4) also removes co-users and open offers. On the license detail screen you see the co-users, open invitations and an open transfer, and can remove a co-user (with a reason). Filter `wplc_license_transfer_enabled` hides the transfer for a license or the whole shop.
+
+If you copied `myaccount/wplc-license.php` into your theme before this version, add the line `do_action( 'wplc_account_license_sharing', $wplc_license, $view );` before the closing `</section>` to show these forms.
 
 ## Shortcodes and blocks
 
@@ -33,9 +55,9 @@ Put `[wplc_cancel]` on a page to let customers cancel an automatic renewal **wit
 
 A logged-in customer who puts a license product into the cart while owning a license of the same product that still grants access (or expired within the renewal window) sees a notice above cart and checkout that links to the renewal of that license. The purchase itself stays possible; a new purchase always issues a new license with a new key. Filter: `wplc_renew_instead_notice`.
 
-## The twelve emails
+## The fifteen emails
 
-All emails are sent through WooCommerce's mailer to the account email of the license owner and are managed under **WooCommerce → Settings → Emails**: on/off, subject, heading, additional text, preview. They are rendered in the customer's profile language when a translation is installed (English, `de_DE`, `de_DE_formal` ship with the plugin).
+All emails are sent through WooCommerce's mailer to the account email of the license owner (the co-user and transfer emails to the address the owner entered, and "License transferred" to both sides) and are managed under **WooCommerce → Settings → Emails**: on/off, subject, heading, additional text, preview. They are rendered in the customer's profile language when a translation is installed (English, `de_DE`, `de_DE_formal` ship with the plugin).
 
 | Email | Sent when |
 | --- | --- |
@@ -51,7 +73,11 @@ All emails are sent through WooCommerce's mailer to the account email of the lic
 | License revoked | The license was revoked. |
 | New renewal price announced | A higher renewal price was announced with notice (chapter 8). |
 | Announced renewal price withdrawn | The announcement was withdrawn after the customer had been notified. |
+| License co-user invitation | The owner invited a co-user; contains the single-use accept link. |
+| License transfer offered | The owner offered the license to another customer; contains the single-use accept link. |
+| License transferred | The recipient accepted a transfer; sent to the previous and the new owner. |
 
+- The co-user and transfer emails never contain the license key.
 - **The full license key is not in the emails by default.** Email is not a secure channel; the email shows the key prefix and links to the account. You can opt in under **WooCommerce → Settings → Emails → License issued**.
 - **Sender note:** a short text (for example a support contact) that the emails can show below their content, under **WooCommerce → License settings**.
 - **Templates** live in `templates/emails/` (plain-text variants in `templates/emails/plain/`). Copy a template to `wp-license/emails/` (or `wp-license/emails/plain/`) in your theme to change its layout.

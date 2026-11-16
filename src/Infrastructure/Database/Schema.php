@@ -69,8 +69,11 @@ final class Schema {
 	 * 25: licenses.price_change_amount_minor, price_change_effective_at, price_change_announced_at,
 	 *     price_change_notified_at and price_change_notice_days: an announced change of the renewal
 	 *     amount (INH-05). Nullable columns added by dbDelta; the step checks that they exist.
+	 * 26: table `license_members`: co-users of a license and pending invitations (co-user invitations
+	 *     and transfers to another customer, B-139). Created by dbDelta; the step checks that the table
+	 *     and its indexes exist. No data changes.
 	 */
-	public const VERSION = '25';
+	public const VERSION = '26';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -133,6 +136,7 @@ final class Schema {
 		'23' => array( self::class, 'step_23_audit_source' ),
 		'24' => array( self::class, 'step_24_import_bundled_catalogs' ),
 		'25' => array( self::class, 'step_25_price_change_columns' ),
+		'26' => array( self::class, 'step_26_license_members' ),
 	);
 
 	/**
@@ -1118,6 +1122,30 @@ final class Schema {
 				UNIQUE KEY license_reminder (license_id,reminder_type,period_end),
 				KEY sent_at (sent_at)
 			) {$charset_collate};",
+			// B-139: co-users (kind member, status active) and pending invitations (status pending) of
+			// a license; kind transfer is a pending hand-over to another customer. user_id stays NULL
+			// until an invitation is accepted, so the unique key allows any number of pending rows.
+			// Only the SHA-256 hash of an invitation token is stored; it is cleared on acceptance.
+			"CREATE TABLE {$tables['license_members']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				license_id bigint(20) unsigned NOT NULL,
+				kind varchar(10) NOT NULL DEFAULT 'member',
+				status varchar(10) NOT NULL DEFAULT 'pending',
+				user_id bigint(20) unsigned DEFAULT NULL,
+				email varchar(100) NOT NULL DEFAULT '',
+				token_hash char(64) DEFAULT NULL,
+				invited_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				expires_at datetime DEFAULT NULL,
+				accepted_at datetime DEFAULT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY token_hash (token_hash),
+				UNIQUE KEY license_member (license_id,kind,user_id),
+				KEY user_status (user_id,status),
+				KEY email_status (email,status),
+				KEY status_expires (status,expires_at),
+				KEY invited_by (invited_by)
+			) {$charset_collate};",
 		);
 
 		return $sql;
@@ -1159,6 +1187,7 @@ final class Schema {
 			'package_streams' => $prefix . 'package_streams',
 			'consents'     => $prefix . 'consents',
 			'reminder_log' => $prefix . 'reminder_log',
+			'license_members' => $prefix . 'license_members',
 		);
 	}
 
@@ -1545,6 +1574,18 @@ final class Schema {
 		);
 
 		return 5 === $count;
+	}
+
+	/**
+	 * Schema 26: the table of co-users and pending invitations of a license (B-139).
+	 *
+	 * dbDelta creates it and reports no errors, so the step checks that the table and its
+	 * indexes exist. No data changes: existing licenses have no co-users.
+	 *
+	 * @return bool
+	 */
+	private static function step_26_license_members(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		return self::indexes_exist( array( 'license_members' => array( 'PRIMARY', 'token_hash', 'license_member', 'user_status', 'email_status', 'status_expires', 'invited_by' ) ) );
 	}
 
 	/**
