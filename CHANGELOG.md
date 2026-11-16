@@ -18,9 +18,11 @@ Consolidation of all earlier development branches into one code base. Preview: c
 
 - **Vendor manual (PROD-10, English).** `docs/manual/` with an index and twelve chapters (installation and keys, catalog files, license products, releases, client integration, customer account, renewals and Stripe, operations, WP-CLI, troubleshooting, upgrading) ships in the plugin ZIP; `bin/check-zip-contents.php` requires every chapter and refuses internal documents. A German edition follows after the sale start.
 
-- **Customer renewal of products that are not for sale can be switched off (PK-05, prepared).** New filter `wplc_manual_renewal_for_unsold_products` (default `true`, unchanged behaviour); returning false hides "Renew now" in the account and refuses the renewal for private, draft or otherwise unbuyable products, so only the shop owner extends them with "Change term".
+- **Customer renewal of products that are not for sale is off (PK-05).** The account no longer offers "Renew now" for private, draft or otherwise unbuyable products and refuses such renewals, so only the shop owner extends them with "Change term" (owner decision of 16 Nov 2026: project licenses run one year and are extended by hand); the filter `wplc_manual_renewal_for_unsold_products` returning true restores the customer renewal.
 
 - **`wp wplc license issue` says why it failed.** A license key ID without a secret in `WPLC_LICENSE_KEY_SECRETS` and a failed database insert now get their own message instead of only "The license could not be issued." (`LicenseIssuer::last_failure()`; no key ID value or secret is printed).
+
+- **Ended licenses are anonymised after ten years by default (B-45).** Owner decision of 16 Nov 2026, the same rule as the other plugins of the suite: ten years from the end of the year in which the license ended (section 147 AO / section 257 HGB; Austria 7 years). The consent evidence is also counted from the end of the year. `wplc_retention_days` changes the period, 0 switches it off.
 
 ### Fixed (16 Nov 2026, product isolation)
 

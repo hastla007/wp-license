@@ -845,13 +845,13 @@ final class Settings {
 			'value' => sprintf( _n( '%d day', '%d days', LicenseLifecycle::grace_days(), 'wp-license' ), LicenseLifecycle::grace_days() ),
 		);
 
-		// B-45: the operator decides when ended licenses are detached from the customer.
+		// B-45: ended licenses are detached from the customer ten years after the end of the year (filter wplc_retention_days).
 		$anonymize = \WPLC\Maintenance\Retention::configured_days()['anonymize_licenses'];
 		$rows[]    = array(
 			'label' => __( 'Anonymisation of ended licenses', 'wp-license' ),
 			'value' => $anonymize > 0
 				/* translators: %s: number of days. */
-				? sprintf( _n( '%s day after the end of the license', '%s days after the end of the license', $anonymize, 'wp-license' ), number_format_i18n( $anonymize ) )
+				? sprintf( _n( '%s day after the end of the year in which the license ended', '%s days after the end of the year in which the license ended', $anonymize, 'wp-license' ), number_format_i18n( $anonymize ) )
 				: __( 'Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice with the filter wplc_retention_days (key anonymize_licenses).', 'wp-license' ),
 			'state' => $anonymize > 0 ? 'ok' : '',
 		);

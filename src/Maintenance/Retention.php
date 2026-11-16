@@ -38,10 +38,14 @@ final class Retention {
 	 *                              (a revoked license loses them at once).
 	 * - reminder_log:              notification log rows.
 	 * - anonymize_licenses:        days after the end of a license at which the owner, the payment
-	 *                              token reference and the installations are removed. Off by default.
+	 *                              token reference and the installations are removed. Ten years by
+	 *                              default, counted from the end of the year in which the license ended,
+	 *                              like the business records of the other plugins of the suite
+	 *                              (section 147 AO / section 257 HGB; Austria: 7 years, section 132 BAO).
 	 * - consents:                  evidence of the consent to automatic renewal, by consent date, once
-	 *                              its license has ended or no longer exists. Ten years by default:
-	 *                              the evidence belongs to charges that are kept as long as invoices.
+	 *                              its license has ended or no longer exists. Ten years by default, also
+	 *                              from the end of the year: the evidence belongs to charges that are
+	 *                              kept as long as invoices.
 	 */
 	public const DEFAULT_DAYS = array(
 		'audit_log' => 730,
@@ -51,9 +55,15 @@ final class Retention {
 		'inactive_activations' => 365,
 		'ended_license_activations' => 30,
 		'reminder_log' => 730,
-		'anonymize_licenses' => 0,
+		'anonymize_licenses' => 3650,
 		'consents' => 3650,
 	);
+
+	/**
+	 * Rules whose period runs from the end of the calendar year, as retention periods of business
+	 * records do: a row ended in year Y is processed once Y + period has fully passed.
+	 */
+	public const YEAR_END_RULES = array( 'anonymize_licenses', 'consents' );
 
 	/**
 	 * Rows deleted per query.
@@ -154,7 +164,10 @@ final class Retention {
 		$cutoffs = array();
 		foreach ( self::effective_days( $days ) as $rule => $value ) {
 			if ( $value > 0 ) {
-				$cutoffs[ $rule ] = gmdate( 'Y-m-d H:i:s', $now - $value * 86400 );
+				// Year-end rules: only rows of years that ended before the start of the year the period reaches.
+				$cutoffs[ $rule ] = in_array( $rule, self::YEAR_END_RULES, true )
+					? gmdate( 'Y-01-01 00:00:00', $now - $value * 86400 )
+					: gmdate( 'Y-m-d H:i:s', $now - $value * 86400 );
 			}
 		}
 
@@ -574,8 +587,8 @@ final class Retention {
 	 *
 	 * The license row stays as a business record (product, plan, dates, order
 	 * link). Removed are the owner, the payment token reference and all
-	 * installations with their site addresses. Disabled unless a period is
-	 * configured for `anonymize_licenses`.
+	 * installations with their site addresses. Ten years after the end of the
+	 * year by default; a period of 0 for `anonymize_licenses` switches it off.
 	 *
 	 * @param array<string,string> $tables Table names.
 	 * @param string               $cutoff UTC datetime.

@@ -77,10 +77,10 @@ The plugin registers a suggested section under Settings → Privacy → Policy g
 | `inactive_activations` | `wplc_activations` | The same for deactivated installations of licenses that are still in force (and of licenses that no longer exist). Deactivated installations do not count towards the site limit | 365 days |
 | `ended_license_activations` | `wplc_activations` | Still active installations of an `expired` or `cancelled` license are **deactivated** (not deleted) once the paid period ended longer ago than the period. The default matches the 30 days in which a late manual renewal can still reactivate the license, so the customer's sites keep working until then. Installations of a `revoked` license are deactivated immediately | 30 days |
 | `reminder_log` | `wplc_reminder_log` | Deleted when `sent_at` is older than the period | 730 days |
-| `consents` | `wplc_consents` | Deleted when the consent is older than the period and its license has ended (`expired`, `revoked`, `cancelled`) or no longer exists. Consents of licenses in force are never deleted. | 3650 days |
-| `anonymize_licenses` | `wplc_licenses`, `wplc_activations` | For licenses that ended longer ago than the period: owner and payment token reference are removed and all installations are deleted. The license row stays as a business record (product, plan, dates, order link). Audit entry `license_anonymized` | **0 (off)** |
+| `consents` | `wplc_consents` | Deleted when the consent is older than the period and its license has ended (`expired`, `revoked`, `cancelled`) or no longer exists. Consents of licenses in force are never deleted. The period runs from the end of the calendar year. | 3650 days |
+| `anonymize_licenses` | `wplc_licenses`, `wplc_activations` | For licenses that ended longer ago than the period: owner and payment token reference are removed and all installations are deleted. The license row stays as a business record (product, plan, dates, order link). Audit entry `license_anonymized`. The period runs from the end of the calendar year in which the license ended | 3650 days |
 
-`anonymize_licenses` is off by default because the right period depends on the operator's legal retention duties (warranty, tax records, disputes). Without it, the data of an ended license stays linked to the customer account until an erasure request, the deletion of the account, or until the operator enables the rule. Enable it with a period that the privacy notice states, for example three years after the end of the license. The settings page (system status, row "Anonymisation of ended licenses") shows whether the rule is on and with which period, as read through `wplc_retention_days` (`Retention::configured_days()`), so a forgotten configuration is visible.
+`anonymize_licenses` is on by default with ten years from the end of the year in which the license ended (decision of 16 Nov 2026). That is the same rule the other plugins of the suite use for their business records (Affiliate Captain: statements ten years from the end of the year; § 147 AO and § 257 HGB in Germany, ten years in Switzerland; Austria: seven years, § 132 BAO). A license that ended in 2026 is detached in 2037. Operators with a shorter duty set a smaller period, 0 switches the rule off. The settings page (system status, row "Anonymisation of ended licenses") shows the period in force, as read through `wplc_retention_days` (`Retention::configured_days()`).
 
 What is deliberately not touched: license rows, renewals, entitlements and WooCommerce orders (business and accounting records), and active installations of licenses in force.
 
@@ -96,7 +96,7 @@ add_filter(
 	static function ( array $days ): array {
 		$days['audit_log']          = 1095; // Keep audit history for three years.
 		$days['event_inbox']        = 0;    // Never delete processed gateway events automatically.
-		$days['anonymize_licenses'] = 1095; // Detach licenses three years after they ended.
+		$days['anonymize_licenses'] = 2557; // Seven years from the end of the year (Austria, § 132 BAO).
 		return $days;
 	}
 );

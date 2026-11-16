@@ -197,7 +197,8 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'deactivated', $this->activation( $activation['id'] )['status'] );
 	}
 
-	// B-45: anonymisation is off by default and removes owner, payment reference and installations when configured.
+	// B-45: anonymisation removes owner, payment reference and installations; the period (ten years by default)
+	// runs from the end of the year in which the license ended.
 	public function test_anonymisation_of_licenses_that_ended_long_ago(): void {
 		global $wpdb;
 		$tables   = $this->tables();
@@ -205,10 +206,10 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		$long_ago = array(
 			'customer_id'      => $customer,
 			'status'           => 'expired',
-			'paid_until'       => $this->past( 1200 ),
+			'paid_until'       => $this->past( 1500 ),
 			'next_payment_at'  => null,
 			'payment_token_id' => 55,
-			'updated_at'       => $this->past( 1200 ),
+			'updated_at'       => $this->past( 1500 ),
 		);
 		$old      = $this->seed_license( $long_ago );
 		$recent   = $this->seed_license( array_merge( $long_ago, array( 'paid_until' => $this->past( 100 ), 'updated_at' => $this->past( 100 ) ) ) );
@@ -216,7 +217,7 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		$old_site = $this->seed_activation( $old['id'], array( 'status' => 'deactivated', 'deactivated_at' => $this->past( 10 ) ) );
 
 		Retention::run();
-		$this->assertSame( $customer, (int) $this->license( $old['id'] )['customer_id'], 'Off by default.' );
+		$this->assertSame( $customer, (int) $this->license( $old['id'] )['customer_id'], 'Not before the default ten years from the end of the year.' );
 
 		add_filter(
 			'wplc_retention_days',
@@ -389,7 +390,7 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
 		$ended    = $this->seed_license( array( 'status' => 'expired', 'customer_id' => $customer ) );
 		$running  = $this->seed_license( array( 'status' => 'active', 'customer_id' => $customer ) );
-		$old      = gmdate( 'Y-m-d H:i:s', time() - 3700 * DAY_IN_SECONDS );
+		$old      = gmdate( 'Y-m-d H:i:s', time() - 4100 * DAY_IN_SECONDS ); // Ten years from the end of an older year.
 		$recent   = gmdate( 'Y-m-d H:i:s', time() - 100 * DAY_IN_SECONDS );
 		$insert   = static function ( int $license_id, string $consent_at ) use ( $wpdb, $tables, $customer ): int {
 			$wpdb->insert( $tables['consents'], array( 'license_id' => $license_id, 'customer_id' => $customer, 'consent_at' => $consent_at, 'consent_text' => 'I agree', 'created_at' => $consent_at ) );

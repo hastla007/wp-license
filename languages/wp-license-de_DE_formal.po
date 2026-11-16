@@ -7,8 +7,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T14:16:15+00:00\n"
-"PO-Revision-Date: 2026-11-16 14:16+0000\n"
+"POT-Creation-Date: 2026-11-16T14:40:23+00:00\n"
+"PO-Revision-Date: 2026-11-16 14:40+0000\n"
 "Language: de_DE_formal\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: wp-license\n"
@@ -6833,14 +6833,6 @@ msgstr "Offen"
 msgid "Anonymisation of ended licenses"
 msgstr "Anonymisierung beendeter Lizenzen"
 
-#. translators: %s: number of days.
-#: src/Admin/Settings.php:854
-#, php-format
-msgid "%s day after the end of the license"
-msgid_plural "%s days after the end of the license"
-msgstr[0] "%s Tag nach dem Ende der Lizenz"
-msgstr[1] "%s Tage nach dem Ende der Lizenz"
-
 #: src/Admin/Settings.php:855
 msgid "Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice with the filter wplc_retention_days (key anonymize_licenses)."
 msgstr "Aus. Beendete Lizenzen bleiben mit dem Kundenkonto verknüpft, bis eine Löschanfrage gestellt oder das Konto gelöscht wird. Legen Sie mit dem Filter wplc_retention_days (Schlüssel anonymize_licenses) einen Zeitraum fest, der zu Ihrer Datenschutzerklärung passt."
@@ -8016,3 +8008,11 @@ msgstr "Die Lizenz konnte nicht ausgestellt werden: Zur aktuellen Schlüssel-ID 
 #: src/CLI/LicenseCommand.php:258
 msgid "The license could not be issued: it could not be saved in the database. Check the database error log."
 msgstr "Die Lizenz konnte nicht ausgestellt werden: Sie ließ sich nicht in der Datenbank speichern. Prüfen Sie das Fehlerprotokoll der Datenbank."
+
+#. translators: %s: number of days.
+#: src/Admin/Settings.php:854
+#, php-format
+msgid "%s day after the end of the year in which the license ended"
+msgid_plural "%s days after the end of the year in which the license ended"
+msgstr[0] "%s Tag nach Ende des Jahres, in dem die Lizenz endete"
+msgstr[1] "%s Tage nach Ende des Jahres, in dem die Lizenz endete"

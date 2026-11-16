@@ -197,14 +197,14 @@ The server is meant to run on **one** site of a network: the site where WooComme
 | `activations` (deactivated installations of ended licenses) / `inactive_activations` | 365 / 365 days |
 | `ended_license_activations` (deactivate sites of ended licenses) | 30 days |
 | `reminder_log` | 730 days |
-| `consents` (of ended licenses) | 3650 days |
-| `anonymize_licenses` (detach owner of licenses ended longer ago) | 0 = off |
+| `consents` (of ended licenses) | 3650 days, counted from the end of the year |
+| `anonymize_licenses` (detach owner of licenses ended longer ago) | 3650 days, counted from the end of the year in which the license ended |
 
 ```php
 add_filter( 'wplc_retention_days', static function ( array $days ): array {
-	$days['anonymize_licenses'] = 1095; // Detach licenses three years after they ended.
+	$days['anonymize_licenses'] = 2557; // Seven years, e.g. where that is the statutory period.
 	return $days;
 } );
 ```
 
-`anonymize_licenses` is off by default because the right period depends on your retention duties; the settings page shows its state. Keep the retention of deactivated activations at least as long as the offline window of the clients (14 days). Deletion is permanent: take a backup before the first run on an existing database and align the periods with your privacy notice. The plugin's hooks are tools, not compliance: your privacy notice, data processing agreements (mail provider, payment provider, package host) and retention schedule remain your responsibility.
+`anonymize_licenses` and `consents` run from the end of the calendar year, as statutory retention periods for business records do: with the default of ten years, a license that ended in 2026 is detached from its customer in 2037. Ten years covers the longest common period (Germany, Switzerland); shorten it where your duties allow, or set 0 to switch the rule off. The settings page shows the period in force. Keep the retention of deactivated activations at least as long as the offline window of the clients (14 days). Deletion is permanent: take a backup before the first run on an existing database and align the periods with your privacy notice. The plugin's hooks are tools, not compliance: your privacy notice, data processing agreements (mail provider, payment provider, package host) and retention schedule remain your responsibility.

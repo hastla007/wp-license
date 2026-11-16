@@ -90,7 +90,7 @@ final class PersonalDataIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( '5900', $columns( $kept )['price_change_amount_minor'], 'A license that stays with the customer keeps its announcement.' );
 
 		// The retention rule that anonymizes long-ended licenses treats the columns the same way.
-		$old = gmdate( 'Y-m-d H:i:s', time() - 400 * DAY_IN_SECONDS );
+		$old = gmdate( 'Y-m-d H:i:s', time() - 800 * DAY_IN_SECONDS ); // The period runs from the end of the year.
 		$wpdb->update( $tables['licenses'], array( 'paid_until' => $old, 'updated_at' => $old ), array( 'id' => $aged ) );
 		$days = static function ( $rules ) {
 			$rules['anonymize_licenses'] = 365;

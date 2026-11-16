@@ -70,10 +70,10 @@ final class ManualRenewal {
 	 * Whether the customer renewal is switched off for a product the shop does not sell.
 	 *
 	 * A product that cannot be bought (private, draft, password-protected, not purchasable), for example
-	 * a project product licensed by hand, is renewed by the shop owner with "Change term". By default the
-	 * customer may still renew it in the account at the plan price, as before; the filter
-	 * `wplc_manual_renewal_for_unsold_products` returning false hides "Renew now" for such products and
-	 * refuses to start the renewal. Products that are for sale are never affected.
+	 * a project product licensed by hand, is renewed by the shop owner with "Change term" (owner decision of
+	 * 16 Nov 2026: one year, extended by hand). By default the account offers no "Renew now" for such
+	 * products and refuses to start the renewal; the filter `wplc_manual_renewal_for_unsold_products`
+	 * returning true allows it again at the plan price. Products that are for sale are never affected.
 	 *
 	 * @param array<string,mixed> $license License row.
 	 * @return bool
@@ -82,10 +82,10 @@ final class ManualRenewal {
 		/**
 		 * Filters whether customers may renew a license in their account when its product is not for sale.
 		 *
-		 * @param bool                $allowed True (default): renewal at the plan price, as for products on sale.
+		 * @param bool                $allowed False (default): no customer renewal; true: renewal at the plan price.
 		 * @param array<string,mixed> $license License row.
 		 */
-		if ( (bool) apply_filters( 'wplc_manual_renewal_for_unsold_products', true, $license ) ) {
+		if ( (bool) apply_filters( 'wplc_manual_renewal_for_unsold_products', false, $license ) ) {
 			return false;
 		}
 
