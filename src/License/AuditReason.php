@@ -325,6 +325,8 @@ final class AuditReason {
 			'renewal_order_link_failed'          => array( __( 'The existing renewal order could not be linked.', 'wp-license' ), array() ),
 			'renewal_product_missing'            => array( __( 'The source product is no longer available for renewal.', 'wp-license' ), array() ),
 			'renewal_amount_invalid'             => array( __( 'This license has no renewal price.', 'wp-license' ), array() ),
+			'renewal_currency_mismatch'          => array( __( 'The renewal order does not carry the currency of the license. The renewal is not charged; a license renews in the currency of its order and is never converted. Check multi-currency plugins that change the order currency.', 'wp-license' ), array() ),
+			'renewal_currency_unsupported'       => array( __( 'The payment method does not accept the currency of this license. The renewal is not charged; a license renews in the currency of its order and is never converted.', 'wp-license' ), array() ),
 			'woocommerce_unavailable'            => array( __( 'WooCommerce order services are unavailable.', 'wp-license' ), array() ),
 			'renewal_payment_not_taken'          =>array( __( 'The renewal order was set to failed after its payment result was checked.', 'wp-license' ), array() ),
 			'renewal_result_unknown'             => array( __( 'Stripe did not return a definite result for the renewal payment.', 'wp-license' ), array() ),

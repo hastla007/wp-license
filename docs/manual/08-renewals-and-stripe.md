@@ -49,6 +49,7 @@ The customer cancels in the account (or on the public cancellation page) and can
 
 - The price is the amount stored on the license at purchase. **Every renewal, automatic or manual, is billed with it**, also when you change the product price later. A plan change sets the amount of the new plan (chapter 4).
 - Whether the stored amount is gross or net is recorded per license; WooCommerce adds tax from the customer's billing address.
+- **Currency.** A license renews in the currency of its order and is never converted. Changing the shop currency later does not change existing licenses: a license bought in EUR keeps renewing in EUR at its stored amount. With a multi-currency plugin, a license bought in the visitor's currency stores that currency and the price paid for one unit (before coupons, without tax). Every renewal order carries the license currency; if another plugin changes it, or the payment method does not accept the currency (filter `wplc_renewal_currency_supported`), nothing is charged and the renewal shows the reason `renewal_currency_mismatch` or `renewal_currency_unsupported` until the problem is solved. Upgrades and downgrades are offered only for plans priced in the license currency.
 - **Lowering** the amount of a license works at once (license detail → Change renewal amount).
 - **Raising it needs an announced price change** with notice:
 
@@ -127,6 +128,8 @@ Charges, expiries and reminders stop while billing is paused: on a staging copy,
 | `wplc_renewal_retry_days` | Retry days after the due date (default 1, 3, 7). |
 | `wplc_renewal_requires_advance_notice` | `false`: charge without the advance-notice rule. |
 | `wplc_renewal_charge_allowed` | Postpone a charge for your own reason. |
+| `wplc_renewal_currency_supported` | Refuse a renewal in a currency your payment method does not accept. |
+| `wplc_renewal_price_in_order_currency` | Supply the regular price of a license bought in another currency (multi-currency plugins). |
 | `wplc_reminder_lead_days`, `wplc_renewal_notice_lead_days` | Lead days of reminders and of the renewal notice. |
 | `wplc_price_change_notice_days` | Notice period of a price change (30 to 365). |
 | `wplc_stripe_webhook_secrets` | Supply the webhook secrets from elsewhere (per site and mode). |

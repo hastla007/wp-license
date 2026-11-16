@@ -10,7 +10,7 @@ Source: `src/Billing/*`, `src/License/LicenseLifecycle.php`, `src/License/Licens
 | --- | --- | --- |
 | Started by | Scheduler at `paid_until` | Customer, button "Renew now" in the account |
 | Payment method | Saved card through a gateway adapter (only Stripe exists) | Any payment method on the WooCommerce pay page |
-| Price | Amount stored on the license at purchase (`renewal_amount_minor`) | Current regular price of the purchased product or variation when the order is created |
+| Price | Amount stored on the license at purchase (`renewal_amount_minor`) | The same stored amount (price guarantee, INH-01) |
 | Requires | Opt-in at checkout and a saved token | License in the renewal window |
 
 See "Renewal price" below for how both amounts are determined.
@@ -287,6 +287,16 @@ A new purchase of a product always issues a new license with a new key; nothing 
 
 When a license is issued, it stores the **regular price of the product or variation that was actually bought** (`renewal_amount_minor`, `renewal_currency_decimals`, `renewal_currency`) and the ID of that product or variation (`renewal_product_id`, schema 13). A running sale price is never stored. The plan price is only used when the bought product has no usable price, and for licenses issued by an administrator without an order (those record the plan's variation or product as `renewal_product_id`).
 
+### Currency (B-189)
+
+A license renews in the **currency of its order**, with the amount stored in that currency (owner decision of 16 Nov 2026). Nothing is ever converted, and a later change of the shop currency does not change existing licenses.
+
+- **Order in the shop currency** (the currency product prices are entered in, the stored WooCommerce setting `woocommerce_currency`; `Catalog::base_currency()`, filter `wplc_shop_base_currency`): the regular price of the bought product as above. The plugin reads the stored setting, not `get_woocommerce_currency()`, because multi-currency plugins (WPML/WCML, Aelia, CURCY and others) filter that function to the visitor's currency while the stored prices stay in the shop currency.
+- **Order in another currency** (a multi-currency plugin converted the cart): the license stores the order currency and the amount paid for one unit of the line before coupons, without tax (`renewal_amount_includes_tax = 0`, WooCommerce stores line subtotals net); a sale price that was running is therefore part of it. The precision is the ISO 4217 one (`Money::currency_decimals()`, filter `wplc_currency_decimals`). An integration that knows the regular price in that currency supplies it with `wplc_renewal_price_in_order_currency` (`LicenseIssuer::order_currency_price()`). The cart and checkout name that amount in the visitor's currency (`RenewalTerms::plan_amount()`), and the consent record stores the amount and currency of the license.
+- **Every renewal path uses the stored currency and amount:** the automatic charge (the Stripe adapter charges the order currency), the manual renewal order in the account, "Book renewal" after a review (it books the existing order), a downgrade billed at the renewal (only a target priced in the same currency and precision, otherwise the current plan is billed), the upgrade order (`PlanUpgrade`, always in the license currency), reminders, renewal notices and price change emails (`RenewalTerms`, from the license row), and price change announcements (only for licenses in the announced currency).
+- **The order carries the license currency explicitly.** `RenewalOrder::get_or_create()` sets it on every renewal order and checks it after saving. When another plugin changed it, or the payment method does not accept it (filter `wplc_renewal_currency_supported`, default true), the order is not charged: the renewal waits like any shop-side problem (`renewal_currency_mismatch` or `renewal_currency_unsupported` in `last_error`, audit `renewal_blocked`, action `wplc/renewal_blocked`, an order note once), no attempt is counted and the customer gets no email. A manual renewal shows the error instead of the pay page. Paid orders and Stripe events are only booked when the order currency equals the license currency (unchanged).
+- **After a switch of the shop currency** the product prices are read in the new currency. Plans in another currency than the license are not offered for an upgrade or a downgrade (nothing is converted); the license keeps renewing in its own currency at its stored amount. A higher price for those licenses is announced in their currency (`wp wplc price-change announce --currency=EUR …`).
+
 This matters for variable products that are mapped only on the parent product: the plan of such a mapping holds the lowest variation price, because WooCommerce reports the lowest variation price for a variable parent. Before T-132 every variation renewed at that lowest price (a variation bought for 79.00 renewed for 59.00).
 
 ### Price guarantee: automatic and manual renewal
@@ -538,6 +548,6 @@ Manual renewals bill the same stored amount and read it by the same flag (INH-01
 - Licenses that were issued before schema 13 for a variation of a parent-mapped variable product keep the stored amount, which may be the lowest variation price. It is not raised automatically, neither for automatic nor for manual renewals (before INH-01 their manual renewals used the variation price). The shop corrects it upwards with an announced price change (INH-05) or, with the customer's consent, through the filter `wplc_admin_can_raise_renewal_amount`.
 - An announced price change (INH-05) is technically complete, but the notice period (60 days by default) and the wording of the email are not legally reviewed (T-93). Whether a customer also gets a special right to end the paid period early is a legal question the plugin does not answer; it offers the normal cancellation.
 - The announcement screen for a whole plan handles 500 licenses per submission; a queued background run for very large plans does not exist (use WP-CLI).
-- The currency of a renewal is the one stored at purchase; a later change of the shop currency is not handled.
+- A license bought in another currency than the shop currency stores the unit price of its order line (a sale price included) unless an integration supplies the regular price through `wplc_renewal_price_in_order_currency`. Plans priced in another currency than the license cannot be chosen for an upgrade or downgrade.
 - A purchase with quantity N creates N licenses and N separate renewal charges.
 - Deleting or trashing an order does not change its licenses.

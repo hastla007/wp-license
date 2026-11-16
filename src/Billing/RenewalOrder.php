@@ -300,6 +300,13 @@ final class RenewalOrder {
 			self::set_payment_method( $order, (string) $license['payment_gateway_id'] );
 		}
 		$order->save();
+		$currency_problem = self::currency_problem( $order, $license );
+		if ( '' !== $currency_problem ) {
+			if ( $is_new && ! self::link( (int) $renewal['id'], (int) $order->get_id() ) ) {
+				return new \WP_Error( 'renewal_order_link_failed', __( 'The renewal order was created but could not be linked. A retry will attempt recovery.', 'wp-license' ) );
+			}
+			return self::currency_error( $order, $currency_problem );
+		}
 
 		if ( $is_new ) {
 			// B-187: the downloads were granted with the first purchase.
@@ -313,6 +320,63 @@ final class RenewalOrder {
 		}
 
 		return $order;
+	}
+
+	/**
+	 * Why an order cannot be charged in the license's currency; empty when it can (B-189).
+	 *
+	 * A license renews in the currency it stores (`renewal_currency`), never
+	 * converted. The order must carry exactly that currency, even when a
+	 * multi-currency plugin changed it, and the payment method must accept it
+	 * (filter `wplc_renewal_currency_supported`).
+	 *
+	 * @param \WC_Order           $order Renewal order.
+	 * @param array<string,mixed> $license License row.
+	 * @return string Reason code: renewal_currency_mismatch, renewal_currency_unsupported or empty.
+	 */
+	public static function currency_problem( $order, array $license ): string {
+		$currency = strtoupper( (string) ( $license['renewal_currency'] ?? '' ) );
+		if ( '' === $currency || strtoupper( (string) $order->get_currency() ) !== $currency ) {
+			return 'renewal_currency_mismatch';
+		}
+		$gateway = self::is_manual( $order ) ? '' : (string) $order->get_payment_method();
+		/**
+		 * Filters whether a renewal may be charged in the license's currency (B-189).
+		 *
+		 * Return false when the payment method cannot take payments in that currency. The renewal is
+		 * then not charged (no failed attempt, no customer email); the reason
+		 * `renewal_currency_unsupported` is stored on the renewal and `wplc/renewal_blocked` fires.
+		 *
+		 * @param bool                $supported Default true.
+		 * @param string              $currency ISO 4217 code of the license.
+		 * @param string              $gateway_id Payment method of an automatic renewal, empty for a manual one.
+		 * @param array<string,mixed> $license License row.
+		 */
+		if ( ! apply_filters( 'wplc_renewal_currency_supported', true, $currency, $gateway, $license ) ) {
+			return 'renewal_currency_unsupported';
+		}
+
+		return '';
+	}
+
+	/**
+	 * Error and order note for a renewal order that cannot be charged in its currency (B-189).
+	 *
+	 * @param \WC_Order $order Renewal order.
+	 * @param string    $code Result of currency_problem().
+	 * @return \WP_Error
+	 */
+	public static function currency_error( $order, string $code ): \WP_Error {
+		$message = 'renewal_currency_unsupported' === $code
+			? __( 'The payment method does not accept the currency of this license. The renewal is not charged; a license renews in the currency of its order and is never converted.', 'wp-license' )
+			: __( 'The renewal order does not carry the currency of the license. The renewal is not charged; a license renews in the currency of its order and is never converted. Check multi-currency plugins that change the order currency.', 'wp-license' );
+		if ( (string) $order->get_meta( '_wplc_currency_problem', true ) !== $code ) {
+			$order->update_meta_data( '_wplc_currency_problem', $code );
+			$order->save();
+			$order->add_order_note( 'WP License Captain: ' . $message );
+		}
+
+		return new \WP_Error( $code, $message );
 	}
 
 	/**
