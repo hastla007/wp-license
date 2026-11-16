@@ -382,4 +382,27 @@ final class ProjectProductIntegrationTest extends WPLC_Portal_TestCase {
 			remove_filter( 'wplc_manual_renewal_for_unsold_products', '__return_false' );
 		}
 	}
+
+	public function test_cli_issue_names_why_a_license_was_not_issued(): void {
+		$project = $this->project_product();
+		$request = LicenseCommand::issue_request( array( 'customer' => (string) $this->client, 'plan-id' => $project['plan_id'], 'expires' => $this->local_date( 30 ), 'skip-email' => true ) );
+		$this->assertIsArray( $request );
+
+		// Refused input: the generic text, and the issuer says why.
+		$refused = LicenseCommand::run_issue( array_merge( $request, array( 'reason' => '' ) ), 0 );
+		$this->assertWPError( $refused );
+		$this->assertSame( \WPLC\License\LicenseIssuer::FAILED_INPUT, \WPLC\License\LicenseIssuer::last_failure() );
+		$this->assertSame( 'The license could not be issued.', $refused->get_error_message() );
+
+		// A success clears the reason.
+		$this->assertIsInt( LicenseCommand::run_issue( $request, 0 ) );
+		$this->assertSame( '', \WPLC\License\LicenseIssuer::last_failure() );
+
+		// The key ID typo and a failed insert get their own text, without the key ID's value or any secret.
+		$key_id = LicenseCommand::issue_failure_message( \WPLC\License\LicenseIssuer::FAILED_KEY_ID );
+		$this->assertStringContainsString( 'WPLC_LICENSE_KEY_ID', $key_id );
+		$this->assertStringContainsString( 'WPLC_LICENSE_KEY_SECRETS', $key_id );
+		$this->assertStringContainsString( 'database', LicenseCommand::issue_failure_message( \WPLC\License\LicenseIssuer::FAILED_STORE ) );
+		$this->assertSame( 'The license could not be issued.', LicenseCommand::issue_failure_message( 'anything else' ) );
+	}
 }

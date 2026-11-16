@@ -238,7 +238,27 @@ final class LicenseCommand {
 			}
 		}
 
-		return $license_id > 0 ? $license_id : new \WP_Error( 'issue_failed', __( 'The license could not be issued.', 'wp-license' ) );
+		if ( $license_id > 0 ) {
+			return $license_id;
+		}
+		return new \WP_Error( 'issue_failed', self::issue_failure_message( \WPLC\License\LicenseIssuer::last_failure() ) );
+	}
+
+	/**
+	 * What the command says when no license was issued, by the reason LicenseIssuer gives. No secrets.
+	 *
+	 * @param string $failure LicenseIssuer::last_failure().
+	 * @return string
+	 */
+	public static function issue_failure_message( string $failure ): string {
+		switch ( $failure ) {
+			case \WPLC\License\LicenseIssuer::FAILED_KEY_ID:
+				return __( 'The license could not be issued: the current license key ID (WPLC_LICENSE_KEY_ID in wp-config.php) has no secret in WPLC_LICENSE_KEY_SECRETS. Fix wp-config.php and try again.', 'wp-license' );
+			case \WPLC\License\LicenseIssuer::FAILED_STORE:
+				return __( 'The license could not be issued: it could not be saved in the database. Check the database error log.', 'wp-license' );
+			default:
+				return __( 'The license could not be issued.', 'wp-license' );
+		}
 	}
 
 	/**

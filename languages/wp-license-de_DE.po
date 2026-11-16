@@ -7,8 +7,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T12:21:43+00:00\n"
-"PO-Revision-Date: 2026-11-16 12:17+0000\n"
+"POT-Creation-Date: 2026-11-16T14:16:15+00:00\n"
+"PO-Revision-Date: 2026-11-16 14:16+0000\n"
 "Language: de_DE\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: wp-license\n"
@@ -617,7 +617,7 @@ msgstr "Du bist nicht berechtigt, Lizenzen zu ändern."
 #: src/Admin/LicenseListTable.php:98
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Billing/RenewalOrder.php:880
-#: src/License/LicenseIssuer.php:239
+#: src/License/LicenseIssuer.php:256
 msgid "License"
 msgstr "Lizenz"
 
@@ -1429,32 +1429,32 @@ msgid "Optional short text that license emails may show below their content, for
 msgstr "Optionaler kurzer Text, den Lizenz-E-Mails unter ihrem Inhalt anzeigen können, zum Beispiel ein Support-Kontakt."
 
 #: src/Account/CustomerPortal.php:880
-#: src/Billing/ManualRenewal.php:163
+#: src/Billing/ManualRenewal.php:189
 msgid "This license cannot be renewed at the moment."
 msgstr "Diese Lizenz kann derzeit nicht verlängert werden."
 
 #: src/Account/CustomerPortal.php:881
-#: src/Billing/ManualRenewal.php:177
-#: src/Billing/ManualRenewal.php:196
+#: src/Billing/ManualRenewal.php:203
+#: src/Billing/ManualRenewal.php:222
 msgid "A renewal for this license is being processed. Please try again in a few minutes."
 msgstr "Eine Verlängerung dieser Lizenz wird gerade verarbeitet. Bitte versuche es in einigen Minuten erneut."
 
-#: src/Billing/ManualRenewal.php:193
+#: src/Billing/ManualRenewal.php:219
 msgid "This renewal has already been paid."
 msgstr "Diese Verlängerung wurde bereits bezahlt."
 
 #: src/Account/CustomerPortal.php:882
-#: src/Billing/ManualRenewal.php:215
+#: src/Billing/ManualRenewal.php:241
 msgid "Your payment for this renewal has been received and is being processed."
 msgstr "Deine Zahlung für diese Verlängerung ist eingegangen und wird verarbeitet."
 
 #: src/Account/CustomerPortal.php:883
-#: src/Billing/ManualRenewal.php:218
+#: src/Billing/ManualRenewal.php:244
 msgid "A renewal order for this license is already waiting for your payment to arrive."
 msgstr "Für diese Lizenz gibt es bereits eine Verlängerungsbestellung, die auf den Eingang deiner Zahlung wartet."
 
 #. translators: 1: license ID, 2: new paid-through date (UTC).
-#: src/Billing/ManualRenewal.php:325
+#: src/Billing/ManualRenewal.php:351
 #: src/Billing/RenewalProcessor.php:807
 #, php-format
 msgid "WP License Captain renewed license #%1$d until %2$s (UTC)."
@@ -1632,7 +1632,7 @@ msgid "Stripe did not return a transaction reference."
 msgstr "Stripe hat keine Transaktionsreferenz zurückgegeben."
 
 #. translators: 1: license prefix, 2: order item ID.
-#: src/License/LicenseIssuer.php:507
+#: src/License/LicenseIssuer.php:524
 #, php-format
 msgid "WP License Captain issued license %1$s for order item #%2$d."
 msgstr "WP License Captain hat die Lizenz %1$s für die Bestellposition #%2$d ausgestellt."
@@ -2322,7 +2322,7 @@ msgstr "Der Webserver hat eine Testdatei aus dem privaten Paketverzeichnis ausge
 msgid "Show the rule and check again"
 msgstr "Regel anzeigen und erneut prüfen"
 
-#: src/Billing/ManualRenewal.php:200
+#: src/Billing/ManualRenewal.php:226
 msgid "The automatic payment for this renewal is still being confirmed. Please check back later."
 msgstr "Die automatische Zahlung für diese Verlängerung wird noch bestätigt. Bitte schaue später wieder vorbei."
 
@@ -4538,7 +4538,7 @@ msgstr "Nur ein Administrator darf die vertrauenswürdigen Paket-Hosts ändern, 
 msgid "Days before an automatic charge on which the customer is told the date and the amount. Default: 7. A license is only charged after this email was accepted for sending; otherwise the charge is postponed and reported under Diagnostics."
 msgstr "Tage vor einer automatischen Abbuchung, an denen der Kunde über Datum und Betrag informiert wird. Standard: 7. Eine Lizenz wird erst belastet, nachdem diese E-Mail zum Versand angenommen wurde; andernfalls wird die Abbuchung verschoben und unter Diagnose gemeldet."
 
-#: src/Billing/ManualRenewal.php:222
+#: src/Billing/ManualRenewal.php:248
 msgid "Please add your billing address before renewing, so that tax can be calculated correctly."
 msgstr "Bitte füge vor der Verlängerung deine Rechnungsadresse hinzu, damit die Steuer korrekt berechnet werden kann."
 
@@ -4670,7 +4670,7 @@ msgid "%s (license renewal)"
 msgstr "%s (Lizenzverlängerung)"
 
 #: src/Billing/RenewalOrder.php:882
-#: src/License/LicenseIssuer.php:242
+#: src/License/LicenseIssuer.php:259
 msgid "Service period (UTC)"
 msgstr "Leistungszeitraum (UTC)"
 
@@ -5034,20 +5034,20 @@ msgstr "Das Tarif-Upgrade konnte nicht auf die Lizenz angewendet werden."
 msgid "Taken over from an earlier version: the payment result was unclear or the payment could not be applied. Compare the renewal order with the payment at the provider."
 msgstr "Aus einer früheren Version übernommen: Das Zahlungsergebnis war unklar oder die Zahlung konnte nicht angewendet werden. Vergleiche die Verlängerungsbestellung mit der Zahlung beim Zahlungsanbieter."
 
-#: src/License/LicenseIssuer.php:316
+#: src/License/LicenseIssuer.php:333
 msgid "WP License Captain: all licenses of this order are issued now."
 msgstr "WP License Captain: Alle Lizenzen dieser Bestellung sind jetzt ausgestellt."
 
-#: src/License/LicenseIssuer.php:338
+#: src/License/LicenseIssuer.php:355
 msgid "this order has no customer account and no account uses the billing email address. Assign a customer to the order; the license is then issued by the daily run or when the order status is saved again"
 msgstr "diese Bestellung hat kein Kundenkonto und kein Konto verwendet die Rechnungs-E-Mail-Adresse. Weise der Bestellung einen Kunden zu; die Lizenz wird dann beim täglichen Lauf ausgestellt oder wenn der Bestellstatus erneut gespeichert wird"
 
-#: src/License/LicenseIssuer.php:341
+#: src/License/LicenseIssuer.php:358
 msgid "a license could not be created (check the license key configuration under WooCommerce → Licenses → Diagnostics and the PHP error log). Issuing is retried daily"
 msgstr "eine Lizenz konnte nicht angelegt werden (prüfe die Konfiguration der Lizenzschlüssel unter WooCommerce → Lizenzen → Diagnose und das PHP-Fehlerprotokoll). Die Ausstellung wird täglich erneut versucht"
 
 #. translators: %s: reason.
-#: src/License/LicenseIssuer.php:347
+#: src/License/LicenseIssuer.php:364
 #, php-format
 msgid "WP License Captain: this paid order has NOT received all its licenses: %s."
 msgstr "WP License Captain: Diese bezahlte Bestellung hat NICHT alle ihre Lizenzen erhalten: %s."
@@ -7954,7 +7954,7 @@ msgstr "Gib --expires als Datum in der Zukunft an, JJJJ-MM-TT."
 msgid "Issued with WP-CLI"
 msgstr "Mit WP-CLI ausgestellt"
 
-#: src/CLI/LicenseCommand.php:241
+#: src/CLI/LicenseCommand.php:260
 msgid "The license could not be issued."
 msgstr "Die Lizenz konnte nicht ausgestellt werden."
 
@@ -8008,3 +8008,11 @@ msgstr "Der Produktschlüssel der Lizenz darf nur Kleinbuchstaben, Ziffern und B
 #: src/Catalog/ProductEditor.php:224
 msgid "Stable product identifier. Must match the product key the premium add-on sends, for example acme-pro; the suggestions come from the imported catalog files. Lowercase letters, digits and hyphens only."
 msgstr "Dauerhafte Kennung des Produkts. Muss zum Produktschlüssel passen, den das Premium-Add-on sendet, zum Beispiel acme-pro; die Vorschläge kommen aus den importierten Katalogdateien. Nur Kleinbuchstaben, Ziffern und Bindestriche."
+
+#: src/CLI/LicenseCommand.php:256
+msgid "The license could not be issued: the current license key ID (WPLC_LICENSE_KEY_ID in wp-config.php) has no secret in WPLC_LICENSE_KEY_SECRETS. Fix wp-config.php and try again."
+msgstr "Die Lizenz konnte nicht ausgestellt werden: Zur aktuellen Schlüssel-ID (WPLC_LICENSE_KEY_ID in der wp-config.php) gibt es kein Secret in WPLC_LICENSE_KEY_SECRETS. Korrigiere die wp-config.php und versuche es erneut."
+
+#: src/CLI/LicenseCommand.php:258
+msgid "The license could not be issued: it could not be saved in the database. Check the database error log."
+msgstr "Die Lizenz konnte nicht ausgestellt werden: Sie ließ sich nicht in der Datenbank speichern. Prüfe das Fehlerprotokoll der Datenbank."

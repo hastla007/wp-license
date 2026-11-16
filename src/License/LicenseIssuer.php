@@ -29,6 +29,23 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 final class LicenseIssuer {
 
+	/** Failure reason of the last manual issue (no secrets): one of the FAILED_* constants, '' after a success. */
+	public const FAILED_INPUT = 'invalid_input';
+	public const FAILED_KEY_ID = 'key_id_without_secret';
+	public const FAILED_STORE = 'not_stored';
+
+	/** @var string */
+	private static $last_failure = '';
+
+	/**
+	 * Why the last call of issue_manual() returned zero, so a caller can say more than "not issued".
+	 *
+	 * @return string One of the FAILED_* constants, or '' when the last call issued a license.
+	 */
+	public static function last_failure(): string {
+		return self::$last_failure;
+	}
+
 	/**
 	 * Order meta with the reason why licenses are still missing. Deleted once all are issued.
 	 */
@@ -631,6 +648,7 @@ final class LicenseIssuer {
 					array( 'source' => 'wp-license' )
 				);
 			}
+			self::$last_failure = self::FAILED_KEY_ID;
 			return null;
 		}
 
@@ -767,8 +785,9 @@ final class LicenseIssuer {
 	 * @return int License ID or zero on failure.
 	 */
 	public static function issue_manual( int $customer_id, array $plan, string $paid_until_utc, int $actor_user_id, string $reason ): int {
-		$reason = trim( $reason );
-		$end    = \DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $paid_until_utc, new \DateTimeZone( 'UTC' ) );
+		self::$last_failure = self::FAILED_INPUT;
+		$reason             = trim( $reason );
+		$end                = \DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $paid_until_utc, new \DateTimeZone( 'UTC' ) );
 		if (
 			$customer_id <= 0
 			|| '' === $reason
@@ -800,8 +819,12 @@ final class LicenseIssuer {
 			)
 		);
 		if ( ! $stored ) {
+			if ( self::FAILED_KEY_ID !== self::$last_failure ) {
+				self::$last_failure = self::FAILED_STORE;
+			}
 			return 0;
 		}
+		self::$last_failure = '';
 
 		AuditLog::record(
 			'license_issued_manually',

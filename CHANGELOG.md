@@ -20,6 +20,8 @@ Consolidation of all earlier development branches into one code base. Preview: c
 
 - **Customer renewal of products that are not for sale can be switched off (PK-05, prepared).** New filter `wplc_manual_renewal_for_unsold_products` (default `true`, unchanged behaviour); returning false hides "Renew now" in the account and refuses the renewal for private, draft or otherwise unbuyable products, so only the shop owner extends them with "Change term".
 
+- **`wp wplc license issue` says why it failed.** A license key ID without a secret in `WPLC_LICENSE_KEY_SECRETS` and a failed database insert now get their own message instead of only "The license could not be issued." (`LicenseIssuer::last_failure()`; no key ID value or secret is printed).
+
 ### Fixed (16 Nov 2026, product isolation)
 
 - **A download token could deliver another product's URL package (PK-03).** `ReleaseRegistry::grant_is_deliverable()` now refuses a URL that matches only releases of other products, and `PackageStream::serve()` checks that the release belongs to the product of the license.

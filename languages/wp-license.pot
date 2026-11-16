@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T12:21:43+00:00\n"
+"POT-Creation-Date: 2026-11-16T14:16:15+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -289,23 +289,23 @@ msgid "Please confirm the renewal terms to switch on automatic renewal."
 msgstr ""
 
 #: src/Account/CustomerPortal.php:880
-#: src/Billing/ManualRenewal.php:163
+#: src/Billing/ManualRenewal.php:189
 msgid "This license cannot be renewed at the moment."
 msgstr ""
 
 #: src/Account/CustomerPortal.php:881
-#: src/Billing/ManualRenewal.php:177
-#: src/Billing/ManualRenewal.php:196
+#: src/Billing/ManualRenewal.php:203
+#: src/Billing/ManualRenewal.php:222
 msgid "A renewal for this license is being processed. Please try again in a few minutes."
 msgstr ""
 
 #: src/Account/CustomerPortal.php:882
-#: src/Billing/ManualRenewal.php:215
+#: src/Billing/ManualRenewal.php:241
 msgid "Your payment for this renewal has been received and is being processed."
 msgstr ""
 
 #: src/Account/CustomerPortal.php:883
-#: src/Billing/ManualRenewal.php:218
+#: src/Billing/ManualRenewal.php:244
 msgid "A renewal order for this license is already waiting for your payment to arrive."
 msgstr ""
 
@@ -635,7 +635,7 @@ msgstr ""
 #: src/Admin/LicenseListTable.php:98
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Billing/RenewalOrder.php:880
-#: src/License/LicenseIssuer.php:239
+#: src/License/LicenseIssuer.php:256
 msgid "License"
 msgstr ""
 
@@ -4639,20 +4639,20 @@ msgstr ""
 msgid "A customer account is required to buy a license. Please log in or create an account and try again."
 msgstr ""
 
-#: src/Billing/ManualRenewal.php:193
+#: src/Billing/ManualRenewal.php:219
 msgid "This renewal has already been paid."
 msgstr ""
 
-#: src/Billing/ManualRenewal.php:200
+#: src/Billing/ManualRenewal.php:226
 msgid "The automatic payment for this renewal is still being confirmed. Please check back later."
 msgstr ""
 
-#: src/Billing/ManualRenewal.php:222
+#: src/Billing/ManualRenewal.php:248
 msgid "Please add your billing address before renewing, so that tax can be calculated correctly."
 msgstr ""
 
 #. translators: 1: license ID, 2: new paid-through date (UTC).
-#: src/Billing/ManualRenewal.php:325
+#: src/Billing/ManualRenewal.php:351
 #: src/Billing/RenewalProcessor.php:807
 #, php-format
 msgid "WP License Captain renewed license #%1$d until %2$s (UTC)."
@@ -4876,7 +4876,7 @@ msgid "%s (license renewal)"
 msgstr ""
 
 #: src/Billing/RenewalOrder.php:882
-#: src/License/LicenseIssuer.php:242
+#: src/License/LicenseIssuer.php:259
 msgid "Service period (UTC)"
 msgstr ""
 
@@ -5375,7 +5375,15 @@ msgstr ""
 msgid "Issued with WP-CLI"
 msgstr ""
 
-#: src/CLI/LicenseCommand.php:241
+#: src/CLI/LicenseCommand.php:256
+msgid "The license could not be issued: the current license key ID (WPLC_LICENSE_KEY_ID in wp-config.php) has no secret in WPLC_LICENSE_KEY_SECRETS. Fix wp-config.php and try again."
+msgstr ""
+
+#: src/CLI/LicenseCommand.php:258
+msgid "The license could not be issued: it could not be saved in the database. Check the database error log."
+msgstr ""
+
+#: src/CLI/LicenseCommand.php:260
 msgid "The license could not be issued."
 msgstr ""
 
@@ -6486,26 +6494,26 @@ msgstr ""
 msgid "Stripe did not return a transaction reference."
 msgstr ""
 
-#: src/License/LicenseIssuer.php:316
+#: src/License/LicenseIssuer.php:333
 msgid "WP License Captain: all licenses of this order are issued now."
 msgstr ""
 
-#: src/License/LicenseIssuer.php:338
+#: src/License/LicenseIssuer.php:355
 msgid "this order has no customer account and no account uses the billing email address. Assign a customer to the order; the license is then issued by the daily run or when the order status is saved again"
 msgstr ""
 
-#: src/License/LicenseIssuer.php:341
+#: src/License/LicenseIssuer.php:358
 msgid "a license could not be created (check the license key configuration under WooCommerce → Licenses → Diagnostics and the PHP error log). Issuing is retried daily"
 msgstr ""
 
 #. translators: %s: reason.
-#: src/License/LicenseIssuer.php:347
+#: src/License/LicenseIssuer.php:364
 #, php-format
 msgid "WP License Captain: this paid order has NOT received all its licenses: %s."
 msgstr ""
 
 #. translators: 1: license prefix, 2: order item ID.
-#: src/License/LicenseIssuer.php:507
+#: src/License/LicenseIssuer.php:524
 #, php-format
 msgid "WP License Captain issued license %1$s for order item #%2$d."
 msgstr ""
