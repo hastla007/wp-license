@@ -8,6 +8,8 @@
 # allow-list of runtime files (wp-license.php, uninstall.php, readme.txt, src/, mu-plugins/, catalogs/,
 # languages/, assets/, templates/) into build/wp-license/, generates vendor/ there and writes
 # dist/wp-license-captain-<version>.zip (one top-level wp-license/ folder) plus a .sha256 file.
+# It also writes the client library package for vendors, dist/license-client-<library version>.zip
+# with its .sha256 (bin/package-client.php, PROD-08).
 # The checkout itself is not modified; everything happens in build/ and dist/.
 #
 # Without an argument the version is read from wp-license.php. With an argument (the tag
@@ -118,4 +120,8 @@ if grep -E '^wp-license/(tests|docs|tools|bin)/|/\.[^/]+(/|$)|^wp-license/(compo
 	exit 1
 fi
 (cd dist && sha256sum -c "${ZIP}.sha256")
+# The client library for vendors (PROD-08). Fails when the client classes disagree on VERSION or
+# packaging/client/CHANGELOG-CLIENT.md has no section for it.
+php bin/package-client.php --out=dist
+(cd dist && sha256sum -c license-client-*.zip.sha256)
 echo "Built dist/${ZIP} ($(wc -l < build/contents.txt) entries)"

@@ -22,6 +22,27 @@ This is the guide for the developer of a premium add-on. Everything the add-on n
 
 All state is per `LicenseManager` instance. Nothing is static, so one copy of the classes can serve several add-ons.
 
+## Getting the library
+
+Vendors who run this license server get the client as a library package, not as a plugin (owner decision PROD-Q4 of 16 Nov 2026): `license-client-<version>.zip`, attached to every release of the server next to the plugin ZIP (with a `.sha256` file). `bin/build-zip.sh` builds it with `php bin/package-client.php` (also on its own: `php bin/package-client.php --out=dist`). The ZIP holds one folder `license-client-<version>/` with:
+
+- `src/Client/*.php`: the library, unchanged (namespace `WPLC\Client`);
+- `bin/export-client.php`: the documented way to embed it (next section);
+- `bin/client-contract-test.php`: a contract test the vendor runs against their own server;
+- `README.md`: embedding, namespace and prefix rules, the compatibility promise;
+- `CHANGELOG-CLIENT.md`: changes by library version (source: `packaging/client/CHANGELOG-CLIENT.md`; the build fails when it has no section for the current `VERSION`, or when the classes of `src/Client` disagree on `VERSION`).
+
+**Compatibility promise.** The client of a major version (2.x) works with every server that answers API v1. Servers may add fields, error codes and routes; the client ignores what it does not know and keeps the stored rights on an unknown error. Minor and patch versions of the client only add or fix; a change that needs work in the add-on is marked **Action** in `CHANGELOG-CLIENT.md`. A client that needs more than API v1 gets a new major version.
+
+**Contract test.** Before shipping an add-on, run against your server with a test license of the product:
+
+```sh
+php bin/client-contract-test.php --server=https://shop.example --product=my-addon \
+    --key=WPLC-XXXX-XXXX-XXXX-XXXX --public-key=BASE64-PUBLIC-KEY
+```
+
+It runs the unchanged library without WordPress over real HTTPS: activate (as a development site `https://contract-test.local` by default, so no live site slot is used), check, update check (metadata only, no download grant), signature check (the last answer verifies against the pinned key; a changed payload and another key are refused), deactivate (also after a failed step). Each step prints `PASS` or `FAIL`; exit code 0, 1, or 2 for wrong arguments. Options `--site`, `--environment`, `--version`, `--rest-base`, `--timeout`, `--allow-insecure`; `--public-key` can be repeated during a key rotation. It needs the sodium extension and never prints the key. It does not run in CI (network); its argument parsing, response parsing and the whole flow against the fake server of the unit tests are covered by `tests/Client/ClientPackageTest.php`.
+
 ## Getting the library into the add-on
 
 Three add-ons can be active on one site, each with its own copy and possibly different versions. There are two ways to ship the copy.
