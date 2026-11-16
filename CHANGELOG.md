@@ -162,6 +162,7 @@ Eight reviewers (security admin/frontend, REST pentest, billing QA, client QA, p
   - The `activation_id` of an activation answer must be a positive integer; otherwise nothing is stored and `activate()` returns `wplc_response_invalid` (was: `-5` stored, `"abc"` stored as 0 and reported as activated).
   - `LicenseManager` checks that the state was written: when a signed answer cannot be stored, the older snapshot is deleted (or emptied) and `wplc_credentials_not_saved` is returned, so a revocation that could not be saved does not leave the old rights running for up to 14 days.
   - `OptionStore::delete()`, `LicenseClient::forget()` and `LicenseManager::forget_locally()` return whether the data is gone (were `void`); `deactivate()` and the form actions report `wplc_credentials_not_removed` (new text) instead of "removed" while the credentials stay. Subclasses of `OptionStore` (only the test kit) must declare `delete(): bool`.
+  - Updater (P11): a failed update check no longer replaces the last valid offer; it stays until its own expiry (12 h after the successful check) with the error in `last_error`, and the check is repeated after an hour. WordPress therefore keeps showing an update that a cron check could not confirm. A signed refusal ends the offer at once.
   - Re-vendored into the add-on starter.
 
 ### Open items from the 13 Nov audits (15 Nov 2026, wave 2)
