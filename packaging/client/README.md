@@ -45,7 +45,7 @@ if ( $license->is_entitled( 'my-addon.some_feature' ) ) {
 }
 ```
 
-The main file needs the header `Update URI: https://shop.example/my-addon` so that WordPress asks your server, and nobody else, for updates. The full guide (settings, states, error codes, multisite, updates, the license form, privacy) is `docs/CLIENT-INTEGRATION.md` of the server plugin.
+The main file needs the header `Update URI: https://shop.example/my-addon` so that WordPress asks your server, and nobody else, for updates. The full guide (settings, states, error codes, multisite, updates, the license form, privacy) is chapter 6 of the vendor manual that ships with the server plugin, `docs/manual/06-client-integration.md`.
 
 ### Namespace and prefix rules
 
