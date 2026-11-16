@@ -75,7 +75,7 @@ final class Settings {
 	 * Settings whose values are written to the audit log. Other keys are
 	 * recorded by name only (the sender note is free text shown to customers).
 	 */
-	private const AUDITED_VALUES = array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import' );
+	private const AUDITED_VALUES = array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import', 'combined_renewals' );
 
 	/**
 	 * Audit the first save of the option.
@@ -175,6 +175,7 @@ final class Settings {
 			'renewal_notice_days' => 7,
 			'price_change_notice_days' => \WPLC\Billing\PriceChange::DEFAULT_NOTICE_DAYS,
 			'catalog_auto_import' => 1,
+			'combined_renewals' => 0,
 			'sender_note'   => '',
 		);
 	}
@@ -314,6 +315,15 @@ final class Settings {
 			'wplc_updates',
 			array( 'label_for' => 'wplc_catalog_auto_import' )
 		);
+		add_settings_section( 'wplc_renewals', __( 'Automatic renewal', 'wp-license' ), '__return_false', self::PAGE );
+		add_settings_field(
+			'wplc_combined_renewals',
+			__( 'Combine automatic renewals', 'wp-license' ),
+			array( self::class, 'render_combined_renewals_field' ),
+			self::PAGE,
+			'wplc_renewals',
+			array( 'label_for' => 'wplc_combined_renewals' )
+		);
 		add_settings_section( 'wplc_emails', __( 'Customer emails', 'wp-license' ), '__return_false', self::PAGE );
 		add_settings_field(
 			'wplc_reminder_days',
@@ -445,6 +455,8 @@ final class Settings {
 			'price_change_notice_days' => \WPLC\Billing\PriceChange::clamp_notice_days( $change_days ),
 			// PROD-03: the form sends a hidden 0 before the checkbox, so an unticked box is stored as off.
 			'catalog_auto_import' => array_key_exists( 'catalog_auto_import', $input ) ? ( empty( $input['catalog_auto_import'] ) ? 0 : 1 ) : ( isset( $current['catalog_auto_import'] ) && ! $current['catalog_auto_import'] ? 0 : 1 ),
+			// B-191: off unless the form (or a stored value) says on.
+			'combined_renewals' => array_key_exists( 'combined_renewals', $input ) ? ( empty( $input['combined_renewals'] ) ? 0 : 1 ) : ( empty( $current['combined_renewals'] ) ? 0 : 1 ),
 			'sender_note'   => function_exists( 'mb_substr' ) ? mb_substr( $note, 0, 500 ) : substr( $note, 0, 500 ),
 		);
 	}
@@ -940,6 +952,18 @@ final class Settings {
 		echo '<label for="wplc_catalog_auto_import"><input type="checkbox" id="wplc_catalog_auto_import" name="' . esc_attr( self::OPTION ) . '[catalog_auto_import]" value="1"' . checked( (bool) self::get( 'catalog_auto_import' ), true, false ) . ' aria-describedby="wplc_catalog_auto_import_help"> ';
 		echo esc_html__( 'Import the catalog file from release packages', 'wp-license' ) . '</label>';
 		echo '<p class="description" id="wplc_catalog_auto_import_help">' . esc_html__( 'When a release is created from a ZIP, the file wplc-catalog.json in the plugin folder of the package is checked and imported into the license catalog. The release is created in any case; a file that is invalid or describes another product is not imported and reported. Plans and licenses are never changed.', 'wp-license' ) . '</p>';
+	}
+
+	/**
+	 * Render the switch for combined automatic renewals (B-191).
+	 *
+	 * @return void
+	 */
+	public static function render_combined_renewals_field(): void {
+		echo '<input type="hidden" name="' . esc_attr( self::OPTION ) . '[combined_renewals]" value="0">';
+		echo '<label for="wplc_combined_renewals"><input type="checkbox" id="wplc_combined_renewals" name="' . esc_attr( self::OPTION ) . '[combined_renewals]" value="1"' . checked( (bool) self::get( 'combined_renewals' ), true, false ) . ' aria-describedby="wplc_combined_renewals_help"> ';
+		echo esc_html__( 'Charge the licenses of one customer that renew automatically on the same day with one order and one payment', 'wp-license' ) . '</label>';
+		echo '<p class="description" id="wplc_combined_renewals_help">' . esc_html__( 'Only licenses with the same saved card, currency and billing interval are combined. Each license keeps its own renewal; a declined payment is retried per license. Manual renewals are never combined. Off by default.', 'wp-license' ) . '</p>';
 	}
 
 	/**

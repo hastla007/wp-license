@@ -80,6 +80,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_capability` | `src/Admin/Capabilities.php` | Filters the capability required for a license administration action. |
 | `wplc_catalog_csv_time_budget` | `src/Admin/CatalogCsv.php` | Filters how many seconds one catalog CSV import may run before it stops and reports where. |
 | `wplc_client_ip` | `src/Api/V1/ClientIp.php` | Filter the client address used for anonymous rate limiting. |
+| `wplc_combined_renewals` | `src/Billing/CombinedRenewal.php` | Filters whether due automatic renewals of one customer are combined into one order and one charge (B-191). |
 | `wplc_currency_decimals` | `src/Billing/Money.php` | Filters the precision of a currency the shop does not enter prices in (B-189). |
 | `wplc_customer_download_hourly_limit` | `src/Update/CustomerDownload.php` |  |
 | `wplc_customer_download_version_choices` | `src/Update/CustomerDownload.php` | Filters how many versions the customer can choose from. |

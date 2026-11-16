@@ -9,7 +9,7 @@
  * @var array<string,string> $view               Display values: product, plan, key_prefix, valid_until, days_left,
  *                                               amount (including tax), amount_includes_tax, currency, interval,
  *                                               charge_date, grace_until, account_url, pay_url, can_renew_now,
- *                                               renew_from, cancelled_at, status, support_email.
+ *                                               renew_from, cancelled_at, status, support_email, other_licenses.
  * @var string               $email_heading      Email heading.
  * @var string               $additional_content Additional content from the email settings.
  * @var string               $sender_note        Sender note from the license settings; empty for none.
@@ -19,7 +19,7 @@
 defined( 'ABSPATH' ) || exit;
 
 $view = array_merge(
-	array_fill_keys( array( 'product', 'plan', 'key_prefix', 'valid_until', 'days_left', 'amount', 'amount_includes_tax', 'currency', 'interval', 'charge_date', 'grace_until', 'account_url', 'pay_url', 'can_renew_now', 'renew_from', 'cancelled_at', 'status', 'support_email' ), '' ),
+	array_fill_keys( array( 'product', 'plan', 'key_prefix', 'valid_until', 'days_left', 'amount', 'amount_includes_tax', 'currency', 'interval', 'charge_date', 'grace_until', 'account_url', 'pay_url', 'can_renew_now', 'renew_from', 'cancelled_at', 'status', 'support_email', 'other_licenses' ), '' ),
 	isset( $view ) && is_array( $view ) ? $view : array()
 );
 
@@ -34,6 +34,13 @@ $paragraphs = array(
 		? __( 'Your payment provider may ask you to confirm the payment.', 'wp-license' )
 		: __( 'Please open your account to check the license and your payment method.', 'wp-license' ),
 );
+if ( '' !== $view['other_licenses'] ) {
+	$paragraphs[] = sprintf(
+		/* translators: %s: comma-separated list of products with their license references. */
+		__( 'The same payment was also meant for these licenses, which are affected in the same way: %s', 'wp-license' ),
+		$view['other_licenses']
+	);
+}
 $rows       = array(
 	__( 'Product', 'wp-license' ) => $view['product'],
 	__( 'Plan', 'wp-license' ) => $view['plan'],

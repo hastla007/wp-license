@@ -314,6 +314,8 @@ final class AuditReason {
 			'renewal_cancelled'                  => array( __( 'The renewal was cancelled.', 'wp-license' ), array() ),
 			'renewal_order_missing'              => array( __( 'The renewal order no longer exists.', 'wp-license' ), array() ),
 			'renewal_order_closed'               => array( __( 'The renewal order was closed.', 'wp-license' ), array() ),
+			'combined_order_in_review'           => array( __( 'The combined renewal order of this license is in review; check the payment of the whole order.', 'wp-license' ), array() ),
+			'renewal_combined'                   => array( __( 'Renewed together with other licenses of the customer in one order and one payment.', 'wp-license' ), array() ),
 			'result_unknown_timeout'             => array( __( 'The payment result stayed unknown for too long.', 'wp-license' ), array() ),
 			// Error codes of failed renewal attempts (same texts as the errors themselves).
 			'renewal_payment_failed'             => array( __( 'The payment gateway did not confirm the renewal.', 'wp-license' ), array() ),

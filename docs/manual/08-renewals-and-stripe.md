@@ -41,6 +41,15 @@ A license runs for one billing period (month or year) and is renewed either **ma
 - A payment whose result is unknown (timeout, crash) is not a decline: the license keeps its status, the customer cannot pay twice, and the hourly check repeats the same request until Stripe answers definitely. After 12 hours without an answer the renewal goes to review.
 - 3-D Secure: when the bank asks for authentication, automatic retries stop and the customer account shows "Complete renewal payment", which leads to the pay page of the same order.
 
+### Combining renewals of one customer
+
+Off by default. With **WooCommerce → License settings → Combine automatic renewals** switched on (or `add_filter( 'wplc_combined_renewals', '__return_true' );`), licenses of one customer that renew automatically on the same day (UTC) with the same saved card, currency and billing interval are charged with **one order and one payment** (one line per license) instead of one charge per license. Card issuers then see one charge instead of several identical ones, and the customer gets one renewal email naming all licenses.
+
+- Each license keeps its own renewal record. If the payment is declined, every license is `past_due` and is retried on its own; one "payment failed" email names all of them.
+- If the result is unknown, all licenses wait together; the same request is repeated, never a second charge.
+- Manual renewal ("Renew now") is always per license. Licenses with a pending plan change, another card, currency or interval are not combined.
+- A full refund of the combined order takes back every license; refunding one line in full takes back that license only. A dispute concerns every license of the order.
+
 ### Cancellation
 
 The customer cancels in the account (or on the public cancellation page) and can withdraw the cancellation while the license runs. A cancelled license is not charged and ends at the end of its paid period, without a grace period. Payment methods deleted by the customer, privacy erasures and deleted accounts switch automatic renewal off as well.
@@ -71,7 +80,7 @@ wp wplc price-change announce … --apply                                       
 
 ## Refunds and disputes
 
-- A **refund** of the purchase order revokes the refunded licenses (per refunded unit). A **full** refund of a renewal order takes back that period and switches automatic renewal off; the license is not revoked. Partial refunds of renewal orders change nothing.
+- A **refund** of the purchase order revokes the refunded licenses (per refunded unit). A **full** refund of a renewal order takes back that period and switches automatic renewal off; the license is not revoked. Partial refunds of renewal orders change nothing, except a refund of a whole line of a combined renewal order, which takes back that line's license.
 - A paid order that is set to `cancelled` or `failed` afterwards (a bounced debit) suspends the licenses it paid for; reactivate them in the admin when the money arrives (filter `wplc_suspend_license_on_order_status`).
 - A **Stripe dispute** (chargeback) suspends every license paid by that order. Winning the dispute does not reactivate it automatically: that is your decision on the license detail screen.
 - An **early fraud warning** from Stripe switches the automatic renewal of the order's licenses off, so the reported card is not charged again; the licenses stay usable until the end of the paid period. Refunding now usually avoids the dispute.
@@ -128,6 +137,7 @@ Charges, expiries and reminders stop while billing is paused: on a staging copy,
 | `wplc_renewal_retry_days` | Retry days after the due date (default 1, 3, 7). |
 | `wplc_renewal_requires_advance_notice` | `false`: charge without the advance-notice rule. |
 | `wplc_renewal_charge_allowed` | Postpone a charge for your own reason. |
+| `wplc_combined_renewals` | Combine due automatic renewals of one customer into one order and charge (default: the setting, off). |
 | `wplc_renewal_currency_supported` | Refuse a renewal in a currency your payment method does not accept. |
 | `wplc_renewal_price_in_order_currency` | Supply the regular price of a license bought in another currency (multi-currency plugins). |
 | `wplc_reminder_lead_days`, `wplc_renewal_notice_lead_days` | Lead days of reminders and of the renewal notice. |

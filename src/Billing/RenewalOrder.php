@@ -37,6 +37,12 @@ final class RenewalOrder {
 	public const META_AMOUNT_MISMATCH = '_wplc_renewal_amount_mismatch';
 	/** Set once a paid order could not be applied and was reported for manual review. */
 	public const META_REVIEW = '_wplc_renewal_review';
+	/** B-191: renewal ID => license ID of every renewal a combined order pays, the leader included. */
+	public const META_COMBINED = '_wplc_combined_renewals';
+	/** B-191: order item meta naming the renewal a line of a combined order pays. */
+	public const ITEM_META_RENEWAL = '_wplc_line_renewal_id';
+	/** B-191: order item meta naming the license a line of a combined order renews. */
+	public const ITEM_META_LICENSE = '_wplc_line_license_id';
 	/** Value of WC_Order::get_created_via() for every renewal order. */
 	public const CREATED_VIA = 'wplc_renewal';
 
@@ -100,7 +106,8 @@ final class RenewalOrder {
 	 */
 	public static function on_saved_order_items( $order_id ): void {
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( absint( $order_id ) ) : false;
-		if ( ! self::is_renewal_order( $order ) || $order->is_paid() ) {
+		if ( ! self::is_renewal_order( $order ) || $order->is_paid() || self::is_combined( $order ) ) {
+			// B-191: the lines of a combined order belong to several licenses; their amounts are not changed here.
 			return;
 		}
 		/**
@@ -199,6 +206,19 @@ final class RenewalOrder {
 		$order = null;
 		if ( ! empty( $renewal['renewal_order_id'] ) ) {
 			$linked = wc_get_order( (int) $renewal['renewal_order_id'] );
+			if ( $linked && self::is_combined( $linked ) ) {
+				// B-191: a combined order is only ever charged again by its leader while the result of its
+				// charge is unknown (the same request). Every other path renews this license on its own.
+				if ( ! $manual && (int) $linked->get_meta( self::META_RENEWAL, true ) === (int) $renewal['id'] && RenewalProcessor::STATUS_RECONCILING === (string) $renewal['status'] && ! $linked->is_paid() ) {
+					return $linked;
+				}
+				if ( $linked->is_paid() ) {
+					return $linked;
+				}
+				CombinedRenewal::release( (int) $renewal['id'], (int) $linked->get_id() );
+				$renewal['renewal_order_id'] = 0;
+				$linked = false;
+			}
 			if ( $linked && ! self::matches( $linked, $renewal, $license ) ) {
 				return new \WP_Error( 'renewal_order_conflict', __( 'The saved renewal order does not match this license renewal.', 'wp-license' ) );
 			}
@@ -388,6 +408,15 @@ final class RenewalOrder {
 	 * @return bool
 	 */
 	public static function matches( $order, array $renewal, array $license ): bool {
+		if ( $order instanceof \WC_Order && self::is_combined( $order ) ) {
+			$links = self::links( $order );
+
+			return isset( $links[ (int) $renewal['id'] ] )
+				&& $links[ (int) $renewal['id'] ] === (int) $license['id']
+				&& (int) $renewal['license_id'] === (int) $license['id']
+				&& (int) $order->get_customer_id() === (int) $license['customer_id'];
+		}
+
 		return $order instanceof \WC_Order
 			&& (int) $order->get_meta( self::META_RENEWAL, true ) === (int) $renewal['id']
 			&& (int) $order->get_meta( self::META_LICENSE, true ) === (int) $license['id']
@@ -536,7 +565,8 @@ final class RenewalOrder {
 		foreach ( $ids as $id ) {
 			$order = wc_get_order( $id );
 			// Re-check the meta: the storage may ignore the meta arguments and return unrelated orders.
-			if ( $order instanceof \WC_Order && (int) $order->get_meta( self::META_RENEWAL, true ) === $renewal_id && self::is_open( $order ) ) {
+			// B-191: a combined order is reached only through the renewal row that links it.
+			if ( $order instanceof \WC_Order && (int) $order->get_meta( self::META_RENEWAL, true ) === $renewal_id && self::is_open( $order ) && ! self::is_combined( $order ) ) {
 				$orders[] = $order;
 			}
 		}
@@ -994,6 +1024,26 @@ final class RenewalOrder {
 	 */
 	private static function line_net_minor( $order, int $decimals ) {
 		$items = $order->get_items( 'line_item' );
+		if ( self::is_combined( $order ) ) {
+			// B-191: one line per renewal of the combined order, each naming its renewal.
+			$links = self::links( $order );
+			$seen  = array();
+			$sum   = 0;
+			foreach ( $items as $item ) {
+				$renewal_id = absint( $item->get_meta( self::ITEM_META_RENEWAL, true ) );
+				if ( ! isset( $links[ $renewal_id ] ) || isset( $seen[ $renewal_id ] ) ) {
+					return false;
+				}
+				$seen[ $renewal_id ] = true;
+				$minor = Money::to_minor_units( (string) wc_format_decimal( $item->get_total() ), $decimals );
+				if ( false === $minor ) {
+					return false;
+				}
+				$sum += $minor;
+			}
+
+			return count( $seen ) === count( $links ) ? $sum : false;
+		}
 		if ( 1 !== count( $items ) ) {
 			return false;
 		}
@@ -1074,13 +1124,184 @@ final class RenewalOrder {
 	}
 
 	/**
+	 * Whether an order pays several renewals at once (B-191).
+	 *
+	 * @param mixed $order Order.
+	 * @return bool
+	 */
+	public static function is_combined( $order ): bool {
+		return $order instanceof \WC_Order && count( self::links( $order ) ) > 1;
+	}
+
+	/**
+	 * Renewals an order pays: renewal ID => license ID (B-191).
+	 *
+	 * A combined order lists all of them in META_COMBINED; any other renewal
+	 * order pays the one renewal in META_RENEWAL / META_LICENSE.
+	 *
+	 * @param mixed $order Order.
+	 * @return array<int,int>
+	 */
+	public static function links( $order ): array {
+		if ( ! $order instanceof \WC_Order ) {
+			return array();
+		}
+		$stored = $order->get_meta( self::META_COMBINED, true );
+		$links  = array();
+		if ( is_array( $stored ) ) {
+			foreach ( $stored as $renewal_id => $license_id ) {
+				if ( absint( $renewal_id ) && absint( $license_id ) ) {
+					$links[ absint( $renewal_id ) ] = absint( $license_id );
+				}
+			}
+		}
+		$leader = absint( $order->get_meta( self::META_RENEWAL, true ) );
+		if ( count( $links ) > 1 && isset( $links[ $leader ] ) ) {
+			return $links;
+		}
+		$license = absint( $order->get_meta( self::META_LICENSE, true ) );
+
+		return $leader && $license ? array( $leader => $license ) : array();
+	}
+
+	/**
+	 * Create one order for several automatic renewals of one customer (B-191).
+	 *
+	 * One line per renewal at that license's renewal price, each line naming
+	 * its license and period (B-42) and, in hidden item meta, its renewal and
+	 * license. The first renewal is the leader: the order carries its renewal
+	 * and license in META_RENEWAL / META_LICENSE and its idempotency key, so
+	 * the gateway adapter, Stripe events and every single-renewal path find the
+	 * order through it. Nothing is linked here; the caller links the rows.
+	 *
+	 * @param array<int,array{renewal:array<string,mixed>,license:array<string,mixed>}> $group Leader first.
+	 * @return \WC_Order|\WP_Error
+	 */
+	public static function create_combined( array $group ) {
+		if ( ! function_exists( 'wc_create_order' ) || count( $group ) < 2 ) {
+			return new \WP_Error( 'woocommerce_unavailable', __( 'WooCommerce order services are unavailable.', 'wp-license' ) );
+		}
+		$leader = $group[0];
+		$lines  = array();
+		foreach ( $group as $member ) {
+			$price   = self::price( $member['license'], false );
+			$product = $price['pending_product'] ? false : self::product( $member['license'], $price['plan'] );
+			if ( ! $product || $price['amount_minor'] <= 0 ) {
+				return new \WP_Error( 'renewal_product_missing', __( 'The source product is no longer available for renewal.', 'wp-license' ) );
+			}
+			$lines[] = array( $member, $price, $product );
+		}
+		$order = wc_create_order(
+			array(
+				'customer_id' => (int) $leader['license']['customer_id'],
+				'created_via' => self::CREATED_VIA,
+			)
+		);
+		if ( is_wp_error( $order ) ) {
+			return $order;
+		}
+		$links = array();
+		foreach ( $group as $member ) {
+			$links[ (int) $member['renewal']['id'] ] = (int) $member['license']['id'];
+		}
+		$order->update_meta_data( self::META_LICENSE, (int) $leader['license']['id'] );
+		$order->update_meta_data( self::META_RENEWAL, (int) $leader['renewal']['id'] );
+		$order->update_meta_data( self::META_COMBINED, $links );
+		$order->update_meta_data( '_wplc_idempotency_key', (string) $leader['renewal']['idempotency_key'] );
+		self::set_addresses( $order, $leader['license'] );
+		$order->set_currency( $lines[0][1]['currency'] );
+		$decimals = (int) $lines[0][1]['decimals'];
+		foreach ( $lines as $line ) {
+			list( $member, $price, $product ) = $line;
+			$net     = self::net_price( $product, Money::to_decimal( (int) $price['amount_minor'], (int) $price['decimals'] ), $price['includes_tax'] );
+			$item_id = $order->add_product(
+				$product,
+				1,
+				array(
+					/* translators: %s: product name. */
+					'name' => sprintf( __( '%s (license renewal)', 'wp-license' ), $product->get_name() ),
+					'subtotal' => $net,
+					'total' => $net,
+				)
+			);
+			$item = $item_id ? $order->get_item( $item_id, false ) : false;
+			if ( ! $item ) {
+				$order->delete( true );
+				return new \WP_Error( 'renewal_amount_invalid', __( 'The renewal price could not be applied to the order.', 'wp-license' ) );
+			}
+			$item->add_meta_data( __( 'License', 'wp-license' ), sprintf( '#%d %s', (int) $member['license']['id'], (string) ( $member['license']['key_prefix'] ?? '' ) ), true );
+			$item->add_meta_data( __( 'Service period (UTC)', 'wp-license' ), substr( (string) $member['renewal']['period_start'], 0, 10 ) . ' – ' . substr( (string) $member['renewal']['period_end'], 0, 10 ), true );
+			$item->add_meta_data( self::ITEM_META_RENEWAL, (int) $member['renewal']['id'], true );
+			$item->add_meta_data( self::ITEM_META_LICENSE, (int) $member['license']['id'], true );
+			$item->save();
+		}
+		$order->calculate_totals();
+		$net_minor = self::line_net_minor( $order, $decimals );
+		$valid     = false !== $net_minor && $net_minor > 0;
+		foreach ( $order->get_items( 'line_item' ) as $item ) {
+			$minor = Money::to_minor_units( (string) wc_format_decimal( $item->get_total() ), $decimals );
+			$valid = $valid && false !== $minor && $minor > 0;
+		}
+		if ( ! $valid || ! self::combined_gross_matches( $order, $lines ) ) {
+			// Nothing was linked or charged: the order is removed instead of being left behind.
+			$order->delete( true );
+			return new \WP_Error( 'renewal_amount_mismatch', __( 'The renewal order total does not match the agreed renewal amount. Check the shop tax settings.', 'wp-license' ) );
+		}
+		$order->update_meta_data( self::META_NET_MINOR, (string) $net_minor );
+		$order->update_meta_data( self::META_DECIMALS, (string) $decimals );
+		self::set_payment_method( $order, (string) $leader['license']['payment_gateway_id'] );
+		$order->save();
+		if ( '' !== self::currency_problem( $order, $leader['license'] ) ) {
+			$order->delete( true );
+			return new \WP_Error( 'renewal_currency_mismatch', __( 'The renewal order does not carry the currency of the license. The renewal is not charged; a license renews in the currency of its order and is never converted. Check multi-currency plugins that change the order currency.', 'wp-license' ) );
+		}
+		$data_store = $order->get_data_store();
+		if ( is_callable( array( $data_store, 'set_download_permissions_granted' ) ) ) {
+			$data_store->set_download_permissions_granted( $order, true );
+		}
+
+		return $order;
+	}
+
+	/**
+	 * B-76 for a combined order: every line whose stored amount is gross must produce that amount.
+	 *
+	 * @param \WC_Order                    $order Priced order.
+	 * @param array<int,array<int,mixed>> $lines Group member, price and product per line, in line order.
+	 * @return bool
+	 */
+	private static function combined_gross_matches( $order, array $lines ): bool {
+		if ( ! function_exists( 'wc_get_base_location' ) || 'yes' === $order->get_meta( 'is_vat_exempt', true ) ) {
+			return true;
+		}
+		$base = wc_get_base_location();
+		if ( (string) $order->get_billing_country() !== (string) ( $base['country'] ?? '' ) ) {
+			return true;
+		}
+		$items = array_values( $order->get_items( 'line_item' ) );
+		foreach ( $lines as $index => $line ) {
+			$price = $line[1];
+			if ( true !== $price['includes_tax'] || ! isset( $items[ $index ] ) ) {
+				continue;
+			}
+			$decimals = (int) $price['decimals'];
+			$gross    = Money::to_minor_units( (string) wc_format_decimal( (float) $items[ $index ]->get_total() + (float) $items[ $index ]->get_total_tax(), $decimals ), $decimals );
+			if ( false !== $gross && abs( $gross - (int) $price['amount_minor'] ) > 1 ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Persist the order association so a retry can resume the same attempt.
 	 *
 	 * @param int $renewal_id Renewal ID.
 	 * @param int $order_id WooCommerce order ID.
 	 * @return bool
 	 */
-	private static function link( int $renewal_id, int $order_id ): bool {
+	public static function link( int $renewal_id, int $order_id ): bool {
 		global $wpdb;
 
 		$tables = Schema::table_names();

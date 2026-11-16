@@ -241,11 +241,66 @@ final class Notifications {
 			if ( ! $license ) {
 				return;
 			}
+			$context = array();
+			if ( in_array( $email_key, array( 'renewed', 'payment_failed' ), true ) ) {
+				$combined = self::combined_renewal_licenses( $license, $email_key );
+				if ( false === $combined ) {
+					// B-191: another license of the same combined payment sends the one email.
+					return;
+				}
+				if ( '' !== $combined ) {
+					$context['other_licenses'] = $combined;
+				}
+			}
 			$period = ! empty( $license['paid_until'] ) ? (string) $license['paid_until'] : (string) $license['starts_at'];
-			self::send_once( $email_key, self::marker( $email_key ), $license, $period, array() );
+			self::send_once( $email_key, self::marker( $email_key ), $license, $period, $context );
 		} catch ( \Throwable $error ) {
 			self::log( 'error', 'License status email failed: ' . $error->getMessage(), (int) $license_id );
 		}
+	}
+
+	/**
+	 * B-191: one "renewed" or "payment failed" email for a combined renewal payment.
+	 *
+	 * Every license of a combined order changes its status on its own. The
+	 * email is sent once, with the booking of the last license of the order,
+	 * and names the other licenses the payment concerned.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param string              $email_key `renewed` or `payment_failed`.
+	 * @return string|false Empty string: no combined payment (normal email). False: not the last license, no email.
+	 *                      Otherwise the other licenses, readable.
+	 */
+	private static function combined_renewal_licenses( array $license, string $email_key ) {
+		global $wpdb;
+
+		$tables   = Schema::table_names();
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT renewal_order_id FROM {$tables['renewals']} WHERE license_id = %d AND renewal_order_id > 0 ORDER BY updated_at DESC, id DESC LIMIT 1", (int) $license['id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+		$order    = $order_id && function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+		if ( ! \WPLC\Billing\RenewalOrder::is_combined( $order ) ) {
+			return '';
+		}
+		$links = \WPLC\Billing\RenewalOrder::links( $order );
+		if ( ! in_array( (int) $license['id'], $links, true ) ) {
+			return '';
+		}
+		$outcome = 'renewed' === $email_key ? array( 'paid' ) : array( 'failed', 'manual_action_required' );
+		$others  = array();
+		foreach ( $links as $renewal_id => $license_id ) {
+			$status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$tables['renewals']} WHERE id = %d", (int) $renewal_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+			if ( in_array( $status, array( 'scheduled', 'processing', \WPLC\Billing\RenewalProcessor::STATUS_RECONCILING ), true ) ) {
+				return false;
+			}
+			if ( (int) $license_id === (int) $license['id'] || ! in_array( $status, $outcome, true ) ) {
+				continue;
+			}
+			$other = self::get_license( (int) $license_id );
+			if ( $other ) {
+				$others[] = sprintf( '%s (%s)', self::product_name( (string) $other['product_key'] ), (string) $other['key_prefix'] );
+			}
+		}
+
+		return implode( ', ', $others );
 	}
 
 	/**
@@ -958,6 +1013,8 @@ final class Notifications {
 			'cancelled_at' => ! empty( $context['cancelled_at'] ) ? self::format_date( (int) $context['cancelled_at'], true ) : '',
 			'status' => (string) ( $license['status'] ?? '' ),
 			'support_email' => self::support_email(),
+			// B-191: the other licenses a combined renewal payment concerned.
+			'other_licenses' => isset( $context['other_licenses'] ) ? (string) $context['other_licenses'] : '',
 		) + self::price_change_view( $license, $context );
 	}
 
@@ -1221,6 +1278,8 @@ final class Notifications {
 			! $order instanceof \WC_Order
 			|| (int) $order->get_customer_id() !== (int) $license['customer_id']
 			|| ! $order->needs_payment()
+			// B-191: a declined combined order is closed; each license is paid on its own.
+			|| \WPLC\Billing\RenewalOrder::is_combined( $order )
 		) {
 			return '';
 		}

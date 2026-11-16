@@ -413,6 +413,10 @@ final class LicenseLifecycle {
 		}
 		$refund->update_meta_data( '_wplc_partial_renewal_refund_recorded', gmdate( 'Y-m-d H:i:s' ) );
 		$refund->save();
+		if ( \WPLC\Billing\RenewalOrder::is_combined( $order ) ) {
+			self::handle_partial_combined_refund( $order, $refund );
+			return;
+		}
 
 		$amount   = (string) $refund->get_amount();
 		$currency = (string) $order->get_currency();
@@ -431,6 +435,75 @@ final class LicenseLifecycle {
 				$license_id
 			)
 		);
+	}
+
+	/**
+	 * A partial refund of a combined renewal order, per line (B-191).
+	 *
+	 * A line refunded in full (its quantity, or at least its pre-tax total)
+	 * takes back the renewal of that line's license, like a full refund of a
+	 * single renewal order. Every other refund is recorded on the licenses of
+	 * the lines it touches (all licenses of the order for an amount-only
+	 * refund) and changes no term.
+	 *
+	 * @param \WC_Order $order Combined renewal order.
+	 * @param \WC_Order $refund Refund.
+	 * @return void
+	 */
+	private static function handle_partial_combined_refund( $order, $refund ): void {
+		$links    = \WPLC\Billing\RenewalOrder::links( $order );
+		$order_id = (int) $order->get_id();
+		$touched  = array();
+		$rolled   = array();
+		foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
+			$source = $order->get_item( absint( $refund_item->get_meta( '_refunded_item_id', true ) ) );
+			if ( ! $source ) {
+				continue;
+			}
+			$renewal_id = absint( $source->get_meta( \WPLC\Billing\RenewalOrder::ITEM_META_RENEWAL, true ) );
+			if ( ! isset( $links[ $renewal_id ] ) ) {
+				continue;
+			}
+			$line_total = abs( (float) $source->get_total() );
+			$refunded   = abs( (float) $refund_item->get_total() );
+			$full_line  = abs( (int) $refund_item->get_quantity() ) >= 1 || ( $line_total > 0 && $refunded + 0.005 >= $line_total );
+			if ( $full_line ) {
+				$rolled[ $renewal_id ] = $links[ $renewal_id ];
+			} else {
+				$touched[ $renewal_id ] = $links[ $renewal_id ];
+			}
+		}
+		foreach ( $rolled as $renewal_id => $license_id ) {
+			self::with_license_lock(
+				$license_id,
+				static function () use ( $order_id, $license_id, $renewal_id ) {
+					self::roll_back_refunded_renewal( $order_id, $license_id, $renewal_id );
+					return true;
+				}
+			);
+		}
+		if ( ! $rolled && ! $touched ) {
+			$touched = $links;
+		}
+		$amount   = (string) $refund->get_amount();
+		$currency = (string) $order->get_currency();
+		foreach ( $touched as $renewal_id => $license_id ) {
+			AuditLog::record(
+				'renewal_partially_refunded',
+				'license',
+				$license_id,
+				AuditReason::encode( AuditReason::RENEWAL_PARTIALLY_REFUNDED, array( 'order' => $order_id, 'amount' => $amount, 'currency' => $currency ) ),
+				null,
+				array( 'renewal_id' => $renewal_id, 'refund_id' => (int) $refund->get_id(), 'amount' => $amount, 'currency' => $currency )
+			);
+			$order->add_order_note(
+				sprintf(
+					/* translators: %d: license ID */
+					__( 'Partial refund: the renewed license #%d keeps its term. Use "Change term" on the license if the refund should shorten it.', 'wp-license' ),
+					$license_id
+				)
+			);
+		}
 	}
 
 	/**
@@ -469,13 +542,16 @@ final class LicenseLifecycle {
 			return;
 		}
 
-		self::with_license_lock(
-			$license_id,
-			static function () use ( $order_id, $license_id, $renewal_id ) {
-				self::roll_back_refunded_renewal( $order_id, $license_id, $renewal_id );
-				return true;
-			}
-		);
+		// B-191: a combined order paid several renewals; a full refund takes every one of them back.
+		foreach ( \WPLC\Billing\RenewalOrder::links( $order ) as $linked_renewal => $linked_license ) {
+			self::with_license_lock(
+				$linked_license,
+				static function () use ( $order_id, $linked_license, $linked_renewal ) {
+					self::roll_back_refunded_renewal( $order_id, $linked_license, $linked_renewal );
+					return true;
+				}
+			);
+		}
 	}
 
 	/**
@@ -674,13 +750,13 @@ final class LicenseLifecycle {
 				)
 			)
 		);
-		$renewal_id = absint( $order->get_meta( '_wplc_renewal_id', true ) );
-		if ( $renewal_id ) {
+		// B-191: a combined order renewed several licenses.
+		foreach ( array_keys( \WPLC\Billing\RenewalOrder::links( $order ) ) as $renewal_id ) {
 			$renewed = (int) $wpdb->get_var(
 				$wpdb->prepare(
 					"SELECT license_id FROM %i WHERE id = %d AND renewal_order_id = %d AND status = %s LIMIT 1",
 					$tables['renewals'],
-					$renewal_id,
+					(int) $renewal_id,
 					$order_id,
 					'paid'
 				)
@@ -871,6 +947,12 @@ final class LicenseLifecycle {
 		$renewed = $order ? absint( $order->get_meta( '_wplc_renewal_for_license', true ) ) : 0;
 		if ( $renewed && self::get_license( $renewed ) ) {
 			$ids[] = $renewed;
+		}
+		// B-191: every license a combined renewal order paid.
+		foreach ( \WPLC\Billing\RenewalOrder::links( $order ) as $linked_license ) {
+			if ( self::get_license( (int) $linked_license ) ) {
+				$ids[] = (int) $linked_license;
+			}
 		}
 		// A disputed plan upgrade order (T-110) suspends the upgraded license as well.
 		$upgraded = $order && is_callable( array( $order, 'get_meta' ) ) ? absint( $order->get_meta( '_wplc_upgrade_for_license', true ) ) : 0;
@@ -1185,7 +1267,13 @@ final class LicenseLifecycle {
 				get_current_user_id()
 			);
 			if ( ! empty( $row['renewal_order_id'] ) && class_exists( '\\WPLC\\Billing\\RenewalOrder' ) ) {
-				\WPLC\Billing\RenewalOrder::close_unpaid( (int) $row['renewal_order_id'], $order_note );
+				$order = function_exists( 'wc_get_order' ) ? wc_get_order( (int) $row['renewal_order_id'] ) : false;
+				if ( \WPLC\Billing\RenewalOrder::is_combined( $order ) ) {
+					// B-191: the other licenses of a combined order keep it.
+					\WPLC\Billing\CombinedRenewal::release( (int) $row['id'], (int) $row['renewal_order_id'] );
+				} else {
+					\WPLC\Billing\RenewalOrder::close_unpaid( (int) $row['renewal_order_id'], $order_note );
+				}
 			}
 		}
 		// A charge whose result is unknown may have succeeded: it goes to review instead (T-136).
