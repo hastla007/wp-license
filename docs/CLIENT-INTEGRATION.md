@@ -417,6 +417,8 @@ All texts live in `Messages.php` with their English source. After the export the
 
 New texts in 2.1.0 (keys in `Messages.php`; to translate in the add-on): `reason.clock_ahead`, `notice.stale_clock_ahead`, `ui.deactivate_confirm`, `ui.deactivate_unconfirmed`, `ui.reason`, `debug.offline_until`, `debug.installation`, `debug.server`, `debug.signature`, `debug.signature.native`, `debug.signature.compat`, `debug.signature.none`, `debug.keys`, `debug.version`, `debug.none`.
 
+New texts in 2.1.1 (Site Health test "License check"): `health.good`, `health.failing`, `health.overdue`, `health.running_low`, `health.site_changed`, `health.stale`, `health.locked`, `health.good_text`, `health.failing_text`, `health.overdue_text`.
+
 ## Quick start: test product, test license, test release
 
 On a test shop with WP License Captain and WooCommerce:
