@@ -18,6 +18,8 @@ Consolidation of all earlier development branches into one code base. Preview: c
 
 - **Vendor manual (PROD-10, English).** `docs/manual/` with an index and twelve chapters (installation and keys, catalog files, license products, releases, client integration, customer account, renewals and Stripe, operations, WP-CLI, troubleshooting, upgrading) ships in the plugin ZIP; `bin/check-zip-contents.php` requires every chapter and refuses internal documents. A German edition follows after the sale start.
 
+- **Customer renewal of products that are not for sale can be switched off (PK-05, prepared).** New filter `wplc_manual_renewal_for_unsold_products` (default `true`, unchanged behaviour); returning false hides "Renew now" in the account and refuses the renewal for private, draft or otherwise unbuyable products, so only the shop owner extends them with "Change term".
+
 ### Fixed (16 Nov 2026, product isolation)
 
 - **A download token could deliver another product's URL package (PK-03).** `ReleaseRegistry::grant_is_deliverable()` now refuses a URL that matches only releases of other products, and `PackageStream::serve()` checks that the release belongs to the product of the license.

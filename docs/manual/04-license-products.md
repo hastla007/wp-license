@@ -92,7 +92,7 @@ product_id,variation_id,sku,product_key,plan_key,billing_interval,live_site_limi
 wp wplc license issue --product-id=812 --customer=client@example.com --expires=2027-12-31 --reason="Migrated customer"
 ```
 
-**Project products** for a single client work the same way: create a simple, virtual product with visibility **Private**, tick "License product" with the project's own product key and plan (the price may stay 0), and issue the license by hand. Private products are not in the pricing table and cannot be bought by customers; expiry reminders for them ask the client to contact you instead of offering "Renew now".
+**Project products** for a single client work the same way: create a simple, virtual product with visibility **Private**, tick "License product" with the project's own product key and plan (the price may stay 0), and issue the license by hand. Private products are not in the pricing table and cannot be bought by customers; expiry reminders for them ask the client to contact you instead of offering "Renew now". The customer account still offers "Renew now" in the last 30 days at the plan price; to extend such licenses only yourself, add `add_filter( 'wplc_manual_renewal_for_unsold_products', '__return_false' );` to a small must-use plugin. Products that are for sale are not affected.
 
 ## Day-to-day license administration
 

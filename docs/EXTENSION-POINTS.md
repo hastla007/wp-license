@@ -106,6 +106,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_lock_self_test` | `src/Admin/Diagnostics.php` | Lets the package that owns the lock helper answer the self-test with its own implementation. |
 | `wplc_log_api_rejection` | `src/Api/V1/ApiLog.php` | Filter whether this rejection is written to the log. |
 | `wplc_log_debug` | `src/Infrastructure/Log.php` | Filters whether the plugin writes debug lines to the WooCommerce log (A-133). |
+| `wplc_manual_renewal_for_unsold_products` | `src/Billing/ManualRenewal.php` | Filters whether customers may renew a license in their account when its product is not for sale (private, draft, not purchasable). Default true; return false so such licenses are extended only by the shop owner with "Change term". |
 | `wplc_new_activations_per_hour` | `src/Api/V1/ActivationService.php` | Filter how many new installations one license may activate per hour. |
 | `wplc_offer_planned_entitlements` | `src/Catalog/EntitlementCatalog.php` | Filters whether entitlements that are planned but not shipped by any add-on yet are offered in the product editor (default: no). |
 | `wplc_offline_cache_days` | `src/Api/V1/EntitlementService.php` | Filter the number of days a client may rely on a signed snapshot offline. |

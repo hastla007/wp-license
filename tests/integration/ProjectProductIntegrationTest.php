@@ -12,6 +12,7 @@
  */
 
 use WPLC\Account\PricingTable;
+use WPLC\Billing\ManualRenewal;
 use WPLC\Admin\LicenseAdmin;
 use WPLC\Catalog\Catalog;
 use WPLC\CLI\LicenseCommand;
@@ -346,5 +347,39 @@ final class ProjectProductIntegrationTest extends WPLC_Portal_TestCase {
 		);
 		$this->assertStringContainsString( 'Please contact us before that date', $plain );
 		$this->assertStringNotContainsString( 'Renew now', $plain );
+	}
+
+	public function test_pk05_customer_renewal_of_a_product_not_for_sale_can_be_switched_off(): void {
+		global $wpdb;
+		$project     = $this->project_product();
+		$public      = $this->create_license_product( array( 'product_key' => 'harbour-public' ) );
+		$public_plan = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$this->tables()['plans']} WHERE woocommerce_product_id = %d", $public->get_id() ) );
+
+		$project_license = $this->issue_in_admin( $project['plan_id'], $this->local_date( 5 ) );
+		$public_license  = $this->issue_in_admin( $public_plan, $this->local_date( 5 ) );
+		$customer        = (int) $this->license( $project_license )['customer_id'];
+		$this->assertTrue( ManualRenewal::in_window( $this->license( $project_license ), time() ), 'Fixture: both licenses are in the renewal window.' );
+
+		// Default: unchanged, the customer may renew both.
+		$this->assertFalse( ManualRenewal::blocked_as_not_for_sale( $this->license( $project_license ) ) );
+		$this->assertTrue( ManualRenewal::can_renew( $this->license( $project_license ) ) );
+		$this->assertTrue( ManualRenewal::can_renew( $this->license( $public_license ) ) );
+
+		// Switched off: no "Renew now" and no renewal order for the product that is not for sale.
+		add_filter( 'wplc_manual_renewal_for_unsold_products', '__return_false' );
+		try {
+			$this->assertTrue( ManualRenewal::blocked_as_not_for_sale( $this->license( $project_license ) ) );
+			$this->assertFalse( ManualRenewal::can_renew( $this->license( $project_license ) ) );
+			$refused = ManualRenewal::start( $project_license, $customer );
+			$this->assertWPError( $refused );
+			$this->assertSame( 'manual_renewal_unavailable', $refused->get_error_code() );
+			$this->assertSame( 0, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$this->tables()['renewals']} WHERE license_id = %d", $project_license ) ), 'No renewal row was created.' );
+
+			// A product that is for sale is never affected.
+			$this->assertFalse( ManualRenewal::blocked_as_not_for_sale( $this->license( $public_license ) ) );
+			$this->assertTrue( ManualRenewal::can_renew( $this->license( $public_license ) ) );
+		} finally {
+			remove_filter( 'wplc_manual_renewal_for_unsold_products', '__return_false' );
+		}
 	}
 }
