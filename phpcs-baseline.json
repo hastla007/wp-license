@@ -9,11 +9,6 @@
             "$wpdb->prepare(": 1
         }
     },
-    "src/Admin/ReleaseAdmin.php": {
-        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": {
-            "'package_url' => isset( $_POST['package_url'] ) ? esc_url_raw( trim( (string) wp_unslash( $_POST['package_url'] ) ), array( 'https' ) ) : '',": 1
-        }
-    },
     "src/Api/V1/ActivationService.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
             "\"SELECT * FROM {$tables['licenses']} WHERE license_key_hash = %s LIMIT 1\",": 1,
