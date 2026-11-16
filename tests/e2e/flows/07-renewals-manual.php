@@ -166,7 +166,7 @@ e2e_eq( $licenses[1]['license_key_hash'], $license['license_key_hash'], 'same ke
 e2e_eq( array( 'active' ), array_values( array_unique( array_column( e2e_rows( 'entitlements', "license_id = {$expired_id}" ), 'status' ) ) ), 'entitlements are active again' );
 e2e_as_site( 'https://erin-shop.example' );
 $check = $client->check_entitlements();
-e2e_ok( is_array( $check ) && 'active' === ( $check['license_status'] ?? null ) && true === ( $check['entitlements']['voucher.custom_branding'] ?? null ), 'the already activated site works again without re-activation', is_array( $check ) ? $check : $error_of( $check ) );
+e2e_ok( is_array( $check ) && 'active' === ( $check['license_status'] ?? null ) && true === ( $check['entitlements']['voucher.bulk_orders'] ?? null ), 'the already activated site works again without re-activation', is_array( $check ) ? $check : $error_of( $check ) );
 e2e_as_site( '' );
 
 // --- Expired long ago: outside the window. ---

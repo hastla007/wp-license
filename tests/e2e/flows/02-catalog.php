@@ -110,7 +110,7 @@ $response = $save_product(
 		'_wplc_billing_interval'   => 'year',
 		'_wplc_live_site_limit'    => '1',
 		'_wplc_support_level'      => 'priority',
-		'_wplc_entitlement_keys'   => array( 'voucher.custom_branding', 'voucher.pdf_templates', 'not.a.known.key' ),
+		'_wplc_entitlement_keys'   => array( 'voucher.bulk_orders', 'voucher.wallet_passes', 'not.a.known.key' ),
 		'_wplc_entitlements_json'  => '{"voucher.monthly_limit":500}',
 	)
 );
@@ -126,7 +126,7 @@ if ( is_array( $plan ) ) {
 	$entitlements = json_decode( $plan['entitlements_json'], true );
 	ksort( $entitlements );
 	e2e_eq(
-		array( 'sites.live_limit' => 1, 'support.level' => 'priority', 'voucher.custom_branding' => true, 'voucher.monthly_limit' => 500, 'voucher.pdf_templates' => true ),
+		array( 'sites.live_limit' => 1, 'support.level' => 'priority', 'voucher.bulk_orders' => true, 'voucher.monthly_limit' => 500, 'voucher.wallet_passes' => true ),
 		$entitlements,
 		'plan entitlements = checked boxes + advanced JSON + automatic limit/support (unknown checkbox key dropped)'
 	);
@@ -136,7 +136,7 @@ e2e_eq( 'yes', (string) wc_get_product( $simple_id )->get_meta( '_wplc_is_licens
 
 // Editor shows the saved state again.
 $editor = e2e_http( 'GET', admin_url( 'post.php?post=' . $simple_id . '&action=edit' ), array( 'cookies' => $cookies ) );
-e2e_ok( (bool) preg_match( '/id="wplc_ent_p_voucher_custom_branding"[^>]*checked/', $editor['body'] ) && false !== strpos( $editor['body'], 'voucher.monthly_limit' ), 'editor re-renders the stored entitlements (checkbox checked, advanced JSON shown)' );
+e2e_ok( (bool) preg_match( '/id="wplc_ent_p_voucher_bulk_orders"[^>]*checked/', $editor['body'] ) && false !== strpos( $editor['body'], 'voucher.monthly_limit' ), 'editor re-renders the stored entitlements (checkbox checked, advanced JSON shown)' );
 
 // A price change in the editor must reach the plan (the renewal price) with the same save.
 $response = $save_product(
@@ -151,7 +151,7 @@ $response = $save_product(
 		'_wplc_billing_interval'   => 'year',
 		'_wplc_live_site_limit'    => '1',
 		'_wplc_support_level'      => 'priority',
-		'_wplc_entitlement_keys'   => array( 'voucher.custom_branding', 'voucher.pdf_templates' ),
+		'_wplc_entitlement_keys'   => array( 'voucher.bulk_orders', 'voucher.wallet_passes' ),
 		'_wplc_entitlements_json'  => '{"voucher.monthly_limit":500}',
 	)
 );
@@ -171,7 +171,7 @@ $save_product(
 		'_wplc_billing_interval'   => 'year',
 		'_wplc_live_site_limit'    => '1',
 		'_wplc_support_level'      => 'priority',
-		'_wplc_entitlement_keys'   => array( 'voucher.custom_branding', 'voucher.pdf_templates' ),
+		'_wplc_entitlement_keys'   => array( 'voucher.bulk_orders', 'voucher.wallet_passes' ),
 		'_wplc_entitlements_json'  => '{"voucher.monthly_limit":500}',
 	)
 );
@@ -475,7 +475,7 @@ $save_product(
 		'_wplc_billing_interval'   => 'year',
 		'_wplc_live_site_limit'    => '1',
 		'_wplc_support_level'      => 'priority',
-		'_wplc_entitlement_keys'   => array( 'voucher.custom_branding', 'voucher.pdf_templates' ),
+		'_wplc_entitlement_keys'   => array( 'voucher.bulk_orders', 'voucher.wallet_passes' ),
 		'_wplc_entitlements_json'  => '{"voucher.monthly_limit":500}',
 	)
 );

@@ -11,7 +11,7 @@ It covers section "B. Premium-Add-on" (B1–B11) of the core plugins' TODO.md. E
 | `src/Plugin.php` | Wiring on `plugins_loaded`, core version check with admin notice and clean bail-out, daily WP-Cron job |
 | `src/Client/LicenseClient.php` | Vendored copy of the server's client (generated, never edited) |
 | `src/License/LicenseService.php` | Activation, signed offline cache, 14-day limit, fail-closed decisions |
-| `src/License/Entitlements.php` | `Entitlements::has( 'voucher.pdf_templates' )`, `Entitlements::limit( 'voucher.monthly_limit' )` |
+| `src/License/Entitlements.php` | `Entitlements::has( 'voucher.bulk_orders' )`, `Entitlements::limit( 'voucher.monthly_limit' )` |
 | `src/Admin/SettingsPage.php` | Settings → *Product* license |
 | `src/Update/Updater.php` | Update detection and verified download |
 | `src/Uninstaller.php`, `uninstall.php` | Release the activation, delete credentials and cache |
@@ -62,12 +62,12 @@ The product keys are `voucher-captain-pro`, `pass-captain-pro` and `affiliate-ca
    The header gets `Requires Plugins: <core slug>`, `Update URI: <shop>/<slug>` (so WordPress never mixes the add-on up with a WordPress.org plugin) and `Requires PHP`. On `plugins_loaded` the add-on checks the core plugin's version constant; if the core is missing or too old it shows an admin notice and loads nothing else. Fill in Author and Plugin URI by hand.
 2. **B2 · Code from the old license PRs.** Do not copy the PR code: the starter already contains the license page, entitlement helper, offline cache and updater. Go through the audit findings that moved with the PRs and tick them off against the starter (see "Audit findings" below).
 3. **B3 · Client on the current server state.** `src/Client/LicenseClient.php` is generated from the server's `src/Client/LicenseClient.php` with the add-on namespace and text domain (`php bin/vendor-client.php`, `--check` in CI). Never edit it; fix the server copy and re-vendor in every add-on.
-4. **B4 · Product key.** Set `Config::PRODUCT_KEY` (see above) and the same key on the license products in WooCommerce. Tiers: Voucher Solo 1 / Business 5 / Agency 25 sites; Pass Pro 1 / Business 5 / Agency 25; Affiliate Starter 1 / Pro 3 / Agency 10.
+4. **B4 · Product key.** Set `Config::PRODUCT_KEY` (see above) and the same key on the license products in WooCommerce. Tiers: Voucher Single 1 / Business 5 / Agency 25 sites (same Pro functions in every plan); Pass Pro 1 / Business 5 / Agency 25; Affiliate Starter 1 / Pro 3 / Agency 10.
 5. **B5 · Premium features and entitlements.** Build each premium feature in the add-on (never cut it out of the core) and bind it to exactly one key from the license server's `docs/ENTITLEMENTS.md`, e.g.:
 
    ```php
    add_action( 'vcap_pro_loaded', function () {
-   	if ( \VCAP\Pro\License\Entitlements::has( 'voucher.pdf_templates' ) ) {
+   	if ( \VCAP\Pro\License\Entitlements::has( 'voucher.bulk_orders' ) ) {
    		// register the PDF template screen, routes and jobs
    	}
    } );

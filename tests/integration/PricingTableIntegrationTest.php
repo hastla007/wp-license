@@ -52,7 +52,7 @@ final class PricingTableIntegrationTest extends WPLC_Integration_TestCase {
 				'plan_key' => 'agency',
 				'live_site_limit' => 5,
 				'entitlements' => array(
-					'voucher.reports' => true,
+					'voucher.bulk_orders' => true,
 					'voucher.white_label' => false,
 					'feature.secret_flag' => true,
 				),
@@ -71,7 +71,7 @@ final class PricingTableIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertStringContainsString( 'for 1 year', $html );
 		$this->assertStringContainsString( '5 live sites', $html );
 		$this->assertStringContainsString( '1 live site<', $html );
-		$this->assertStringContainsString( '<li>Reports</li>', $html, 'Label from EntitlementCatalog.' );
+		$this->assertStringContainsString( '<li>Company bulk orders</li>', $html, 'Label from EntitlementCatalog.' );
 		$this->assertStringNotContainsString( 'White label', $html, 'An entitlement set to false is not listed.' );
 		$this->assertStringNotContainsString( 'secret_flag', $html, 'Keys without a label stay out of the shop front.' );
 		$this->assertStringContainsString( 'add-to-cart=' . $agency->get_id(), $html );
@@ -82,13 +82,13 @@ final class PricingTableIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertTrue( wp_style_is( 'wplc-account', 'enqueued' ), 'The front-end stylesheet is loaded with the table.' );
 
 		$plain = do_shortcode( '[wplc_pricing product="pricing-product" show_features="no"]' );
-		$this->assertStringNotContainsString( 'Reports', $plain );
+		$this->assertStringNotContainsString( 'Company bulk orders', $plain );
 		$this->assertStringContainsString( '5 live sites', $plain, 'The site limit is always shown.' );
 		$this->assertStringNotContainsString( 'wplc-pricing__plan--highlight', $plain );
 
 		$block = do_blocks( '<!-- wp:wplc/pricing {"product":"pricing-product","showFeatures":false} /-->' );
 		$this->assertStringContainsString( 'Agency plan', $block );
-		$this->assertStringNotContainsString( 'Reports', $block );
+		$this->assertStringNotContainsString( 'Company bulk orders', $block );
 		$this->assertTrue( WP_Block_Type_Registry::get_instance()->is_registered( 'wplc/pricing' ) );
 	}
 

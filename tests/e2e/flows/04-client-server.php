@@ -48,7 +48,7 @@ if ( is_array( $result ) ) {
 	e2e_eq( 'active', $result['license_status'] ?? null, 'site A: license_status active' );
 	e2e_eq( 1, $result['site_limit'] ?? null, 'site A: site_limit 1' );
 	e2e_eq( $license['paid_until'], $result['paid_until'] ?? null, 'site A: paid_until equals the license row' );
-	e2e_ok( true === ( $result['entitlements']['voucher.custom_branding'] ?? null ) && 500 === ( $result['entitlements']['voucher.monthly_limit'] ?? null ) && 'priority' === ( $result['entitlements']['support.level'] ?? null ), 'site A: activation response carries the entitlements with their JSON types', $result['entitlements'] ?? null );
+	e2e_ok( true === ( $result['entitlements']['voucher.bulk_orders'] ?? null ) && 500 === ( $result['entitlements']['voucher.monthly_limit'] ?? null ) && 'priority' === ( $result['entitlements']['support.level'] ?? null ), 'site A: activation response carries the entitlements with their JSON types', $result['entitlements'] ?? null );
 	e2e_ok( ! empty( $result['cache_expires_at'] ) && ! empty( $result['server_time'] ), 'site A: server_time and cache_expires_at present' );
 }
 // The client is pinned to the server's Ed25519 public key (e2e_client()): the activation above was only
@@ -87,7 +87,7 @@ e2e_eq( 'development_site_invalid', json_decode( $raw['body'], true )['code'] ??
 
 // --- Entitlements check (HMAC-authenticated request, nonce-bound signed response). ---
 $check = $client_a->check_entitlements();
-e2e_ok( is_array( $check ) && 'active' === ( $check['license_status'] ?? null ) && true === ( $check['entitlements']['voucher.pdf_templates'] ?? null ), 'site A: signed entitlements check returns the entitlements', $error_of( $check ) );
+e2e_ok( is_array( $check ) && 'active' === ( $check['license_status'] ?? null ) && true === ( $check['entitlements']['voucher.wallet_passes'] ?? null ), 'site A: signed entitlements check returns the entitlements', $error_of( $check ) );
 $seen = $wpdb->get_var( $wpdb->prepare( "SELECT last_seen_at FROM {$t['activations']} WHERE installation_uuid = %s", (string) $credentials_a['installation_id'] ) );
 e2e_ok( ! empty( $seen ), 'entitlements check updates last_seen_at' );
 

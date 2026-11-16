@@ -22,7 +22,7 @@ Die früheren 37 gestapelten `codex/*`-Branches sind in einem Integrationsstand 
 
 
 - Affiliate Captain: Starter 1, Pro 3, Agency 10 Live-Websites.
-- Voucher Captain: Solo 1, Business 5, Agency 25 Live-Websites; Free ohne Lizenzschlüssel.
+- Voucher Captain: Single 1, Business 5, Agency 25 Live-Websites (Planschlüssel `single`, `business`, `agency`; alle Tarife mit denselben Pro-Funktionen, Entscheidung 16.11.2026); Free ohne Lizenzschlüssel.
 - WP Pass Captain: Pro 1, Business 5, Agency 25 Live-Websites; Core ohne Lizenzschlüssel.
 - Je Live-Site ist eine verknüpfte Staging-Site ohne zusätzlichen Platz enthalten.
 - Die bestehenden öffentlichen Funktionen der drei Produkte bleiben verfügbar. Neue Premiumrechte werden nur für neu entwickelte Funktionen verwendet.

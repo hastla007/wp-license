@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * `Entitlements::has( 'voucher.pdf_templates' )` in every premium entry point (admin screens, REST routes, cron
+ * `Entitlements::has( 'voucher.bulk_orders' )` in every premium entry point (admin screens, REST routes, cron
  * jobs, templates). Fails closed: before the add-on has booted, on any error, without a valid fresh signed cache or
  * for a key of another product the answer is false. Only the premium feature is affected; data it created earlier
  * stays readable (B6).
@@ -33,7 +33,7 @@ final class Entitlements {
 	/**
 	 * Whether a premium feature is unlocked.
 	 *
-	 * @param string $key Entitlement key, e.g. "voucher.pdf_templates".
+	 * @param string $key Entitlement key, e.g. "voucher.bulk_orders".
 	 */
 	public static function has( string $key ): bool {
 		try {

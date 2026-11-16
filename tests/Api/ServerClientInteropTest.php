@@ -42,7 +42,7 @@ final class ServerClientInteropTest extends TestCase {
 	private static function data(): array {
 		return array(
 			'license_status' => 'active',
-			'entitlements'   => array( 'voucher.pdf_templates' => true ),
+			'entitlements'   => array( 'voucher.bulk_orders' => true ),
 			'package_url'    => 'https://shop.example/wp-json/wplc/v1/updates/download/abc',
 			'label'          => 'Größe',
 		);
@@ -91,7 +91,7 @@ final class ServerClientInteropTest extends TestCase {
 		$envelope = Response::envelope( self::data(), self::SECRET, self::NONCE, self::INSTALLATION );
 
 		$forged                      = $envelope;
-		$forged['payload']           = str_replace( '"voucher.pdf_templates":true', '"voucher.pdf_templates":true,"voucher.white_label":true', $envelope['payload'] );
+		$forged['payload']           = str_replace( '"voucher.bulk_orders":true', '"voucher.bulk_orders":true,"voucher.white_label":true', $envelope['payload'] );
 		$forged['payload_signature'] = hash_hmac( 'sha256', $forged['payload'], self::SECRET );
 		$this->assertSame( 'wplc_server_signature_invalid', \Interop\CaptainPro\LicenseClient::verified_data( $forged, self::SECRET, self::NONCE, array( $this->public_key ), self::INSTALLATION ) );
 

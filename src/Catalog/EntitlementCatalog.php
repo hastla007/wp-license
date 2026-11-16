@@ -54,15 +54,12 @@ final class EntitlementCatalog {
 				array( 'key' => 'affiliate.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),
 			'voucher'   => array(
-				array( 'key' => 'voucher.custom_branding', 'label' => __( 'Custom branding', 'wp-license' ) ),
-				array( 'key' => 'voucher.pdf_templates', 'label' => __( 'PDF templates', 'wp-license' ) ),
-				array( 'key' => 'voucher.automatic_delivery', 'label' => __( 'Automatic delivery', 'wp-license' ) ),
-				array( 'key' => 'voucher.qr_redemption', 'label' => __( 'QR redemption', 'wp-license' ) ),
-				array( 'key' => 'voucher.partial_balance', 'label' => __( 'Partial balance', 'wp-license' ) ),
-				array( 'key' => 'voucher.staff_roles', 'label' => __( 'Staff roles', 'wp-license' ) ),
-				array( 'key' => 'voucher.scheduled_delivery', 'label' => __( 'Scheduled delivery', 'wp-license' ) ),
-				array( 'key' => 'voucher.bulk_import_export', 'label' => __( 'Bulk import and export', 'wp-license' ) ),
-				array( 'key' => 'voucher.reports', 'label' => __( 'Reports', 'wp-license' ) ),
+				// Voucher Captain Pro, decided 13/16 Nov 2026 (captain-pro docs/VOUCHER-PRO.md): branding, PDF templates,
+				// delivery, QR redemption, partial balance, staff roles, scheduling, import/export and reports are part
+				// of the free Voucher core. Every plan contains every Pro function; plans differ by sites.
+				array( 'key' => 'voucher.bulk_orders', 'label' => __( 'Company bulk orders', 'wp-license' ) ),
+				array( 'key' => 'voucher.wallet_passes', 'label' => __( 'Wallet passes (Apple, Google)', 'wp-license' ) ),
+				array( 'key' => 'voucher.sms_delivery', 'label' => __( 'SMS delivery', 'wp-license' ) ),
 				array( 'key' => 'voucher.white_label', 'label' => __( 'White label', 'wp-license' ) ),
 				array( 'key' => 'voucher.priority_support', 'label' => __( 'Priority support', 'wp-license' ) ),
 			),

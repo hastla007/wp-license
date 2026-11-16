@@ -1,6 +1,6 @@
 # Entitlements
 
-Entitlements are the feature rights a license grants. The server stores them per license and sends them, signed, in the `entitlements` object of an activation and of every entitlement check ([API-V1.md](API-V1.md)). A premium add-on asks `LicenseManager::is_entitled( 'voucher.qr_redemption' )` ([CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md)).
+Entitlements are the feature rights a license grants. The server stores them per license and sends them, signed, in the `entitlements` object of an activation and of every entitlement check ([API-V1.md](API-V1.md)). A premium add-on asks `LicenseManager::is_entitled( 'voucher.bulk_orders' )` ([CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md)).
 
 ## Core plugins are free and ungated
 
@@ -16,7 +16,7 @@ Decision of 13 Nov 2026: the core plugin of each product stays completely free, 
 
 | Value | Example | How a client reads it |
 | --- | --- | --- |
-| `true` | `"voucher.qr_redemption": true` | The feature is granted. This is what a ticked feature of a plan becomes. |
+| `true` | `"voucher.bulk_orders": true` | The feature is granted. This is what a ticked feature of a plan becomes. |
 | number | `"sites.live_limit": 3` | A limit. `is_entitled()` is true for a number above zero; read the number with `status()->entitlement( $key )`. |
 | string | `"support.level": "standard"` | Information. `is_entitled()` is false for a string; read it with `entitlement()`. |
 | `false`, `0`, `null`, absent key | | Not granted. |
@@ -55,7 +55,7 @@ The product key on a license product in the shop and the key the premium add-on 
 | WP Pass Captain | `pass-captain-pro` | `pass.` | `pass-captain-pro` |
 | Affiliate Captain | `affiliate-captain-pro` | `affiliate.` | `affiliate-captain-pro` |
 
-The product editor suggests these keys. The plan key (for example `solo`, `business`, `agency`) is set per product or variation and is independent of the product key.
+The product editor suggests these keys. The plan key (for example `single`, `business`, `agency`) is set per product or variation and is independent of the product key.
 
 ## Identifier rules
 
@@ -90,9 +90,9 @@ wp wplc sync-entitlements --product=voucher-captain-pro --plan=business --apply 
 | Affiliate Captain Pro | Starter plus `affiliate.partner_groups`, `affiliate.product_category_rates`, `affiliate.recurring_commissions`, `affiliate.extended_api`, `affiliate.automated_payouts`; live sites: 3 |
 | Affiliate Captain Agency | Pro plus `affiliate.white_label_portal`, `affiliate.webhooks`, `affiliate.multiple_programs`, `affiliate.priority_support`; live sites: 10 |
 | Voucher Captain (core, free on WordPress.org) | No entitlements. Every core feature works without a license, a key or a server call. |
-| Voucher Captain Solo | Core plus `voucher.custom_branding`, `voucher.pdf_templates`, `voucher.automatic_delivery`; live sites: 1 |
-| Voucher Captain Business | Solo plus `voucher.qr_redemption`, `voucher.partial_balance`, `voucher.staff_roles`, `voucher.scheduled_delivery`, `voucher.bulk_import_export`, `voucher.reports`; live sites: 5 |
-| Voucher Captain Agency | Business plus `voucher.white_label`, `voucher.priority_support`; live sites: 25 |
+| Voucher Captain Single (`single`) | Core plus `voucher.bulk_orders`, `voucher.wallet_passes`, `voucher.sms_delivery`, `voucher.white_label`; live sites: 1, support `standard` |
+| Voucher Captain Business (`business`) | Same Pro functions; live sites: 5, support `standard` |
+| Voucher Captain Agency (`agency`) | Same Pro functions plus `voucher.priority_support`; live sites: 25, support `priority` |
 | WP Pass Captain (core, free on WordPress.org) | No entitlements. Every core feature works without a license, a key or a server call. |
 | WP Pass Captain Pro | Core plus `pass.e_invoicing`, `pass.card_terminal`, `pass.white_label`, `pass.waiting_room`, `pass.write_api`; live sites: 1 |
 | WP Pass Captain Business | Same Pro functions; live sites: 5 |
@@ -111,8 +111,8 @@ Signed data of a license with access:
   "access": true,
   "license_status": "active",
   "entitlements": {
-    "voucher.qr_redemption": true,
-    "voucher.reports": true,
+    "voucher.bulk_orders": true,
+    "voucher.wallet_passes": true,
     "sites.live_limit": 5,
     "support.level": "standard"
   },
@@ -136,7 +136,7 @@ Clients may cache only a verified signed entitlement response under the separate
 
 ## Removed keys
 
-Removed on 14 Nov 2026 by decision of the owner. Licenses that stored one of them keep the value (the product editor keeps unknown keys as JSON); nothing checks them any more.
+Removed on 14 and 16 Nov 2026 by decision of the owner. Licenses that stored one of them keep the value (the product editor keeps unknown keys as JSON); nothing checks them any more. `wp wplc sync-entitlements` only takes them away with `--allow-reductions`.
 
 | Key | Reason | Where the function lives now |
 |---|---|---|
@@ -145,4 +145,4 @@ Removed on 14 Nov 2026 by decision of the owner. Licenses that stored one of the
 | `pass.team_assignment` | Ships in the free core: seven staff roles and per-event check-in staff. | Pass Captain (core). |
 | `affiliate.bonuses` | Ships in the free core: monthly tier bonuses (marginal or retroactive). | Affiliate Captain (core). |
 | `pass.woocommerce_sales`, `pass.membership_passes`, `pass.campaign_codes`, `pass.waitlist`, `pass.csv_export`, `pass.seating`, `pass.service_slots`, `pass.pos`, `pass.offline_checkin`, `pass.advanced_reports`, `pass.api_webhooks` | Pass Pro was re-cut on 14 Nov 2026 (captain-pro `docs/PASS-PRO.md`): these functions ship in the free Pass core; Pass Pro sells e-invoicing, card terminal, white label, waiting room and write API, in every plan (plans differ by sites). | Pass Captain (core). |
-
+| `voucher.custom_branding`, `voucher.pdf_templates`, `voucher.automatic_delivery`, `voucher.qr_redemption`, `voucher.partial_balance`, `voucher.staff_roles`, `voucher.scheduled_delivery`, `voucher.bulk_import_export`, `voucher.reports` | Ships in the free Voucher Captain core (decision 13/16 Nov 2026). Voucher Captain Pro sells only its own functions (captain-pro `docs/VOUCHER-PRO.md`): company bulk orders, wallet passes, SMS delivery and white label, in every plan (plans differ by sites), plus priority support in Agency. | Voucher Captain (core). |

@@ -70,8 +70,8 @@ final class EntitlementCatalogTest extends TestCase {
 	public function test_split_ticks_known_true_keys_and_keeps_the_rest_as_json(): void {
 		$split = EntitlementCatalog::split(
 			array(
-				'voucher.qr_redemption'   => true,
-				'voucher.reports'         => false,
+				'voucher.bulk_orders'     => true,
+				'voucher.wallet_passes'   => false,
 				'voucher.staff_roles'     => 1,
 				'voucher.location_limit'  => 3,
 				'voucher.multi_location'  => true,
@@ -80,10 +80,10 @@ final class EntitlementCatalogTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( array( 'voucher.qr_redemption', 'pass.card_terminal' ), $split['checked'] );
+		$this->assertSame( array( 'voucher.bulk_orders', 'pass.card_terminal' ), $split['checked'] );
 		$this->assertSame(
 			array(
-				'voucher.reports'         => false,
+				'voucher.wallet_passes'   => false,
 				'voucher.staff_roles'     => 1,
 				'voucher.location_limit'  => 3,
 				'voucher.multi_location'  => true,
@@ -95,18 +95,18 @@ final class EntitlementCatalogTest extends TestCase {
 
 	public function test_merge_combines_checklist_and_advanced_json(): void {
 		$merged = EntitlementCatalog::merge(
-			array( 'voucher.qr_redemption', 'voucher.reports' ),
+			array( 'voucher.bulk_orders', 'voucher.sms_delivery' ),
 			array(
 				'voucher.location_limit' => 3,
-				'voucher.reports'        => false,
+				'voucher.sms_delivery'   => false,
 			)
 		);
 
 		$this->assertSame(
 			array(
 				'voucher.location_limit' => 3,
-				'voucher.reports'        => true,
-				'voucher.qr_redemption'  => true,
+				'voucher.sms_delivery'   => true,
+				'voucher.bulk_orders'    => true,
 			),
 			$merged
 		);
@@ -148,5 +148,28 @@ final class EntitlementCatalogTest extends TestCase {
 		$checked = array_values( array_diff( $split['checked'], array( 'pass.card_terminal' ) ) );
 
 		$this->assertSame( array( 'pass.seating' => true ), EntitlementCatalog::merge( $checked, $split['advanced'] ) );
+	}
+
+	public function test_voucher_pro_sells_only_its_own_functions(): void {
+		$keys = array_column( EntitlementCatalog::all()['voucher'], 'key' );
+		$this->assertSame( array( 'voucher.bulk_orders', 'voucher.wallet_passes', 'voucher.sms_delivery', 'voucher.white_label', 'voucher.priority_support' ), $keys );
+	}
+
+	public function test_removed_voucher_keys_of_existing_licenses_stay_as_json(): void {
+		// Decision of 13/16 Nov 2026: these functions are part of the free Voucher core. A stored plan keeps them.
+		$removed = array( 'voucher.custom_branding', 'voucher.pdf_templates', 'voucher.automatic_delivery', 'voucher.qr_redemption', 'voucher.partial_balance', 'voucher.staff_roles', 'voucher.scheduled_delivery', 'voucher.bulk_import_export', 'voucher.reports' );
+		$stored  = array_fill_keys( $removed, true ) + array( 'voucher.bulk_orders' => true );
+
+		$split = EntitlementCatalog::split( $stored );
+		$this->assertSame( array( 'voucher.bulk_orders' ), $split['checked'] );
+		$this->assertSame( array_fill_keys( $removed, true ), $split['advanced'] );
+		$this->assertSame( $stored, EntitlementCatalog::merge( $split['checked'], $split['advanced'] ) );
+
+		$markdown = (string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/ENTITLEMENTS.md' );
+		$section  = substr( $markdown, (int) strpos( $markdown, '## Removed keys' ) );
+		foreach ( $removed as $key ) {
+			$this->assertNotContains( $key, EntitlementCatalog::known_keys() );
+			$this->assertStringContainsString( '`' . $key . '`', $section, $key . ' is listed under "Removed keys".' );
+		}
 	}
 }
