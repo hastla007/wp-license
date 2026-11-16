@@ -463,17 +463,6 @@ final class StripeWebhook {
 	}
 
 	/**
-	 * Verify Stripe's timestamped HMAC-SHA256 signature with a five-minute tolerance.
-	 *
-	 * @param string $body Raw request body.
-	 * @param string $header `Stripe-Signature` header.
-	 * @return bool
-	 */
-	public static function verify_signature( string $body, string $header ): bool {
-		return null !== self::matching_secret_mode( $body, $header, self::secrets(), time() );
-	}
-
-	/**
 	 * Find the configured secret a signature header was made with. Pure.
 	 *
 	 * @param string                                      $body Raw request body.

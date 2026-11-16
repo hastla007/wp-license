@@ -34,18 +34,6 @@ final class Requirements {
 	const MIN_WC_CONDITIONAL_FIELDS = '9.9.0';
 
 	/**
-	 * Action Scheduler release that added the `$unique` argument to the `as_*` functions.
-	 */
-	const MIN_AS_UNIQUE_ARGUMENT = '3.6.0';
-
-	/**
-	 * Action Scheduler release in which `$unique` compares hook, group AND args.
-	 * Before 4.0.0 only hook and group are compared, so a "unique" action for one
-	 * license blocks the same hook for every other license.
-	 */
-	const MIN_AS_UNIQUE_PER_ARGS = '4.0.0';
-
-	/**
 	 * Oldest WooCommerce Stripe Gateway the adapter was verified against
 	 * (introduces `wc_stripe_force_save_payment_method` with the order ID).
 	 */
@@ -152,21 +140,6 @@ final class Requirements {
 		echo '</p></div>';
 	}
 
-
-	/**
-	 * How a "schedule once per hook and args" request must be carried out.
-	 *
-	 * - `native`: pass `$unique = true`; Action Scheduler compares hook, group and args atomically.
-	 * - `emulated`: never pass `$unique`. Either the argument does not exist (below 3.6.0) or it
-	 *   ignores the args (3.6.0 to 3.9.x) and would drop actions of other licenses. The caller
-	 *   checks for an existing action first, which is not atomic.
-	 *
-	 * @param string $action_scheduler_version Running Action Scheduler version, '' when unknown.
-	 * @return string
-	 */
-	public static function unique_mode( string $action_scheduler_version ): string {
-		return self::version_at_least( $action_scheduler_version, self::MIN_AS_UNIQUE_PER_ARGS ) ? 'native' : 'emulated';
-	}
 
 	/**
 	 * Schedule a single action at most once per hook, args and group.

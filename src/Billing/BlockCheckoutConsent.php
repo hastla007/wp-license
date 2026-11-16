@@ -36,13 +36,6 @@ final class BlockCheckoutConsent {
 	const FIELD_META_KEY = '_wc_other/wplc/recurring-consent';
 
 	/**
-	 * Former cache of the license product IDs (a transient built from product meta).
-	 * The list now comes from Catalog::license_product_ids(); the name is only kept
-	 * so that the old transient can be removed.
-	 */
-	const PRODUCT_IDS_TRANSIENT = 'wplc_license_product_ids';
-
-	/**
 	 * Above this many license products the visibility rule is not sent to the browser.
 	 */
 	const MAX_RULE_PRODUCTS = 300;

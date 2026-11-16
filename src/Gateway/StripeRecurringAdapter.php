@@ -1180,33 +1180,6 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	}
 
 	/**
-	 * PaymentIntent metadata of a renewal charge. Pure.
-	 *
-	 * `wplc_attempt` is the attempt counter of the idempotency key
-	 * (`{renewal key}:{attempt}`, 0 for the first attempt). It lets the
-	 * `payment_intent.payment_failed` webhook tell the attempt whose result is
-	 * unknown from an older, already recorded one.
-	 *
-	 * @param int      $order_id Renewal order ID.
-	 * @param int      $renewal_id Renewal ID.
-	 * @param int      $license_id License ID.
-	 * @param int|null $attempt Attempt counter, null to send no marker.
-	 * @return array<string,string>
-	 */
-	public static function request_metadata( int $order_id, int $renewal_id, int $license_id, ?int $attempt ): array {
-		$metadata = array(
-			'order_id' => (string) $order_id,
-			'wplc_renewal_id' => (string) $renewal_id,
-			'wplc_license_id' => (string) $license_id,
-		);
-		if ( null !== $attempt ) {
-			$metadata['wplc_attempt'] = (string) $attempt;
-		}
-
-		return $metadata;
-	}
-
-	/**
 	 * Store the PaymentIntent of the current attempt on the renewal order.
 	 *
 	 * Used to resolve disputes to the order and to look the payment up in Stripe.

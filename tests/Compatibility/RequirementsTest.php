@@ -71,16 +71,6 @@ final class RequirementsTest extends TestCase {
 		$this->assertStringContainsString( "Database schema {$schema_version[1]}.", $readme, 'readme.txt changelog names the current schema number.' );
 	}
 
-	public function test_unique_argument_is_only_passed_when_it_compares_args(): void {
-		$this->assertSame( 'native', Requirements::unique_mode( '4.0.0' ) );
-		$this->assertSame( 'native', Requirements::unique_mode( '4.1.0' ) );
-		// 3.6.0 to 3.9.x accept $unique but compare hook and group only.
-		$this->assertSame( 'emulated', Requirements::unique_mode( '3.9.3' ) );
-		$this->assertSame( 'emulated', Requirements::unique_mode( '3.6.0' ) );
-		$this->assertSame( 'emulated', Requirements::unique_mode( '3.5.4' ) );
-		$this->assertSame( 'emulated', Requirements::unique_mode( '' ) );
-	}
-
 	public function test_stripe_gateway_absent(): void {
 		$status = Requirements::evaluate_stripe( '', array( 'WC_Stripe_API' ) );
 		$this->assertFalse( $status['ok'] );

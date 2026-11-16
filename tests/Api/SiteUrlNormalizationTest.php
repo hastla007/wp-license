@@ -355,29 +355,30 @@ final class SiteUrlNormalizationTest extends TestCase {
 	}
 
 	/**
-	 * Old spellings that an activation stored before T-146 may still hold.
+	 * Spellings an activation stored before T-146 may still hold, and the site reporting it today.
 	 *
-	 * @return array<string,array{0:string,1:string[]}>
+	 * @return array<string,array{0:string,1:string}>
 	 */
-	public function data_identity_candidates(): array {
+	public function data_legacy_spellings(): array {
 		return array(
-			'unchanged url'     => array( 'https://example.com/shop/', array( 'https://example.com/shop' ) ),
-			'double slash'      => array( 'https://example.com/a//b', array( 'https://example.com/a/b', 'https://example.com/a//b' ) ),
-			// Dot segments are rejected since B-177, so no current identity exists for them.
-			'dot segments'      => array( 'https://example.com/a/../b', array() ),
-			'uncompressed ipv6' => array( 'http://[2001:0db8:0:0:0:0:0:1]', array( 'http://[2001:db8::1]', 'http://[2001:0db8:0:0:0:0:0:1]' ) ),
-			'now rejected host' => array( 'http://0x7f.1', array() ),
+			'trailing slash'    => array( 'https://example.com/shop/', 'https://example.com/shop' ),
+			'double slash'      => array( 'https://example.com/a//b', 'https://example.com/a/b' ),
+			'uncompressed ipv6' => array( 'http://[2001:0db8:0:0:0:0:0:1]', 'http://[2001:db8::1]' ),
 		);
 	}
 
 	/**
-	 * @dataProvider data_identity_candidates
+	 * The stored row is normalized again when compared (comparison_key()), so no separate legacy
+	 * normalization is needed to recognise it (A-136: SiteUrl::legacy_normalize() removed).
 	 *
-	 * @param string   $input    Input URL.
-	 * @param string[] $expected Candidates.
+	 * @dataProvider data_legacy_spellings
+	 *
+	 * @param string $stored   site_url stored by an older version.
+	 * @param string $reported Address the site reports now.
 	 */
-	public function test_identity_candidates_include_the_legacy_spelling( string $input, array $expected ): void {
-		$this->assertSame( $expected, SiteUrl::identity_candidates( $input ) );
+	public function test_activations_stored_with_a_legacy_spelling_are_recognised( string $stored, string $reported ): void {
+		$this->assertNotSame( '', SiteUrl::comparison_key( $stored ) );
+		$this->assertSame( SiteUrl::comparison_key( $reported ), SiteUrl::comparison_key( $stored ) );
 	}
 
 	/**

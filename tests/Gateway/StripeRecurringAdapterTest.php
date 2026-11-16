@@ -5,23 +5,6 @@ use WPLC\Gateway\StripeRecurringAdapter;
 /** T-155: attempt marker in the PaymentIntent metadata of a renewal charge. */
 final class StripeRecurringAdapterTest extends TestCase {
 
-	public function test_metadata_names_order_renewal_license_and_attempt(): void {
-		$this->assertSame(
-			array(
-				'order_id'        => '33',
-				'wplc_renewal_id' => '11',
-				'wplc_license_id' => '22',
-				'wplc_attempt'    => '0',
-			),
-			StripeRecurringAdapter::request_metadata( 33, 11, 22, 0 )
-		);
-		$this->assertSame( '2', StripeRecurringAdapter::request_metadata( 33, 11, 22, 2 )['wplc_attempt'] );
-	}
-
-	public function test_metadata_without_attempt_has_no_marker(): void {
-		$this->assertArrayNotHasKey( 'wplc_attempt', StripeRecurringAdapter::request_metadata( 33, 11, 22, null ) );
-	}
-
 	/** P-61: the renewal order is part of the Stripe key; zero keeps the earlier format. */
 	public function test_stripe_key_depends_on_the_renewal_order(): void {
 		$legacy = StripeRecurringAdapter::stripe_idempotency_key( 'renewal:0', 'cus_1', 'pm_1', 4900, 'eur' );
