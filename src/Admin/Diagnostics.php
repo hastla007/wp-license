@@ -887,7 +887,7 @@ final class Diagnostics {
 			$add( __( 'Newest release', 'wp-license' ), __( 'Not known yet. WordPress checks for updates twice a day.', 'wp-license' ) );
 		} elseif ( defined( 'WPLC_VERSION' ) && version_compare( $release['version'], (string) WPLC_VERSION, '>' ) ) {
 			/* translators: 1: version number, 2: address of the release page. */
-			$add( __( 'Newest release', 'wp-license' ), sprintf( __( '%1$s is available: %2$s', 'wp-license' ), $release['version'], $release['url'] ), 'warning', __( 'Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/PRODUCTION-OPERATIONS.md).', 'wp-license' ) );
+			$add( __( 'Newest release', 'wp-license' ), sprintf( __( '%1$s is available: %2$s', 'wp-license' ), $release['version'], $release['url'] ), 'warning', __( 'Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/manual/12-upgrading.md).', 'wp-license' ) );
 		} else {
 			$add( __( 'Newest release', 'wp-license' ), $release['version'], 'ok' );
 		}
@@ -1149,8 +1149,8 @@ final class Diagnostics {
 		$layer = self::database_layer();
 		if ( $layer['splitting'] ) {
 			$layer_help = $layer['primary_switch']
-				? __( 'This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/SECURITY-OPERATIONS.md).', 'wp-license' )
-				: __( 'This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/SECURITY-OPERATIONS.md).', 'wp-license' );
+				? __( 'This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/manual/09-operations.md).', 'wp-license' )
+				: __( 'This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/manual/09-operations.md).', 'wp-license' );
 			/* translators: %s: PHP class name of the database layer. */
 			$add( __( 'Database layer', 'wp-license' ), sprintf( __( '%s (read/write splitting)', 'wp-license' ), $layer['class'] ), 'warning', $layer_help );
 		} elseif ( $layer['drop_in'] ) {
@@ -1236,7 +1236,7 @@ final class Diagnostics {
 			$add( $label, __( 'Not installed (not needed while the plugin is network-activated)', 'wp-license' ) );
 			return;
 		}
-		$add( $label, __( 'Not installed', 'wp-license' ), 'warning', __( 'If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/MULTISITE.md).', 'wp-license' ) );
+		$add( $label, __( 'Not installed', 'wp-license' ), 'warning', __( 'If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/manual/09-operations.md).', 'wp-license' ) );
 	}
 
 	/**

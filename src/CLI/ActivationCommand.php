@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * `wp wplc activation`: scripted way to look at and reset the sites of a license (B-172).
+ * `wp wplc activation`: scripted way to look at and reset the sites of a license.
  */
 final class ActivationCommand {
 
@@ -135,7 +135,7 @@ final class ActivationCommand {
 	}
 
 	/**
-	 * Validate the arguments of `release` and resolve the activation IDs (P-34).
+	 * Validate the arguments of `release` and resolve the activation IDs.
 	 *
 	 * Activation IDs and --license are exclusive (IDs of another license must not be
 	 * released under a license filter by accident), --environment needs --license

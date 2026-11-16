@@ -5,7 +5,7 @@
  *
  * Usage:
  *   php bin/export-client.php --target=/path/to/addon/includes/licensing \
- *       --namespace='VoucherCaptainPro\Licensing' --text-domain=voucher-captain-pro
+ *       --namespace='AcmeReportsPro\Licensing' --text-domain=acme-reports-pro
  *
  * What it changes in the copies:
  * - `namespace WPLC\Client;` becomes the given namespace, so several add-ons

@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * WP-CLI commands for the release registry, so a build pipeline can ship a release without a browser (B-169).
+ * WP-CLI commands for the release registry, so a build pipeline can ship a release without a browser.
  */
 final class ReleaseCommand {
 	/**

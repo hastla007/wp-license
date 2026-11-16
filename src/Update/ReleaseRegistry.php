@@ -1329,7 +1329,7 @@ final class ReleaseRegistry {
 		if ( 'exposed' === $exposure ) {
 			$problems[] = array(
 				'code' => 'package_dir_exposed',
-				'message' => __( 'The package directory can be read over HTTP: this web server ignores the .htaccess protection (nginx). Packages are only protected by their random file name. Add a deny rule for the directory or move it outside the web root with the wplc_package_storage_dir filter (see docs/UPDATE-STORAGE.md).', 'wp-license' ),
+				'message' => __( 'The package directory can be read over HTTP: this web server ignores the .htaccess protection (nginx). Packages are only protected by their random file name. Add a deny rule for the directory or move it outside the web root with the wplc_package_storage_dir filter (see docs/manual/05-releases-and-updates.md).', 'wp-license' ),
 				'release_id' => 0,
 			);
 		}

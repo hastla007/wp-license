@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * `wp wplc license`: views for support (A-74) and issuing a license by hand (PK-02).
+ * `wp wplc license`: views for support and issuing a license by hand.
  */
 final class LicenseCommand {
 
@@ -65,12 +65,12 @@ final class LicenseCommand {
 	}
 
 	/**
-	 * Issue a license by hand, without an order (PK-02).
+	 * Issue a license by hand, without an order.
 	 *
 	 * The same path as "Add license manually" in the admin: no order, nothing
 	 * is charged, no automatic renewal; audited with the reason. Works for
 	 * products that are not for sale, e.g. a project product kept private in
-	 * WooCommerce (docs/ENTITLEMENTS.md, "Creating a project product"). The
+	 * WooCommerce (docs/manual/04-license-products.md). The
 	 * license key is not printed: the customer gets it by email (unless
 	 * --skip-email) and finds it in their account.
 	 *

@@ -673,7 +673,7 @@ final class Settings {
 			),
 			'catalog'    => array(
 				'title'     => __( 'Import your catalog file', 'wp-license' ),
-				'text'      => __( 'Describe your product and its entitlements in a wplc-catalog.json file (docs/CATALOG-FILE.md) and import it here, or ship it in the plugin folder of your release package.', 'wp-license' ),
+				'text'      => __( 'Describe your product and its entitlements in a wplc-catalog.json file (docs/manual/03-catalog-files.md) and import it here, or ship it in the plugin folder of your release package.', 'wp-license' ),
 				'link'      => 'admin.php?page=' . CatalogFileAdmin::PAGE,
 				'link_text' => __( 'Open catalog files', 'wp-license' ),
 			),
@@ -697,7 +697,7 @@ final class Settings {
 			),
 			'webhook'    => array(
 				'title'     => __( 'Connect the Stripe webhook', 'wp-license' ),
-				'text'      => __( 'In the Stripe dashboard, add an endpoint with the webhook URL shown under "Status" below and the events listed in the documentation (docs/STRIPE-WEBHOOKS.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected.', 'wp-license' ),
+				'text'      => __( 'In the Stripe dashboard, add an endpoint with the webhook URL shown under "Status" below and the events listed in the documentation (docs/manual/08-renewals-and-stripe.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected.', 'wp-license' ),
 				'link'      => '',
 				'link_text' => '',
 			),

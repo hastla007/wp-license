@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * `wp wplc catalog`: import, check, list, export and remove the catalog files (`wplc-catalog.json`)
- * of the license products (T-150, docs/CATALOG-FILE.md).
+ * of the license products (docs/manual/03-catalog-files.md).
  */
 final class CatalogCommand {
 

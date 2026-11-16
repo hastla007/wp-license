@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T12:17:01+00:00\n"
+"POT-Creation-Date: 2026-11-16T12:21:43+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -1835,7 +1835,7 @@ msgstr ""
 
 #. translators: 1: version number, 2: address of the release page.
 #: src/Admin/Diagnostics.php:890
-msgid "Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/PRODUCTION-OPERATIONS.md)."
+msgid "Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/manual/12-upgrading.md)."
 msgstr ""
 
 #: src/Admin/Diagnostics.php:894
@@ -2319,11 +2319,11 @@ msgid "Activations and renewals rely on named database locks. They fail behind d
 msgstr ""
 
 #: src/Admin/Diagnostics.php:1152
-msgid "This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/SECURITY-OPERATIONS.md)."
+msgid "This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/manual/09-operations.md)."
 msgstr ""
 
 #: src/Admin/Diagnostics.php:1153
-msgid "This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/SECURITY-OPERATIONS.md)."
+msgid "This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/manual/09-operations.md)."
 msgstr ""
 
 #. translators: %s: PHP class name of the database layer.
@@ -2421,7 +2421,7 @@ msgid "Not installed"
 msgstr ""
 
 #: src/Admin/Diagnostics.php:1239
-msgid "If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/MULTISITE.md)."
+msgid "If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/manual/09-operations.md)."
 msgstr ""
 
 #: src/Admin/Diagnostics.php:1264
@@ -3932,11 +3932,11 @@ msgid "Draft release deleted."
 msgstr ""
 
 #: src/Admin/ReleaseAdmin.php:334
-msgid "Releases with a package URL are not delivered: without a resolver that returns a short-lived signed URL, every licensed customer would learn the permanent address and could keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md)."
+msgid "Releases with a package URL are not delivered: without a resolver that returns a short-lived signed URL, every licensed customer would learn the permanent address and could keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/manual/05-releases-and-updates.md)."
 msgstr ""
 
 #: src/Admin/ReleaseAdmin.php:334
-msgid "Releases with a package URL are delivered by redirecting licensed installations to that URL. Without a resolver that returns a short-lived signed URL, every licensed customer learns the permanent address and can keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md)."
+msgid "Releases with a package URL are delivered by redirecting licensed installations to that URL. Without a resolver that returns a short-lived signed URL, every licensed customer learns the permanent address and can keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/manual/05-releases-and-updates.md)."
 msgstr ""
 
 #. translators: %s: PHP version.
@@ -4409,7 +4409,7 @@ msgid "Import your catalog file"
 msgstr ""
 
 #: src/Admin/Settings.php:676
-msgid "Describe your product and its entitlements in a wplc-catalog.json file (docs/CATALOG-FILE.md) and import it here, or ship it in the plugin folder of your release package."
+msgid "Describe your product and its entitlements in a wplc-catalog.json file (docs/manual/03-catalog-files.md) and import it here, or ship it in the plugin folder of your release package."
 msgstr ""
 
 #: src/Admin/Settings.php:678
@@ -4457,7 +4457,7 @@ msgid "Connect the Stripe webhook"
 msgstr ""
 
 #: src/Admin/Settings.php:700
-msgid "In the Stripe dashboard, add an endpoint with the webhook URL shown under \"Status\" below and the events listed in the documentation (docs/STRIPE-WEBHOOKS.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected."
+msgid "In the Stripe dashboard, add an endpoint with the webhook URL shown under \"Status\" below and the events listed in the documentation (docs/manual/08-renewals-and-stripe.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected."
 msgstr ""
 
 #. translators: 1: number of finished setup steps, 2: number of all setup steps.
@@ -7406,7 +7406,7 @@ msgid "The package URL of %1$s points to \"%2$s\", which is not an allowed packa
 msgstr ""
 
 #: src/Update/ReleaseRegistry.php:1332
-msgid "The package directory can be read over HTTP: this web server ignores the .htaccess protection (nginx). Packages are only protected by their random file name. Add a deny rule for the directory or move it outside the web root with the wplc_package_storage_dir filter (see docs/UPDATE-STORAGE.md)."
+msgid "The package directory can be read over HTTP: this web server ignores the .htaccess protection (nginx). Packages are only protected by their random file name. Add a deny rule for the directory or move it outside the web root with the wplc_package_storage_dir filter (see docs/manual/05-releases-and-updates.md)."
 msgstr ""
 
 #: src/Update/ReleaseRegistry.php:1387

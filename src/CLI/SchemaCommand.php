@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * `wp wplc schema`: structure check, leftover tables of deleted network sites and the site cleanup helper (P-32, P-53).
+ * `wp wplc schema`: structure check, leftover tables of deleted network sites and the site cleanup helper.
  */
 final class SchemaCommand {
 

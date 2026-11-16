@@ -256,7 +256,7 @@ final class RotateInstallationSecretsCommand {
 	 * Number of activation rows whose secret is not encrypted with the current key.
 	 *
 	 * One COUNT over the activations table without decrypting anything; meant
-	 * for the diagnostics page ("rows with an old key", B-22).
+	 * for the diagnostics page ("rows with an old key").
 	 *
 	 * @return int
 	 */

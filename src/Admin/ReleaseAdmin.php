@@ -331,7 +331,7 @@ final class ReleaseAdmin {
 		}
 		if ( $has_published_url && ! UpdateService::has_package_resolver() ) {
 			// A-32.
-			echo '<div class="notice notice-warning inline"><p>' . ( UpdateService::requires_package_resolver() ? esc_html__( 'Releases with a package URL are not delivered: without a resolver that returns a short-lived signed URL, every licensed customer would learn the permanent address and could keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md).', 'wp-license' ) : esc_html__( 'Releases with a package URL are delivered by redirecting licensed installations to that URL. Without a resolver that returns a short-lived signed URL, every licensed customer learns the permanent address and can keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md).', 'wp-license' ) ) . '</p></div>';
+			echo '<div class="notice notice-warning inline"><p>' . ( UpdateService::requires_package_resolver() ? esc_html__( 'Releases with a package URL are not delivered: without a resolver that returns a short-lived signed URL, every licensed customer would learn the permanent address and could keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/manual/05-releases-and-updates.md).', 'wp-license' ) : esc_html__( 'Releases with a package URL are delivered by redirecting licensed installations to that URL. Without a resolver that returns a short-lived signed URL, every licensed customer learns the permanent address and can keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/manual/05-releases-and-updates.md).', 'wp-license' ) ) . '</p></div>';
 		}
 	}
 

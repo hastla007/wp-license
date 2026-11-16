@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * `wp wplc repair`: thin wrappers around the steps the scheduler normally runs (A-74).
+ * `wp wplc repair`: thin wrappers around the steps the scheduler normally runs.
  *
  * Every subcommand calls the same public method the scheduled action calls,
  * so all guards (locks, status checks, idempotency keys) apply unchanged.

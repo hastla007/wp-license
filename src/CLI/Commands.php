@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Registers the WP-CLI commands a support engineer needs to look at a license and to repeat a stuck step (A-74, B-172).
+ * Registers the WP-CLI commands a support engineer needs to look at a license and to repeat a stuck step.
  */
 final class Commands {
 

@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T12:17:01+00:00\n"
+"POT-Creation-Date: 2026-11-16T12:21:43+00:00\n"
 "PO-Revision-Date: 2026-11-16 12:17+0000\n"
 "Language: de_DE_formal\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -4375,8 +4375,8 @@ msgid "The upload (%1$s) is larger than this server accepts (%2$s). Nothing was 
 msgstr "Der Upload (%1$s) ist größer, als dieser Server akzeptiert (%2$s). Es wurde nichts gespeichert. Erhöhen Sie upload_max_filesize und post_max_size, oder registrieren Sie das Paket per URL."
 
 #: src/Admin/ReleaseAdmin.php:334
-msgid "Releases with a package URL are delivered by redirecting licensed installations to that URL. Without a resolver that returns a short-lived signed URL, every licensed customer learns the permanent address and can keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md)."
-msgstr "Releases mit einer Paket-URL werden ausgeliefert, indem lizenzierte Installationen an diese URL weitergeleitet werden. Ohne einen Resolver, der eine kurzlebige signierte URL zurückgibt, erfährt jeder lizenzierte Kunde die dauerhafte Adresse und kann sie auch nach Ende der Lizenz weiter nutzen. Laden Sie stattdessen die ZIP-Datei hoch, oder fügen Sie einen Resolver hinzu (siehe docs/UPDATE-STORAGE.md)."
+msgid "Releases with a package URL are delivered by redirecting licensed installations to that URL. Without a resolver that returns a short-lived signed URL, every licensed customer learns the permanent address and can keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/manual/05-releases-and-updates.md)."
+msgstr "Releases mit einer Paket-URL werden ausgeliefert, indem lizenzierte Installationen an diese URL weitergeleitet werden. Ohne einen Resolver, der eine kurzlebige signierte URL zurückgibt, erfährt jeder lizenzierte Kunde die dauerhafte Adresse und kann sie auch nach Ende der Lizenz weiter nutzen. Laden Sie stattdessen die ZIP-Datei hoch, oder fügen Sie einen Resolver hinzu (siehe docs/manual/05-releases-and-updates.md)."
 
 #. translators: %s: version of the free core plugin.
 #: src/Admin/ReleaseAdmin.php:363
@@ -5496,8 +5496,8 @@ msgid "The package URL of %1$s points to \"%2$s\", which is not an allowed packa
 msgstr "Die Paket-URL von %1$s verweist auf „%2$s“, das (nicht mehr) zu den erlaubten Paket-Hosts gehört. Update-Prüfungen für dieses Produkt schlagen fehl, bis der Host in den Lizenzeinstellungen hinzugefügt oder das Release ersetzt wird. Dies passiert, nachdem der Shop auf eine andere Domain umgezogen ist."
 
 #: src/Update/ReleaseRegistry.php:1332
-msgid "The package directory can be read over HTTP: this web server ignores the .htaccess protection (nginx). Packages are only protected by their random file name. Add a deny rule for the directory or move it outside the web root with the wplc_package_storage_dir filter (see docs/UPDATE-STORAGE.md)."
-msgstr "Das Paketverzeichnis ist über HTTP lesbar: Dieser Webserver ignoriert den .htaccess-Schutz (nginx). Pakete sind nur durch ihren zufälligen Dateinamen geschützt. Fügen Sie eine Sperrregel für das Verzeichnis hinzu oder verschieben Sie es mit dem Filter wplc_package_storage_dir aus dem Web-Stammverzeichnis (siehe docs/UPDATE-STORAGE.md)."
+msgid "The package directory can be read over HTTP: this web server ignores the .htaccess protection (nginx). Packages are only protected by their random file name. Add a deny rule for the directory or move it outside the web root with the wplc_package_storage_dir filter (see docs/manual/05-releases-and-updates.md)."
+msgstr "Das Paketverzeichnis ist über HTTP lesbar: Dieser Webserver ignoriert den .htaccess-Schutz (nginx). Pakete sind nur durch ihren zufälligen Dateinamen geschützt. Fügen Sie eine Sperrregel für das Verzeichnis hinzu oder verschieben Sie es mit dem Filter wplc_package_storage_dir aus dem Web-Stammverzeichnis (siehe docs/manual/05-releases-and-updates.md)."
 
 #: src/Update/ReleaseRegistry.php:1388
 msgid "The version must have three numeric parts, optionally followed by -alpha, -beta or -rc and a number: 1.2.3, 1.2.3-beta1, 1.2.3-rc2. Other suffixes are sorted wrongly by WordPress."
@@ -6508,8 +6508,8 @@ msgstr "%1$s ist verfügbar: %2$s"
 
 #. translators: 1: version number, 2: address of the release page.
 #: src/Admin/Diagnostics.php:890
-msgid "Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/PRODUCTION-OPERATIONS.md)."
-msgstr "Laden Sie die ZIP-Datei und die zugehörige .sha256-Datei von der Release-Seite herunter, vergleichen Sie die Prüfsumme und installieren Sie die ZIP-Datei per Upload (docs/PRODUCTION-OPERATIONS.md)."
+msgid "Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/manual/12-upgrading.md)."
+msgstr "Laden Sie die ZIP-Datei und die zugehörige .sha256-Datei von der Release-Seite herunter, vergleichen Sie die Prüfsumme und installieren Sie die ZIP-Datei per Upload (docs/manual/12-upgrading.md)."
 
 #: src/Admin/Diagnostics.php:1042
 msgid "License emails switched off"
@@ -6528,12 +6528,12 @@ msgid "Requests to the webhook URL without a valid signature, counted at most on
 msgstr "Anfragen an die Webhook-URL ohne gültige Signatur, höchstens einmal pro Minute gezählt. Einige wenige können Scans der URL sein; viele bedeuten, dass das Signatur-Geheimnis nicht zum Endpunkt im Stripe-Dashboard passt."
 
 #: src/Admin/Diagnostics.php:1152
-msgid "This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/SECURITY-OPERATIONS.md)."
-msgstr "Diese Datenbankschicht leitet Lesezugriffe an Replikate. Das Plugin leitet die Aktivierungssperre und die Zählungen für das Website-Limit mit send_reads_to_master() an den Primärserver, dies wurde jedoch nicht mit Replikaten getestet. Leiten Sie die Tabellen wplc_activations und wplc_licenses sowie alle GET_LOCK-Aufrufe an den Primärserver, sonst kann das Website-Limit überschritten werden (siehe docs/SECURITY-OPERATIONS.md)."
+msgid "This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/manual/09-operations.md)."
+msgstr "Diese Datenbankschicht leitet Lesezugriffe an Replikate. Das Plugin leitet die Aktivierungssperre und die Zählungen für das Website-Limit mit send_reads_to_master() an den Primärserver, dies wurde jedoch nicht mit Replikaten getestet. Leiten Sie die Tabellen wplc_activations und wplc_licenses sowie alle GET_LOCK-Aufrufe an den Primärserver, sonst kann das Website-Limit überschritten werden (siehe docs/manual/09-operations.md)."
 
 #: src/Admin/Diagnostics.php:1153
-msgid "This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/SECURITY-OPERATIONS.md)."
-msgstr "Diese Datenbankschicht leitet Lesezugriffe an Replikate und bietet keinen send_reads_to_master()-Schalter. Die Aktivierungssperre und die Zählungen für das Website-Limit können auf einem Replikat laufen, sodass das Website-Limit überschritten werden kann. Leiten Sie die Tabellen wplc_activations und wplc_licenses sowie alle GET_LOCK-Aufrufe an den Primärserver (siehe docs/SECURITY-OPERATIONS.md)."
+msgid "This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/manual/09-operations.md)."
+msgstr "Diese Datenbankschicht leitet Lesezugriffe an Replikate und bietet keinen send_reads_to_master()-Schalter. Die Aktivierungssperre und die Zählungen für das Website-Limit können auf einem Replikat laufen, sodass das Website-Limit überschritten werden kann. Leiten Sie die Tabellen wplc_activations und wplc_licenses sowie alle GET_LOCK-Aufrufe an den Primärserver (siehe docs/manual/09-operations.md)."
 
 #. translators: %s: PHP class name of the database layer.
 #: src/Admin/Diagnostics.php:1155
@@ -6769,8 +6769,8 @@ msgid "issued for this order"
 msgstr "für diese Bestellung ausgestellt"
 
 #: src/Admin/ReleaseAdmin.php:334
-msgid "Releases with a package URL are not delivered: without a resolver that returns a short-lived signed URL, every licensed customer would learn the permanent address and could keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md)."
-msgstr "Releases mit einer Paket-URL werden nicht ausgeliefert: Ohne einen Resolver, der eine kurzlebige signierte URL zurückgibt, würde jeder lizenzierte Kunde die dauerhafte Adresse erfahren und könnte sie auch nach Ende der Lizenz weiter nutzen. Laden Sie stattdessen die ZIP-Datei hoch, oder fügen Sie einen Resolver hinzu (siehe docs/UPDATE-STORAGE.md)."
+msgid "Releases with a package URL are not delivered: without a resolver that returns a short-lived signed URL, every licensed customer would learn the permanent address and could keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/manual/05-releases-and-updates.md)."
+msgstr "Releases mit einer Paket-URL werden nicht ausgeliefert: Ohne einen Resolver, der eine kurzlebige signierte URL zurückgibt, würde jeder lizenzierte Kunde die dauerhafte Adresse erfahren und könnte sie auch nach Ende der Lizenz weiter nutzen. Laden Sie stattdessen die ZIP-Datei hoch, oder fügen Sie einen Resolver hinzu (siehe docs/manual/05-releases-and-updates.md)."
 
 #: src/Admin/Settings.php:69
 #: src/Admin/Settings.php:724
@@ -6798,8 +6798,8 @@ msgid "Connect the Stripe webhook"
 msgstr "Stripe-Webhook verbinden"
 
 #: src/Admin/Settings.php:700
-msgid "In the Stripe dashboard, add an endpoint with the webhook URL shown under \"Status\" below and the events listed in the documentation (docs/STRIPE-WEBHOOKS.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected."
-msgstr "Fügen Sie im Stripe-Dashboard einen Endpunkt mit der unten unter „Status“ angezeigten Webhook-URL und den in der Dokumentation (docs/STRIPE-WEBHOOKS.md) aufgeführten Ereignissen hinzu, und tragen Sie dessen Signaturgeheimnis in WPLC_STRIPE_WEBHOOK_SECRET ein. Ohne dieses werden von Stripe gemeldete Verlängerungen, Erstattungen und Zahlungsanfechtungen abgewiesen."
+msgid "In the Stripe dashboard, add an endpoint with the webhook URL shown under \"Status\" below and the events listed in the documentation (docs/manual/08-renewals-and-stripe.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected."
+msgstr "Fügen Sie im Stripe-Dashboard einen Endpunkt mit der unten unter „Status“ angezeigten Webhook-URL und den in der Dokumentation (docs/manual/08-renewals-and-stripe.md) aufgeführten Ereignissen hinzu, und tragen Sie dessen Signaturgeheimnis in WPLC_STRIPE_WEBHOOK_SECRET ein. Ohne dieses werden von Stripe gemeldete Verlängerungen, Erstattungen und Zahlungsanfechtungen abgewiesen."
 
 #: src/Admin/Settings.php:687
 msgid "Publish the first release"
@@ -7140,8 +7140,8 @@ msgid "Not installed"
 msgstr "Nicht installiert"
 
 #: src/Admin/Diagnostics.php:1239
-msgid "If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/MULTISITE.md)."
-msgstr "Wenn diese Website in der Netzwerkverwaltung gelöscht wird, während das Plugin auf der Hauptwebsite nicht aktiv ist, bleiben ihre wplc_*-Tabellen zurück. Installieren Sie die optionale Hilfsdatei mit wp wplc schema install-mu-helper (docs/MULTISITE.md)."
+msgid "If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/manual/09-operations.md)."
+msgstr "Wenn diese Website in der Netzwerkverwaltung gelöscht wird, während das Plugin auf der Hauptwebsite nicht aktiv ist, bleiben ihre wplc_*-Tabellen zurück. Installieren Sie die optionale Hilfsdatei mit wp wplc schema install-mu-helper (docs/manual/09-operations.md)."
 
 #: src/Admin/Format.php:303
 #: src/Admin/Format.php:304
@@ -7980,8 +7980,8 @@ msgid "Import your catalog file"
 msgstr "Katalogdatei importieren"
 
 #: src/Admin/Settings.php:676
-msgid "Describe your product and its entitlements in a wplc-catalog.json file (docs/CATALOG-FILE.md) and import it here, or ship it in the plugin folder of your release package."
-msgstr "Beschreiben Sie Ihr Produkt und seine Berechtigungen in einer Datei wplc-catalog.json (docs/CATALOG-FILE.md) und importieren Sie sie hier oder legen Sie sie in den Plugin-Ordner Ihres Release-Pakets."
+msgid "Describe your product and its entitlements in a wplc-catalog.json file (docs/manual/03-catalog-files.md) and import it here, or ship it in the plugin folder of your release package."
+msgstr "Beschreiben Sie Ihr Produkt und seine Berechtigungen in einer Datei wplc-catalog.json (docs/manual/03-catalog-files.md) und importieren Sie sie hier oder legen Sie sie in den Plugin-Ordner Ihres Release-Pakets."
 
 #: src/Admin/Settings.php:678
 msgid "Open catalog files"
