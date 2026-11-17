@@ -13,7 +13,7 @@ No `composer.lock` is committed: the dependencies are development tools only and
 | Unit tests | `phpunit.yml` / `unit (X)` | yes | Pure logic without WordPress, on PHP 8.5 (and on the PHP 8.6 nightly build, experimental) |
 | Site URL rules without intl | `phpunit.yml` / `unit (X)` | yes | `SiteUrl::normalize()` behaves as documented when `idn_to_ascii()` is unavailable |
 | Documents agree with the repository | `phpunit.yml` / `unit (X)` (`ConsistencyCheckTest`, runs `bin/check-consistency.php`) | yes | The counted overview of [TODO.md](TODO.md) matches its task lines; the job and cell numbers in this file and in TODO.md match `.github/workflows`; every `.po` file has exactly the texts of `languages/wp-license.pot`, all translated, and the template carries the plugin version |
-| Integration tests | `phpunit.yml` / `integration (…)` (9 cells: WooCommerce 8.9.3, 9.4.3 and 11.2.2, each with HPOS and legacy orders, plus a second HPOS cell for 11.2.2 and one multisite cell, all on PHP 8.5 with MySQL 9.7 or MariaDB 12.3, plus one experimental cell on PHP 8.6), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
+| Integration tests | `phpunit.yml` / `integration (…)` (6 cells: the declared minimums WordPress 7.0 + WooCommerce 11.2.2 and the latest WordPress + WooCommerce 11.3.0, each pair with HPOS and legacy orders and on both MySQL 9.7 and MariaDB 12.3, plus one multisite cell, all on PHP 8.5 with MySQL 9.7 or MariaDB 12.3, plus one experimental cell on PHP 8.6), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
 | PHPCS security + compatibility | `quality.yml` / `phpcs` | yes (new findings) | Escaping, nonces, input sanitization, prepared SQL, PHP 8.5 compatibility |
 | PHPCS coding standard | `quality.yml` / `phpcs` | no (report only) | WordPress-Extra and WordPress-Docs style |
 | PHPStan level 5 | `quality.yml` / `phpstan` | yes (new errors) | Undefined methods/variables, wrong argument counts and types in `src/` and `wp-license.php` |
@@ -22,7 +22,7 @@ No `composer.lock` is committed: the dependencies are development tools only and
 
 `wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (8.5)`, `phpcs`, `phpstan`, `zip`, `e2e (…)`) as required checks.
 
-A pull request or a push to `main` starts 16 jobs: 2 unit, 9 integration cells, `wordpress-integration`, `phpcs`, `phpstan`, `zip` and `e2e`. The browser pass of [BROWSER-ACCEPTANCE.md](BROWSER-ACCEPTANCE.md) is not one of them; it runs locally only.
+A pull request or a push to `main` starts 13 jobs: 2 unit, 6 integration cells, `wordpress-integration`, `phpcs`, `phpstan`, `zip` and `e2e`. The browser pass of [BROWSER-ACCEPTANCE.md](BROWSER-ACCEPTANCE.md) is not one of them; it runs locally only.
 
 **PHP and database minimums (MINVER-1, owner decision of 16 Nov 2026).** Every blocking job runs PHP 8.5, the declared minimum (`Requires PHP`, `Requirements::MIN_PHP`); the integration cells and the E2E run use the minimum database servers MySQL 9.7 (LTS, Docker image `mysql:9.7`) and MariaDB 12.3 (LTS, `mariadb:12.3`). `unit (8.6, experimental)` and the integration cell on PHP 8.6 run the nightly build of `shivammathur/setup-php` with `continue-on-error`, so they are shown but never fail the run or `wordpress-integration`; once PHP 8.6 is released (19 Nov 2026) and setup-php lists it as stable, make them ordinary cells. The development environment has PHP 8.3 only: the test bootstraps define the test-only constant `WPLC_TESTS_IGNORE_PHP_MINIMUM` so the suites still run there, and these jobs are the only place where the code runs on 8.5. Before MINVER-1 the newest PHP version ran as extra cells (INH-03). Their first run (16 Nov 2026) found a real difference: `mb_strtolower()` of PHP 8.5 knows the case pair U+A7DC/U+019B of Unicode 16, so the host normalization without intl accepted a capital letter that intl rejected; `SiteUrl::fallback_to_ascii()` now checks the input before lower-casing (`SiteUrlNormalizationTest::test_idn_fallback_rejects_capitals_whose_lower_case_lies_in_an_accepted_block`).
 
@@ -66,7 +66,7 @@ WPLC_TEST_HPOS=1 composer test:integration   # High-Performance Order Storage (d
 WPLC_TEST_HPOS=0 composer test:integration   # legacy post-based orders
 ```
 
-The first line of output states what is actually running, for example `WordPress 6.5.5, WooCommerce 9.4.3, order storage: HPOS, PHP 8.5.0`. `00EnvironmentIntegrationTest.php` fails when the order storage (and in CI the WooCommerce version) is not the requested one.
+The first line of output states what is actually running, for example `WordPress 7.0.8, WooCommerce 11.2.2, order storage: HPOS, PHP 8.5.0`. `00EnvironmentIntegrationTest.php` fails when the order storage (and in CI the WooCommerce version) is not the requested one.
 
 Environment variables:
 

@@ -34,6 +34,39 @@ final class RequirementsTest extends TestCase {
 		$header = (string) file_get_contents( dirname( __DIR__, 2 ) . '/wp-license.php' );
 		$this->assertSame( 1, preg_match( '/^ \* WC requires at least: ([0-9.]+)$/m', $header, $match ) );
 		$this->assertSame( 0, version_compare( $match[1] . '.0', Requirements::MIN_WC ) );
+		$this->assertSame( 1, preg_match( '/^ \* Requires at least: ([0-9.]+)$/m', $header, $wp ) );
+		$this->assertSame( Requirements::MIN_WP, $wp[1] );
+	}
+
+	/**
+	 * Owner decision of 17 Nov 2026: WordPress 7.0 and WooCommerce 11.2 for every Captain plugin.
+	 */
+	public function test_minimums_follow_the_owner_decision_of_17_nov_2026(): void {
+		$this->assertSame( '7.0', Requirements::MIN_WP );
+		$this->assertSame( '11.2.0', Requirements::MIN_WC );
+	}
+
+	public function test_wordpress_version_check(): void {
+		$had      = array_key_exists( 'wp_version', $GLOBALS );
+		$previous = $had ? $GLOBALS['wp_version'] : null;
+		try {
+			$GLOBALS['wp_version'] = '6.9.1';
+			$this->assertFalse( Requirements::wordpress_is_supported() );
+			$GLOBALS['wp_version'] = '7.0';
+			$this->assertTrue( Requirements::wordpress_is_supported() );
+			$GLOBALS['wp_version'] = '7.1.4';
+			$this->assertTrue( Requirements::wordpress_is_supported() );
+			$GLOBALS['wp_version'] = '7.0-RC1-61234';
+			$this->assertTrue( Requirements::wordpress_is_supported() );
+			unset( $GLOBALS['wp_version'] );
+			$this->assertTrue( Requirements::wordpress_is_supported(), 'Outside WordPress the version is unknown and nothing is reported.' );
+		} finally {
+			if ( $had ) {
+				$GLOBALS['wp_version'] = $previous;
+			} else {
+				unset( $GLOBALS['wp_version'] );
+			}
+		}
 	}
 
 	/**

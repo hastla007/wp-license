@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Registers the opt-in as an "additional checkout field" (WooCommerce 8.9+)
+ * Registers the opt-in as an "additional checkout field" (WooCommerce 8.9+ API)
  * and turns its value into the same order meta the classic checkout writes,
  * so license issuing does not need to know which checkout was used.
  *
@@ -118,8 +118,8 @@ final class BlockCheckoutConsent {
 	/**
 	 * Whether the field is registered although it cannot be limited to carts with a license.
 	 *
-	 * B-114: WooCommerce 8.9 to 9.8 (and shops with more than MAX_RULE_PRODUCTS license
-	 * products) cannot hide an additional field, so it would stand in every cart. The shop
+	 * B-114: shops with more than MAX_RULE_PRODUCTS license products (and WooCommerce before
+	 * 9.9, which is below Requirements::MIN_WC) cannot hide an additional field, so it would stand in every cart. The shop
 	 * decides with the filter: the default keeps the opt-in (its value is ignored for orders
 	 * without a license); returning false offers no automatic renewal in the block checkout
 	 * on those versions.

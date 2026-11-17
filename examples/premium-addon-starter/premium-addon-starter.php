@@ -4,7 +4,7 @@
  * Plugin URI:        https://shop.example/
  * Description:       Premium features for Core Plugin. Needs the free Core Plugin; licensed and updated through the shop.
  * Version:           1.0.0
- * Requires at least: 6.5
+ * Requires at least: 7.0
  * Tested up to:      6.8
  * Requires PHP:      8.5
  * Requires Plugins:  core-plugin-slug

@@ -27,12 +27,13 @@ WP License Captain never installs updates of itself. Plan every update like a de
 
 The client library is versioned separately: a server update never requires new add-on releases (API v1 promise, chapter 6). When you want a newer library in an add-on, read `CHANGELOG-CLIENT.md` of the new client package for entries marked **Action**, export it again and ship an add-on release.
 
-## PHP and database requirements
+## PHP, WordPress, WooCommerce and database requirements
 
-Since the release after 0.2.0 the plugin requires **PHP 8.5** and supports **MySQL 9.7** and **MariaDB 12.3** or later; 0.2.0 required PHP 7.4.
+Since the release after 0.2.0 the plugin requires **PHP 8.5**, **WordPress 7.0** and **WooCommerce 11.2**, and supports **MySQL 9.7** and **MariaDB 12.3** or later; 0.2.0 required PHP 7.4, WordPress 6.5 and WooCommerce 8.9.
 
 - Check before the update: **Tools → Site Health → Info → Server** shows the PHP version and the database server. Ask your host to switch the site to PHP 8.5 first, on staging as well.
 - WordPress refuses to install or activate a ZIP whose `Requires PHP` is higher than the running PHP. If PHP is lowered later, the plugin shows the notice "WP License Captain requires PHP 8.5 or later; this site runs PHP …" and loads nothing else: no API, no renewals, no customer pages, until PHP is updated again. The data stays untouched.
+- Update WordPress to 7.0 and WooCommerce to 11.2 or later first. WordPress refuses to install or activate a ZIP whose `Requires at least` is higher than the running WordPress, and the plugin refuses activation below WooCommerce 11.2. On an already active copy an older WordPress or WooCommerce shows an admin notice and a warning in the diagnostics rows "WordPress" and "WooCommerce"; licenses, the API and renewals keep working, but below WooCommerce 11.2 the block checkout offers no automatic-renewal opt-in.
 - An older database server is not blocked: activation, the API and renewals keep working. Site Health (test "WP License Captain: PHP and database versions") and the diagnostics rows "PHP" and "Database" show each version with its minimum and a warning for an older server.
 
 ## Database migrations

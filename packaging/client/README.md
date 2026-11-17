@@ -1,6 +1,6 @@
 # License client library {{VERSION}}
 
-The PHP library a premium WordPress add-on embeds to talk to a WP License Captain server: activation with a license key, signed entitlement checks with an offline window, the feature gate, notices and a license screen, premium updates through the WordPress updater, and uninstall. It needs WordPress 6.0+, PHP 8.5+ (since 2.2.0; 2.1.x ran on PHP 7.4) and, for the signature check, the PHP sodium extension or the `sodium_compat` that WordPress ships.
+The PHP library a premium WordPress add-on embeds to talk to a WP License Captain server: activation with a license key, signed entitlement checks with an offline window, the feature gate, notices and a license screen, premium updates through the WordPress updater, and uninstall. It needs WordPress 7.0+ and PHP 8.5+ (both since 2.2.0; 2.1.x ran on WordPress 6.0 and PHP 7.4) and, for the signature check, the PHP sodium extension or the `sodium_compat` that WordPress ships.
 
 There is no separate client plugin: every add-on carries its own copy of this library.
 

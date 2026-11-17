@@ -1,7 +1,7 @@
 === WP License Captain ===
 Contributors: hastla007
 Tags: woocommerce, license-manager, software-updates
-Requires at least: 6.5
+Requires at least: 7.0
 Requires PHP: 8.5
 Stable tag: 0.2.0
 License: GPLv2 or later
@@ -17,7 +17,7 @@ WP License Captain turns a WooCommerce shop into a license server for premium Wo
 
 **This version is not production-ready. Do not use it to sell licenses, charge renewals or distribute paid updates.**
 
-The code has unit tests for its pure logic, but it has not been accepted in a real shop: payment flows have not passed a gateway sandbox, the emails and scheduled jobs have only run in an automated test shop (WordPress with WooCommerce 11.2), not in a live one. WordPress 6.5, WooCommerce 8.9 and PHP 8.5 are the declared minimums, MySQL 9.7 and MariaDB 12.3 the supported database servers; the CI integration matrix runs WooCommerce 8.9.3, 9.4.3 and 11.2.2 on PHP 8.5 with MySQL 9.7 and MariaDB 12.3, WooCommerce versions in between have never been run. That is why this readme declares neither "Tested up to" nor a WooCommerce version range.
+The code has unit tests for its pure logic, but it has not been accepted in a real shop: payment flows have not passed a gateway sandbox, the emails and scheduled jobs have only run in an automated test shop (WordPress with WooCommerce 11.2), not in a live one. WordPress 7.0, WooCommerce 11.2 and PHP 8.5 are the declared minimums, MySQL 9.7 and MariaDB 12.3 the supported database servers; the CI integration matrix runs WordPress 7.0 with WooCommerce 11.2.2 and the latest WordPress with WooCommerce 11.3.0 on PHP 8.5 with MySQL 9.7 and MariaDB 12.3; other WooCommerce versions have never been run. That is why this readme declares neither "Tested up to" nor a WooCommerce version range.
 
 = What is implemented =
 
@@ -37,7 +37,7 @@ The code has unit tests for its pure logic, but it has not been accepted in a re
 
 * Automatic renewals are untested against a real payment provider, including card authentication (3-D Secure) recovery. PayPal renewals are deliberately not supported.
 * Renewal pricing and tax handling for renewal orders are not final.
-* The automatic-renewal opt-in exists in the classic checkout and, as an additional checkout field, in the block-based checkout (WooCommerce 8.9 or later). The block checkout has automated tests only; it was not tried in a browser.
+* The automatic-renewal opt-in exists in the classic checkout and, as an additional checkout field, in the block-based checkout. The block checkout has automated tests only; it was not tried in a browser.
 * The product editor fields are added to the classic product editor; the block-based product editor is not supported.
 * Secrets are configured with constants in `wp-config.php`; the settings page (WooCommerce → Licenses → Settings) covers package hosts, reminder days and the lead time of the renewal notice.
 * Product plugins need their own integration of the client (license screen, feature gates, updater).
@@ -46,10 +46,10 @@ The code has unit tests for its pure logic, but it has not been accepted in a re
 
 == Requirements ==
 
-* WordPress 6.5 or later
+* WordPress 7.0 or later
 * PHP 8.5 or later (below 8.5 the plugin shows a notice and does not load)
 * MySQL 9.7 or later or MariaDB 12.3 or later (an older database server gets a warning in Site Health and on the diagnostics page; nothing is blocked)
-* WooCommerce 8.9 or later, active (CI integration matrix: 8.9.3, 9.4.3 and 11.2.2)
+* WooCommerce 11.2 or later, active (CI integration matrix: 11.2.2 and 11.3.0)
 * HTTPS for the site, and a working WP-Cron (a system cron is recommended)
 
 == Installation ==

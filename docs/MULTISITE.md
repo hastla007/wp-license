@@ -74,4 +74,4 @@ Defects found and fixed during verification: network deactivation and uninstall 
 - With WooCommerce missing on the activating site, activation stops with an error; network activation therefore has to be started from a site where WooCommerce is active.
 - Network deactivation and uninstall walk all sites of the network in one request. On very large networks (thousands of sites) this can run into the PHP time limit; the cleanup is repeatable, so running it again (or `wp plugin uninstall` from WP-CLI) finishes it.
 - Deactivation does not remove pending Action Scheduler actions (only uninstall does), on a single site as on a network.
-- Not verified: subdomain networks, multiple networks in one installation, WordPress 6.5 on a network. Legacy order storage on a network passed locally but is not a CI cell.
+- Not verified: subdomain networks, multiple networks in one installation, WordPress 7.0 on a network. Legacy order storage on a network passed locally but is not a CI cell.

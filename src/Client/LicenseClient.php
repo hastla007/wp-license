@@ -17,7 +17,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 	 * Talks to a WP License Captain server on behalf of one premium add-on.
 	 *
 	 * Add-ons normally use the LicenseManager facade; this class is the layer
-	 * below it. It needs WordPress 6.5 and PHP 8.5 (since 2.2.0), nothing else.
+	 * below it. It needs WordPress 7.0 and PHP 8.5 (since 2.2.0), nothing else.
 	 *
 	 * Rules it enforces (docs/API-V1.md):
 	 * - only the bytes of a verified `payload` are trusted: HMAC with the

@@ -1,6 +1,6 @@
 # 6. Integrating the client library into your add-on
 
-Your premium add-on talks to the license server through the **client library**: a small PHP library for PHP 8.5+ (since client 2.2.0; 2.1.x ran on PHP 7.4) and WordPress 6.0+ that needs neither WooCommerce nor any other part of the server. It activates the license key, keeps the last signed answer as an offline snapshot, gates premium features, shows a license screen and notices, and installs updates through the WordPress updater.
+Your premium add-on talks to the license server through the **client library**: a small PHP library for PHP 8.5+ (since client 2.2.0; 2.1.x ran on PHP 7.4) and WordPress 7.0+ (since 2.2.0) that needs neither WooCommerce nor any other part of the server. It activates the license key, keeps the last signed answer as an offline snapshot, gates premium features, shows a license screen and notices, and installs updates through the WordPress updater.
 
 > **Where the client belongs.** If your product has a free core plugin (for example on WordPress.org), that core plugin contains no library, no entitlement check, no custom updater and no call to the license server. Only the paid add-on carries the client. An expired license only switches add-on features off; it never deletes or hides data the customer created and never changes what the core plugin does.
 
@@ -67,7 +67,7 @@ return array(
 /**
  * Plugin Name: Acme Reports Pro
  * Version: 1.0.0
- * Requires at least: 6.5
+ * Requires at least: 7.0
  * Requires PHP: 8.5
  * Text Domain: acme-reports-pro
  * Update URI: https://licenses.example.com/acme-reports-pro

@@ -52,8 +52,8 @@ Every status change is written to the audit log with user, time and reason.
 
 **Server**
 
-- WordPress 6.5 or later
-- WooCommerce 8.9 or later, active on the same site
+- WordPress 7.0 or later
+- WooCommerce 11.2 or later, active on the same site
 - PHP 8.5 or later with the extensions `openssl`, `sodium` (or the `sodium_compat` that WordPress ships) and `zip` (needed to inspect uploaded packages). Below PHP 8.5 the plugin shows an admin notice and does not load
 - MySQL 9.7 or later or MariaDB 12.3 or later (both LTS releases) with a single writable primary. An older database server is not blocked, but Site Health and the diagnostics page show a warning, because older servers are not tested. Activations, renewals and the signing key serialize on named locks (`GET_LOCK`); connection proxies that multiplex sessions and multi-writer clusters (Galera, Group Replication) are not supported
 - HTTPS on the standard port for the API and for package delivery
@@ -62,7 +62,7 @@ Every status change is written to the audit log with user, time and reason.
 
 **Customer sites (client library)**
 
-- WordPress 6.0 or later, PHP 8.5 or later (client library 2.2.0 and later; 2.1.x ran on PHP 7.4)
+- WordPress 7.0 or later, PHP 8.5 or later (client library 2.2.0 and later; 2.1.x ran on WordPress 6.0 and PHP 7.4)
 - The PHP sodium extension, or the `sodium_compat` that WordPress ships, for the signature check
 - Outgoing HTTPS to your license server
 

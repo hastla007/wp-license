@@ -1,6 +1,6 @@
 # Integrating a premium add-on with the license server
 
-This is the guide for the developer of a premium add-on. Everything the add-on needs is in `src/Client/` of this repository: a small library for PHP 8.5 and WordPress 6.5 (PHP 8.5 since client 2.2.0, MINVER-1; 2.1.x ran on PHP 7.4) that needs neither WooCommerce nor any other class of the license server. The server side of the contract is specified in [API-V1.md](API-V1.md) and [UPDATES.md](UPDATES.md).
+This is the guide for the developer of a premium add-on. Everything the add-on needs is in `src/Client/` of this repository: a small library for PHP 8.5 and WordPress 7.0 (PHP 8.5 since client 2.2.0, MINVER-1, WordPress 7.0 by the owner decision of 17 Nov 2026; 2.1.x ran on PHP 7.4 and WordPress 6.5) that needs neither WooCommerce nor any other class of the license server. The server side of the contract is specified in [API-V1.md](API-V1.md) and [UPDATES.md](UPDATES.md).
 
 > **Server and client are separate.** WP License Captain Server is a separately sold product for vendors who want to license their own software. A WordPress product can implement the client directly against the API in [API-V1.md](API-V1.md), or use the PHP library in `src/Client/`; a dedicated client plugin such as License Captain Client is also an option. The client library used in Captain Pro add-ons serves only our own license checks and does not include or replace the server product. (Stated by the owner on 15 Nov 2026 and not worked out yet: today only this plugin and the library in `src/Client/` exist; there is no "License Captain Client" plugin, and the questions about selling the server to other vendors are open, see R-21 in [TODO.md](TODO.md).)
 
@@ -93,7 +93,7 @@ return array(
 /**
  * Plugin Name: Voucher Captain Pro
  * Version: 1.0.0
- * Requires at least: 6.5
+ * Requires at least: 7.0
  * Requires PHP: 8.5
  * Text Domain: voucher-captain-pro
  * Update URI: https://licenses.example.com/voucher-captain-pro

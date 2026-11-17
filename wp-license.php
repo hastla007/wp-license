@@ -3,10 +3,10 @@
  * Plugin Name: WP License Captain
  * Description: License and update management for WP product plugins sold through WooCommerce.
  * Version: 0.2.0
- * Requires at least: 6.5
+ * Requires at least: 7.0
  * Requires PHP: 8.5
  * Requires Plugins: woocommerce
- * WC requires at least: 8.9
+ * WC requires at least: 11.2
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Update URI: https://github.com/hastla007/wp-license

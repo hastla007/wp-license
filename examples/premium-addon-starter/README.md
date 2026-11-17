@@ -6,7 +6,7 @@ It covers section "B. Premium-Add-on" (B1–B11) of the core plugins' TODO.md. E
 
 | Path | Purpose |
 | --- | --- |
-| `premium-addon-starter.php` | Plugin header (`Requires Plugins`, `Update URI`, `Requires PHP`), PHP guard, bootstrap |
+| `premium-addon-starter.php` | Plugin header (`Requires Plugins`, `Update URI`, `Requires at least`, `Requires PHP`), PHP guard, bootstrap |
 | `src/Config.php` | **Everything a product fills in**: product key, entitlement prefix, server URL, pinned server key(s), core plugin constant and minimum version |
 | `src/Plugin.php` | Wiring on `plugins_loaded`, core version check with admin notice and clean bail-out, daily WP-Cron job |
 | `src/Client/LicenseClient.php` | Vendored copy of the server's client (generated, never edited) |
@@ -34,12 +34,15 @@ It covers section "B. Premium-Add-on" (B1–B11) of the core plugins' TODO.md. E
 | `Config::CORE_VERSION_CONSTANT` | core version constant | `VCAP_VERSION` | `WPCAP_VERSION` | `WPAC_VERSION` |
 | `Config::CORE_MIN_VERSION` | lowest supported core version | the first core release with the add-on hooks (A4) | same | same |
 | `Requires PHP`, `Config::MIN_PHP` | PHP minimum = the core plugin's, at least 8.5 (the license client since 2.2.0) | **8.5** | **8.5** | **8.5** |
+| `Requires at least` | WordPress minimum, at least 7.0 (the license client since 2.2.0) | **7.0** | **7.0** | **7.0** |
 | `Config::PRODUCT_KEY` | product key in the server catalog = add-on folder = text domain | `voucher-captain-pro` | `pass-captain-pro` | `affiliate-captain-pro` |
 | `Config::ENTITLEMENT_PREFIX` | entitlement key prefix | `voucher.` | `pass.` | `affiliate.` |
 | `Config::SERVER_URL`, `Update URI` | HTTPS URL of the shop running WP License Captain | | | |
 | `Config::SERVER_PUBLIC_KEYS` | pinned Ed25519 key(s) of the server | output of `wp wplc signing-key --field=public_key` on the license server | | |
 
 Owner decision of 16 Nov 2026 for all Captain plugins (MINVER-1): the minimum is the newest PHP version, 8.5, and the vendored license client (2.2.0) needs it. The starter therefore declares `Requires PHP: 8.5`; keep `Requires PHP` and `Config::MIN_PHP` equal to the core plugin's minimum and never below 8.5.
+
+Owner decision of 17 Nov 2026, also for all Captain plugins, add-ons and connectors: WordPress 7.0 and WooCommerce 11.2 are the minimums. The starter declares `Requires at least: 7.0`; never lower it. An add-on that needs WooCommerce declares `WC requires at least: 11.2` or the core plugin's higher minimum.
 
 ### Product key (decided 14.11.2026)
 

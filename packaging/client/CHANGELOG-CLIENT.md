@@ -7,6 +7,7 @@ Every version works with every server that answers API v1 (see "Compatibility" i
 ## 2.2.0
 
 - **Action:** the library needs PHP 8.5 or later, the newest PHP release line (2.1.1 ran on PHP 7.4). Raise `Requires PHP` of the add-on to at least 8.5 before you ship it with this version. No change of behaviour or of the API; works with every server that answers API v1, as before.
+- **Action:** the library is supported on WordPress 7.0 or later (owner decision of 17 Nov 2026, uniform for all Captain plugins, add-ons and connectors). Raise `Requires at least` of the add-on to at least 7.0. The library does not check the WordPress version itself.
 
 ## 2.1.1
 

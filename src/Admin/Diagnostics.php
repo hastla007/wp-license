@@ -900,8 +900,29 @@ final class Diagnostics {
 		}
 		/* translators: 1: running PHP version, 2: minimum PHP version. */
 		$add( __( 'PHP', 'wp-license' ), sprintf( __( '%1$s (minimum %2$s)', 'wp-license' ), PHP_VERSION, Requirements::MIN_PHP ), $php_ok ? 'ok' : 'warning', $php_help );
-		$add( __( 'WordPress', 'wp-license' ), get_bloginfo( 'version' ) );
-		$add( __( 'WooCommerce', 'wp-license' ), defined( 'WC_VERSION' ) ? WC_VERSION : __( 'Unavailable', 'wp-license' ) );
+		// Owner decision of 17 Nov 2026: WordPress and WooCommerce against the declared minimums.
+		$wp_ok = Requirements::wordpress_is_supported();
+		$add(
+			__( 'WordPress', 'wp-license' ),
+			/* translators: 1: running version, 2: minimum version. */
+			sprintf( __( '%1$s (minimum %2$s)', 'wp-license' ), get_bloginfo( 'version' ), Requirements::MIN_WP ),
+			$wp_ok ? 'ok' : 'warning',
+			/* translators: %s: minimum WordPress version. */
+			$wp_ok ? '' : sprintf( __( 'WP License Captain requires WordPress %s or later.', 'wp-license' ), Requirements::MIN_WP )
+		);
+		if ( defined( 'WC_VERSION' ) ) {
+			$wc_ok = Requirements::woocommerce_is_supported();
+			$add(
+				__( 'WooCommerce', 'wp-license' ),
+				/* translators: 1: running version, 2: minimum version. */
+				sprintf( __( '%1$s (minimum %2$s)', 'wp-license' ), (string) WC_VERSION, Requirements::MIN_WC ),
+				$wc_ok ? 'ok' : 'warning',
+				/* translators: %s: minimum WooCommerce version. */
+				$wc_ok ? '' : sprintf( __( 'WP License Captain requires WooCommerce %s or later.', 'wp-license' ), Requirements::MIN_WC )
+			);
+		} else {
+			$add( __( 'WooCommerce', 'wp-license' ), __( 'Unavailable', 'wp-license' ) );
+		}
 		$database = Requirements::database_status();
 		if ( $database['known'] ) {
 			/* translators: 1: MySQL or MariaDB, 2: version of the database server, 3: minimum version. */

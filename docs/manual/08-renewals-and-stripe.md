@@ -22,7 +22,7 @@ A license runs for one billing period (month or year) and is renewed either **ma
 
 ### Consent and saved card
 
-- The classic checkout shows an unchecked opt-in checkbox when the cart contains a license product and a payment method that can renew is enabled. The block checkout offers the same opt-in as an additional checkout field (WooCommerce 8.9 or later; from WooCommerce 9.9 only for carts with a license product). The settings page warns when your checkout cannot offer the opt-in.
+- The classic checkout shows an unchecked opt-in checkbox when the cart contains a license product and a payment method that can renew is enabled. The block checkout offers the same opt-in as an additional checkout field (only for carts with a license product). The settings page warns when your checkout cannot offer the opt-in.
 - With consent, the Stripe gateway is asked to save the card. The license renews automatically only when the consent, a saved Stripe card (`pm_…`) of the order's customer and a Stripe customer ID exist; otherwise it is issued for one period without automatic renewal.
 - **Card only.** Automatic renewal exists for cards saved through the official WooCommerce Stripe gateway. PayPal, SEPA Direct Debit and every other method renew manually through the reminder email and the account. Do not advertise automatic PayPal renewals.
 - **Never another card.** When the saved card is gone, no other card of the customer is charged. The customer gets the email "Payment method missing" and can renew manually or opt in again.

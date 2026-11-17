@@ -24,7 +24,7 @@ Both use the same renewal row per license period (unique key `sha256("wplc:{lice
 - The classic checkout shows an unchecked checkbox when the cart contains a license product and an enabled payment method has a renewal adapter (`RecurringConsent::render_checkbox()`).
 - When it is ticked and the chosen gateway supports renewals, the order gets the meta `_wplc_recurring_consent_at` (UTC timestamp). If the gateway does not support renewals, only an order note is written and the license does not renew.
 - With consent, the Stripe gateway is asked to save the card (`wc_stripe_force_save_source`, `wc_stripe_force_save_payment_method`).
-- The block checkout offers the same opt-in as an additional checkout field (`BlockCheckoutConsent`, WooCommerce 8.9 or later). From WooCommerce 9.9 the field is shown only when the cart contains a license product. WooCommerce 8.9 to 9.8 cannot hide an additional field: there it stands in every cart, and its value is ignored for orders without a license; a shop that does not want that returns false from the filter `wplc_block_checkout_consent_without_rule` and then offers no automatic renewal in the block checkout on those versions. WooCommerce allows one label per field, so the wording cannot be split into a short label and a separate legal text; order confirmation and order emails print a short line of their own instead of the label. The settings page shows a warning when the checkout page uses the block checkout and no opt-in can be offered.
+- The block checkout offers the same opt-in as an additional checkout field (`BlockCheckoutConsent`). The field is shown only when the cart contains a license product (a visibility rule, WooCommerce 9.9 or later, so every supported version). With more than `BlockCheckoutConsent::MAX_RULE_PRODUCTS` license products no rule is attached: the field then stands in every cart, and its value is ignored for orders without a license; a shop that does not want that returns false from the filter `wplc_block_checkout_consent_without_rule` and then offers no automatic renewal in the block checkout in that case. WooCommerce allows one label per field, so the wording cannot be split into a short label and a separate legal text; order confirmation and order emails print a short line of their own instead of the label. The settings page shows a warning when the checkout page uses the block checkout and no opt-in can be offered.
 - A license purchase requires a customer account; guest checkout is switched off for carts with a license product.
 
 ### Saved token
@@ -552,7 +552,7 @@ Manual renewals bill the same stored amount and read it by the same flag (INH-01
 
 - A single writable MySQL primary: the locks use `GET_LOCK`.
 - Action Scheduler is used when available, otherwise WP-Cron. The schedule must actually run.
-- The opt-in is offered in the classic checkout and, from WooCommerce 8.9, in the block checkout as an additional checkout field (`BlockCheckoutConsent`). The block checkout is covered by integration tests through the Store API only, not in a browser (T-130).
+- The opt-in is offered in the classic checkout and in the block checkout as an additional checkout field (`BlockCheckoutConsent`). The block checkout is covered by integration tests through the Store API only, not in a browser (T-130).
 - Stripe webhooks are needed for disputes and for payments that settle later; see [STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md).
 
 ## Known gaps

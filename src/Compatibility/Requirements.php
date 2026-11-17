@@ -235,13 +235,22 @@ final class Requirements {
 	}
 
 	/**
-	 * Oldest supported WooCommerce: the Additional Checkout Fields API became
-	 * stable in 8.9.0 (`woocommerce_register_additional_checkout_field()`, one
-	 * order meta per field, `woocommerce_set_additional_field_value`). Everything
-	 * else the plugin calls is older (FeaturesUtil 7.1, `cart_checkout_blocks`
-	 * and HPOS declarations, Action Scheduler 3.6 with WooCommerce 7.9).
+	 * Oldest supported WordPress (owner decision of 17 Nov 2026, uniform for all of the
+	 * owner's plugins, add-ons and connectors). Keep in sync with `Requires at least` in
+	 * wp-license.php and readme.txt and with the CI matrix; RequirementsTest compares them.
+	 * WordPress itself refuses to activate the plugin below it; an already active copy shows
+	 * an admin notice (render_woocommerce_version_notice()).
 	 */
-	const MIN_WC = '8.9.0';
+	const MIN_WP = '7.0';
+
+	/**
+	 * Oldest supported WooCommerce (owner decision of 17 Nov 2026, uniform for all of the
+	 * owner's plugins, add-ons and connectors; `WC requires at least` in wp-license.php). Everything
+	 * the plugin calls is older: the Additional Checkout Fields API (stable since 8.9.0),
+	 * FeaturesUtil 7.1, `cart_checkout_blocks` and HPOS declarations, Action Scheduler 3.6
+	 * with WooCommerce 7.9.
+	 */
+	const MIN_WC = '11.2.0';
 
 	/**
 	 * Conditional visibility rules (`hidden` as JSON schema) for additional checkout fields.
@@ -316,6 +325,27 @@ final class Requirements {
 	}
 
 	/**
+	 * Running WordPress version, or an empty string when unknown.
+	 *
+	 * @return string
+	 */
+	public static function wordpress_version(): string {
+		global $wp_version;
+		return isset( $wp_version ) && is_string( $wp_version ) ? $wp_version : '';
+	}
+
+	/**
+	 * Whether the running WordPress meets the declared minimum. An unknown version counts
+	 * as supported: WordPress always sets it, so "unknown" only happens outside WordPress.
+	 *
+	 * @return bool
+	 */
+	public static function wordpress_is_supported(): bool {
+		$version = self::wordpress_version();
+		return '' === $version || self::version_at_least( $version, self::MIN_WP );
+	}
+
+	/**
 	 * Whether the block checkout can carry the auto-renewal opt-in.
 	 *
 	 * @return bool
@@ -334,12 +364,27 @@ final class Requirements {
 	}
 
 	/**
-	 * Tell administrators that WooCommerce is older than the supported minimum.
+	 * Tell administrators that WordPress or WooCommerce is older than the supported minimum.
 	 *
 	 * @return void
 	 */
 	public static function render_woocommerce_version_notice(): void {
-		if ( self::woocommerce_is_supported() || ! current_user_can( 'activate_plugins' ) ) {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+		if ( ! self::wordpress_is_supported() ) {
+			echo '<div class="notice notice-warning"><p>';
+			echo esc_html(
+				sprintf(
+					/* translators: 1: required WordPress version, 2: installed WordPress version. */
+					__( 'WP License Captain requires WordPress %1$s or later; version %2$s is installed. The plugin is not tested on this version. Please update WordPress.', 'wp-license' ),
+					self::MIN_WP,
+					self::wordpress_version()
+				)
+			);
+			echo '</p></div>';
+		}
+		if ( self::woocommerce_is_supported() ) {
 			return;
 		}
 
