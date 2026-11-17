@@ -398,7 +398,7 @@ final class LicenseLifecycle {
 		$license_id = absint( $order->get_meta( '_wplc_renewal_for_license', true ) );
 		$renewal_id = absint( $order->get_meta( '_wplc_renewal_id', true ) );
 		$refund     = wc_get_order( $refund_id );
-		if ( ! $license_id || ! $renewal_id || ! $refund || (int) $refund->get_parent_id() !== $order_id ) {
+		if ( ! $license_id || ! $renewal_id || ! $refund instanceof \WC_Order_Refund || (int) $refund->get_parent_id() !== $order_id ) {
 			return;
 		}
 		// The hook may fire more than once for one refund.
@@ -440,8 +440,8 @@ final class LicenseLifecycle {
 	 * the lines it touches (all licenses of the order for an amount-only
 	 * refund) and changes no term.
 	 *
-	 * @param \WC_Order $order Combined renewal order.
-	 * @param \WC_Order $refund Refund.
+	 * @param \WC_Order        $order Combined renewal order.
+	 * @param \WC_Order_Refund $refund Refund.
 	 * @return void
 	 */
 	private static function handle_partial_combined_refund( $order, $refund ): void {
@@ -450,8 +450,11 @@ final class LicenseLifecycle {
 		$touched  = array();
 		$rolled   = array();
 		foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
+			if ( ! $refund_item instanceof \WC_Order_Item_Product ) {
+				continue;
+			}
 			$source = $order->get_item( absint( $refund_item->get_meta( '_refunded_item_id', true ) ) );
-			if ( ! $source ) {
+			if ( ! $source instanceof \WC_Order_Item_Product ) {
 				continue;
 			}
 			$renewal_id = absint( $source->get_meta( \WPLC\Billing\RenewalOrder::ITEM_META_RENEWAL, true ) );

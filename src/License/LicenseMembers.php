@@ -83,7 +83,7 @@ final class LicenseMembers {
 	public static function register_hooks(): void {
 		// Every change of the owner (admin "Change owner" and accepted transfers) ends the sharing.
 		add_action( 'wplc/license_owner_changed', array( self::class, 'on_owner_changed' ), 5, 4 );
-		add_action( 'wplc_daily_lifecycle', array( self::class, 'delete_expired' ), 40 );
+		add_action( 'wplc_daily_lifecycle', array( self::class, 'run_daily' ), 40 );
 		// Before the user row is deleted: its email address is still readable.
 		add_action( 'delete_user', array( self::class, 'on_user_deleted' ), 10, 1 );
 		add_action( 'wpmu_delete_user', array( self::class, 'on_user_deleted' ), 10, 1 );
@@ -921,6 +921,15 @@ final class LicenseMembers {
 	 */
 	public static function on_user_deleted( $user_id ): void {
 		self::forget_user( (int) $user_id );
+	}
+
+	/**
+	 * Daily task: delete expired invitations. Action callbacks return nothing.
+	 *
+	 * @return void
+	 */
+	public static function run_daily(): void {
+		self::delete_expired();
 	}
 
 	/**

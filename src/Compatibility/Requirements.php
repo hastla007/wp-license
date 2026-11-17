@@ -121,7 +121,7 @@ final class Requirements {
 		return array(
 			'type'    => $mariadb ? 'mariadb' : 'mysql',
 			'name'    => $mariadb ? 'MariaDB' : 'MySQL',
-			'version' => $match[1] . '.' . $match[2] . '.' . ( isset( $match[3] ) && '' !== $match[3] ? $match[3] : '0' ),
+			'version' => $match[1] . '.' . $match[2] . '.' . ( $match[3] ?? '0' ),
 			'minimum' => $mariadb ? self::MIN_MARIADB : self::MIN_MYSQL,
 		);
 	}

@@ -254,7 +254,7 @@ final class CombinedRenewal {
 			}
 			$leader  = $group[0]['license'] ?? null;
 			$adapter = is_array( $leader ) ? Registry::get( (string) $leader['payment_gateway_id'] ) : null;
-			$token   = $adapter && is_array( $leader ) ? PaymentReference::resolve_token( $adapter, $leader ) : 0;
+			$token   = $adapter ? PaymentReference::resolve_token( $adapter, $leader ) : 0;
 			if ( ! $adapter || is_wp_error( $token ) || (int) $group[0]['renewal']['id'] !== (int) $renewal['id'] ) {
 				self::review_all( $group, ! $adapter ? 'renewal_gateway_unavailable' : 'renewal_payment_method_missing' );
 				return;

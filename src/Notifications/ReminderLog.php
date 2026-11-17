@@ -132,6 +132,11 @@ final class ReminderLog {
 	/**
 	 * Whether the table exists in the current database.
 	 *
+	 * Only a permanent table counts. MariaDB 11.2 and later also list the
+	 * temporary tables of the session in information_schema.tables (type
+	 * "TEMPORARY"); such a table disappears with the connection and must not
+	 * be taken for the installed table.
+	 *
 	 * @return bool
 	 */
 	private static function table_exists(): bool {
@@ -139,8 +144,9 @@ final class ReminderLog {
 
 		return 1 === (int) $wpdb->get_var(
 			$wpdb->prepare(
-				'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
-				self::table_name()
+				'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s AND table_type = %s',
+				self::table_name(),
+				'BASE TABLE'
 			)
 		);
 	}

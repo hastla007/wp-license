@@ -279,8 +279,8 @@ final class RenewalOrder {
 			if ( is_wp_error( $order ) ) {
 				return $order;
 			}
-			$order->update_meta_data( self::META_LICENSE, (int) $license['id'] );
-			$order->update_meta_data( self::META_RENEWAL, (int) $renewal['id'] );
+			$order->update_meta_data( self::META_LICENSE, (string) (int) $license['id'] );
+			$order->update_meta_data( self::META_RENEWAL, (string) (int) $renewal['id'] );
 			$order->update_meta_data( '_wplc_idempotency_key', (string) $renewal['idempotency_key'] );
 		}
 
@@ -1031,7 +1031,7 @@ final class RenewalOrder {
 			$sum   = 0;
 			foreach ( $items as $item ) {
 				$renewal_id = absint( $item->get_meta( self::ITEM_META_RENEWAL, true ) );
-				if ( ! isset( $links[ $renewal_id ] ) || isset( $seen[ $renewal_id ] ) ) {
+				if ( ! $item instanceof \WC_Order_Item_Product || ! isset( $links[ $renewal_id ] ) || isset( $seen[ $renewal_id ] ) ) {
 					return false;
 				}
 				$seen[ $renewal_id ] = true;
@@ -1048,6 +1048,9 @@ final class RenewalOrder {
 			return false;
 		}
 		$item = reset( $items );
+		if ( ! $item instanceof \WC_Order_Item_Product ) {
+			return false;
+		}
 		$total = function_exists( 'wc_format_decimal' ) ? (string) wc_format_decimal( $item->get_total() ) : (string) $item->get_total();
 
 		return Money::to_minor_units( $total, $decimals );
@@ -1204,8 +1207,8 @@ final class RenewalOrder {
 		foreach ( $group as $member ) {
 			$links[ (int) $member['renewal']['id'] ] = (int) $member['license']['id'];
 		}
-		$order->update_meta_data( self::META_LICENSE, (int) $leader['license']['id'] );
-		$order->update_meta_data( self::META_RENEWAL, (int) $leader['renewal']['id'] );
+		$order->update_meta_data( self::META_LICENSE, (string) (int) $leader['license']['id'] );
+		$order->update_meta_data( self::META_RENEWAL, (string) (int) $leader['renewal']['id'] );
 		$order->update_meta_data( self::META_COMBINED, $links );
 		$order->update_meta_data( '_wplc_idempotency_key', (string) $leader['renewal']['idempotency_key'] );
 		self::set_addresses( $order, $leader['license'] );
@@ -1231,15 +1234,15 @@ final class RenewalOrder {
 			}
 			$item->add_meta_data( __( 'License', 'wp-license' ), sprintf( '#%d %s', (int) $member['license']['id'], (string) ( $member['license']['key_prefix'] ?? '' ) ), true );
 			$item->add_meta_data( __( 'Service period (UTC)', 'wp-license' ), substr( (string) $member['renewal']['period_start'], 0, 10 ) . ' – ' . substr( (string) $member['renewal']['period_end'], 0, 10 ), true );
-			$item->add_meta_data( self::ITEM_META_RENEWAL, (int) $member['renewal']['id'], true );
-			$item->add_meta_data( self::ITEM_META_LICENSE, (int) $member['license']['id'], true );
+			$item->add_meta_data( self::ITEM_META_RENEWAL, (string) (int) $member['renewal']['id'], true );
+			$item->add_meta_data( self::ITEM_META_LICENSE, (string) (int) $member['license']['id'], true );
 			$item->save();
 		}
 		$order->calculate_totals();
 		$net_minor = self::line_net_minor( $order, $decimals );
 		$valid     = false !== $net_minor && $net_minor > 0;
 		foreach ( $order->get_items( 'line_item' ) as $item ) {
-			$minor = Money::to_minor_units( (string) wc_format_decimal( $item->get_total() ), $decimals );
+			$minor = $item instanceof \WC_Order_Item_Product ? Money::to_minor_units( (string) wc_format_decimal( $item->get_total() ), $decimals ) : false;
 			$valid = $valid && false !== $minor && $minor > 0;
 		}
 		if ( ! $valid || ! self::combined_gross_matches( $order, $lines ) ) {
@@ -1284,8 +1287,12 @@ final class RenewalOrder {
 			if ( true !== $price['includes_tax'] || ! isset( $items[ $index ] ) ) {
 				continue;
 			}
+			$item = $items[ $index ];
+			if ( ! $item instanceof \WC_Order_Item_Product ) {
+				return false;
+			}
 			$decimals = (int) $price['decimals'];
-			$gross    = Money::to_minor_units( (string) wc_format_decimal( (float) $items[ $index ]->get_total() + (float) $items[ $index ]->get_total_tax(), $decimals ), $decimals );
+			$gross    = Money::to_minor_units( (string) wc_format_decimal( (float) $item->get_total() + (float) $item->get_total_tax(), $decimals ), $decimals );
 			if ( false !== $gross && abs( $gross - (int) $price['amount_minor'] ) > 1 ) {
 				return false;
 			}

@@ -238,7 +238,7 @@ final class S3Storage {
 		 *
 		 * The client follows the redirect at once, so a few minutes suffice. Clamped to 1 s … 7 days.
 		 *
-		 * @param int $seconds Default 300.
+		 * @param int|string $seconds Default 300. A numeric string is accepted; any other value restores the default.
 		 */
 		$seconds = apply_filters( 'wplc_s3_presign_expires', self::DEFAULT_EXPIRES );
 
