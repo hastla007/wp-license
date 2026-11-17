@@ -8,6 +8,7 @@ Consolidation of all earlier development branches into one code base. Preview: c
 
 ### Changed (16 Nov 2026, evening: minimum versions, MINVER-1)
 
+- **WooCommerce 11.2.2 instead of 11.2.0 as the minimum** (11.2.0 carried order and payment data of an earlier Store API checkout into a later one in the same PHP process). **On MariaDB 11.6.2 and later the renewal transaction switches `innodb_snapshot_isolation` off for its connection**, so a row changed by another request between read and update no longer fails with error 1020 and rolls back the whole renewal; MySQL is not affected.
 - **WordPress 7.0 and WooCommerce 11.2 are the minimum versions** (owner decision of 17 Nov 2026, the same for all Captain plugins, add-ons and connectors; previously 6.5 and 8.9). Below WooCommerce 11.2 activation is refused and an active copy shows a notice; an older WordPress also gets a notice; the diagnostics rows show the minimums. CI runs WordPress 7.0 with WooCommerce 11.2.2 and the latest WordPress with WooCommerce 11.3.0. Client library 2.2.0 and the add-on starter require WordPress 7.0.
 - **Requires PHP 8.5 or later; supported database servers are MySQL 9.7 and MariaDB 12.3 or later** (owner decision of 16 Nov 2026 for all Captain plugins). Below PHP 8.5 the plugin shows a notice and does not load; an older database server only gets a warning in Site Health and on the diagnostics page. CI runs on PHP 8.5 with MySQL 9.7 and MariaDB 12.3, PHP 8.6 as an experimental cell. License client 2.2.0 and the add-on starter require PHP 8.5.
 

@@ -64,10 +64,33 @@ final class AfterCommit {
 	 * @return void
 	 */
 	public static function begin(): void {
+		self::relax_mariadb_snapshot_isolation();
 		if ( function_exists( 'wc_transaction_query' ) ) {
 			wc_transaction_query( 'start' );
 		}
 		self::$transaction = true;
+	}
+
+	/**
+	 * On MariaDB 11.6.2 and later, switch `innodb_snapshot_isolation` off for this connection before
+	 * a transaction. The plugin serialises concurrent changes with named locks and conditional
+	 * updates; with snapshot isolation on, a row another request changed after this transaction's
+	 * first read would make the next UPDATE fail with error 1020 and roll back the whole renewal.
+	 * MySQL is not affected. Runs once per request; a failure is ignored (older or managed servers).
+	 *
+	 * @return void
+	 */
+	public static function relax_mariadb_snapshot_isolation(): void {
+		global $wpdb;
+		static $done = false;
+
+		if ( $done || ! is_object( $wpdb ) || ! \WPLC\Compatibility\Requirements::mariadb_snapshot_isolation_applies() ) {
+			return;
+		}
+		$done        = true;
+		$suppressed  = $wpdb->suppress_errors( true );
+		$wpdb->query( 'SET SESSION innodb_snapshot_isolation = OFF' );
+		$wpdb->suppress_errors( $suppressed );
 	}
 
 	/**

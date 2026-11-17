@@ -33,17 +33,18 @@ final class RequirementsTest extends TestCase {
 	public function test_declared_minimum_matches_plugin_header(): void {
 		$header = (string) file_get_contents( dirname( __DIR__, 2 ) . '/wp-license.php' );
 		$this->assertSame( 1, preg_match( '/^ \* WC requires at least: ([0-9.]+)$/m', $header, $match ) );
-		$this->assertSame( 0, version_compare( $match[1] . '.0', Requirements::MIN_WC ) );
+		$declared = 2 === substr_count( $match[1], '.' ) ? $match[1] : $match[1] . '.0';
+		$this->assertSame( 0, version_compare( $declared, Requirements::MIN_WC ) );
 		$this->assertSame( 1, preg_match( '/^ \* Requires at least: ([0-9.]+)$/m', $header, $wp ) );
 		$this->assertSame( Requirements::MIN_WP, $wp[1] );
 	}
 
 	/**
-	 * Owner decision of 17 Nov 2026: WordPress 7.0 and WooCommerce 11.2 for every Captain plugin.
+	 * Owner decision of 17 Nov 2026: WordPress 7.0 and WooCommerce 11.2 for every Captain plugin; 11.2.2 because 11.2.0 carried data of an earlier Store API checkout into a later one in the same PHP process.
 	 */
 	public function test_minimums_follow_the_owner_decision_of_17_nov_2026(): void {
 		$this->assertSame( '7.0', Requirements::MIN_WP );
-		$this->assertSame( '11.2.0', Requirements::MIN_WC );
+		$this->assertSame( '11.2.2', Requirements::MIN_WC );
 	}
 
 	public function test_wordpress_version_check(): void {
@@ -88,7 +89,7 @@ final class RequirementsTest extends TestCase {
 
 		$this->assertSame( 1, preg_match( '/^ \* Requires at least: ([0-9.]+)$/m', $header, $wp ) );
 		$this->assertSame( 1, preg_match( '/^ \* Requires PHP: ([0-9.]+)$/m', $header, $php ) );
-		$wc = implode( '.', array_slice( explode( '.', Requirements::MIN_WC ), 0, 2 ) );
+		$wc = (string) preg_replace( '/\.0$/', '', Requirements::MIN_WC );
 		$this->assertStringContainsString( "Requires at least: {$wp[1]}\n", $readme );
 		$this->assertStringContainsString( "Requires PHP: {$php[1]}\n", $readme );
 		foreach ( array( "WordPress {$wp[1]} or later", "PHP {$php[1]} or later", "WooCommerce {$wc} or later" ) as $line ) {
@@ -97,7 +98,8 @@ final class RequirementsTest extends TestCase {
 		}
 
 		// The integration matrix runs the declared minimums together.
-		$cell = '/\{ wp: "' . preg_quote( $wp[1], '/' ) . '", wc: "' . preg_quote( $wc, '/' ) . '\.[0-9]+", php: "' . preg_quote( $php[1], '/' ) . '"/';
+		$wc_cell = 2 === substr_count( $wc, '.' ) ? preg_quote( $wc, '/' ) : preg_quote( $wc, '/' ) . '\.[0-9]+';
+		$cell    = '/\{ wp: "' . preg_quote( $wp[1], '/' ) . '", wc: "' . $wc_cell . '", php: "' . preg_quote( $php[1], '/' ) . '"/';
 		$this->assertSame( 1, preg_match( $cell, $ci ), 'CI has no matrix cell for the declared minimums.' );
 
 		$this->assertSame( 1, preg_match( "/const VERSION = '([0-9]+)';/", $schema, $schema_version ) );
@@ -232,5 +234,14 @@ final class RequirementsTest extends TestCase {
 		$status = Requirements::database_status( 'unknown' );
 		$this->assertSame( array( false, true, '' ), array( $status['known'], $status['ok'], $status['message'] ) );
 		$this->assertNull( Requirements::parse_db_server( '' ) );
+	}
+
+	public function test_mariadb_snapshot_isolation_is_recognised_from_the_server_version(): void {
+		$this->assertTrue( Requirements::mariadb_snapshot_isolation_applies( '12.3.3-MariaDB-ubu2404' ) );
+		$this->assertTrue( Requirements::mariadb_snapshot_isolation_applies( '5.5.5-11.6.2-MariaDB' ) );
+		$this->assertFalse( Requirements::mariadb_snapshot_isolation_applies( '11.6.1-MariaDB' ) );
+		$this->assertFalse( Requirements::mariadb_snapshot_isolation_applies( '10.11.6-MariaDB' ) );
+		$this->assertFalse( Requirements::mariadb_snapshot_isolation_applies( '9.7.0' ), 'MySQL keeps the old behaviour.' );
+		$this->assertFalse( Requirements::mariadb_snapshot_isolation_applies( 'unknown' ) );
 	}
 }

@@ -127,6 +127,22 @@ final class Requirements {
 	}
 
 	/**
+	 * Whether the connected server is a MariaDB that refuses to change a row changed by another
+	 * transaction since this one's snapshot (`innodb_snapshot_isolation`, ON by default since
+	 * MariaDB 11.6.2). With it, a read and a later UPDATE or locking read of a row another request
+	 * changed in between fails with error 1020 and rolls the whole transaction back; MySQL keeps
+	 * the old behaviour.
+	 *
+	 * @param string|null $info Version string; null = the connected server.
+	 * @return bool
+	 */
+	public static function mariadb_snapshot_isolation_applies( ?string $info = null ): bool {
+		$server = self::parse_db_server( null === $info ? self::db_server_info() : $info );
+
+		return null !== $server && 'mariadb' === $server['type'] && version_compare( $server['version'], '11.6.2', '>=' );
+	}
+
+	/**
 	 * Judge the database server against the minimums. Never blocks anything.
 	 *
 	 * @param string|null $info Version string; null = the connected server.
@@ -248,9 +264,11 @@ final class Requirements {
 	 * owner's plugins, add-ons and connectors; `WC requires at least` in wp-license.php). Everything
 	 * the plugin calls is older: the Additional Checkout Fields API (stable since 8.9.0),
 	 * FeaturesUtil 7.1, `cart_checkout_blocks` and HPOS declarations, Action Scheduler 3.6
-	 * with WooCommerce 7.9.
+	 * with WooCommerce 7.9. The minimum is 11.2.2 (owner decision of 17 Nov 2026), not 11.2.0:
+	 * 11.2.0 carried order and payment data of an earlier Store API checkout into a later one in
+	 * the same PHP process.
 	 */
-	const MIN_WC = '11.2.0';
+	const MIN_WC = '11.2.2';
 
 	/**
 	 * Conditional visibility rules (`hidden` as JSON schema) for additional checkout fields.
