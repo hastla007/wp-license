@@ -143,6 +143,7 @@ final class MultisiteIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 0, strpos( $site_tables[0], $wpdb->get_blog_prefix( $site_id ) . 'wplc_' ) );
 		$this->assertNotSame( $main_tables, $site_tables );
 		$this->assertContains( $wpdb->get_blog_prefix( $site_id ) . 'wplc_reminder_log', $site_tables );
+		$this->assertContains( $wpdb->get_blog_prefix( $site_id ) . 'wplc_license_members', $site_tables, 'B-139: the co-user table is a site table.' );
 
 		// Creating a site runs no plugin code: no tables until the plugin loads there.
 		$this->assertSame( array(), $this->existing_tables( $site_tables ) );
@@ -239,6 +240,7 @@ final class MultisiteIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertNotFalse( has_filter( 'wpmu_drop_tables', array( Schema::class, 'filter_wpmu_drop_tables' ) ) );
 		$dropped = apply_filters( 'wpmu_drop_tables', $wpdb->tables( 'blog' ), $site_id );
 		$this->assertContains( $wpdb->get_blog_prefix( $site_id ) . 'wplc_reminder_log', $dropped );
+		$this->assertContains( $wpdb->get_blog_prefix( $site_id ) . 'wplc_license_members', $dropped );
 
 		$this->assertNotWPError( wp_delete_site( $site_id ) );
 

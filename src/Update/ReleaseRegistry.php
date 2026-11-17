@@ -516,7 +516,7 @@ final class ReleaseRegistry {
 	}
 
 	/**
-	 * Validate and normalize release input. Pure helper (no WordPress calls).
+	 * Validate and normalize release input. Pure helper (no WordPress calls; an s3:// location reads the WPLC_S3_* constants).
 	 *
 	 * @param array<string,mixed> $input Raw release fields.
 	 * @return array{errors:string[],data:array<string,string>}
@@ -552,7 +552,11 @@ final class ReleaseRegistry {
 		if ( ! in_array( $data['storage'], array( self::STORAGE_URL, self::STORAGE_LOCAL ), true ) ) {
 			$errors[] = 'invalid_storage';
 		} elseif ( self::STORAGE_URL === $data['storage'] ) {
-			if ( ! self::is_https_url( $data['package_url'] ) ) {
+			// T-31: "s3://bucket/key" of the configured bucket becomes its permanent object URL.
+			$data['package_url'] = S3Storage::normalize_package_url( $data['package_url'] );
+			if ( S3Storage::is_object_uri( $data['package_url'] ) ) {
+				$errors[] = 'object_storage_unavailable';
+			} elseif ( ! self::is_https_url( $data['package_url'] ) ) {
 				$errors[] = 'invalid_package_url';
 			}
 		} elseif ( ! LocalPackageStorage::is_valid_key( $data['package_url'] ) ) {
@@ -957,6 +961,9 @@ final class ReleaseRegistry {
 		if ( true === $published && is_array( $package ) && '' === $slug ) {
 			self::set_product_slug( (string) $release['product_key'], $package['slug'] );
 		}
+		if ( true === $published ) {
+			\WPLC\Events\LicenseEvents::release_published( $release );
+		}
 
 		return $published;
 	}
@@ -978,7 +985,12 @@ final class ReleaseRegistry {
 			return self::error( 'invalid_transition' );
 		}
 
-		return self::set_status( $release, self::STATUS_WITHDRAWN, 'release_withdrawn', self::normalize_reason( $reason ), $actor_user_id );
+		$withdrawn = self::set_status( $release, self::STATUS_WITHDRAWN, 'release_withdrawn', self::normalize_reason( $reason ), $actor_user_id );
+		if ( true === $withdrawn ) {
+			\WPLC\Events\LicenseEvents::release_withdrawn( $release );
+		}
+
+		return $withdrawn;
 	}
 
 	/**
@@ -1222,7 +1234,9 @@ final class ReleaseRegistry {
 	 * A grant only stores a URL. For a release of the registry this checks that
 	 * the release is still published (and, for local storage, that its file is
 	 * present). URLs that belong to no release, e.g. from a custom
-	 * `wplc_update_packages` filter, are not restricted here.
+	 * `wplc_update_packages` filter, are not restricted here. A URL that only
+	 * belongs to releases of another product is never delivered for this
+	 * license (PK-03).
 	 *
 	 * @param string $package_url URL stored in the grant.
 	 * @param string $product_key Product key of the license.
@@ -1242,20 +1256,26 @@ final class ReleaseRegistry {
 				&& null !== LocalPackageStorage::path_for_key( (string) $release['package_url'] );
 		}
 		$tables = Schema::table_names();
-		$statuses = $wpdb->get_col(
+		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names().
-				"SELECT status FROM {$tables['releases']} WHERE product_key = %s AND storage = %s AND package_url = %s",
-				$product_key,
+				"SELECT product_key, status FROM {$tables['releases']} WHERE storage = %s AND package_url = %s",
 				self::STORAGE_URL,
 				$package_url
-			)
+			),
+			ARRAY_A
 		);
-		if ( ! $statuses ) {
+		if ( ! is_array( $rows ) || ! $rows ) {
 			return true;
 		}
+		foreach ( $rows as $row ) {
+			if ( (string) $row['product_key'] === $product_key && self::STATUS_PUBLISHED === (string) $row['status'] ) {
+				return true;
+			}
+		}
 
-		return in_array( self::STATUS_PUBLISHED, $statuses, true );
+		// Withdrawn or a draft of this product, or a package of another product only.
+		return false;
 	}
 
 	/**
@@ -1321,7 +1341,7 @@ final class ReleaseRegistry {
 		if ( 'exposed' === $exposure ) {
 			$problems[] = array(
 				'code' => 'package_dir_exposed',
-				'message' => __( 'The package directory can be read over HTTP: this web server ignores the .htaccess protection (nginx). Packages are only protected by their random file name. Add a deny rule for the directory or move it outside the web root with the wplc_package_storage_dir filter (see docs/UPDATE-STORAGE.md).', 'wp-license' ),
+				'message' => __( 'The package directory can be read over HTTP: this web server ignores the .htaccess protection (nginx). Packages are only protected by their random file name. Add a deny rule for the directory or move it outside the web root with the wplc_package_storage_dir filter (see docs/manual/05-releases-and-updates.md).', 'wp-license' ),
 				'release_id' => 0,
 			);
 		}
@@ -1381,6 +1401,7 @@ final class ReleaseRegistry {
 			'invalid_channel' => __( 'The release channel is invalid.', 'wp-license' ),
 			'invalid_storage' => __( 'The package storage type is invalid.', 'wp-license' ),
 			'invalid_package_url' => __( 'The package URL must be a valid HTTPS URL without credentials.', 'wp-license' ),
+			'object_storage_unavailable' => __( 'An s3:// package location needs configured object storage (WPLC_S3_* constants), the bucket named in WPLC_S3_BUCKET and a valid object key.', 'wp-license' ),
 			'invalid_package_key' => __( 'The stored package file reference is invalid.', 'wp-license' ),
 			'invalid_sha256' => __( 'The SHA-256 checksum must consist of exactly 64 hexadecimal characters.', 'wp-license' ),
 			'invalid_requires_php' => __( 'The required PHP version is invalid.', 'wp-license' ),
@@ -1454,7 +1475,8 @@ final class ReleaseRegistry {
 				sprintf(
 					/* translators: %s: error message of the download. */
 					__( 'The package could not be downloaded from its URL to verify it: %s', 'wp-license' ),
-					$file->get_error_message()
+					// A signed URL is a working download link for a few minutes: never repeat it.
+					str_replace( $url, (string) wp_parse_url( $url, PHP_URL_HOST ), $file->get_error_message() )
 				)
 			);
 		}

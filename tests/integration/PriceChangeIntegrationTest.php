@@ -396,7 +396,15 @@ final class PriceChangeIntegrationTest extends WPLC_Renewal_TestCase {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'customer' ) ) );
 		$this->assertSame( 'die', $this->run_admin_post( 'wplc_admin_price_change_withdraw', $withdraw + array( '_wpnonce' => wp_create_nonce( 'wplc_admin_price_change_withdraw_' . $a['license_id'] ) ) )['outcome'] );
 		$this->assertNotNull( PriceChange::pending( $this->license( $a['license_id'] ) ) );
+		// T-94: a shop manager does support but may not change prices.
+		$manager = self::factory()->user->create( array( 'role' => 'shop_manager' ) );
+		wp_set_current_user( $manager );
+		$this->assertTrue( current_user_can( 'wplc_manage_licenses' ) );
+		$this->assertFalse( current_user_can( 'wplc_change_prices' ) );
+		$this->assertSame( 'die', $this->run_admin_post( 'wplc_admin_price_change_withdraw', $withdraw + array( '_wpnonce' => wp_create_nonce( 'wplc_admin_price_change_withdraw_' . $a['license_id'] ) ) )['outcome'] );
+		$this->assertNotNull( PriceChange::pending( $this->license( $a['license_id'] ) ) );
 		wp_set_current_user( $admin );
+		$this->assertTrue( current_user_can( 'wplc_manage_licenses' ), 'The administrator can also do support.' );
 		$result = $this->run_admin_post( 'wplc_admin_price_change_withdraw', $withdraw + array( '_wpnonce' => wp_create_nonce( 'wplc_admin_price_change_withdraw_' . $a['license_id'] ) ) );
 		$this->assertStringContainsString( 'price_change_withdrawn', $result['location'] );
 		$this->assertNull( PriceChange::pending( $this->license( $a['license_id'] ) ) );

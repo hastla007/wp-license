@@ -10,6 +10,7 @@
 use WPLC\Admin\Diagnostics;
 use WPLC\Admin\KeyConfigurationNotice;
 use WPLC\Admin\Settings;
+use WPLC\Compatibility\Requirements;
 use WPLC\Catalog\Catalog;
 use WPLC\Infrastructure\Database\Schema;
 
@@ -511,5 +512,40 @@ final class AdminDiagnosticsIntegrationTest extends WPLC_Integration_TestCase {
 		delete_transient( 'wplc_key_sample' );
 		KeyConfigurationNotice::sync_inbox_note();
 		$this->assertCount( 0, $store->get_notes_with_name( KeyConfigurationNotice::NOTE_NAME ) );
+	}
+
+	/**
+	 * MINVER-1: PHP and database server against the minimums, on the diagnostics page and in
+	 * Site Health; an older database server is a warning only.
+	 */
+	public function test_minver1_php_and_database_rows_and_site_health_test(): void {
+		wp_set_current_user( $this->manager );
+		$by = array();
+		foreach ( Diagnostics::rows() as $row ) {
+			$by[ $row['label'] ] = $row;
+		}
+		$this->assertStringStartsWith( PHP_VERSION . ' (minimum ' . Requirements::MIN_PHP . ')', $by['PHP']['value'] );
+		$this->assertSame( Requirements::php_meets_minimum() ? 'ok' : 'warning', $by['PHP']['state'] );
+
+		$database = Requirements::database_status();
+		$this->assertTrue( $database['known'], 'The test database reports its version: ' . Requirements::db_server_info() );
+		$this->assertSame( $database['name'] . ' ' . $database['version'] . ' (minimum ' . $database['minimum'] . ')', $by['Database']['value'] );
+		$this->assertSame( $database['ok'] ? 'ok' : 'warning', $by['Database']['state'] );
+		$this->assertSame( $database['message'], $by['Database']['help'] );
+		$this->assertSame( false !== stripos( Requirements::db_server_info(), 'mariadb' ) ? 'MariaDB' : 'MySQL', $database['name'] );
+
+		// Site Health: registered also without WooCommerce, direct test, never "critical".
+		$tests = apply_filters( 'site_status_tests', array( 'direct' => array(), 'async' => array() ) );
+		$this->assertArrayHasKey( 'wplc_runtime_versions', $tests['direct'] );
+		$result = call_user_func( $tests['direct']['wplc_runtime_versions']['test'] );
+		$this->assertSame( 'wplc_runtime_versions', $result['test'] );
+		$this->assertSame( Requirements::php_meets_minimum() && $database['ok'] ? 'good' : 'recommended', $result['status'] );
+		$this->assertStringContainsString( 'PHP ' . PHP_VERSION . ' (minimum ' . Requirements::MIN_PHP . ')', $result['description'] );
+
+		// An older server gets the warning text; nothing else changes.
+		$old = Requirements::database_status( '5.5.5-10.11.6-MariaDB' );
+		$this->assertFalse( $old['ok'] );
+		$this->assertStringContainsString( 'this site uses MariaDB 10.11.6', $old['message'] );
+		$this->assertStringContainsString( 'Nothing is blocked', $old['message'] );
 	}
 }

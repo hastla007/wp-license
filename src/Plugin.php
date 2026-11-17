@@ -125,8 +125,17 @@ final class Plugin {
 		// Activation runs after plugins_loaded, so on_plugins_loaded() has not loaded
 		// the translations yet; the messages below must not appear in English.
 		self::load_textdomain();
-		if ( version_compare( PHP_VERSION, '7.4', '<' ) ) {
-			wp_die( esc_html__( 'WP License Captain requires PHP 7.4 or later.', 'wp-license' ) );
+		// WordPress itself refuses the activation below `Requires PHP`; this is the second line of defence.
+		if ( ! Requirements::php_is_supported() ) {
+			wp_die(
+				esc_html(
+					sprintf(
+						/* translators: %s: minimum PHP version. */
+						__( 'WP License Captain requires PHP %s or later.', 'wp-license' ),
+						Requirements::MIN_PHP
+					)
+				)
+			);
 		}
 
 		if ( ! class_exists( '\\WooCommerce' ) ) {
@@ -368,6 +377,8 @@ final class Plugin {
 		\WPLC\Infrastructure\SelfUpdateCheck::register_hooks();
 		// E8b: own updates from the vendor's license server; off unless configured.
 		\WPLC\Infrastructure\SelfLicense::register_hooks();
+		// MINVER-1: PHP and database server against the minimums (warning only for the database).
+		Requirements::register_site_health();
 
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			add_action( 'admin_notices', array( self::class, 'render_woocommerce_notice' ) );
@@ -382,12 +393,15 @@ final class Plugin {
 		Schema::maybe_upgrade();
 		ReleaseRegistry::register_hooks();
 		PackageStream::register_hooks();
+		\WPLC\Update\S3Storage::register_hooks();
 		CustomerDownload::register_hooks();
 		ReleaseAdmin::register_hooks();
 		ProductEditor::register_hooks();
 		\WPLC\Catalog\TermDisplay::register_hooks();
 		LicenseIssuer::register_hooks();
 		LicenseLifecycle::register_hooks();
+		\WPLC\Events\AfterCommit::register_hooks();
+		\WPLC\License\LicenseMembers::register_hooks();
 		Routes::register_hooks();
 		CustomerPortal::register_hooks();
 		SiteOverview::register_hooks();

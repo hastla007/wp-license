@@ -9,11 +9,6 @@
             "$wpdb->prepare(": 1
         }
     },
-    "src/Admin/ReleaseAdmin.php": {
-        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": {
-            "'package_url' => isset( $_POST['package_url'] ) ? esc_url_raw( trim( (string) wp_unslash( $_POST['package_url'] ) ), array( 'https' ) ) : '',": 1
-        }
-    },
     "src/Api/V1/ActivationService.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
             "\"SELECT * FROM {$tables['licenses']} WHERE license_key_hash = %s LIMIT 1\",": 1,
@@ -83,7 +78,6 @@
     "src/Update/PackageStream.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": {
             "\"DELETE FROM {$tables['package_streams']} WHERE expires_at < %s\",": 1,
-            "\"SELECT s.release_id, s.source, s.consumed_at, l.status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end FROM {$tables['package_streams']} s INNER JOIN {$tables['licenses']} l ON l.id = s.license_id WHERE s.token_hash = %s AND ( ( s.consumed_at IS NULL AND s.expires_at > %s ) OR s.consumed_at > %s ) LIMIT 1\",": 2,
             "\"UPDATE {$tables['package_streams']} SET consumed_at = %s WHERE token_hash = %s AND consumed_at IS NULL AND expires_at > %s\",": 1
         }
     },

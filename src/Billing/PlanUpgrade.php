@@ -301,6 +301,10 @@ final class PlanUpgrade {
 					RenewalOrder::set_addresses( $order, $license );
 				}
 				$order->set_currency( $quote['currency'] );
+				if ( strtoupper( (string) $order->get_currency() ) !== strtoupper( (string) $quote['currency'] ) ) {
+					// B-189: the upgrade is billed in the license's currency or not at all.
+					return $unavailable;
+				}
 				if ( ! RenewalOrder::set_plain_line( $order, $target['product'], $quote['amount_minor'], $quote['decimals'] ) ) {
 					return $unavailable;
 				}
@@ -775,7 +779,8 @@ final class PlanUpgrade {
 	public static function render_account_section( array $license ): void {
 		$license_id = (int) $license['id'];
 		$running    = in_array( (string) $license['status'], array( 'active', 'past_due' ), true );
-		if ( ! $running ) {
+		// B-139: a co-user sees a shared license, but only its owner changes the plan.
+		if ( ! $running || (int) ( $license['customer_id'] ?? 0 ) !== get_current_user_id() ) {
 			return;
 		}
 		$pending = PlanChange::pending_target( $license );

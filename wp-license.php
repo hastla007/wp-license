@@ -3,10 +3,10 @@
  * Plugin Name: WP License Captain
  * Description: License and update management for WP product plugins sold through WooCommerce.
  * Version: 0.2.0
- * Requires at least: 6.5
- * Requires PHP: 7.4
+ * Requires at least: 7.0
+ * Requires PHP: 8.5
  * Requires Plugins: woocommerce
- * WC requires at least: 8.9
+ * WC requires at least: 11.2.2
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Update URI: https://github.com/hastla007/wp-license
@@ -23,6 +23,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'WPLC_VERSION', '0.2.0' );
 define( 'WPLC_FILE', __FILE__ );
 define( 'WPLC_PATH', plugin_dir_path( __FILE__ ) );
+// Version of the hook contract for other plugins in the shop (docs/LICENSE-EVENTS.md). Semantic versioning, independent of WPLC_VERSION.
+define( 'WPLC_CONTRACT_VERSION', '1.0.0' );
+
+// MINVER-1: below the PHP minimum (Requirements::MIN_PHP, `Requires PHP` above) the plugin shows a
+// notice and loads nothing else. Written for any PHP version, before any class of src/ is loaded.
+// WPLC_TESTS_IGNORE_PHP_MINIMUM is TEST-ONLY: the test bootstraps define it so the suites also run
+// on the older PHP of a development machine; never define it on a real site.
+if ( version_compare( PHP_VERSION, '8.5', '<' ) && ! ( defined( 'WPLC_TESTS_IGNORE_PHP_MINIMUM' ) && true === WPLC_TESTS_IGNORE_PHP_MINIMUM ) ) {
+	$wplc_php_notice = static function () {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+		load_plugin_textdomain( 'wp-license', false, dirname( plugin_basename( WPLC_FILE ) ) . '/languages' );
+		echo '<div class="notice notice-error"><p>' . esc_html(
+			sprintf(
+				/* translators: 1: minimum PHP version, 2: running PHP version. */
+				__( 'WP License Captain requires PHP %1$s or later; this site runs PHP %2$s. The plugin is not loaded until PHP is updated.', 'wp-license' ),
+				'8.5',
+				PHP_VERSION
+			)
+		) . '</p></div>';
+	};
+	add_action( 'admin_notices', $wplc_php_notice );
+	add_action( 'network_admin_notices', $wplc_php_notice );
+	unset( $wplc_php_notice );
+	return;
+}
 
 $wplc_autoloader = WPLC_PATH . 'vendor/autoload.php';
 if ( is_readable( $wplc_autoloader ) ) {

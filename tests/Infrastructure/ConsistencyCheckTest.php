@@ -112,14 +112,14 @@ final class ConsistencyCheckTest extends TestCase {
 		$this->assertGreaterThanOrEqual( 2, $jobs['integration'] );
 
 		$copy = $this->copy();
-		self::replace( $copy . '/.github/workflows/phpunit.yml', '        include:' . "\n", '        include:' . "\n" . '          - { wp: "9.9", wc: "9.9.9", php: "9.9", hpos: "1" }' . "\n" );
+		self::replace( $copy . '/.github/workflows/phpunit.yml', '        include:' . "\n" . '          # Declared minimums', '        include:' . "\n" . '          - { wp: "9.9", wc: "9.9.9", php: "9.9", hpos: "1" }' . "\n" . '          # Declared minimums' );
 		$problems = implode( "\n", wplc_consistency_check_ci( $copy ) );
 		$this->assertStringContainsString( 'docs/QUALITY-GATES.md: says ' . array_sum( $jobs ) . ' CI jobs; the workflows define ' . ( array_sum( $jobs ) + 1 ), $problems );
 		$this->assertStringContainsString( 'docs/TODO.md: says ' . $jobs['integration'] . ' integration cells; the workflows define ' . ( $jobs['integration'] + 1 ), $problems );
 		$this->assertStringContainsString( 'integration cells (table)', $problems );
 
 		$copy = $this->copy();
-		self::replace( $copy . '/.github/workflows/phpunit.yml', 'php: ["7.4", ', 'php: ["7.3", "7.4", ' );
+		self::replace( $copy . '/.github/workflows/phpunit.yml', 'php: ["8.5"]', 'php: ["8.4", "8.5"]' );
 		$problems = implode( "\n", wplc_consistency_check_ci( $copy ) );
 		$this->assertStringContainsString( 'unit jobs; the workflows define ' . ( $jobs['unit'] + 1 ), $problems );
 

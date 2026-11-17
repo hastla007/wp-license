@@ -103,6 +103,9 @@ final class RenewalTerms {
 			'includes_tax' => false,
 			'tax_label'    => '',
 		);
+		$result = self::in_display_currency( $result, $product );
+		$minor  = (int) $result['minor'];
+		$decimals = (int) $result['decimals'];
 		if ( ! is_object( $product ) || ! function_exists( 'wc_tax_enabled' ) || ! wc_tax_enabled() ) {
 			return $result;
 		}
@@ -119,6 +122,35 @@ final class RenewalTerms {
 		}
 		$result['includes_tax'] = $including;
 		$result['tax_label']    = trim( (string) ( $including ? WC()->countries->inc_tax_or_vat() : WC()->countries->ex_tax_or_vat() ) );
+
+		return $result;
+	}
+
+	/**
+	 * B-189: a plan amount for a cart shown in another currency than the shop currency.
+	 *
+	 * A multi-currency plugin converts the product price for the visitor. A
+	 * license bought that way renews in the order currency at the unit price of
+	 * its order line (LicenseIssuer::order_currency_price()), so the cart names
+	 * that price in that currency instead of the plan price in the shop currency.
+	 *
+	 * @param array<string,mixed> $result Plan amount in the shop currency.
+	 * @param mixed               $product Product as the cart holds it.
+	 * @return array<string,mixed>
+	 */
+	private static function in_display_currency( array $result, $product ): array {
+		$shown = function_exists( 'get_woocommerce_currency' ) ? strtoupper( (string) get_woocommerce_currency() ) : '';
+		if ( '' === $shown || \WPLC\Catalog\Catalog::base_currency() === $shown || ! is_object( $product ) || ! is_callable( array( $product, 'get_price' ) ) ) {
+			return $result;
+		}
+		$decimals = Money::currency_decimals( $shown );
+		$minor    = Money::to_minor_units( (string) wc_format_decimal( (string) $product->get_price(), $decimals ), $decimals );
+		if ( false === $minor || $minor <= 0 ) {
+			return $result;
+		}
+		$result['minor']    = (int) $minor;
+		$result['decimals'] = $decimals;
+		$result['currency'] = $shown;
 
 		return $result;
 	}

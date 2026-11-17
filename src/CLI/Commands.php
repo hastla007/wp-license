@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Registers the WP-CLI commands a support engineer needs to look at a license and to repeat a stuck step (A-74, B-172).
+ * Registers the WP-CLI commands a support engineer needs to look at a license and to repeat a stuck step.
  */
 final class Commands {
 
@@ -37,5 +37,6 @@ final class Commands {
 		\WP_CLI::add_command( 'wplc catalog', CatalogCommand::class );
 		\WP_CLI::add_command( 'wplc price-change', PriceChangeCommand::class );
 		\WP_CLI::add_command( 'wplc rekey-licenses', RekeyLicensesCommand::class );
+		\WP_CLI::add_command( 'wplc storage', StorageCommand::class );
 	}
 }

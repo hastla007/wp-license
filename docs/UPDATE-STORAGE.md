@@ -4,8 +4,8 @@ A release package is stored in one of two ways.
 
 | | `local` | `url` |
 | --- | --- | --- |
-| Where the ZIP lives | Private directory on the shop server | Any HTTPS host: S3, GCS, a download server |
-| How it is added | Upload on **WooCommerce → License releases**, or `wp wplc release create --zip=…` | Package URL + SHA-256, or manifest import |
+| Where the ZIP lives | Private directory on the shop server | A private S3-compatible bucket (built in), or any HTTPS host with your own resolver |
+| How it is added | Upload on **WooCommerce → License releases**, or `wp wplc release create --zip=…` | Package URL or `s3://bucket/key` + SHA-256, manifest import, or `wp wplc release create --object=…` |
 | Delivered by | Streaming route on the shop (PHP, or the web server via `X-Accel-Redirect`/`X-Sendfile`) | Redirect to the (pre-signed) URL |
 | Does the client learn a permanent address? | No | No: without a resolver that returns a pre-signed URL the release is not delivered at all (see below) |
 | Good for | Small catalogs, no extra infrastructure | Large files, many downloads, CDN |
@@ -94,39 +94,69 @@ add_filter( 'wplc_package_offload_header', function ( $header, $path ) {
 
 Only `X-Accel-Redirect`, `X-Sendfile` and `X-LiteSpeed-Location` are accepted. License and token checks still run in PHP before the header is sent. Test the setup with one download and compare the SHA-256: a wrong `alias` shows up as a 404 from the web server.
 
-## S3, GCS and other object storage
+## S3-compatible object storage (built in, T-31)
 
-Use `url` storage: implement `wplc_resolve_update_package_url` to return a pre-signed URL and add the bucket host under **License settings → Additional trusted package hosts** (or with the filter `wplc_update_package_hosts`). Register the release with the permanent object URL; the object itself stays private.
+Since T-31 the plugin signs links for one private bucket itself, in pure PHP (AWS Signature Version 4, query-string presigning; no SDK): `WPLC\Update\S3Presigner` (signing, pure) and `WPLC\Update\S3Storage` (configuration, resolver, check). It works with AWS S3, Cloudflare R2, MinIO, Backblaze B2 (S3 API) and Google Cloud Storage (XML API with HMAC keys).
+
+### Configuration (wp-config.php only)
+
+| Constant | Required | Default | Meaning |
+| --- | --- | --- | --- |
+| `WPLC_S3_BUCKET` | yes | | Bucket name. |
+| `WPLC_S3_ACCESS_KEY_ID` | yes | | Access key ID. |
+| `WPLC_S3_SECRET_ACCESS_KEY` | yes | | Secret access key. |
+| `WPLC_S3_REGION` | no | `us-east-1` | Signing region; `auto` for R2 and GCS. |
+| `WPLC_S3_ENDPOINT` | no | `https://s3.{region}.amazonaws.com` | HTTPS endpoint, port 443, no path. A bare host is accepted. |
+| `WPLC_S3_PATH_STYLE` | no | `false` | `https://endpoint/bucket/key` instead of `https://bucket.endpoint/key`. Always on for bucket names that are not one lower-case DNS label (dots, capitals, underscores). |
+
+- The credentials are read from the constants on each use and passed only to the signer. They are not stored in an option, not shown on any screen, not part of an audit entry, log line, REST answer or CLI output (`S3StorageIntegrationTest::assertSecretNowhere`). `S3Presigner::__debugInfo()` hides them from `var_dump`/`print_r`. There is deliberately no filter for them.
+- If only some of the three required constants are set, or a value is invalid, the storage counts as not configured; **License diagnostics** shows "Invalid configuration" with the reason. A configured storage shows "Bucket {bucket} on {endpoint host}" and nothing else.
+- The request host (`bucket.endpoint` or the endpoint) is added to `wplc_update_package_hosts` while the storage is configured.
+- Give the key read access to the release objects only (`s3:GetObject` on `bucket/*`). `wp wplc storage check` needs `s3:ListBucket` for the bucket check, or only `s3:GetObject` with `--key=<object>`.
+- Endpoints on another port (MinIO on `:9000`) are refused, like every package host that is not HTTPS on 443: put them behind a TLS reverse proxy.
+
+### Registering a release
+
+The admin form, manifests and `wp wplc release create --object=<s3://bucket/key | key> --sha256=…` accept `s3://<bucket>/<key>`. `ReleaseRegistry::validate()` turns it into the permanent object URL of the configured bucket, e.g. `s3://acme-releases/acme pro/1.0.zip` → `https://acme-releases.s3.eu-central-1.amazonaws.com/acme%20pro/1.0.zip`, and stores that (no schema change: storage stays `url`). The key is raw (not URL-decoded), 1 to 1024 bytes of UTF-8, without control characters and without `.` or `..` segments (HTTP clients would collapse them). Another bucket, an invalid key or a missing configuration is refused with `object_storage_unavailable`. A release can also be registered directly with the object URL.
+
+Changing the endpoint, the bucket or the addressing style later changes the request host: releases stored with the old object URL are then no longer recognized (and their host is no longer trusted). Publish new releases, or keep the old host trusted and register a resolver for it.
+
+### Delivery
+
+`S3Storage::resolve()` runs on `wplc_resolve_update_package_url` with priority 20, after custom resolvers on priority 10. It signs only a URL that is an unchanged object URL of the bucket: right host, right bucket prefix (path-style), HTTPS on 443, **no query**, no fragment, no credentials. A URL a custom resolver already signed carries a query and is passed on unchanged, so custom resolvers keep precedence; a resolver registered after priority 20 sees the signed URL.
+
+The result is a `GET` URL with `X-Amz-Algorithm`, `X-Amz-Credential` (access key ID and scope, public by design), `X-Amz-Date`, `X-Amz-Expires`, `X-Amz-SignedHeaders=host` and `X-Amz-Signature`, payload `UNSIGNED-PAYLOAD`. Validity: 300 s (`wplc_s3_presign_expires`, clamped to 1 s … 604800 s). The update download route (`UpdateService::download()`) and the customer-account download redirect to it after all license, installation and release checks; `HEAD` on the grant route is still answered by the shop without a redirect. Publishing a URL release fetches the object once through the same resolver (license ID 0) to verify it. The signed URL is never written to the audit log; a download error message repeats only the host.
+
+The shop's clock must be right: the storage refuses a link whose `X-Amz-Date` lies too far in the future, and a link expires `X-Amz-Expires` seconds after it.
+
+### Credential check
+
+`wp wplc storage check [--key=<key>]` prints endpoint host, bucket, region and addressing style and sends one signed `HEAD` (60 s validity, no redirects, 10 s timeout) to the bucket or the object. Answers: 2xx ok; 403 denied (key, secret, region, clock or permission); 404 bucket or object not found; 301/307/400 wrong region or endpoint, or path-style needed; transport error unreachable. Exit code 1 on failure. The signed URL and the secret are never printed.
+
+## Other object storage: your own resolver
+
+For storage that is not S3-compatible, or to sign links differently, use `url` storage with your own resolver: implement `wplc_resolve_update_package_url` to return a pre-signed URL and add the host under **License settings → Additional trusted package hosts** (or with the filter `wplc_update_package_hosts`). Register the release with the permanent URL; the object itself stays private.
 
 ```php
-// 1. Allow the bucket host. The host must match exactly; HTTPS and port 443 only.
+// 1. Allow the host. The host must match exactly; HTTPS and port 443 only.
 add_filter( 'wplc_update_package_hosts', function ( array $hosts ) {
-	$hosts[] = 'my-releases.s3.eu-central-1.amazonaws.com';
+	$hosts[] = 'downloads.example.com';
 	return $hosts;
 } );
 
-// 2. Replace the permanent URL with a short-lived pre-signed one.
+// 2. Replace the permanent URL with a short-lived signed one (priority below 20: before the built-in resolver).
 add_filter( 'wplc_resolve_update_package_url', function ( $url, $license_id ) {
-	if ( 'my-releases.s3.eu-central-1.amazonaws.com' !== wp_parse_url( $url, PHP_URL_HOST ) ) {
+	if ( 'downloads.example.com' !== wp_parse_url( $url, PHP_URL_HOST ) ) {
 		return $url; // Not ours, e.g. a local package.
 	}
-	$s3 = new Aws\S3\S3Client( array(
-		'version' => 'latest',
-		'region'  => 'eu-central-1',
-		// Credentials from the environment or instance role, never from the database.
-	) );
-	$command = $s3->getCommand( 'GetObject', array(
-		'Bucket' => 'my-releases',
-		'Key'    => ltrim( (string) wp_parse_url( $url, PHP_URL_PATH ), '/' ),
-	) );
-	return (string) $s3->createPresignedRequest( $command, '+5 minutes' )->getUri();
+	return my_sign_download_url( $url, 5 * MINUTE_IN_SECONDS ); // Credentials from the environment, never from the database.
 }, 10, 2 );
 
 // 3. Nothing to do: since A-32 the server never hands out the unchanged permanent URL,
 //    even if the resolver is missing one day (`wplc_require_package_resolver` defaults to true).
 ```
 
-For Google Cloud Storage, return `$bucket->object( $key )->signedUrl( new DateTime( '+5 minutes' ), array( 'version' => 'v4' ) )` and allow `storage.googleapis.com`.
+For Google Cloud Storage with its own SDK, return `$bucket->object( $key )->signedUrl( new DateTime( '+5 minutes' ), array( 'version' => 'v4' ) )` and allow `storage.googleapis.com` (or use the built-in storage with HMAC keys).
 
 ### Without a resolver a `url` release is not delivered
 
@@ -150,8 +180,8 @@ A withdrawn `url` release is no longer delivered: grants issued before the withd
 
 Package URLs that point to the shop's own old host are no longer on the allow-list after the shop moved to another domain; update checks for those products answer 503 `package_configuration_invalid`. The releases screen lists every published release with such a URL (`ReleaseRegistry::problems()`, code `untrusted_package_host`). Add the old host under **License settings → Additional trusted package hosts** while it still serves the files, or publish new releases. Uploaded (`local`) packages are not affected: their delivery URL is built from the current site address on every request.
 
-This plugin ships no AWS or Google SDK, credentials, bucket policy or retention rules; those belong to the deployment.
+This plugin ships no AWS or Google SDK. Credentials, bucket policy, retention rules and the upload of packages into the bucket belong to the deployment.
 
 ## Customer downloads
 
-The customer-account download (see [UPDATES.md](UPDATES.md)) uses the same storage: a stream link for `local`, and for `url` the same `wplc_resolve_update_package_url` resolver followed by the same HTTPS, host and resolver checks.
+The customer-account download (see [UPDATES.md](UPDATES.md)) uses the same storage: a stream link for `local`, and for `url` the same `wplc_resolve_update_package_url` resolvers (custom ones, then the built-in object storage) followed by the same HTTPS, host and resolver checks.

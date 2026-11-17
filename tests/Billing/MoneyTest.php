@@ -39,4 +39,11 @@ final class MoneyTest extends TestCase {
 		$this->assertFalse( Money::prorate( 100, 10, 0 ) );
 		$this->assertFalse( Money::prorate( PHP_INT_MAX, 3, 4 ) );
 	}
+
+	/** B-189: precision of an order currency WooCommerce does not know. */
+	public function test_currency_decimals_follow_iso_4217(): void {
+		$this->assertSame( 2, Money::currency_decimals( 'usd' ) );
+		$this->assertSame( 0, Money::currency_decimals( 'JPY' ) );
+		$this->assertSame( 3, Money::currency_decimals( 'KWD' ) );
+	}
 }

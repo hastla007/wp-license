@@ -44,6 +44,10 @@ final class Notifications {
 		'revoked' => 'LicenseRevokedEmail',
 		'price_change' => 'RenewalPriceChangeEmail',
 		'price_change_withdrawn' => 'RenewalPriceChangeWithdrawnEmail',
+		// Co-users and transfers by the customer (B-139).
+		'member_invitation' => 'MemberInvitationEmail',
+		'transfer_offer' => 'TransferOfferEmail',
+		'transferred' => 'LicenseTransferredEmail',
 	);
 
 	/**
@@ -241,11 +245,66 @@ final class Notifications {
 			if ( ! $license ) {
 				return;
 			}
+			$context = array();
+			if ( in_array( $email_key, array( 'renewed', 'payment_failed' ), true ) ) {
+				$combined = self::combined_renewal_licenses( $license, $email_key );
+				if ( false === $combined ) {
+					// B-191: another license of the same combined payment sends the one email.
+					return;
+				}
+				if ( '' !== $combined ) {
+					$context['other_licenses'] = $combined;
+				}
+			}
 			$period = ! empty( $license['paid_until'] ) ? (string) $license['paid_until'] : (string) $license['starts_at'];
-			self::send_once( $email_key, self::marker( $email_key ), $license, $period, array() );
+			self::send_once( $email_key, self::marker( $email_key ), $license, $period, $context );
 		} catch ( \Throwable $error ) {
 			self::log( 'error', 'License status email failed: ' . $error->getMessage(), (int) $license_id );
 		}
+	}
+
+	/**
+	 * B-191: one "renewed" or "payment failed" email for a combined renewal payment.
+	 *
+	 * Every license of a combined order changes its status on its own. The
+	 * email is sent once, with the booking of the last license of the order,
+	 * and names the other licenses the payment concerned.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param string              $email_key `renewed` or `payment_failed`.
+	 * @return string|false Empty string: no combined payment (normal email). False: not the last license, no email.
+	 *                      Otherwise the other licenses, readable.
+	 */
+	private static function combined_renewal_licenses( array $license, string $email_key ) {
+		global $wpdb;
+
+		$tables   = Schema::table_names();
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT renewal_order_id FROM {$tables['renewals']} WHERE license_id = %d AND renewal_order_id > 0 ORDER BY updated_at DESC, id DESC LIMIT 1", (int) $license['id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+		$order    = $order_id && function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+		if ( ! \WPLC\Billing\RenewalOrder::is_combined( $order ) ) {
+			return '';
+		}
+		$links = \WPLC\Billing\RenewalOrder::links( $order );
+		if ( ! in_array( (int) $license['id'], $links, true ) ) {
+			return '';
+		}
+		$outcome = 'renewed' === $email_key ? array( 'paid' ) : array( 'failed', 'manual_action_required' );
+		$others  = array();
+		foreach ( $links as $renewal_id => $license_id ) {
+			$status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$tables['renewals']} WHERE id = %d", (int) $renewal_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table_names(), values prepared.
+			if ( in_array( $status, array( 'scheduled', 'processing', \WPLC\Billing\RenewalProcessor::STATUS_RECONCILING ), true ) ) {
+				return false;
+			}
+			if ( (int) $license_id === (int) $license['id'] || ! in_array( $status, $outcome, true ) ) {
+				continue;
+			}
+			$other = self::get_license( (int) $license_id );
+			if ( $other ) {
+				$others[] = sprintf( '%s (%s)', self::product_name( (string) $other['product_key'] ), (string) $other['key_prefix'] );
+			}
+		}
+
+		return implode( ', ', $others );
 	}
 
 	/**
@@ -371,6 +430,29 @@ final class Notifications {
 			return $sent;
 		} catch ( \Throwable $error ) {
 			self::log( 'error', 'Price change withdrawal email failed: ' . $error->getMessage(), (int) ( $license['id'] ?? 0 ) );
+			return false;
+		}
+	}
+
+	/**
+	 * B-139: send a co-user or transfer email to an explicit address.
+	 *
+	 * Not retried: an invitation the mailer refused can be sent again by the owner
+	 * (withdraw and invite again). The failure is logged.
+	 *
+	 * @param string              $email_key member_invitation, transfer_offer or transferred.
+	 * @param array<string,mixed> $license   License row.
+	 * @param array<string,mixed> $context   `recipient` plus accept_url, expires_at, inviter, role, other_party.
+	 * @return bool True when the mailer accepted the message (or the email is switched off).
+	 */
+	public static function send_sharing_email( string $email_key, array $license, array $context ): bool {
+		if ( ! in_array( $email_key, array( 'member_invitation', 'transfer_offer', 'transferred' ), true ) ) {
+			return false;
+		}
+		try {
+			return self::deliver( $email_key, $license, $context );
+		} catch ( \Throwable $error ) {
+			self::log( 'error', 'The "' . $email_key . '" email failed: ' . $error->getMessage(), (int) ( $license['id'] ?? 0 ) );
 			return false;
 		}
 	}
@@ -952,10 +1034,14 @@ final class Notifications {
 			'account_url' => $account_url,
 			'pay_url' => self::pay_url( $license ),
 			'can_renew_now' => $renew_from > 0 && time() >= $renew_from ? '1' : '',
+			// PK-05: a product that is not for sale (project product) gets no "Renew now" in the reminder.
+			'sold_in_shop' => self::sold_in_shop( $license ) ? '1' : '',
 			'renew_from' => $renew_from > 0 ? self::format_date( $renew_from ) : '',
 			'cancelled_at' => ! empty( $context['cancelled_at'] ) ? self::format_date( (int) $context['cancelled_at'], true ) : '',
 			'status' => (string) ( $license['status'] ?? '' ),
 			'support_email' => self::support_email(),
+			// B-191: the other licenses a combined renewal payment concerned.
+			'other_licenses' => isset( $context['other_licenses'] ) ? (string) $context['other_licenses'] : '',
 		) + self::price_change_view( $license, $context );
 	}
 
@@ -1019,6 +1105,7 @@ final class Notifications {
 			'account_url' => function_exists( 'wc_get_account_endpoint_url' ) ? (string) wc_get_account_endpoint_url( 'wplc-licenses' ) : (string) home_url( '/' ),
 			'pay_url' => '',
 			'can_renew_now' => '1',
+			'sold_in_shop' => '1',
 			'renew_from' => self::format_date( $now ),
 			'cancelled_at' => self::format_date( $now, true ),
 			'status' => $status,
@@ -1218,11 +1305,33 @@ final class Notifications {
 			! $order instanceof \WC_Order
 			|| (int) $order->get_customer_id() !== (int) $license['customer_id']
 			|| ! $order->needs_payment()
+			// B-191: a declined combined order is closed; each license is paid on its own.
+			|| \WPLC\Billing\RenewalOrder::is_combined( $order )
 		) {
 			return '';
 		}
 
 		return (string) $order->get_checkout_payment_url();
+	}
+
+	/**
+	 * Whether the product of a license can be bought in the shop (PK-05).
+	 *
+	 * False only when the product the license was bought or issued as is known
+	 * and is not for sale (private, draft, password protected or not
+	 * purchasable), e.g. a project product licensed by hand. A license whose
+	 * product cannot be found keeps the normal wording.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return bool
+	 */
+	public static function sold_in_shop( array $license ): bool {
+		if ( ! function_exists( 'wc_get_product' ) ) {
+			return true;
+		}
+		$product = \WPLC\Billing\RenewalOrder::purchased_product( $license );
+
+		return ! $product || \WPLC\Catalog\Catalog::is_for_sale( $product );
 	}
 
 	/**

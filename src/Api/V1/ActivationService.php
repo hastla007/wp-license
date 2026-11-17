@@ -7,6 +7,8 @@
 
 namespace WPLC\Api\V1;
 
+use WPLC\Events\AfterCommit;
+use WPLC\Events\LicenseEvents;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\ActivationManager;
 use WPLC\License\AuditLog;
@@ -152,6 +154,8 @@ final class ActivationService {
 			return new \WP_Error( 'retry_later', 'The license is being updated. Retry shortly.', array( 'status' => 503, 'retry_after' => 5 ) );
 		}
 
+		// Site events raised under the activation lock fire after it is released.
+		AfterCommit::hold();
 		try {
 			return self::activate_locked(
 				$request,
@@ -166,6 +170,7 @@ final class ActivationService {
 			);
 		} finally {
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+			AfterCommit::release();
 		}
 	}
 
@@ -261,6 +266,7 @@ final class ActivationService {
 		// activate must keep the activation it has (B-168).
 		$limit = self::site_limit( $license_id, $license );
 		if ( 'production' === $environment && $counts['production'] >= $limit ) {
+			LicenseEvents::site_limit_reached( $license_id, 'production', $limit );
 			return new \WP_Error(
 				'site_limit',
 				'The license has no remaining live site activations.',
@@ -268,11 +274,13 @@ final class ActivationService {
 			);
 		}
 		if ( 'staging' === $environment && $counts['staging'] >= 1 ) {
+			LicenseEvents::site_limit_reached( $license_id, 'staging', 1 );
 			return new \WP_Error( 'staging_limit', 'This live site already has its included staging activation.', array( 'status' => 409 ) );
 		}
 		if ( 'development' === $environment ) {
 			$development_limit = self::development_site_limit( $license, $limit );
 			if ( $counts['development'] >= $development_limit ) {
+				LicenseEvents::site_limit_reached( $license_id, 'development', $development_limit );
 				return new \WP_Error(
 					'development_limit',
 					'The license has no remaining development site activations. Deactivate a development site that is no longer used.',
@@ -362,6 +370,7 @@ final class ActivationService {
 			null,
 			$after
 		);
+		LicenseEvents::activation_created( $license_id, $activation_id, $environment );
 
 		return self::signed_entitlement_response( $license_id, $activation_id, $installation_uuid, $secret );
 	}
@@ -497,6 +506,7 @@ final class ActivationService {
 			return new \WP_Error( 'retry_later', 'The license is being updated. Retry shortly.', array( 'status' => 503, 'retry_after' => 5 ) );
 		}
 
+		AfterCommit::hold();
 		try {
 			if ( ! ActivationManager::deactivate_while_locked( (int) $activation['id'], AuditReason::DEACTIVATED_BY_INSTALLATION ) ) {
 				return new \WP_Error( 'deactivation_failed', 'The installation could not be deactivated.', array( 'status' => 409 ) );
@@ -505,6 +515,7 @@ final class ActivationService {
 			return $confirmation;
 		} finally {
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+			AfterCommit::release();
 		}
 	}
 

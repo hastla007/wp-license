@@ -190,6 +190,56 @@ final class CatalogFileTest extends TestCase {
 		$this->assertNull( CatalogStore::get( 'acme-forms-lite' ) );
 	}
 
+	/** A connector of a customer project (PK-01): its own product key and prefix. */
+	private function connector( string $product_key, string $prefix, string $suffix = 'sync' ): array {
+		return array(
+			'format'       => 1,
+			'product_key'  => $product_key,
+			'prefix'       => $prefix,
+			'name'         => $product_key,
+			'entitlements' => array( array( 'key' => $prefix . '.' . $suffix, 'label' => 'Sync' ) ),
+		);
+	}
+
+	/**
+	 * PK-01: one prefix per connector; prefixes with an underscore live side by side, a prefix that
+	 * contains another one does not make a product key resolve to the other group.
+	 */
+	public function test_project_connectors_with_underscore_prefixes_live_side_by_side(): void {
+		// The form connector is uploaded before the voucher connector: nothing is offered for it yet.
+		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'learnboating-form-connector' ) );
+		$this->assertTrue( CatalogStore::import_json( $this->json( $this->connector( 'learnboating-connector', 'learnboating' ) ), CatalogStore::SOURCE_CLI )['ok'] );
+		$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( 'learnboating-form-connector' ), 'No substring match on "learnboating".' );
+
+		foreach ( array( 'learnboating-form-connector' => 'learnboating_form', 'boatingschool-form-connector' => 'boatingschool_form' ) as $product_key => $prefix ) {
+			$import = CatalogStore::import_json( $this->json( $this->connector( $product_key, $prefix ) ), CatalogStore::SOURCE_CLI );
+			$this->assertTrue( $import['ok'], (string) json_encode( $import['errors'] ) );
+			$this->assertSame( array( $prefix . '.sync' ), $import['added'] );
+		}
+		$this->assertSame(
+			array( 'learnboating-connector' => 'learnboating', 'learnboating-form-connector' => 'learnboating_form', 'boatingschool-form-connector' => 'boatingschool_form' ),
+			EntitlementCatalog::known_product_keys()
+		);
+		$this->assertSame( array( 'learnboating', 'learnboating_form', 'boatingschool_form' ), array_keys( EntitlementCatalog::all() ) );
+		$this->assertSame( array( 'learnboating.sync', 'learnboating_form.sync', 'boatingschool_form.sync' ), EntitlementCatalog::known_keys() );
+		foreach ( EntitlementCatalog::known_product_keys() as $product_key => $prefix ) {
+			$this->assertSame( array( $prefix ), EntitlementCatalog::groups_for_product_key( $product_key ), $product_key );
+		}
+		// No project right is offered for another product, a key of another vendor or an unknown key.
+		foreach ( array( 'voucher-captain-pro', 'learnboating', 'learnboating-form', 'boatingschool-connector', 'learnboating-form-connector-2' ) as $other ) {
+			$this->assertSame( array(), EntitlementCatalog::groups_for_product_key( $other ), $other );
+		}
+
+		// A second file with the prefix of the voucher connector is still refused.
+		$second = CatalogStore::import_json( $this->json( $this->connector( 'learnboating-voucher-connector', 'learnboating' ) ), CatalogStore::SOURCE_CLI );
+		$this->assertFalse( $second['ok'] );
+		$this->assertSame( 'prefix_in_use', $second['errors'][0]['code'] );
+		$this->assertNull( CatalogStore::get( 'learnboating-voucher-connector' ) );
+		// A file cannot define keys of the other prefix either: "learnboating_form.x" is not "learnboating.x".
+		$foreign = array_merge( $this->connector( 'learnboating-form-connector', 'learnboating_form' ), array( 'entitlements' => array( array( 'key' => 'learnboating.sync', 'label' => 'x' ) ) ) );
+		$this->assertSame( array( 'key_without_prefix' ), $this->codes( $foreign ) );
+	}
+
 	/**
 	 * The product editor of another vendor: nothing in the server code names this product.
 	 */

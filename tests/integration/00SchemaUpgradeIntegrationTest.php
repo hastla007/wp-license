@@ -102,6 +102,43 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( '2', \WPLC\Notifications\ReminderLog::VERSION );
 	}
 
+	// B-139: a populated database on schema 25 gets the co-user table with step 26 and keeps its data.
+	public function test_upgrade_from_schema_25_adds_the_license_members_table(): void {
+		global $wpdb;
+
+		$this->permanent_tables();
+		$tables = Schema::table_names();
+		$now    = gmdate( 'Y-m-d H:i:s' );
+		$wpdb->insert( $tables['products'], array( 'product_key' => 'schema26-product', 'display_name' => 'Schema 26', 'active' => 1, 'created_at' => $now, 'updated_at' => $now ) );
+		$wpdb->query( "DROP TABLE IF EXISTS {$tables['license_members']}" );
+		update_option( Schema::VERSION_OPTION, '25', true );
+		delete_option( Schema::VERIFIED_OPTION );
+		$this->assertFalse( $this->table_exists( $tables['license_members'] ) );
+		$this->assertContains( $tables['license_members'] . ': table is missing', Schema::verify(), 'wp wplc schema status reports the missing table.' );
+
+		$this->assertTrue( Schema::maybe_upgrade() );
+
+		$this->assertTrue( $this->table_exists( $tables['license_members'] ) );
+		$this->assertSame( '26', (string) get_option( Schema::VERSION_OPTION ) );
+		$this->assertSame( array(), Schema::verify() );
+		$indexes = array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s', $tables['license_members'] ) ) );
+		foreach ( array( 'PRIMARY', 'token_hash', 'license_member', 'user_status', 'email_status', 'status_expires', 'invited_by' ) as $index ) {
+			$this->assertContains( $index, $indexes );
+		}
+		$this->assertSame( 'Schema 26', (string) $wpdb->get_var( $wpdb->prepare( "SELECT display_name FROM {$tables['products']} WHERE product_key = %s", 'schema26-product' ) ) );
+		// Pending rows (user_id NULL) do not collide on the unique key; a second active row for the same user does.
+		$row = array( 'license_id' => 77, 'kind' => 'member', 'status' => 'pending', 'email' => 'a@example.test', 'invited_by' => 1, 'created_at' => $now );
+		$this->assertSame( 1, $wpdb->insert( $tables['license_members'], $row + array( 'token_hash' => str_repeat( 'a', 64 ) ) ) );
+		$this->assertSame( 1, $wpdb->insert( $tables['license_members'], $row + array( 'token_hash' => str_repeat( 'b', 64 ) ) ) );
+		$active = array( 'license_id' => 77, 'kind' => 'member', 'status' => 'active', 'user_id' => 5, 'email' => 'a@example.test', 'invited_by' => 1, 'created_at' => $now );
+		$this->assertSame( 1, $wpdb->insert( $tables['license_members'], $active ) );
+		$suppressed = $wpdb->suppress_errors( true );
+		$this->assertFalse( $wpdb->insert( $tables['license_members'], $active ) );
+		$wpdb->suppress_errors( $suppressed );
+		$wpdb->query( "DELETE FROM {$tables['license_members']} WHERE license_id = 77" );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['products']} WHERE product_key = %s", 'schema26-product' ) );
+	}
+
 	// B-12, A-106: a failed ALTER is not booked as done, is reported and is retried after a pause.
 	public function test_failed_alter_keeps_the_old_version_and_is_retried_later(): void {
 		$this->permanent_tables();

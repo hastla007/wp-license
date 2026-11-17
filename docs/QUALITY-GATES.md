@@ -2,29 +2,29 @@
 
 Every gate below runs in GitHub Actions on each pull request and on pushes to `main` (not on pushes to other branches, so a PR runs each job once). All commands work locally from the plugin root after `composer install`.
 
-No `composer.lock` is committed: the dependencies are development tools only and the unit job runs on four PHP versions. CI caches `vendor/` per PHP version and `composer.json` hash.
+No `composer.lock` is committed: the dependencies are development tools only and `composer.json` resolves them for the PHP minimum (`config.platform.php` 8.5, MINVER-1), so CI and a development machine with an older PHP get the same versions. CI caches `vendor/` per PHP version and `composer.json` hash.
 
 ## Overview
 
 | Gate | Workflow / job | Blocking | What it proves |
 |---|---|---|---|
 | Composer metadata | `phpunit.yml` / `unit (X)` | yes | `composer.json` is valid |
-| PHP syntax | `phpunit.yml` / `unit (X)` | yes | Every PHP file parses on PHP 7.4, 8.1, 8.2, 8.3 and 8.5 |
-| Unit tests | `phpunit.yml` / `unit (X)` | yes | Pure logic without WordPress, on PHP 7.4, 8.1, 8.2, 8.3 and 8.5 |
+| PHP syntax | `phpunit.yml` / `unit (X)` | yes | Every PHP file parses on PHP 8.5 (and on the PHP 8.6 nightly build, experimental) |
+| Unit tests | `phpunit.yml` / `unit (X)` | yes | Pure logic without WordPress, on PHP 8.5 (and on the PHP 8.6 nightly build, experimental) |
 | Site URL rules without intl | `phpunit.yml` / `unit (X)` | yes | `SiteUrl::normalize()` behaves as documented when `idn_to_ascii()` is unavailable |
 | Documents agree with the repository | `phpunit.yml` / `unit (X)` (`ConsistencyCheckTest`, runs `bin/check-consistency.php`) | yes | The counted overview of [TODO.md](TODO.md) matches its task lines; the job and cell numbers in this file and in TODO.md match `.github/workflows`; every `.po` file has exactly the texts of `languages/wp-license.pot`, all translated, and the template carries the plugin version |
-| Integration tests | `phpunit.yml` / `integration (…)` (8 cells: WooCommerce 8.9.3, 9.4.3 and 11.2.2, each with HPOS and legacy orders, plus one multisite cell and one cell on PHP 8.5), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
-| PHPCS security + compatibility | `quality.yml` / `phpcs` | yes (new findings) | Escaping, nonces, input sanitization, prepared SQL, PHP 7.4 compatibility |
+| Integration tests | `phpunit.yml` / `integration (…)` (6 cells: the declared minimums WordPress 7.0 + WooCommerce 11.2.2 and the latest WordPress + WooCommerce 11.3.0, each pair with HPOS and legacy orders and on both MySQL 9.7 and MariaDB 12.3, plus one multisite cell, all on PHP 8.5 with MySQL 9.7 or MariaDB 12.3, plus one experimental cell on PHP 8.6), summarized by `wordpress-integration` | yes | Behavior inside WordPress + WooCommerce with a real database, see matrix in [COMPATIBILITY.md](COMPATIBILITY.md) |
+| PHPCS security + compatibility | `quality.yml` / `phpcs` | yes (new findings) | Escaping, nonces, input sanitization, prepared SQL, PHP 8.5 compatibility |
 | PHPCS coding standard | `quality.yml` / `phpcs` | no (report only) | WordPress-Extra and WordPress-Docs style |
 | PHPStan level 5 | `quality.yml` / `phpstan` | yes (new errors) | Undefined methods/variables, wrong argument counts and types in `src/` and `wp-license.php` |
-| Plugin ZIP | `package.yml` / `zip` | yes | `bin/build-zip.sh` (the release build) on PHP 7.4: versions agree, ZIP contents, class map covers `src/` |
-| End-to-end run | `e2e.yml` / `e2e (WP latest, WC 11.2.2, PHP 8.3)` | yes | The 15 flows of `tests/e2e/` in a real WordPress + WooCommerce shop with MySQL 8.0, including concurrent requests ([tests/e2e/README.md](../tests/e2e/README.md)) |
+| Plugin ZIP | `package.yml` / `zip` | yes | `bin/build-zip.sh` (the release build) on PHP 8.5: versions agree, ZIP contents, class map covers `src/` |
+| End-to-end run | `e2e.yml` / `e2e (WP latest, WC 11.2.2, PHP 8.5)` | yes | The 15 flows of `tests/e2e/` in a real WordPress + WooCommerce shop with MySQL 9.7, including concurrent requests ([tests/e2e/README.md](../tests/e2e/README.md)) |
 
-`wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (7.4)` … `unit (8.3)`, `phpcs`, `phpstan`, `zip`, `e2e (…)`) as required checks.
+`wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (8.5)`, `phpcs`, `phpstan`, `zip`, `e2e (…)`) as required checks.
 
-A pull request or a push to `main` starts 18 jobs: 5 unit, 8 integration cells, `wordpress-integration`, `phpcs`, `phpstan`, `zip` and `e2e`. The browser pass of [BROWSER-ACCEPTANCE.md](BROWSER-ACCEPTANCE.md) is not one of them; it runs locally only.
+A pull request or a push to `main` starts 13 jobs: 2 unit, 6 integration cells, `wordpress-integration`, `phpcs`, `phpstan`, `zip` and `e2e`. The browser pass of [BROWSER-ACCEPTANCE.md](BROWSER-ACCEPTANCE.md) is not one of them; it runs locally only.
 
-**Newest PHP version (INH-03).** `unit (8.5)` and the integration cell on PHP 8.5 (latest WordPress, WooCommerce 11.2.2, HPOS) run the newest stable PHP version that `shivammathur/setup-php` offers. They are ordinary blocking jobs. Raise the version in `.github/workflows/phpunit.yml` when a newer PHP release becomes available on the runners. The development environment has PHP 8.3 only, so these jobs are the only place where the code runs on 8.5. Their first run (16 Nov 2026) found a real difference: `mb_strtolower()` of PHP 8.5 knows the case pair U+A7DC/U+019B of Unicode 16, so the host normalization without intl accepted a capital letter that intl rejected; `SiteUrl::fallback_to_ascii()` now checks the input before lower-casing (`SiteUrlNormalizationTest::test_idn_fallback_rejects_capitals_whose_lower_case_lies_in_an_accepted_block`).
+**PHP and database minimums (MINVER-1, owner decision of 16 Nov 2026).** Every blocking job runs PHP 8.5, the declared minimum (`Requires PHP`, `Requirements::MIN_PHP`); the integration cells and the E2E run use the minimum database servers MySQL 9.7 (LTS, Docker image `mysql:9.7`) and MariaDB 12.3 (LTS, `mariadb:12.3`). `unit (8.6, experimental)` and the integration cell on PHP 8.6 run the nightly build of `shivammathur/setup-php` with `continue-on-error`, so they are shown but never fail the run or `wordpress-integration`; once PHP 8.6 is released (19 Nov 2026) and setup-php lists it as stable, make them ordinary cells. The development environment has PHP 8.3 only: the test bootstraps define the test-only constant `WPLC_TESTS_IGNORE_PHP_MINIMUM` so the suites still run there, and these jobs are the only place where the code runs on 8.5. Before MINVER-1 the newest PHP version ran as extra cells (INH-03). Their first run (16 Nov 2026) found a real difference: `mb_strtolower()` of PHP 8.5 knows the case pair U+A7DC/U+019B of Unicode 16, so the host normalization without intl accepted a capital letter that intl rejected; `SiteUrl::fallback_to_ascii()` now checks the input before lower-casing (`SiteUrlNormalizationTest::test_idn_fallback_rejects_capitals_whose_lower_case_lies_in_an_accepted_block`).
 
 These numbers are checked: `php bin/check-consistency.php` fails when they differ from the workflow files. It cannot see a text that changed in the code after the last run of `bin/make-pot.sh`; regenerating the template before a release stays a manual step ([RELEASE-READINESS.md](RELEASE-READINESS.md)).
 
@@ -66,7 +66,7 @@ WPLC_TEST_HPOS=1 composer test:integration   # High-Performance Order Storage (d
 WPLC_TEST_HPOS=0 composer test:integration   # legacy post-based orders
 ```
 
-The first line of output states what is actually running, for example `WordPress 6.5.5, WooCommerce 9.4.3, order storage: HPOS, PHP 7.4.33`. `00EnvironmentIntegrationTest.php` fails when the order storage (and in CI the WooCommerce version) is not the requested one.
+The first line of output states what is actually running, for example `WordPress 7.0.8, WooCommerce 11.2.2, order storage: HPOS, PHP 8.5.0`. `00EnvironmentIntegrationTest.php` fails when the order storage (and in CI the WooCommerce version) is not the requested one.
 
 Environment variables:
 
@@ -111,11 +111,11 @@ composer phpcs             # full WordPress-Extra + WordPress-Docs report (advis
 vendor/bin/phpcs --standard=phpcs.blocking.xml   # the raw blocking findings, including baselined ones
 ```
 
-- `phpcs.blocking.xml`: `WordPress.Security.*`, `WordPress.DB.PreparedSQL`, `WordPress.DB.PreparedSQLPlaceholders` for the plugin code, and `PHPCompatibilityWP` with `testVersion 7.4-` for plugin code and tests.
+- `phpcs.blocking.xml`: `WordPress.Security.*`, `WordPress.DB.PreparedSQL`, `WordPress.DB.PreparedSQLPlaceholders` for the plugin code, and `PHPCompatibilityWP` with `testVersion 8.5-` for plugin code and tests.
 - `phpcs.xml.dist`: the full standard with text domain `wp-license` and prefixes `wplc`/`WPLC`. PSR-4 file names and the `wplc/...` hook names are allowed.
 - PHP_CodeSniffer has no baseline, so `bin/phpcs-blocking.php` compares the findings with `phpcs-baseline.json`, per file, sniff and source line (the reported line, trimmed, whitespace collapsed). A finding whose line text is not recorded fails the job, even when another finding of the same sniff in that file was removed; a reviewed line that only moved stays accepted. For a statement spread over several lines the recorded text is the line PHPCS reports (often just `$wpdb->prepare(`), so the check is only as precise as that line. A baseline in the former count format is still compared by count until it is rewritten. The baseline holds the findings that were reviewed and judged false positives (mostly `{$tables[…]}` table names from `Schema::table_names()` inside `$wpdb->prepare()` strings).
 - A new finding must be fixed or carry a justified `// phpcs:ignore <Sniff> -- reason` comment. After a review that removes findings, run `composer phpcs:baseline` and commit the smaller baseline. Never update the baseline to make a new finding disappear.
-- Limitation: PHPCompatibility 9.3 knows PHP up to 7.4. Newer syntax (`match`, `?->`, named arguments, …) is caught by the syntax gate on PHP 7.4; newer functions are caught only if a unit or integration test on PHP 7.4 executes them.
+- Limitation: PHPCompatibility 9.3 knows PHP up to 7.4, so with `testVersion 8.5-` it only reports what PHP removed up to then. Syntax newer than the minimum fails the syntax gate on PHP 8.5; functions newer than 8.5 are caught only if a unit or integration test on PHP 8.5 executes them.
 
 ## PHPStan
 

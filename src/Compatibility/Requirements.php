@@ -1,6 +1,6 @@
 <?php
 /**
- * Minimum versions of WooCommerce, Action Scheduler and the Stripe gateway.
+ * Minimum versions of PHP, the database server, WooCommerce, Action Scheduler and the Stripe gateway.
  *
  * @package WPLC
  */
@@ -20,30 +20,260 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Requirements {
 
 	/**
-	 * Oldest supported WooCommerce: the Additional Checkout Fields API became
-	 * stable in 8.9.0 (`woocommerce_register_additional_checkout_field()`, one
-	 * order meta per field, `woocommerce_set_additional_field_value`). Everything
-	 * else the plugin calls is older (FeaturesUtil 7.1, `cart_checkout_blocks`
-	 * and HPOS declarations, Action Scheduler 3.6 with WooCommerce 7.9).
+	 * Oldest supported PHP version (owner decision of 16 Nov 2026, MINVER-1: the newest
+	 * release line). Keep in sync with `Requires PHP` and the guard in wp-license.php,
+	 * readme.txt, composer.json (`require.php`, `config.platform.php`), the PHPCS
+	 * `testVersion` and the PHPStan `phpVersion`; RequirementsTest compares them.
 	 */
-	const MIN_WC = '8.9.0';
+	const MIN_PHP = '8.5';
+
+	/**
+	 * Oldest supported MySQL server (LTS). An older server only gets a warning.
+	 */
+	const MIN_MYSQL = '9.7';
+
+	/**
+	 * Oldest supported MariaDB server (LTS). An older server only gets a warning.
+	 */
+	const MIN_MARIADB = '12.3';
+
+	/**
+	 * TEST-ONLY constant: when the test bootstraps (tests/bootstrap.php,
+	 * tests/integration-bootstrap.php, the tests/e2e and tests/browser harnesses) define it
+	 * as `true`, the PHP minimum is not enforced, so the suites also run on the older PHP of
+	 * a development machine. Never define it on a real site: the code is not tested below
+	 * MIN_PHP there.
+	 */
+	const TEST_PHP_OPT_OUT_CONSTANT = 'WPLC_TESTS_IGNORE_PHP_MINIMUM';
+
+	/**
+	 * Version string of the database server, cached per request.
+	 *
+	 * @var string|null
+	 */
+	private static $db_server_info = null;
+
+	/**
+	 * Whether a test bootstrap switched the PHP minimum off (see TEST_PHP_OPT_OUT_CONSTANT).
+	 *
+	 * @return bool
+	 */
+	public static function php_minimum_ignored_for_tests(): bool {
+		return defined( self::TEST_PHP_OPT_OUT_CONSTANT ) && true === constant( self::TEST_PHP_OPT_OUT_CONSTANT );
+	}
+
+	/**
+	 * Whether a PHP version meets MIN_PHP.
+	 *
+	 * @param string $version PHP version; empty = the running one.
+	 * @return bool
+	 */
+	public static function php_meets_minimum( string $version = '' ): bool {
+		return self::version_at_least( '' !== $version ? $version : PHP_VERSION, self::MIN_PHP );
+	}
+
+	/**
+	 * Whether the plugin may run on this PHP: the minimum is met or a test bootstrap opted out.
+	 *
+	 * @return bool
+	 */
+	public static function php_is_supported(): bool {
+		return self::php_meets_minimum() || self::php_minimum_ignored_for_tests();
+	}
+
+	/**
+	 * Version string reported by the database server, e.g. "9.7.0", "12.3.2-MariaDB-ubu2404"
+	 * or "5.5.5-10.11.6-MariaDB".
+	 *
+	 * @return string Empty when unknown.
+	 */
+	public static function db_server_info(): string {
+		if ( null === self::$db_server_info ) {
+			global $wpdb;
+			$info = '';
+			if ( is_object( $wpdb ) && method_exists( $wpdb, 'db_server_info' ) ) {
+				$info = (string) $wpdb->db_server_info();
+			}
+			if ( '' === $info && is_object( $wpdb ) && method_exists( $wpdb, 'get_var' ) ) {
+				$info = (string) $wpdb->get_var( 'SELECT VERSION()' );
+			}
+			self::$db_server_info = $info;
+		}
+		return self::$db_server_info;
+	}
+
+	/**
+	 * Server type and version from a version string. MariaDB is recognised by the word
+	 * "MariaDB"; the replication prefix "5.5.5-" of MariaDB servers is skipped.
+	 *
+	 * @param string $info Version string.
+	 * @return array{type:string,name:string,version:string,minimum:string}|null Null when no version can be read.
+	 */
+	public static function parse_db_server( string $info ): ?array {
+		$info    = trim( $info );
+		$mariadb = false !== stripos( $info, 'mariadb' );
+		if ( $mariadb ) {
+			$info = (string) preg_replace( '/^5\.5\.5-/', '', $info );
+		}
+		if ( 1 !== preg_match( '/(\d+)\.(\d+)(?:\.(\d+))?/', $info, $match ) ) {
+			return null;
+		}
+		return array(
+			'type'    => $mariadb ? 'mariadb' : 'mysql',
+			'name'    => $mariadb ? 'MariaDB' : 'MySQL',
+			'version' => $match[1] . '.' . $match[2] . '.' . ( $match[3] ?? '0' ),
+			'minimum' => $mariadb ? self::MIN_MARIADB : self::MIN_MYSQL,
+		);
+	}
+
+	/**
+	 * Whether the connected server is a MariaDB that refuses to change a row changed by another
+	 * transaction since this one's snapshot (`innodb_snapshot_isolation`, ON by default since
+	 * MariaDB 11.6.2). With it, a read and a later UPDATE or locking read of a row another request
+	 * changed in between fails with error 1020 and rolls the whole transaction back; MySQL keeps
+	 * the old behaviour.
+	 *
+	 * @param string|null $info Version string; null = the connected server.
+	 * @return bool
+	 */
+	public static function mariadb_snapshot_isolation_applies( ?string $info = null ): bool {
+		$server = self::parse_db_server( null === $info ? self::db_server_info() : $info );
+
+		return null !== $server && 'mariadb' === $server['type'] && version_compare( $server['version'], '11.6.2', '>=' );
+	}
+
+	/**
+	 * Judge the database server against the minimums. Never blocks anything.
+	 *
+	 * @param string|null $info Version string; null = the connected server.
+	 * @return array{known:bool,ok:bool,name:string,version:string,minimum:string,message:string}
+	 */
+	public static function database_status( ?string $info = null ): array {
+		$server = self::parse_db_server( null === $info ? self::db_server_info() : $info );
+		if ( null === $server ) {
+			return array(
+				'known'   => false,
+				'ok'      => true,
+				'name'    => '',
+				'version' => '',
+				'minimum' => '',
+				'message' => '',
+			);
+		}
+		$ok = self::version_at_least( $server['version'], $server['minimum'] );
+		return array(
+			'known'   => true,
+			'ok'      => $ok,
+			'name'    => $server['name'],
+			'version' => $server['version'],
+			'minimum' => $server['minimum'],
+			'message' => $ok ? '' : sprintf(
+				/* translators: 1: minimum MySQL version, 2: minimum MariaDB version, 3: MySQL or MariaDB, 4: version of this database server. */
+				__( 'WP License Captain supports MySQL %1$s or later and MariaDB %2$s or later; this site uses %3$s %4$s. Nothing is blocked, but older database servers are not tested. Ask your host for an update.', 'wp-license' ),
+				self::MIN_MYSQL,
+				self::MIN_MARIADB,
+				$server['name'],
+				$server['version']
+			),
+		);
+	}
+
+	/**
+	 * Register the Site Health test. Also runs without WooCommerce.
+	 *
+	 * @return void
+	 */
+	public static function register_site_health(): void {
+		add_filter( 'site_status_tests', array( self::class, 'site_status_tests' ) );
+	}
+
+	/**
+	 * Add the direct test "PHP and database versions" to Site Health.
+	 *
+	 * @param mixed $tests Registered tests.
+	 * @return mixed
+	 */
+	public static function site_status_tests( $tests ) {
+		if ( is_array( $tests ) ) {
+			$tests['direct']['wplc_runtime_versions'] = array(
+				'label' => __( 'WP License Captain: PHP and database versions', 'wp-license' ),
+				'test'  => array( self::class, 'site_health_test' ),
+			);
+		}
+		return $tests;
+	}
+
+	/**
+	 * Site Health result: PHP and database server against the minimums. An older database
+	 * server is "recommended" (a warning), never "critical".
+	 *
+	 * @return array<string,mixed>
+	 */
+	public static function site_health_test(): array {
+		$database = self::database_status();
+		$php_ok   = self::php_meets_minimum();
+		$ok       = $php_ok && $database['ok'];
+		$details  = array(
+			/* translators: 1: running PHP version, 2: minimum PHP version. */
+			sprintf( __( 'PHP %1$s (minimum %2$s)', 'wp-license' ), PHP_VERSION, self::MIN_PHP ),
+			$database['known']
+				/* translators: 1: MySQL or MariaDB, 2: version of the database server, 3: minimum version. */
+				? sprintf( __( '%1$s %2$s (minimum %3$s)', 'wp-license' ), $database['name'], $database['version'], $database['minimum'] )
+				/* translators: 1: minimum MySQL version, 2: minimum MariaDB version. */
+				: sprintf( __( 'Database server version unknown (minimum MySQL %1$s or MariaDB %2$s)', 'wp-license' ), self::MIN_MYSQL, self::MIN_MARIADB ),
+		);
+		$description = '<p>' . esc_html( implode( '; ', $details ) ) . '</p>';
+		if ( ! $database['ok'] ) {
+			$description .= '<p>' . esc_html( $database['message'] ) . '</p>';
+		}
+		if ( ! $php_ok ) {
+			$description .= '<p>' . esc_html(
+				sprintf(
+					/* translators: %s: minimum PHP version. */
+					__( 'WP License Captain requires PHP %s or later.', 'wp-license' ),
+					self::MIN_PHP
+				)
+			) . '</p>';
+		}
+		return array(
+			'label'       => $ok
+				? __( 'PHP and the database server meet the requirements of WP License Captain', 'wp-license' )
+				: __( 'PHP or the database server is older than WP License Captain supports', 'wp-license' ),
+			'status'      => $ok ? 'good' : 'recommended',
+			'badge'       => array(
+				'label' => __( 'WP License Captain', 'wp-license' ),
+				'color' => $ok ? 'blue' : 'orange',
+			),
+			'description' => $description,
+			'actions'     => '',
+			'test'        => 'wplc_runtime_versions',
+		);
+	}
+
+	/**
+	 * Oldest supported WordPress (owner decision of 17 Nov 2026, uniform for all of the
+	 * owner's plugins, add-ons and connectors). Keep in sync with `Requires at least` in
+	 * wp-license.php and readme.txt and with the CI matrix; RequirementsTest compares them.
+	 * WordPress itself refuses to activate the plugin below it; an already active copy shows
+	 * an admin notice (render_woocommerce_version_notice()).
+	 */
+	const MIN_WP = '7.0';
+
+	/**
+	 * Oldest supported WooCommerce (owner decision of 17 Nov 2026, uniform for all of the
+	 * owner's plugins, add-ons and connectors; `WC requires at least` in wp-license.php). Everything
+	 * the plugin calls is older: the Additional Checkout Fields API (stable since 8.9.0),
+	 * FeaturesUtil 7.1, `cart_checkout_blocks` and HPOS declarations, Action Scheduler 3.6
+	 * with WooCommerce 7.9. The minimum is 11.2.2 (owner decision of 17 Nov 2026), not 11.2.0:
+	 * 11.2.0 carried order and payment data of an earlier Store API checkout into a later one in
+	 * the same PHP process.
+	 */
+	const MIN_WC = '11.2.2';
 
 	/**
 	 * Conditional visibility rules (`hidden` as JSON schema) for additional checkout fields.
 	 */
 	const MIN_WC_CONDITIONAL_FIELDS = '9.9.0';
-
-	/**
-	 * Action Scheduler release that added the `$unique` argument to the `as_*` functions.
-	 */
-	const MIN_AS_UNIQUE_ARGUMENT = '3.6.0';
-
-	/**
-	 * Action Scheduler release in which `$unique` compares hook, group AND args.
-	 * Before 4.0.0 only hook and group are compared, so a "unique" action for one
-	 * license blocks the same hook for every other license.
-	 */
-	const MIN_AS_UNIQUE_PER_ARGS = '4.0.0';
 
 	/**
 	 * Oldest WooCommerce Stripe Gateway the adapter was verified against
@@ -113,6 +343,27 @@ final class Requirements {
 	}
 
 	/**
+	 * Running WordPress version, or an empty string when unknown.
+	 *
+	 * @return string
+	 */
+	public static function wordpress_version(): string {
+		global $wp_version;
+		return isset( $wp_version ) && is_string( $wp_version ) ? $wp_version : '';
+	}
+
+	/**
+	 * Whether the running WordPress meets the declared minimum. An unknown version counts
+	 * as supported: WordPress always sets it, so "unknown" only happens outside WordPress.
+	 *
+	 * @return bool
+	 */
+	public static function wordpress_is_supported(): bool {
+		$version = self::wordpress_version();
+		return '' === $version || self::version_at_least( $version, self::MIN_WP );
+	}
+
+	/**
 	 * Whether the block checkout can carry the auto-renewal opt-in.
 	 *
 	 * @return bool
@@ -131,12 +382,27 @@ final class Requirements {
 	}
 
 	/**
-	 * Tell administrators that WooCommerce is older than the supported minimum.
+	 * Tell administrators that WordPress or WooCommerce is older than the supported minimum.
 	 *
 	 * @return void
 	 */
 	public static function render_woocommerce_version_notice(): void {
-		if ( self::woocommerce_is_supported() || ! current_user_can( 'activate_plugins' ) ) {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+		if ( ! self::wordpress_is_supported() ) {
+			echo '<div class="notice notice-warning"><p>';
+			echo esc_html(
+				sprintf(
+					/* translators: 1: required WordPress version, 2: installed WordPress version. */
+					__( 'WP License Captain requires WordPress %1$s or later; version %2$s is installed. The plugin is not tested on this version. Please update WordPress.', 'wp-license' ),
+					self::MIN_WP,
+					self::wordpress_version()
+				)
+			);
+			echo '</p></div>';
+		}
+		if ( self::woocommerce_is_supported() ) {
 			return;
 		}
 
@@ -152,21 +418,6 @@ final class Requirements {
 		echo '</p></div>';
 	}
 
-
-	/**
-	 * How a "schedule once per hook and args" request must be carried out.
-	 *
-	 * - `native`: pass `$unique = true`; Action Scheduler compares hook, group and args atomically.
-	 * - `emulated`: never pass `$unique`. Either the argument does not exist (below 3.6.0) or it
-	 *   ignores the args (3.6.0 to 3.9.x) and would drop actions of other licenses. The caller
-	 *   checks for an existing action first, which is not atomic.
-	 *
-	 * @param string $action_scheduler_version Running Action Scheduler version, '' when unknown.
-	 * @return string
-	 */
-	public static function unique_mode( string $action_scheduler_version ): string {
-		return self::version_at_least( $action_scheduler_version, self::MIN_AS_UNIQUE_PER_ARGS ) ? 'native' : 'emulated';
-	}
 
 	/**
 	 * Schedule a single action at most once per hook, args and group.

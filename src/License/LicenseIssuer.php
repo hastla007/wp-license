@@ -7,6 +7,7 @@
 
 namespace WPLC\License;
 
+use WPLC\Billing\Money;
 use WPLC\Billing\RecurringConsent;
 use WPLC\Billing\RenewalScheduler;
 use WPLC\Catalog\Catalog;
@@ -28,6 +29,23 @@ if ( ! defined( 'ABSPATH' ) ) {
  * `wplc/license_issuance_failed`, and the order is retried by the daily run.
  */
 final class LicenseIssuer {
+
+	/** Failure reason of the last manual issue (no secrets): one of the FAILED_* constants, '' after a success. */
+	public const FAILED_INPUT = 'invalid_input';
+	public const FAILED_KEY_ID = 'key_id_without_secret';
+	public const FAILED_STORE = 'not_stored';
+
+	/** @var string */
+	private static $last_failure = '';
+
+	/**
+	 * Why the last call of issue_manual() returned zero, so a caller can say more than "not issued".
+	 *
+	 * @return string One of the FAILED_* constants, or '' when the last call issued a license.
+	 */
+	public static function last_failure(): string {
+		return self::$last_failure;
+	}
 
 	/**
 	 * Order meta with the reason why licenses are still missing. Deleted once all are issued.
@@ -463,7 +481,8 @@ final class LicenseIssuer {
 		// the lowest variation price, which is wrong for every other variation.
 		$purchased = $item->get_product();
 		$renewal_product_id = $purchased ? (int) $purchased->get_id() : 0;
-		$renewal_price = $purchased ? Catalog::product_regular_price( $purchased ) : null;
+		// B-189: the license renews in the currency of its order, never converted.
+		$renewal_price = self::order_currency_price( $order, $item, $purchased ? Catalog::product_regular_price( $purchased ) : null );
 
 		$stored = self::store_license(
 			$plan,
@@ -494,7 +513,7 @@ final class LicenseIssuer {
 		if ( $renewal_enabled ) {
 			// B-57: the gateway's own customer and payment method references and the mode of the purchase.
 			\WPLC\Gateway\PaymentReference::store( $license_id, $gateway_id, $token_id, $customer_id );
-			self::store_consent_evidence( $license_id, $order, $plan, $customer_id, $consent );
+			self::store_consent_evidence( $license_id, $order, $plan, $customer_id, $consent, self::renewal_price( $plan, $renewal_price ) );
 			RenewalScheduler::schedule_next( $license_id );
 		}
 
@@ -535,9 +554,10 @@ final class LicenseIssuer {
 	 * @param array<string,mixed> $plan Catalog plan.
 	 * @param int                 $customer_id Customer.
 	 * @param string              $consent_at UTC time of the consent.
+	 * @param array<string,mixed> $price Renewal price stored on the license (B-189: in the order currency).
 	 * @return void
 	 */
-	private static function store_consent_evidence( int $license_id, $order, array $plan, int $customer_id, string $consent_at ): void {
+	private static function store_consent_evidence( int $license_id, $order, array $plan, int $customer_id, string $consent_at, array $price ): void {
 		global $wpdb;
 
 		$evidence = $order->get_meta( RecurringConsent::META_EVIDENCE, true );
@@ -557,9 +577,9 @@ final class LicenseIssuer {
 				'locale' => substr( sanitize_text_field( (string) ( $evidence['locale'] ?? '' ) ), 0, 20 ),
 				'text_hash' => hash( 'sha256', $text ),
 				'consent_text' => $text,
-				'amount_minor' => max( 0, (int) $plan['price_minor'] ),
-				'currency_decimals' => max( 0, min( 6, (int) ( $plan['price_decimals'] ?? 2 ) ) ),
-				'currency' => strtoupper( sanitize_text_field( (string) $plan['currency'] ) ),
+				'amount_minor' => max( 0, (int) $price['amount_minor'] ),
+				'currency_decimals' => max( 0, min( 6, (int) $price['decimals'] ) ),
+				'currency' => strtoupper( sanitize_text_field( (string) $price['currency'] ) ),
 				'billing_interval' => (string) $plan['billing_interval'],
 				'created_at' => gmdate( 'Y-m-d H:i:s' ),
 			),
@@ -631,6 +651,7 @@ final class LicenseIssuer {
 					array( 'source' => 'wp-license' )
 				);
 			}
+			self::$last_failure = self::FAILED_KEY_ID;
 			return null;
 		}
 
@@ -657,7 +678,8 @@ final class LicenseIssuer {
 				'renewal_currency' => $price['currency'],
 				'renewal_product_id' => max( 0, (int) ( $context['renewal_product_id'] ?? 0 ) ),
 				// B-76: how the stored amount is to be read stays fixed, whatever the shop setting becomes later.
-				'renewal_amount_includes_tax' => function_exists( 'wc_prices_include_tax' ) && wc_prices_include_tax() ? 1 : 0,
+				// B-189: an amount taken from an order in another currency is net (line subtotal).
+				'renewal_amount_includes_tax' => isset( $price['includes_tax'] ) ? ( $price['includes_tax'] ? 1 : 0 ) : ( function_exists( 'wc_prices_include_tax' ) && wc_prices_include_tax() ? 1 : 0 ),
 				'cancel_at_period_end' => 0,
 				'revoked_at' => null,
 				'billing_interval' => (string) $plan['billing_interval'],
@@ -729,22 +751,83 @@ final class LicenseIssuer {
 	}
 
 	/**
+	 * Renewal price of a license in the currency of its order (B-189).
+	 *
+	 * An order in the currency product prices are entered in renews at the
+	 * regular price of the purchased product (T-132). An order in another
+	 * currency (a multi-currency plugin converted the cart) renews in that
+	 * currency, never converted by this plugin: at the amount paid for one unit
+	 * before coupons, without tax (WooCommerce stores line subtotals net). An
+	 * integration that knows the regular price in that currency supplies it with
+	 * the filter `wplc_renewal_price_in_order_currency`.
+	 *
+	 * @param \WC_Order                                                 $order Paid order.
+	 * @param \WC_Order_Item_Product                                    $item Order line.
+	 * @param array{amount_minor:int,decimals:int,currency:string}|null $regular Regular price in the shop currency.
+	 * @return array{amount_minor:int,decimals:int,currency:string,includes_tax?:bool}|null
+	 */
+	public static function order_currency_price( $order, $item, ?array $regular ): ?array {
+		$currency = strtoupper( sanitize_text_field( (string) $order->get_currency() ) );
+		if ( '' === $currency || Catalog::base_currency() === $currency ) {
+			return $regular;
+		}
+		$decimals = Money::currency_decimals( $currency );
+		$quantity = max( 1, (int) $item->get_quantity() );
+		$subtotal = Money::to_minor_units( (string) wc_format_decimal( (string) $item->get_subtotal(), $decimals ), $decimals );
+		$price    = null;
+		if ( false !== $subtotal && $subtotal > 0 ) {
+			$price = array(
+				'amount_minor' => (int) round( $subtotal / $quantity ),
+				'decimals' => $decimals,
+				'currency' => $currency,
+				'includes_tax' => false,
+			);
+		}
+		/**
+		 * Filters the renewal price of a license bought in a currency other than the shop currency (B-189).
+		 *
+		 * Return an array with amount_minor (int, minor units), decimals, currency (must be the order
+		 * currency) and includes_tax (bool), or null to fall back to the plan price.
+		 *
+		 * @param array<string,mixed>|null $price Default: the unit price of the line before coupons, net.
+		 * @param \WC_Order                $order Paid order.
+		 * @param \WC_Order_Item_Product   $item Order line.
+		 */
+		$filtered = apply_filters( 'wplc_renewal_price_in_order_currency', $price, $order, $item );
+		if ( ! is_array( $filtered ) || (int) ( $filtered['amount_minor'] ?? 0 ) <= 0 || strtoupper( (string) ( $filtered['currency'] ?? '' ) ) !== $currency ) {
+			return is_array( $filtered ) ? $price : null;
+		}
+
+		return array(
+			'amount_minor' => (int) $filtered['amount_minor'],
+			'decimals' => max( 0, min( 6, (int) ( $filtered['decimals'] ?? $decimals ) ) ),
+			'currency' => $currency,
+			'includes_tax' => ! empty( $filtered['includes_tax'] ),
+		);
+	}
+
+	/**
 	 * Renewal price stored on a new license.
 	 *
 	 * The regular price of the purchased product wins; the plan price is the
 	 * fallback (manual licenses, products without a usable price).
 	 *
 	 * @param array<string,mixed>                                         $plan Catalog plan.
-	 * @param array{amount_minor:int,decimals:int,currency:string}|null $product_price Regular price of the purchased product.
-	 * @return array{amount_minor:int,decimals:int,currency:string}
+	 * @param array<string,mixed>|null $product_price Regular price of the purchased product (amount_minor, decimals, currency, optional includes_tax).
+	 * @return array{amount_minor:int,decimals:int,currency:string,includes_tax?:bool}
 	 */
 	public static function renewal_price( array $plan, ?array $product_price ): array {
 		if ( is_array( $product_price ) && (int) $product_price['amount_minor'] > 0 ) {
-			return array(
+			$price = array(
 				'amount_minor' => (int) $product_price['amount_minor'],
 				'decimals' => max( 0, min( 6, (int) $product_price['decimals'] ) ),
 				'currency' => strtoupper( (string) $product_price['currency'] ),
 			);
+			if ( isset( $product_price['includes_tax'] ) ) {
+				$price['includes_tax'] = (bool) $product_price['includes_tax'];
+			}
+
+			return $price;
 		}
 
 		return array(
@@ -767,8 +850,9 @@ final class LicenseIssuer {
 	 * @return int License ID or zero on failure.
 	 */
 	public static function issue_manual( int $customer_id, array $plan, string $paid_until_utc, int $actor_user_id, string $reason ): int {
-		$reason = trim( $reason );
-		$end    = \DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $paid_until_utc, new \DateTimeZone( 'UTC' ) );
+		self::$last_failure = self::FAILED_INPUT;
+		$reason             = trim( $reason );
+		$end                = \DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $paid_until_utc, new \DateTimeZone( 'UTC' ) );
 		if (
 			$customer_id <= 0
 			|| '' === $reason
@@ -783,7 +867,9 @@ final class LicenseIssuer {
 			return 0;
 		}
 
-		$stored = self::store_license(
+		// From here a failure is a failed insert, unless store_license() names the key ID instead.
+		self::$last_failure = self::FAILED_STORE;
+		$stored             = self::store_license(
 			$plan,
 			array(
 				'customer_id' => $customer_id,
@@ -802,6 +888,7 @@ final class LicenseIssuer {
 		if ( ! $stored ) {
 			return 0;
 		}
+		self::$last_failure = '';
 
 		AuditLog::record(
 			'license_issued_manually',
@@ -821,6 +908,8 @@ final class LicenseIssuer {
 
 		/** This action is documented in LicenseIssuer::create_license(); the order ID is zero for manual licenses. */
 		do_action( 'wplc/license_issued', $stored['id'], $stored['key'], 0 );
+		// A license issued by hand has no follow-up job and no key email to wait for (order ID zero).
+		self::fire_followup( $stored['id'], 0 );
 
 		return $stored['id'];
 	}
@@ -864,18 +953,37 @@ final class LicenseIssuer {
 			);
 		}
 
-		/**
-		 * Fires once the follow-up work for an issued license is done. No key is passed.
-		 *
-		 * Unlike `wplc/license_issued` this also runs when the issuing request was
-		 * interrupted, and it can run more than once for a license: listeners must be idempotent.
-		 *
-		 * @since 0.2.0
-		 *
-		 * @param int $license_id License ID.
-		 * @param int $order_id   Source order ID.
-		 */
-		do_action( 'wplc/license_issued_followup', $license_id, $order_id );
+		self::fire_followup( $license_id, $order_id );
+	}
+
+	/**
+	 * Announce the end of the follow-up work of an issued license.
+	 *
+	 * @param int $license_id License ID.
+	 * @param int $order_id   Source order ID, zero for a license issued by hand.
+	 * @return void
+	 */
+	private static function fire_followup( int $license_id, int $order_id ): void {
+		// The follow-up runs in its own job, outside every lock and transaction; AfterCommit
+		// keeps that promise should a caller ever run it inside one (WFC-LIC-07).
+		\WPLC\Events\AfterCommit::run(
+			static function () use ( $license_id, $order_id ): void {
+				/**
+				 * Fires once the follow-up work for an issued license is done. No key is passed.
+				 *
+				 * Unlike `wplc/license_issued` this also runs when the issuing request was
+				 * interrupted, and it can run more than once for a license: listeners must be idempotent.
+				 * Fires after the license is committed and no license lock is held. Since 0.2.0 it also
+				 * fires for a license issued by hand, with order ID zero.
+				 *
+				 * @since 0.1.0
+				 *
+				 * @param int $license_id License ID.
+				 * @param int $order_id   Source order ID, zero for a license issued by hand.
+				 */
+				do_action( 'wplc/license_issued_followup', $license_id, $order_id );
+			}
+		);
 	}
 
 	/**

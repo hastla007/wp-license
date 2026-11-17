@@ -8,7 +8,7 @@
  *     --name="Voucher Captain Pro" --slug=voucher-captain-pro --namespace='VCAP\Pro' --prefix=vcap_pro \
  *     --product-key=voucher-captain-pro --entitlement-prefix=voucher. \
  *     --core-name="Voucher Captain" --core-slug=voucher-captain --core-constant=VCAP_VERSION --core-min=1.1.0 \
- *     --requires-php=8.1 --server-url=https://shop.example.com --public-key=BASE64 [--public-key=OLD_BASE64] \
+ *     --requires-php=8.5 --server-url=https://shop.example.com --public-key=BASE64 [--public-key=OLD_BASE64] \
  *     [--version=1.0.0] [--author="Vendor"]
  *
  * The target directory must not exist or be empty. tests/fixtures is copied unchanged (the signed fixtures must
@@ -128,8 +128,8 @@ foreach ( $premium_addon_starter_files as $premium_addon_starter_file ) {
 				'core-plugin-slug'             => (string) $o['core-slug'],
 				'https://shop.example'         => $premium_addon_starter_server,
 				'Author:            Vendor'    => 'Author:            ' . (string) ( $o['author'] ?? 'Vendor' ),
-				"'7.4'"                        => var_export( (string) $o['requires-php'], true ),
-				'Requires PHP:      7.4'       => 'Requires PHP:      ' . (string) $o['requires-php'],
+				"'8.5'"                        => var_export( (string) $o['requires-php'], true ),
+				'Requires PHP:      8.5'       => 'Requires PHP:      ' . (string) $o['requires-php'],
 				'Version:           1.0.0'     => 'Version:           ' . $premium_addon_starter_version,
 				"_VERSION', '1.0.0'"           => "_VERSION', '" . $premium_addon_starter_version . "'",
 			)

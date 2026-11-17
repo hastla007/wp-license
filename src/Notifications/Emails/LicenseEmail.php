@@ -87,7 +87,7 @@ abstract class LicenseEmail extends \WC_Email {
 	 * @return bool True when the mailer accepted the message.
 	 */
 	public function trigger( array $license, array $context = array() ): bool {
-		$address = self::recipient_for( $license );
+		$address = $this->recipient_address( $license, $context );
 		if ( '' === $address || ! $this->is_enabled() ) {
 			return false;
 		}
@@ -121,6 +121,21 @@ abstract class LicenseEmail extends \WC_Email {
 				restore_previous_locale();
 			}
 		}
+	}
+
+	/**
+	 * Address this email goes to: the license recipient (recipient_for()).
+	 *
+	 * The sharing emails (B-139) override it: they go to an invited address.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param array<string,mixed> $context Trigger context.
+	 * @return string
+	 */
+	protected function recipient_address( array $license, array $context ): string {
+		unset( $context );
+
+		return self::recipient_for( $license );
 	}
 
 	/**

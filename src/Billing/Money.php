@@ -117,4 +117,36 @@ final class Money {
 
 		return ( $negative ? '-' : '' ) . $whole . '.' . $fraction;
 	}
+
+	/**
+	 * Minor-unit precision of a currency other than the shop currency (B-189).
+	 *
+	 * WooCommerce knows the precision of its own currency only. For an order in
+	 * another currency (multi-currency plugins) the ISO 4217 precision is used:
+	 * zero for currencies without minor units, three for the Gulf dinars and
+	 * similar, two otherwise. Filter `wplc_currency_decimals`.
+	 *
+	 * @param string $currency ISO 4217 code.
+	 * @return int
+	 */
+	public static function currency_decimals( string $currency ): int {
+		$currency = strtoupper( $currency );
+		$decimals = 2;
+		if ( in_array( $currency, array( 'BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'UYI', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' ), true ) ) {
+			$decimals = 0;
+		} elseif ( in_array( $currency, array( 'BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND' ), true ) ) {
+			$decimals = 3;
+		}
+		if ( function_exists( 'apply_filters' ) ) {
+			/**
+			 * Filters the precision of a currency the shop does not enter prices in (B-189).
+			 *
+			 * @param int    $decimals ISO 4217 precision.
+			 * @param string $currency ISO 4217 code.
+			 */
+			$decimals = (int) apply_filters( 'wplc_currency_decimals', $decimals, $currency );
+		}
+
+		return max( 0, min( 6, $decimals ) );
+	}
 }

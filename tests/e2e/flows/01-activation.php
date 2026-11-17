@@ -28,9 +28,9 @@ $loaded_from = ( new ReflectionClass( '\\WPLC\\Plugin' ) )->getFileName();
 e2e_ok( 0 === strpos( $loaded_from, WP_PLUGIN_DIR . '/wp-license/src/' ), 'WPLC\\Plugin loaded from the site copy', $loaded_from );
 
 // --- Tables and schema option. ---
-$expected_tables = array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log' );
+$expected_tables = array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log', 'license_members' );
 $tables          = e2e_tables();
-e2e_eq( $expected_tables, array_keys( $tables ), 'Schema::table_names() lists the 15 expected tables (the reminder log is part of the schema since version 18)' );
+e2e_eq( $expected_tables, array_keys( $tables ), 'Schema::table_names() lists the 16 expected tables (the reminder log since version 18, the co-users since version 26)' );
 $missing = array();
 foreach ( $tables as $name => $table ) {
 	if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) !== $table ) {

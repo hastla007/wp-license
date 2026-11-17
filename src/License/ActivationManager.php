@@ -7,6 +7,8 @@
 
 namespace WPLC\License;
 
+use WPLC\Events\AfterCommit;
+use WPLC\Events\LicenseEvents;
 use WPLC\Infrastructure\Database\Schema;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -57,10 +59,13 @@ final class ActivationManager {
 			return false;
 		}
 
+		// Site events raised under the activation lock fire after it is released.
+		AfterCommit::hold();
 		try {
 			return self::deactivate_while_locked( $activation_id, $reason, $actor_user_id, $audit_action );
 		} finally {
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+			AfterCommit::release();
 		}
 	}
 
@@ -69,6 +74,8 @@ final class ActivationManager {
 	 *
 	 * Only for callers that already hold the lock returned by lock_name() for
 	 * the activation's license (the REST activation and deactivation handlers).
+	 * Such a caller wraps its lock in AfterCommit::hold() and ::release(), so
+	 * `wplc/activation_removed` fires after the lock is released.
 	 *
 	 * @param int    $activation_id Activation ID.
 	 * @param string $reason Human-readable reason.
@@ -110,6 +117,7 @@ final class ActivationManager {
 			array( 'status' => 'deactivated' ),
 			$actor_user_id
 		);
+		LicenseEvents::activation_removed( (int) $activation['license_id'], $activation_id, (string) $activation['environment'], (string) $audit_action, $reason, $actor_user_id );
 
 		// A staging site is only licensed through its live parent.
 		$children = $wpdb->get_results(
@@ -162,6 +170,8 @@ final class ActivationManager {
 				array( 'status' => 'deactivated', 'parent_activation_id' => $activation_id ),
 				$actor_user_id
 			);
+			// The staging copy ends with its live site, on behalf of the same initiator.
+			LicenseEvents::activation_removed( (int) $activation['license_id'], (int) $child['id'], 'staging', (string) $audit_action, $reason, $actor_user_id );
 		}
 
 		return true;

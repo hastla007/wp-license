@@ -28,7 +28,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.1.0';
+		const VERSION = '2.2.0';
 
 		/**
 		 * A signed answer ended the activation: rights and credentials are dropped.
@@ -75,6 +75,11 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * Sites handled per get_sites() query when uninstalling on a multisite.
 		 */
 		const UNINSTALL_BATCH = 100;
+
+		/**
+		 * Seconds before the end of the signed offline window from which Site Health recommends a look (since 2.1.1).
+		 */
+		const HEALTH_LOW_WINDOW = 259200;
 
 		/**
 		 * Settings.
@@ -278,6 +283,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			add_action( 'admin_init', array( $this, 'catch_up' ) );
 			add_action( 'admin_init', array( $this, 'add_privacy_text' ) );
 			add_filter( 'debug_information', array( $this, 'debug_information' ) );
+			add_filter( 'site_status_tests', array( $this, 'site_status_tests' ) );
 			add_action( 'admin_post_' . $this->prefix . '_license', array( $this, 'handle_settings_form' ) );
 			add_action( $this->config['network'] ? 'network_admin_notices' : 'admin_notices', array( $this, 'render_notice' ) );
 			if ( false !== $this->config['settings_parent'] && '' !== $this->config['settings_parent'] ) {
@@ -1210,6 +1216,115 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			);
 
 			return $info;
+		}
+
+		/**
+		 * Add the direct test "License check" of this add-on to Tools → Site Health → Status (filter `site_status_tests`).
+		 *
+		 * Only while the add-on is configured and this site holds an activation (or a signed answer released it);
+		 * without one there is no check that could be overdue, the notice asks for the key.
+		 *
+		 * @since 2.1.1
+		 *
+		 * @param mixed $tests Tests of Site Health, keys `direct` and `async` (an array; other plugins may break the filter value).
+		 * @return array<string,mixed>
+		 */
+		public function site_status_tests( $tests ) {
+			$tests  = is_array( $tests ) ? $tests : array();
+			$client = $this->client();
+			if ( ! $client->is_configured() ) {
+				return $tests;
+			}
+			$state = $this->state();
+			if ( ! $client->is_activated() && 'deactivated' !== ( $state['lock'] ?? '' ) ) {
+				return $tests;
+			}
+			$tests['direct'] = isset( $tests['direct'] ) && is_array( $tests['direct'] ) ? $tests['direct'] : array();
+			$tests['direct'][ $this->prefix . '_license_check' ] = array(
+				'label' => sprintf( '%s – %s', (string) $this->config['name'], $this->text( 'ui.title' ) ),
+				'test'  => array( $this, 'site_health_test' ),
+			);
+
+			return $tests;
+		}
+
+		/**
+		 * Result of the Site Health test "License check": is the daily check of the license working?
+		 *
+		 * - `good`: the last successful check is recent (within CATCH_UP_AFTER) and did not fail since.
+		 * - `recommended`: the last check failed, the check is overdue, the server asks for the key again,
+		 *   the site address changed, or less than HEALTH_LOW_WINDOW of the signed offline window is left.
+		 * - `critical`: the snapshot is `stale` (offline window used up, clock ahead, not verifiable) or a
+		 *   signed answer released the activation.
+		 *
+		 * Shows dates, the error text and the server host; never the key, the secret or the snapshot.
+		 *
+		 * @since 2.1.1
+		 *
+		 * @return array{label:string,status:string,badge:array{label:string,color:string},description:string,actions:string,test:string}
+		 */
+		public function site_health_test(): array {
+			$status  = $this->status();
+			$name    = (string) $this->config['name'];
+			$now     = $this->client()->now();
+			$expires = self::utc( $status->cache_expires_at );
+			$until   = 0 === $expires ? $this->text( 'debug.none' ) : $this->date( $status->cache_expires_at );
+			$checked = 0 === $status->last_checked ? $this->text( 'ui.never' ) : $this->date( gmdate( 'Y-m-d H:i:s', $status->last_checked ) );
+			$failed  = '' !== $status->last_error && $status->last_error_at >= $status->last_checked;
+
+			if ( in_array( $status->state, array( LicenseStatus::STATE_STALE, LicenseStatus::STATE_DEACTIVATED ), true ) ) {
+				$result      = 'critical';
+				$label       = sprintf( $this->text( LicenseStatus::STATE_STALE === $status->state ? 'health.stale' : 'health.locked' ), $name );
+				$notice      = LicenseStatus::REASON_CLOCK_AHEAD === $status->reason ? 'notice.stale_clock_ahead' : 'notice.' . $status->state;
+				$description = sprintf( $this->text( $notice ), $name );
+			} elseif ( LicenseStatus::STATE_SITE_CHANGED === $status->state ) {
+				$result      = 'recommended';
+				$label       = sprintf( $this->text( 'health.site_changed' ), $name );
+				$description = sprintf( $this->text( 'notice.site_changed' ), $name );
+			} elseif ( $status->needs_reactivation ) {
+				$result      = 'recommended';
+				$label       = sprintf( $this->text( 'health.failing' ), $name );
+				$description = sprintf( $this->text( 'notice.reactivate' ), $name );
+			} elseif ( $failed ) {
+				$result      = 'recommended';
+				$label       = sprintf( $this->text( 'health.failing' ), $name );
+				$description = sprintf( $this->text( 'health.failing_text' ), $this->client()->messages()->error( $status->last_error ), $checked, $until, $this->client()->server_host() );
+			} elseif ( 0 !== $expires && $expires - $now < self::HEALTH_LOW_WINDOW ) {
+				$result      = 'recommended';
+				$label       = sprintf( $this->text( 'health.running_low' ), $name );
+				$description = sprintf( $this->text( 'health.overdue_text' ), $checked, $until, $this->client()->server_host() );
+			} elseif ( $now - $status->last_checked > self::CATCH_UP_AFTER ) {
+				$result      = 'recommended';
+				$label       = sprintf( $this->text( 'health.overdue' ), $name );
+				$description = sprintf( $this->text( 'health.overdue_text' ), $checked, $until, $this->client()->server_host() );
+			} else {
+				$result      = 'good';
+				$label       = sprintf( $this->text( 'health.good' ), $name );
+				$description = sprintf( $this->text( 'health.good_text' ), $checked, $until );
+			}
+
+			$actions = '';
+			$url     = $this->settings_url();
+			if ( '' !== $url ) {
+				$actions = sprintf( '<p><a href="%s">%s</a></p>', esc_url( $url ), esc_html( $this->text( 'notice.open_settings' ) ) );
+			}
+			$colors = array(
+				'good'        => 'blue',
+				'recommended' => 'orange',
+				'critical'    => 'red',
+			);
+
+			return array(
+				'label'       => $label,
+				'status'      => $result,
+				'badge'       => array(
+					'label' => $this->text( 'ui.title' ),
+					'color' => $colors[ $result ],
+				),
+				'description' => '<p>' . esc_html( $description ) . '</p>',
+				'actions'     => $actions,
+				'test'        => $this->prefix . '_license_check',
+			);
 		}
 
 		/**

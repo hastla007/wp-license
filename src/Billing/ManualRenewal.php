@@ -48,7 +48,7 @@ final class ManualRenewal {
 	public static function can_renew( array $license_row ): bool {
 		global $wpdb;
 
-		if ( ! self::in_window( $license_row, time() ) ) {
+		if ( ! self::in_window( $license_row, time() ) || self::blocked_as_not_for_sale( $license_row ) ) {
 			return false;
 		}
 
@@ -64,6 +64,32 @@ final class ManualRenewal {
 
 		// Nor while an automatic charge for it may have gone through (result unknown).
 		return ! in_array( $status, array( 'paid', RenewalProcessor::STATUS_RECONCILING, RenewalProcessor::STATUS_REVIEW ), true );
+	}
+
+	/**
+	 * Whether the customer renewal is switched off for a product the shop does not sell.
+	 *
+	 * A product that cannot be bought (private, draft, password-protected, not purchasable), for example
+	 * a project product licensed by hand, is renewed by the shop owner with "Change term" (owner decision of
+	 * 16 Nov 2026: one year, extended by hand). By default the account offers no "Renew now" for such
+	 * products and refuses to start the renewal; the filter `wplc_manual_renewal_for_unsold_products`
+	 * returning true allows it again at the plan price. Products that are for sale are never affected.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return bool
+	 */
+	public static function blocked_as_not_for_sale( array $license ): bool {
+		/**
+		 * Filters whether customers may renew a license in their account when its product is not for sale.
+		 *
+		 * @param bool                $allowed False (default): no customer renewal; true: renewal at the plan price.
+		 * @param array<string,mixed> $license License row.
+		 */
+		if ( (bool) apply_filters( 'wplc_manual_renewal_for_unsold_products', false, $license ) ) {
+			return false;
+		}
+
+		return ! \WPLC\Notifications\Notifications::sold_in_shop( $license );
 	}
 
 	/**
@@ -164,7 +190,7 @@ final class ManualRenewal {
 		$tables = Schema::table_names();
 		$license = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $tables['licenses'], $license_id ), ARRAY_A );
 		// Same answer for a foreign and a missing license.
-		if ( ! is_array( $license ) || ! $customer_id || (int) $license['customer_id'] !== $customer_id || ! self::in_window( $license, time() ) ) {
+		if ( ! is_array( $license ) || ! $customer_id || (int) $license['customer_id'] !== $customer_id || ! self::in_window( $license, time() ) || self::blocked_as_not_for_sale( $license ) ) {
 			return $not_available;
 		}
 

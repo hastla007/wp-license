@@ -4,29 +4,27 @@
 
 These are the combinations the integration suite runs against in CI (`.github/workflows/phpunit.yml`, job `integration`). Nothing outside this table is tested.
 
-| WordPress | WooCommerce | PHP | Order storage | Installation |
-|---|---|---|---|---|
-| 6.5 (latest 6.5.x) | 8.9.3 | 7.4 | HPOS | single site |
-| 6.5 (latest 6.5.x) | 8.9.3 | 7.4 | legacy posts | single site |
-| 6.5 (latest 6.5.x) | 9.4.3 | 7.4 | HPOS | single site |
-| 6.5 (latest 6.5.x) | 9.4.3 | 7.4 | legacy posts | single site |
-| latest stable | 11.2.2 | 8.3 | HPOS | single site |
-| latest stable | 11.2.2 | 8.3 | legacy posts | single site |
-| latest stable | 11.2.2 | 8.3 | HPOS | multisite (subdirectory network) |
-| latest stable | 11.2.2 | 8.5 | HPOS | single site (newest PHP version, INH-03) |
+| WordPress | WooCommerce | PHP | Database | Order storage | Installation |
+|---|---|---|---|---|---|
+| 7.0 (latest 7.0.x) | 11.2.2 | 8.5 | MySQL 9.7 | HPOS | single site |
+| 7.0 (latest 7.0.x) | 11.2.2 | 8.5 | MariaDB 12.3 | legacy posts | single site |
+| latest stable | 11.3.0 | 8.5 | MySQL 9.7 | legacy posts | single site |
+| latest stable | 11.3.0 | 8.5 | MariaDB 12.3 | HPOS | single site |
+| latest stable | 11.3.0 | 8.5 | MariaDB 12.3 | HPOS | multisite (subdirectory network) |
+| latest stable | 11.3.0 | 8.6 (nightly until 19 Nov 2026) | MySQL 9.7 | HPOS | single site, experimental (`continue-on-error`) |
 
-- WordPress 6.5, PHP 7.4 and WooCommerce 8.9 are the minimums declared in `wp-license.php` (`WC requires at least: 8.9`, checked at run time by `Requirements::MIN_WC`).
-- WooCommerce 8.9.3 is the last release of the declared minimum line (it needs WordPress 6.4 or later). Both 8.9.3 cells have passed in CI on `main` (for example commit `c269e07`, PHPUnit run 424 of 15 Nov 2026); they were never run locally, because the download was not reachable in the development environment.
-- WooCommerce 9.4.3 declares WordPress 6.5 as its own minimum and is the newest WooCommerce line that still supports it; the pinned recent version (11.2.2) declares WordPress 7.0, which is why it is paired with the latest WordPress.
-- "latest stable" WordPress is resolved at run time; the WooCommerce version is pinned in the workflow matrix and in `bin/install-test-env.sh` and must be raised by hand.
-- Database in CI: MySQL 8.0.
-- Unit tests and the syntax check additionally run on PHP 7.4, 8.1, 8.2, 8.3 and 8.5 without WordPress.
-- The plugin declares HPOS and block-based checkout compatibility (`wp-license.php`). In the block checkout the renewal opt-in is an additional checkout field (`BlockCheckoutConsent`, WooCommerce 8.9 or later); it is covered by integration tests through the Store API, not by a browser test. Limit of WooCommerce 8.9 to 9.8 (B-114): an additional field cannot be hidden there, so the opt-in stands in every cart, also without a license product (its value is then ignored); from 9.9 it is shown for license products only. The filter `wplc_block_checkout_consent_without_rule` switches the opt-in off on the older versions ([RENEWALS.md](RENEWALS.md#consent-opt-in)).
+- WordPress 7.0, PHP 8.5 and WooCommerce 11.2.2 are the minimums declared in `wp-license.php` (`Requires at least: 7.0`, `Requires PHP: 8.5`, `WC requires at least: 11.2.2`; `Requirements::MIN_WP`, `Requirements::MIN_PHP`, `Requirements::MIN_WC`). Below PHP 8.5 the plugin shows an admin notice and loads nothing else. WordPress refuses to activate it below 7.0; an already active copy shows an admin notice. Below WooCommerce 11.2.2 activation is refused; an already active copy shows an admin notice, licenses keep working and the block checkout offers no renewal opt-in.
+- The WordPress and WooCommerce minimums follow the owner decision of 17 Nov 2026, uniform for all Captain plugins, add-ons and connectors (on top of MINVER-1). The cells with WordPress 7.0 and WooCommerce 11.2.2 run the minimums together; the two cells with the latest WordPress and WooCommerce 11.3.0 the newest pair. "7.0" installs the newest 7.0.x release the wordpress.org version API lists (with the test library of the 7.0 branch).
+- Supported database servers: MySQL 9.7 (LTS) or later and MariaDB 12.3 (LTS) or later (`Requirements::MIN_MYSQL`, `Requirements::MIN_MARIADB`; owner decision of 16 Nov 2026, MINVER-1). An older server is not blocked: Site Health (test "WP License Captain: PHP and database versions") and the diagnostics page show a warning. MariaDB is recognised by the word "MariaDB" in the server version (`$wpdb->db_server_info()`).
+- "latest stable" WordPress is resolved at run time; the WooCommerce versions are pinned in the workflow matrix (the newest one also as `DEFAULT_WC_VERSION` in `bin/install-test-env.sh`) and must be raised by hand.
+- Database in CI: the Docker images `mysql:9.7` and `mariadb:12.3` (both present on Docker Hub on 16 Nov 2026), one per cell as listed. The E2E run uses `mysql:9.7`.
+- Unit tests and the syntax check run on PHP 8.5 without WordPress, plus PHP 8.6 as an experimental cell.
+- The plugin declares HPOS and block-based checkout compatibility (`wp-license.php`). In the block checkout the renewal opt-in is an additional checkout field (`BlockCheckoutConsent`); it is covered by integration tests through the Store API, not by a browser test. It is shown for license products only (a visibility rule); with more than `BlockCheckoutConsent::MAX_RULE_PRODUCTS` license products no rule is attached and the opt-in stands in every cart, its value then ignored for orders without a license (B-114). The filter `wplc_block_checkout_consent_without_rule` switches the opt-in off in that case ([RENEWALS.md](RENEWALS.md#consent-opt-in)).
 - Plugin version: 0.2.0 in `wp-license.php` (`WPLC_VERSION`) and `readme.txt` (stable tag); the schema version is independent of it (`Schema::VERSION`).
 
 - Multisite: the multisite cell runs the whole suite on a network plus `MultisiteIntegrationTest.php`; behavior and limits are in [MULTISITE.md](MULTISITE.md).
 
-Not part of the matrix and therefore unverified: multisite with WordPress 6.5 or legacy order storage (the latter passed locally), subdomain networks, MariaDB, PHP 8.4 and newer, WooCommerce versions between 8.9.3 and 9.4.3 and between 9.4.3 and the pinned recent version, the WooCommerce Stripe gateway plugin, and a live Stripe account.
+Not part of the matrix and therefore unverified: multisite with WordPress 7.0 or legacy order storage (the latter passed locally), subdomain networks, database servers older than MySQL 9.7 or MariaDB 12.3, PHP older than 8.5 (not supported), WooCommerce releases other than 11.2.2 and 11.3.0, WordPress 7.0 with WooCommerce 11.3.0 and the latest WordPress with WooCommerce 11.2.2, the WooCommerce Stripe gateway plugin, and a live Stripe account.
 
 How to run a cell locally: see [QUALITY-GATES.md](QUALITY-GATES.md#integration-tests).
 

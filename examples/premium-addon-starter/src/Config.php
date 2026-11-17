@@ -54,7 +54,7 @@ final class Config {
 	public const CORE_MIN_VERSION = '1.0.0';
 
 	/** Lowest PHP version (keep in sync with "Requires PHP" in the plugin header). */
-	public const MIN_PHP = '7.4';
+	public const MIN_PHP = '8.5';
 
 	/** Maximum age of the signed offline cache (B6: 14 days). The server's renewal grace is the server's job. */
 	public const CACHE_MAX_AGE = 1209600;

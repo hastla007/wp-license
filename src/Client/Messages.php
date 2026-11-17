@@ -30,7 +30,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.1.0';
+		const VERSION = '2.2.0';
 
 		/**
 		 * Text domain literal used in this file.
@@ -292,6 +292,27 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'debug.keys'                          => __( 'Pinned server keys (fingerprints)', 'wp-license' ),
 				'debug.version'                       => __( 'License client version', 'wp-license' ),
 				'debug.none'                          => __( 'none', 'wp-license' ),
+				// Site Health test "License check" (since 2.1.1).
+				/* translators: %s: name of the add-on. */
+				'health.good'                         => __( '%s: the license check works', 'wp-license' ),
+				/* translators: %s: name of the add-on. */
+				'health.failing'                      => __( '%s: the last license check failed', 'wp-license' ),
+				/* translators: %s: name of the add-on. */
+				'health.overdue'                      => __( '%s: the license check is overdue', 'wp-license' ),
+				/* translators: %s: name of the add-on. */
+				'health.running_low'                  => __( '%s: the offline period of the license ends soon', 'wp-license' ),
+				/* translators: %s: name of the add-on. */
+				'health.site_changed'                 => __( '%s: the license is not checked for this address', 'wp-license' ),
+				/* translators: %s: name of the add-on. */
+				'health.stale'                        => __( '%s: the license could not be verified', 'wp-license' ),
+				/* translators: %s: name of the add-on. */
+				'health.locked'                       => __( '%s: the license of this site was released', 'wp-license' ),
+				/* translators: 1: date and time of the last successful check, 2: date and time the offline period ends. */
+				'health.good_text'                    => __( 'The license server confirmed the license on %1$s. The premium features stay available without a connection until %2$s; the check runs once a day.', 'wp-license' ),
+				/* translators: 1: error message, 2: date and time of the last successful check, 3: date and time the offline period ends, 4: host name of the license server. */
+				'health.failing_text'                 => __( 'The last check failed: %1$s Last successful check: %2$s. The premium features stay available until %3$s; the check is repeated automatically. If this persists, make sure that this site can reach %4$s.', 'wp-license' ),
+				/* translators: 1: date and time of the last successful check, 2: date and time the offline period ends, 3: host name of the license server. */
+				'health.overdue_text'                 => __( 'Last successful check: %1$s. The premium features stay available until %2$s, unless the license server confirms the license before then. Make sure that WP-Cron runs and that this site can reach %3$s, or check the license now.', 'wp-license' ),
 				// Updater.
 				'update.license_expired'              => __( 'Your license has expired. Renew it to receive this update.', 'wp-license' ),
 				'update.license_suspended'            => __( 'Your license is suspended; updates are not available. Please contact support.', 'wp-license' ),

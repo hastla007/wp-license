@@ -22,7 +22,7 @@ final class EnvironmentIntegrationTest extends WPLC_Integration_TestCase {
 		if ( '' !== $expected_wp && 'latest' !== $expected_wp ) {
 			$this->assertSame( 0, strpos( $GLOBALS['wp_version'], $expected_wp ), 'Running WordPress ' . $GLOBALS['wp_version'] . ', expected ' . $expected_wp );
 		}
-		$this->assertTrue( version_compare( $GLOBALS['wp_version'], '6.5', '>=' ), 'The plugin declares WordPress 6.5 as its minimum.' );
+		$this->assertTrue( \WPLC\Compatibility\Requirements::version_at_least( $GLOBALS['wp_version'], \WPLC\Compatibility\Requirements::MIN_WP ), 'The plugin declares WordPress ' . \WPLC\Compatibility\Requirements::MIN_WP . ' as its minimum.' );
 		$this->assertTrue( version_compare( WC()->version, \WPLC\Compatibility\Requirements::MIN_WC, '>=' ), 'The plugin declares WooCommerce ' . \WPLC\Compatibility\Requirements::MIN_WC . ' as its minimum.' );
 		// The multisite cell must not pass by skipping MultisiteIntegrationTest.
 		if ( '1' === (string) getenv( 'WP_MULTISITE' ) ) {

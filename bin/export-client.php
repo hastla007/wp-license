@@ -5,7 +5,7 @@
  *
  * Usage:
  *   php bin/export-client.php --target=/path/to/addon/includes/licensing \
- *       --namespace='VoucherCaptainPro\Licensing' --text-domain=voucher-captain-pro
+ *       --namespace='AcmeReportsPro\Licensing' --text-domain=acme-reports-pro
  *
  * What it changes in the copies:
  * - `namespace WPLC\Client;` becomes the given namespace, so several add-ons
@@ -15,7 +15,8 @@
  * - `@package WPLC` becomes the first segment of the namespace.
  *
  * Run it in the build step of the add-on (or once, and commit the result).
- * The script needs PHP only, no WordPress.
+ * The script needs PHP only, no WordPress. The exported library (client 2.2.0 and later)
+ * needs PHP 8.5, so the add-on declares at least `Requires PHP: 8.5`.
  *
  * @package WPLC
  */

@@ -9,6 +9,10 @@
 #
 # Defaults: db-host=127.0.0.1, wp-version=latest, wc-version=$DEFAULT_WC_VERSION below.
 #
+# wp-version: "latest", a branch such as "7.0" (the newest 7.0.x release the wordpress.org
+# version API lists, with the test library of the 7.0 branch) or an exact release such as
+# "7.0.8". The plugin needs WordPress 7.0 or later (Requires at least in wp-license.php).
+#
 # Environment (all optional, same meaning as in the WordPress installer script):
 #   WP_TESTS_DIR  test library target   (default: ${TMPDIR:-/tmp}/wordpress-tests-lib)
 #   WP_CORE_DIR   WordPress core target (default: ${TMPDIR:-/tmp}/wordpress)
@@ -21,8 +25,9 @@
 
 set -euo pipefail
 
-# Newest WooCommerce release this plugin is tested against. The oldest one is set in the CI matrix.
-DEFAULT_WC_VERSION="11.2.2"
+# Newest WooCommerce release this plugin is tested against. The oldest one (11.2.2, the newest
+# release of the declared minimum 11.2) is set in the CI matrix.
+DEFAULT_WC_VERSION="11.3.0"
 
 # https://github.com/wp-cli/scaffold-command, templates/install-wp-tests.sh at a fixed commit.
 INSTALLER_COMMIT="12391865aaa11b96bf040e20e0558d619b7dafd0"
@@ -49,7 +54,7 @@ WP_CORE_DIR="${WP_CORE_DIR%/}"
 
 case "$WC_VERSION" in
 	*[!0-9.]* | "")
-		echo "WooCommerce version must be a release number such as 9.4.3, got: ${WC_VERSION}" >&2
+		echo "WooCommerce version must be a release number such as 11.2.2, got: ${WC_VERSION}" >&2
 		exit 1
 		;;
 esac

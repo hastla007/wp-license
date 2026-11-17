@@ -1,6 +1,6 @@
 name: Package
 
-# Builds the plugin ZIP exactly like the release workflow (bin/build-zip.sh, PHP 7.4) on every
+# Builds the plugin ZIP exactly like the release workflow (bin/build-zip.sh, PHP 8.5, the minimum) on every
 # pull request, so packaging problems show up before a tag is pushed. Nothing is released; the
 # ZIP is kept as a short-lived artifact for manual installation tests.
 
@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: "7.4"
+          php-version: "8.5"
           coverage: none
           tools: composer:v2
       # Version from wp-license.php (must equal WPLC_VERSION and the readme.txt Stable tag).

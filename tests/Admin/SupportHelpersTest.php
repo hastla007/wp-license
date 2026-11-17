@@ -42,6 +42,8 @@ final class SupportHelpersTest extends TestCase {
 		}
 		$this->assertSame( 'manage_options', $defaults['wplc_publish_releases'] );
 		$this->assertSame( 'manage_options', $defaults['wplc_manage_package_hosts'] );
+		// T-94 (owner decision of 16 Nov 2026): price changes stay with the administrator.
+		$this->assertSame( 'manage_options', $defaults['wplc_change_prices'] );
 
 		$this->assertSame( 'wplc_publish_releases', Capabilities::filter_capability( 'manage_woocommerce', 'publish_releases' ) );
 		$this->assertSame( 'wplc_manage_catalog', Capabilities::filter_capability( 'manage_woocommerce', 'wplc_manage_catalog' ) );
@@ -62,6 +64,11 @@ final class SupportHelpersTest extends TestCase {
 			'manage_options'     => true,
 		);
 		$this->assertTrue( Capabilities::grant_defaults( $admin, array( 'wplc_publish_releases' ) )['wplc_publish_releases'] );
+		// T-94: the shop manager does support but no price change; the administrator does both.
+		$this->assertFalse( Capabilities::grant_defaults( $manager, array( 'wplc_change_prices' ) )['wplc_change_prices'] );
+		$this->assertTrue( Capabilities::grant_defaults( $manager, array( 'wplc_manage_licenses' ) )['wplc_manage_licenses'] );
+		$this->assertTrue( Capabilities::grant_defaults( $admin, array( 'wplc_change_prices' ) )['wplc_change_prices'] );
+		$this->assertTrue( Capabilities::grant_defaults( $admin, array( 'wplc_manage_licenses' ) )['wplc_manage_licenses'] );
 
 		$denied = array(
 			'manage_woocommerce'  => true,
@@ -116,7 +123,7 @@ final class SupportHelpersTest extends TestCase {
 	/** B-134: a key that is missing from the input does not reset the others to something else. */
 	public function test_sanitize_fills_missing_keys(): void {
 		$clean = Settings::sanitize( array( 'reminder_days' => '10' ) );
-		$this->assertSame( array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import', 'sender_note' ), array_keys( $clean ) );
+		$this->assertSame( array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import', 'combined_renewals', 'sender_note' ), array_keys( $clean ) );
 		$this->assertSame( '10', $clean['reminder_days'] );
 		$this->assertSame( array(), $clean['package_hosts'] );
 

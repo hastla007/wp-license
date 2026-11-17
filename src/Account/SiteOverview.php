@@ -9,6 +9,7 @@ namespace WPLC\Account;
 
 use WPLC\Admin\Format;
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\LicenseMembers;
 use WPLC\Update\ReleaseRegistry;
 
 defined( 'ABSPATH' ) || exit;
@@ -18,10 +19,9 @@ defined( 'ABSPATH' ) || exit;
  * all licenses and products, with what needs attention.
  *
  * The license page (CustomerPortal) answers "what does this license cover?";
- * this page answers "what runs where, and where must I act?". It replaces the
- * product entitlements `voucher.central_license_overview` and
- * `pass.client_license_management`: an overview of a customer's sites is a
- * function of the customer account, not of the plugin on each site, and it
+ * this page answers "what runs where, and where must I act?". It replaces
+ * per-product entitlements for a central license overview: an overview of a
+ * customer's sites is a function of the customer account, not of the plugin on each site, and it
  * is available to every customer.
  *
  * Reads only. Deactivating a site uses the existing, audited handler of the
@@ -539,7 +539,7 @@ final class SiteOverview {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Whether a customer owns at least one license.
+	 * Whether a customer owns at least one license or uses one as a co-user (B-139).
 	 *
 	 * @param int $customer_id WordPress user ID.
 	 * @return bool
@@ -551,10 +551,11 @@ final class SiteOverview {
 		}
 		if ( ! isset( $cache[ $customer_id ] ) ) {
 			global $wpdb;
-			$tables                 = Schema::table_names();
-			$cache[ $customer_id ] = (bool) $wpdb->get_var(
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from Schema::table_names().
-				$wpdb->prepare( "SELECT 1 FROM {$tables['licenses']} WHERE customer_id = %d LIMIT 1", $customer_id )
+			$tables                         = Schema::table_names();
+			list( $visible, $visible_args ) = LicenseMembers::visible_condition( '', $customer_id );
+			$cache[ $customer_id ]          = (bool) $wpdb->get_var(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name from Schema::table_names(); fixed fragment with placeholders.
+				$wpdb->prepare( "SELECT 1 FROM {$tables['licenses']} WHERE {$visible} LIMIT 1", $visible_args )
 			);
 		}
 
@@ -579,19 +580,19 @@ final class SiteOverview {
 
 		global $wpdb;
 		$tables = Schema::table_names();
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table names from Schema::table_names(); values are placeholders.
+		// Licenses the customer owns and licenses shared with them as a co-user (B-139).
+		list( $visible, $visible_args ) = LicenseMembers::visible_condition( 'l', $customer_id );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table names from Schema::table_names(); values are placeholders.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT a.id AS activation_id, a.license_id, a.site_url, a.environment, a.product_version, a.activated_at, a.last_seen_at,
 					l.product_key, l.plan_key, l.status AS license_status, l.paid_until, l.renewal_enabled, l.cancel_at_period_end
 				FROM {$tables['activations']} a
 				INNER JOIN {$tables['licenses']} l ON l.id = a.license_id
-				WHERE l.customer_id = %d AND a.status = %s
+				WHERE {$visible} AND a.status = %s
 				ORDER BY a.site_url ASC, l.product_key ASC, a.id ASC
 				LIMIT %d",
-				$customer_id,
-				'active',
-				self::MAX_ROWS
+				array_merge( $visible_args, array( 'active', self::MAX_ROWS ) )
 			),
 			ARRAY_A
 		);

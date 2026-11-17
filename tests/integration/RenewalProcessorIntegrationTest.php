@@ -299,7 +299,7 @@ final class RenewalProcessorIntegrationTest extends WPLC_Renewal_TestCase {
 			$this->tables()['renewals'],
 			array(
 				'retry_at'        => gmdate( 'Y-m-d H:i:s', time() - 10 ),
-				'last_attempt_at' => gmdate( 'Y-m-d H:i:s', time() - RenewalProcessor::UNKNOWN_RESULT_WINDOW - 60 ),
+				'last_attempt_at' => gmdate( 'Y-m-d H:i:s', time() - RenewalProcessor::RESULT_UNKNOWN_WINDOW - 60 ),
 			),
 			array( 'id' => $f['renewal_id'] )
 		);

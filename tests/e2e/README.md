@@ -22,7 +22,9 @@ A full run takes about five minutes after the first setup.
 
 ### Requirements
 
-- PHP CLI (7.4+; mysqli, curl, zip), `curl`, `tar`, a `mysql`/`mariadb` client.
+- PHP CLI (mysqli, curl, zip), `curl`, `tar`, a `mysql`/`mariadb` client. The plugin requires PHP 8.5; on an older
+  development PHP the driver lowers `Requires PHP` in its site copy and the e2e mu-plugin defines the test-only
+  constant `WPLC_TESTS_IGNORE_PHP_MINIMUM`, so the flows still run (MINVER-1). Never do either on a real site.
 - A MySQL/MariaDB server. The database named by `WPLC_E2E_DB_NAME` (default `wplc_e2e`)
   is **dropped and recreated** on every run without `WPLC_E2E_KEEP_DB=1`.
 - Network access to wordpress.org, or `composer` and `git` for the fallback sources (below).
@@ -58,7 +60,7 @@ A full run takes about five minutes after the first setup.
 6. The plugin is **copied without `vendor/`, `.git` and `tests/`** to
    `wp-content/plugins/wp-license`, so every run proves the fallback autoloader.
 7. `mu-plugins/wplc-e2e.php` is copied to the site (see below).
-8. A PHP built-in server on `127.0.0.1:$WPLC_E2E_PORT` with `router.php` and `$WPLC_E2E_SERVER_WORKERS` worker processes.
+8. A PHP built-in server on `127.0.0.1:$WPLC_E2E_PORT` with `router.php` and `$WPLC_E2E_SERVER_WORKERS` worker processes. `router.php` invalidates the OPcache entry of `wp-config.php` on every request, because flow `01-vendor-onboarding` changes that file while the server runs.
 
 ### HTTPS
 
@@ -102,6 +104,7 @@ talking real HTTP; request signatures, nonces, cookies, redirects and file strea
 | File | Covers |
 | --- | --- |
 | `01-activation.php` | Activation hook, fallback autoloader, 14 tables, schema option, repeatable migration, cron/Action Scheduler, REST routes, every admin screen over HTTP |
+| `01-vendor-onboarding.php` | PROD-09 and PROD-04 on the empty installation right after activation, with an invented vendor ("Acme Plugins", product key `acme-reports-pro`, entitlements `acme_reports.*`): the "Getting started" checklist of the settings screen is checked after every step and exactly that step turns to done: public key (`WPLC_RESPONSE_SIGNING_KEY` added to `wp-config.php`), catalog file upload, license product in the product editor (only the catalog's entitlements offered, neutral placeholder), release upload and publish (a draft does not count), test purchase; then activation, entitlement check and update check through the `LicenseClient` pinned to that key; finally `WPLC_STRIPE_WEBHOOK_SECRET`, after which the checklist folds away. The flow removes the constants and everything it created, so the later flows start from the same empty shop |
 | `02-catalog.php` | Product editor POST (simple product, variations via admin-ajax, whole variable product, parent-level mapping), price changes, invalid input, CSV export/import round trip |
 | `03-purchase.php` | Forced registration, checkout, quantity 2 → 2 licenses + entitlements, repeated hooks, "license issued" email (no full key by default), My Account |
 | `04-client-server.php` | `LicenseClient`: activate, signed entitlement check, both response signatures, replay/expiry/tamper checks, site limit, staging, development, deactivation cascade, replacing a site, customer deactivation |
@@ -172,10 +175,10 @@ executed through the Action Scheduler runner regardless of their scheduled date
 ## CI
 
 `.github/workflows/e2e.yml` runs the full driver on every pull request, on pushes to `main`
-and on demand (`workflow_dispatch`), as one job `e2e (WP latest, WC 11.2.2, PHP 8.3)`:
+and on demand (`workflow_dispatch`), as one job `e2e (WP latest, WC 11.2.2, PHP 8.5)`:
 
-- `mysql:8.0` service (root/root on 127.0.0.1:3306, same as the integration job in `phpunit.yml`);
-- PHP 8.3 via `shivammathur/setup-php` with mysqli, curl, zip (plus intl, mbstring, openssl,
+- `mysql:9.7` service, the minimum MySQL server (root/root on 127.0.0.1:3306, like the MySQL cells of the integration job in `phpunit.yml`);
+- PHP 8.5, the minimum, via `shivammathur/setup-php` with mysqli, curl, zip (plus intl, mbstring, openssl,
   sodium like the other jobs), Composer only for the fallback sources;
 - `default-mysql-client` and `psmisc` (`fuser`) from apt;
 - no `composer install`: the driver copies the plugin without `vendor/` anyway, and downloads

@@ -391,7 +391,9 @@ final class CustomerPortalIntegrationTest extends WPLC_Portal_TestCase {
 		$html = $this->render_portal( $this->customer );
 
 		// A-22: the manual license ends within 30 days, so its site can move to either newer license of the product.
-		$this->assertSame( 7, preg_match_all( '/<form\b[^>]*>/', $html, $forms ), 'Expected renew (manual and cancelled license), cancel, undo, deactivate and two move forms.' );
+		$this->assertSame( 13, preg_match_all( '/<form\b[^>]*>/', $html, $forms ), 'Expected renew (manual and cancelled license), cancel, undo, deactivate, two move forms and per license "invite a co-user" and "offer transfer" (B-139).' );
+		$this->assertSame( 3, substr_count( $html, 'value="wplc_invite_member"' ) );
+		$this->assertSame( 3, substr_count( $html, 'value="wplc_start_transfer"' ) );
 		$this->assertSame( 2, substr_count( $html, 'value="wplc_transfer_site"' ) );
 		$this->assertStringNotContainsString( 'admin-post.php', $html );
 		$this->assertStringNotContainsString( 'wp-admin', $html );

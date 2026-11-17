@@ -1,7 +1,8 @@
 name: PHPUnit
 
-# Tests: syntax + unit tests on every supported PHP version, and the
-# WordPress/WooCommerce integration matrix. Static analysis lives in quality.yml.
+# Tests: syntax + unit tests on every supported PHP version (8.5 and newer), and the
+# WordPress/WooCommerce integration matrix on the minimum database servers (MySQL 9.7,
+# MariaDB 12.3). Static analysis lives in quality.yml.
 # See docs/QUALITY-GATES.md.
 
 on:
@@ -19,12 +20,18 @@ permissions:
 
 jobs:
   unit:
+    name: unit (${{ matrix.php }}${{ matrix.experimental && ', experimental' || '' }})
     runs-on: ubuntu-latest
+    # PHP 8.6 is a nightly build of setup-php until its release on 19 Nov 2026: shown, never fails the run.
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
-        # 8.5 is the newest stable PHP version setup-php offers (INH-03); the declared minimum is 7.4.
-        php: ["7.4", "8.1", "8.2", "8.3", "8.5"]
+        # Only supported versions: the declared minimum (`Requires PHP: 8.5`, MINVER-1) and newer.
+        php: ["8.5"]
+        experimental: [false]
+        include:
+          - { php: "8.6", experimental: true }
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -49,39 +56,46 @@ jobs:
         run: php -d disable_functions=idn_to_ascii vendor/bin/phpunit --filter SiteUrl
 
   integration:
-    name: integration (WP ${{ matrix.wp }}, WC ${{ matrix.wc }}, PHP ${{ matrix.php }}, ${{ matrix.hpos == '1' && 'HPOS' || 'legacy orders' }}${{ matrix.multisite == '1' && ', multisite' || '' }})
+    name: integration (WP ${{ matrix.wp }}, WC ${{ matrix.wc }}, PHP ${{ matrix.php }}, ${{ matrix.db == 'mariadb' && 'MariaDB 12.3' || 'MySQL 9.7' }}, ${{ matrix.hpos == '1' && 'HPOS' || 'legacy orders' }}${{ matrix.multisite == '1' && ', multisite' || '' }}${{ matrix.experimental && ', experimental' || '' }})
     runs-on: ubuntu-latest
+    # Only the PHP 8.6 cell is experimental: shown, but it never fails the run or wordpress-integration.
+    continue-on-error: ${{ matrix.experimental || false }}
     strategy:
       fail-fast: false
       matrix:
+        # Every cell runs the PHP minimum (`Requires PHP: 8.5`) on one of the minimum database servers,
+        # MySQL 9.7 LTS or MariaDB 12.3 LTS (MINVER-1); older servers only get a warning in the plugin.
         include:
-          # Declared WooCommerce minimum (`WC requires at least: 8.9` in wp-license.php, Requirements::MIN_WC):
-          # the last 8.9 release with the declared WordPress and PHP minimums. WooCommerce 8.9 itself needs WP 6.4+.
-          - { wp: "6.5", wc: "8.9.3", php: "7.4", hpos: "1" }
-          - { wp: "6.5", wc: "8.9.3", php: "7.4", hpos: "0" }
-          # Declared WordPress minimum: WordPress 6.5, the last WooCommerce line that supports it, PHP 7.4.
-          - { wp: "6.5", wc: "9.4.3", php: "7.4", hpos: "1" }
-          - { wp: "6.5", wc: "9.4.3", php: "7.4", hpos: "0" }
-          # Current: latest WordPress, pinned recent WooCommerce (keep in sync with bin/install-test-env.sh).
-          - { wp: "latest", wc: "11.2.2", php: "8.3", hpos: "1" }
-          - { wp: "latest", wc: "11.2.2", php: "8.3", hpos: "0" }
+          # Declared minimums (owner decision of 17 Nov 2026, uniform for all Captain plugins):
+          # `Requires at least: 7.0` (Requirements::MIN_WP; "7.0" installs the newest 7.0.x release)
+          # and `WC requires at least: 11.2` (Requirements::MIN_WC), with the newest 11.2 release.
+          - { wp: "7.0", wc: "11.2.2", php: "8.5", db: "mysql", hpos: "1" }
+          - { wp: "7.0", wc: "11.2.2", php: "8.5", db: "mariadb", hpos: "0" }
+          # Newest: latest WordPress, newest stable WooCommerce (keep in sync with DEFAULT_WC_VERSION
+          # in bin/install-test-env.sh).
+          - { wp: "latest", wc: "11.3.0", php: "8.5", db: "mysql", hpos: "0" }
+          - { wp: "latest", wc: "11.3.0", php: "8.5", db: "mariadb", hpos: "1" }
           # Multisite network (docs/MULTISITE.md); the WordPress test library reads WP_MULTISITE.
-          - { wp: "latest", wc: "11.2.2", php: "8.3", hpos: "1", multisite: "1" }
-          # Newest stable PHP version (INH-03): shows early what a higher PHP minimum (INH-02) would meet.
-          - { wp: "latest", wc: "11.2.2", php: "8.5", hpos: "1" }
+          - { wp: "latest", wc: "11.3.0", php: "8.5", db: "mariadb", hpos: "1", multisite: "1" }
+          # PHP 8.6: a nightly build of setup-php until its release on 19 Nov 2026, experimental.
+          - { wp: "latest", wc: "11.3.0", php: "8.6", db: "mysql", hpos: "1", experimental: true }
     services:
       mysql:
-        image: mysql:8.0
+        # Docker Hub tags mysql:9.7 and mariadb:12.3 (both present on 16 Nov 2026).
+        image: ${{ matrix.db == 'mariadb' && 'mariadb:12.3' || 'mysql:9.7' }}
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_ROOT_HOST: "%"
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_ROOT_HOST: "%"
         ports:
           - 3306:3306
+        # The MariaDB images have no mysqladmin since 11.0; they ship healthcheck.sh instead.
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-cmd="${{ matrix.db == 'mariadb' && 'healthcheck.sh --connect --innodb_initialized' || 'mysqladmin ping -h 127.0.0.1 -uroot -proot' }}"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=10
+          --health-retries=20
     env:
       WP_TESTS_DIR: /tmp/wordpress-tests-lib
       WP_CORE_DIR: /tmp/wordpress

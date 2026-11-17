@@ -887,14 +887,49 @@ final class Diagnostics {
 			$add( __( 'Newest release', 'wp-license' ), __( 'Not known yet. WordPress checks for updates twice a day.', 'wp-license' ) );
 		} elseif ( defined( 'WPLC_VERSION' ) && version_compare( $release['version'], (string) WPLC_VERSION, '>' ) ) {
 			/* translators: 1: version number, 2: address of the release page. */
-			$add( __( 'Newest release', 'wp-license' ), sprintf( __( '%1$s is available: %2$s', 'wp-license' ), $release['version'], $release['url'] ), 'warning', __( 'Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/PRODUCTION-OPERATIONS.md).', 'wp-license' ) );
+			$add( __( 'Newest release', 'wp-license' ), sprintf( __( '%1$s is available: %2$s', 'wp-license' ), $release['version'], $release['url'] ), 'warning', __( 'Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/manual/12-upgrading.md).', 'wp-license' ) );
 		} else {
 			$add( __( 'Newest release', 'wp-license' ), $release['version'], 'ok' );
 		}
-		$add( __( 'PHP', 'wp-license' ), PHP_VERSION );
-		$add( __( 'WordPress', 'wp-license' ), get_bloginfo( 'version' ) );
-		$add( __( 'WooCommerce', 'wp-license' ), defined( 'WC_VERSION' ) ? WC_VERSION : __( 'Unavailable', 'wp-license' ) );
-		$add( __( 'Database', 'wp-license' ), method_exists( $wpdb, 'db_version' ) ? (string) $wpdb->db_version() : __( 'Unknown', 'wp-license' ) );
+		// MINVER-1: PHP and database server against the minimums; an older database server is a warning only.
+		$php_ok   = Requirements::php_meets_minimum();
+		$php_help = '';
+		if ( ! $php_ok ) {
+			/* translators: %s: minimum PHP version. */
+			$php_help = sprintf( __( 'WP License Captain requires PHP %s or later.', 'wp-license' ), Requirements::MIN_PHP );
+		}
+		/* translators: 1: running PHP version, 2: minimum PHP version. */
+		$add( __( 'PHP', 'wp-license' ), sprintf( __( '%1$s (minimum %2$s)', 'wp-license' ), PHP_VERSION, Requirements::MIN_PHP ), $php_ok ? 'ok' : 'warning', $php_help );
+		// Owner decision of 17 Nov 2026: WordPress and WooCommerce against the declared minimums.
+		$wp_ok = Requirements::wordpress_is_supported();
+		$add(
+			__( 'WordPress', 'wp-license' ),
+			/* translators: 1: running version, 2: minimum version. */
+			sprintf( __( '%1$s (minimum %2$s)', 'wp-license' ), get_bloginfo( 'version' ), Requirements::MIN_WP ),
+			$wp_ok ? 'ok' : 'warning',
+			/* translators: %s: minimum WordPress version. */
+			$wp_ok ? '' : sprintf( __( 'WP License Captain requires WordPress %s or later.', 'wp-license' ), Requirements::MIN_WP )
+		);
+		if ( defined( 'WC_VERSION' ) ) {
+			$wc_ok = Requirements::woocommerce_is_supported();
+			$add(
+				__( 'WooCommerce', 'wp-license' ),
+				/* translators: 1: running version, 2: minimum version. */
+				sprintf( __( '%1$s (minimum %2$s)', 'wp-license' ), (string) WC_VERSION, Requirements::MIN_WC ),
+				$wc_ok ? 'ok' : 'warning',
+				/* translators: %s: minimum WooCommerce version. */
+				$wc_ok ? '' : sprintf( __( 'WP License Captain requires WooCommerce %s or later.', 'wp-license' ), Requirements::MIN_WC )
+			);
+		} else {
+			$add( __( 'WooCommerce', 'wp-license' ), __( 'Unavailable', 'wp-license' ) );
+		}
+		$database = Requirements::database_status();
+		if ( $database['known'] ) {
+			/* translators: 1: MySQL or MariaDB, 2: version of the database server, 3: minimum version. */
+			$add( __( 'Database', 'wp-license' ), sprintf( __( '%1$s %2$s (minimum %3$s)', 'wp-license' ), $database['name'], $database['version'], $database['minimum'] ), $database['ok'] ? 'ok' : 'warning', $database['message'] );
+		} else {
+			$add( __( 'Database', 'wp-license' ), method_exists( $wpdb, 'db_version' ) ? (string) $wpdb->db_version() : __( 'Unknown', 'wp-license' ) );
+		}
 
 		$schema    = (string) get_option( Schema::VERSION_OPTION, '0' );
 		$schema_ok = 0 === version_compare( $schema, Schema::VERSION );
@@ -978,6 +1013,16 @@ final class Diagnostics {
 
 		$add( __( 'HTTPS', 'wp-license' ), is_ssl() ? __( 'Enabled', 'wp-license' ) : __( 'Not detected', 'wp-license' ), is_ssl() ? 'ok' : 'warning' );
 		$add( __( 'OpenSSL', 'wp-license' ), extension_loaded( 'openssl' ) ? __( 'Available', 'wp-license' ) : __( 'Unavailable', 'wp-license' ), extension_loaded( 'openssl' ) ? 'ok' : 'warning' );
+		// T-31: only whether object storage is configured, the bucket and the endpoint host. Never a key.
+		$object_storage = \WPLC\Update\S3Storage::config();
+		if ( 'configured' === $object_storage['state'] ) {
+			/* translators: 1: bucket name, 2: host name of the storage endpoint. */
+			$add( __( 'Object storage (S3-compatible)', 'wp-license' ), sprintf( __( 'Bucket %1$s on %2$s', 'wp-license' ), $object_storage['bucket'], $object_storage['endpoint_host'] ), 'ok' );
+		} elseif ( 'invalid' === $object_storage['state'] ) {
+			$add( __( 'Object storage (S3-compatible)', 'wp-license' ), __( 'Invalid configuration', 'wp-license' ), 'warning', \WPLC\Update\S3Storage::error_message( $object_storage['error'] ) );
+		} else {
+			$add( __( 'Object storage (S3-compatible)', 'wp-license' ), __( 'Not configured', 'wp-license' ) );
+		}
 
 		// Background jobs.
 		$run    = self::daily_run_state();
@@ -1149,8 +1194,8 @@ final class Diagnostics {
 		$layer = self::database_layer();
 		if ( $layer['splitting'] ) {
 			$layer_help = $layer['primary_switch']
-				? __( 'This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/SECURITY-OPERATIONS.md).', 'wp-license' )
-				: __( 'This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/SECURITY-OPERATIONS.md).', 'wp-license' );
+				? __( 'This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/manual/09-operations.md).', 'wp-license' )
+				: __( 'This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/manual/09-operations.md).', 'wp-license' );
 			/* translators: %s: PHP class name of the database layer. */
 			$add( __( 'Database layer', 'wp-license' ), sprintf( __( '%s (read/write splitting)', 'wp-license' ), $layer['class'] ), 'warning', $layer_help );
 		} elseif ( $layer['drop_in'] ) {
@@ -1236,7 +1281,7 @@ final class Diagnostics {
 			$add( $label, __( 'Not installed (not needed while the plugin is network-activated)', 'wp-license' ) );
 			return;
 		}
-		$add( $label, __( 'Not installed', 'wp-license' ), 'warning', __( 'If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/MULTISITE.md).', 'wp-license' ) );
+		$add( $label, __( 'Not installed', 'wp-license' ), 'warning', __( 'If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/manual/09-operations.md).', 'wp-license' ) );
 	}
 
 	/**

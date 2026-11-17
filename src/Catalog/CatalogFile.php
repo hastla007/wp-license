@@ -347,13 +347,13 @@ final class CatalogFile {
 	}
 
 	/**
-	 * Whether an array is a JSON list (PHP 7.4 has no array_is_list()).
+	 * Whether an array is a JSON list.
 	 *
 	 * @param array<mixed,mixed> $value Array.
 	 * @return bool
 	 */
 	private static function is_list( array $value ): bool {
-		return array() === $value || array_keys( $value ) === range( 0, count( $value ) - 1 );
+		return array_is_list( $value );
 	}
 
 	/**

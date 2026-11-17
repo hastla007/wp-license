@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Registers the opt-in as an "additional checkout field" (WooCommerce 8.9+)
+ * Registers the opt-in as an "additional checkout field" (WooCommerce 8.9+ API)
  * and turns its value into the same order meta the classic checkout writes,
  * so license issuing does not need to know which checkout was used.
  *
@@ -34,13 +34,6 @@ final class BlockCheckoutConsent {
 	 * Order meta key WooCommerce stores the field under (group prefix `_wc_other/` + field ID).
 	 */
 	const FIELD_META_KEY = '_wc_other/wplc/recurring-consent';
-
-	/**
-	 * Former cache of the license product IDs (a transient built from product meta).
-	 * The list now comes from Catalog::license_product_ids(); the name is only kept
-	 * so that the old transient can be removed.
-	 */
-	const PRODUCT_IDS_TRANSIENT = 'wplc_license_product_ids';
 
 	/**
 	 * Above this many license products the visibility rule is not sent to the browser.
@@ -125,8 +118,8 @@ final class BlockCheckoutConsent {
 	/**
 	 * Whether the field is registered although it cannot be limited to carts with a license.
 	 *
-	 * B-114: WooCommerce 8.9 to 9.8 (and shops with more than MAX_RULE_PRODUCTS license
-	 * products) cannot hide an additional field, so it would stand in every cart. The shop
+	 * B-114: shops with more than MAX_RULE_PRODUCTS license products (and WooCommerce before
+	 * 9.9, which is below Requirements::MIN_WC) cannot hide an additional field, so it would stand in every cart. The shop
 	 * decides with the filter: the default keeps the opt-in (its value is ignored for orders
 	 * without a license); returning false offers no automatic renewal in the block checkout
 	 * on those versions.

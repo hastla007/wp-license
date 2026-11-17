@@ -29,6 +29,9 @@ if ( ! file_exists( $wplc_wc_dir . '/vendor/autoload_packages.php' ) ) {
 
 $wplc_hpos = '0' !== (string) getenv( 'WPLC_TEST_HPOS' );
 
+// TEST-ONLY (MINVER-1): wp-license.php does not boot below Requirements::MIN_PHP; the suite also
+// runs on the older PHP of a development machine. CI runs it on the minimum itself.
+define( 'WPLC_TESTS_IGNORE_PHP_MINIMUM', true );
 define( 'WPLC_INSTALLATION_ENCRYPTION_KEYS', array( 'integration-2026' => 'integration-only-encryption-secret' ) );
 define( 'WPLC_INSTALLATION_ENCRYPTION_KEY_ID', 'integration-2026' );
 define( 'WPLC_LICENSE_KEY_SECRETS', array( 'integration-2026' => 'integration-only-license-secret' ) );

@@ -8,7 +8,8 @@ WooCommerce → License diagnostics (capability `wplc_view_diagnostics`, by defa
 
 | Row | Shows | Warning when |
 | --- | --- | --- |
-| Plugin version, PHP, WordPress, WooCommerce, database | Versions | – |
+| Plugin version, WordPress, WooCommerce | Versions | – |
+| PHP, Database | Version and minimum (PHP 8.5; MySQL 9.7 or MariaDB 12.3, recognised by the server version string) | PHP is older than 8.5 (only possible in a test setup: the plugin does not load there), or the database server is older than its minimum. Nothing is blocked; Site Health shows the same as the test "WP License Captain: PHP and database versions" (status *recommended*, MINVER-1) |
 | License schema (installed / expected) | Schema version in the database and the one the code needs | The installed version is lower: a migration did not finish |
 | License tables | Missing plugin tables | Any table is missing |
 | Server time / database time | UTC and site time, database clock | Web server and database differ by more than two minutes |

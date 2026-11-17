@@ -74,7 +74,7 @@ Größe: **S** bis etwa ein Arbeitstag, **M** einige Tage, **L** ein bis zwei Wo
 
 - Texte und Platzhalter im Code, die Captain-Produkte nennen: `ProductEditor.php` (Platzhalter `voucher-captain-pro`, Hilfetext mit den drei Add-on-Schlüsseln, Beispiel `affiliate.program_limit`), `Settings.php` (Einstiegstext mit `voucher-captain-pro`), Hilfetexte der CLI-Befehle (`ReleaseCommand`, `SyncEntitlementsCommand`, `SigningKeyCommand`), Kommentare.
 - Übersetzungen: Die Bezeichnungen der Captain-Funktionen sind mit PROD-01 aus `languages/` entfernt. Übrig bleiben die genannten Hilfetexte.
-- Der Produkteditor ordnet eine Rechtegruppe einem Produktschlüssel heute zusätzlich über eine Teilzeichenkette zu (`wplc-product-editor.js`, `EntitlementCatalog::groups_for_product_key()`); für fremde Hersteller muss die Zuordnung allein über den Katalog laufen.
+- Erledigt mit PK-01: Der Produkteditor ordnet eine Rechtegruppe einem Produktschlüssel allein über den Katalog zu (Produktschlüssel → Präfix; `wplc-product-editor.js`, `EntitlementCatalog::groups_for_product_key()`), nicht mehr über eine Teilzeichenkette. Ein Schlüssel, den der Katalog nicht kennt, bekommt keine Rechtegruppe angeboten.
 - Erledigt, wenn ein Test den Code unter `src/`, `templates/` und `assets/` nach den Namen der Captain-Produkte durchsucht und nichts findet (außer dem eigenen Produktnamen), und wenn die Tests einen zweiten, erfundenen Hersteller mit eigenem Katalog durchspielen.
 
 ### PROD-05 · Name, Marke und Kennungen des Produkts

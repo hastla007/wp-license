@@ -219,9 +219,9 @@ final class ProductEditor {
 				'id' => $name( '_wplc_product_key' ),
 				'label' => __( 'License product key', 'wp-license' ),
 				'value' => $values['product_key'],
-				'placeholder' => 'voucher-captain-pro',
+				'placeholder' => 'acme-pro',
 				'desc_tip' => true,
-				'description' => __( 'Stable product identifier. Must match the key of the premium add-on: voucher-captain-pro, pass-captain-pro or affiliate-captain-pro. Lowercase letters, digits and hyphens only.', 'wp-license' ),
+				'description' => __( 'Stable product identifier. Must match the product key the premium add-on sends, for example acme-pro; the suggestions come from the imported catalog files. Lowercase letters, digits and hyphens only.', 'wp-license' ),
 				'custom_attributes' => array(
 					'list' => 'wplc-known-product-keys',
 					'pattern' => '[a-z0-9][a-z0-9\-]{1,99}',
@@ -312,7 +312,7 @@ final class ProductEditor {
 				'id' => $name( '_wplc_entitlements_json' ),
 				'label' => __( 'Advanced: additional entitlements (JSON)', 'wp-license' ),
 				'value' => false === $advanced_json ? '' : $advanced_json,
-				'placeholder' => '{"affiliate.program_limit":3}',
+				'placeholder' => '{"acme.project_limit":3}',
 				'desc_tip' => true,
 				'description' => __( 'Optional JSON object for numeric limits and entitlement keys that are not in the list above. The live-site limit and support level are added automatically.', 'wp-license' ),
 			)
@@ -338,15 +338,24 @@ final class ProductEditor {
 		// Separate names: "x[]" on the parent and "x[0][]" on a variation would collide in one request.
 		$field_name = '' === $suffix ? '_wplc_entitlement_keys[]' : '_wplc_variation_entitlement_keys' . $suffix . '[]';
 
-		echo '<fieldset class="form-field wplc-entitlements">';
+		// The script resolves a typed key with the same map (catalog only, no substring match: PK-01).
+		$key_groups = wp_json_encode( (object) EntitlementCatalog::product_key_groups() );
+		$keyed      = '' !== $product_key;
+		$visible    = 0;
+
+		echo '<fieldset class="form-field wplc-entitlements" data-wplc-product-groups="' . esc_attr( false === $key_groups ? '{}' : $key_groups ) . '">';
 		echo '<legend>' . esc_html__( 'Entitlements', 'wp-license' ) . '</legend>';
 		foreach ( $catalog as $group => $entitlements ) {
 			if ( ! $entitlements ) {
 				continue;
 			}
 			$group_checked = array_intersect( array_column( $entitlements, 'key' ), $checked );
+			// With a product key only its own group is offered; a key the catalog does not know gets none.
 			// Never hide a group that carries saved values; the script applies the same rule while typing.
-			$hidden = $matching && ! in_array( $group, $matching, true ) && ! $group_checked;
+			$hidden = $keyed && ! in_array( $group, $matching, true ) && ! $group_checked;
+			if ( ! $hidden ) {
+				++$visible;
+			}
 			echo '<div class="wplc-entitlement-group" data-wplc-entitlement-group="' . esc_attr( $group ) . '"' . ( $hidden ? ' hidden' : '' ) . '>';
 			echo '<strong>' . esc_html( EntitlementCatalog::group_label( $group ) ) . '</strong><ul>';
 			foreach ( $entitlements as $entitlement ) {
@@ -358,6 +367,7 @@ final class ProductEditor {
 			}
 			echo '</ul></div>';
 		}
+		echo '<p class="description" data-wplc-entitlement-none' . ( $keyed && 0 === $visible ? '' : ' hidden' ) . '>' . esc_html__( 'The catalog offers no entitlements for this license product key. They come from the catalog file of the product: upload a release whose package contains it, or import it under License catalog files.', 'wp-license' ) . '</p>';
 		echo '</fieldset>';
 	}
 

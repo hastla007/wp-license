@@ -12,6 +12,7 @@ use WPLC\Update\LocalPackageStorage;
 use WPLC\Update\PackageStorageCheck;
 use WPLC\Update\PackageStream;
 use WPLC\Update\ReleaseRegistry;
+use WPLC\Update\S3Storage;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -170,7 +171,7 @@ final class ReleaseAdmin {
 			'product_key' => self::post_text( 'product_key' ),
 			'version' => self::post_text( 'version' ),
 			'channel' => ReleaseRegistry::CHANNEL_BETA === $channel ? ReleaseRegistry::CHANNEL_BETA : ReleaseRegistry::DEFAULT_CHANNEL,
-			'package_url' => isset( $_POST['package_url'] ) ? esc_url_raw( trim( (string) wp_unslash( $_POST['package_url'] ) ), array( 'https' ) ) : '',
+			'package_url' => self::post_package_url(),
 			'storage' => ReleaseRegistry::STORAGE_URL,
 			'sha256' => self::post_text( 'sha256' ),
 			'requires_php' => self::post_text( 'requires_php' ),
@@ -190,7 +191,7 @@ final class ReleaseAdmin {
 			self::finish( false, $result->get_error_message(), $input );
 		}
 		$message = __( 'Draft release created. Publish it to make it available.', 'wp-license' );
-		if ( ! $has_upload && ! PackageStream::is_trusted_url( $input['package_url'] ) ) {
+		if ( ! $has_upload && ! PackageStream::is_trusted_url( S3Storage::normalize_package_url( $input['package_url'] ) ) ) {
 			// A-119: say it now, not only when the release is published.
 			$message .= ' ' . ReleaseRegistry::error_message( 'untrusted_package_host' );
 		}
@@ -331,7 +332,7 @@ final class ReleaseAdmin {
 		}
 		if ( $has_published_url && ! UpdateService::has_package_resolver() ) {
 			// A-32.
-			echo '<div class="notice notice-warning inline"><p>' . ( UpdateService::requires_package_resolver() ? esc_html__( 'Releases with a package URL are not delivered: without a resolver that returns a short-lived signed URL, every licensed customer would learn the permanent address and could keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md).', 'wp-license' ) : esc_html__( 'Releases with a package URL are delivered by redirecting licensed installations to that URL. Without a resolver that returns a short-lived signed URL, every licensed customer learns the permanent address and can keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/UPDATE-STORAGE.md).', 'wp-license' ) ) . '</p></div>';
+			echo '<div class="notice notice-warning inline"><p>' . ( UpdateService::requires_package_resolver() ? esc_html__( 'Releases with a package URL are not delivered: without a resolver that returns a short-lived signed URL, every licensed customer would learn the permanent address and could keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/manual/05-releases-and-updates.md).', 'wp-license' ) : esc_html__( 'Releases with a package URL are delivered by redirecting licensed installations to that URL. Without a resolver that returns a short-lived signed URL, every licensed customer learns the permanent address and can keep using it after the license has ended. Upload the ZIP instead, or add a resolver (see docs/manual/05-releases-and-updates.md).', 'wp-license' ) ) . '</p></div>';
 		}
 	}
 
@@ -487,11 +488,21 @@ final class ReleaseAdmin {
 			)
 		) . '</p></td></tr>';
 
-		self::render_text_row( 'package_url', __( 'or package URL', 'wp-license' ), 'https://downloads.example.com/product-1.2.3.zip', false, __( 'HTTPS URL on an allowed package host (License settings → Additional trusted package hosts). Ignored when a ZIP is uploaded. The file is downloaded once and checked when the release is published.', 'wp-license' ), 'url', $value( 'package_url' ) );
+		$url_help = __( 'HTTPS URL on an allowed package host (License settings → Additional trusted package hosts). Ignored when a ZIP is uploaded. The file is downloaded once and checked when the release is published.', 'wp-license' );
+		$object_storage = S3Storage::config();
+		if ( 'configured' === $object_storage['state'] ) {
+			$url_help .= ' ' . sprintf(
+				/* translators: %s: bucket name. */
+				__( 'Object storage is configured: enter s3://%s/path/to/package.zip to deliver a private object through short-lived signed links.', 'wp-license' ),
+				$object_storage['bucket']
+			);
+		}
+		// With object storage the field also takes s3://bucket/key with a raw key, which a browser may refuse in a URL field.
+		self::render_text_row( 'package_url', __( 'or package URL', 'wp-license' ), 'https://downloads.example.com/product-1.2.3.zip', false, $url_help, 'configured' === $object_storage['state'] ? 'text' : 'url', $value( 'package_url' ) );
 		self::render_text_row( 'sha256', __( 'SHA-256', 'wp-license' ), '', false, __( 'Required for a package URL: 64 hexadecimal characters. Compute it with "sha256sum file.zip" (Linux), "shasum -a 256 file.zip" (macOS) or "Get-FileHash file.zip" (Windows PowerShell).', 'wp-license' ), 'text', $value( 'sha256' ) );
-		self::render_text_row( 'requires_php', __( 'Requires PHP', 'wp-license' ), '7.4', false, __( 'Empty: taken from the plugin header of an uploaded ZIP.', 'wp-license' ), 'text', $value( 'requires_php' ) );
-		self::render_text_row( 'requires_wp', __( 'Requires WordPress', 'wp-license' ), '6.5', false, __( 'Empty: taken from the plugin header of an uploaded ZIP.', 'wp-license' ), 'text', $value( 'requires_wp' ) );
-		self::render_text_row( 'tested_wp', __( 'Tested up to WordPress', 'wp-license' ), '6.8', false, '', 'text', $value( 'tested_wp' ) );
+		self::render_text_row( 'requires_php', __( 'Requires PHP', 'wp-license' ), '8.5', false, __( 'Empty: taken from the plugin header of an uploaded ZIP.', 'wp-license' ), 'text', $value( 'requires_php' ) );
+		self::render_text_row( 'requires_wp', __( 'Requires WordPress', 'wp-license' ), '7.0', false, __( 'Empty: taken from the plugin header of an uploaded ZIP.', 'wp-license' ), 'text', $value( 'requires_wp' ) );
+		self::render_text_row( 'tested_wp', __( 'Tested up to WordPress', 'wp-license' ), '7.1', false, '', 'text', $value( 'tested_wp' ) );
 		self::render_text_row( 'requires_core', __( 'Requires core plugin', 'wp-license' ), '2.1.0', false, __( 'Minimum version of the free core plugin this add-on release needs. Installations that report an older core plugin are not offered this release.', 'wp-license' ), 'text', $value( 'requires_core' ) );
 
 		echo '<tr><th scope="row"><label for="wplc-release-notes">' . esc_html__( 'Release notes', 'wp-license' ) . '</label></th><td>';
@@ -700,6 +711,22 @@ final class ReleaseAdmin {
 	 */
 	private static function release_nonce( string $action, int $release_id ): string {
 		return 'wplc_release_' . $action . '_' . $release_id;
+	}
+
+	/**
+	 * Read the package URL field: an HTTPS URL, or "s3://bucket/key" when object storage is used (T-31).
+	 *
+	 * @return string
+	 */
+	private static function post_package_url(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified by the calling handler; sanitized below.
+		$value = isset( $_POST['package_url'] ) && is_scalar( $_POST['package_url'] ) ? trim( (string) wp_unslash( $_POST['package_url'] ) ) : '';
+		if ( S3Storage::is_object_uri( $value ) ) {
+			// T-31: "s3://bucket/key" keeps its raw key (spaces, non-ASCII); ReleaseRegistry::validate() turns it into the object URL.
+			return preg_match( '/[\x00-\x1f\x7f<>"]/', $value ) || strlen( $value ) > 1100 ? '' : $value;
+		}
+
+		return esc_url_raw( $value, array( 'https' ) );
 	}
 
 	/**

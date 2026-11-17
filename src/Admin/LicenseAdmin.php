@@ -59,6 +59,7 @@ final class LicenseAdmin {
 		add_action( 'admin_post_wplc_admin_reissue_key', array( self::class, 'handle_reissue_key' ) );
 		add_action( 'admin_post_wplc_admin_resend_key', array( self::class, 'handle_resend_key' ) );
 		add_action( 'admin_post_wplc_admin_change_owner', array( self::class, 'handle_change_owner' ) );
+		add_action( 'admin_post_wplc_admin_remove_member', array( self::class, 'handle_remove_member' ) );
 		add_action( 'admin_post_wplc_admin_restore_license', array( self::class, 'handle_restore' ) );
 		add_action( 'admin_post_wplc_admin_cancel_renewal', array( self::class, 'handle_cancel_renewal' ) );
 		add_action( 'admin_post_wplc_admin_withdraw_cancellation', array( self::class, 'handle_withdraw_cancellation' ) );
@@ -796,6 +797,27 @@ final class LicenseAdmin {
 	}
 
 	/**
+	 * Remove a co-user or withdraw an open co-user invitation (B-139).
+	 *
+	 * @return void
+	 */
+	public static function handle_remove_member(): void {
+		self::require_capability();
+
+		$license_id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
+		check_admin_referer( 'wplc_admin_remove_member_' . $license_id );
+
+		$member_id = isset( $_POST['member_id'] ) ? absint( $_POST['member_id'] ) : 0;
+		$reason    = self::posted_reason();
+		$fallback  = $license_id ? self::detail_url( $license_id ) : '';
+		if ( ! $license_id || ! $member_id || '' === $reason ) {
+			AdminNotices::redirect( 'member_missing_input', $fallback );
+		}
+		$result = \WPLC\License\LicenseMembers::remove_member( $license_id, $member_id, get_current_user_id(), true, $reason );
+		AdminNotices::redirect( \WPLC\License\LicenseMembers::RESULT_REMOVED === $result ? 'member_removed' : 'member_remove_failed', $fallback );
+	}
+
+	/**
 	 * Bring a suspended or revoked license back with a new end date.
 	 *
 	 * @return void
@@ -1094,7 +1116,7 @@ final class LicenseAdmin {
 	 * @param string $input User ID or email address.
 	 * @return int User ID, or zero when no account matches.
 	 */
-	private static function resolve_customer( string $input ): int {
+	public static function resolve_customer( string $input ): int {
 		$input = trim( $input );
 		if ( '' !== $input && ctype_digit( $input ) ) {
 			$user = get_userdata( (int) $input );

@@ -12,7 +12,13 @@ Decision of 13 Nov 2026 (`docs/IMPLEMENTATION-PLAN.md`): the three core plugins 
 
 The product keys are fixed (decision of 14 Nov 2026) and follow the rule "product key = folder of the add-on = text domain": `voucher-captain-pro`, `pass-captain-pro`, `affiliate-captain-pro`. The key in the add-on, in the catalog of the shop and the top-level folder of every release ZIP must be the same.
 
-The library is written for PHP 7.4 and WordPress 6.5, the lowest requirements among the products, and needs neither WooCommerce nor a class of the license server.
+The library is written for PHP 8.5 (since 2.2.0; the owner decided on 16 Nov 2026 that every Captain plugin requires the newest PHP version) and WordPress 7.0 (owner decision of 17 Nov 2026, uniform for all Captain plugins, add-ons and connectors), and needs neither WooCommerce nor a class of the license server.
+
+### Project connectors
+
+The second group of users are the project connectors (decision 17, [TODO.md](TODO.md) section 15): plugins built for one client, such as the connectors for BoatingSchool and LearnBoating. Each connector is its own project product with its own product key (key = folder = text domain, e.g. `learnboating-form-connector`), its own catalog file and entitlement prefix, and a license the owner issues by hand ([ENTITLEMENTS.md](ENTITLEMENTS.md#creating-a-project-product)). It carries its own copy of the library under its own namespace, exported like an add-on's (captain-pro delivers the export, `build/lib/ClientExporter.php`), and keeps its own options, named after its option prefix.
+
+A connector and a Pro add-on on the same website are two independent clients: two installations, two activations, and each takes one place of the live-site limit of its own product only. Revoking or suspending one license leaves the other valid, and a key of one product is refused by the other client (`product_mismatch`). `tests/integration/ProjectConnectorClientIntegrationTest.php` runs this with the library of this repository for the Pro add-on and the copy vendored into the starter (`Vendor\Product\Premium\Client`) for the connector.
 
 ## Earlier pull requests against the core plugins
 

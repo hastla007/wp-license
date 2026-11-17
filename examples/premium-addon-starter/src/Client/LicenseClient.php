@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/LicenseClient.php
- * (source sha256 257483485c2801a5caadd7ff736ede27b07cd23d8245f832ca9bec500b7629d1). Do not edit: change the server copy and re-vendor.
+ * (source sha256 829047ddadb26d648cd7260e7a221bce7ce2e0d049bbaab9a47b146577c4dc55). Do not edit: change the server copy and re-vendor.
  *
  * Transport of the license client: activation, signed requests, verified answers.
  *
@@ -20,7 +20,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 	 * Talks to a WP License Captain server on behalf of one premium add-on.
 	 *
 	 * Add-ons normally use the LicenseManager facade; this class is the layer
-	 * below it. It needs WordPress 6.5 and PHP 7.4, nothing else.
+	 * below it. It needs WordPress 7.0 and PHP 8.5 (since 2.2.0), nothing else.
 	 *
 	 * Rules it enforces (docs/API-V1.md):
 	 * - only the bytes of a verified `payload` are trusted: HMAC with the
@@ -35,7 +35,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.1.0';
+		const VERSION = '2.2.0';
 
 		/**
 		 * Context of the Ed25519 signature over the payload text.

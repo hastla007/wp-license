@@ -55,6 +55,7 @@ $generate = static function ( string $target, string $version ) use ( $starter, 
 		'--core-slug=woocommerce',
 		'--core-constant=WC_VERSION',
 		'--core-min=8.0',
+		// Below the real minimum (8.5, MINVER-1) on purpose: the generated add-on must also activate on the older PHP of a development machine.
 		'--requires-php=7.4',
 		'--server-url=https://shop.test',
 		'--public-key=' . $public_key,

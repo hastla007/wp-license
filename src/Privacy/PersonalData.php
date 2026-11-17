@@ -12,6 +12,7 @@ use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\ActivationManager;
 use WPLC\License\AuditLog;
 use WPLC\License\LicenseLifecycle;
+use WPLC\License\LicenseMembers;
 use WPLC\Maintenance\RenewalSwitch;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -55,7 +56,7 @@ final class PersonalData {
 	 *
 	 * @var string[]
 	 */
-	private const EXPORT_PHASES = array( 'activations', 'renewals', 'consents', 'history', 'emails', 'downloads', 'streams' );
+	private const EXPORT_PHASES = array( 'activations', 'renewals', 'consents', 'history', 'emails', 'downloads', 'streams', 'memberships' );
 
 	/**
 	 * Replacement of an erased snapshot value.
@@ -136,6 +137,7 @@ final class PersonalData {
 			__( 'Automatic renewals are charged through our payment provider (for card payments: Stripe). With each charge we send the provider the order number and order key, the address of this shop, internal license, renewal and period identifiers and the amount; the provider stores the customer and payment method references we keep with your license. The provider processes this data under its own privacy policy.', 'wp-license' ),
 			__( 'Updates are downloaded from our server. If a release is stored with an external package host, your website downloads the update file directly from that host; the host then receives the IP address of your website and the WordPress user agent, which contains the address of your website.', 'wp-license' ),
 			__( 'We keep a history of changes to your license (for example renewals, cancellations, activations and deactivations of websites), a record of which license emails were sent and when, and a record of update downloads. This history is deleted automatically after the retention period; websites you deactivated are deleted after the retention period as well.', 'wp-license' ),
+			__( 'If you invite someone to use your license, or transfer it to someone, we store the e-mail address you entered and send that person one e-mail with a link to accept. A person who accepts is shown the license, its key and its websites in their account; the owner sees the names and e-mail addresses of the co-users. Open invitations are deleted when they expire; co-users are removed when the license gets a new owner or their account is deleted.', 'wp-license' ),
 			__( 'You can request an export or the erasure of this data, with the e-mail address of your customer account or the billing e-mail address of your order. Licenses whose paid period is still running are kept so that your websites keep working; their automatic renewal is switched off when you request erasure. On erasure, website addresses and your customer number are also removed from the history of the erased licenses and websites. Orders and invoices are kept as long as the law requires.', 'wp-license' ),
 		);
 
@@ -501,6 +503,16 @@ final class PersonalData {
 				$order  = 's.id';
 				break;
 
+			case 'memberships':
+				// B-139: licenses the person uses as a co-user, and open invitations to their address.
+				$user   = get_userdata( $user_id );
+				$email  = $user ? strtolower( trim( (string) $user->user_email ) ) : '';
+				$select = 'm.id,m.kind,m.status,m.email,m.created_at,m.expires_at,m.accepted_at,l.key_prefix,l.product_key';
+				$from   = "FROM {$tables['license_members']} m LEFT JOIN {$tables['licenses']} l ON l.id = m.license_id WHERE ( m.user_id = %d OR ( m.status = %s AND m.email <> %s AND m.email = %s ) )";
+				$args   = array( $user_id, 'pending', '', $email );
+				$order  = 'm.id';
+				break;
+
 			default:
 				return $count ? 0 : array();
 		}
@@ -618,6 +630,32 @@ final class PersonalData {
 							array( 'name' => __( 'For the period ending', 'wp-license' ), 'value' => (string) $row['period_end'] ),
 							array( 'name' => __( 'Sent at (UTC)', 'wp-license' ), 'value' => (string) $row['sent_at'] ),
 						),
+					);
+					break;
+
+				case 'memberships':
+					if ( 'transfer' === (string) $row['kind'] ) {
+						$role = __( 'Transfer offered to you', 'wp-license' );
+					} else {
+						$role = 'active' === (string) $row['status'] ? __( 'Co-user', 'wp-license' ) : __( 'Co-user invitation', 'wp-license' );
+					}
+					$data = array(
+						array( 'name' => __( 'License reference', 'wp-license' ), 'value' => (string) $row['key_prefix'] ),
+						array( 'name' => __( 'Product', 'wp-license' ), 'value' => (string) $row['product_key'] ),
+						array( 'name' => __( 'Role', 'wp-license' ), 'value' => $role ),
+						array( 'name' => __( 'Invited address', 'wp-license' ), 'value' => (string) $row['email'] ),
+						array( 'name' => __( 'Invited at (UTC)', 'wp-license' ), 'value' => (string) $row['created_at'] ),
+					);
+					if ( ! empty( $row['accepted_at'] ) ) {
+						$data[] = array( 'name' => __( 'Accepted at (UTC)', 'wp-license' ), 'value' => (string) $row['accepted_at'] );
+					} elseif ( ! empty( $row['expires_at'] ) ) {
+						$data[] = array( 'name' => __( 'Invitation valid until (UTC)', 'wp-license' ), 'value' => (string) $row['expires_at'] );
+					}
+					$items[] = array(
+						'group_id' => 'wp-license-captain-memberships',
+						'group_label' => __( 'WP License Captain shared licenses', 'wp-license' ),
+						'item_id' => 'membership-' . (int) $row['id'],
+						'data' => $data,
 					);
 					break;
 
@@ -982,6 +1020,12 @@ final class PersonalData {
 			++$failed;
 		}
 
+		// 5. B-139: licenses the person uses as a co-user, and invitations to or from them.
+		$memberships = LicenseMembers::forget_user( $user_id );
+		if ( false === $memberships ) {
+			++$failed;
+		}
+
 		$retained = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$tables['licenses']} WHERE customer_id = %d AND status NOT IN (%s,%s,%s)",
@@ -996,7 +1040,7 @@ final class PersonalData {
 		$progress = $removed + $renewals_off + $refs_cleared + (int) $installations + (int) $actor_rows;
 		// Another call is only useful while this one made progress; a permanent error must not loop forever.
 		$result['done']           = ! ( ( $more_ended || $more_in_force || $more_actor_rows ) && $progress > 0 );
-		$result['items_removed']  = $removed > 0 || $refs_cleared > 0 || (int) $installations > 0 || (int) $actor_rows > 0 || (int) $snapshot_rows > 0;
+		$result['items_removed']  = $removed > 0 || $refs_cleared > 0 || (int) $installations > 0 || (int) $actor_rows > 0 || (int) $snapshot_rows > 0 || (int) $memberships > 0;
 		$result['items_retained'] = $retained > 0 || $failed > 0;
 
 		if ( $removed > 0 ) {
@@ -1045,6 +1089,18 @@ final class PersonalData {
 					'wp-license'
 				),
 				$retained
+			);
+		}
+		if ( (int) $memberships > 0 ) {
+			$result['messages'][] = sprintf(
+				/* translators: %s: number of entries. */
+				_n(
+					'%s co-user access or invitation of shared licenses was deleted.',
+					'%s co-user accesses or invitations of shared licenses were deleted.',
+					(int) $memberships,
+					'wp-license'
+				),
+				number_format_i18n( (int) $memberships )
 			);
 		}
 		if ( $failed > 0 ) {
@@ -1162,6 +1218,8 @@ final class PersonalData {
 			$wpdb->prepare( "UPDATE {$tables['consents']} SET customer_id = 0 WHERE license_id = %d", $license_id ),
 			$wpdb->prepare( "DELETE FROM {$tables['download_tokens']} WHERE license_id = %d", $license_id ),
 			$wpdb->prepare( "DELETE FROM {$tables['package_streams']} WHERE license_id = %d", $license_id ),
+			// B-139: co-users and open invitations of the detached license.
+			$wpdb->prepare( "DELETE FROM {$tables['license_members']} WHERE license_id = %d", $license_id ),
 		);
 		// phpcs:enable
 		foreach ( $queries as $query ) {

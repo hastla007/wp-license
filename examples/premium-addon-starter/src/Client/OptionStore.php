@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/OptionStore.php
- * (source sha256 03d674d9c13d6a9d9fbe389ac375e19dd8c1f9b2df25f160a41ca86e9e0878a2). Do not edit: change the server copy and re-vendor.
+ * (source sha256 f613ecf1d4c57f761855d6a98a4cd6b89417bae096f86ec6f37739d63af83b65). Do not edit: change the server copy and re-vendor.
  *
  * Storage of the license client: per-site options or network options.
  *
@@ -37,7 +37,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\OptionStore', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.1.0';
+		const VERSION = '2.2.0';
 
 		/**
 		 * Whether values are stored for the whole network.

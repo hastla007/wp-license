@@ -111,7 +111,7 @@ final class Catalog {
 	public static function error_message( string $code ): string {
 		switch ( $code ) {
 			case 'invalid_product_key':
-				return __( 'The license product key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and needs 2 to 100 characters (for example voucher-captain).', 'wp-license' );
+				return __( 'The license product key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and needs 2 to 100 characters (for example acme-pro).', 'wp-license' );
 			case 'invalid_plan_key':
 				return __( 'The license plan key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and may have up to 100 characters (for example business).', 'wp-license' );
 			case 'invalid_interval':
@@ -203,7 +203,8 @@ final class Catalog {
 		if ( null === $price_minor ) {
 			return self::fail( 'invalid_price' );
 		}
-		$currency = strtoupper( sanitize_text_field( function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'EUR' ) );
+		// B-189: the currency product prices are entered in, not the currency a multi-currency plugin shows.
+		$currency = self::base_currency();
 
 		$entitlements = $data['entitlements'] ?? array();
 		if ( ! is_array( $entitlements ) ) {
@@ -320,6 +321,29 @@ final class Catalog {
 	}
 
 	/**
+	 * Whether anybody can buy a product or variation in the shop (PK-05).
+	 *
+	 * Published (the parent too, for a variation), without a password and
+	 * purchasable. A private product, as used for a project product that is
+	 * only licensed by hand (docs/ENTITLEMENTS.md, "Creating a project
+	 * product"), is not for sale, also not while an administrator looks at it.
+	 *
+	 * @param mixed $product WooCommerce product, variation or anything else.
+	 * @return bool
+	 */
+	public static function is_for_sale( $product ): bool {
+		if ( ! $product instanceof \WC_Product ) {
+			return false;
+		}
+		$parent = $product->is_type( 'variation' ) && function_exists( 'wc_get_product' ) ? wc_get_product( $product->get_parent_id() ) : $product;
+		if ( ! $parent instanceof \WC_Product || 'publish' !== $parent->get_status() || 'publish' !== $product->get_status() ) {
+			return false;
+		}
+
+		return '' === (string) get_post_field( 'post_password', $parent->get_id() ) && $product->is_purchasable();
+	}
+
+	/**
 	 * Current regular price of one purchasable product or variation.
 	 *
 	 * Used as the renewal price of a license: the regular price, never a running
@@ -347,13 +371,39 @@ final class Catalog {
 		if ( false === $minor || $minor <= 0 ) {
 			return null;
 		}
-		$currency = function_exists( 'get_woocommerce_currency' ) ? (string) get_woocommerce_currency() : 'EUR';
 
 		return array(
 			'amount_minor' => $minor,
 			'decimals' => $decimals,
-			'currency' => strtoupper( sanitize_text_field( $currency ) ),
+			// B-189: get_regular_price( 'edit' ) is the stored amount, in the currency prices are entered in.
+			'currency' => self::base_currency(),
 		);
+	}
+
+	/**
+	 * Currency the shop enters its product prices in (B-189).
+	 *
+	 * Read from the stored WooCommerce setting, not from get_woocommerce_currency():
+	 * multi-currency plugins (WPML/WCML, Aelia, CURCY and others) filter that
+	 * function to the currency a visitor has chosen, while the stored product
+	 * prices stay in this currency.
+	 *
+	 * @return string ISO 4217 code, upper case.
+	 */
+	public static function base_currency(): string {
+		$currency = function_exists( 'get_option' ) ? (string) get_option( 'woocommerce_currency', '' ) : '';
+		if ( '' === $currency && function_exists( 'get_woocommerce_currency' ) ) {
+			$currency = (string) get_woocommerce_currency();
+		}
+		$currency = '' === $currency ? 'EUR' : $currency;
+		/**
+		 * Filters the currency product prices are entered in (B-189).
+		 *
+		 * @param string $currency ISO 4217 code from the WooCommerce setting.
+		 */
+		$currency = function_exists( 'apply_filters' ) ? (string) apply_filters( 'wplc_shop_base_currency', $currency ) : $currency;
+
+		return strtoupper( sanitize_text_field( $currency ) );
 	}
 
 	/**

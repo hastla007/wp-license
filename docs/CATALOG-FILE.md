@@ -1,6 +1,6 @@
 # Catalog file (`wplc-catalog.json`)
 
-A catalog file tells the license server which entitlements a license product has: their keys, their labels per language and whether they are released. The add-on (or its vendor's build) ships the file; the server imports it. The server code contains no product key, no entitlement key and no label of any vendor (owner decisions G2 and E8 of 16 Nov 2026, T-150).
+A catalog file tells the license server which entitlements a license product has: their keys, their labels per language and whether they are released. The add-on (or its vendor's build) ships the file; the server imports it. The server code contains no product key, no entitlement key and no label of any vendor (owner decisions G2 and E8 of 16 Nov 2026, T-150); placeholders, help texts and examples use invented names such as `acme-pro`. `tests/Contract/VendorNeutralSourceTest.php` scans `src/` (except the client library `src/Client/`, which is shipped to add-ons), `templates/` and `assets/` for the product keys, names and entitlement keys of the files under `catalogs/` and for other names of the Captain products (PROD-04).
 
 This page is the contract for whoever generates the file, for example the build of an add-on. Format version: **1**. The JSON schema is [catalog-file.schema.json](catalog-file.schema.json); the validator is `WPLC\Catalog\CatalogFile` (`src/Catalog/CatalogFile.php`).
 
@@ -74,9 +74,25 @@ A file may be at most 256 KB. A UTF-8 byte order mark is accepted.
 - **Plans and licenses are never changed by an import.** They store their entitlement keys themselves. A plan that stores a key the catalog no longer knows keeps it; the product editor shows it in the field "Advanced: additional entitlements (JSON)" instead of as a tick box (the same rule as for the keys removed on 16 Nov 2026).
 - **Idempotent.** Importing a file with the same content again changes nothing and writes no audit entry. Two files with the same meaning (other order of the object keys, other white space) count as the same.
 - **Planned stays out.** A planned product or entitlement is not offered. A shop that delivers such a function itself can offer every planned key with `add_filter( 'wplc_offer_planned_entitlements', '__return_true' );`.
-- **Filters stay.** `wplc_entitlement_catalog` and `wplc_known_product_keys` receive what the catalog offers and can still add or remove entries ([EXTENSION-POINTS.md](EXTENSION-POINTS.md)).
+- **The product key selects the group, nothing else.** The product editor offers a license product only the entitlements of the prefix its product key maps to in the catalog. There is no match by substring: `learnboating-form-connector` is never offered the keys of the prefix `learnboating`. A product key the catalog does not know is offered no group (the editor says so) until its file is imported; a group whose keys are ticked on the plan stays visible (`EntitlementCatalog::groups_for_product_key()`, `assets/js/wplc-product-editor.js`).
+- **Filters stay.** `wplc_entitlement_catalog` and `wplc_known_product_keys` receive what the catalog offers and can still add or remove entries ([EXTENSION-POINTS.md](EXTENSION-POINTS.md)). A group added with `wplc_entitlement_catalog` is offered only to a product key that `wplc_known_product_keys` maps to it.
 - **Storage.** The option `wplc_entitlement_catalog` (not autoloaded) holds every imported product with the source (`bundled`, `admin`, `cli`), the time of the import (UTC) and a fingerprint (SHA-256 of the normalized file). It is removed with the other data when the plugin is deleted with `WPLC_REMOVE_ALL_DATA`.
 - **Audit.** Every import that changes something is recorded as `catalog_file_imported` (object type `catalog`, with the product key, the status, the number of entitlements and the added, removed and changed keys), a removal as `catalog_product_removed`. The import of the shipped files by schema step 24 is part of the upgrade and is not recorded.
+
+## Project products
+
+A connector built for one customer project (decision 17 of 16 Nov 2026, for example the connectors of BoatingSchool and LearnBoating) is a license product of its own, with its own catalog file, its own product key and **one prefix per connector**. Two connectors of the same project never share a prefix, and a connector never uses the prefix of the add-on it extends. For example:
+
+| Connector (product key) | Prefix | Example key |
+| --- | --- | --- |
+| `learnboating-connector` | `learnboating` | `learnboating.sync` |
+| `learnboating-form-connector` | `learnboating_form` | `learnboating_form.sync` |
+| `boatingschool-form-connector` | `boatingschool_form` | `boatingschool_form.sync` |
+
+- Prefixes with an underscore are allowed (`^[a-z][a-z0-9_-]{0,39}$`) and live side by side. A second file with a prefix that another product already uses is refused (`prefix_in_use`), and a file cannot define keys of another prefix: `learnboating_form.sync` does not belong to `learnboating`.
+- The rights of a project product are offered only to its own product key; `learnboating-form-connector` is not offered the keys of `learnboating`, even before its own file is imported (`CatalogFileTest::test_project_connectors_with_underscore_prefixes_live_side_by_side`, `ProjectProductsIntegrationTest`).
+- The file comes with the first release of the connector ("Import from the release package"); no MU plugin and no filter is needed. The order: create the license product first (a WooCommerce product with the product key; it may stay private, the product is not sold), then upload the first release. Before that, the release screen does not list the key and refuses the upload with "This product key is not registered".
+- `status` `available` is right for a released connector even though it is not for sale: the product editor then suggests its key, which only the shop owner sees.
 
 ## Import
 
@@ -86,6 +102,8 @@ A file may be at most 256 KB. A UTF-8 byte order mark is accepted.
 | WP-CLI | `wp wplc catalog import <file>... [--dry-run]`, `wp wplc catalog validate <file>...`, `wp wplc catalog list [--format=json]`, `wp wplc catalog export <product-key>`, `wp wplc catalog remove <product-key> [--yes]` | Shell access |
 | **Release package (automatic)** | When a release is created from a ZIP (upload on the releases screen, `wp wplc release create --zip=…`), the server reads `<plugin folder>/wplc-catalog.json` from the package and imports it. See "Import from the release package" below. | Capability `wplc_manage_releases`; setting "Import the catalog file from release packages" (on by default) |
 | Upgrade | Schema step 24 imports the files shipped under `catalogs/`. A product that was imported from a release package, in the admin or with WP-CLI is never replaced by a shipped file. | – |
+
+The step "Import your catalog file" of the "Getting started" checklist (WooCommerce → License settings) counts as done once one product was imported by the admin screen, WP-CLI or a release package; the shipped copies imported by the upgrade do not count (PROD-09, [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#settings)).
 
 ### Import from the release package (PROD-03)
 

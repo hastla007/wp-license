@@ -1,7 +1,7 @@
 name: Release build
 
 # Tag v1.2.3 (or v1.2.3-rc.1) on a commit whose Version header, WPLC_VERSION and readme.txt
-# Stable tag are 1.2.3. The unit tests run first on the minimum PHP version; the package is
+# Stable tag are 1.2.3. The unit tests run first on the minimum PHP version (8.5); the package is
 # built by bin/build-zip.sh, the same script the "Package" workflow runs on every pull request.
 
 on:
@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: "7.4"
+          php-version: "8.5"
           coverage: none
           tools: composer:v2
           extensions: intl, mbstring, openssl, sodium
@@ -41,7 +41,7 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: "7.4"
+          php-version: "8.5"
           coverage: none
           tools: composer:v2
 
@@ -69,6 +69,8 @@ jobs:
           path: |
             dist/wp-license-captain-${{ steps.version.outputs.version }}.zip
             dist/wp-license-captain-${{ steps.version.outputs.version }}.zip.sha256
+            dist/license-client-*.zip
+            dist/license-client-*.zip.sha256
           if-no-files-found: error
 
       - name: Attach the package to the GitHub release
@@ -77,6 +79,8 @@ jobs:
           files: |
             dist/wp-license-captain-${{ steps.version.outputs.version }}.zip
             dist/wp-license-captain-${{ steps.version.outputs.version }}.zip.sha256
+            dist/license-client-*.zip
+            dist/license-client-*.zip.sha256
           fail_on_unmatched_files: true
           generate_release_notes: true
           prerelease: ${{ steps.version.outputs.prerelease == 'true' }}

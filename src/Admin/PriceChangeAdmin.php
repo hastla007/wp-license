@@ -39,7 +39,7 @@ final class PriceChangeAdmin {
 	 * @return string
 	 */
 	private static function capability(): string {
-		return Capabilities::cap( 'manage_licenses' );
+		return Capabilities::cap( 'change_prices' );
 	}
 
 	/**
@@ -147,7 +147,7 @@ final class PriceChangeAdmin {
 	 * @return void
 	 */
 	public static function render(): void {
-		Capabilities::require_cap( 'manage_licenses', __( 'You do not have permission to change licenses.', 'wp-license' ) );
+		Capabilities::require_cap( 'change_prices', __( 'You do not have permission to change renewal prices.', 'wp-license' ) );
 		global $wpdb;
 
 		$tables   = Schema::table_names();
@@ -260,7 +260,7 @@ final class PriceChangeAdmin {
 	 * @return void
 	 */
 	public static function handle_announce(): void {
-		Capabilities::require_cap( 'manage_licenses', __( 'You do not have permission to change licenses.', 'wp-license' ) );
+		Capabilities::require_cap( 'change_prices', __( 'You do not have permission to change renewal prices.', 'wp-license' ) );
 		$license_id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
 		check_admin_referer( 'wplc_admin_price_change_announce_' . $license_id );
 		global $wpdb;
@@ -283,7 +283,7 @@ final class PriceChangeAdmin {
 	 * @return void
 	 */
 	public static function handle_withdraw(): void {
-		Capabilities::require_cap( 'manage_licenses', __( 'You do not have permission to change licenses.', 'wp-license' ) );
+		Capabilities::require_cap( 'change_prices', __( 'You do not have permission to change renewal prices.', 'wp-license' ) );
 		$license_id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
 		check_admin_referer( 'wplc_admin_price_change_withdraw_' . $license_id );
 
@@ -303,7 +303,7 @@ final class PriceChangeAdmin {
 	 * @return void
 	 */
 	public static function handle_plan(): void {
-		Capabilities::require_cap( 'manage_licenses', __( 'You do not have permission to change licenses.', 'wp-license' ) );
+		Capabilities::require_cap( 'change_prices', __( 'You do not have permission to change renewal prices.', 'wp-license' ) );
 		check_admin_referer( 'wplc_admin_price_change_plan' );
 
 		$url      = add_query_arg( array( 'page' => self::PAGE ), admin_url( 'admin.php' ) );

@@ -30,7 +30,8 @@ final class RetentionCutoffTest extends TestCase {
 				'inactive_activations' => 365,
 				'ended_license_activations' => 30,
 				'reminder_log' => 730,
-				'anonymize_licenses' => 0,
+				// Owner decision of 16 Nov 2026: ten years from the end of the year, like the other plugins.
+				'anonymize_licenses' => 3650,
 				// Wave 2: consent evidence of ended licenses, ten years.
 				'consents' => 3650,
 			),
@@ -45,19 +46,25 @@ final class RetentionCutoffTest extends TestCase {
 				'inactive_activations' => '2026-03-10 08:00:00',
 				'ended_license_activations' => '2027-02-08 08:00:00',
 				'reminder_log' => '2025-03-10 08:00:00',
-				'consents' => '2017-03-12 08:00:00',
+				// Year-end rules: ten years back from 2027-03-10 is 2017-03-12, so only years up to 2016 qualify.
+				'anonymize_licenses' => '2017-01-01 00:00:00',
+				'consents' => '2017-01-01 00:00:00',
 			),
-			Retention::cutoffs( Retention::DEFAULT_DAYS, self::NOW ),
-			'The anonymisation of ended licenses is off unless a period is configured.'
+			Retention::cutoffs( Retention::DEFAULT_DAYS, self::NOW )
 		);
 	}
 
-	public function test_anonymisation_runs_only_with_a_configured_period(): void {
-		$this->assertArrayNotHasKey( 'anonymize_licenses', Retention::cutoffs( array(), self::NOW ) );
-		$this->assertSame(
-			gmdate( 'Y-m-d H:i:s', self::NOW - 1095 * 86400 ),
-			Retention::cutoffs( array( 'anonymize_licenses' => 1095 ), self::NOW )['anonymize_licenses']
-		);
+	public function test_anonymisation_runs_from_the_end_of_the_year_and_can_be_switched_off(): void {
+		$this->assertSame( '2017-01-01 00:00:00', Retention::cutoffs( array(), self::NOW )['anonymize_licenses'], 'On by default.' );
+		$this->assertArrayNotHasKey( 'anonymize_licenses', Retention::cutoffs( array( 'anonymize_licenses' => 0 ), self::NOW ) );
+		// 1095 days before 2027-03-10 is in 2024: licenses that ended in 2023 or earlier qualify.
+		$this->assertSame( '2024-01-01 00:00:00', Retention::cutoffs( array( 'anonymize_licenses' => 1095 ), self::NOW )['anonymize_licenses'] );
+		// A license that ended on 31 Dec 2016 is anonymised in 2027; one that ended on 1 Jan 2017 is not yet.
+		$cutoff = Retention::cutoffs( array(), self::NOW )['anonymize_licenses'];
+		$this->assertTrue( '2016-12-31 23:59:59' < $cutoff );
+		$this->assertFalse( '2017-01-01 00:00:00' < $cutoff );
+		// Day-based rules are unchanged.
+		$this->assertSame( gmdate( 'Y-m-d H:i:s', self::NOW - 730 * 86400 ), Retention::cutoffs( array(), self::NOW )['audit_log'] );
 	}
 
 	public function test_zero_disables_a_rule_and_missing_keys_use_defaults(): void {
@@ -102,7 +109,7 @@ final class RetentionCutoffTest extends TestCase {
 
 	public function test_unknown_rules_are_ignored(): void {
 		$this->assertSame(
-			array( 'audit_log', 'event_inbox', 'event_inbox_open', 'activations', 'inactive_activations', 'ended_license_activations', 'reminder_log', 'consents' ),
+			array( 'audit_log', 'event_inbox', 'event_inbox_open', 'activations', 'inactive_activations', 'ended_license_activations', 'reminder_log', 'anonymize_licenses', 'consents' ),
 			array_keys( Retention::cutoffs( array( 'orders' => 1 ), self::NOW ) )
 		);
 	}
@@ -135,7 +142,7 @@ final class RetentionCutoffTest extends TestCase {
 		$this->assertSame( 90, $days['audit_log'] );
 		$this->assertSame( 0, $days['event_inbox'], 'Negative values switch the rule off.' );
 		$this->assertSame( 0, $days['reminder_log'], 'Non-numeric values switch the rule off.' );
-		$this->assertSame( 0, $days['anonymize_licenses'], 'Anonymisation stays off unless the operator sets a period.' );
+		$this->assertSame( 3650, $days['anonymize_licenses'], 'Anonymisation is on by default: ten years.' );
 		$this->assertSame( Retention::DEFAULT_DAYS['consents'], $days['consents'] );
 	}
 
@@ -151,6 +158,6 @@ final class RetentionCutoffTest extends TestCase {
 		} finally {
 			unset( $GLOBALS['wplc_test_filters']['wplc_retention_days'] );
 		}
-		$this->assertSame( 0, Retention::configured_days()['anonymize_licenses'] );
+		$this->assertSame( 3650, Retention::configured_days()['anonymize_licenses'] );
 	}
 }
