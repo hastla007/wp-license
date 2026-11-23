@@ -86,7 +86,7 @@ final class CatalogFileIntegrationTest extends WPLC_Integration_TestCase {
 		);
 		$this->assertSame( array( 'affiliate-captain-pro', 'pass-captain-pro', 'voucher-captain-pro' ), array_keys( EntitlementCatalog::known_product_keys() ) );
 		$this->assertSame( array( 'course-captain-pro', 'form-captain-pro', 'review-captain-pro', 'workflow-captain-pro' ), array_keys( EntitlementCatalog::planned_product_keys() ) );
-		$this->assertCount( 15, array_merge( ...array_values( EntitlementCatalog::planned() ) ) ); // 12 + the three planned Voucher Pro keys of 16 Nov 2026.
+		$this->assertCount( 17, array_merge( ...array_values( EntitlementCatalog::planned() ) ) ); // 12 + the three planned Voucher Pro keys of 16 Nov 2026 + the two Workflow keys of F-01.
 
 		// An installation on schema 23: no catalog yet. The step fills it and can run again.
 		delete_option( CatalogStore::OPTION );
