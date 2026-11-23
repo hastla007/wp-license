@@ -30,6 +30,7 @@ final class Texts {
 			'rules'      => __( 'Rules of this shop', 'wp-license' ),
 			'sites'      => __( 'Customer sites', 'wp-license' ),
 			'sharing'    => __( 'Co-users and transfer', 'wp-license' ),
+			'account'    => __( 'Customer account', 'wp-license' ),
 			'legal'      => __( 'Legal and privacy', 'wp-license' ),
 			'texts'      => __( 'Texts and support', 'wp-license' ),
 			'operations' => __( 'Operations', 'wp-license' ),
@@ -103,6 +104,22 @@ final class Texts {
 			'download_grant_seconds'    => array(
 				__( 'Download link valid for', 'wp-license' ),
 				__( 'Seconds during which the download link that a customer site receives for an update can be used. Default: 300 (five minutes); 60 to 900. The site asks for a new link right before it downloads, so a short time is enough.', 'wp-license' ),
+			),
+			's3_bucket'                 => array(
+				__( 'Object storage: bucket', 'wp-license' ),
+				__( 'Name of the private bucket that update packages are delivered from (S3-compatible storage such as Amazon S3 or Cloudflare R2). Empty (default) = no object storage. The access key ID and the secret stay in wp-config.php (WPLC_S3_ACCESS_KEY_ID, WPLC_S3_SECRET_ACCESS_KEY); without them the bucket is not used. When WPLC_S3_BUCKET is defined in wp-config.php, the constant wins and the field is read-only.', 'wp-license' ),
+			),
+			's3_region'                 => array(
+				__( 'Object storage: region', 'wp-license' ),
+				__( 'Region of the bucket, for example eu-central-1; auto for Cloudflare R2. Empty (default) = us-east-1. When WPLC_S3_REGION is defined in wp-config.php, the constant wins and the field is read-only.', 'wp-license' ),
+			),
+			's3_endpoint'               => array(
+				__( 'Object storage: endpoint', 'wp-license' ),
+				__( 'HTTPS address of the storage service without a path, for example https://ACCOUNT-ID.r2.cloudflarestorage.com. Empty (default) = Amazon S3 in the region above. When WPLC_S3_ENDPOINT is defined in wp-config.php, the constant wins and the field is read-only.', 'wp-license' ),
+			),
+			's3_path_style'             => array(
+				__( 'Object storage: bucket in the path', 'wp-license' ),
+				__( 'On: the bucket is addressed in the path of the address (https://endpoint/bucket/…), which some providers such as MinIO need. Off (default): the bucket is a subdomain of the endpoint; bucket names with dots or capital letters always use the path. When WPLC_S3_PATH_STYLE is defined in wp-config.php, the constant wins and the field is read-only.', 'wp-license' ),
 			),
 			'combined_renewals'         => array(
 				__( 'Combine automatic renewals', 'wp-license' ),
@@ -232,6 +249,38 @@ final class Texts {
 				__( 'New license key on transfer', 'wp-license' ),
 				__( 'Off (default): the license keeps its key and the activated sites keep working after a transfer accepted in the account. On: the transfer also issues a new key, so the previous owner can no longer use the old one; the new owner enters the new key on the sites.', 'wp-license' ),
 			),
+			'account_licenses_slug'     => array(
+				__( 'Address of the license page', 'wp-license' ),
+				__( 'Last part of the address of the license page in the customer account, for example licenses or lizenzen: lowercase letters, digits and hyphens. Default: wplc-licenses. The new address works at once; links in emails sent before lead to the old address and find no page. It must differ from the site page and from the other pages of the account.', 'wp-license' ),
+			),
+			'account_licenses_label'    => array(
+				__( 'Menu item of the license page', 'wp-license' ),
+				__( 'Name of the license page in the menu of the customer account and its heading. Empty (default) = "Licenses" in the language of the customer. Your own name is shown as it is in every language.', 'wp-license' ),
+			),
+			'account_licenses_per_page' => array(
+				__( 'Licenses per page', 'wp-license' ),
+				__( 'How many licenses the license page of the customer account shows at a time; further licenses are on the next pages. Default: 10.', 'wp-license' ),
+			),
+			'account_sites_slug'        => array(
+				__( 'Address of the site page', 'wp-license' ),
+				__( 'Last part of the address of the page "Sites" in the customer account, for example sites or websites: lowercase letters, digits and hyphens. Default: wplc-sites. It must differ from the license page and from the other pages of the account.', 'wp-license' ),
+			),
+			'account_sites_label'       => array(
+				__( 'Menu item of the site page', 'wp-license' ),
+				__( 'Name of the page "Sites" in the menu of the customer account. Empty (default) = "Sites" in the language of the customer. Your own name is shown as it is in every language.', 'wp-license' ),
+			),
+			'account_sites_per_page'    => array(
+				__( 'Sites per page', 'wp-license' ),
+				__( 'How many sites the page "Sites" of the customer account shows at a time. Default: 25.', 'wp-license' ),
+			),
+			'account_stale_days'        => array(
+				__( 'Site counts as not seen after', 'wp-license' ),
+				__( 'Days without contact after which the page "Sites" marks a site with "No contact for more than … days". Default: 14.', 'wp-license' ),
+			),
+			'account_expiry_days'       => array(
+				__( 'License counts as ending soon', 'wp-license' ),
+				__( 'Days before the end of the paid period from which the page "Sites" marks a license that does not renew automatically as ending soon. Default: 30.', 'wp-license' ),
+			),
 			'withdrawal_consent_mode'   => array(
 				__( 'Consent to the immediate start (right of withdrawal)', 'wp-license' ),
 				__( 'Whether the checkout asks the customer to agree that the license is provided before the withdrawal period ends. "Automatic" (default) asks unless Germanized or German Market is active, because these plugins ask themselves.', 'wp-license' ),
@@ -301,6 +350,10 @@ final class Texts {
 				__( 'Email addresses, separated by commas, that get a message when a figure of the diagnostics page reaches its alert threshold (for example failed background jobs or rejected webhooks). At most one collected email per day. Empty (default) = no email; the alerts are then only available to code (action wplc/health_alert).', 'wp-license' ),
 			),
 		) + self::alert_threshold_texts() + array(
+			'key_rotation_reminder_months' => array(
+				__( 'Remind to rotate keys after', 'wp-license' ),
+				__( 'Months after which the license key secret, the installation secret encryption key and the response signing key should be replaced. A key that is older is shown on the diagnostics page, raises the health figure "Keys due for rotation" and a notice for administrators. Default: 0 = no reminder. The age counts from the day this server first saw the key (keys carry no date of their own; for keys that existed before, from the first day after the update that added this setting). Replacing a key stays a task for wp-config.php and WP-CLI.', 'wp-license' ),
+			),
 			'debug_log'                 => array(
 				__( 'Verbose log', 'wp-license' ),
 				__( 'Writes additional lines of the level debug to the WooCommerce log (source wp-license) to trace a problem. It switches itself off after the chosen time. Off (default). The constant WPLC_DEBUG in wp-config.php switches it on permanently.', 'wp-license' ),
@@ -331,6 +384,7 @@ final class Texts {
 			'failed_jobs'                  => __( 'Failed background jobs (24 hours)', 'wp-license' ),
 			'release_problems'             => __( 'Problems with update packages', 'wp-license' ),
 			'rejected_webhook_minutes'     => __( 'Minutes with rejected Stripe webhook requests (24 hours)', 'wp-license' ),
+			'keys_due_for_rotation'        => __( 'Keys due for rotation', 'wp-license' ),
 		);
 	}
 

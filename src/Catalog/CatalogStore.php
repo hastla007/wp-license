@@ -286,7 +286,8 @@ final class CatalogStore {
 	 * see Plugin::fallback_locale()), English.
 	 *
 	 * @param mixed       $texts  Locale => text.
-	 * @param string|null $locale WordPress locale; default: the locale of the current request.
+	 * @param string|null $locale WordPress locale; default: the locale of the current request, or the
+	 *                            locale an email switched to (switch_to_locale()).
 	 * @return string Empty when there is no text.
 	 */
 	public static function text( $texts, ?string $locale = null ): string {
@@ -294,7 +295,11 @@ final class CatalogStore {
 			return is_string( $texts ) ? $texts : '';
 		}
 		if ( null === $locale ) {
-			$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : 'en_US';
+			if ( function_exists( 'is_locale_switched' ) && is_locale_switched() ) {
+				$locale = (string) get_locale();
+			} else {
+				$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : 'en_US';
+			}
 		}
 		$candidates = array( $locale );
 		$fallback   = Plugin::fallback_locale( $locale );
@@ -309,6 +314,54 @@ final class CatalogStore {
 		}
 
 		return '';
+	}
+
+	/**
+	 * Documentation address of a product from its catalog file, in a locale (SET-LIC-24).
+	 *
+	 * @param string      $product_key Product key.
+	 * @param string|null $locale      WordPress locale; default: see text().
+	 * @return string '' when the file has none.
+	 */
+	public static function docs_url( string $product_key, ?string $locale = null ): string {
+		$product = self::get( $product_key );
+
+		return null === $product ? '' : self::text( $product['docs_url'] ?? array(), $locale );
+	}
+
+	/**
+	 * Installation steps of a product from its catalog file, in a locale (SET-LIC-24).
+	 *
+	 * @param string      $product_key Product key.
+	 * @param string|null $locale      WordPress locale; default: see text().
+	 * @return string[] Empty when the file has none.
+	 */
+	public static function install_steps( string $product_key, ?string $locale = null ): array {
+		$product = self::get( $product_key );
+		$steps   = array();
+		foreach ( null === $product || ! is_array( $product['install_steps'] ?? null ) ? array() : $product['install_steps'] as $texts ) {
+			$text = self::text( $texts, $locale );
+			if ( '' !== $text ) {
+				$steps[] = $text;
+			}
+		}
+
+		return $steps;
+	}
+
+	/**
+	 * Name of a plan from the catalog file of its product, in a locale (SET-LIC-24).
+	 *
+	 * @param string      $product_key Product key.
+	 * @param string      $plan_key    Plan key.
+	 * @param string|null $locale      WordPress locale; default: see text().
+	 * @return string '' when the file names no such plan.
+	 */
+	public static function plan_name( string $product_key, string $plan_key, ?string $locale = null ): string {
+		$product = self::get( $product_key );
+		$plans   = null === $product || ! is_array( $product['plans'] ?? null ) ? array() : $product['plans'];
+
+		return isset( $plans[ $plan_key ]['name'] ) ? self::text( $plans[ $plan_key ]['name'], $locale ) : '';
 	}
 
 	/**

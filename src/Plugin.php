@@ -412,6 +412,7 @@ final class Plugin {
 		\WPLC\Admin\PriceChangeAdmin::register_hooks();
 		Diagnostics::register_hooks();
 		KeyConfigurationNotice::register_hooks();
+		\WPLC\Security\KeyAge::register_hooks();
 		Requirements::register_hooks();
 		RecurringConsent::register_hooks();
 		BlockCheckoutConsent::register_hooks();

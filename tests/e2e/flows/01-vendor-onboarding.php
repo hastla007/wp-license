@@ -78,14 +78,14 @@ $checklist = static function () use ( $cookies ) {
 	return array( 'steps' => $steps, 'open' => $open, 'summary' => $summary, 'html' => $page['body'] );
 };
 $expect_done = static function ( array $done, string $label ) use ( $checklist ) {
-	$all      = array( 'secrets', 'public_key', 'catalog', 'product', 'release', 'test', 'webhook' );
+	$all      = array( 'secrets', 'public_key', 'catalog', 'product', 'rules', 'release', 'test', 'webhook' );
 	$expected = array();
 	foreach ( $all as $key ) {
 		$expected[ $key ] = in_array( $key, $done, true );
 	}
 	$state = $checklist();
 	e2e_eq( $expected, $state['steps'], $label );
-	e2e_eq( count( $done ) . ' of 7 steps done', $state['summary'], $label . ' (summary line)' );
+	e2e_eq( count( $done ) . ' of 8 steps done', $state['summary'], $label . ' (summary line)' );
 
 	return $state;
 };
@@ -190,7 +190,16 @@ $plan = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['plans']} WHERE wooco
 e2e_ok( is_array( $plan ) && $product_key === $plan['product_key'] && 'pro' === $plan['plan_key'] && '1' === (string) $plan['active'], 'the plan of Acme Reports Pro exists', $plan );
 $plan_entitlements = is_array( $plan ) ? (array) json_decode( (string) $plan['entitlements_json'], true ) : array();
 e2e_ok( true === ( $plan_entitlements['acme_reports.scheduled_exports'] ?? null ) && true === ( $plan_entitlements['acme_reports.white_label'] ?? null ) && 50 === ( $plan_entitlements['acme_reports.report_limit'] ?? null ), 'the plan stores the ticked entitlements and the limit', $plan_entitlements );
-$expect_done( array( 'secrets', 'public_key', 'catalog', 'product' ), 'after the license product: the product step is done' );
+$state = $expect_done( array( 'secrets', 'public_key', 'catalog', 'product' ), 'after the license product: the product step is done' );
+
+// --- 3b. Rules of the shop (SET-LIC-45): the questions of the guided step, answered with the defaults. ---
+$guided = e2e_form( $state['html'], array( 'name="tool" value="guided"' ) );
+e2e_ok( is_array( $guided ) && isset( $guided['staging_sites_per_live'], $guided['renewal_grace_days'] ), 'the rules step asks for staging sites and the grace period in place', $guided );
+e2e_ok( false !== strpos( $state['html'], 'id="wplc-guided-profile"' ), 'the rules step offers the country profiles' );
+$answered = e2e_submit( (array) $guided, $cookies, array( 'staging_sites_per_live' => '1', 'renewal_grace_days' => '14', 'profile' => '' ) );
+e2e_eq( 302, $answered['code'], 'saving the answers returns to the settings page' );
+e2e_eq( array( 1, 14 ), array( \WPLC\Settings\Registry::int( 'staging_sites_per_live' ), \WPLC\Settings\Registry::int( 'renewal_grace_days' ) ), 'the answers are the settings (unchanged defaults)' );
+$expect_done( array( 'secrets', 'public_key', 'catalog', 'product', 'rules' ), 'after the answers: the rules step is done' );
 
 // --- 4. First release: package with the catalog file in its plugin folder, uploaded and published. ---
 $zip_file = wp_tempnam( 'wplc-e2e-acme.zip' );
@@ -224,12 +233,12 @@ $upload  = e2e_multipart(
 $created = e2e_http( 'POST', admin_url( 'admin-post.php' ), array( 'cookies' => $cookies, 'headers' => $upload['headers'], 'body' => $upload['body'] ) );
 $release = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t['releases']} WHERE product_key = %s AND version = %s", $product_key, '1.1.0' ), ARRAY_A );
 e2e_ok( 302 === $created['code'] && is_array( $release ) && 'draft' === $release['status'], 'the release draft 1.1.0 is created from the uploaded package', array( $created['code'], $created['location'] ) );
-$expect_done( array( 'secrets', 'public_key', 'catalog', 'product' ), 'a draft release does not finish the release step' );
+$expect_done( array( 'secrets', 'public_key', 'catalog', 'product', 'rules' ), 'a draft release does not finish the release step' );
 $result_page  = e2e_http( 'GET', $created['location'], array( 'cookies' => $cookies ) );
 $publish_form = e2e_form( $result_page['body'], array( 'value="wplc_release_publish"', 'name="release_id" value="' . (int) ( $release['id'] ?? 0 ) . '"' ) );
 $published    = e2e_submit( (array) $publish_form, $cookies, array( 'reason' => 'e2e: first Acme release' ) );
 e2e_eq( 'published', (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$t['releases']} WHERE id = %d", (int) ( $release['id'] ?? 0 ) ) ), 'the release is published' );
-$expect_done( array( 'secrets', 'public_key', 'catalog', 'product', 'release' ), 'after publishing: the release step is done' );
+$expect_done( array( 'secrets', 'public_key', 'catalog', 'product', 'rules', 'release' ), 'after publishing: the release step is done' );
 
 // --- 5. Test purchase: order paid, license issued. ---
 $customer_id = e2e_customer( 'acmebuyer' );
@@ -238,7 +247,7 @@ $licenses    = e2e_order_licenses( $order->get_id() );
 e2e_eq( 1, count( $licenses ), 'the test purchase issues one license' );
 $license = $licenses[0] ?? array( 'id' => 0, 'product_key' => '', 'license_uuid' => '', 'license_key_secret_id' => '' );
 e2e_eq( $product_key, $license['product_key'], 'the license belongs to Acme Reports Pro' );
-$expect_done( array( 'secrets', 'public_key', 'catalog', 'product', 'release', 'test' ), 'after the test purchase: the test purchase step is done' );
+$expect_done( array( 'secrets', 'public_key', 'catalog', 'product', 'rules', 'release', 'test' ), 'after the test purchase: the test purchase step is done' );
 
 // The add-on of the vendor: activation, entitlement check and update check through the client,
 // pinned to the public key from step 1.
@@ -264,7 +273,7 @@ e2e_as_site( '' );
 
 // --- 6. Stripe webhook secret: every step is done, the checklist folds away. ---
 $add_constant( 'WPLC_STRIPE_WEBHOOK_SECRET', 'whsec_e2e_acme_' . bin2hex( random_bytes( 8 ) ) );
-$state = $expect_done( array( 'secrets', 'public_key', 'catalog', 'product', 'release', 'test', 'webhook' ), 'after the webhook secret: every step is done' );
+$state = $expect_done( array( 'secrets', 'public_key', 'catalog', 'product', 'rules', 'release', 'test', 'webhook' ), 'after the webhook secret: every step is done' );
 e2e_ok( ! $state['open'], 'with every step done the checklist is folded away' );
 
 // --- Clean-up: wp-config.php and everything this flow created, so later flows see the empty shop. ---
@@ -292,6 +301,7 @@ foreach ( array( 'releases', 'plans', 'products' ) as $table ) {
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$t[ $table ]} WHERE product_key = %s", $product_key ) ); // phpcs:ignore WordPress.DB.PreparedSQL
 }
 CatalogStore::remove( $product_key );
+delete_option( \WPLC\Admin\Settings::RULES_DECIDED_OPTION );
 require_once ABSPATH . 'wp-admin/includes/user.php';
 wp_delete_user( $customer_id );
 delete_option( $client_opt );

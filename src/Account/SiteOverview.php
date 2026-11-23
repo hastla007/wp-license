@@ -35,7 +35,7 @@ final class SiteOverview {
 	public const ENDPOINT = 'wplc-sites';
 
 	/**
-	 * Sites per page.
+	 * Sites per page by default (setting "Sites per page", SET-LIC-25).
 	 */
 	public const PER_PAGE = 25;
 
@@ -45,12 +45,14 @@ final class SiteOverview {
 	public const MAX_ROWS = 2000;
 
 	/**
-	 * A site that has not contacted the server for this many days is flagged.
+	 * A site that has not contacted the server for this many days is flagged (default of the setting
+	 * "Site counts as not seen after", SET-LIC-25).
 	 */
 	public const STALE_DAYS = 14;
 
 	/**
-	 * A license that ends within this many days without renewal is flagged.
+	 * A license that ends within this many days without renewal is flagged (default of the setting
+	 * "License counts as ending soon", SET-LIC-25).
 	 */
 	public const EXPIRY_DAYS = 30;
 
@@ -69,10 +71,10 @@ final class SiteOverview {
 	/**
 	 * Version of the rewrite rules of this endpoint; a change flushes them once.
 	 */
-	public const RULES_VERSION = '1';
+	public const RULES_VERSION = '2';
 
 	/**
-	 * Option that stores RULES_VERSION after the flush.
+	 * Option that stores RULES_VERSION and the address after the flush.
 	 */
 	public const RULES_OPTION = 'wplc_sites_endpoint_rules';
 
@@ -98,29 +100,118 @@ final class SiteOverview {
 		add_action( 'woocommerce_account_' . self::ENDPOINT . '_endpoint', array( self::class, 'render' ) );
 		add_action( 'wp_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 		add_action( 'admin_post_wplc_sites_csv', array( self::class, 'handle_csv' ) );
+		add_filter( 'woocommerce_get_endpoint_url', array( self::class, 'endpoint_url' ), 10, 4 );
 	}
 
 	/**
-	 * Register the My Account endpoint.
+	 * URL slug of the page: the setting "Address of the site page" (SET-LIC-25).
+	 *
+	 * The query variable and the hook names keep the key ENDPOINT; only the address changes.
+	 *
+	 * @return string
+	 */
+	public static function endpoint_slug(): string {
+		$setting = class_exists( \WPLC\Settings\Registry::class ) ? \WPLC\Settings\Registry::string( 'account_sites_slug' ) : '';
+
+		/**
+		 * Filter the URL slug of the page "Sites" in the customer account, for example to translate it.
+		 * Rewrite rules are refreshed automatically.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param string $slug Slug: the setting "Address of the site page" (default "wplc-sites").
+		 */
+		$slug = sanitize_title( (string) apply_filters( 'wplc_sites_endpoint_slug', '' !== $setting ? $setting : self::ENDPOINT ) );
+
+		return '' !== $slug ? $slug : self::ENDPOINT;
+	}
+
+	/**
+	 * Register the My Account endpoint: the address is the slug, the query variable stays ENDPOINT.
 	 *
 	 * @return void
 	 */
 	public static function register_endpoint(): void {
-		add_rewrite_endpoint( self::ENDPOINT, EP_ROOT | EP_PAGES );
+		add_rewrite_endpoint( self::endpoint_slug(), EP_ROOT | EP_PAGES, self::ENDPOINT );
+	}
+
+	/**
+	 * Links to the page use the slug (WooCommerce only maps the slugs of its own query variables).
+	 *
+	 * @param mixed $url       Endpoint URL.
+	 * @param mixed $endpoint  Endpoint key or slug.
+	 * @param mixed $value     Value after the endpoint.
+	 * @param mixed $permalink Base URL.
+	 * @return mixed
+	 */
+	public static function endpoint_url( $url, $endpoint = '', $value = '', $permalink = '' ) {
+		unset( $value );
+		if ( self::ENDPOINT !== $endpoint || ! is_string( $url ) || ! get_option( 'permalink_structure' ) ) {
+			return $url;
+		}
+		$slug = self::endpoint_slug();
+		if ( self::ENDPOINT === $slug ) {
+			return $url;
+		}
+		$base = trailingslashit( (string) current( explode( '?', is_string( $permalink ) && '' !== $permalink ? $permalink : $url ) ) );
+		if ( 0 !== strpos( $url, $base . self::ENDPOINT ) ) {
+			return $url;
+		}
+
+		return $base . $slug . substr( $url, strlen( $base . self::ENDPOINT ) );
+	}
+
+	/**
+	 * Name of the page in the account menu: the setting "Menu item of the site page", else "Sites" (SET-LIC-25).
+	 *
+	 * @return string
+	 */
+	public static function menu_label(): string {
+		$label = trim( \WPLC\Settings\Registry::string( 'account_sites_label' ) );
+
+		return '' !== $label ? $label : __( 'Sites', 'wp-license' );
+	}
+
+	/**
+	 * Sites per page: the setting "Sites per page".
+	 *
+	 * @return int
+	 */
+	public static function per_page(): int {
+		return \WPLC\Settings\Registry::int( 'account_sites_per_page' );
+	}
+
+	/**
+	 * Days without contact after which a site is flagged: the setting "Site counts as not seen after".
+	 *
+	 * @return int
+	 */
+	public static function stale_days(): int {
+		return \WPLC\Settings\Registry::int( 'account_stale_days' );
+	}
+
+	/**
+	 * Days before the end from which a license is flagged: the setting "License counts as ending soon".
+	 *
+	 * @return int
+	 */
+	public static function expiry_days(): int {
+		return \WPLC\Settings\Registry::int( 'account_expiry_days' );
 	}
 
 	/**
 	 * Flush the rewrite rules once, so the new endpoint works on sites that
-	 * updated the plugin without reactivating it.
+	 * updated the plugin without reactivating it, and again after the address changed (SET-LIC-25).
 	 *
 	 * @return void
 	 */
 	public static function maybe_flush_rewrite_rules(): void {
-		if ( get_option( self::RULES_OPTION ) === self::RULES_VERSION ) {
+		$signature = self::RULES_VERSION . ':' . self::endpoint_slug();
+		if ( get_option( self::RULES_OPTION ) === $signature ) {
 			return;
 		}
 		// Store first so a failing flush cannot repeat on every request.
-		update_option( self::RULES_OPTION, self::RULES_VERSION, true );
+		update_option( self::RULES_OPTION, $signature, true );
 		flush_rewrite_rules( false );
 	}
 
@@ -135,7 +226,7 @@ final class SiteOverview {
 		if ( ! is_user_logged_in() || ! self::customer_has_license( get_current_user_id() ) ) {
 			return $items;
 		}
-		$label  = __( 'Sites', 'wp-license' );
+		$label  = self::menu_label();
 		$result = array();
 		foreach ( $items as $key => $item ) {
 			$result[ $key ] = $item;
@@ -248,9 +339,10 @@ final class SiteOverview {
 			return;
 		}
 
-		$pages = max( 1, (int) ceil( count( $visible ) / self::PER_PAGE ) );
+		$per_page = self::per_page();
+		$pages    = max( 1, (int) ceil( count( $visible ) / $per_page ) );
 		$page  = min( $pages, max( 1, absint( is_scalar( $endpoint_value ) ? $endpoint_value : 0 ) ) );
-		$shown = array_slice( $visible, ( $page - 1 ) * self::PER_PAGE, self::PER_PAGE, true );
+		$shown = array_slice( $visible, ( $page - 1 ) * $per_page, $per_page, true );
 
 		// Deactivation posts back to this page with its selection (P-39, B-17).
 		self::$form_url = self::current_url( $page, $filter, $search );
@@ -671,7 +763,7 @@ final class SiteOverview {
 		}
 		$paid_until = Format::utc_timestamp( $row['paid_until'] ?? null );
 		$renews     = ! empty( $row['renewal_enabled'] ) && empty( $row['cancel_at_period_end'] );
-		if ( 'active' === $status && ! $renews && null !== $paid_until && $paid_until > $now && $paid_until - $now <= self::EXPIRY_DAYS * self::DAY ) {
+		if ( 'active' === $status && ! $renews && null !== $paid_until && $paid_until > $now && $paid_until - $now <= self::expiry_days() * self::DAY ) {
 			$found[] = 'expires_soon';
 		}
 		$installed = trim( (string) ( $row['product_version'] ?? '' ) );
@@ -680,7 +772,7 @@ final class SiteOverview {
 		}
 		$seen = Format::utc_timestamp( $row['last_seen_at'] ?? null );
 		$seen = null !== $seen ? $seen : Format::utc_timestamp( $row['activated_at'] ?? null );
-		if ( null !== $seen && $now - $seen > self::STALE_DAYS * self::DAY ) {
+		if ( null !== $seen && $now - $seen > self::stale_days() * self::DAY ) {
 			$found[] = 'not_seen';
 		}
 
@@ -771,7 +863,7 @@ final class SiteOverview {
 				return sprintf( __( 'Version %s is available.', 'wp-license' ), $latest );
 			case 'not_seen':
 				/* translators: %d: number of days. */
-				return sprintf( __( 'No contact for more than %d days.', 'wp-license' ), self::STALE_DAYS );
+				return sprintf( __( 'No contact for more than %d days.', 'wp-license' ), self::stale_days() );
 		}
 
 		return $code;

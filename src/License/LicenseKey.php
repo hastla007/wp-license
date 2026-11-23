@@ -44,6 +44,27 @@ final class LicenseKey {
 	}
 
 	/**
+	 * Fingerprint of the secret new keys are derived from, for the key age (SET-LIC-28).
+	 *
+	 * Key ID and the first 16 hex characters of an HMAC of a fixed text: it tells two secrets apart
+	 * and reveals nothing usable about them. '' while the WordPress salt stands in for the secret.
+	 *
+	 * @return string
+	 */
+	public static function fingerprint(): string {
+		if ( self::uses_fallback_secret() ) {
+			return '';
+		}
+		$keys   = self::configured_keys();
+		$key_id = self::resolve_current_key_id( $keys );
+		if ( ! isset( $keys[ $key_id ] ) || '' === $keys[ $key_id ] ) {
+			return '';
+		}
+
+		return $key_id . ':' . substr( hash_hmac( 'sha256', 'wplc-key-age', $keys[ $key_id ] ), 0, 16 );
+	}
+
+	/**
 	 * Verify that a UUID and key ID reproduce a stored license-key verifier.
 	 *
 	 * @param string $uuid License UUID.

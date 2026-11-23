@@ -946,6 +946,48 @@ final class Notifications {
 	}
 
 	/**
+	 * The license emails by short key with their title, for the test send (SET-LIC-43).
+	 *
+	 * @return array<string,string> Email key => title in WooCommerce → Settings → Emails.
+	 */
+	public static function email_titles(): array {
+		$titles = array();
+		foreach ( array_keys( self::EMAILS ) as $email_key ) {
+			$email = self::email( $email_key );
+			if ( null !== $email ) {
+				$titles[ $email_key ] = (string) $email->get_title();
+			}
+		}
+
+		return $titles;
+	}
+
+	/**
+	 * Send one license email with sample data to an address in a language (SET-LIC-43).
+	 *
+	 * @param string $email_key Short email key (see email_titles()).
+	 * @param string $address   Recipient.
+	 * @param string $locale    WordPress locale, '' for the language of the site.
+	 * @return string `sent`, `unknown_email`, `invalid_address` or `failed`.
+	 */
+	public static function send_test_email( string $email_key, string $address, string $locale = '' ): string {
+		$email = self::email( $email_key );
+		if ( null === $email ) {
+			return 'unknown_email';
+		}
+		if ( ! is_email( $address ) ) {
+			return 'invalid_address';
+		}
+		try {
+			return $email->send_test( $address, $locale ) ? 'sent' : 'failed';
+		} catch ( \Throwable $error ) {
+			self::log( 'warning', 'Could not send the test email "' . $email_key . '": ' . $error->getMessage() );
+
+			return 'failed';
+		}
+	}
+
+	/**
 	 * Fetch one of our email objects from the WooCommerce mailer.
 	 *
 	 * @param string $email_key Short email key.
@@ -963,7 +1005,8 @@ final class Notifications {
 	}
 
 	/**
-	 * Name of the bought product or variation, shown as the plan; never the internal plan key.
+	 * Name of the plan: the name in the catalog file of the product (SET-LIC-24), else the bought
+	 * product or variation; never the internal plan key.
 	 *
 	 * Empty when it adds nothing to the product name, so the email leaves the row out.
 	 *
@@ -972,6 +1015,11 @@ final class Notifications {
 	 * @return string
 	 */
 	public static function plan_label( array $license, string $product_name ): string {
+		// SET-LIC-24: the plan name of the catalog file, in the language of the customer, comes first.
+		$catalog = \WPLC\Catalog\CatalogStore::plan_name( (string) ( $license['product_key'] ?? '' ), (string) ( $license['plan_key'] ?? '' ) );
+		if ( '' !== $catalog ) {
+			return trim( $catalog ) === trim( $product_name ) ? '' : $catalog;
+		}
 		$product_id = (int) ( $license['renewal_product_id'] ?? 0 );
 		if ( $product_id <= 0 || ! function_exists( 'wc_get_product' ) ) {
 			return '';
@@ -1181,16 +1229,21 @@ final class Notifications {
 	 * @return string[]
 	 */
 	public static function install_steps( array $license = array() ): array {
-		$steps = array(
-			__( 'Download the plugin ZIP file in your account under "Licenses".', 'wp-license' ),
-			__( 'In the WordPress dashboard of your site, go to Plugins > Add New > Upload Plugin, choose the ZIP file, then install and activate it.', 'wp-license' ),
-			__( 'Open the license settings of the plugin, enter your license key and activate the license for the site.', 'wp-license' ),
-		);
+		// SET-LIC-24: the steps of the product's catalog file in the language of the customer, else the built-in ones.
+		$steps = '' !== (string) ( $license['product_key'] ?? '' ) ? \WPLC\Catalog\CatalogStore::install_steps( (string) $license['product_key'] ) : array();
+		if ( ! $steps ) {
+			$steps = array(
+				__( 'Download the plugin ZIP file in your account under "Licenses".', 'wp-license' ),
+				__( 'In the WordPress dashboard of your site, go to Plugins > Add New > Upload Plugin, choose the ZIP file, then install and activate it.', 'wp-license' ),
+				__( 'Open the license settings of the plugin, enter your license key and activate the license for the site.', 'wp-license' ),
+			);
+		}
 
 		/**
 		 * Filter the installation steps shown in the account and in the license email.
 		 *
-		 * @param string[]            $steps   Plain-text steps.
+		 * @param string[]            $steps   Plain-text steps: those of the catalog file of the product in the
+		 *                                     language of the customer (field install_steps), else the built-in ones.
 		 * @param array<string,mixed> $license License row, may be empty.
 		 */
 		$filtered = array();
@@ -1213,10 +1266,11 @@ final class Notifications {
 		/**
 		 * Filter the documentation URL shown with the installation steps.
 		 *
-		 * @param string $url         URL, empty for none.
+		 * @param string $url         URL: the field docs_url of the catalog file of the product in the language
+		 *                            of the customer (SET-LIC-24), empty for none.
 		 * @param string $product_key Product key.
 		 */
-		$url = (string) apply_filters( 'wplc_product_docs_url', '', $product_key );
+		$url = (string) apply_filters( 'wplc_product_docs_url', '' !== $product_key ? \WPLC\Catalog\CatalogStore::docs_url( $product_key ) : '', $product_key );
 
 		return esc_url_raw( $url );
 	}
@@ -1224,9 +1278,8 @@ final class Notifications {
 	/**
 	 * Customer-facing name of a plan, for screens that always show a plan.
 	 *
-	 * The bought product or variation when it is known (see plan_label());
-	 * otherwise the catalog has no display name for plans, so the internal key
-	 * is made readable ("single-site" becomes "Single Site"). Can be filtered.
+	 * The plan name of the catalog file or the bought product or variation (see plan_label());
+	 * otherwise the internal key is made readable ("single-site" becomes "Single Site"). Can be filtered.
 	 *
 	 * @param string              $plan_key Plan key.
 	 * @param array<string,mixed> $license  License row.

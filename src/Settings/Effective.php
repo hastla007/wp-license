@@ -37,6 +37,9 @@ final class Effective {
 			'renewal_notice_days'       => array( '\\WPLC\\Notifications\\Notifications', 'notice_days' ),
 			'price_change_notice_days'  => array( '\\WPLC\\Billing\\PriceChange', 'notice_days' ),
 			'suspended_ends_after_days' => array( '\\WPLC\\License\\EndedLicenses', 'suspended_days' ),
+			'account_licenses_slug'     => array( '\\WPLC\\Account\\CustomerPortal', 'endpoint_slug' ),
+			'account_sites_slug'        => array( '\\WPLC\\Account\\SiteOverview', 'endpoint_slug' ),
+			'key_rotation_reminder_months' => array( '\\WPLC\\Security\\KeyAge', 'reminder_months' ),
 		);
 	}
 

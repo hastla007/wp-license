@@ -32,6 +32,28 @@
       "type": "array",
       "maxItems": 500,
       "items": { "$ref": "#/$defs/entitlement" }
+    },
+    "docs_url": {
+      "description": "Optional address of the documentation (http or https), per locale. Shown with the installation steps in the account and the license email (SET-LIC-24).",
+      "$ref": "#/$defs/step"
+    },
+    "install_steps": {
+      "description": "Optional installation steps of the product, per locale. Replace the built-in three steps in the account and the license email (SET-LIC-24).",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/step" }
+    },
+    "plans": {
+      "description": "Optional names of the plans shown to customers, per plan key and locale (SET-LIC-24).",
+      "type": "object",
+      "maxProperties": 50,
+      "propertyNames": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,99}$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name"],
+        "properties": { "name": { "$ref": "#/$defs/label" } }
+      }
     }
   },
   "$defs": {
@@ -49,6 +71,18 @@
           "required": ["en"],
           "propertyNames": { "$ref": "#/$defs/locale" },
           "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 190 }
+        }
+      ]
+    },
+    "step": {
+      "description": "Plain text, one line, no markup, at most 500 characters. A string is read as the English text.",
+      "oneOf": [
+        { "type": "string", "minLength": 1, "maxLength": 500 },
+        {
+          "type": "object",
+          "required": ["en"],
+          "propertyNames": { "$ref": "#/$defs/locale" },
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 500 }
         }
       ]
     },

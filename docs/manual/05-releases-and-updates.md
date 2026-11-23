@@ -115,7 +115,7 @@ The package directory must be the same directory on every node (NFS, EFS, a shar
 
 Packages can live in a private bucket of any storage that speaks the S3 API with Signature Version 4: AWS S3, Cloudflare R2, MinIO, Backblaze B2 (S3 API), Google Cloud Storage (XML API with HMAC keys) and others. The plugin signs the download links itself; no SDK is needed.
 
-**1. Configure the bucket in `wp-config.php`** (above the line that loads `wp-settings.php`). The values are read from these constants only; they are never stored in the database, shown in the admin or written to a log.
+**1. Configure the bucket.** The access key ID and the secret go into `wp-config.php` (above the line that loads `wp-settings.php`); they are never stored in the database, shown in the admin or written to a log. Bucket, region, endpoint and path style can be constants as below or fields under **License settings → Updates** (SET-LIC-30, administrators only); a constant that is defined wins and its field is shown read-only. Below the fields the page shows the state of the storage and **Test the connection**.
 
 ```php
 define( 'WPLC_S3_BUCKET', 'acme-releases' );

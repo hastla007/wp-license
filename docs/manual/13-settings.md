@@ -31,6 +31,10 @@ The tables are generated from the register (`php bin/settings-doc.php --write`).
 | Downloads per license and hour | `downloads_per_hour` | whole number, 1 to 1000 | `10` | `wplc_customer_download_hourly_limit` | How many downloads from the customer account one license may start within an hour. Default: 10. Updates installed by the customer sites do not count. Manufacturer rule (`wplc_manage_policy`, by default administrators). |
 | Reuse of a download link | `download_reuse_seconds` | whole number, 0 to 600 | `0` | `wplc_download_reuse_seconds` | Seconds during which a used download link of an update still works for a second fetch (some download managers and proxies fetch twice). Default: 0 = strict single use, the safest choice. At most 600. Manufacturer rule (`wplc_manage_policy`, by default administrators). |
 | Download link valid for | `download_grant_seconds` | whole number, 60 to 900 | `300` | `wplc_download_grant_seconds` | Seconds during which the download link that a customer site receives for an update can be used. Default: 300 (five minutes); 60 to 900. The site asks for a new link right before it downloads, so a short time is enough. Manufacturer rule (`wplc_manage_policy`, by default administrators). |
+| Object storage: bucket | `s3_bucket` | text, at most 63 characters | (empty) | – | Name of the private bucket that update packages are delivered from (S3-compatible storage such as Amazon S3 or Cloudflare R2). Empty (default) = no object storage. The access key ID and the secret stay in wp-config.php (WPLC_S3_ACCESS_KEY_ID, WPLC_S3_SECRET_ACCESS_KEY); without them the bucket is not used. When WPLC_S3_BUCKET is defined in wp-config.php, the constant wins and the field is read-only. Administrators only. |
+| Object storage: region | `s3_region` | text, at most 32 characters | (empty) | – | Region of the bucket, for example eu-central-1; auto for Cloudflare R2. Empty (default) = us-east-1. When WPLC_S3_REGION is defined in wp-config.php, the constant wins and the field is read-only. Administrators only. |
+| Object storage: endpoint | `s3_endpoint` | text, at most 253 characters | (empty) | – | HTTPS address of the storage service without a path, for example https://ACCOUNT-ID.r2.cloudflarestorage.com. Empty (default) = Amazon S3 in the region above. When WPLC_S3_ENDPOINT is defined in wp-config.php, the constant wins and the field is read-only. Administrators only. |
+| Object storage: bucket in the path | `s3_path_style` | on or off | `off` | – | On: the bucket is addressed in the path of the address (https://endpoint/bucket/…), which some providers such as MinIO need. Off (default): the bucket is a subdomain of the endpoint; bucket names with dots or capital letters always use the path. When WPLC_S3_PATH_STYLE is defined in wp-config.php, the constant wins and the field is read-only. Administrators only. |
 
 ### Automatic renewal
 
@@ -86,6 +90,19 @@ The tables are generated from the register (`php bin/settings-doc.php --write`).
 | Customers can transfer licenses | `transfers_enabled` | on or off | `on` | `wplc_license_transfer_enabled` | On (default): the owner can hand a license over to another customer from the account; the recipient accepts with the link in an email. Off: the transfer form is hidden and open transfers can no longer be accepted; you can still change the owner in the admin. Manufacturer rule (`wplc_manage_policy`, by default administrators). |
 | New license key on transfer | `transfer_new_key` | on or off | `off` | `wplc_license_transfer_new_key` | Off (default): the license keeps its key and the activated sites keep working after a transfer accepted in the account. On: the transfer also issues a new key, so the previous owner can no longer use the old one; the new owner enters the new key on the sites. Manufacturer rule (`wplc_manage_policy`, by default administrators). |
 
+### Customer account
+
+| Setting | Key | Value | Default | Filter (wins) | What it does |
+| --- | --- | --- | --- | --- | --- |
+| Address of the license page | `account_licenses_slug` | text, at most 50 characters | `wplc-licenses` | `wplc_account_endpoint_slug` | Last part of the address of the license page in the customer account, for example licenses or lizenzen: lowercase letters, digits and hyphens. Default: wplc-licenses. The new address works at once; links in emails sent before lead to the old address and find no page. It must differ from the site page and from the other pages of the account. |
+| Menu item of the license page | `account_licenses_label` | text, at most 60 characters | (empty) | – | Name of the license page in the menu of the customer account and its heading. Empty (default) = "Licenses" in the language of the customer. Your own name is shown as it is in every language. |
+| Licenses per page | `account_licenses_per_page` | whole number, 1 to 100 | `10` | – | How many licenses the license page of the customer account shows at a time; further licenses are on the next pages. Default: 10. |
+| Address of the site page | `account_sites_slug` | text, at most 50 characters | `wplc-sites` | `wplc_sites_endpoint_slug` | Last part of the address of the page "Sites" in the customer account, for example sites or websites: lowercase letters, digits and hyphens. Default: wplc-sites. It must differ from the license page and from the other pages of the account. |
+| Menu item of the site page | `account_sites_label` | text, at most 60 characters | (empty) | – | Name of the page "Sites" in the menu of the customer account. Empty (default) = "Sites" in the language of the customer. Your own name is shown as it is in every language. |
+| Sites per page | `account_sites_per_page` | whole number, 1 to 200 | `25` | – | How many sites the page "Sites" of the customer account shows at a time. Default: 25. |
+| Site counts as not seen after | `account_stale_days` | whole number, 1 to 365 | `14` | – | Days without contact after which the page "Sites" marks a site with "No contact for more than … days". Default: 14. |
+| License counts as ending soon | `account_expiry_days` | whole number, 1 to 365 | `30` | – | Days before the end of the paid period from which the page "Sites" marks a license that does not renew automatically as ending soon. Default: 30. |
+
 ### Legal and privacy
 
 | Setting | Key | Value | Default | Filter (wins) | What it does |
@@ -129,10 +146,16 @@ The tables are generated from the register (`php bin/settings-doc.php --write`).
 | Alert from: Failed background jobs (24 hours) | `alert_failed_jobs` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
 | Alert from: Problems with update packages | `alert_release_problems` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
 | Alert from: Minutes with rejected Stripe webhook requests (24 hours) | `alert_rejected_webhook_minutes` | whole number, 0 to 100000 | `5` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 5. 0 = never alert for this figure. |
+| Alert from: Keys due for rotation | `alert_keys_due_for_rotation` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Remind to rotate keys after | `key_rotation_reminder_months` | whole number, 0 to 120 | `0` | `wplc_key_rotation_reminder_months` | Months after which the license key secret, the installation secret encryption key and the response signing key should be replaced. A key that is older is shown on the diagnostics page, raises the health figure "Keys due for rotation" and a notice for administrators. Default: 0 = no reminder. The age counts from the day this server first saw the key (keys carry no date of their own; for keys that existed before, from the first day after the update that added this setting). Replacing a key stays a task for wp-config.php and WP-CLI. Administrators only. |
 | Verbose log | `debug_log` | one of `off`, `24h`, `7d` | `off` | `wplc_log_debug` | Writes additional lines of the level debug to the WooCommerce log (source wp-license) to trace a problem. It switches itself off after the chosen time. Off (default). The constant WPLC_DEBUG in wp-config.php switches it on permanently. |
 | When the plugin is deleted | `uninstall_data` | one of `keep`, `delete` | `keep` | – | Keep (default): licenses, activations, renewals, the audit log and the settings stay in the database when the plugin is deleted, because they are business records. Delete: the tables and options of the plugin are removed for good when it is deleted; uploaded packages and order data are never removed. The constant WPLC_REMOVE_ALL_DATA in wp-config.php also deletes. Deleting cannot be undone; make a backup first. Administrators only. |
 
 <!-- settings:end -->
+
+## Getting started
+
+The checklist **Getting started** at the top of the page has eight steps. The step **Decide the rules of your shop** asks three questions in the checklist itself: which country profile fits the shop, how many staging copies a customer may run next to each live site (**Staging sites per live site**, a manufacturer rule: read-only without `wplc_manage_policy`) and how many days a customer keeps access when an automatic payment fails (**Grace period after the paid period**). **Save the answers** applies the two numbers at once (audit entries `settings_changed` and `settings_updated`) and turns a chosen country profile into the usual suggestion below the form, where nothing is ticked in advance. A value that is not valid saves nothing. Answered, the step counts as done (option `wplc_setup_rules_decided`) and the questions fold away under **Change the answers**.
 
 ## Country profiles
 
@@ -184,6 +207,37 @@ Below the form, **Country profile** offers Germany, Austria, Switzerland, Europe
 
 **Co-users per license** (0 to 100, default 5; 0 switches co-users off), **Invitations valid for** (1 to 90 days, default 14), **Customers can transfer licenses** (default on) and **New license key on transfer** (default off) decide what owners can do in the customer account (see chapter 7). They are manufacturer rules. A plan can have its own number of co-users. Switching co-users or transfers off also stops open invitations from being accepted; co-users who accepted before stay until the owner removes them. The filters `wplc_license_member_limit`, `wplc_license_invitation_days`, `wplc_license_transfer_enabled` and `wplc_license_transfer_new_key` decide last.
 
+## Object storage
+
+**Updates → Object storage: bucket, region, endpoint, bucket in the path** configure the S3-compatible storage that update packages are delivered from (chapter 5). The access key ID and the secret are never settings: they stay the constants `WPLC_S3_ACCESS_KEY_ID` and `WPLC_S3_SECRET_ACCESS_KEY` in `wp-config.php`, and without them the bucket is not used. A constant `WPLC_S3_BUCKET`, `WPLC_S3_REGION`, `WPLC_S3_ENDPOINT` or `WPLC_S3_PATH_STYLE` that is defined wins over its field; the field then shows the value of the constant read-only and a save keeps the stored value. Only administrators may change the fields (the request host of the bucket becomes a trusted package host), and they are not part of an export. Below the fields the page shows the state of the storage (not in use, in use with bucket and host, or what is missing) and **Test the connection**, which sends one signed request for the bucket, like `wp wplc storage check`, and shows the answer once.
+
+## Test emails
+
+**Send a test email** below the form sends one license email (any of the emails under WooCommerce → Settings → Emails that belong to the plugin) with the sample data of the WooCommerce preview to an address and in an installed language of your choice. It is sent also when the email is switched off for customers; its subject starts with "[Test]". Each user may send ten test emails per hour. Every test email writes the audit entry `test_email_sent` (email and language, not the address). The form needs `wplc_manage_settings` and the nonce of the page.
+
+## Reminder to rotate keys
+
+**Operations → Remind to rotate keys after** (0 to 120 months, default 0 = off; administrators only; filter `wplc_key_rotation_reminder_months`) reminds you to replace the license key secret, the installation secret encryption key and the response signing key. Keys carry no date of their own. The server therefore stores, for each kind of key, a fingerprint of the key in use and the date it first saw it (option `wplc_key_first_seen`; the fingerprint is the key ID and a short HMAC, never the key). **The age counts from that date**: for a key that existed before this version, from the first day after the update (the daily run or the first visit of the diagnostics page). A key that falls back to the WordPress salts has no age; the key notice asks for a real key instead. When a key is older than the chosen months:
+
+- the diagnostics page marks the row **Age: …** of that key and says how to rotate it;
+- the health figure **Keys due for rotation** counts it (threshold setting **Alert from: Keys due for rotation**, default 1), so the action `wplc/health_alert` and the health alert email report it;
+- administrators see a notice on the screens of the plugin.
+
+Nothing is rotated automatically: replacing a key stays a task for `wp-config.php` and WP-CLI (chapter 2, chapter 10). A new key gets its own first-seen date, so the reminder ends with the rotation.
+
+## Customer account
+
+**Customer account** sets the pages of the plugin in WooCommerce → My account:
+
+- **Address of the license page** (default `wplc-licenses`) and **Address of the site page** (default `wplc-sites`): the last part of the address, lowercase letters, digits and hyphens. A changed address is written into the rewrite rules on the next page view, without visiting the permalink settings (the plugin compares the stored address with the current one). Two pages cannot share an address, and an address of WooCommerce itself (for example `orders`) is refused; the stored addresses then stay. Links in emails sent before the change lead to the old address. The filters `wplc_account_endpoint_slug` and `wplc_sites_endpoint_slug` (new) decide last, for example to translate the address with a multilingual plugin.
+- **Menu item of the license page**, **Menu item of the site page**: the names in the account menu (empty = "Licenses" and "Sites" in the language of the customer; your own name is shown as it is in every language).
+- **Licenses per page** (default 10), **Sites per page** (default 25).
+- **Site counts as not seen after** (default 14 days) and **License counts as ending soon** (default 30 days): the warnings of the page "Sites".
+
+## Texts per product
+
+Installation steps, the documentation address and the names of the plans that customers see are maintained per product and per language in the catalog file (`install_steps`, `docs_url`, `plans`; chapter 3). Without them the built-in steps, no documentation link and the name of the WooCommerce product are used, as before. The filters `wplc_install_steps`, `wplc_product_docs_url` and `wplc_plan_label` decide last.
+
 ## Rules per plan
 
 In the product editor, **Rules of this plan** can replace five global values for one plan: staging sites per live site, development sites (exactly this number), offline period, largest quantity per order line and co-users per license. An empty field means the global setting of this chapter. A value applies to the existing licenses of the plan at once. The filters of the global values still decide last. The catalog CSV carries the same five columns (chapter 4). Beta access per plan is not available yet.
@@ -193,7 +247,7 @@ In the product editor, **Rules of this plan** can replace five global values for
 The plugin brings its own capabilities (chapter 2, "Who may do what"). The overview on the settings page shows them with their defaults and says which ones you hold. Settings that need more than `wplc_manage_settings`:
 
 - `wplc_manage_policy` (by default administrators): the manufacturer rules, marked "Manufacturer rule" in the tables above. They change how the add-ons behave on every customer site. A shop manager sees them read-only. To let another role change them, store the capability on that role, for example `wp cap add shop_manager wplc_manage_policy`.
-- `wplc_manage_package_hosts` (by default administrators): the trusted package hosts and what happens to the data when the plugin is deleted.
+- `wplc_manage_package_hosts` (by default administrators): the trusted package hosts, the object storage fields, the reminder to rotate keys and what happens to the data when the plugin is deleted.
 
 ## Support contact
 

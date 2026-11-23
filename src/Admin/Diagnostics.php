@@ -405,6 +405,8 @@ final class Diagnostics {
 			'release_problems'           => count( \WPLC\Update\ReleaseRegistry::problems( false ) ),
 			'unmapped_license_products'  => self::unmapped_license_products(),
 			'rejected_webhook_minutes'   => self::rejected_webhook_minutes(),
+			// SET-LIC-28: keys older than the setting "Remind to rotate keys after"; always 0 while it is off.
+			'keys_due_for_rotation'      => count( \WPLC\Security\KeyAge::due() ),
 		);
 	}
 
@@ -1183,6 +1185,26 @@ final class Diagnostics {
 				? ( 'constant' === $signer['source'] ? '' : __( 'The key is stored encrypted in the database. For a production server, keep it in wp-config.php as WPLC_RESPONSE_SIGNING_KEY ("wp wplc signing-key"), so a restored or copied database cannot change it.', 'wp-license' ) )
 				: __( 'API responses are sent without the Ed25519 signature. Add-ons that require it treat the license server as unreachable.', 'wp-license' )
 		);
+		// SET-LIC-28: age of each key, counted from the day this server first saw it.
+		$reminder = \WPLC\Security\KeyAge::reminder_months();
+		foreach ( \WPLC\Security\KeyAge::ages() as $kind => $age ) {
+			$add(
+				/* translators: %s: name of a kind of key. */
+				sprintf( __( 'Age: %s', 'wp-license' ), \WPLC\Security\KeyAge::label( (string) $kind ) ),
+				sprintf(
+					/* translators: 1: key ID, 2: date, 3: number of months. */
+					_n( 'Key %1$s, first seen on %2$s (%3$s month)', 'Key %1$s, first seen on %2$s (%3$s months)', $age['months'], 'wp-license' ),
+					$age['key_id'],
+					substr( $age['first_seen'], 0, 10 ),
+					number_format_i18n( $age['months'] )
+				),
+				$age['due'] ? 'warning' : ( $reminder > 0 ? 'ok' : '' ),
+				$age['due']
+					/* translators: 1: number of months, 2: how to rotate the key. */
+					? sprintf( __( 'Older than %1$s months (setting "Remind to rotate keys after"). %2$s', 'wp-license' ), number_format_i18n( $reminder ), \WPLC\Security\KeyAge::how_to_rotate( (string) $kind ) )
+					: __( 'Keys carry no date: the age counts from the day this server first saw the key.', 'wp-license' )
+			);
+		}
 		$old_secrets = \WPLC\CLI\RotateInstallationSecretsCommand::pending_count();
 		$add(
 			__( 'Installation secrets encrypted with an old key', 'wp-license' ),

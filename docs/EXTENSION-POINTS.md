@@ -49,7 +49,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 
 ## Package resolvers and built-in object storage
 
-`wplc_resolve_update_package_url` (arguments: stored package URL, license ID; `0` when the server verifies a release on publish) turns the stored location of a URL release into the URL a client is redirected to. Two resolvers are built in: `PackageStream::resolve` (priority 10, uploaded packages) and `S3Storage::resolve` (priority 20, T-31), which signs an unchanged object URL of the bucket configured with the `WPLC_S3_*` constants (see [UPDATE-STORAGE.md](UPDATE-STORAGE.md)). A custom resolver on priority 10 (or anything below 20) runs first; a URL it changed carries a query and is not signed again, so custom resolvers keep precedence. `wplc_s3_presign_expires` sets the validity of the signed links (default 300 s, clamped to 1 s … 7 days). The bucket's request host is added to `wplc_update_package_hosts` (priority 1000) while the storage is configured. There is no filter for the credentials: they come from wp-config.php only.
+`wplc_resolve_update_package_url` (arguments: stored package URL, license ID; `0` when the server verifies a release on publish) turns the stored location of a URL release into the URL a client is redirected to. Two resolvers are built in: `PackageStream::resolve` (priority 10, uploaded packages) and `S3Storage::resolve` (priority 20, T-31), which signs an unchanged object URL of the bucket configured with the `WPLC_S3_*` constants or the object storage fields of the settings page (SET-LIC-30; see [UPDATE-STORAGE.md](UPDATE-STORAGE.md)). A custom resolver on priority 10 (or anything below 20) runs first; a URL it changed carries a query and is not signed again, so custom resolvers keep precedence. `wplc_s3_presign_expires` sets the validity of the signed links (default 300 s, clamped to 1 s … 7 days). The bucket's request host is added to `wplc_update_package_hosts` (priority 1000) while the storage is configured. There is no filter for the credentials: they come from wp-config.php only.
 
 ## Actions
 
@@ -148,6 +148,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_is_staging_host` | `src/Api/V1/SiteUrl.php` | Filter whether a host is accepted as the staging copy of a live site. |
 | `wplc_issue_after_completion_gateways` | `src/License/LicenseIssuer.php` | Filters the payment methods whose orders only get their licenses once the order is completed. |
 | `wplc_job_runs_while_billing_paused` | `src/Maintenance/DailyRunner.php` | Filter whether a job runs although billing is paused. |
+| `wplc_key_rotation_reminder_months` | `src/Security/KeyAge.php` | Filters after how many months a key should be rotated. Wins over the setting "Remind to rotate keys after" (SET-LIC-28; 0 = no reminder). |
 | `wplc_known_product_keys` | `src/Catalog/EntitlementCatalog.php` | Filter the product keys suggested in the product editor. |
 | `wplc_license_email_locale` | `src/Notifications/PurchaseLocale.php` | Filter the locale used for the emails of one license. |
 | `wplc_license_email_recipient` | `src/Notifications/Emails/LicenseEmail.php` | Filter the recipient of the emails of one license. |
@@ -205,6 +206,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_settings_country_profiles` | `src/Settings/Presets.php` | Filters the country profiles (suggestions for the settings with legal weight). |
 | `wplc_shop_base_currency` | `src/Catalog/Catalog.php` | Filters the currency product prices are entered in (B-189). |
 | `wplc_show_license_term` | `src/Catalog/TermDisplay.php` | Filters whether the license term is appended to the price of a license product. |
+| `wplc_sites_endpoint_slug` | `src/Account/SiteOverview.php` | Filter the URL slug of the page "Sites" in the customer account (default: the setting "Address of the site page", SET-LIC-25). Rewrite rules are refreshed automatically. |
 | `wplc_staging_host_suffixes` | `src/Api/V1/SiteUrl.php` | Filters the hosting provider domains whose subdomains are staging copies, without the leading dot (SET-LIC-09). Wins over the setting. |
 | `wplc_staging_labels` | `src/Api/V1/SiteUrl.php` | Filters the name parts that mark a staging copy (SET-LIC-09). Wins over the setting "Staging: name parts". |
 | `wplc_staging_site_limit` | `src/Api/V1/ActivationService.php` | Filter the number of staging activations per live site. Zero forbids them. |

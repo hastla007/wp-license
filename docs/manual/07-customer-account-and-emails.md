@@ -2,7 +2,7 @@
 
 ## The "Licenses" page in My Account
 
-WP License Captain adds a page **Licenses** to the WooCommerce customer account (endpoint `wplc-licenses`, for example `https://shop.example/my-account/wplc-licenses/`; filter `wplc_account_endpoint_slug` changes the slug). For each license the customer sees:
+WP License Captain adds a page **Licenses** to the WooCommerce customer account (endpoint `wplc-licenses`, for example `https://shop.example/my-account/wplc-licenses/`; the address, the name in the menu and the number of licenses per page are settings under **License settings → Customer account**, chapter 13, and the filter `wplc_account_endpoint_slug` decides last). For each license the customer sees:
 
 - the license key with a copy button, the status, the plan and the end date;
 - the sites in use, with a button to deactivate a site (its staging site goes with it);

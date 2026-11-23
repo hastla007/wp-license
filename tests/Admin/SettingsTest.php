@@ -118,9 +118,10 @@ final class SettingsTest extends TestCase {
 	public function test_setup_steps_follow_the_onboarding_order_of_a_new_vendor(): void {
 		$steps = Settings::setup_steps_for( array() );
 
-		$this->assertSame( array( 'secrets', 'public_key', 'catalog', 'product', 'release', 'test', 'webhook' ), array_column( $steps, 'key' ) );
+		// SET-LIC-45: the rules of the shop are decided before the first release is sold.
+		$this->assertSame( array( 'secrets', 'public_key', 'catalog', 'product', 'rules', 'release', 'test', 'webhook' ), array_column( $steps, 'key' ) );
 		$this->assertSame( Settings::SETUP_STEPS, array_column( $steps, 'key' ) );
-		$this->assertSame( array_fill( 0, 7, false ), array_column( $steps, 'done' ), 'An empty state has every step open.' );
+		$this->assertSame( array_fill( 0, 8, false ), array_column( $steps, 'done' ), 'An empty state has every step open.' );
 		foreach ( $steps as $step ) {
 			$this->assertNotSame( '', $step['title'], $step['key'] );
 			$this->assertNotSame( '', $step['text'], $step['key'] );

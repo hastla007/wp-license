@@ -124,7 +124,7 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 			$wpdb->query( "DROP TABLE IF EXISTS `{$name}`" );
 		}
 		// Also the version options: a later reinstall must create the tables again.
-		foreach ( array( 'wplc_schema_version', 'wplc_reminder_log_version', 'wplc_settings', 'wplc_site_fingerprint', 'wplc_rewrite_version', 'wplc_response_signing_key', 'wplc_response_signing_key_id', 'wplc_response_signing_key_next', 'wplc_release_product_slugs', 'wplc_sites_endpoint_rules', 'wplc_entitlement_catalog' ) as $option ) {
+		foreach ( array( 'wplc_schema_version', 'wplc_reminder_log_version', 'wplc_settings', 'wplc_site_fingerprint', 'wplc_rewrite_version', 'wplc_response_signing_key', 'wplc_response_signing_key_id', 'wplc_response_signing_key_next', 'wplc_release_product_slugs', 'wplc_sites_endpoint_rules', 'wplc_entitlement_catalog', 'wplc_key_first_seen', 'wplc_setup_rules_decided' ) as $option ) {
 			delete_option( $option );
 		}
 	}

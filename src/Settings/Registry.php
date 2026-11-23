@@ -36,7 +36,7 @@ final class Registry {
 	/**
 	 * Groups (tabs of the settings page), in display order.
 	 */
-	public const GROUPS = array( 'updates', 'renewals', 'emails', 'rules', 'sites', 'sharing', 'legal', 'texts', 'operations' );
+	public const GROUPS = array( 'updates', 'renewals', 'emails', 'rules', 'sites', 'sharing', 'account', 'legal', 'texts', 'operations' );
 
 	/**
 	 * Longest text a change log entry or a preview shows.
@@ -69,6 +69,9 @@ final class Registry {
 	 * - exportable: part of export and import files
 	 * - secret: never exported, never written to the change log with its value
 	 * - legal: the value has legal weight; the help text asks for a legal check
+	 * - constant: name of a constant in wp-config.php that wins over the stored value; while it is
+	 *   defined the field is read-only and a save keeps the stored value (SET-LIC-30)
+	 * - pattern (string): the text must match it; an empty text is always accepted
 	 *
 	 * @return array<string,array<string,mixed>>
 	 */
@@ -92,6 +95,7 @@ final class Registry {
 				'legal'         => false,
 				'clamp'         => false,
 				'empty_default' => false,
+				'constant'      => '',
 			);
 		}
 		self::$definitions = $out;
@@ -180,6 +184,19 @@ final class Registry {
 		$definition = self::definition( $key );
 
 		return null === $definition ? null : $definition['default'];
+	}
+
+	/**
+	 * The constant that wins over a setting, when it is defined (SET-LIC-30).
+	 *
+	 * @param string $key Setting key.
+	 * @return string Name of the defined constant, or '' when the setting decides.
+	 */
+	public static function locking_constant( string $key ): string {
+		$definition = self::definition( $key );
+		$constant   = null === $definition ? '' : (string) $definition['constant'];
+
+		return '' !== $constant && defined( $constant ) ? $constant : '';
 	}
 
 	/**
@@ -344,6 +361,9 @@ final class Registry {
 						return self::failure( 'too_many', sprintf( 'Expected at most %d entries.', (int) ( $definition['max_items'] ?? 10 ) ) );
 					}
 					$text = implode( ', ', $addresses );
+				}
+				if ( '' !== $text && isset( $definition['pattern'] ) && 1 !== preg_match( (string) $definition['pattern'], $text ) ) {
+					return self::failure( 'invalid_format', 'The value does not have the expected form.' );
 				}
 				if ( '' !== $text && 'url' === $format && 1 !== preg_match( '#^https?://[^\s<>"\']+$#i', $text ) ) {
 					return self::failure( 'not_a_url', 'Expected an address that starts with https:// or http://.' );

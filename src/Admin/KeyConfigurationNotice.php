@@ -39,6 +39,7 @@ final class KeyConfigurationNotice {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'admin_notices', array( self::class, 'render' ) );
+		add_action( 'admin_notices', array( self::class, 'render_rotation_reminder' ) );
 		add_action( 'admin_init', array( self::class, 'sync_inbox_note' ) );
 	}
 
@@ -169,6 +170,36 @@ final class KeyConfigurationNotice {
 			echo '</p>';
 		}
 		echo '</div>';
+	}
+
+	/**
+	 * Remind administrators to rotate keys older than the setting "Remind to rotate keys after" (SET-LIC-28).
+	 *
+	 * Off by default. Shown on the plugin's own screens only, and not dismissible: it disappears when the
+	 * key is replaced or the setting is changed.
+	 *
+	 * @return void
+	 */
+	public static function render_rotation_reminder(): void {
+		if ( ! current_user_can( 'manage_options' ) || 0 === \WPLC\Security\KeyAge::reminder_months() ) {
+			return;
+		}
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! is_object( $screen ) || empty( $screen->id ) || false === strpos( (string) $screen->id, 'wplc' ) ) {
+			return;
+		}
+		$due = \WPLC\Security\KeyAge::due();
+		if ( ! $due ) {
+			return;
+		}
+		echo '<div class="notice notice-warning" data-wplc-key-rotation="' . esc_attr( implode( ',', $due ) ) . '"><p><strong>';
+		/* translators: %s: number of months. */
+		echo esc_html( sprintf( __( 'WP License Captain: keys older than %s months should be rotated.', 'wp-license' ), number_format_i18n( \WPLC\Security\KeyAge::reminder_months() ) ) );
+		echo '</strong></p><ul>';
+		foreach ( $due as $kind ) {
+			echo '<li><strong>' . esc_html( \WPLC\Security\KeyAge::label( $kind ) ) . ':</strong> ' . esc_html( \WPLC\Security\KeyAge::how_to_rotate( $kind ) ) . '</li>';
+		}
+		echo '</ul><p>' . esc_html__( 'The age counts from the day this server first saw the key. The diagnostics page shows the age of every key. Change the period under License settings → Operations.', 'wp-license' ) . '</p></div>';
 	}
 
 	/**

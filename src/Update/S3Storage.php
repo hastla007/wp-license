@@ -14,14 +14,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Delivers URL releases that live in one private S3-compatible bucket (T-31).
  *
- * Configured only with constants in wp-config.php:
+ * Configuration:
  *
- * - WPLC_S3_BUCKET, WPLC_S3_ACCESS_KEY_ID, WPLC_S3_SECRET_ACCESS_KEY (required);
- * - WPLC_S3_REGION (default "us-east-1"; "auto" for Cloudflare R2);
- * - WPLC_S3_ENDPOINT (default "https://s3.{region}.amazonaws.com");
- * - WPLC_S3_PATH_STYLE (default false; always true for bucket names that are no DNS label).
+ * - WPLC_S3_ACCESS_KEY_ID, WPLC_S3_SECRET_ACCESS_KEY: constants in wp-config.php only (required);
+ * - bucket (required), region (default "us-east-1"; "auto" for Cloudflare R2), endpoint (default
+ *   "https://s3.{region}.amazonaws.com") and path style (default false; always true for bucket names
+ *   that are no DNS label): the settings s3_bucket, s3_region, s3_endpoint and s3_path_style
+ *   (SET-LIC-30), or the constants WPLC_S3_BUCKET, WPLC_S3_REGION, WPLC_S3_ENDPOINT and
+ *   WPLC_S3_PATH_STYLE, which win over the settings.
  *
- * Nothing is stored in the database. The secret is passed to S3Presigner only
+ * No credential is stored in the database. The secret is passed to S3Presigner only
  * and never appears in a return value of this class, a log or the admin.
  *
  * A release stores the permanent object URL (object_url()), or is created
@@ -67,7 +69,8 @@ final class S3Storage {
 	 *
 	 * @internal Tests only. Constants cannot be undefined within one PHP process.
 	 *
-	 * @param array<string,mixed>|null $values Keys endpoint, region, bucket, access_key_id, secret_access_key, path_style.
+	 * @param array<string,mixed>|null $values Keys endpoint, region, bucket, access_key_id, secret_access_key, path_style;
+	 *                                         with `with_settings` => true the keys not given come from the settings.
 	 * @return void
 	 */
 	public static function override_config( ?array $values ): void {
@@ -75,13 +78,29 @@ final class S3Storage {
 	}
 
 	/**
-	 * Raw configuration values from the constants.
+	 * Settings that stand in for a constant that is not defined (SET-LIC-30). The credentials have none.
+	 */
+	private const SETTINGS = array(
+		'endpoint'   => 's3_endpoint',
+		'region'     => 's3_region',
+		'bucket'     => 's3_bucket',
+		'path_style' => 's3_path_style',
+	);
+
+	/**
+	 * Raw configuration values: each constant, else its setting.
 	 *
 	 * @return array<string,mixed>
 	 */
 	private static function raw_values(): array {
+		$given = array();
 		if ( null !== self::$override ) {
-			return self::$override;
+			if ( empty( self::$override['with_settings'] ) ) {
+				return self::$override;
+			}
+			// Tests of the settings: the given values stand in for the constants, the rest comes from the settings.
+			$given = self::$override;
+			unset( $given['with_settings'] );
 		}
 		$constants = array(
 			'endpoint' => 'WPLC_S3_ENDPOINT',
@@ -93,8 +112,12 @@ final class S3Storage {
 		);
 		$values = array();
 		foreach ( $constants as $key => $constant ) {
-			if ( defined( $constant ) ) {
+			if ( array_key_exists( $key, $given ) ) {
+				$values[ $key ] = $given[ $key ];
+			} elseif ( defined( $constant ) ) {
 				$values[ $key ] = constant( $constant );
+			} elseif ( isset( self::SETTINGS[ $key ] ) && class_exists( \WPLC\Settings\Registry::class ) ) {
+				$values[ $key ] = 'path_style' === $key ? \WPLC\Settings\Registry::bool( self::SETTINGS[ $key ] ) : \WPLC\Settings\Registry::string( self::SETTINGS[ $key ] );
 			}
 		}
 
@@ -422,12 +445,12 @@ final class S3Storage {
 	 */
 	public static function error_message( string $code ): string {
 		$messages = array(
-			'not_configured' => __( 'Object storage is not configured (WPLC_S3_BUCKET, WPLC_S3_ACCESS_KEY_ID and WPLC_S3_SECRET_ACCESS_KEY in wp-config.php).', 'wp-license' ),
-			'incomplete' => __( 'Object storage is configured incompletely: WPLC_S3_BUCKET, WPLC_S3_ACCESS_KEY_ID and WPLC_S3_SECRET_ACCESS_KEY are all required.', 'wp-license' ),
-			'invalid_bucket' => __( 'WPLC_S3_BUCKET is not a valid bucket name.', 'wp-license' ),
+			'not_configured' => __( 'Object storage is not configured (bucket under License settings → Updates or WPLC_S3_BUCKET, and WPLC_S3_ACCESS_KEY_ID and WPLC_S3_SECRET_ACCESS_KEY in wp-config.php).', 'wp-license' ),
+			'incomplete' => __( 'Object storage is configured incompletely: the bucket (License settings → Updates or WPLC_S3_BUCKET), WPLC_S3_ACCESS_KEY_ID and WPLC_S3_SECRET_ACCESS_KEY are all required.', 'wp-license' ),
+			'invalid_bucket' => __( 'The bucket (setting or WPLC_S3_BUCKET) is not a valid bucket name.', 'wp-license' ),
 			'invalid_credentials' => __( 'WPLC_S3_ACCESS_KEY_ID or WPLC_S3_SECRET_ACCESS_KEY contains characters that are not allowed.', 'wp-license' ),
-			'invalid_region' => __( 'WPLC_S3_REGION is not a valid region name.', 'wp-license' ),
-			'invalid_endpoint' => __( 'WPLC_S3_ENDPOINT must be an HTTPS address on the standard port without a path, for example https://s3.eu-central-1.amazonaws.com.', 'wp-license' ),
+			'invalid_region' => __( 'The region (setting or WPLC_S3_REGION) is not a valid region name.', 'wp-license' ),
+			'invalid_endpoint' => __( 'The endpoint (setting or WPLC_S3_ENDPOINT) must be an HTTPS address on the standard port without a path, for example https://s3.eu-central-1.amazonaws.com.', 'wp-license' ),
 		);
 
 		return $messages[ $code ] ?? $messages['not_configured'];

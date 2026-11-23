@@ -41,6 +41,8 @@ When the plugin did not run for a while (deactivated, cron stopped, billing paus
 
 The license-key ring and the encryption ring rotate independently.
 
+**Reminder.** The setting **Operations → Remind to rotate keys after** (default off, chapter 13) reminds you when a key is older than the chosen number of months: on the diagnostics page (rows "Age: …"), through the health figure "Keys due for rotation" and with a notice for administrators. Keys carry no date: the age counts from the day the server first saw the key, for keys that existed before from the first day after the update that added the reminder. Rotating stays the manual work described here.
+
 | Ring | What breaks without the old entry | When the old entry may go |
 | --- | --- | --- |
 | `WPLC_LICENSE_KEY_SECRETS` | Customers no longer see keys derived with it. Activation with a key the customer has keeps working (keys are looked up by hash). | Never while licenses with that key ID exist. A routine rotation does not move existing licenses to the new ID. |
