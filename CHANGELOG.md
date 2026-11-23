@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Added (23 Nov 2026: settings for the sale)
+
+The shop that buys the server must be able to adapt it to its customers and its country. Rules of the business become settings with the behaviour so far as the default and a filter that decides last. Nothing changes for an existing installation until a value is changed. Manual chapter 13 lists every setting.
+
+- **One register of all settings** (`WPLC\Settings\Registry`, definitions in `src/Settings/Definitions.php`): key, kind of value, default, limits, group, capability, filter, exportable. The settings page, the validation, the change log and the manual chapter are built from it; no class reads the option `wplc_settings` directly any more (four did).
+- **Settings page:** tabs per group ("All settings" shows everything as before); a tab saves only its own fields. A value that cannot be accepted is reported on the screen and the stored value stays (the settings that existed before keep their behaviour: a number outside the limits moves to the nearest limit). A field says "In effect: …" when a filter of the shop changes the stored value. Action `wplc_settings_page_tools` below the form.
+- **Change log:** the audit entry `settings_updated` holds the old and the new value of every changed setting, also of the sender note (shortened to 120 characters; email addresses are redacted by the audit log as everywhere). Before, six settings were logged with their values.
+
 ### Added (23 Nov 2026: two rules of the shop as settings)
 
 - **Largest quantity per order line** (License settings → Rules of this shop; default 100, 0 = no limit): the largest quantity of a license product a customer can order in one line. Enforced on the server in the quantity field, when adding to the cart and again in cart and checkout, classic and Store API (block checkout). The filter `wplc_max_license_quantity_per_line` wins over the setting and receives the product. An order created in the admin or through the REST API is not blocked: it gets a note and the audit entry `order_quantity_above_limit`. Before, the quantity was unlimited.

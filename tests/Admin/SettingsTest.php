@@ -67,7 +67,8 @@ final class SettingsTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import', 'combined_renewals', 'suspended_ends_after_days', 'max_quantity_per_line', 'sender_note' ), array_keys( $clean ) );
+		$this->assertSame( array_keys( \WPLC\Settings\Registry::definitions() ), array_keys( $clean ), 'Exactly the keys of the register.' );
+		$this->assertArrayNotHasKey( 'stripe_secret', $clean );
 		// PROD-03: on by default, off only when the form says so.
 		$this->assertSame( 1, $clean['catalog_auto_import'] );
 		$this->assertSame( 0, Settings::sanitize( array( 'catalog_auto_import' => '0' ) )['catalog_auto_import'] );
@@ -93,16 +94,19 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( Settings::defaults()['reminder_days'], Settings::sanitize( 'not an array' )['reminder_days'] );
 	}
 
-	public function test_audit_diff_lists_changed_keys_and_only_safe_values(): void {
+	public function test_audit_diff_lists_changed_keys_with_old_and_new_values(): void {
 		$old = array( 'package_hosts' => array( 'a.example.com' ), 'reminder_days' => '30,7', 'sender_note' => 'Old note' );
 		$new = array( 'package_hosts' => array( 'a.example.com', 'b.example.com' ), 'reminder_days' => '30,7', 'sender_note' => 'New note' );
 
 		$diff = Settings::settings_diff( $old, $new );
 
 		$this->assertSame( array( 'package_hosts', 'sender_note' ), $diff['changed'] );
-		$this->assertSame( array( 'package_hosts' => array( 'a.example.com' ) ), $diff['before'] );
-		$this->assertSame( array( 'package_hosts' => array( 'a.example.com', 'b.example.com' ) ), $diff['after'] );
-		$this->assertStringNotContainsString( 'note', (string) json_encode( $diff['before'] + $diff['after'] ) );
+		// SET-LIC-15: old and new value of every changed setting; free text is shortened.
+		$this->assertSame( array( 'package_hosts' => array( 'a.example.com' ), 'sender_note' => 'Old note' ), $diff['before'] );
+		$this->assertSame( array( 'package_hosts' => array( 'a.example.com', 'b.example.com' ), 'sender_note' => 'New note' ), $diff['after'] );
+
+		$long = Settings::settings_diff( array(), array( 'sender_note' => str_repeat( 'a', 400 ) ) );
+		$this->assertSame( \WPLC\Settings\Registry::PREVIEW_LENGTH + 1, mb_strlen( $long['after']['sender_note'] ) );
 	}
 
 	public function test_audit_diff_treats_missing_keys_as_defaults(): void {

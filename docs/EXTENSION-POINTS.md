@@ -104,6 +104,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc/stripe_webhook_received` | `src/Api/V1/StripeWebhook.php` | 0.1.0 | – |  |
 | `wplc_daily_lifecycle` | `src/Maintenance/DailyRunner.php` | 0.1.0 | – |  |
 | `wplc_release_package_missing` | `src/Update/ReleaseRegistry.php` | 0.1.0 | – | Fires when a published release cannot be offered because its file is missing on this server (A-111). |
+| `wplc_settings_page_tools` | `src/Admin/Settings.php` | 0.2.0 | – | Fires below the settings form: tools that work on the settings (country profiles, export, import, reset). |
 
 ## Filters
 

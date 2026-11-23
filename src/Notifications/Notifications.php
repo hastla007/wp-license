@@ -550,16 +550,11 @@ final class Notifications {
 	 * @return int[]
 	 */
 	public static function lead_days(): array {
-		$days     = ReminderSchedule::DEFAULT_LEAD_DAYS;
-		$settings = get_option( 'wplc_settings', array() );
-		// The settings page stores the list as "reminder_days".
-		$setting_key = is_array( $settings ) && isset( $settings['reminder_days'] ) ? 'reminder_days' : 'reminder_lead_days';
-		if ( is_array( $settings ) && isset( $settings[ $setting_key ] ) ) {
-			$configured = $settings[ $setting_key ];
-			if ( is_array( $configured ) || ( is_scalar( $configured ) && '' !== trim( (string) $configured ) ) ) {
-				// "0" (or only invalid numbers) disables expiry reminders.
-				$days = ReminderSchedule::parse_lead_days( is_array( $configured ) ? $configured : (string) $configured );
-			}
+		$days       = ReminderSchedule::DEFAULT_LEAD_DAYS;
+		$configured = \WPLC\Settings\Registry::stored()['reminder_days'] ?? null;
+		if ( is_array( $configured ) || ( is_scalar( $configured ) && '' !== trim( (string) $configured ) ) ) {
+			// "0" (or only invalid numbers) disables expiry reminders.
+			$days = ReminderSchedule::parse_lead_days( is_array( $configured ) ? $configured : (string) $configured );
 		}
 
 		/**
@@ -576,10 +571,10 @@ final class Notifications {
 	 * @return int
 	 */
 	public static function notice_days(): int {
-		$days     = ReminderSchedule::DEFAULT_NOTICE_DAYS;
-		$settings = get_option( 'wplc_settings', array() );
-		if ( is_array( $settings ) && isset( $settings['renewal_notice_days'] ) && is_numeric( $settings['renewal_notice_days'] ) && (int) $settings['renewal_notice_days'] >= 1 ) {
-			$days = (int) $settings['renewal_notice_days'];
+		$days    = ReminderSchedule::DEFAULT_NOTICE_DAYS;
+		$setting = \WPLC\Settings\Registry::stored()['renewal_notice_days'] ?? null;
+		if ( is_numeric( $setting ) && (int) $setting >= 1 ) {
+			$days = (int) $setting;
 		}
 
 		/**
