@@ -25,7 +25,7 @@ Start with **WooCommerce → License diagnostics**: every row with a problem nam
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | The update is not offered | Release not published, site does not meet `requires_php`/`requires_wp`/`requires_core`, license without access, wrong channel | Check the releases screen; the plugin row on the site names the reason. |
-| Download fails right after "Update" | A cache, scanner or proxy used the one-time link first | Exclude `/wp-json/wplc/v1/updates/download/` and `/wp-json/wplc/v1/packages/` from such components; or allow a short reuse window (`wplc_download_reuse_seconds`). |
+| Download fails right after "Update" | A cache, scanner or proxy used the one-time link first | Exclude `/wp-json/wplc/v1/updates/download/` and `/wp-json/wplc/v1/packages/` from such components; or allow a short reuse window (setting **Reuse of a download link**, filter `wplc_download_reuse_seconds`). |
 | `wplc_update_checksum` | The package changed after it was registered (overwritten object) | Never overwrite packages; withdraw and publish a new version. |
 | Update checks answer 503 `package_configuration_invalid` | A URL release points to a host that is no longer allowed (often after a domain move) | Add the host under trusted package hosts or publish a new release. |
 | "The uploaded package … is missing on this server" | Several web nodes without shared storage, or a restore without the package directory | Share the directory between nodes; restore the files. |

@@ -28,6 +28,11 @@ final class PolicySettingsTest extends TestCase {
 		'wplc_license_invitation_days',
 		'wplc_license_transfer_enabled',
 		'wplc_license_transfer_new_key',
+		'wplc_expired_license_download',
+		'wplc_customer_download_version_choices',
+		'wplc_customer_download_hourly_limit',
+		'wplc_download_reuse_seconds',
+		'wplc_download_grant_seconds',
 	);
 
 	protected function tearDown(): void {
@@ -204,5 +209,39 @@ final class PolicySettingsTest extends TestCase {
 		$this->assertNull( \WPLC\Catalog\PlanOverrides::of_plan( null, 'staging_site_limit' ) );
 		$this->assertNull( \WPLC\Catalog\PlanOverrides::of_plan( array( 'offline_cache_days' => '0' ), 'offline_cache_days' ), 'A stored value outside the limits counts as global.' );
 		$this->assertFalse( \WPLC\Catalog\PlanOverrides::any(), 'Without a database nothing is overridden.' );
+	}
+
+	// ------------------------------------------------------------------ SET-LIC-19
+
+	/** SET-LIC-19: download settings default to the values so far, take over the limits of the filters, and the filters win. */
+	public function test_download_settings(): void {
+		$defaults = Registry::defaults();
+		$this->assertSame( 1, $defaults['expired_download'] );
+		$this->assertSame( \WPLC\Update\CustomerDownload::DEFAULT_VERSION_CHOICES, $defaults['download_version_choices'] );
+		$this->assertSame( \WPLC\Update\CustomerDownload::DEFAULT_HOURLY_LIMIT, $defaults['downloads_per_hour'] );
+		$this->assertSame( \WPLC\Update\PackageStream::DEFAULT_REUSE_SECONDS, $defaults['download_reuse_seconds'] );
+		$this->assertSame( \WPLC\Api\V1\UpdateService::TOKEN_TTL, $defaults['download_grant_seconds'] );
+		foreach ( array( 'expired_download', 'download_version_choices', 'downloads_per_hour', 'download_reuse_seconds', 'download_grant_seconds' ) as $key ) {
+			$this->assertSame( 'updates', Registry::definition( $key )['group'], $key );
+			$this->assertSame( 'manage_policy', Registry::definition( $key )['capability'], $key );
+		}
+		// The limits the filters had (0 to 600 seconds, 1 to 50 versions, 1 to 1000 downloads).
+		$this->assertSame( 600, Registry::validate( 'download_reuse_seconds', '600' )['value'] );
+		$this->assertSame( 'out_of_range', Registry::validate( 'download_reuse_seconds', '601' )['code'] );
+		$this->assertSame( 'out_of_range', Registry::validate( 'download_version_choices', '51' )['code'] );
+		$this->assertSame( 'out_of_range', Registry::validate( 'downloads_per_hour', '0' )['code'] );
+		$this->assertSame( 'out_of_range', Registry::validate( 'download_grant_seconds', '59' )['code'] );
+		$this->assertSame( 'out_of_range', Registry::validate( 'download_grant_seconds', '901' )['code'] );
+
+		$this->assertSame( 10, \WPLC\Update\CustomerDownload::hourly_limit() );
+		$this->assertSame( 0, \WPLC\Update\PackageStream::reuse_seconds() );
+		$this->assertSame( 300, \WPLC\Api\V1\UpdateService::grant_seconds() );
+
+		$GLOBALS['wplc_test_filters']['wplc_customer_download_hourly_limit'][] = static fn() => 5000;
+		$GLOBALS['wplc_test_filters']['wplc_download_reuse_seconds'][]        = static fn() => 30;
+		$GLOBALS['wplc_test_filters']['wplc_download_grant_seconds'][]        = static fn() => 5;
+		$this->assertSame( 1000, \WPLC\Update\CustomerDownload::hourly_limit(), 'The filter wins within its limits.' );
+		$this->assertSame( 30, \WPLC\Update\PackageStream::reuse_seconds() );
+		$this->assertSame( 60, \WPLC\Api\V1\UpdateService::grant_seconds() );
 	}
 }

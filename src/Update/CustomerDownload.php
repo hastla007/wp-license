@@ -78,10 +78,10 @@ final class CustomerDownload {
 		 * Filters whether a license whose paid period ended may still download
 		 * the versions that were published during that period (A-116).
 		 *
-		 * @param bool                $allowed Default true.
+		 * @param bool                $allowed Default: the setting "Downloads after the paid period" (on).
 		 * @param array<string,mixed> $license License row.
 		 */
-		if ( ! apply_filters( 'wplc_expired_license_download', true, $license ) ) {
+		if ( ! apply_filters( 'wplc_expired_license_download', \WPLC\Settings\Registry::bool( 'expired_download' ), $license ) ) {
 			return null;
 		}
 
@@ -172,9 +172,9 @@ final class CustomerDownload {
 		/**
 		 * Filters how many versions the customer can choose from.
 		 *
-		 * @param int $choices Default 10; 1 offers the latest version only.
+		 * @param int $choices Default: the setting "Versions to choose from in the account" (10); 1 offers the latest version only.
 		 */
-		$choices = (int) apply_filters( 'wplc_customer_download_version_choices', self::DEFAULT_VERSION_CHOICES );
+		$choices = (int) apply_filters( 'wplc_customer_download_version_choices', \WPLC\Settings\Registry::int( 'download_version_choices' ) );
 
 		return ReleaseRegistry::published_versions( (string) ( $license['product_key'] ?? '' ), ReleaseRegistry::DEFAULT_CHANNEL, max( 1, min( 50, $choices ) ), $scope );
 	}
@@ -299,7 +299,12 @@ final class CustomerDownload {
 	 * @return int
 	 */
 	public static function hourly_limit(): int {
-		$limit = (int) apply_filters( 'wplc_customer_download_hourly_limit', self::DEFAULT_HOURLY_LIMIT );
+		/**
+		 * Filters how many downloads from the customer account one license may start per hour.
+		 *
+		 * @param int $limit Default: the setting "Downloads per license and hour" (10); 1 to 1000.
+		 */
+		$limit = (int) apply_filters( 'wplc_customer_download_hourly_limit', \WPLC\Settings\Registry::int( 'downloads_per_hour' ) );
 
 		return max( 1, min( 1000, $limit ) );
 	}

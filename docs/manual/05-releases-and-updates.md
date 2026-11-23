@@ -45,13 +45,13 @@ With `--publish`, a release that cannot be published is removed again, so the pi
 ## How an update reaches a site
 
 1. During the WordPress update check the client asks `POST /wp-json/wplc/v1/updates/check` (signed) with `download: false`; the answer is cached for twelve hours (one hour after a failure). The signed answer contains the version, requirements, changelog and the SHA-256 of the package. WordPress shows the update in the plugin list and in "View details".
-2. When the update is installed (by a person or as an automatic update), the client asks again with `download: true` and receives a **one-time download link** on the license server: valid for five minutes, bound to the installation, used up by the first `GET`.
+2. When the update is installed (by a person or as an automatic update), the client asks again with `download: true` and receives a **one-time download link** on the license server: valid for five minutes by default (setting **Download link valid for**, 60 to 900 seconds), bound to the installation, used up by the first `GET`.
 3. The server checks the license, the installation and the release again and redirects to the package: the streaming route for an uploaded package, or a short-lived pre-signed URL for object storage.
 4. The client compares the SHA-256 of the file with the signed value before WordPress unpacks it.
 
-A cache, link scanner or security proxy that fetches a download link first uses it up. Exclude `/wp-json/wplc/` from every such component (chapter 9). Filter `wplc_download_reuse_seconds` (0 to 600, default 0) allows a short reuse window for download managers that fetch a URL twice.
+A cache, link scanner or security proxy that fetches a download link first uses it up. Exclude `/wp-json/wplc/` from every such component (chapter 9). The setting **Reuse of a download link** (0 to 600 seconds, default 0; filter `wplc_download_reuse_seconds`) allows a short reuse window for download managers that fetch a URL twice.
 
-**The first download** comes from the customer account: a license with access can download the latest or one of up to nine older published versions there. An expired license keeps the versions published while it was paid (filter `wplc_expired_license_download`). Downloads are limited to 10 per license and hour and audited as `package_downloaded`.
+**The first download** comes from the customer account: a license with access can download the latest or one of up to nine older published versions there (setting **Versions to choose from in the account**, default 10). An expired license keeps the versions published while it was paid (setting **Downloads after the paid period**, filter `wplc_expired_license_download`). Downloads are limited to 10 per license and hour (setting **Downloads per license and hour**) and audited as `package_downloaded`. All five download settings are under **License settings → Updates** (chapter 13) and are manufacturer rules.
 
 ## Package storage
 

@@ -127,12 +127,13 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_client_ip` | `src/Api/V1/ClientIp.php` | Filter the client address used for anonymous rate limiting. |
 | `wplc_combined_renewals` | `src/Billing/CombinedRenewal.php` | Filters whether due automatic renewals of one customer are combined into one order and one charge (B-191). |
 | `wplc_currency_decimals` | `src/Billing/Money.php` | Filters the precision of a currency the shop does not enter prices in (B-189). |
-| `wplc_customer_download_hourly_limit` | `src/Update/CustomerDownload.php` |  |
+| `wplc_customer_download_hourly_limit` | `src/Update/CustomerDownload.php` | Filters how many downloads from the customer account one license may start per hour. |
 | `wplc_customer_download_version_choices` | `src/Update/CustomerDownload.php` | Filters how many versions the customer can choose from. |
 | `wplc_daily_run_split` | `src/Maintenance/DailyRunner.php` | Filter whether the daily run queues every job as its own Action Scheduler action. |
 | `wplc_development_site_limit` | `src/Api/V1/ActivationService.php` | Filter the number of development activations per license. Zero forbids them. |
 | `wplc_disable_renewal_on_token_deletion` | `src/Maintenance/Orphans.php` | Filter whether deleting a payment method switches automatic renewal off. |
 | `wplc_download_grant_retention_days` | `src/Maintenance/Retention.php` |  |
+| `wplc_download_grant_seconds` | `src/Api/V1/UpdateService.php` | Filters how many seconds a download link of an update can be redeemed. |
 | `wplc_download_reuse_seconds` | `src/Update/PackageStream.php` | Filters how long a download token stays valid after its first use. |
 | `wplc_entitlement_catalog` | `src/Catalog/EntitlementCatalog.php` | Filters the catalog of known boolean entitlements offered in the product editor. |
 | `wplc_expired_license_download` | `src/Update/CustomerDownload.php` | Filters whether a license whose paid period ended may still download |

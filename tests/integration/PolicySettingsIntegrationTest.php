@@ -122,7 +122,7 @@ final class PolicySettingsIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertStringContainsString( 'Who may do what', $page );
 		$this->assertMatchesRegularExpression( '#<code>wplc_manage_policy</code></td><td>[^<]+</td><td>Administrators</td><td>no</td>#', $page );
 		$this->assertMatchesRegularExpression( '#<code>wplc_manage_settings</code></td><td>[^<]+</td><td>Shop managers and administrators</td><td>yes</td>#', $page );
-		$this->assertStringContainsString( 'Settings that need wplc_manage_policy: Offline period of customer sites', $page );
+		$this->assertMatchesRegularExpression( '#Settings that need wplc_manage_policy: [^<]*Offline period of customer sites#', $page );
 
 		// Granted on the role, the shop manager may change them.
 		$role = get_role( 'shop_manager' );
@@ -349,6 +349,7 @@ final class PolicySettingsIntegrationTest extends WPLC_Integration_TestCase {
 	/** SET-LIC-21: the product editor shows and saves the overrides; empty fields mean "global setting". */
 	public function test_product_editor_saves_the_overrides(): void {
 		$product = $this->create_license_product();
+		require_once WC()->plugin_path() . '/includes/admin/wc-meta-box-functions.php';
 		$html    = $this->capture(
 			static function () use ( $product ) {
 				global $post, $thepostid;
@@ -425,5 +426,82 @@ final class PolicySettingsIntegrationTest extends WPLC_Integration_TestCase {
 		$result = CatalogCsv::import_file( $this->csv_file( $full . "\n" . $line . ',11,,,,' . "\n" ) );
 		$this->assertSame( 0, $result['imported'] );
 		$this->assertSame( 'invalid_override', $result['errors'][0]['reason'] );
+	}
+
+	// ------------------------------------------------------------------ SET-LIC-19
+
+	/** SET-LIC-19: the download rules come from the settings; the filters receive them and decide last. */
+	public function test_download_rules_follow_the_settings(): void {
+		$expired = array(
+			'status'     => 'expired',
+			'paid_until' => gmdate( 'Y-m-d H:i:s', time() - 40 * DAY_IN_SECONDS ),
+		);
+		$this->assertSame( $expired['paid_until'], \WPLC\Update\CustomerDownload::download_scope( $expired ), 'Default as before: versions of the paid period.' );
+
+		$this->submit(
+			array(
+				'expired_download'         => '0',
+				'download_version_choices' => '1',
+				'downloads_per_hour'       => '3',
+				'download_reuse_seconds'   => '45',
+				'download_grant_seconds'   => '120',
+			)
+		);
+		$this->assertNull( \WPLC\Update\CustomerDownload::download_scope( $expired ), 'No download after the end.' );
+		$this->assertSame( 3, \WPLC\Update\CustomerDownload::hourly_limit() );
+		$this->assertSame( 45, \WPLC\Update\PackageStream::reuse_seconds() );
+		$this->assertSame( 120, \WPLC\Api\V1\UpdateService::grant_seconds() );
+
+		$seen = null;
+		add_filter(
+			'wplc_customer_download_version_choices',
+			static function ( $choices ) use ( &$seen ) {
+				$seen = $choices;
+				return $choices;
+			}
+		);
+		\WPLC\Update\CustomerDownload::downloadable_versions( array( 'status' => 'active', 'paid_until' => gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ), 'product_key' => 'test-product' ) );
+		remove_all_filters( 'wplc_customer_download_version_choices' );
+		$this->assertSame( 1, $seen, 'The filter receives the setting.' );
+
+		add_filter( 'wplc_expired_license_download', '__return_true' );
+		add_filter( 'wplc_download_grant_seconds', static fn() => 600 );
+		try {
+			$this->assertSame( $expired['paid_until'], \WPLC\Update\CustomerDownload::download_scope( $expired ), 'The filter wins.' );
+			$this->assertSame( 600, \WPLC\Api\V1\UpdateService::grant_seconds() );
+		} finally {
+			remove_all_filters( 'wplc_expired_license_download' );
+			remove_all_filters( 'wplc_download_grant_seconds' );
+		}
+
+		// A shop manager sees them but cannot change them.
+		wp_set_current_user( $this->manager );
+		$this->submit( array( 'downloads_per_hour' => '500' ) );
+		$this->assertSame( 3, \WPLC\Update\CustomerDownload::hourly_limit() );
+	}
+
+	/** SET-LIC-19: an update check hands out a download link that expires after the configured time. */
+	public function test_update_grant_expires_after_the_configured_time(): void {
+		$license = $this->seed_license();
+		$site    = $this->seed_activation( $license['id'] );
+		$this->submit( array( 'download_grant_seconds' => '90' ) );
+		add_filter(
+			'wplc_update_packages',
+			static function ( $packages ) {
+				$packages['test-product'] = array(
+					'version'     => '2.0.0',
+					'package_url' => 'https://' . wp_parse_url( home_url(), PHP_URL_HOST ) . '/downloads/test-product-2.0.0.zip',
+					'sha256'      => str_repeat( 'ab', 32 ),
+				);
+				return $packages;
+			}
+		);
+		$response = $this->dispatch( $this->api_request( 'POST', '/wplc/v1/updates/check', array( 'product_key' => 'test-product', 'current_version' => '1.0.0', 'download' => true ), $site ) );
+		$data     = $response->get_data();
+		$this->assertSame( 200, $response->get_status(), (string) wp_json_encode( $data ) );
+		$expires = $data['data']['download_expires_at'] ?? ( $data['download_expires_at'] ?? null );
+		$this->assertIsString( $expires, (string) wp_json_encode( $data ) );
+		$this->assertEqualsWithDelta( time() + 90, strtotime( $expires . ' UTC' ), 5 );
+		remove_all_filters( 'wplc_update_packages' );
 	}
 }

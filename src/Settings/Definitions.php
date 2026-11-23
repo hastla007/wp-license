@@ -41,6 +41,50 @@ final class Definitions {
 				'group'   => 'updates',
 				'filter'  => 'wplc_catalog_auto_import',
 			),
+			// Downloads (SET-LIC-19).
+			'expired_download'          => array(
+				'type'       => 'bool',
+				'default'    => 1,
+				'group'      => 'updates',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_expired_license_download',
+			),
+			'download_version_choices'  => array(
+				'type'       => 'int',
+				'default'    => 10,
+				'min'        => 1,
+				'max'        => 50,
+				'group'      => 'updates',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_customer_download_version_choices',
+			),
+			'downloads_per_hour'        => array(
+				'type'       => 'int',
+				'default'    => 10,
+				'min'        => 1,
+				'max'        => 1000,
+				'group'      => 'updates',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_customer_download_hourly_limit',
+			),
+			'download_reuse_seconds'    => array(
+				'type'       => 'int',
+				'default'    => 0,
+				'min'        => 0,
+				'max'        => 600,
+				'group'      => 'updates',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_download_reuse_seconds',
+			),
+			'download_grant_seconds'    => array(
+				'type'       => 'int',
+				'default'    => 300,
+				'min'        => 60,
+				'max'        => 900,
+				'group'      => 'updates',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_download_grant_seconds',
+			),
 
 			// Renewals.
 			'combined_renewals'         => array(

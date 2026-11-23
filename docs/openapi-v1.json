@@ -337,7 +337,7 @@
           "Updates"
         ],
         "summary": "Consume a short-lived, one-use update grant",
-        "description": "The package_url returned by POST /updates/check. The token is a random single-use value (stored only as SHA-256) with no relation to the license key or installation secret. It is valid for five minutes (download_expires_at), bound to the installation that requested it, and used up by the first request that presents it, also when that request fails (404); clients request a fresh grant with a new update check right before downloading. The URL format is unchanged since 1.0.",
+        "description": "The package_url returned by POST /updates/check. The token is a random single-use value (stored only as SHA-256) with no relation to the license key or installation secret. It is valid for five minutes by default, 60 to 900 seconds as the shop sets it (download_expires_at), bound to the installation that requested it, and used up by the first request that presents it, also when that request fails (404); clients request a fresh grant with a new update check right before downloading. The URL format is unchanged since 1.0.",
         "operationId": "downloadUpdate",
         "security": [],
         "parameters": [
@@ -956,7 +956,7 @@
           "download_expires_at": {
             "type": "string",
             "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
-            "description": "UTC; five minutes after the check (300 seconds)."
+            "description": "UTC; by default five minutes after the check (300 seconds; the shop can set 60 to 900)."
           }
         }
       },

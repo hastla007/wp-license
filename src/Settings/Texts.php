@@ -84,6 +84,26 @@ final class Texts {
 				__( 'Catalog file of release packages', 'wp-license' ),
 				__( 'When a release is created from a ZIP, the file wplc-catalog.json in the plugin folder of the package is checked and imported into the license catalog. The release is created in any case; a file that is invalid or describes another product is not imported and reported. Plans and licenses are never changed.', 'wp-license' ),
 			),
+			'expired_download'          => array(
+				__( 'Downloads after the paid period', 'wp-license' ),
+				__( 'On (default): a customer whose paid period has ended can still download, in the account, the versions that were published while the license was paid. Off: no download at all after the end. Revoked, suspended and unpaid licenses never download.', 'wp-license' ),
+			),
+			'download_version_choices'  => array(
+				__( 'Versions to choose from in the account', 'wp-license' ),
+				__( 'How many published versions the customer can choose from when downloading in the account, newest first. Default: 10. 1 = only the latest version.', 'wp-license' ),
+			),
+			'downloads_per_hour'        => array(
+				__( 'Downloads per license and hour', 'wp-license' ),
+				__( 'How many downloads from the customer account one license may start within an hour. Default: 10. Updates installed by the customer sites do not count.', 'wp-license' ),
+			),
+			'download_reuse_seconds'    => array(
+				__( 'Reuse of a download link', 'wp-license' ),
+				__( 'Seconds during which a used download link of an update still works for a second fetch (some download managers and proxies fetch twice). Default: 0 = strict single use, the safest choice. At most 600.', 'wp-license' ),
+			),
+			'download_grant_seconds'    => array(
+				__( 'Download link valid for', 'wp-license' ),
+				__( 'Seconds during which the download link that a customer site receives for an update can be used. Default: 300 (five minutes); 60 to 900. The site asks for a new link right before it downloads, so a short time is enough.', 'wp-license' ),
+			),
 			'combined_renewals'         => array(
 				__( 'Combine automatic renewals', 'wp-license' ),
 				__( 'Only licenses with the same saved card, currency and billing interval are combined. Each license keeps its own renewal; a declined payment is retried per license. Manual renewals are never combined. Off by default.', 'wp-license' ),

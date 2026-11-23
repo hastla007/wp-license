@@ -145,9 +145,9 @@ final class PackageStream {
 		/**
 		 * Filters how long a download token stays valid after its first use.
 		 *
-		 * @param int $seconds Default 0 (strict single use), at most 600.
+		 * @param int $seconds Default: the setting "Reuse of a download link" (0, strict single use), at most 600.
 		 */
-		$seconds = (int) apply_filters( 'wplc_download_reuse_seconds', self::DEFAULT_REUSE_SECONDS );
+		$seconds = (int) apply_filters( 'wplc_download_reuse_seconds', \WPLC\Settings\Registry::int( 'download_reuse_seconds' ) );
 
 		return max( 0, min( 600, $seconds ) );
 	}

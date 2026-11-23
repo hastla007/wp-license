@@ -15,7 +15,7 @@ The WordPress updater downloads the `package` URL with a plain `GET` and cannot 
 
 - **Not a secret of anything else.** The token is 32 random bytes, stored only as SHA-256, with no relation to the license key or the installation secret.
 - **Used up on first presentation.** The first request that names a live grant consumes it with one conditional update, *before* any other check. A request that then fails (license without access, installation deactivated, storage hook returning a host that is not allowed) has still used it up and answers `404`. The logged request is the one that used the token. (Until T-108 a failed storage hook left the grant usable, T-142; the client now simply asks for a fresh grant.)
-- **Short and bound.** Valid for five minutes (`download_expires_at`), and only while the installation that asked for it is still active for that license.
+- **Short and bound.** Valid for five minutes by default, 60 to 900 seconds as the shop sets it (`download_expires_at`), and only while the installation that asked for it is still active for that license.
 - **Second hop.** For local storage the redirect target `/packages/{token}` carries its own, separate token: valid for 60 seconds, used up on first presentation the same way, sent with `Cache-Control: no-store` and `Referrer-Policy: no-referrer`. Pre-signed storage URLs are governed by the storage provider; keep their lifetime short (see [UPDATE-STORAGE.md](UPDATE-STORAGE.md)).
 - **Customer downloads carry no token in a URL.** The account page's POST form gets the ZIP in its response (local storage).
 
@@ -81,7 +81,7 @@ These feed the `update_plugins` transient and the "View details" window (`plugin
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `sha256` | string | SHA-256 of the ZIP (64 lowercase hex characters). Present as soon as a version is offered to an active license, also with `download: false`. |
-| `download_expires_at` | string | UTC time until which `package` can be redeemed (5 minutes). Only with a grant. |
+| `download_expires_at` | string | UTC time until which `package` can be redeemed (5 minutes by default; the shop can set 60 to 900 seconds). Only with a grant. |
 
 ### Errors (not signed)
 

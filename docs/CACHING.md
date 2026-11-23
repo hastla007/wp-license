@@ -49,10 +49,10 @@ Two `GET` routes deliver packages. Although they are `GET`, neither is cacheable
 
 | Route | Used for | Behaviour |
 |---|---|---|
-| `GET /wp-json/wplc/v1/updates/download/{token}` | The `package_url` returned by `POST /wp-json/wplc/v1/updates/check` | The token is valid for five minutes, bound to the installation that asked for it and consumed by the first `GET` that presents it, even when that request fails (strict single use, T-108); `HEAD` never uses it up. The license is checked again, then the response redirects to the package: to the package host for releases stored by URL, or to the stream route below for packages uploaded to the shop |
+| `GET /wp-json/wplc/v1/updates/download/{token}` | The `package_url` returned by `POST /wp-json/wplc/v1/updates/check` | The token is valid for five minutes by default (setting "Download link valid for"), bound to the installation that asked for it and consumed by the first `GET` that presents it, even when that request fails (strict single use, T-108); `HEAD` never uses it up. The license is checked again, then the response redirects to the package: to the package host for releases stored by URL, or to the stream route below for packages uploaded to the shop |
 | `GET /wp-json/wplc/v1/packages/{token}` | Packages stored on the shop itself (update downloads) | The 64-character token is the only credential, is valid for 60 seconds and is consumed by the first `GET` the same way. PHP streams the ZIP file itself; the response can be many megabytes and occupies a PHP worker for the whole transfer. Customer downloads from the account page do not use this route: the ZIP is sent in the response to the POST form |
 
-A shop can allow a second fetch of the same URL for a short reuse window with the filter `wplc_download_reuse_seconds` (B-19, default 0).
+A shop can allow a second fetch of the same URL for a short reuse window with the setting "Reuse of a download link" or the filter `wplc_download_reuse_seconds` (B-19, default 0).
 
 Consequences:
 
