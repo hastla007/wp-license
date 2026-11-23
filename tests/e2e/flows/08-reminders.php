@@ -26,7 +26,11 @@ $saved = e2e_submit(
 	$admin_cookies,
 	array(
 		'wplc_settings[package_hosts]' => "downloads.example.com\nhttps://not-a-host.example/path\n",
-		'wplc_settings[reminder_days]' => '14, 7, abc, 0',
+		// SET-LIC-37: one number field per reminder; a browser would not even send "abc".
+		'wplc_settings[reminder_days][0]' => '14',
+		'wplc_settings[reminder_days][1]' => '7',
+		'wplc_settings[reminder_days][2]' => 'abc',
+		'wplc_settings[reminder_days][3]' => '0',
 		'wplc_settings[sender_note]'   => "Questions? support@shop.test\n<script>x</script>",
 		// e2e_form() leaves tick boxes out; a browser sends a ticked one after its hidden "0" field (PROD-03).
 		'wplc_settings[catalog_auto_import]' => '1',
@@ -42,6 +46,7 @@ e2e_eq( '14,7', str_replace( ' ', '', (string) ( $settings['reminder_days'] ?? '
 e2e_ok( false === strpos( (string) ( $settings['sender_note'] ?? '' ), '<script' ) && false !== strpos( (string) ( $settings['sender_note'] ?? '' ), 'support@shop.test' ), 'settings: sender note stored without markup', $settings['sender_note'] ?? null );
 $after = e2e_http( 'GET', $saved['location'], array( 'cookies' => $admin_cookies ) );
 e2e_ok( 200 === $after['code'] && false !== strpos( $after['body'], 'downloads.example.com' ) && false !== strpos( $after['body'], 'not a valid host name' ), 'settings screen shows the saved values and the warning about the rejected line', $after['code'] );
+e2e_ok( false !== strpos( $after['body'], 'not kept: abc, 0' ) && false !== strpos( $after['body'], 'name="wplc_settings[reminder_days][0]" value="14"' ), 'settings screen names the reminder days it did not keep and shows one field per reminder (SET-LIC-37)' );
 e2e_ok( in_array( 'downloads.example.com', (array) apply_filters( 'wplc_update_package_hosts', array( 'shop.test' ) ), true ), 'the saved host is on the package host allow-list' );
 e2e_eq( array( 14, 7 ), \WPLC\Notifications\Notifications::lead_days(), 'the reminder schedule uses the saved days' );
 $carol_cookies = e2e_login( (int) e2e_get( 'carol_id' ) );

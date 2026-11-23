@@ -331,6 +331,28 @@ final class CatalogFileTest extends TestCase {
 		$this->assertCount( 2, CatalogStore::get( 'pass-captain-pro' )['entitlements'] );
 	}
 
+	/**
+	 * PROD-02: the shipped copies are byte-for-byte copies of the add-on build, so the file of the
+	 * release package equals the shipped one. It still takes the product over from the shipped copy.
+	 */
+	public function test_a_vendor_file_equal_to_the_shipped_copy_takes_the_product_over(): void {
+		$this->assertSame( array(), CatalogStore::import_bundled()['failed'] );
+		$this->assertSame( CatalogStore::SOURCE_BUNDLED, CatalogStore::get( 'form-captain-pro' )['source'] );
+		$file = (string) file_get_contents( dirname( __DIR__, 2 ) . '/catalogs/form-captain-pro.json' );
+
+		$this->assertSame( CatalogStore::RESULT_UNCHANGED, CatalogStore::import_json( $file, CatalogStore::SOURCE_BUNDLED )['result'], 'The shipped copy again: nothing to do.' );
+		$this->assertSame( CatalogStore::RESULT_UPDATED, CatalogStore::import_json( $file, CatalogStore::SOURCE_RELEASE, 0, true )['result'], 'The dry run says what the import does.' );
+		$this->assertSame( CatalogStore::SOURCE_BUNDLED, CatalogStore::get( 'form-captain-pro' )['source'], 'A dry run writes nothing.' );
+
+		$report = CatalogStore::import_json( $file, CatalogStore::SOURCE_RELEASE );
+		$this->assertSame( array( CatalogStore::RESULT_UPDATED, array(), array(), array() ), array( $report['result'], $report['added'], $report['removed'], $report['changed'] ) );
+		$this->assertSame( CatalogStore::SOURCE_RELEASE, CatalogStore::get( 'form-captain-pro' )['source'] );
+		$this->assertSame( CatalogStore::RESULT_UNCHANGED, CatalogStore::import_json( $file, CatalogStore::SOURCE_RELEASE )['result'], 'The same package again changes nothing.' );
+		$this->assertSame( CatalogStore::RESULT_UNCHANGED, CatalogStore::import_json( $file, CatalogStore::SOURCE_ADMIN )['result'], 'Only the shipped copy is taken over, not another vendor import.' );
+		$this->assertContains( 'form-captain-pro', CatalogStore::import_bundled()['skipped'] );
+		$this->assertSame( CatalogStore::SOURCE_RELEASE, CatalogStore::get( 'form-captain-pro' )['source'] );
+	}
+
 	public function test_the_json_schema_describes_the_format_the_validator_reads(): void {
 		$schema = json_decode( (string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/catalog-file.schema.json' ), true );
 		$this->assertIsArray( $schema );

@@ -1,57 +1,48 @@
 {
-  "format": 1,
-  "product_key": "voucher-captain-pro",
-  "prefix": "voucher",
-  "name": "Voucher Captain Pro",
-  "status": "available",
-  "entitlements": [
-    {
-      "key": "voucher.bulk_orders",
-      "label": {
-        "en": "Company orders (many vouchers from a CSV list)",
-        "de_DE": "Firmenbestellungen (viele Gutscheine aus einer CSV-Liste)",
-        "de_DE_formal": "Firmenbestellungen (viele Gutscheine aus einer CSV-Liste)"
-      },
-      "description": {
-        "en": "Voucher Captain Pro cut of 16 Nov 2026 (owner decision). Not built yet."
-      },
-      "status": "planned"
-    },
-    {
-      "key": "voucher.wallet_passes",
-      "label": {
-        "en": "Apple and Google Wallet passes",
-        "de_DE": "Wallet-Pässe für Apple und Google",
-        "de_DE_formal": "Wallet-Pässe für Apple und Google"
-      },
-      "description": {
-        "en": "Voucher Captain Pro cut of 16 Nov 2026 (owner decision). Not built yet."
-      },
-      "status": "planned"
-    },
-    {
-      "key": "voucher.sms_delivery",
-      "label": {
-        "en": "Voucher link by SMS",
-        "de_DE": "Gutschein-Link per SMS",
-        "de_DE_formal": "Gutschein-Link per SMS"
-      },
-      "description": {
-        "en": "Voucher Captain Pro cut of 16 Nov 2026 (owner decision). Not built yet."
-      },
-      "status": "planned"
-    },
-    {
-      "key": "voucher.white_label",
-      "label": {
-        "en": "White label: own product name and logo",
-        "de_DE": "White Label: eigener Produktname und eigenes Logo",
-        "de_DE_formal": "White Label: eigener Produktname und eigenes Logo"
-      },
-      "description": {
-        "en": "Same scope as the white label of Pass Captain Pro (owner decision of 16 Nov 2026). Not built yet."
-      },
-      "status": "planned"
-    }
-  ]
+    "format": 1,
+    "product_key": "voucher-captain-pro",
+    "prefix": "voucher",
+    "name": "Voucher Captain Pro",
+    "status": "planned",
+    "generator": "captain-pro build/build.php",
+    "addon": "0.1.0",
+    "held": "Built, but not yet released by the owner (decision H1): the scope of Voucher Captain Pro and whether the sale starts with it are open (TODO.md, E4).",
+    "entitlements": [
+        {
+            "key": "voucher.bulk_orders",
+            "label": {
+                "en": "Company orders (many vouchers from a CSV list)",
+                "de_DE": "Firmenbestellungen (viele Gutscheine aus einer CSV-Liste)",
+                "de_DE_formal": "Firmenbestellungen (viele Gutscheine aus einer CSV-Liste)"
+            },
+            "status": "planned"
+        },
+        {
+            "key": "voucher.white_label",
+            "label": {
+                "en": "White label: own product name and logo",
+                "de_DE": "White Label: eigener Produktname und eigenes Logo",
+                "de_DE_formal": "White Label: eigener Produktname und eigenes Logo"
+            },
+            "status": "planned"
+        },
+        {
+            "key": "voucher.wallet_passes",
+            "label": {
+                "en": "Apple and Google Wallet passes for vouchers",
+                "de_DE": "Apple- und Google-Wallet-Pässe für Gutscheine",
+                "de_DE_formal": "Apple- und Google-Wallet-Pässe für Gutscheine"
+            },
+            "status": "planned"
+        },
+        {
+            "key": "voucher.sms_delivery",
+            "label": {
+                "en": "Voucher link by SMS",
+                "de_DE": "Gutschein-Link per SMS",
+                "de_DE_formal": "Gutschein-Link per SMS"
+            },
+            "status": "planned"
+        }
+    ]
 }

@@ -273,9 +273,17 @@ final class ActivationService {
 				array( 'status' => 409, 'site_limit' => $limit, 'site_count' => $counts['production'], 'environment' => $environment, 'requested_environment' => $requested_environment )
 			);
 		}
-		if ( 'staging' === $environment && $counts['staging'] >= 1 ) {
-			LicenseEvents::site_limit_reached( $license_id, 'staging', 1 );
-			return new \WP_Error( 'staging_limit', 'This live site already has its included staging activation.', array( 'status' => 409 ) );
+		if ( 'staging' === $environment ) {
+			// SET-LIC-10: staging sites per live site (setting, default 1; 0 = none).
+			$staging_limit = self::staging_site_limit( $license );
+			if ( $counts['staging'] >= $staging_limit ) {
+				LicenseEvents::site_limit_reached( $license_id, 'staging', $staging_limit );
+				return new \WP_Error(
+					'staging_limit',
+					self::staging_limit_message( $staging_limit ),
+					array( 'status' => 409, 'staging_limit' => $staging_limit, 'staging_count' => $counts['staging'] )
+				);
+			}
 		}
 		if ( 'development' === $environment ) {
 			$development_limit = self::development_site_limit( $license, $limit );
@@ -283,7 +291,9 @@ final class ActivationService {
 				LicenseEvents::site_limit_reached( $license_id, 'development', $development_limit );
 				return new \WP_Error(
 					'development_limit',
-					'The license has no remaining development site activations. Deactivate a development site that is no longer used.',
+					0 === $development_limit
+						? 'This license does not include development sites.'
+						: sprintf( 'The license has no remaining development site activations (%d included). Deactivate a development site that is no longer used.', $development_limit ),
 					array( 'status' => 409, 'development_limit' => $development_limit, 'development_count' => $counts['development'] )
 				);
 			}
@@ -625,19 +635,28 @@ final class ActivationService {
 	 *
 	 * Development sites do not use a live slot, and their host is only
 	 * checked by its name, so they are capped: twice the live-site limit,
-	 * at least DEVELOPMENT_SITES_MIN.
+	 * at least the setting "Development sites per license" (default
+	 * DEVELOPMENT_SITES_MIN, SET-LIC-10); the setting 0 forbids them.
 	 *
 	 * @param array<string,mixed> $license    License row.
 	 * @param int                 $site_limit Live-site limit of the license.
 	 * @return int
 	 */
 	public static function development_site_limit( array $license, int $site_limit ): int {
-		$limit = max( self::DEVELOPMENT_SITES_MIN, 2 * $site_limit );
+		// SET-LIC-10: the setting "Development sites per license" is the minimum (default 5); 0 forbids them.
+		// SET-LIC-21: a plan with its own number uses exactly that number.
+		$own = \WPLC\Catalog\PlanOverrides::for_license( $license, 'development_site_limit' );
+		if ( null !== $own ) {
+			$limit = $own;
+		} else {
+			$minimum = \WPLC\Settings\Registry::int( 'development_sites' );
+			$limit   = 0 === $minimum ? 0 : max( $minimum, 2 * $site_limit );
+		}
 
 		/**
 		 * Filter the number of development activations per license. Zero forbids them.
 		 *
-		 * @param int                 $limit      Default: twice the live-site limit, at least five.
+		 * @param int                 $limit      Default: the number of the plan, else twice the live-site limit, at least the setting "Development sites per license" (5); 0 when the setting is 0.
 		 * @param array<string,mixed> $license    License row.
 		 * @param int                 $site_limit Live-site limit.
 		 */
@@ -645,23 +664,63 @@ final class ActivationService {
 	}
 
 	/**
+	 * Number of staging activations one live site of a license may hold (SET-LIC-10).
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return int 0 = staging sites are not included.
+	 */
+	public static function staging_site_limit( array $license ): int {
+		// SET-LIC-21: the number of the plan, else the setting.
+		$limit = \WPLC\Catalog\PlanOverrides::for_license( $license, 'staging_site_limit' ) ?? \WPLC\Settings\Registry::int( 'staging_sites_per_live' );
+
+		/**
+		 * Filter the number of staging activations per live site. Zero forbids them.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param int                 $limit   Default: the number of the plan, else the setting "Staging sites per live site" (1).
+		 * @param array<string,mixed> $license License row.
+		 */
+		return max( 0, (int) apply_filters( 'wplc_staging_site_limit', $limit, $license ) );
+	}
+
+	/**
+	 * Message of the refusal `staging_limit`; it names the number (SET-LIC-10).
+	 *
+	 * @param int $limit Staging sites per live site.
+	 * @return string
+	 */
+	public static function staging_limit_message( int $limit ): string {
+		if ( $limit <= 0 ) {
+			return 'This license does not include staging sites.';
+		}
+		if ( 1 === $limit ) {
+			return 'This live site already has its included staging activation.';
+		}
+
+		return sprintf( 'This live site already has its %d included staging activations.', $limit );
+	}
+
+	/**
 	 * New installations a license may activate per hour (P-10).
 	 *
 	 * Repeated activations of a known installation ID do not count. The
-	 * default allows twice the live-site limit, at least
-	 * NEW_ACTIVATIONS_PER_HOUR, so an agency can still set up all its sites.
+	 * default allows twice the live-site limit, at least the setting "New
+	 * sites per license and hour" (NEW_ACTIVATIONS_PER_HOUR, SET-LIC-27), so
+	 * an agency can still set up all its sites. The setting 0 disables the limit.
 	 *
 	 * @param array<string,mixed> $license    License row.
 	 * @param int                 $site_limit Live-site limit of the license.
 	 * @return int Zero or less disables the limit.
 	 */
 	public static function new_activations_per_hour( array $license, int $site_limit ): int {
-		$limit = max( self::NEW_ACTIVATIONS_PER_HOUR, 2 * $site_limit );
+		$floor = \WPLC\Settings\Registry::int( 'new_activations_per_hour' );
+		$limit = 0 === $floor ? 0 : max( $floor, 2 * $site_limit );
 
 		/**
 		 * Filter how many new installations one license may activate per hour.
 		 *
-		 * @param int                 $limit      Default: twice the live-site limit, at least ten. Zero disables the limit.
+		 * @param int                 $limit      Default: twice the live-site limit, at least the setting "New sites per license and hour" (10); 0 when the setting is 0. Zero disables the limit.
 		 * @param array<string,mixed> $license    License row.
 		 * @param int                 $site_limit Live-site limit.
 		 */

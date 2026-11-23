@@ -14,6 +14,7 @@
  * @var string              $form_url    URL of the page with the shortcode.
  * @var string              $received_at Formatted date and time the cancellation was received, for the result view.
  * @var string              $support     Support e-mail address, may be empty.
+ * @var string              $support_url Address of the support page, may be empty.
  * @var string              $account_url URL of the license page in the customer account.
  */
 
@@ -34,6 +35,7 @@ $state       = array_merge(
 $form_url    = isset( $form_url ) ? (string) $form_url : '';
 $received_at = isset( $received_at ) ? (string) $received_at : '';
 $support     = isset( $support ) ? (string) $support : '';
+$support_url = isset( $support_url ) ? (string) $support_url : '';
 $account_url = isset( $account_url ) ? (string) $account_url : '';
 ?>
 <div class="wplc-cancel wplc-cancel--<?php echo esc_attr( (string) $state['view'] ); ?>">
@@ -54,6 +56,9 @@ $account_url = isset( $account_url ) ? (string) $account_url : '';
 				if ( '' !== $support ) {
 					/* translators: %s: email address. */
 					echo ' ' . esc_html( sprintf( __( 'You can also contact our support: %s', 'wp-license' ), $support ) );
+				}
+				if ( '' !== $support_url ) {
+					echo ' <a href="' . esc_url( $support_url ) . '">' . esc_html__( 'Support page', 'wp-license' ) . '</a>';
 				}
 				?>
 			</p>

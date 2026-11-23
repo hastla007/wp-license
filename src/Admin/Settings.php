@@ -56,6 +56,7 @@ final class Settings {
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 		add_action( 'add_option_' . self::OPTION, array( self::class, 'audit_added' ), 10, 2 );
 		add_action( 'update_option_' . self::OPTION, array( self::class, 'audit_updated' ), 10, 2 );
+		add_action( \WPLC\Maintenance\DailyRunner::HOURLY_HOOK, array( self::class, 'expire_debug_log' ) );
 		if ( defined( 'WPLC_FILE' ) ) {
 			add_filter( 'plugin_action_links_' . plugin_basename( WPLC_FILE ), array( self::class, 'plugin_action_links' ) );
 		}
@@ -84,6 +85,7 @@ final class Settings {
 	 * @return void
 	 */
 	public static function audit_added( $option, $value ): void {
+		self::track_debug_log( self::defaults(), $value );
 		self::audit_change( self::defaults(), $value );
 	}
 
@@ -95,7 +97,43 @@ final class Settings {
 	 * @return void
 	 */
 	public static function audit_updated( $old_value, $value ): void {
+		self::track_debug_log( $old_value, $value );
 		self::audit_change( $old_value, $value );
+	}
+
+	/**
+	 * Start or stop the time of the setting "Verbose log" when its value changes (SET-LIC-29).
+	 *
+	 * @param mixed $old_value Previous settings.
+	 * @param mixed $value     New settings.
+	 * @return void
+	 */
+	private static function track_debug_log( $old_value, $value ): void {
+		$old = is_array( $old_value ) && isset( $old_value['debug_log'] ) ? (string) $old_value['debug_log'] : 'off';
+		$new = is_array( $value ) && isset( $value['debug_log'] ) ? (string) $value['debug_log'] : 'off';
+		if ( $old === $new ) {
+			return;
+		}
+		if ( isset( \WPLC\Infrastructure\Log::VERBOSE_PERIODS[ $new ] ) ) {
+			update_option( \WPLC\Infrastructure\Log::VERBOSE_UNTIL_OPTION, time() + \WPLC\Infrastructure\Log::VERBOSE_PERIODS[ $new ], false );
+		} else {
+			delete_option( \WPLC\Infrastructure\Log::VERBOSE_UNTIL_OPTION );
+		}
+	}
+
+	/**
+	 * Switch the setting "Verbose log" back to off once its time has run out (hourly, SET-LIC-29).
+	 *
+	 * Debug lines already stop at the end of the time (Log::verbose_until()); this makes the
+	 * setting say so too, with an entry in the audit log.
+	 *
+	 * @return void
+	 */
+	public static function expire_debug_log(): void {
+		if ( 'off' === Registry::string( 'debug_log' ) || \WPLC\Infrastructure\Log::verbose_until() > 0 ) {
+			return;
+		}
+		\WPLC\Settings\Changes::apply( array( 'debug_log' => 'off' ), 'settings_changed', 'The verbose log ran out and was switched off.', false );
 	}
 
 	/**
@@ -341,6 +379,13 @@ final class Settings {
 			// What is stored now, brought into the valid form (an old or hand-edited value never survives a save).
 			$kept        = Registry::validate( $key, $current[ $key ] );
 			$out[ $key ] = $kept['ok'] ? $kept['value'] : $definition['default'];
+			if ( ! empty( $definition['resettable'] ) && ! empty( $input[ $key . '_reset' ] ) ) {
+				// SET-LIC-09: "Reset to default" of a list field wins over the text submitted with it.
+				if ( ! self::is_form_submission() || Capabilities::can( (string) $definition['capability'] ) ) {
+					$out[ $key ] = $definition['default'];
+				}
+				continue;
+			}
 			if ( ! array_key_exists( $key, $input ) ) {
 				continue;
 			}
@@ -355,6 +400,23 @@ final class Settings {
 			}
 			if ( $result['ok'] ) {
 				$out[ $key ] = $result['value'];
+				$dropped     = Registry::discarded( $key, $input[ $key ], $result['value'] );
+				if ( $dropped ) {
+					// SET-LIC-37: entries that a list leaves out are reported, not dropped silently.
+					self::settings_error(
+						'wplc_discarded_' . $key,
+						sprintf(
+							/* translators: 1: name of a setting, 2: list of values, 3: smallest value, 4: largest value, 5: largest number of entries. */
+							__( '"%1$s": not kept: %2$s. Enter whole numbers from %3$s to %4$s, at most %5$s.', 'wp-license' ),
+							Texts::label( $key ),
+							implode( ', ', $dropped ),
+							number_format_i18n( (int) ( $definition['min'] ?? 0 ) ),
+							number_format_i18n( (int) ( $definition['max'] ?? 0 ) ),
+							number_format_i18n( (int) ( $definition['max_items'] ?? 0 ) )
+						),
+						'warning'
+					);
+				}
 				continue;
 			}
 			// SET-LIC-01: a value that cannot be accepted is reported and the stored value stays.
@@ -541,10 +603,11 @@ final class Settings {
 				echo ' <span role="status" aria-live="polite" data-wplc-copy-status="wplc-webhook-url"></span>';
 			} else {
 				$state = $row['state'] ?? '';
+				// SET-LIC-38: screen readers hear the state; the icon alone is hidden from them (as on the diagnostics page).
 				if ( 'ok' === $state ) {
-					echo '<span class="dashicons dashicons-yes-alt" style="color:#00a32a" aria-hidden="true"></span> ';
+					echo '<span class="dashicons dashicons-yes-alt" style="color:#00a32a" aria-hidden="true"></span><span class="screen-reader-text">' . esc_html( self::state_text( $state ) ) . '</span> ';
 				} elseif ( 'warning' === $state ) {
-					echo '<span class="dashicons dashicons-warning" style="color:#d63638" aria-hidden="true"></span> ';
+					echo '<span class="dashicons dashicons-warning" style="color:#d63638" aria-hidden="true"></span><span class="screen-reader-text">' . esc_html( self::state_text( $state ) ) . '</span> ';
 				}
 				echo esc_html( $row['value'] );
 			}
@@ -555,6 +618,7 @@ final class Settings {
 		}
 		echo '</tbody></table>';
 		echo '<p class="description">' . esc_html__( 'Secrets are never stored in the database. Define them as constants in wp-config.php.', 'wp-license' ) . '</p>';
+		self::render_capability_overview();
 
 		$tab = self::current_tab();
 		self::render_tabs( $tab );
@@ -572,6 +636,96 @@ final class Settings {
 		 */
 		do_action( 'wplc_settings_page_tools', $tab );
 		echo '</div>';
+	}
+
+	/**
+	 * Why a field is read-only for the current user.
+	 *
+	 * @param string $capability Capability key of the setting.
+	 * @return string
+	 */
+	public static function readonly_note( string $capability ): string {
+		if ( 'manage_policy' === $capability ) {
+			return __( 'This is a manufacturer rule that acts on every customer site: only users with the capability wplc_manage_policy (by default administrators) may change it.', 'wp-license' );
+		}
+
+		return __( 'Only an administrator may change this value.', 'wp-license' );
+	}
+
+	/**
+	 * Rows of the overview "Who may do what" (SET-LIC-31).
+	 *
+	 * @return array<int,array{capability:string,allows:string,default:string,granted:bool}>
+	 */
+	public static function capability_rows(): array {
+		$rows         = array();
+		$descriptions = Capabilities::descriptions();
+		foreach ( Capabilities::defaults() as $capability => $default ) {
+			$rows[] = array(
+				'capability' => $capability,
+				'allows'     => $descriptions[ $capability ] ?? '',
+				'default'    => 'manage_options' === $default ? __( 'Administrators', 'wp-license' ) : ( 'manage_woocommerce' === $default ? __( 'Shop managers and administrators', 'wp-license' ) : $default ),
+				'granted'    => function_exists( 'current_user_can' ) && current_user_can( Capabilities::cap( $capability ) ),
+			);
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Settings that need a capability other than wplc_manage_settings, by capability.
+	 *
+	 * @return array<string,string[]> Capability key => labels of the settings.
+	 */
+	public static function restricted_settings(): array {
+		$out = array();
+		foreach ( Registry::definitions() as $key => $definition ) {
+			if ( 'manage_settings' !== $definition['capability'] ) {
+				$out[ (string) $definition['capability'] ][] = Texts::label( (string) $key );
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Print the overview "Who may do what": every capability of the plugin, its default and
+	 * whether the current user holds it, and the settings that need more than wplc_manage_settings.
+	 *
+	 * @return void
+	 */
+	private static function render_capability_overview(): void {
+		echo '<details class="wplc-capabilities"><summary><strong>' . esc_html__( 'Who may do what', 'wp-license' ) . '</strong></summary>';
+		echo '<p class="description">' . esc_html__( 'The capabilities of the plugin are not stored on roles; each one follows a WordPress capability unless a role stores it explicitly (for example with a role editor plugin or wp cap add). Developers can change the mapping with the filter wplc_capability.', 'wp-license' ) . '</p>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Capability', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'Allows', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'By default', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'You', 'wp-license' ) . '</th></tr></thead><tbody>';
+		foreach ( self::capability_rows() as $row ) {
+			echo '<tr><td><code>' . esc_html( $row['capability'] ) . '</code></td><td>' . esc_html( $row['allows'] ) . '</td><td>' . esc_html( $row['default'] ) . '</td><td>' . esc_html( $row['granted'] ? __( 'yes', 'wp-license' ) : __( 'no', 'wp-license' ) ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
+		foreach ( self::restricted_settings() as $capability => $labels ) {
+			/* translators: 1: capability name, 2: list of settings. */
+			echo '<p class="description">' . esc_html( sprintf( __( 'Settings that need %1$s: %2$s.', 'wp-license' ), 'wplc_' . $capability, implode( ', ', $labels ) ) ) . '</p>';
+		}
+		echo '</details>';
+	}
+
+	/**
+	 * The state of a status row as a word (SET-LIC-38).
+	 *
+	 * @param string $state ok or warning.
+	 * @return string Empty for a row without a state.
+	 */
+	public static function state_text( string $state ): string {
+		if ( 'ok' === $state ) {
+			/* translators: State of a row of the status table: everything is fine. */
+			return __( 'OK:', 'wp-license' );
+		}
+		if ( 'warning' === $state ) {
+			/* translators: State of a row of the status table: something needs to be done. */
+			return __( 'Attention:', 'wp-license' );
+		}
+
+		return '';
 	}
 
 	/**
@@ -917,6 +1071,9 @@ final class Settings {
 				$text = is_array( $value ) ? implode( "\n", array_filter( $value, 'is_scalar' ) ) : (string) $value;
 				$rows = 'text' === $definition['type'] ? 4 : max( 3, min( 12, substr_count( $text, "\n" ) + 2 ) );
 				echo '<textarea id="' . esc_attr( $id ) . '"' . $name_attr . ' rows="' . esc_attr( (string) $rows ) . '" cols="50" class="large-text' . ( 'text' === $definition['type'] ? '' : ' code' ) . '"' . ( isset( $definition['max_length'] ) ? ' maxlength="' . esc_attr( (string) (int) $definition['max_length'] ) . '"' : '' ) . $lock . $help . '>' . esc_textarea( $text ) . '</textarea>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
+				if ( ! empty( $definition['resettable'] ) && ! $readonly ) {
+					echo '<br><label for="' . esc_attr( $id ) . '_reset"><input type="checkbox" id="' . esc_attr( $id ) . '_reset" name="' . esc_attr( self::OPTION . '[' . $key . '_reset]' ) . '" value="1"> ' . esc_html__( 'Reset this list to the default when saving', 'wp-license' ) . '</label>';
+				}
 				break;
 			default:
 				echo '<input type="text" id="' . esc_attr( $id ) . '"' . $name_attr . ' value="' . esc_attr( is_scalar( $value ) ? (string) $value : '' ) . '" class="regular-text"' . $lock . $help . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
@@ -931,7 +1088,7 @@ final class Settings {
 			echo ' ' . esc_html( sprintf( __( 'Code of the shop can change the value with the filter %s; the filter decides last.', 'wp-license' ), $definition['filter'] ) );
 		}
 		if ( $readonly ) {
-			echo ' ' . esc_html__( 'Only an administrator may change this value.', 'wp-license' );
+			echo ' ' . esc_html( self::readonly_note( (string) $definition['capability'] ) );
 		}
 		echo '</p>';
 		self::render_effective_value( $key );
@@ -1056,13 +1213,42 @@ final class Settings {
 	}
 
 	/**
-	 * Render the reminder lead days input.
+	 * Render the reminder lead days as one number field per reminder (SET-LIC-37).
 	 *
 	 * @return void
 	 */
 	public static function render_reminder_days_field(): void {
-		echo '<input type="text" id="wplc_reminder_days" name="' . esc_attr( self::OPTION ) . '[reminder_days]" value="' . esc_attr( (string) self::get( 'reminder_days' ) ) . '" class="regular-text" pattern="[0-9 ,]*" aria-describedby="wplc_reminder_days_help">';
-		echo '<p class="description" id="wplc_reminder_days_help">' . esc_html__( 'Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7.', 'wp-license' ) . '</p>';
+		$definition = (array) Registry::definition( 'reminder_days' );
+		$days       = Registry::list( 'reminder_days' );
+		echo '<fieldset id="wplc_reminder_days" aria-describedby="wplc_reminder_days_help"><legend class="screen-reader-text">' . esc_html( Texts::label( 'reminder_days' ) ) . '</legend>';
+		for ( $i = 0; $i < (int) ( $definition['max_items'] ?? 6 ); $i++ ) {
+			$id = 'wplc_reminder_days_' . $i;
+			/* translators: %s: number of the reminder (1, 2, ...). */
+			echo '<label for="' . esc_attr( $id ) . '" class="screen-reader-text">' . esc_html( sprintf( __( 'Reminder %s: days before the end', 'wp-license' ), number_format_i18n( $i + 1 ) ) ) . '</label>';
+			echo '<input type="number" id="' . esc_attr( $id ) . '" name="' . esc_attr( self::OPTION . '[reminder_days][' . $i . ']' ) . '" value="' . esc_attr( isset( $days[ $i ] ) ? (string) $days[ $i ] : '' ) . '" min="' . esc_attr( (string) (int) ( $definition['min'] ?? 1 ) ) . '" max="' . esc_attr( (string) (int) ( $definition['max'] ?? 365 ) ) . '" step="1" class="small-text"> ';
+		}
+		echo esc_html__( 'days', 'wp-license' ) . '</fieldset>';
+		echo '<p class="description" id="wplc_reminder_days_help">' . esc_html__( 'Days before the end of the paid period on which a reminder is sent, one per field; leave the other fields empty. Default: 30 and 7. All fields empty = the default.', 'wp-license' ) . '</p>';
+		self::render_effective_value( 'reminder_days' );
+	}
+
+	/**
+	 * Render the choice of the verbose log with the time until it switches itself off (SET-LIC-29).
+	 *
+	 * @return void
+	 */
+	public static function render_debug_log_field(): void {
+		self::render_field( array( 'key' => 'debug_log' ) );
+		$until = \WPLC\Infrastructure\Log::verbose_until();
+		if ( $until > 0 ) {
+			/* translators: %s: date and time. */
+			echo '<p class="description wplc-effective"><span class="dashicons dashicons-info" aria-hidden="true"></span> ' . esc_html( sprintf( __( 'On until %s. Then it switches itself off.', 'wp-license' ), Format::date( gmdate( 'Y-m-d H:i:s', $until ), true ) ) ) . '</p>';
+		} elseif ( 'off' !== Registry::string( 'debug_log' ) ) {
+			echo '<p class="description wplc-effective"><span class="dashicons dashicons-info" aria-hidden="true"></span> ' . esc_html__( 'The time has run out; the verbose log is off. Choose "Off", save, and choose a time again to switch it on.', 'wp-license' ) . '</p>';
+		}
+		if ( defined( 'WPLC_DEBUG' ) && (bool) constant( 'WPLC_DEBUG' ) ) {
+			echo '<p class="description wplc-effective"><span class="dashicons dashicons-info" aria-hidden="true"></span> ' . esc_html__( 'In effect: on. The constant WPLC_DEBUG is set in wp-config.php.', 'wp-license' ) . '</p>';
+		}
 	}
 
 	/**
@@ -1116,7 +1302,7 @@ final class Settings {
 	 */
 	public static function render_max_quantity_per_line_field(): void {
 		echo '<input type="number" id="wplc_max_quantity_per_line" name="' . esc_attr( self::OPTION ) . '[max_quantity_per_line]" value="' . esc_attr( (string) (int) self::get( 'max_quantity_per_line' ) ) . '" class="small-text" min="0" max="' . esc_attr( (string) \WPLC\Catalog\QuantityLimit::MAX_SETTING ) . '" step="1" aria-describedby="wplc_max_quantity_per_line_help">';
-		echo '<p class="description" id="wplc_max_quantity_per_line_help">' . esc_html__( 'Largest quantity of one license product a customer can put into the cart and order. Every unit becomes a license of its own with its own key. Default: 100. 0 = no limit. An order you create yourself in the admin or through the REST API is not blocked; a larger quantity there is noted on the order and in the audit log.', 'wp-license' ) . '</p>';
+		echo '<p class="description" id="wplc_max_quantity_per_line_help">' . esc_html( Texts::help( 'max_quantity_per_line' ) ) . '</p>';
 	}
 
 	/**

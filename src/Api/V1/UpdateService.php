@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The WordPress updater downloads `package` with a plain GET and no custom headers, so the grant has to be in the
  * URL and reaches access logs and proxies (T-108). The URL therefore carries only a random value that is stored
  * as a SHA-256 hash and has no relation to the license key or the installation secret. It is valid for five
- * minutes, bound to the installation that asked for it (it stops working when that activation ends) and, by
+ * minutes by default (setting "Download link valid for", 60 to 900 seconds), bound to the installation that asked for it (it stops working when that activation ends) and, by
  * default, used up by the first GET that presents it, whatever that request's outcome: a value seen in a log is
  * useless. HEAD probes never use a grant up; a short reuse window can be allowed with the filter
  * `wplc_download_reuse_seconds` (B-19). A check with `download=false` creates no grant at all.
@@ -35,7 +35,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * response"); product clients are built against that list.
  */
 final class UpdateService {
-	/** @var int Short-lived download grant lifetime. Clients ask for a fresh grant right before downloading. */
+	/** @var int Default lifetime of a download grant in seconds (setting "Download link valid for", SET-LIC-19). Clients ask for a fresh grant right before downloading. */
 	public const TOKEN_TTL = 300;
 
 	/** @var int Unused, unexpired grants one installation may hold for the same package (P-11). */
@@ -46,6 +46,25 @@ final class UpdateService {
 
 	/** @var int Seconds one purge run may take. */
 	private const PURGE_SECONDS = 20;
+
+	/**
+	 * Seconds a download grant can be redeemed (SET-LIC-19): the setting "Download link valid for"
+	 * (default TOKEN_TTL); the filter wins, kept within 60 to 900 seconds.
+	 *
+	 * @return int
+	 */
+	public static function grant_seconds(): int {
+		/**
+		 * Filters how many seconds a download link of an update can be redeemed.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param int $seconds Default: the setting "Download link valid for" (300); kept within 60 to 900.
+		 */
+		$seconds = (int) apply_filters( 'wplc_download_grant_seconds', \WPLC\Settings\Registry::int( 'download_grant_seconds' ) );
+
+		return max( 60, min( 900, $seconds ) );
+	}
 
 	/**
 	 * Return the current update for one active product installation.
@@ -148,7 +167,7 @@ final class UpdateService {
 		}
 
 		$token = bin2hex( random_bytes( 32 ) );
-		$expires_at = gmdate( 'Y-m-d H:i:s', time() + self::TOKEN_TTL );
+		$expires_at = gmdate( 'Y-m-d H:i:s', time() + self::grant_seconds() );
 		if ( ! self::store_grant( (int) $license['id'], (int) $activation['id'], $url, hash( 'sha256', $token ), $expires_at ) ) {
 			return new \WP_Error( 'download_token_error', 'A secure package download could not be prepared.', array( 'status' => 503 ) );
 		}

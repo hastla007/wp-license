@@ -39,7 +39,7 @@ Lookups by `license_id` from an action, optionally narrowed by the owner's user 
 
 ## Co-users and transfers (B-139)
 
-The co-user and transfer hooks (`wplc/license_member_*`, `wplc/license_transfer_started`, `wplc/license_transferred`, `wplc_license_member_limit` default 5, `wplc_license_invitation_days` default 14, `wplc_license_transfer_enabled` default true, `wplc_license_transfer_new_key` default false) are described in [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#co-users-and-transfers-by-the-customer). An accepted transfer also fires `wplc/license_owner_changed` first, like the owner change in the admin. The account template `myaccount/wplc-license.php` prints the co-user and transfer forms through its template action `wplc_account_license_sharing` (license row, display values); a theme copy made before this version needs that line added.
+The co-user and transfer hooks (`wplc/license_member_*`, `wplc/license_transfer_started`, `wplc/license_transferred`, `wplc_license_member_limit`, `wplc_license_invitation_days`, `wplc_license_transfer_enabled`, `wplc_license_transfer_new_key`; their defaults are the settings under License settings → Co-users and transfer, 5, 14, on and off unless changed) are described in [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#co-users-and-transfers-by-the-customer). An accepted transfer also fires `wplc/license_owner_changed` first, like the owner change in the admin. The account template `myaccount/wplc-license.php` prints the co-user and transfer forms through its template action `wplc_account_license_sharing` (license row, display values); a theme copy made before this version needs that line added.
 
 ## Catalog files instead of filters
 
@@ -127,12 +127,13 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_client_ip` | `src/Api/V1/ClientIp.php` | Filter the client address used for anonymous rate limiting. |
 | `wplc_combined_renewals` | `src/Billing/CombinedRenewal.php` | Filters whether due automatic renewals of one customer are combined into one order and one charge (B-191). |
 | `wplc_currency_decimals` | `src/Billing/Money.php` | Filters the precision of a currency the shop does not enter prices in (B-189). |
-| `wplc_customer_download_hourly_limit` | `src/Update/CustomerDownload.php` |  |
+| `wplc_customer_download_hourly_limit` | `src/Update/CustomerDownload.php` | Filters how many downloads from the customer account one license may start per hour. |
 | `wplc_customer_download_version_choices` | `src/Update/CustomerDownload.php` | Filters how many versions the customer can choose from. |
 | `wplc_daily_run_split` | `src/Maintenance/DailyRunner.php` | Filter whether the daily run queues every job as its own Action Scheduler action. |
 | `wplc_development_site_limit` | `src/Api/V1/ActivationService.php` | Filter the number of development activations per license. Zero forbids them. |
 | `wplc_disable_renewal_on_token_deletion` | `src/Maintenance/Orphans.php` | Filter whether deleting a payment method switches automatic renewal off. |
 | `wplc_download_grant_retention_days` | `src/Maintenance/Retention.php` |  |
+| `wplc_download_grant_seconds` | `src/Api/V1/UpdateService.php` | Filters how many seconds a download link of an update can be redeemed. |
 | `wplc_download_reuse_seconds` | `src/Update/PackageStream.php` | Filters how long a download token stays valid after its first use. |
 | `wplc_entitlement_catalog` | `src/Catalog/EntitlementCatalog.php` | Filters the catalog of known boolean entitlements offered in the product editor. |
 | `wplc_expired_license_download` | `src/Update/CustomerDownload.php` | Filters whether a license whose paid period ended may still download |
@@ -141,6 +142,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_gap_hold_days` | `src/Maintenance/GapGuard.php` | Filter the longest hold after a gap in days. |
 | `wplc_gap_reconcile_days` | `src/Maintenance/GapReconciler.php` | Filter how many days of orders and refunds are reconciled. |
 | `wplc_health_alert_recipients` | `src/Admin/HealthAlertMail.php` | Filters the recipients of health alert emails. Wins over the setting. |
+| `wplc_health_alert_thresholds` | `src/Admin/Diagnostics.php` | Filters the alert thresholds per figure of the diagnostics page. Wins over the settings. |
 | `wplc_install_steps` | `src/Notifications/Notifications.php` |  |
 | `wplc_is_local_development_url` | `src/Api/V1/ActivationService.php` | Allow a shop owner to explicitly approve a custom development hostname. |
 | `wplc_is_staging_host` | `src/Api/V1/SiteUrl.php` | Filter whether a host is accepted as the staging copy of a live site. |
@@ -155,6 +157,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_license_owner_for_guest_order` | `src/License/LicenseIssuer.php` | Filters the owner of the licenses of an order without a customer account. |
 | `wplc_license_transfer_enabled` | `src/License/LicenseMembers.php` | Filters whether the owner can transfer a license to another customer from the account. |
 | `wplc_license_transfer_new_key` | `src/License/LicenseMembers.php` | Filters whether a transfer accepted in the account also issues a new license key. |
+| `wplc_local_host_suffixes` | `src/Api/V1/SiteUrl.php` | Filters the endings of local addresses, without the leading dot (SET-LIC-09). Wins over the setting. |
 | `wplc_lock_self_test` | `src/Admin/Diagnostics.php` | Lets the package that owns the lock helper answer the self-test with its own implementation. |
 | `wplc_log_api_rejection` | `src/Api/V1/ApiLog.php` | Filter whether this rejection is written to the log. |
 | `wplc_log_debug` | `src/Infrastructure/Log.php` | Filters whether the plugin writes debug lines to the WooCommerce log (A-133). |
@@ -202,11 +205,15 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_settings_country_profiles` | `src/Settings/Presets.php` | Filters the country profiles (suggestions for the settings with legal weight). |
 | `wplc_shop_base_currency` | `src/Catalog/Catalog.php` | Filters the currency product prices are entered in (B-189). |
 | `wplc_show_license_term` | `src/Catalog/TermDisplay.php` | Filters whether the license term is appended to the price of a license product. |
+| `wplc_staging_host_suffixes` | `src/Api/V1/SiteUrl.php` | Filters the hosting provider domains whose subdomains are staging copies, without the leading dot (SET-LIC-09). Wins over the setting. |
+| `wplc_staging_labels` | `src/Api/V1/SiteUrl.php` | Filters the name parts that mark a staging copy (SET-LIC-09). Wins over the setting "Staging: name parts". |
+| `wplc_staging_site_limit` | `src/Api/V1/ActivationService.php` | Filter the number of staging activations per live site. Zero forbids them. |
 | `wplc_stripe_adapter_status` | `src/Compatibility/Requirements.php` | Filters whether the Stripe renewal adapter is usable. |
 | `wplc_stripe_mode` | `src/Gateway/StripeRecurringAdapter.php` | Filters the mode the Stripe gateway is considered to run in. |
 | `wplc_stripe_site_id` | `src/Gateway/StripeRecurringAdapter.php` | Filters the site identifier sent to Stripe and expected in webhook events. |
 | `wplc_stripe_webhook_secrets` | `src/Api/V1/StripeWebhook.php` | Filters the Stripe webhook signing secrets of the current site. |
-| `wplc_support_email` | `src/Notifications/Notifications.php` | Filter the support contact named in license emails. |
+| `wplc_support_email` | `src/Notifications/Notifications.php` | Filter the support contact named in license emails. Wins over the setting. |
+| `wplc_support_url` | `src/Notifications/Notifications.php` | Filter the address of the support page that the customer account and the cancellation page link to. Wins over the setting. |
 | `wplc_suppress_renewal_order_email` | `src/Gateway/RenewalOrderEmails.php` | Filters whether a WooCommerce customer mail is suppressed for an automatic renewal order. |
 | `wplc_suspend_license_on_order_item_change` | `src/License/LicenseLifecycle.php` | Filters whether licenses are suspended when their order line is removed or its quantity lowered. |
 | `wplc_suspend_license_on_order_status` | `src/License/LicenseLifecycle.php` |  |

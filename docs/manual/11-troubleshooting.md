@@ -25,7 +25,7 @@ Start with **WooCommerce → License diagnostics**: every row with a problem nam
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | The update is not offered | Release not published, site does not meet `requires_php`/`requires_wp`/`requires_core`, license without access, wrong channel | Check the releases screen; the plugin row on the site names the reason. |
-| Download fails right after "Update" | A cache, scanner or proxy used the one-time link first | Exclude `/wp-json/wplc/v1/updates/download/` and `/wp-json/wplc/v1/packages/` from such components; or allow a short reuse window (`wplc_download_reuse_seconds`). |
+| Download fails right after "Update" | A cache, scanner or proxy used the one-time link first | Exclude `/wp-json/wplc/v1/updates/download/` and `/wp-json/wplc/v1/packages/` from such components; or allow a short reuse window (setting **Reuse of a download link**, filter `wplc_download_reuse_seconds`). |
 | `wplc_update_checksum` | The package changed after it was registered (overwritten object) | Never overwrite packages; withdraw and publish a new version. |
 | Update checks answer 503 `package_configuration_invalid` | A URL release points to a host that is no longer allowed (often after a domain move) | Add the host under trusted package hosts or publish a new release. |
 | "The uploaded package … is missing on this server" | Several web nodes without shared storage, or a restore without the package directory | Share the directory between nodes; restore the files. |
@@ -52,7 +52,7 @@ Start with **WooCommerce → License diagnostics**: every row with a problem nam
 
 **Is the license key in the emails?** Not by default. You can enable it for the "License issued" email; email is not a secure channel.
 
-**Can a customer use one license on a staging site?** Yes: one staging site per live site is free, and development activations on local addresses do not use a live slot (capped at twice the live-site limit, at least 5; filter `wplc_development_site_limit`).
+**Can a customer use one license on a staging site?** Yes: one staging site per live site is free, and development activations on local addresses do not use a live slot (capped at twice the live-site limit, at least 5; filter `wplc_development_site_limit`). Both numbers and the lists of staging and local addresses are settings under **License settings → Customer sites** (chapter 13).
 
 **What happens when a license expires?** The add-on switches its premium features off at the end of the signed offline window. Data the customer created stays, and the free core plugin is not affected. Updates stop.
 

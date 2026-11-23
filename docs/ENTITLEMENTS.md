@@ -39,7 +39,7 @@ A client may keep the last signed answer and use it while the server cannot be r
 - After the deadline the client treats the license as without access until it receives a new signed answer.
 - Only a signed answer may take rights away before the deadline.
 
-The shop can change the 14 days with the filter `wplc_offline_cache_days`.
+The shop can change the 14 days with the setting "Offline period of customer sites" (1 to 90 days) or the filter `wplc_offline_cache_days`, which decides last.
 
 **The clock of the customer site** (client library 2.1.0, decision of 16 Nov 2026). The client measures the window from the signed `server_time` plus the local time that passed since the answer was stored, so a wrong time zone or a clock that is behind does not shorten it. On top of that there is an absolute limit that does not depend on anything stored next to the snapshot: the snapshot is void (state `stale`, reason `clock_ahead`) as soon as the local UTC time (`time()`) is later than the signed `cache_expires_at` plus a **tolerance of one day**. The tolerance is the constant `LicenseManager::OFFLINE_TOLERANCE`; an add-on can change it with the filter `{prefix}_license_offline_tolerance` (seconds), but never beyond seven days (`LicenseManager::MAX_OFFLINE_TOLERANCE`) or below zero. Consequences:
 
@@ -47,7 +47,7 @@ The shop can change the 14 days with the filter `wplc_offline_cache_days`.
 - A clock that is ahead by more than the tolerance shortens the offline window by the difference. A clock that is ahead by more than 14 + 1 days makes every snapshot `stale` right after the check that stored it; the license screen and the notice then say "the clock of this site is ahead, or the offline period has expired".
 - Someone who can write the options of the site can no longer extend the window by resetting the unsigned fields `fetched_at`, `clock_high` and `server_time_max` (audit of 16 Nov 2026): once the local time is past `cache_expires_at` plus the tolerance, only a new signed answer, or a system clock that is set back, makes the snapshot usable again.
 
-**Released activations and the retention of their rows.** A released activation (customer account, admin, replacement, end of the license) keeps its row with `status = deactivated`; every signed request of that installation is answered with a signed refusal, and the client locks at once. Only when the row is deleted does the server answer an unsigned `401 activation_not_found`, which the client may not trust and which therefore leaves the snapshot in force until its `cache_expires_at`. Keep the retention of deactivated activations (settings `activations` and `inactive_activations` of the data retention, default 365 days) **never shorter than the offline window** (14 days, or the value of `wplc_offline_cache_days`).
+**Released activations and the retention of their rows.** A released activation (customer account, admin, replacement, end of the license) keeps its row with `status = deactivated`; every signed request of that installation is answered with a signed refusal, and the client locks at once. Only when the row is deleted does the server answer an unsigned `401 activation_not_found`, which the client may not trust and which therefore leaves the snapshot in force until its `cache_expires_at`. Keep the retention of deactivated activations (settings `activations` and `inactive_activations` of the data retention, default 365 days) **never shorter than the offline window** (14 days, or the value of the setting "Offline period of customer sites" or of `wplc_offline_cache_days`).
 
 ## Dates
 
@@ -59,17 +59,18 @@ The product key on a license product in the shop and the key the premium add-on 
 
 | Product | Product key | Entitlement prefix | Premium add-on |
 |---|---|---|---|
-| Voucher Captain | `voucher-captain-pro` | `voucher.` | `voucher-captain-pro` |
 | Pass Captain | `pass-captain-pro` | `pass.` | `pass-captain-pro` |
 | Affiliate Captain | `affiliate-captain-pro` | `affiliate.` | `affiliate-captain-pro` |
+| Form Captain | `form-captain-pro` | `form.` | `form-captain-pro` |
+| Review Captain | `review-captain-pro` | `review.` | `review-captain-pro` |
 
 The product editor suggests these keys. The plan key (`single`, `business` or `agency`, see [Plans and entitlements](#plans-and-entitlements)) is set per product or variation and is independent of the product key.
 
-Planned add-ons, not released and not for sale yet (status `planned` in their catalog file): `workflow-captain-pro` (`workflow.`), `form-captain-pro` (`form.`), `review-captain-pro` (`review.`), `course-captain-pro` (`course.`).
+Planned add-ons, not released and not for sale yet (status `planned` in their catalog file): `voucher-captain-pro` (`voucher.`; built in captain-pro, but held back by the owner), `workflow-captain-pro` (`workflow.`), `course-captain-pro` (`course.`).
 
 ## Identifier rules
 
-- Prefix keys by product: `affiliate.`, `voucher.`, or `pass.` (planned: `workflow.`, `form.`, `review.`, `course.`). One prefix belongs to one product.
+- Prefix keys by product: `affiliate.`, `pass.`, `form.` or `review.` (planned: `voucher.`, `workflow.`, `course.`). One prefix belongs to one product.
 - Use lowercase snake_case after the prefix; never reuse a key for different behavior.
 - Server plans return a boolean or a documented numeric limit. Clients fail closed for new premium features when an entitlement is absent or invalid.
 - Plan key/SKU assignment is a separate configuration step; the tables below are the decided model, not live catalog data.
@@ -101,16 +102,18 @@ Decided on 14 Nov 2026 (captain-pro `docs/TARIFE.md`, `docs/PREMIUM-ENTSCHEIDUNG
 | `business` | Business | 5 | `standard` |
 | `agency` | Agency | 25 | `priority` |
 
-Prices are not part of this document. The prices proposed in captain-pro `docs/TARIFE.md` are not confirmed yet (see "Offene Entscheidungen" in [TODO.md](TODO.md), T-42). Confirmed by the owner on 16 Nov 2026 are only the prices of the planned Form Captain Pro: 59, 129 and 249 EUR per year net, plus VAT, for `single`, `business` and `agency` (owner decision of 16 Nov 2026, corrected from gross to net). Also decided on 16 Nov 2026: all prices of all Pro add-ons and plans are net, plus VAT; the amounts of the other products stay unconfirmed.
+Prices are not part of this document. The prices proposed in captain-pro `docs/TARIFE.md` are not confirmed yet (see "Offene Entscheidungen" in [TODO.md](TODO.md), T-42). Confirmed by the owner on 16 Nov 2026 are only the prices of the planned Form Captain Pro: 59, 129 and 249 EUR per year net, plus VAT, for `single`, `business` and `agency` (owner decision of 16 Nov 2026, corrected from gross to net). Confirmed on 23 Nov 2026 (E9/F-19): Workflow Captain Pro costs 129, 229 and 399 EUR per year net, plus VAT, for `single` (1 site), `business` (5 sites) and `agency` (25 sites), with the same Pro features in every plan. Also decided on 16 Nov 2026: all prices of all Pro add-ons and plans are net, plus VAT; the amounts of the other products (except Form and Workflow) stay unconfirmed.
 
 The keys below are the ones the product editor offers as tick boxes (`WPLC\Catalog\EntitlementCatalog::all()`, filled from the catalog files). A key has the status `available` only when the premium add-on ships the function; the core plugins have no keys. The labels (English, `de_DE`, `de_DE_formal`) are in the catalog files, not in the translations of the server.
 
-| Product (product key) | Keys in every plan (`single`, `business`, `agency`) | State of the add-on (captain-pro, 16 Nov 2026) |
+| Product (product key) | Keys in every plan (`single`, `business`, `agency`) | State of the add-on (captain-pro) |
 |---|---|---|
-| Affiliate Captain Pro (`affiliate-captain-pro`) | `affiliate.extended_api`, `affiliate.automated_payouts`, `affiliate.white_label_portal`, `affiliate.webhooks` | Built. |
+| Affiliate Captain Pro (`affiliate-captain-pro`) | `affiliate.webhooks`, `affiliate.automated_payouts`, `affiliate.white_label_portal`, `affiliate.extended_api` | Built. Five further functions are built in captain-pro `main` but held back by the owner (status `planned`, next section). |
 | Pass Captain Pro (`pass-captain-pro`) | `pass.e_invoicing`, `pass.card_terminal`, `pass.waiting_room`, `pass.write_api`, `pass.white_label` | Built. `pass.e_invoicing` delivers XRechnung 3.0 XML (UBL and CII) and, since captain-pro `e54eda9` (16 Nov 2026), a ZUGFeRD PDF/A-3 with the CII XML embedded; the external validations of the PDF are still open there (captain-pro `docs/PASS-E-INVOICE.md`). |
-| Voucher Captain Pro (`voucher-captain-pro`) | none yet | No premium function is built. The cut of 16 Nov 2026 (owner decision) plans company orders, wallet passes, SMS delivery and white label (status `planned`, next section). Nothing can be sold for it yet. |
-| Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`), Course Captain Pro (`course-captain-pro`) | none yet | Planned (product status `planned` in the catalog file). The product keys resolve to the prefixes `workflow.`, `form.`, `review.`, `course.`; the product editor does not suggest them and offers no key for them. Eight `workflow.*` keys are reserved (next section). |
+| Form Captain Pro (`form-captain-pro`) | `form.webhooks`, `form.advanced_logic`, `form.pdf`, `form.uploads`, `form.multi_step`, `form.woocommerce_questionnaires` | Built and released by the owner (catalog file from the captain-pro build). |
+| Review Captain Pro (`review-captain-pro`) | `review.platform_sync`, `review.review_requests`, `review.advanced_widgets`, `review.analytics`, `review.suite_integrations`, `review.custom_connectors` | Built and released by the owner (catalog file from the captain-pro build); replies on the platforms follow after the MVP. |
+| Voucher Captain Pro (`voucher-captain-pro`) | none yet | Company orders, wallet passes, SMS delivery and white label are built in captain-pro, but the owner holds the add-on back (decision H1): product status `planned`, the four keys `planned` (next section). Nothing can be sold for it yet. |
+| Workflow Captain Pro (`workflow-captain-pro`), Course Captain Pro (`course-captain-pro`) | none yet | Planned (product status `planned` in the catalog file). The product keys resolve to the prefixes `workflow.` and `course.`; the product editor does not suggest them and offers no key for them. Eight `workflow.*` keys are reserved (next section). |
 
 Support is the plan attribute `support.level` (`standard` or `priority`) and nothing else (owner decision of 16 Nov 2026, R-24). The three former keys `*.priority_support` (one each for `affiliate.`, `voucher.` and `pass.`), which no add-on checked, are no longer in the catalog. A plan or license that still stores one keeps it in the advanced JSON field; it has no effect.
 
@@ -122,15 +125,15 @@ These keys are reserved for functions that are planned but that no released add-
 
 | Key | Planned function |
 |---|---|
-| `affiliate.store_credit` | Payout as store credit |
-| `affiliate.stripe_connect` | Payouts via Stripe Connect |
-| `affiliate.leaderboard` | Leaderboard and milestone emails |
-| `affiliate.multi_tier` | Multi-tier commissions |
-| `affiliate.multiple_programs` | Multiple programs |
-| `voucher.bulk_orders` | Voucher Captain Pro: company orders (many vouchers from a CSV list) |
-| `voucher.wallet_passes` | Voucher Captain Pro: Apple and Google Wallet passes |
-| `voucher.sms_delivery` | Voucher Captain Pro: voucher link by SMS |
-| `voucher.white_label` | Voucher Captain Pro: white label, same scope as Pass Captain Pro (owner decision E2 of 16 Nov 2026) |
+| `affiliate.store_credit` | Payouts as store credit (WooCommerce coupons); built, held back by the owner (H1) |
+| `affiliate.stripe_connect` | Payouts through Stripe Connect; built, held back by the owner (H1) |
+| `affiliate.leaderboard` | Leaderboard and milestone e-mails; built, held back by the owner (H1) |
+| `affiliate.multi_tier` | Sub-affiliates with team commissions; built, held back by the owner (H1) |
+| `affiliate.multiple_programs` | Multiple partner programs; built, held back by the owner (H1) |
+| `voucher.bulk_orders` | Voucher Captain Pro: company orders (many vouchers from a CSV list); built, held back (H1) |
+| `voucher.wallet_passes` | Voucher Captain Pro: Apple and Google Wallet passes for vouchers; built, held back (H1) |
+| `voucher.sms_delivery` | Voucher Captain Pro: voucher link by SMS; built, held back (H1) |
+| `voucher.white_label` | Voucher Captain Pro: white label, own product name and logo (owner decision E2 of 16 Nov 2026); built, held back (H1) |
 | `workflow.suite_integrations` | Workflow Captain Pro: integrations with the other Captain plugins |
 | `workflow.webhooks` | Workflow Captain Pro: webhooks |
 | `workflow.event_correlation` | Workflow Captain Pro: event correlation |

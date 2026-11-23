@@ -813,4 +813,62 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$this->assertSame( 'https://new-home.example.com', $this->active_activations( $license['id'] )[0]['site_url'] );
 		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->status()->state );
 	}
+
+	/**
+	 * Activate the live site, then forget it locally: the next manager acts as a fresh site at another address.
+	 *
+	 * @param array{id:int,key:string,uuid:string} $license License.
+	 * @param string                               $home    Address of the fresh site.
+	 * @return string Installation ID of the live site.
+	 */
+	private function live_site_and_a_fresh_site( array $license, string $home ): string {
+		$live = $this->manager();
+		$this->assertInstanceOf( LicenseStatus::class, $live->activate( $license['key'] ) );
+		$live_id = $live->client()->installation_id();
+		delete_option( 'test_product_license' );
+		delete_option( 'test_product_license_state' );
+		$this->acting_home = $home;
+
+		return $live_id;
+	}
+
+	/** SET-LIC-34: the environment chosen on the form; the real server decides and the message says why. */
+	public function test_set_lic34_a_staging_site_on_an_unrelated_host_counts_as_live_and_the_form_says_why(): void {
+		// All live slots in use: the server answers 409 site_limit for the staging request; the text explains it.
+		$license = $this->seed_license();
+		$live_id = $this->live_site_and_a_fresh_site( $license, 'https://staging.other-agency.example' );
+		$manager = $this->manager();
+		$message = $manager->run_form_action( 'activate', $license['key'], false, array( 'environment' => 'staging', 'staging_parent' => $live_id ) );
+		$this->assertSame( 'error', $message['type'] );
+		$this->assertStringContainsString( 'counts it as a further live site', $message['text'] );
+		$this->assertStringContainsString( '(site_limit)', $message['text'] );
+		$this->assertCount( 1, $this->active_activations( $license['id'] ) );
+
+		// A free live slot: activated, but as a live site, and the success message says why.
+		$this->acting_home = '';
+		$license           = $this->seed_license( array(), array( 'sites.live_limit' => 2, 'feature.export' => true ) );
+		$live_id           = $this->live_site_and_a_fresh_site( $license, 'https://staging.other-agency.example' );
+		$manager           = $this->manager();
+		$message           = $manager->run_form_action( 'activate', $license['key'], false, array( 'environment' => 'staging', 'staging_parent' => $live_id ) );
+		$this->assertSame( 'success', $message['type'], $message['text'] );
+		$this->assertStringContainsString( 'counts it as a live site, not as a staging site', $message['text'] );
+		$this->assertSame( 'production', $manager->status()->environment );
+		$this->assertSame( array( 'production', 'production' ), array_column( $this->active_activations( $license['id'] ), 'environment' ) );
+		$this->assertSame( 'success', $manager->run_form_action( 'deactivate', '', true )['type'] );
+
+		// On a host that belongs to the live site the same choice gives the free staging site.
+		delete_option( 'test_product_license' );
+		$this->acting_home = 'https://staging.example.org';
+		$manager           = $this->manager();
+		$message           = $manager->run_form_action( 'activate', $license['key'], false, array( 'environment' => 'staging', 'staging_parent' => $live_id ) );
+		$this->assertSame( 'The license was activated for this site.', $message['text'] );
+		$this->assertSame( 'staging', $manager->status()->environment );
+
+		// Without the live site's installation ID nothing is sent.
+		delete_option( 'test_product_license' );
+		$this->http_log = array();
+		$message        = $this->manager()->run_form_action( 'activate', $license['key'], false, array( 'environment' => 'staging' ) );
+		$this->assertStringContainsString( 'installation ID of its live site', $message['text'] );
+		$this->assertSame( array(), $this->http_log );
+	}
 }

@@ -58,7 +58,7 @@ One listener (`Maintenance\Orphans::on_payment_token_deleted()`) decides, and `M
 | Anything else (import, another plugin) | Nothing changes. If the method is really gone, the next charge reports `renewal_payment_method_missing`. |
 | Card detached or deleted at Stripe, Stripe customer deleted (P-16) | Stripe answers `resource_missing` for `payment_method`/`customer` (or `payment_method_unexpected_state`). When the Stripe account still knows the customer (a deleted customer stays retrievable), the charge reports `renewal_payment_method_missing` as above, including the action and the customer email. When the account does not know the customer at all (secret key of another account), it stays a shop problem (`stripe_resource_missing`) and the customer is not emailed. |
 
-The filter `wplc_disable_renewal_on_token_deletion( $disable, $token_id, $context )` overrides the decision (`context`: `customer`, `privacy`, `user_deleted`, `gateway_sync`, `other`).
+The setting "Deleting the saved card ends automatic renewal" (License settings → Rules of this shop, default on) can switch this off; the filter `wplc_disable_renewal_on_token_deletion( $disable, $token_id, $context )` overrides the decision (`context`: `customer`, `privacy`, `user_deleted`, `gateway_sync`, `other`).
 
 ### Charge
 

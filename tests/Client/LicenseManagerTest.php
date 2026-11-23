@@ -830,7 +830,7 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertTrue( $first->is_entitled( 'feature.flag' ) );
 		$this->assertFalse( $second->is_entitled( 'feature.flag' ) );
 		$this->assertSame( LicenseStatus::STATE_UNLICENSED, $second->status()->state );
-		$this->assertSame( '2.3.0', LicenseManager::VERSION );
+		$this->assertSame( '2.4.0', LicenseManager::VERSION );
 		$this->assertSame( LicenseManager::VERSION, LicenseClient::VERSION );
 	}
 
@@ -1183,15 +1183,16 @@ final class LicenseManagerTest extends TestCase {
 		$section = $manager->debug_information( array() )['test_addon_license'];
 		$fields  = $section['fields'];
 		$this->assertSame( 'Test Add-on – License', $section['label'] );
-		$this->assertSame( array( 'state', 'last_checked', 'last_error', 'offline_until', 'environment', 'installation', 'server', 'signature', 'keys', 'version' ), array_keys( $fields ) );
+		$this->assertSame( array( 'state', 'last_checked', 'last_error', 'offline_until', 'environment', 'channel', 'installation', 'server', 'signature', 'keys', 'version' ), array_keys( $fields ) );
 		$this->assertSame( 'active', $fields['state']['debug'] );
 		$this->assertSame( gmdate( 'Y-m-d H:i:s', $this->kit->now - 3600 ) . ' UTC', $fields['last_checked']['debug'] );
 		$this->assertSame( 'wplc_connection_failed, ' . gmdate( 'Y-m-d H:i:s', $this->kit->now ) . ' UTC', $fields['last_error']['debug'] );
 		$this->assertStringContainsString( 'could not be reached', $fields['last_error']['value'] );
 		$this->assertSame( gmdate( 'Y-m-d H:i:s', $this->kit->now - 3600 + 14 * DAY_IN_SECONDS ) . ' UTC', $fields['offline_until']['debug'] );
 		$this->assertSame( 'production', $fields['environment']['debug'] );
+		$this->assertSame( 'stable', $fields['channel']['debug'] );
 		$this->assertSame( 'license.example', $fields['server']['value'] );
-		$this->assertSame( '2.3.0', $fields['version']['value'] );
+		$this->assertSame( '2.4.0', $fields['version']['value'] );
 		$this->assertSame( substr( hash( 'sha256', base64_decode( $this->kit->server->public_key ) ), 0, 16 ), $fields['keys']['debug'] );
 		$this->assertContains( $fields['signature']['debug'], array( 'native', 'compat' ) );
 
@@ -1234,5 +1235,174 @@ final class LicenseManagerTest extends TestCase {
 
 		$own = 'https://shop.example/wp-admin/admin.php?page=my-addon&tab=license';
 		$this->assertSame( $own, $this->kit->manager( array( 'settings_parent' => false, 'settings_url' => $own ) )->settings_url() );
+	}
+
+	// ------------------------------------------------------------------
+	// SET-LIC-33, -34, -35 (library 2.4.0): beta by choice, environment, brand.
+	// ------------------------------------------------------------------
+
+	/** Channel sent with the last `POST /updates/check`. */
+	private function channel_of_the_update_check( LicenseManager $manager ): string {
+		$manager->updater()->metadata( true );
+		$checks = array_values( array_filter( $this->kit->server->requests, static function ( array $request ) { return '/wplc/v1/updates/check' === $request['route']; } ) );
+		$this->assertNotEmpty( $checks );
+
+		return (string) end( $checks )['body']['channel'];
+	}
+
+	public function test_set_lic33_without_the_build_switch_nothing_changes(): void {
+		$manager = $this->activated();
+
+		$this->assertSame( 'stable', $manager->update_channel() );
+		$this->assertFalse( $manager->offers_channel_choice() );
+		$this->assertSame( 'wplc_beta_unavailable', $manager->choose_beta( true )->get_error_code() );
+		$message = $manager->run_form_action( 'channel', '', false, array( 'beta' => true ) );
+		$this->assertSame( 'error', $message['type'] );
+		$this->assertStringContainsString( 'not available for this license', $message['text'] );
+		$this->assertArrayNotHasKey( 'test_addon_license_channel', $this->kit->store->data );
+
+		// A value written by hand does not count either: the build decides whether there is a choice.
+		$this->kit->store->data['test_addon_license_channel'] = 'beta';
+		$this->assertSame( 'stable', $this->channel_of_the_update_check( $this->kit->manager() ) );
+
+		// `channel => beta` of the build, as before: every site asks for beta, no box.
+		$beta = $this->kit->manager( array( 'channel' => 'beta', 'allow_channel_choice' => true ) );
+		$this->assertSame( 'beta', $beta->update_channel() );
+		$this->assertFalse( $beta->offers_channel_choice() );
+	}
+
+	public function test_set_lic33_the_customer_opts_in_per_site_and_the_update_check_asks_for_beta(): void {
+		$this->activated();
+		$manager = $this->kit->manager( array( 'allow_channel_choice' => true ) );
+
+		$this->assertTrue( $manager->offers_channel_choice(), 'A server without update_channels gives beta to every client.' );
+		$this->assertFalse( $manager->beta_chosen() );
+		$this->assertSame( 'stable', $this->channel_of_the_update_check( $manager ), 'Default off.' );
+
+		$message = $manager->run_form_action( 'channel', '', false, array( 'beta' => true ) );
+		$this->assertSame( array( 'type' => 'success', 'text' => 'This site now receives beta versions.' ), $message );
+		$this->assertSame( 'beta', $this->kit->store->data['test_addon_license_channel'] );
+		$this->assertTrue( $manager->beta_chosen() );
+		$this->assertSame( 'beta', $manager->update_channel() );
+		$this->assertSame( 'beta', $this->channel_of_the_update_check( $this->kit->manager( array( 'allow_channel_choice' => true ) ) ) );
+
+		$message = $manager->run_form_action( 'channel', '', false, array( 'beta' => false ) );
+		$this->assertSame( 'This site now receives stable versions only.', $message['text'] );
+		$this->assertArrayNotHasKey( 'test_addon_license_channel', $this->kit->store->data );
+		$this->assertSame( 'stable', $this->channel_of_the_update_check( $manager ) );
+
+		// Uninstall removes the choice with the other data.
+		$manager->choose_beta( true );
+		$manager->uninstall();
+		$this->assertArrayNotHasKey( 'test_addon_license_channel', $this->kit->store->data );
+	}
+
+	public function test_set_lic33_the_box_follows_the_signed_update_channels_and_needs_an_activation(): void {
+		$this->assertFalse( $this->kit->manager( array( 'allow_channel_choice' => true ) )->offers_channel_choice(), 'No activation, no box.' );
+
+		$this->activated();
+		$this->kit->server->queue[] = $this->kit->server->signed( $this->kit->server->entitlement( array( 'update_channels' => array( 'stable' ) ) ) );
+		$manager                    = $this->kit->manager( array( 'allow_channel_choice' => true ) );
+		$this->assertInstanceOf( LicenseStatus::class, $manager->refresh() );
+		$this->assertFalse( $manager->offers_channel_choice(), 'The license excludes beta.' );
+		$this->assertSame( 'wplc_beta_unavailable', $manager->choose_beta( true )->get_error_code() );
+
+		$this->kit->advance( 60 );
+		$this->kit->server->queue[] = $this->kit->server->signed( $this->kit->server->entitlement( array( 'update_channels' => array( 'stable', 'beta' ) ) ) );
+		$manager->refresh();
+		$this->assertTrue( $manager->offers_channel_choice() );
+		$this->assertTrue( $manager->choose_beta( true ) );
+
+		// A site that chose beta keeps the box to switch back, also when the license no longer covers beta.
+		$this->kit->advance( 60 );
+		$this->kit->server->queue[] = $this->kit->server->signed( $this->kit->server->entitlement( array( 'update_channels' => array( 'stable' ) ) ) );
+		$manager->refresh();
+		$this->assertTrue( $manager->offers_channel_choice() );
+		$this->assertTrue( $manager->choose_beta( false ) );
+		$this->assertFalse( $manager->offers_channel_choice() );
+
+		// A copy of the site offers nothing.
+		$this->kit->store->site = 'https://copy.example';
+		$this->assertFalse( $this->kit->manager( array( 'allow_channel_choice' => true ) )->offers_channel_choice() );
+	}
+
+	public function test_set_lic34_the_environment_chosen_on_the_form_is_sent_and_unknown_values_mean_detected(): void {
+		$manager = $this->kit->manager();
+		$this->assertSame( array( 'production', 'staging', 'development' ), LicenseClient::ENVIRONMENTS );
+
+		$this->assertSame( 'success', $manager->run_form_action( 'activate', self::KEY, false, array( 'environment' => 'development' ) )['type'] );
+		$this->assertSame( 'development', $this->kit->server->requests[0]['body']['environment'] );
+		$this->assertSame( 'development', $manager->status()->environment );
+		$this->assertSame( 'success', $manager->run_form_action( 'deactivate', '', true )['type'] );
+
+		$this->kit->server->requests = array();
+		$this->assertSame( 'success', $manager->run_form_action( 'activate', self::KEY, false, array( 'environment' => 'qa-box' ) )['type'] );
+		$this->assertSame( 'production', $this->kit->server->requests[0]['body']['environment'], 'An unknown value falls back to the detection.' );
+	}
+
+	public function test_set_lic34_a_staging_site_needs_the_live_site_and_is_told_when_it_counts_as_live(): void {
+		$manager = $this->kit->manager();
+		$parent  = '0b7f5a52-3c1d-4e8f-9a6b-2d4c5e6f7a8b';
+
+		// Without the installation ID of the live site nothing is sent, and the text says where to find it.
+		foreach ( array( '', 'not-an-id' ) as $given ) {
+			$message = $manager->run_form_action( 'activate', self::KEY, false, array( 'environment' => 'staging', 'staging_parent' => $given ) );
+			$this->assertSame( 'error', $message['type'] );
+			$this->assertStringContainsString( 'installation ID of its live site', $message['text'] );
+		}
+		$this->assertSame( array(), $this->kit->server->requests );
+
+		// The server counts the staging request as a live site (address unrelated to the live site).
+		$server          = $this->kit->server;
+		$server->queue[] = static function ( array $request ) use ( $server ) {
+			$server->secrets[ $request['body']['installation_id'] ] = $request['body']['installation_secret'];
+			return WPLC_Test_Server::json( 200, $server->envelope( $request, $server->entitlement( array( 'environment' => 'production' ) ) ) );
+		};
+		$message = $manager->run_form_action( 'activate', self::KEY, false, array( 'environment' => 'staging', 'staging_parent' => strtoupper( $parent ) ) );
+		$this->assertSame( 'success', $message['type'] );
+		$this->assertStringContainsString( 'counts it as a live site, not as a staging site', $message['text'] );
+		$this->assertSame( 'staging', $server->requests[0]['body']['environment'] );
+		$this->assertSame( $parent, $server->requests[0]['body']['staging_parent_installation_id'] );
+		$this->assertSame( 'production', $manager->status()->environment, 'The screen shows what the server stored.' );
+		$manager->run_form_action( 'deactivate', '', true );
+
+		// The same with all live slots in use: the error explains why a staging site needed one.
+		$server->queue[] = WPLC_Test_Server::error( 409, 'site_limit', array( 'site_limit' => 1, 'site_count' => 1, 'environment' => 'production', 'requested_environment' => 'staging' ) );
+		$message         = $manager->run_form_action( 'activate', self::KEY, false, array( 'environment' => 'staging', 'staging_parent' => $parent ) );
+		$this->assertSame( 'error', $message['type'] );
+		$this->assertStringContainsString( 'counts it as a further live site', $message['text'] );
+		$this->assertStringContainsString( '(site_limit)', $message['text'] );
+
+		// A real staging activation keeps the usual message.
+		$message = $manager->run_form_action( 'activate', self::KEY, false, array( 'environment' => 'staging', 'staging_parent' => $parent ) );
+		$this->assertSame( 'The license was activated for this site.', $message['text'] );
+		$this->assertSame( 'staging', $manager->status()->environment );
+	}
+
+	public function test_set_lic35_brand_values_of_the_build_and_their_checks(): void {
+		$this->assertSame( array(), LicenseManager::BUILD_BRAND, 'The library itself carries no brand.' );
+		$this->assertSame(
+			array( 'support_email' => '', 'support_url' => '', 'key_placeholder' => 'WPLC-…' ),
+			$this->kit->manager()->brand()
+		);
+		$this->assertSame(
+			array( 'support_email' => '', 'support_url' => '', 'key_placeholder' => 'WPLC-…' ),
+			$this->kit->manager( array( 'brand' => array( 'support_email' => 'not an address', 'support_url' => 'javascript:alert(1)', 'key_placeholder' => '  ' ) ) )->brand(),
+			'Invalid values are dropped.'
+		);
+
+		$brand   = array( 'support_email' => 'help@vendor.example', 'support_url' => 'https://vendor.example/support', 'key_placeholder' => 'VEND-' . str_repeat( 'x', 100 ) );
+		$manager = $this->kit->manager( array( 'brand' => $brand ) );
+		$this->assertSame( 'help@vendor.example', $manager->brand()['support_email'] );
+		$this->assertSame( 'https://vendor.example/support', $manager->brand()['support_url'] );
+		$this->assertSame( 80, strlen( $manager->brand()['key_placeholder'] ), 'At most 80 characters.' );
+
+		// The notices of a suspended or revoked license say whom to ask; the others stay as they were.
+		$manager->activate( self::KEY );
+		$this->kit->server->queue[] = $this->kit->server->signed( $this->kit->server->entitlement( array( 'license_status' => 'suspended', 'access' => false ) ) );
+		$manager->refresh();
+		$this->assertSame( LicenseStatus::STATE_SUSPENDED, $manager->status()->state );
+		$this->assertStringEndsWith( 'Please contact support. Support: help@vendor.example · https://vendor.example/support', $manager->notice()['text'] );
+		$this->assertStringNotContainsString( 'Support:', (string) ( $this->kit->manager()->notice()['text'] ?? '' ) );
 	}
 }

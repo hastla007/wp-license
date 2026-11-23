@@ -1,8 +1,65 @@
 {
-  "format": 1,
-  "product_key": "review-captain-pro",
-  "prefix": "review",
-  "name": "Review Captain Pro",
-  "status": "planned",
-  "entitlements": []
+    "format": 1,
+    "product_key": "review-captain-pro",
+    "prefix": "review",
+    "name": "Review Captain Pro",
+    "status": "available",
+    "generator": "captain-pro build/build.php",
+    "addon": "0.1.0",
+    "entitlements": [
+        {
+            "key": "review.platform_sync",
+            "label": {
+                "en": "Official platform connections and sync",
+                "de_DE": "Offizielle Plattform-Verbindungen und Synchronisierung",
+                "de_DE_formal": "Offizielle Plattform-Verbindungen und Synchronisierung"
+            },
+            "status": "available"
+        },
+        {
+            "key": "review.review_requests",
+            "label": {
+                "en": "Automated review requests",
+                "de_DE": "Automatische Bewertungsanfragen",
+                "de_DE_formal": "Automatische Bewertungsanfragen"
+            },
+            "status": "available"
+        },
+        {
+            "key": "review.advanced_widgets",
+            "label": {
+                "en": "Advanced widgets and social proof",
+                "de_DE": "Erweiterte Widgets und Social Proof",
+                "de_DE_formal": "Erweiterte Widgets und Social Proof"
+            },
+            "status": "available"
+        },
+        {
+            "key": "review.analytics",
+            "label": {
+                "en": "Review analytics",
+                "de_DE": "Bewertungsauswertungen",
+                "de_DE_formal": "Bewertungsauswertungen"
+            },
+            "status": "available"
+        },
+        {
+            "key": "review.suite_integrations",
+            "label": {
+                "en": "Captain Suite integrations",
+                "de_DE": "Captain-Suite-Integrationen",
+                "de_DE_formal": "Captain-Suite-Integrationen"
+            },
+            "status": "available"
+        },
+        {
+            "key": "review.custom_connectors",
+            "label": {
+                "en": "Custom project connectors",
+                "de_DE": "Kundenspezifische Projekt-Connectoren",
+                "de_DE_formal": "Kundenspezifische Projekt-Connectoren"
+            },
+            "status": "available"
+        }
+    ]
 }

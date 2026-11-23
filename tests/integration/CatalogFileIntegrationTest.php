@@ -79,21 +79,21 @@ final class CatalogFileIntegrationTest extends WPLC_Integration_TestCase {
 		$autoload = (string) $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", CatalogStore::OPTION ) );
 		$this->assertContains( $autoload, array( 'no', 'off', 'auto-off' ), 'The catalog is read on few screens and is not autoloaded.' );
 
-		// Exactly the keys and product keys of the former lists (after R-24).
+		// The keys of the former lists (after R-24) plus Form and Review, in the order of the captain-pro build (R-31, FR-LIC-02).
 		$this->assertSame(
-			array( 'affiliate.extended_api', 'affiliate.automated_payouts', 'affiliate.white_label_portal', 'affiliate.webhooks', 'pass.e_invoicing', 'pass.card_terminal', 'pass.waiting_room', 'pass.write_api', 'pass.white_label' ),
+			array( 'affiliate.webhooks', 'affiliate.automated_payouts', 'affiliate.white_label_portal', 'affiliate.extended_api', 'form.webhooks', 'form.advanced_logic', 'form.pdf', 'form.uploads', 'form.multi_step', 'form.woocommerce_questionnaires', 'pass.e_invoicing', 'pass.card_terminal', 'pass.white_label', 'pass.waiting_room', 'pass.write_api', 'review.platform_sync', 'review.review_requests', 'review.advanced_widgets', 'review.analytics', 'review.suite_integrations', 'review.custom_connectors' ),
 			EntitlementCatalog::known_keys()
 		);
-		$this->assertSame( array( 'affiliate-captain-pro', 'pass-captain-pro', 'voucher-captain-pro' ), array_keys( EntitlementCatalog::known_product_keys() ) );
-		$this->assertSame( array( 'course-captain-pro', 'form-captain-pro', 'review-captain-pro', 'workflow-captain-pro' ), array_keys( EntitlementCatalog::planned_product_keys() ) );
-		$this->assertCount( 17, array_merge( ...array_values( EntitlementCatalog::planned() ) ) ); // 12 + the three planned Voucher Pro keys of 16 Nov 2026 + the two Workflow keys of F-01.
+		$this->assertSame( array( 'affiliate-captain-pro', 'form-captain-pro', 'pass-captain-pro', 'review-captain-pro' ), array_keys( EntitlementCatalog::known_product_keys() ) );
+		$this->assertSame( array( 'course-captain-pro', 'voucher-captain-pro', 'workflow-captain-pro' ), array_keys( EntitlementCatalog::planned_product_keys() ), 'Voucher Captain Pro is held back in its build.' );
+		$this->assertCount( 17, array_merge( ...array_values( EntitlementCatalog::planned() ) ) ); // Five held Affiliate keys, four Voucher keys, eight Workflow keys.
 
 		// An installation on schema 23: no catalog yet. The step fills it and can run again.
 		delete_option( CatalogStore::OPTION );
 		CatalogStore::reset_cache();
 		$this->assertSame( array(), EntitlementCatalog::known_keys() );
 		$this->assertTrue( Schema::run_registered_step( '24' ) );
-		$this->assertCount( 9, EntitlementCatalog::known_keys() );
+		$this->assertCount( 21, EntitlementCatalog::known_keys() );
 		$before = get_option( CatalogStore::OPTION );
 		$this->assertTrue( Schema::run_registered_step( '24' ), 'Step 24 is repeatable.' );
 		$this->assertSame( $before, get_option( CatalogStore::OPTION ), 'A second run changes nothing, not even the import time.' );
@@ -109,14 +109,14 @@ final class CatalogFileIntegrationTest extends WPLC_Integration_TestCase {
 			}
 			return '';
 		};
-		$this->assertSame( 'Virtual waiting room', $label() );
+		$this->assertSame( 'Virtual waiting room for sales starts', $label() );
 		add_filter(
 			'determine_locale',
 			static function () {
 				return 'de_DE';
 			}
 		);
-		$this->assertSame( 'Virtueller Warteraum', $label() );
+		$this->assertSame( 'Virtueller Warteraum für Verkaufsstarts', $label() );
 		$this->assertSame( 'Pass Captain Pro', EntitlementCatalog::group_label( 'pass' ) );
 
 		// The texts are not in the text domain of the server any more.

@@ -73,7 +73,7 @@ final class PricingTableIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertStringContainsString( 'for 1 year', $html );
 		$this->assertStringContainsString( '5 live sites', $html );
 		$this->assertStringContainsString( '1 live site<', $html );
-		$this->assertStringContainsString( '<li>Write API</li>', $html, 'Label from EntitlementCatalog.' );
+		$this->assertStringContainsString( '<li>Write API for orders, tickets and check-ins</li>', $html, 'Label from EntitlementCatalog.' );
 		$this->assertStringNotContainsString( 'Reports', $html, 'R-07: a key of a core function has no label and is not advertised.' );
 		$this->assertStringNotContainsString( 'store credit', $html, 'R-09: a planned key is not advertised.' );
 		$this->assertStringNotContainsString( 'White label', $html, 'An entitlement set to false is not listed.' );

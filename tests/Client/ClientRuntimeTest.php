@@ -224,6 +224,80 @@ final class ClientRuntimeTest extends TestCase {
 	}
 
 	/**
+	 * SET-LIC-33, -34, -35 (2.4.0): beta box, choice of the environment, brand values on the license screen.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_set_lic33_to_35_the_license_screen_shows_beta_box_site_type_and_brand(): void {
+		// phpcs:disable
+		eval(
+			'function current_user_can( $capability ) { return true; }
+			function delete_transient( $name ) { return true; }
+			function get_current_user_id() { return 1; }
+			function esc_html( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES ); }
+			function esc_attr( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES ); }
+			function esc_url( $url ) { return (string) $url; }
+			function admin_url( $path = "" ) { return "https://shop.example/wp-admin/" . $path; }
+			function wp_nonce_field( $action ) { echo "<input type=\"hidden\" name=\"_wpnonce\" value=\"n\">"; }
+			function wp_kses( $html, $allowed ) { return $html; }
+			function wp_get_environment_type() { return $GLOBALS["wplc_test_environment"] ?? "production"; }'
+		);
+		// phpcs:enable
+		$kit    = self::kit();
+		$render = static function ( LicenseManager $manager ): string {
+			ob_start();
+			$manager->render_settings();
+			return (string) ob_get_clean();
+		};
+
+		// As with 2.3.0: no box, no support line, the placeholder WPLC-…, "Type of this site" collapsed on a live site.
+		$html = $render( $kit->manager( array( 'settings_parent' => false ) ) );
+		$this->assertStringContainsString( 'placeholder="WPLC-…"', $html );
+		$this->assertStringContainsString( '<details><summary>Type of this site</summary>', $html );
+		$this->assertStringContainsString( '<option value="">Detected automatically: Live site</option>', $html );
+		$this->assertStringContainsString( '<option value="staging">Staging site</option>', $html );
+		$this->assertStringContainsString( 'name="wplc_staging_parent"', $html );
+		$this->assertStringNotContainsString( 'wplc_beta', $html );
+		$this->assertStringNotContainsString( 'Help with the license', $html );
+
+		// Detected staging: the choice is open.
+		$GLOBALS['wplc_test_environment'] = 'staging';
+		$this->assertStringContainsString( '<details open><summary>Type of this site</summary>', $render( $kit->manager( array( 'settings_parent' => false ) ) ) );
+		$this->assertStringContainsString( 'Detected automatically: Staging site', $render( $kit->manager( array( 'settings_parent' => false ) ) ) );
+		$GLOBALS['wplc_test_environment'] = 'production';
+
+		// Brand and channel choice switched on by the build.
+		$config  = array(
+			'settings_parent'      => false,
+			'allow_channel_choice' => true,
+			'brand'                => array( 'support_email' => 'help@vendor.example', 'support_url' => 'https://vendor.example/support', 'key_placeholder' => 'VEND-…' ),
+		);
+		$manager = $kit->manager( $config );
+		$html    = $render( $manager );
+		$this->assertStringContainsString( 'placeholder="VEND-…"', $html );
+		$this->assertStringContainsString( 'Help with the license: <a href="mailto:help@vendor.example">help@vendor.example</a> · <a href="https://vendor.example/support" target="_blank" rel="noopener noreferrer">https://vendor.example/support</a>', $html );
+		$this->assertStringNotContainsString( 'wplc_beta', $html, 'No box before the activation.' );
+
+		$manager->activate( self::KEY );
+		$html = $render( $manager );
+		$this->assertStringContainsString( '<input type="checkbox" name="wplc_beta" value="1"> Receive beta versions', $html );
+		$this->assertStringContainsString( 'value="channel"', $html );
+		$this->assertStringContainsString( '<th scope="row">Updates</th><td>Stable versions</td>', $html );
+		$manager->choose_beta( true );
+		$html = $render( $manager );
+		$this->assertStringContainsString( '<input type="checkbox" name="wplc_beta" value="1" checked="checked"> Receive beta versions', $html );
+		$this->assertStringContainsString( '<th scope="row">Updates</th><td>Beta and stable versions</td>', $html );
+
+		// On a copy the live site's ID comes from the copied data: no field for it.
+		$kit->store->site = 'https://staging.shop.example';
+		$html             = $render( $kit->manager( $config ) );
+		$this->assertStringContainsString( 'name="wplc_environment"', $html );
+		$this->assertStringNotContainsString( 'name="wplc_staging_parent"', $html );
+		$this->assertStringNotContainsString( 'wplc_beta', $html );
+	}
+
+	/**
 	 * AL-4 (2.1.1): the Site Health test "License check" says whether the daily check works.
 	 *
 	 * @runInSeparateProcess

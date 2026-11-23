@@ -122,7 +122,7 @@ final class AdminSupportIntegrationTest extends WPLC_Integration_TestCase {
 
 	public function test_b49_default_mapping_keeps_access_except_releases_hosts_and_restore(): void {
 		$shop = array( 'view_licenses', 'manage_licenses', 'grant_licenses', 'manage_catalog', 'view_diagnostics', 'manage_settings' );
-		$top  = array( 'publish_releases', 'manage_package_hosts', 'restore_licenses' );
+		$top  = array( 'publish_releases', 'manage_package_hosts', 'restore_licenses', 'manage_policy' );
 
 		wp_set_current_user( $this->manager );
 		foreach ( $shop as $slug ) {

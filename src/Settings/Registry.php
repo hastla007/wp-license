@@ -36,7 +36,7 @@ final class Registry {
 	/**
 	 * Groups (tabs of the settings page), in display order.
 	 */
-	public const GROUPS = array( 'updates', 'renewals', 'emails', 'rules', 'sites', 'legal', 'texts', 'operations' );
+	public const GROUPS = array( 'updates', 'renewals', 'emails', 'rules', 'sites', 'sharing', 'legal', 'texts', 'operations' );
 
 	/**
 	 * Longest text a change log entry or a preview shows.
@@ -57,7 +57,9 @@ final class Registry {
 	 * - type: int, bool, string, text, int_list, string_list, hosts, choice
 	 * - default: stored form of the default value
 	 * - min, max: bounds of an int or of each entry of an int_list
-	 * - max_items, max_length, choices, pattern (for entries of a string_list)
+	 * - max_items, max_length, choices, pattern (for entries of a string_list), ltrim (characters removed
+	 *   from the start of each entry of a string_list, e.g. the dot of ".example.com")
+	 * - resettable: the field offers "reset to default" of its own (lists with a built-in default)
 	 * - clamp: an int outside its bounds is moved to the nearest bound instead of being rejected
 	 *   (only the settings that existed before the register; their forms behaved like that)
 	 * - empty_default: an empty int_list is replaced by the default (true) or stored as empty (false)
@@ -420,6 +422,44 @@ final class Registry {
 	}
 
 	/**
+	 * Entries of a submitted list of whole numbers that the accepted value leaves out
+	 * (not a number, outside the limits, or beyond the largest number of entries).
+	 *
+	 * Only lists that drop such entries instead of rejecting the value have any; repeated
+	 * entries are not counted.
+	 *
+	 * @param string $key      Setting key.
+	 * @param mixed  $raw      Submitted value (text or array).
+	 * @param mixed  $accepted The value validate() accepted.
+	 * @return string[]
+	 */
+	public static function discarded( string $key, $raw, $accepted ): array {
+		$definition = self::definition( $key );
+		if ( null === $definition || 'int_list' !== $definition['type'] || ! is_string( $accepted ) ) {
+			return array();
+		}
+		if ( is_array( $raw ) ) {
+			$raw = implode( ',', array_filter( $raw, 'is_scalar' ) );
+		}
+		if ( ! is_scalar( $raw ) ) {
+			return array();
+		}
+		$kept    = '' === $accepted ? array() : array_map( 'intval', explode( ',', $accepted ) );
+		$dropped = array();
+		foreach ( (array) preg_split( '/[\s,;]+/', trim( (string) $raw ) ) as $part ) {
+			$part = (string) $part;
+			if ( '' === $part ) {
+				continue;
+			}
+			if ( ! ctype_digit( $part ) || strlen( $part ) > 9 || ! in_array( (int) $part, $kept, true ) ) {
+				$dropped[ $part ] = $part;
+			}
+		}
+
+		return array_values( array_slice( $dropped, 0, 10 ) );
+	}
+
+	/**
 	 * Check a list of short texts (one per line, or an array).
 	 *
 	 * @param array<string,mixed> $definition Definition.
@@ -434,10 +474,14 @@ final class Registry {
 			return self::failure( 'not_a_list', 'Expected one entry per line.' );
 		}
 		$pattern = (string) ( $definition['pattern'] ?? '/^[a-z0-9][a-z0-9.-]{0,62}$/' );
+		$strip   = (string) ( $definition['ltrim'] ?? '' );
 		$values  = array();
 		$bad     = array();
-		foreach ( (array) preg_split( '/[\r\n,;]+/', (string) $raw ) as $part ) {
+		foreach ( (array) preg_split( '/[\r\n,;\s]+/', (string) $raw ) as $part ) {
 			$part = strtolower( trim( (string) $part ) );
+			if ( '' !== $strip ) {
+				$part = ltrim( $part, $strip );
+			}
 			if ( '' === $part ) {
 				continue;
 			}

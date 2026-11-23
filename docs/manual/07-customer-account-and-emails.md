@@ -23,18 +23,18 @@ The owner of a license can share it and hand it over from the account page; you 
 
 **Co-users.** Under "Co-users" the owner enters an email address and sends an invitation. The invited person receives the email "License co-user invitation" with a link. To accept, they open the link while signed in with an account whose email address is the invited address (a new customer registers with that address first), and press "Accept the invitation". A co-user then sees the license in their own account under **Licenses** (and its sites under **Sites**): status, plan, end date, key, sites, downloads, and they can deactivate sites. They cannot renew, pay, cancel, change the plan or the payment method, invite others or transfer the license; prices and renewal terms are not shown to them. The owner sees the co-users and open invitations and can remove a co-user or withdraw an invitation; a co-user can leave with "Leave license".
 
-- At most 5 co-users per license, counting open invitations (filter `wplc_license_member_limit`, 0 switches inviting off).
-- An invitation link works once and expires after 14 days (filter `wplc_license_invitation_days`). Only a hash of the link's token is stored. Opening the link changes nothing; only the button accepts. A link opened in an account with another email address is refused and stays valid for the right account.
+- At most 5 co-users per license, counting open invitations (setting **Co-users per license** under License settings → Co-users and transfer, also per plan; filter `wplc_license_member_limit`). 0 switches co-users off: nobody can be invited and open invitations can no longer be accepted.
+- An invitation link works once and expires after 14 days (setting **Invitations valid for**, filter `wplc_license_invitation_days`). Only a hash of the link's token is stored. Opening the link changes nothing; only the button accepts. A link opened in an account with another email address is refused and stays valid for the right account.
 
-**Transfer.** Under "Transfer" the owner enters the recipient's address and confirms that automatic renewal ends. The recipient receives the email "License transfer offered" and accepts it in their own account, under the same rules (matching email address, single use, 14 days). Until then the license stays with the owner, who can cancel the offer. When the recipient accepts:
+**Transfer.** Under "Transfer" the owner enters the recipient's address and confirms that automatic renewal ends. The recipient receives the email "License transfer offered" and accepts it in their own account, under the same rules (matching email address, single use, validity of the invitation). Until then the license stays with the owner, who can cancel the offer. When the recipient accepts:
 
-- the license, its key and its sites belong to the recipient; the key stays the same by default (filter `wplc_license_transfer_new_key` issues a new one), activated sites keep working;
+- the license, its key and its sites belong to the recipient; the key stays the same by default and activated sites keep working (the setting **New license key on transfer** or the filter `wplc_license_transfer_new_key` issues a new one);
 - automatic renewal is switched off and the stored payment method and payment provider references are removed: the recipient renews manually or switches automatic renewal on with their own payment method;
 - co-users and open invitations are removed;
 - both sides receive the email "License transferred";
 - the license history records the start of the offer, the change of owner (as the same entry the admin action "Change owner" writes, with the reason "transferred by the previous owner") and the removal of co-users.
 
-While a renewal payment of the license is being processed, accepting is refused for a few minutes. The admin action **Change owner** (chapter 4) also removes co-users and open offers. On the license detail screen you see the co-users, open invitations and an open transfer, and can remove a co-user (with a reason). Filter `wplc_license_transfer_enabled` hides the transfer for a license or the whole shop.
+While a renewal payment of the license is being processed, accepting is refused for a few minutes. The admin action **Change owner** (chapter 4) also removes co-users and open offers. On the license detail screen you see the co-users, open invitations and an open transfer, and can remove a co-user (with a reason). The setting **Customers can transfer licenses** switches the transfer off for the whole shop (the form is hidden and open offers can no longer be accepted); the filter `wplc_license_transfer_enabled` decides last, also per license.
 
 If you copied `myaccount/wplc-license.php` into your theme before this version, add the line `do_action( 'wplc_account_license_sharing', $wplc_license, $view );` before the closing `</section>` to show these forms.
 
@@ -49,7 +49,7 @@ If you copied `myaccount/wplc-license.php` into your theme before this version, 
 
 ## Public cancellation page
 
-Put `[wplc_cancel]` on a page to let customers cancel an automatic renewal **without logging in**: email address plus license reference (key prefix), full key or order number, then a confirmation email with a link. Only addresses of the current owner match (account email, license email recipient, billing email of the source order while that order belongs to the owner). Requests are limited to 5 per hour per client address, reference and (for order numbers) email address (filter `wplc_public_cancel_hourly_limit`). The page answers identically whether or not the details matched, so it reveals nothing about your customers. Many jurisdictions expect such a simple cancellation route; link it from your terms and from the renewal emails' footer text.
+Put `[wplc_cancel]` on a page to let customers cancel an automatic renewal **without logging in**: email address plus license reference (key prefix), full key or order number, then a confirmation email with a link. Only addresses of the current owner match (account email, license email recipient, billing email of the source order while that order belongs to the owner). Requests are limited to 5 per hour per client address, reference and (for order numbers) email address (setting **Cancellation page: requests per hour**, filter `wplc_public_cancel_hourly_limit`). The page answers identically whether or not the details matched, so it reveals nothing about your customers. Many jurisdictions expect such a simple cancellation route; link it from your terms and from the renewal emails' footer text.
 
 ## "Renew instead" in the cart
 
@@ -80,6 +80,7 @@ All emails are sent through WooCommerce's mailer to the account email of the lic
 - The co-user and transfer emails never contain the license key.
 - **The full license key is not in the emails by default.** Email is not a secure channel; the email shows the key prefix and links to the account. You can opt in under **WooCommerce → Settings → Emails → License issued**.
 - **Sender note:** a short text (for example a support contact) that the emails can show below their content, under **WooCommerce → License settings**.
+- **Support contact:** the address the emails, the customer account and the cancellation page name for questions is the setting **Support email address** (empty = the sender address of the WooCommerce emails); **Support page** adds a link in the customer account and on the cancellation page (chapter 13).
 - **Templates** live in `templates/emails/` (plain-text variants in `templates/emails/plain/`). Copy a template to `wp-license/emails/` (or `wp-license/emails/plain/`) in your theme to change its layout.
 - Every reminder and status email is recorded before sending and sent once per license and period. Sending is best effort: a mail failure never blocks checkout, renewal or cron. Watch the WooCommerce log (source `wp-license`) for "was not accepted by the mailer".
 - Disabling the "Upcoming automatic renewal" email holds back every automatic charge (unless you switch that rule off, chapter 8), and may conflict with consumer-protection rules.

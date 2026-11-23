@@ -210,6 +210,28 @@ final class CombinedRenewalIntegrationTest extends WPLC_Renewal_TestCase {
 		$this->assertSame( 'paid', $this->renewal( $f['b']['renewal_id'] )['status'] );
 	}
 
+	/** SET-LIC-41: the most licenses per combined order is a setting. */
+	public function test_the_largest_number_of_lines_follows_the_setting(): void {
+		$this->combine();
+		update_option( \WPLC\Admin\Settings::OPTION, array( 'combined_renewal_max_lines' => '2' ) );
+		$f = $this->two_due();
+		$c = $this->stripe_license( $f['customer'], '19.00', -30 );
+		if ( substr( $this->renewal( $c['renewal_id'] )['period_start'], 0, 10 ) !== substr( $this->renewal( $f['a']['renewal_id'] )['period_start'], 0, 10 ) ) {
+			$this->markTestSkipped( 'The due dates fall on both sides of midnight UTC.' );
+		}
+		$this->assertSame( 2, \WPLC\Billing\CombinedRenewal::max_lines() );
+		WC_Stripe_API::$responses[] = $this->intent( 7800 );
+		WC_Stripe_API::$responses[] = $this->intent( 4800, 'pi_combined_2' );
+		WC_Stripe_API::$responses[] = $this->intent( 1900, 'pi_combined_3' );
+
+		RenewalProcessor::process( $f['a']['renewal_id'] );
+		$order = $this->order_of( $f['a']['renewal_id'] );
+		$this->assertTrue( RenewalOrder::is_combined( $order ) );
+		$this->assertCount( 2, $order->get_items( 'line_item' ), 'Two lines, as set; the third license waits for its own charge.' );
+		$this->assertCount( 1, WC_Stripe_API::$requests );
+		delete_option( \WPLC\Admin\Settings::OPTION );
+	}
+
 	public function test_different_card_currency_or_day_is_never_combined(): void {
 		$this->combine();
 		$f     = $this->two_due();

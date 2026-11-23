@@ -69,13 +69,15 @@ final class QuantityLimit {
 	 * @return int
 	 */
 	public static function max( $product = null ): int {
-		$max = (int) Settings::get( 'max_quantity_per_line' );
+		// SET-LIC-21: the largest quantity of the plan replaces the setting.
+		$own = null === $product ? null : PlanOverrides::for_product( $product, 'max_quantity_per_line' );
+		$max = null !== $own ? $own : (int) Settings::get( 'max_quantity_per_line' );
 		/**
 		 * Filters the largest quantity of a license product in one order line. Wins over the setting.
 		 *
 		 * @since 0.2.0
 		 *
-		 * @param int              $max     Largest quantity; 0 = no limit. Default: the setting (100).
+		 * @param int              $max     Largest quantity; 0 = no limit. Default: the number of the plan, else the setting (100).
 		 * @param \WC_Product|null $product Product or variation the quantity is for, null when not known.
 		 */
 		$max = (int) apply_filters( 'wplc_max_license_quantity_per_line', $max, $product instanceof \WC_Product ? $product : null );

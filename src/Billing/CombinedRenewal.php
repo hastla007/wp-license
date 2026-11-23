@@ -48,11 +48,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 final class CombinedRenewal {
 
-	/** Most licenses in one combined order. */
+	/** Default of the most licenses in one combined order (setting combined_renewal_max_lines, SET-LIC-41). */
 	public const MAX_LINES = 20;
 
 	/** Option of the settings checkbox. */
 	public const OPTION = 'wplc_combined_renewals';
+
+	/**
+	 * Most licenses in one combined order: the setting "Combined renewal: most licenses per order".
+	 *
+	 * @return int
+	 */
+	public static function max_lines(): int {
+		return \WPLC\Settings\Registry::int( 'combined_renewal_max_lines' );
+	}
 
 	/**
 	 * Whether automatic renewals are combined.
@@ -121,7 +130,7 @@ final class CombinedRenewal {
 		$members = array();
 		try {
 			foreach ( self::candidates( $renewal, $license ) as $candidate_id ) {
-				if ( count( $members ) >= self::MAX_LINES - 1 ) {
+				if ( count( $members ) >= self::max_lines() - 1 ) {
 					break;
 				}
 				$member = self::lock_member( $candidate_id, $license, $adapter, $token_id );
@@ -401,7 +410,7 @@ final class CombinedRenewal {
 				(string) $license['renewal_currency'],
 				(int) $license['renewal_currency_decimals'],
 				(string) $license['billing_interval'],
-				self::MAX_LINES * 2
+				self::max_lines() * 2
 			)
 		);
 		// phpcs:enable

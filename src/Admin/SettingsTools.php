@@ -1,6 +1,6 @@
 <?php
 /**
- * Tools below the settings form: country profiles, export, import, reset.
+ * Tools below the settings form: country profiles, export, import, test alert, reset.
  *
  * @package WPLC
  */
@@ -112,6 +112,9 @@ final class SettingsTools {
 				}
 				self::finish( self::prepare_import( $json ) );
 				return;
+			case 'test_alert':
+				self::finish( self::test_alert_message( HealthAlertMail::send_test() ) );
+				return;
 			case 'discard':
 				delete_transient( self::pending_key() );
 				self::finish( '' );
@@ -122,6 +125,23 @@ final class SettingsTools {
 				return;
 		}
 		self::finish( '' );
+	}
+
+	/**
+	 * Message for the result of a test health alert.
+	 *
+	 * @param string $result Result of HealthAlertMail::send_test().
+	 * @return string
+	 */
+	public static function test_alert_message( string $result ): string {
+		if ( 'sent' === $result ) {
+			return __( 'The test message was handed over for sending to the recipients of the health alerts.', 'wp-license' );
+		}
+		if ( 'no_recipient' === $result ) {
+			return __( 'No test message was sent: enter at least one address under "Send health alerts to" and save first.', 'wp-license' );
+		}
+
+		return __( 'WordPress could not hand the test message over for sending. Check the email setup of this site.', 'wp-license' );
 	}
 
 	/**
@@ -335,6 +355,17 @@ final class SettingsTools {
 		echo '<p><label for="wplc-import-json">' . esc_html__( 'Or paste the content of the file', 'wp-license' ) . '</label><br><textarea id="wplc-import-json" name="json" rows="3" cols="50" class="large-text code"></textarea></p>';
 		submit_button( __( 'Preview import', 'wp-license' ), 'secondary', 'submit', false );
 		echo '</form>';
+
+		// Health alerts (SET-LIC-22).
+		echo '<h3>' . esc_html__( 'Test the health alerts', 'wp-license' ) . '</h3>';
+		echo '<p class="description">' . esc_html__( 'Sends a test message to the addresses under "Send health alerts to", also when an alert email already left today.', 'wp-license' ) . '</p>';
+		self::open_form();
+		echo '<input type="hidden" name="tool" value="test_alert">';
+		submit_button( __( 'Send test message', 'wp-license' ), 'secondary', 'submit', false );
+		echo '</form>';
+
+		// Change log (SET-LIC-15).
+		echo '<p><a href="' . esc_url( AuditLogAdmin::url( array( 'object_type' => 'settings' ) ) ) . '">' . esc_html__( 'Show all changes of the settings in the audit log', 'wp-license' ) . '</a></p>';
 
 		// Reset.
 		echo '<h3>' . esc_html__( 'Reset to defaults', 'wp-license' ) . '</h3>';

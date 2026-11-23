@@ -83,7 +83,7 @@ do_action( 'wplc/health_alert', string $metric_key, int $value, int $threshold, 
 
 `$admin_url` is the admin screen where the cause is handled: "Renewals to review" for `review_required_renewals`, the diagnostics page for the other metrics (`Diagnostics::screen_url()`). Subscribers registered with three accepted arguments keep working. The diagnostics page shows a button to "Renewals to review" while its counter is above zero, and the menu entry carries a count badge.
 
-Thresholds can be changed with the filter `wplc_health_alert_thresholds` (array metric key → threshold; remove a key to silence it). Example subscriber:
+Thresholds are settings (License settings → Operations → "Alert from: …", 0 = never alert); the filter `wplc_health_alert_thresholds` (array metric key → threshold; remove a key to silence it) decides last. Example subscriber:
 
 ```php
 add_action( 'wplc/health_alert', function ( $metric, $value, $threshold, $url = '' ) {

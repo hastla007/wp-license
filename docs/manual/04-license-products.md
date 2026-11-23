@@ -18,6 +18,7 @@ A **plan** is a WooCommerce product (or a variation) that issues a license when 
    | License support level | Community, Standard or Priority. Sent to the client as `support.level`. |
    | Entitlements | Tick boxes with the available entitlements of the product's catalog group. |
    | Advanced: additional entitlements (JSON) | Optional JSON object for numeric limits and keys that are not in the list, for example `{"acme_reports.max_dashboards": 10}`. |
+   | Rules of this plan | Optional: staging sites per live site (0 to 10), development sites (0 to 100, exactly this number), offline period in days (1 to 90), largest quantity per order line (0 to 100000), co-users per license (0 to 100). **Empty = the global setting** (chapter 13); the field shows it as a placeholder. A value applies to the existing licenses of the plan at once. The filters of the global values still decide last. Beta access per plan is not available yet. |
 
 4. Save. The plan is active as long as the product exists (also while it is private); moving the product to the trash deactivates it.
 

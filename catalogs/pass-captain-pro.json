@@ -1,59 +1,61 @@
 {
-  "format": 1,
-  "product_key": "pass-captain-pro",
-  "prefix": "pass",
-  "name": "Pass Captain Pro",
-  "status": "available",
-  "entitlements": [
-    {
-      "key": "pass.e_invoicing",
-      "label": {
-        "en": "E-invoice (XRechnung, ZUGFeRD)",
-        "de_DE": "E-Rechnung (XRechnung, ZUGFeRD)",
-        "de_DE_formal": "E-Rechnung (XRechnung, ZUGFeRD)"
-      },
-      "description": {
-        "en": "Invoices, corrections and organizer settlements as XRechnung 3.0 XML (UBL and CII) and as ZUGFeRD PDF/A-3 with the XML embedded.",
-        "de_DE": "Rechnungen, Korrekturen und Veranstalter-Abrechnungen als XRechnung 3.0 (XML in UBL und CII) und als ZUGFeRD-PDF/A-3 mit eingebettetem XML.",
-        "de_DE_formal": "Rechnungen, Korrekturen und Veranstalter-Abrechnungen als XRechnung 3.0 (XML in UBL und CII) und als ZUGFeRD-PDF/A-3 mit eingebettetem XML."
-      },
-      "status": "available"
-    },
-    {
-      "key": "pass.card_terminal",
-      "label": {
-        "en": "Card terminal (Stripe Terminal, SumUp)",
-        "de_DE": "Kartenterminal (Stripe Terminal, SumUp)",
-        "de_DE_formal": "Kartenterminal (Stripe Terminal, SumUp)"
-      },
-      "status": "available"
-    },
-    {
-      "key": "pass.waiting_room",
-      "label": {
-        "en": "Virtual waiting room",
-        "de_DE": "Virtueller Warteraum",
-        "de_DE_formal": "Virtueller Warteraum"
-      },
-      "status": "available"
-    },
-    {
-      "key": "pass.write_api",
-      "label": {
-        "en": "Write API",
-        "de_DE": "Schreibende API",
-        "de_DE_formal": "Schreibende API"
-      },
-      "status": "available"
-    },
-    {
-      "key": "pass.white_label",
-      "label": {
-        "en": "White label",
-        "de_DE": "White Label",
-        "de_DE_formal": "White Label"
-      },
-      "status": "available"
-    }
-  ]
+    "format": 1,
+    "product_key": "pass-captain-pro",
+    "prefix": "pass",
+    "name": "Pass Captain Pro",
+    "status": "available",
+    "generator": "captain-pro build/build.php",
+    "addon": "0.1.0",
+    "entitlements": [
+        {
+            "key": "pass.e_invoicing",
+            "label": {
+                "en": "E-invoice (XRechnung, ZUGFeRD)",
+                "de_DE": "E-Rechnung (XRechnung, ZUGFeRD)",
+                "de_DE_formal": "E-Rechnung (XRechnung, ZUGFeRD)"
+            },
+            "description": {
+                "en": "Invoices, corrections and organizer settlements as XRechnung 3.0 XML (UBL and CII) and as ZUGFeRD PDF/A-3 with the XML embedded.",
+                "de_DE": "Rechnungen, Korrekturen und Veranstalter-Abrechnungen als XRechnung 3.0 (XML in UBL und CII) und als ZUGFeRD-PDF/A-3 mit eingebettetem XML.",
+                "de_DE_formal": "Rechnungen, Korrekturen und Veranstalter-Abrechnungen als XRechnung 3.0 (XML in UBL und CII) und als ZUGFeRD-PDF/A-3 mit eingebettetem XML."
+            },
+            "status": "available"
+        },
+        {
+            "key": "pass.card_terminal",
+            "label": {
+                "en": "Card terminals at the box office (Stripe Terminal, SumUp)",
+                "de_DE": "Kartenterminals an der Kasse (Stripe Terminal, SumUp)",
+                "de_DE_formal": "Kartenterminals an der Kasse (Stripe Terminal, SumUp)"
+            },
+            "status": "available"
+        },
+        {
+            "key": "pass.white_label",
+            "label": {
+                "en": "White label: own product name and logo",
+                "de_DE": "White Label: eigener Produktname und eigenes Logo",
+                "de_DE_formal": "White Label: eigener Produktname und eigenes Logo"
+            },
+            "status": "available"
+        },
+        {
+            "key": "pass.waiting_room",
+            "label": {
+                "en": "Virtual waiting room for sales starts",
+                "de_DE": "Virtueller Warteraum für Verkaufsstarts",
+                "de_DE_formal": "Virtueller Warteraum für Verkaufsstarts"
+            },
+            "status": "available"
+        },
+        {
+            "key": "pass.write_api",
+            "label": {
+                "en": "Write API for orders, tickets and check-ins",
+                "de_DE": "Schreibende API für Bestellungen, Tickets und Check-ins",
+                "de_DE_formal": "Schreibende API für Bestellungen, Tickets und Check-ins"
+            },
+            "status": "available"
+        }
+    ]
 }

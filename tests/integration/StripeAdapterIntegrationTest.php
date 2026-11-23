@@ -1174,6 +1174,66 @@ final class StripeAdapterIntegrationTest extends WPLC_Renewal_TestCase {
 		$this->assertSame( '', $this->renewal_order( $f['renewal_id'] )->get_meta( StripeRecurringAdapter::META_ATTEMPT_REQUEST, true ), 'A settled attempt leaves no stored request behind.' );
 	}
 
+	/** P-03: a changed amount while the result is unknown (here: tax recalculated) never gets a new Stripe key. */
+	public function test_p03_amount_change_while_reconciling_keeps_the_stripe_key_of_the_first_request(): void {
+		$f = $this->due_renewal();
+		WC_Stripe_API::$responses[] = new RuntimeException( 'timeout' );
+		RenewalProcessor::process( $f['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $this->renewal( $f['renewal_id'] )['status'] );
+		$first_key    = WC_Stripe_API::$requests[0]['key'];
+		$first_amount = (int) WC_Stripe_API::$requests[0]['request']['amount'];
+
+		// The gross total changes, the net line total stays (so the order is still charged).
+		$order = $this->renewal_order( $f['renewal_id'] );
+		$order->set_total( (string) ( ( $first_amount + 1000 ) / 100 ) );
+		$order->save();
+
+		// The first request had reached Stripe: the same key with another amount is refused.
+		WC_Stripe_API::$responses[] = (object) array( 'error' => (object) array( 'type' => 'idempotency_error' ) );
+		$this->make_due_again( $f['renewal_id'] );
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$this->assertSame( 2, $this->posts() );
+		$this->assertSame( $first_amount + 1000, (int) WC_Stripe_API::$requests[1]['request']['amount'] );
+		$this->assertSame( $first_key, WC_Stripe_API::$requests[1]['key'], 'A changed amount must not create a new idempotency key.' );
+		$renewal = $this->renewal( $f['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_RECONCILING, $renewal['status'], 'The first payment is looked up again, nothing new is charged.' );
+		$this->assertSame( 'renewal_result_unknown', $renewal['last_error'] );
+		$this->assertSame( '0', (string) $renewal['attempt_count'] );
+		$order = $this->renewal_order( $f['renewal_id'] );
+		$this->assertNotSame( 'failed', $order->get_status() );
+		$this->assertSame( $first_key, $order->get_meta( StripeRecurringAdapter::META_ATTEMPT_REQUEST, true )['key'] );
+		$this->assertNotEmpty(
+			array_filter(
+				$this->notes( (int) $order->get_id() ),
+				static function ( string $note ): bool {
+					return false !== strpos( $note, 'Stripe holds that first request' );
+				}
+			),
+			'The order says why nothing was charged.'
+		);
+
+		// The first payment is found by the search: it is booked, with no further request.
+		$found = $this->intent(
+			'succeeded',
+			array(
+				'amount'   => $first_amount,
+				'metadata' => $this->own_metadata( $f['renewal_id'], $f['license_id'], $order ),
+			)
+		);
+		WC_Stripe_API::$on_retrieve = static function ( $api ) use ( $found ) {
+			return 0 === strpos( $api, 'payment_intents/search' ) ? (object) array( 'data' => array( $found ) ) : (object) array( 'error' => (object) array( 'code' => 'resource_missing' ) );
+		};
+		$this->make_due_again( $f['renewal_id'] );
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$this->assertSame( 2, $this->posts(), 'No third request: a payment of the first amount exists.' );
+		$renewal = $this->renewal( $f['renewal_id'] );
+		$this->assertSame( RenewalProcessor::STATUS_REVIEW, $renewal['status'], 'A payment with another amount than the order goes to review, it is not booked silently.' );
+		$this->assertSame( 'renewal_amount_mismatch', $renewal['review_reason'] );
+		$this->assertSame( 'active', $this->license( $f['license_id'] )['status'] );
+	}
+
 	/** P-03: while the result is unknown, a search Stripe refuses is not "nothing found". */
 	public function test_p03_refused_search_while_reconciling_sends_no_request(): void {
 		$f = $this->due_renewal();

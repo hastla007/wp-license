@@ -284,10 +284,10 @@ final class LicenseIssuer {
 		 *
 		 * @since 0.2.0
 		 *
-		 * @param string[]  $gateway_ids Default: cash on delivery.
+		 * @param string[]  $gateway_ids Default: the setting "Payment methods paid on delivery" (cod, cash on delivery).
 		 * @param \WC_Order $order       Order.
 		 */
-		$deferred = (array) apply_filters( 'wplc_issue_after_completion_gateways', array( 'cod' ), $order );
+		$deferred = (array) apply_filters( 'wplc_issue_after_completion_gateways', \WPLC\Settings\Registry::list( 'issue_after_completion_gateways' ), $order );
 
 		return ! ( $order->has_status( 'processing' ) && in_array( (string) $order->get_payment_method(), $deferred, true ) );
 	}

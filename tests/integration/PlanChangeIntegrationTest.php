@@ -549,6 +549,21 @@ final class PlanChangeIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'solo', $this->license( $license_id )['plan_key'] );
 	}
 
+	/** SET-LIC-42: how long an upgrade offer stays payable is a setting (hours). */
+	public function test_upgrade_offer_validity_follows_the_setting(): void {
+		$license_id = $this->buy( 'solo' );
+		$order      = $this->start_upgrade( $license_id );
+		$order->update_meta_data( PlanUpgrade::META_QUOTED_AT, time() - 2 * HOUR_IN_SECONDS );
+		$order->save();
+		$this->assertTrue( wc_get_order( $order->get_id() )->needs_payment(), 'Default 24 hours.' );
+
+		update_option( \WPLC\Admin\Settings::OPTION, array( 'upgrade_quote_hours' => '1' ) );
+		$this->assertSame( HOUR_IN_SECONDS, PlanUpgrade::quote_ttl() );
+		$this->assertFalse( wc_get_order( $order->get_id() )->needs_payment() );
+		$this->assertSame( \WPLC\License\AuditReason::UPGRADE_QUOTE_EXPIRED, PlanUpgrade::open_order_problem( wc_get_order( $order->get_id() ), time() ) );
+		delete_option( \WPLC\Admin\Settings::OPTION );
+	}
+
 	public function test_booking_a_renewal_cancels_upgrade_orders_of_the_previous_period(): void {
 		$license_id = $this->buy( 'solo' );
 		$this->set_license( $license_id, array( 'paid_until' => gmdate( 'Y-m-d H:i:s', time() + 5 * DAY_IN_SECONDS ) ) );

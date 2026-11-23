@@ -42,6 +42,7 @@ final class SupportHelpersTest extends TestCase {
 		}
 		$this->assertSame( 'manage_options', $defaults['wplc_publish_releases'] );
 		$this->assertSame( 'manage_options', $defaults['wplc_manage_package_hosts'] );
+		$this->assertSame( 'manage_options', $defaults['wplc_manage_policy'] );
 		// T-94 (owner decision of 16 Nov 2026): price changes stay with the administrator.
 		$this->assertSame( 'manage_options', $defaults['wplc_change_prices'] );
 

@@ -30,47 +30,110 @@ final class SiteUrl {
 	private static $use_intl = null;
 
 	/**
-	 * Subdomain labels that mark a staging copy. Only labels left of the
-	 * registrable domain count: `.dev` is a public TLD with live shops (P-13).
+	 * Subdomain labels that mark a staging copy: the setting "Staging: name parts" (SET-LIC-09).
+	 *
+	 * Only labels left of the registrable domain count: `.dev` is a public TLD with live shops (P-13).
+	 *
+	 * @return string[]
 	 */
-	private const STAGING_LABELS = array( 'staging', 'stage', 'stg', 'dev', 'test', 'testing', 'preprod', 'preview', 'sandbox', 'uat' );
+	public static function staging_labels(): array {
+		$list = \WPLC\Settings\Registry::list( 'staging_labels' );
+		if ( function_exists( 'apply_filters' ) ) {
+			/**
+			 * Filters the name parts that mark a staging copy (SET-LIC-09). Wins over the setting "Staging: name parts".
+			 *
+			 * @since 0.2.0
+			 *
+			 * @param string[] $list The setting (default: the built-in list).
+			 */
+			$list = apply_filters( 'wplc_staging_labels', $list );
+		}
+
+		return self::clean_list( $list );
+	}
 
 	/**
-	 * Domain suffixes of hosting providers' temporary and staging hosts.
+	 * Domains of hosting providers' staging and temporary hosts, without the leading dot: the setting
+	 * "Staging: hosting provider domains" (SET-LIC-09). Their subdomains count as staging copies.
+	 *
+	 * @return string[]
 	 */
-	private const STAGING_SUFFIXES = array(
-		'.wpengine.com',
-		'.wpenginepowered.com',
-		'.kinsta.cloud',
-		'.pantheonsite.io',
-		'.cloudwaysapps.com',
-		'.flywheelsites.com',
-		'.flywheelstaging.com',
-		'.myftpupload.com',
-		'.sg-host.com',
-		'.wpstage.net',
-		'.wpcomstaging.com',
-		'.instawp.xyz',
-		'.tastewp.com',
-		'.runcloud.link',
-		'.ngrok.io',
-		'.ngrok-free.app',
-	);
+	public static function staging_host_suffixes(): array {
+		$list = \WPLC\Settings\Registry::list( 'staging_host_suffixes' );
+		if ( function_exists( 'apply_filters' ) ) {
+			/**
+			 * Filters the hosting provider domains whose subdomains are staging copies, without the leading dot (SET-LIC-09). Wins over the setting.
+			 *
+			 * @since 0.2.0
+			 *
+			 * @param string[] $list The setting (default: the built-in list).
+			 */
+			$list = apply_filters( 'wplc_staging_host_suffixes', $list );
+		}
+
+		return self::clean_list( $list );
+	}
 
 	/**
-	 * Suffixes of names that never resolve on the public internet or belong to local development tools.
+	 * Endings of names that never resolve on the public internet or belong to local development tools,
+	 * without the leading dot: the setting "Local addresses: endings" (SET-LIC-09).
+	 *
+	 * @return string[]
 	 */
-	private const LOCAL_SUFFIXES = array(
-		'.localhost',
-		'.test',
-		'.local',
-		'.internal',
-		'.lan',
-		'.home.arpa',
-		'.localdomain',
-		'.ddev.site',
-		'.lndo.site',
-	);
+	public static function local_host_suffixes(): array {
+		$list = \WPLC\Settings\Registry::list( 'local_host_suffixes' );
+		if ( function_exists( 'apply_filters' ) ) {
+			/**
+			 * Filters the endings of local addresses, without the leading dot (SET-LIC-09). Wins over the setting.
+			 *
+			 * @since 0.2.0
+			 *
+			 * @param string[] $list The setting (default: the built-in list).
+			 */
+			$list = apply_filters( 'wplc_local_host_suffixes', $list );
+		}
+
+		return self::clean_list( $list );
+	}
+
+	/**
+	 * A list after its filter: lower case, without empty entries, repetitions and leading dots.
+	 *
+	 * @param mixed $list Filtered list.
+	 * @return string[]
+	 */
+	private static function clean_list( $list ): array {
+		$out = array();
+		foreach ( is_array( $list ) ? $list : array() as $entry ) {
+			if ( ! is_string( $entry ) ) {
+				continue;
+			}
+			$entry = ltrim( strtolower( trim( $entry ) ), '.' );
+			if ( '' !== $entry ) {
+				$out[ $entry ] = $entry;
+			}
+		}
+
+		return array_values( $out );
+	}
+
+	/**
+	 * Whether a host ends in ".<suffix>" for one of the suffixes.
+	 *
+	 * @param string   $host     Lower-case host.
+	 * @param string[] $suffixes Suffixes without the leading dot.
+	 * @return bool
+	 */
+	private static function ends_with_any( string $host, array $suffixes ): bool {
+		foreach ( $suffixes as $suffix ) {
+			$suffix = '.' . $suffix;
+			if ( strlen( $host ) > strlen( $suffix ) && substr( $host, -strlen( $suffix ) ) === $suffix ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
 
 	/**
 	 * Normalize a site origin and optional WordPress subdirectory path.
@@ -221,13 +284,7 @@ final class SiteUrl {
 		if ( false === strpos( $host, '.' ) ) {
 			return true;
 		}
-		foreach ( self::LOCAL_SUFFIXES as $suffix ) {
-			if ( substr( $host, -strlen( $suffix ) ) === $suffix ) {
-				return true;
-			}
-		}
-
-		return false;
+		return self::ends_with_any( $host, self::local_host_suffixes() );
 	}
 
 	/**
@@ -335,7 +392,7 @@ final class SiteUrl {
 		}
 		$subdomain = substr( $host, 0, -strlen( '.' . $domain ) );
 
-		return array() !== array_intersect( explode( '.', $subdomain ), self::STAGING_LABELS );
+		return array() !== array_intersect( explode( '.', $subdomain ), self::staging_labels() );
 	}
 
 	/**
@@ -345,13 +402,7 @@ final class SiteUrl {
 	 * @return bool
 	 */
 	private static function has_staging_suffix( string $host ): bool {
-		foreach ( self::STAGING_SUFFIXES as $suffix ) {
-			if ( substr( $host, -strlen( $suffix ) ) === $suffix ) {
-				return true;
-			}
-		}
-
-		return false;
+		return self::ends_with_any( $host, self::staging_host_suffixes() );
 	}
 
 	/**

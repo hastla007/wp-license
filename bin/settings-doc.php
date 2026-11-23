@@ -79,7 +79,7 @@ function wplc_settings_doc(): string {
 			if ( 'bool' === $definition['type'] ) {
 				$default = $definition['default'] ? 'on' : 'off';
 			}
-			$help = \WPLC\Settings\Texts::help( $key ) . ( $definition['legal'] ? ' **Legal review.**' : '' ) . ( 'manage_settings' !== $definition['capability'] ? ' Administrators only.' : '' );
+			$help = \WPLC\Settings\Texts::help( $key ) . ( $definition['legal'] ? ' **Legal review.**' : '' ) . ( 'manage_policy' === $definition['capability'] ? ' Manufacturer rule (`wplc_manage_policy`, by default administrators).' : ( 'manage_settings' !== $definition['capability'] ? ' Administrators only.' : '' ) );
 			$out .= '| ' . $cell( \WPLC\Settings\Texts::label( $key ) ) . ' | `' . $key . '` | ' . $cell( $kind ) . ' | ' . ( '' === $default ? '(empty)' : '`' . $cell( $default ) . '`' ) . ' | ' . ( '' === $definition['filter'] ? '–' : '`' . $definition['filter'] . '`' ) . ' | ' . $cell( $help ) . " |\n";
 		}
 		$out .= "\n";

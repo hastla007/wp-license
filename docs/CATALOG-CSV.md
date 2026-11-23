@@ -12,7 +12,9 @@ The screen, the export and the import need the catalog capability: `manage_wooco
 
 Columns, in this order:
 
-`product_id,variation_id,sku,product_key,plan_key,billing_interval,live_site_limit,support_level,entitlements_json`
+`product_id,variation_id,sku,product_key,plan_key,billing_interval,live_site_limit,support_level,entitlements_json,staging_site_limit,development_site_limit,offline_cache_days,max_quantity_per_line,co_user_limit`
+
+A file with only the first nine columns (exported before the overrides per plan existed) still imports; it leaves the overrides of the plans as they are.
 
 | Column | Rule |
 |---|---|
@@ -25,10 +27,15 @@ Columns, in this order:
 | `live_site_limit` | Whole number from 1 to 1000. |
 | `support_level` | `community`, `standard` or `priority`. |
 | `entitlements_json` | JSON object with simple values, at most 4096 characters, or empty. |
+| `staging_site_limit` | Staging sites per live site of this plan, 0 to 10, or empty for the global setting. |
+| `development_site_limit` | Development sites of a license of this plan, exactly this number, 0 to 100, or empty. |
+| `offline_cache_days` | Offline period of the customer sites of this plan in days, 1 to 90, or empty. |
+| `max_quantity_per_line` | Largest quantity of this plan in one order line, 0 to 100000 (0 = no limit), or empty. |
+| `co_user_limit` | Co-users per license of this plan, 0 to 100, or empty. |
 
 Keys are validated, never rewritten: `Jährlich` or `my_plan` is rejected with a reason instead of being stored as something else. Capital letters and surrounding blanks are the only things that are normalized. The product editor applies the same rules.
 
-Comma and semicolon separated files are both accepted, with or without a UTF-8 byte order mark, so a file edited and saved in Excel imports. The header line must stay unchanged.
+Comma and semicolon separated files are both accepted, with or without a UTF-8 byte order mark, so a file edited and saved in Excel imports. The header line must stay unchanged (or be the nine-column header of an older export).
 
 Prices and currency are read from the WooCommerce product at import time; the CSV cannot set a price. The customer-facing name of a license product is not part of the file and is not changed by an import.
 
@@ -37,13 +44,13 @@ Prices and currency are read from the WooCommerce product at import time; the CS
 The three plans of the decision of 16 Nov 2026 (`docs/ENTITLEMENTS.md`, "Proposed plan mapping"): every plan has the same Pro functions, plans differ by live sites, and Agency adds priority support. Product IDs and SKUs are those of your shop. `sites.live_limit` and `support.level` come from their own columns and are not repeated in the JSON.
 
 ```csv
-product_id,variation_id,sku,product_key,plan_key,billing_interval,live_site_limit,support_level,entitlements_json
-120,121,VCP-SINGLE,voucher-captain-pro,single,year,1,standard,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true}"
-120,122,VCP-BUSINESS,voucher-captain-pro,business,year,5,standard,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true}"
-120,123,VCP-AGENCY,voucher-captain-pro,agency,year,25,priority,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true,""voucher.priority_support"":true}"
+product_id,variation_id,sku,product_key,plan_key,billing_interval,live_site_limit,support_level,entitlements_json,staging_site_limit,development_site_limit,offline_cache_days,max_quantity_per_line,co_user_limit
+120,121,VCP-SINGLE,voucher-captain-pro,single,year,1,standard,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true}",,,,,
+120,122,VCP-BUSINESS,voucher-captain-pro,business,year,5,standard,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true}",,,,,
+120,123,VCP-AGENCY,voucher-captain-pro,agency,year,25,priority,"{""voucher.bulk_orders"":true,""voucher.wallet_passes"":true,""voucher.sms_delivery"":true,""voucher.white_label"":true,""voucher.priority_support"":true}",3,,30,,10
 ```
 
-Importing this file changes the plans for new licenses only; existing licenses keep the keys they stored (see "Changing a plan that licenses already use" in `docs/ENTITLEMENTS.md`).
+Here Agency also allows three staging sites per live site, a 30-day offline period and ten co-users; the other plans use the global settings. Importing this file changes the plans for new licenses only (the overrides apply to existing licenses of the plan at once); existing licenses keep the keys they stored (see "Changing a plan that licenses already use" in `docs/ENTITLEMENTS.md`).
 
 ## Export
 

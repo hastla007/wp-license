@@ -28,7 +28,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.3.0';
+		const VERSION = '2.4.0';
 
 		/**
 		 * A signed answer ended the activation: rights and credentials are dropped.
@@ -80,6 +80,20 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * Seconds before the end of the signed offline window from which Site Health recommends a look (since 2.1.1).
 		 */
 		const HEALTH_LOW_WINDOW = 259200;
+
+		/**
+		 * Placeholder of the key field when the build names none (since 2.4.0; see brand()).
+		 */
+		const DEFAULT_KEY_PLACEHOLDER = 'WPLC-…';
+
+		/**
+		 * Brand values of the build (since 2.4.0): `support_email`, `support_url`, `key_placeholder`.
+		 *
+		 * Empty in the library. `bin/export-client.php --support-email= --support-url= --key-placeholder=`
+		 * writes the vendor's values into this line of the exported copy; the setting `brand` of an
+		 * add-on overrides them value by value. Keep the marker comment at the end of the line.
+		 */
+		const BUILD_BRAND = array(); // wplc-export:brand
 
 		/**
 		 * Settings.
@@ -142,7 +156,15 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 *     @type string          $option_prefix   Prefix of options and hooks. Default: product key with underscores.
 		 *     @type bool            $network         Multisite: one activation for the whole network. Default false.
 		 *     @type string          $update_uri      Value of the `Update URI` header. Default: read from the plugin file.
-		 *     @type string          $channel         `stable` or `beta`.
+		 *     @type string          $channel         `stable` (default) or `beta`. `beta` makes every site of the build
+		 *                                            ask for beta versions; the customer cannot change it.
+		 *     @type bool            $allow_channel_choice Since 2.4.0: with `channel` `stable`, the license screen offers
+		 *                                            the customer the checkbox "Receive beta versions" (stored per
+		 *                                            site, default off), shown while the signed answer of the
+		 *                                            server does not exclude beta (`update_channels`). Default false.
+		 *     @type array           $brand           Since 2.4.0: `support_email`, `support_url`, `key_placeholder`
+		 *                                            (license screen, notices of a suspended or revoked license).
+		 *                                            Overrides BUILD_BRAND value by value.
 		 *     @type string|callable $core_version    Version of the free base plugin (or a callable returning it).
 		 *     @type string|false    $settings_parent Admin menu the license screen is added to; false for none.
 		 *                                            Default `options-general.php` (`settings.php` in network mode).
@@ -167,18 +189,20 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			$this->prefix = $prefix;
 			$this->config = array_merge(
 				array(
-					'plugin_file'     => '',
-					'version'         => '',
-					'name'            => $product_key,
-					'text_domain'     => '',
-					'update_uri'      => '',
-					'channel'         => 'stable',
-					'core_version'    => '',
-					'settings_parent' => $network ? 'settings.php' : 'options-general.php',
-					'capability'      => $network ? 'manage_network_options' : 'manage_options',
-					'account_url'     => '',
-					'settings_url'    => '',
-					'public_keys'     => array(),
+					'plugin_file'          => '',
+					'version'              => '',
+					'name'                 => $product_key,
+					'text_domain'          => '',
+					'update_uri'           => '',
+					'channel'              => 'stable',
+					'allow_channel_choice' => false,
+					'brand'                => array(),
+					'core_version'         => '',
+					'settings_parent'      => $network ? 'settings.php' : 'options-general.php',
+					'capability'           => $network ? 'manage_network_options' : 'manage_options',
+					'account_url'          => '',
+					'settings_url'         => '',
+					'public_keys'          => array(),
 				),
 				$config,
 				array(
@@ -348,6 +372,140 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 */
 		public function config( string $key ) {
 			return $this->config[ $key ] ?? null;
+		}
+
+		/**
+		 * Channel the update checks of this site ask for (since 2.4.0): `stable` or `beta`.
+		 *
+		 * `beta` when the build sets `channel => beta`, or when it allows the choice
+		 * (`allow_channel_choice`) and the customer ticked "Receive beta versions" on this site.
+		 * Otherwise `stable`, as in 2.3 and before. The server decides what a request for beta
+		 * returns; asking for beta never unlocks anything the license does not cover.
+		 *
+		 * @return string
+		 */
+		public function update_channel(): string {
+			if ( 'beta' === $this->config['channel'] ) {
+				return 'beta';
+			}
+
+			return $this->beta_chosen() ? 'beta' : 'stable';
+		}
+
+		/**
+		 * Whether the customer chose beta versions on this site (since 2.4.0). Always false without `allow_channel_choice`.
+		 *
+		 * @return bool
+		 */
+		public function beta_chosen(): bool {
+			return ! empty( $this->config['allow_channel_choice'] ) && 'beta' === $this->client()->store()->get( $this->channel_option(), '' );
+		}
+
+		/**
+		 * Whether the license screen offers the checkbox "Receive beta versions" (since 2.4.0).
+		 *
+		 * Only with `allow_channel_choice`, `channel` `stable`, an activation for this address and a
+		 * verified signed answer that does not exclude beta. A server that limits beta lists the channels
+		 * of the license in `update_channels` of the signed entitlement answer (SET-LIC-20); servers that
+		 * send no such list give beta to every client that asks, so the box is offered. A site that chose
+		 * beta keeps the box, so the customer can switch back.
+		 *
+		 * @return bool
+		 */
+		public function offers_channel_choice(): bool {
+			if ( empty( $this->config['allow_channel_choice'] ) || 'beta' === $this->config['channel'] ) {
+				return false;
+			}
+			if ( ! $this->client()->is_activated() || ! $this->client()->site_matches() ) {
+				return false;
+			}
+			if ( $this->beta_chosen() ) {
+				return true;
+			}
+			$data = $this->snapshot();
+			if ( empty( $data ) ) {
+				return false;
+			}
+
+			return ! isset( $data['update_channels'] ) || ( is_array( $data['update_channels'] ) && in_array( 'beta', $data['update_channels'], true ) );
+		}
+
+		/**
+		 * Store the customer's choice of beta versions for this site (since 2.4.0).
+		 *
+		 * The cached update offer is dropped, so the next check asks for the new channel.
+		 *
+		 * @param bool $beta Whether this site receives beta versions.
+		 * @return true|\WP_Error `wplc_beta_unavailable` when the build or the license offers no choice,
+		 *                        `wplc_setting_not_saved` when the database did not take the value.
+		 */
+		public function choose_beta( bool $beta ) {
+			if ( $beta && ! $this->offers_channel_choice() ) {
+				return $this->error( 'wplc_beta_unavailable' );
+			}
+			$stored = $beta ? $this->client()->store()->set( $this->channel_option(), 'beta' ) : $this->client()->store()->delete( $this->channel_option() );
+			if ( ! $stored ) {
+				return $this->error( 'wplc_setting_not_saved' );
+			}
+			$this->updater()->flush();
+
+			return true;
+		}
+
+		/**
+		 * Brand values of the vendor (since 2.4.0): defaults, then BUILD_BRAND, then the setting `brand`.
+		 *
+		 * `support_email` only when it is a valid address, `support_url` only with http(s),
+		 * `key_placeholder` at most 80 characters (default DEFAULT_KEY_PLACEHOLDER).
+		 *
+		 * @return array{support_email:string,support_url:string,key_placeholder:string}
+		 */
+		public function brand(): array {
+			$brand = array(
+				'support_email'   => '',
+				'support_url'     => '',
+				'key_placeholder' => self::DEFAULT_KEY_PLACEHOLDER,
+			);
+			$given = is_array( $this->config['brand'] ) ? $this->config['brand'] : array();
+			foreach ( array( (array) self::BUILD_BRAND, $given ) as $layer ) {
+				foreach ( array_keys( $brand ) as $key ) {
+					if ( isset( $layer[ $key ] ) && is_string( $layer[ $key ] ) && '' !== trim( $layer[ $key ] ) ) {
+						$brand[ $key ] = trim( $layer[ $key ] );
+					}
+				}
+			}
+			if ( '' !== $brand['support_email'] && false === filter_var( $brand['support_email'], FILTER_VALIDATE_EMAIL ) ) {
+				$brand['support_email'] = '';
+			}
+			if ( '' !== $brand['support_url'] && 1 !== preg_match( '#^https?://[^\s/?\#]+#i', $brand['support_url'] ) ) {
+				$brand['support_url'] = '';
+			}
+
+			return array(
+				'support_email'   => $brand['support_email'],
+				'support_url'     => $brand['support_url'],
+				'key_placeholder' => function_exists( 'mb_substr' ) ? mb_substr( $brand['key_placeholder'], 0, 80 ) : substr( $brand['key_placeholder'], 0, 80 ),
+			);
+		}
+
+		/**
+		 * Support contact of the brand as one line of text ("support@… · https://…"); empty without one.
+		 *
+		 * @return string
+		 */
+		private function support_contact(): string {
+			$brand = $this->brand();
+
+			return implode( ' · ', array_filter( array( $brand['support_email'], $brand['support_url'] ) ) );
+		}
+
+		/**
+		 * Name of the option with the customer's channel choice (per site; network option in network mode).
+		 *
+		 * @return string
+		 */
+		private function channel_option(): string {
+			return $this->prefix . '_license_channel';
 		}
 
 		/**
@@ -766,6 +924,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			$this->client()->forget();
 			$this->client()->store()->delete( $this->state_option() );
 			$this->client()->store()->delete( $this->prefix . '_update_meta' );
+			$this->client()->store()->delete( $this->channel_option() );
 			wp_clear_scheduled_hook( $this->cron_hook() );
 		}
 
@@ -842,6 +1001,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			if ( '' !== $status->environment && '' !== $status->installation_id ) {
 				$this->row( $this->text( 'ui.environment' ), $this->text( 'ui.environment.' . $status->environment ) . ' (' . $status->installation_id . ')' );
 			}
+			if ( '' !== $status->installation_id && ( ! empty( $this->config['allow_channel_choice'] ) || 'beta' === $this->config['channel'] ) ) {
+				$this->row( $this->text( 'ui.channel' ), $this->text( 'ui.channel.' . $this->update_channel() ) );
+			}
 			if ( '' !== $status->installation_id ) {
 				$this->row( $this->text( 'ui.last_checked' ), 0 === $status->last_checked ? $this->text( 'ui.never' ) : $this->date( gmdate( 'Y-m-d H:i:s', $status->last_checked ) ) );
 			}
@@ -851,6 +1013,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			echo '</tbody></table>';
 
 			if ( LicenseStatus::STATE_MISCONFIGURED === $status->state ) {
+				$this->render_support();
 				echo '</div>';
 				return;
 			}
@@ -859,7 +1022,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			wp_nonce_field( $this->prefix . '_license' );
 			echo '<input type="hidden" name="action" value="' . esc_attr( $this->prefix . '_license' ) . '">';
-			$key_input = '<input type="text" class="regular-text code" name="' . esc_attr( $field ) . '" id="' . esc_attr( $field ) . '" autocomplete="off" spellcheck="false" placeholder="WPLC-…">';
+			$key_input = '<input type="text" class="regular-text code" name="' . esc_attr( $field ) . '" id="' . esc_attr( $field ) . '" autocomplete="off" spellcheck="false" placeholder="' . esc_attr( $this->brand()['key_placeholder'] ) . '">';
 			$label     = '<label for="' . esc_attr( $field ) . '"><strong>' . esc_html( $this->text( 'ui.license_key' ) ) . '</strong></label><br>';
 			$allowed   = array(
 				'input'  => array(
@@ -884,7 +1047,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$this->row( $this->text( 'ui.activated_address' ), $old );
 				$this->row( $this->text( 'ui.current_address' ), $new );
 				echo '</tbody></table>';
-				echo '<p>' . wp_kses( $label . $key_input, $allowed ) . '</p><p>';
+				echo '<p>' . wp_kses( $label . $key_input, $allowed ) . '</p>';
+				$this->render_site_type( true );
+				echo '<p>';
 				$this->button( 'activate', $this->text( 'ui.activate_copy' ), true );
 				$this->button( 'deactivate', $this->text( 'ui.forget' ) );
 				echo '</p>';
@@ -897,6 +1062,12 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$this->button( 'move', $this->text( 'ui.move' ) );
 				echo '</p>';
 			} elseif ( '' !== $status->installation_id ) {
+				if ( $this->offers_channel_choice() ) {
+					// Since 2.4.0: the customer opts in to beta versions for this site (SET-LIC-33).
+					echo '<p><label><input type="checkbox" name="wplc_beta" value="1"' . ( $this->beta_chosen() ? ' checked="checked"' : '' ) . '> ' . esc_html( $this->text( 'ui.beta' ) ) . '</label> ';
+					$this->button( 'channel', $this->text( 'ui.save_channel' ) );
+					echo '</p><p class="description">' . esc_html( $this->text( 'ui.beta_help' ) ) . '</p>';
+				}
 				echo '<p>';
 				$this->button( 'check', $this->text( 'ui.check_now' ), true );
 				if ( $status->needs_reactivation ) {
@@ -909,12 +1080,63 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				echo '<p>' . wp_kses( $label . $key_input, $allowed ) . ' ';
 				$this->button( 'activate', $this->text( 'ui.activate' ) );
 				echo '</p>';
+				$this->render_site_type( false );
 			} else {
 				echo '<p>' . wp_kses( $label . $key_input, $allowed ) . ' ';
 				$this->button( 'activate', $this->text( 'ui.activate' ), true );
 				echo '</p>';
+				$this->render_site_type( false );
 			}
-			echo '</form></div>';
+			echo '</form>';
+			$this->render_support();
+			echo '</div>';
+		}
+
+		/**
+		 * Print the choice of the environment for the activation (since 2.4.0, SET-LIC-34).
+		 *
+		 * Collapsed while the detection says "live site"; open otherwise. "Detected automatically"
+		 * is preselected, so the request is the same as before unless the administrator changes it.
+		 * The server still decides by its own rules (a staging site on an unrelated address counts
+		 * as a live site); the field only corrects a wrong `wp_get_environment_type()`.
+		 *
+		 * @param bool $copy Whether this is a copy of an activated site (the live site's ID is then known).
+		 * @return void
+		 */
+		private function render_site_type( bool $copy ): void {
+			$detected = LicenseClient::detect_environment();
+			$select   = $this->prefix . '_license_environment';
+			$parent   = $this->prefix . '_license_staging_parent';
+			echo '<details' . ( 'production' === $detected ? '' : ' open' ) . '><summary>' . esc_html( $this->text( 'ui.site_type' ) ) . '</summary>';
+			echo '<p><label for="' . esc_attr( $select ) . '">' . esc_html( $this->text( 'ui.site_type' ) ) . '</label><br><select name="wplc_environment" id="' . esc_attr( $select ) . '">';
+			echo '<option value="">' . esc_html( sprintf( $this->text( 'ui.site_type.detected' ), $this->text( 'ui.environment.' . $detected ) ) ) . '</option>';
+			foreach ( LicenseClient::ENVIRONMENTS as $environment ) {
+				echo '<option value="' . esc_attr( $environment ) . '">' . esc_html( $this->text( 'ui.environment.' . $environment ) ) . '</option>';
+			}
+			echo '</select></p>';
+			if ( ! $copy ) {
+				echo '<p><label for="' . esc_attr( $parent ) . '">' . esc_html( $this->text( 'ui.staging_parent' ) ) . '</label><br><input type="text" class="regular-text code" name="wplc_staging_parent" id="' . esc_attr( $parent ) . '" autocomplete="off" spellcheck="false"></p>';
+			}
+			echo '<p class="description">' . esc_html( $this->text( 'ui.site_type_help' ) ) . '</p></details>';
+		}
+
+		/**
+		 * Print the support contact of the brand under the license screen (since 2.4.0); nothing without one.
+		 *
+		 * @return void
+		 */
+		private function render_support(): void {
+			$brand = $this->brand();
+			$links = array();
+			if ( '' !== $brand['support_email'] ) {
+				$links[] = '<a href="' . esc_url( 'mailto:' . $brand['support_email'] ) . '">' . esc_html( $brand['support_email'] ) . '</a>';
+			}
+			if ( '' !== $brand['support_url'] ) {
+				$links[] = '<a href="' . esc_url( $brand['support_url'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $brand['support_url'] ) . '</a>';
+			}
+			if ( ! empty( $links ) ) {
+				echo '<p class="description">' . esc_html( $this->text( 'ui.support' ) ) . ': ' . implode( ' · ', $links ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every part is escaped above.
+			}
 		}
 
 		/**
@@ -932,7 +1154,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			$key    = isset( $_POST[ $field ] ) ? sanitize_text_field( wp_unslash( $_POST[ $field ] ) ) : '';
 			// Each action that gives something up has its own confirmation field: `move`, and since 2.1.0 `deactivate`.
 			$confirm = 'deactivate' === $do ? 'wplc_confirm_deactivate' : 'wplc_confirm_move';
-			$result  = $this->run_form_action( $do, $key, ! empty( $_POST[ $confirm ] ) );
+			// Since 2.4.0: the environment of an activation and the channel choice.
+			$options = array(
+				'environment'    => isset( $_POST['wplc_environment'] ) ? sanitize_key( wp_unslash( $_POST['wplc_environment'] ) ) : '',
+				'staging_parent' => isset( $_POST['wplc_staging_parent'] ) ? sanitize_text_field( wp_unslash( $_POST['wplc_staging_parent'] ) ) : '',
+				'beta'           => ! empty( $_POST['wplc_beta'] ),
+			);
+			$result  = $this->run_form_action( $do, $key, ! empty( $_POST[ $confirm ] ), $options );
 
 			set_transient( $this->flash_key(), $result, 60 );
 			$target = $this->settings_url();
@@ -956,17 +1184,43 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * (`site_changed`) `deactivate` only removes the copied data and needs no confirmation.
 		 * Code that calls this without the form confirms explicitly: `run_form_action( 'deactivate', '', true )`.
 		 *
-		 * @param string $action      `activate`, `move`, `deactivate`, `forget` or `check`.
-		 * @param string $license_key Key from the form (`activate`, `move`).
-		 * @param bool   $confirmed   For `move`: the administrator confirmed that the site moved (the old address loses the license).
-		 *                            For `deactivate` (since 2.1.0): the administrator confirmed that this site gives up its license.
+		 * Since 2.4.0 `activate` takes the environment chosen on the form (`$options['environment']`, empty:
+		 * detected) and the installation ID of the live site of a staging site (`$options['staging_parent']`),
+		 * and `channel` stores the customer's choice of beta versions (`$options['beta']`).
+		 *
+		 * @param string              $action      `activate`, `move`, `deactivate`, `forget`, `channel` (since 2.4.0) or `check`.
+		 * @param string              $license_key Key from the form (`activate`, `move`).
+		 * @param bool                $confirmed   For `move`: the administrator confirmed that the site moved (the old address loses the license).
+		 *                                         For `deactivate` (since 2.1.0): the administrator confirmed that this site gives up its license.
+		 * @param array<string,mixed> $options     Since 2.4.0: `environment` (`production`, `staging`, `development` or empty),
+		 *                                         `staging_parent` (installation ID) for `activate`; `beta` (bool) for `channel`.
 		 * @return array{type:string,text:string} Message for the next page view.
 		 */
-		public function run_form_action( string $action, string $license_key = '', bool $confirmed = false ): array {
+		public function run_form_action( string $action, string $license_key = '', bool $confirmed = false, array $options = array() ): array {
 			$saved = 'ui.saved.checked';
 			if ( 'activate' === $action ) {
-				$result = $this->activate( $license_key );
+				$environment = (string) ( $options['environment'] ?? '' );
+				$environment = in_array( $environment, LicenseClient::ENVIRONMENTS, true ) ? $environment : '';
+				$requested   = '' === $environment ? LicenseClient::detect_environment() : $environment;
+				$parent      = 'staging' === $requested ? strtolower( trim( (string) ( $options['staging_parent'] ?? '' ) ) ) : '';
+				// A copy finds the live site's ID in the copied credentials, and an activated site reuses its activation
+				// for the same key; a site without any activation needs the ID, or the server refuses the staging request.
+				if ( 'staging' === $requested && ( '' === $parent ? ! $this->client()->is_activated() : 1 !== preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $parent ) ) ) {
+					return array(
+						'type' => 'error',
+						'text' => $this->client()->messages()->error( 'wplc_staging_parent_missing' ),
+					);
+				}
+				$result = $this->activate( $license_key, $environment, $parent );
 				$saved  = 'ui.saved.activated';
+				if ( $result instanceof LicenseStatus && 'staging' === $requested && 'production' === $result->environment ) {
+					// The server counted the site as a live site (address unrelated to the live site): say why.
+					$saved = 'ui.saved.activated_as_live';
+				}
+			} elseif ( 'channel' === $action ) {
+				$beta   = ! empty( $options['beta'] );
+				$result = $this->choose_beta( $beta );
+				$saved  = $beta ? 'ui.saved.channel_beta' : 'ui.saved.channel_stable';
 			} elseif ( 'move' === $action ) {
 				if ( ! $confirmed ) {
 					return array(
@@ -992,9 +1246,16 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				$result = $this->refresh( true );
 			}
 			if ( is_wp_error( $result ) ) {
+				$data = (array) $result->get_error_data();
+				$text = $this->error_text( $result ) . ' (' . $result->get_error_code() . ')';
+				if ( 'staging' === ( $data['requested_environment'] ?? '' ) && 'production' === ( $data['environment'] ?? '' ) ) {
+					// `409 site_limit` for a staging request that the server counted as a live site.
+					$text = $this->text( 'ui.staging_counted_as_live' ) . ' ' . $text;
+				}
+
 				return array(
 					'type' => 'error',
-					'text' => $this->error_text( $result ) . ' (' . $result->get_error_code() . ')',
+					'text' => $text,
 				);
 			}
 
@@ -1083,6 +1344,11 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			}
 			if ( '' !== $this->config['account_url'] && in_array( $status->state, array( LicenseStatus::STATE_GRACE, LicenseStatus::STATE_EXPIRED ), true ) ) {
 				$text .= ' ' . (string) $this->config['account_url'];
+			}
+			$support = $this->support_contact();
+			if ( '' !== $support && in_array( $status->state, array( LicenseStatus::STATE_SUSPENDED, LicenseStatus::STATE_REVOKED ), true ) ) {
+				// Since 2.4.0: whom to ask, when the vendor's build names a support contact.
+				$text .= ' ' . sprintf( $this->text( 'notice.support' ), $support );
 			}
 
 			return array(
@@ -1187,6 +1453,11 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 					'label' => $this->text( 'ui.environment' ),
 					'value' => '' === $status->environment ? $none : $this->text( 'ui.environment.' . $status->environment ),
 					'debug' => '' === $status->environment ? 'none' : $status->environment,
+				),
+				'channel'       => array(
+					'label' => $this->text( 'ui.channel' ),
+					'value' => $this->text( 'ui.channel.' . $this->update_channel() ),
+					'debug' => $this->update_channel(),
 				),
 				'installation'  => array(
 					'label' => $this->text( 'debug.installation' ),

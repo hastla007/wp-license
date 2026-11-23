@@ -12,7 +12,17 @@
  *   can be active at the same time, each with its own version of the library;
  * - the text domain literal `wp-license` becomes the given text domain, so
  *   `wp i18n make-pot` of the add-on picks the strings up;
- * - `@package WPLC` becomes the first segment of the namespace.
+ * - `@package WPLC` becomes the first segment of the namespace;
+ * - since client 2.4.0, the brand values of the vendor go into `LicenseManager::BUILD_BRAND`
+ *   (the line marked `// wplc-export:brand`): `--support-email=` (support address),
+ *   `--support-url=` (http(s) address of the support page) and `--key-placeholder=`
+ *   (placeholder of the key field, default `WPLC-…`, at most 80 characters). Without them the
+ *   line stays empty. The setting `brand` of the add-on still overrides each value.
+ *
+ * Usage with brand values:
+ *   php bin/export-client.php --target=DIR --namespace='Vendor\Licensing' --text-domain=my-addon \
+ *       --support-email=support@vendor.example --support-url=https://vendor.example/support \
+ *       --key-placeholder='VEND-…'
  *
  * It also writes `wplc-client-source.json` next to the copies (PK-06): version of the library, the
  * commit of the license server repository the copies were made from, the checksum of the seven
@@ -35,7 +45,7 @@ if ( 'cli' !== PHP_SAPI ) {
 	exit( 1 );
 }
 
-$wplc_options = getopt( '', array( 'target:', 'namespace:', 'text-domain:', 'source::', 'source-commit::' ) );
+$wplc_options = getopt( '', array( 'target:', 'namespace:', 'text-domain:', 'source::', 'source-commit::', 'support-email::', 'support-url::', 'key-placeholder::' ) );
 $wplc_target  = isset( $wplc_options['target'] ) ? rtrim( (string) $wplc_options['target'], '/' ) : '';
 $wplc_ns      = isset( $wplc_options['namespace'] ) ? trim( (string) $wplc_options['namespace'], '\\' ) : '';
 $wplc_domain  = isset( $wplc_options['text-domain'] ) ? (string) $wplc_options['text-domain'] : '';
@@ -52,6 +62,33 @@ if ( 0 === strcasecmp( $wplc_ns, 'WPLC\\Client' ) ) {
 	fwrite( STDERR, "Choose a namespace of the add-on, not WPLC\\Client.\n" );
 	exit( 2 );
 }
+
+// Brand values of the vendor (client 2.4.0 and later): option name => key in LicenseManager::BUILD_BRAND.
+$wplc_brand_options = array(
+	'support-email'   => 'support_email',
+	'support-url'     => 'support_url',
+	'key-placeholder' => 'key_placeholder',
+);
+$wplc_brand         = array();
+foreach ( $wplc_brand_options as $wplc_option => $wplc_key ) {
+	$wplc_value = isset( $wplc_options[ $wplc_option ] ) && is_string( $wplc_options[ $wplc_option ] ) ? trim( $wplc_options[ $wplc_option ] ) : '';
+	if ( '' !== $wplc_value ) {
+		$wplc_brand[ $wplc_key ] = $wplc_value;
+	}
+}
+if ( isset( $wplc_brand['support_email'] ) && false === filter_var( $wplc_brand['support_email'], FILTER_VALIDATE_EMAIL ) ) {
+	fwrite( STDERR, "--support-email must be an e-mail address.\n" );
+	exit( 2 );
+}
+if ( isset( $wplc_brand['support_url'] ) && 1 !== preg_match( '#^https?://[^\s/?\#]+\S*$#i', $wplc_brand['support_url'] ) ) {
+	fwrite( STDERR, "--support-url must be an http(s) address.\n" );
+	exit( 2 );
+}
+if ( isset( $wplc_brand['key_placeholder'] ) && ( mb_strlen( $wplc_brand['key_placeholder'] ) > 80 || 1 === preg_match( '/[\x00-\x1F\x7F]/', $wplc_brand['key_placeholder'] ) ) ) {
+	fwrite( STDERR, "--key-placeholder must be one line of at most 80 characters.\n" );
+	exit( 2 );
+}
+
 if ( ! is_dir( $wplc_target ) && ! mkdir( $wplc_target, 0755, true ) ) {
 	fwrite( STDERR, "Cannot create {$wplc_target}.\n" );
 	exit( 1 );
@@ -108,6 +145,18 @@ foreach ( (array) glob( $wplc_source . '/*.php' ) as $wplc_file ) {
 		array( 'namespace ' . $wplc_ns . ';', "'" . $wplc_domain . "'", '@package ' . $wplc_package ),
 		$wplc_code
 	);
+	if ( 'LicenseManager.php' === basename( $wplc_file ) && ! empty( $wplc_brand ) ) {
+		$wplc_marker = 'const BUILD_BRAND = array(); // wplc-export:brand';
+		if ( 1 !== substr_count( $wplc_code, $wplc_marker ) ) {
+			fwrite( STDERR, "LicenseManager.php has no line for brand values (client 2.4.0 or later needed for --support-email, --support-url, --key-placeholder).\n" );
+			exit( 1 );
+		}
+		$wplc_items = array();
+		foreach ( $wplc_brand as $wplc_key => $wplc_value ) {
+			$wplc_items[] = var_export( $wplc_key, true ) . ' => ' . var_export( $wplc_value, true ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_var_export -- writes PHP source.
+		}
+		$wplc_code = str_replace( $wplc_marker, 'const BUILD_BRAND = array( ' . implode( ', ', $wplc_items ) . ' ); // wplc-export:brand', $wplc_code );
+	}
 	if ( false !== strpos( $wplc_code, 'WPLC\\Client' ) ) {
 		fwrite( STDERR, basename( $wplc_file ) . " still refers to WPLC\\Client; the export would not be self-contained.\n" );
 		exit( 1 );
@@ -154,6 +203,10 @@ $wplc_record = array(
 	'text_domain'     => $wplc_domain,
 	'files'           => $wplc_copies,
 );
+if ( ! empty( $wplc_brand ) ) {
+	// Brand values written into LicenseManager::BUILD_BRAND (client 2.4.0 and later).
+	$wplc_record['brand'] = $wplc_brand;
+}
 if ( false === file_put_contents( $wplc_target . '/wplc-client-source.json', json_encode( $wplc_record, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n" ) ) {
 	fwrite( STDERR, 'Cannot write ' . $wplc_target . "/wplc-client-source.json.\n" );
 	exit( 1 );

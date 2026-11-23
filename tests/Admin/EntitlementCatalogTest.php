@@ -208,9 +208,10 @@ final class EntitlementCatalogTest extends TestCase {
 	}
 
 	public function test_planned_product_keys_resolve_to_their_group_without_being_suggested_or_sold(): void {
-		// FR-LIC-06: Course Captain is the fourth planned product.
+		// FR-LIC-06: Course Captain is a planned product. Voucher Captain Pro is planned since its catalog
+		// comes from the captain-pro build (held back by the owner, PROD-02); Form and Review are available (FR-LIC-02).
 		$this->assertSame(
-			array( 'course-captain-pro' => 'course', 'form-captain-pro' => 'form', 'review-captain-pro' => 'review', 'workflow-captain-pro' => 'workflow' ),
+			array( 'course-captain-pro' => 'course', 'voucher-captain-pro' => 'voucher', 'workflow-captain-pro' => 'workflow' ),
 			EntitlementCatalog::planned_product_keys()
 		);
 		foreach ( EntitlementCatalog::planned_product_keys() as $product_key => $group ) {
@@ -254,7 +255,7 @@ final class EntitlementCatalogTest extends TestCase {
 
 	public function test_the_decided_product_keys_map_to_their_entitlement_prefix(): void {
 		$this->assertSame(
-			array( 'affiliate-captain-pro' => 'affiliate', 'pass-captain-pro' => 'pass', 'voucher-captain-pro' => 'voucher' ),
+			array( 'affiliate-captain-pro' => 'affiliate', 'form-captain-pro' => 'form', 'pass-captain-pro' => 'pass', 'review-captain-pro' => 'review' ),
 			EntitlementCatalog::known_product_keys()
 		);
 		foreach ( EntitlementCatalog::known_product_keys() as $product_key => $group ) {

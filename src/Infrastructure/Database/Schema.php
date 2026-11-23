@@ -73,7 +73,7 @@ final class Schema {
 	 *     and transfers to another customer, B-139). Created by dbDelta; the step checks that the table
 	 *     and its indexes exist. No data changes.
 	 */
-	public const VERSION = '27';
+	public const VERSION = '28';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -138,6 +138,7 @@ final class Schema {
 		'25' => array( self::class, 'step_25_price_change_columns' ),
 		'26' => array( self::class, 'step_26_license_members' ),
 		'27' => array( self::class, 'step_27_suspended_at' ),
+		'28' => array( self::class, 'step_28_plan_overrides' ),
 	);
 
 	/**
@@ -866,6 +867,11 @@ final class Schema {
 				live_site_limit smallint(5) unsigned NOT NULL DEFAULT 1,
 				support_level varchar(20) NOT NULL DEFAULT 'standard',
 				entitlements_json longtext NOT NULL,
+				staging_site_limit smallint(5) unsigned DEFAULT NULL,
+				development_site_limit smallint(5) unsigned DEFAULT NULL,
+				offline_cache_days smallint(5) unsigned DEFAULT NULL,
+				max_quantity_per_line int(10) unsigned DEFAULT NULL,
+				co_user_limit smallint(5) unsigned DEFAULT NULL,
 				active tinyint(1) NOT NULL DEFAULT 1,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
@@ -1618,6 +1624,35 @@ final class Schema {
 		}
 
 		return false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET suspended_at = %s WHERE status = %s AND suspended_at IS NULL', $tables['licenses'], gmdate( 'Y-m-d H:i:s' ), 'suspended' ) );
+	}
+
+	/**
+	 * Schema 28: overrides per plan (SET-LIC-21).
+	 *
+	 * `plans.staging_site_limit`, `development_site_limit`, `offline_cache_days`,
+	 * `max_quantity_per_line` and `co_user_limit` replace the global setting for the licenses
+	 * and the cart lines of one plan. NULL (every existing plan) means "global setting", so the
+	 * upgrade changes nothing. dbDelta adds the columns; this step only checks they exist.
+	 *
+	 * @return bool
+	 */
+	private static function step_28_plan_overrides(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		global $wpdb;
+
+		$tables = self::table_names();
+		$count  = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name IN (%s, %s, %s, %s, %s)',
+				$tables['plans'],
+				'staging_site_limit',
+				'development_site_limit',
+				'offline_cache_days',
+				'max_quantity_per_line',
+				'co_user_limit'
+			)
+		);
+
+		return 5 === $count;
 	}
 
 	/**

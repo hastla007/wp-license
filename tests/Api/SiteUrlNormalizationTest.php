@@ -594,6 +594,37 @@ final class SiteUrlNormalizationTest extends TestCase {
 	}
 
 	/**
+	 * SET-LIC-09: the same rules with lists changed by the settings: every row above still holds when
+	 * entries are added, an added entry takes effect, and a removed one stops counting.
+	 */
+	public function test_staging_and_local_rules_with_changed_lists(): void {
+		require_once dirname( __DIR__ ) . '/Admin/wp-function-stubs.php';
+		$GLOBALS['wplc_test_filters']['wplc_staging_host_suffixes'][] = static function ( $list ) {
+			return array_merge( $list, array( 'preview.example-host.net' ) );
+		};
+		$GLOBALS['wplc_test_filters']['wplc_local_host_suffixes'][]   = static function ( $list ) {
+			return array_merge( $list, array( 'devbox' ) );
+		};
+		$GLOBALS['wplc_test_filters']['wplc_staging_labels'][]        = static function ( $list ) {
+			return array_merge( array_diff( $list, array( 'test' ) ), array( 'qa' ) );
+		};
+		try {
+			foreach ( $this->data_staging_hosts() as $name => $row ) {
+				$this->assertSame( $row[2], SiteUrl::is_staging_of( $row[0], $row[1] ), $name );
+			}
+			foreach ( $this->data_local_hosts() as $name => $row ) {
+				$this->assertSame( $row[1], SiteUrl::is_local_host( $row[0] ), $name );
+			}
+			$this->assertTrue( SiteUrl::is_staging_of( 'https://shop.preview.example-host.net', 'https://example.com' ) );
+			$this->assertTrue( SiteUrl::is_local_host( 'shop.devbox' ) );
+			$this->assertTrue( SiteUrl::looks_like_staging( 'https://qa.example.com' ) );
+			$this->assertFalse( SiteUrl::looks_like_staging( 'https://shop.test.example.com' ), 'Removed name part.' );
+		} finally {
+			unset( $GLOBALS['wplc_test_filters']['wplc_staging_host_suffixes'], $GLOBALS['wplc_test_filters']['wplc_local_host_suffixes'], $GLOBALS['wplc_test_filters']['wplc_staging_labels'] );
+		}
+	}
+
+	/**
 	 * P-22: addresses a live activation must not move to.
 	 *
 	 * @return array<string,array{0:string,1:bool}>

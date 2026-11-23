@@ -190,13 +190,16 @@ final class LicenseMembers {
 	 * @return int 0 switches inviting off.
 	 */
 	public static function member_limit( array $license ): int {
+		// SET-LIC-18: the setting "Co-users per license" (default 5); SET-LIC-21: the number of the plan
+		// replaces it; the filter wins.
+		$limit = \WPLC\Catalog\PlanOverrides::for_license( $license, 'co_user_limit' ) ?? \WPLC\Settings\Registry::int( 'co_user_limit' );
 		/**
 		 * Filters how many co-users a license can have (accepted plus open invitations).
 		 *
-		 * @param int                 $limit   Default 5; 0 switches inviting off.
+		 * @param int                 $limit   Default: the number of the plan, else the setting "Co-users per license" (5); 0 switches inviting off.
 		 * @param array<string,mixed> $license License row.
 		 */
-		$limit = (int) apply_filters( 'wplc_license_member_limit', self::DEFAULT_LIMIT, $license );
+		$limit = (int) apply_filters( 'wplc_license_member_limit', $limit, $license );
 
 		return max( 0, min( 100, $limit ) );
 	}
@@ -208,13 +211,15 @@ final class LicenseMembers {
 	 * @return int
 	 */
 	public static function invitation_days( string $kind ): int {
+		// SET-LIC-18: the setting "Invitations valid for" (default 14); the filter wins.
+		$days = \WPLC\Settings\Registry::int( 'invitation_days' );
 		/**
 		 * Filters how many days an invitation link can be used.
 		 *
-		 * @param int    $days Default 14.
+		 * @param int    $days Default: the setting "Invitations valid for" (14).
 		 * @param string $kind 'member' (co-user invitation) or 'transfer'.
 		 */
-		$days = (int) apply_filters( 'wplc_license_invitation_days', self::DEFAULT_INVITATION_DAYS, $kind );
+		$days = (int) apply_filters( 'wplc_license_invitation_days', $days, $kind );
 
 		return max( 1, min( 90, $days ) );
 	}
@@ -508,10 +513,26 @@ final class LicenseMembers {
 		/**
 		 * Filters whether the owner can transfer a license to another customer from the account.
 		 *
-		 * @param bool                $enabled Default true.
+		 * @param bool                $enabled Default: the setting "Customers can transfer licenses" (on).
 		 * @param array<string,mixed> $license License row.
 		 */
-		return (bool) apply_filters( 'wplc_license_transfer_enabled', true, $license );
+		return (bool) apply_filters( 'wplc_license_transfer_enabled', \WPLC\Settings\Registry::bool( 'transfers_enabled' ), $license );
+	}
+
+	/**
+	 * Whether a transfer accepted in the account issues a new license key (SET-LIC-18).
+	 *
+	 * @param array<string,mixed> $license License row before the transfer.
+	 * @return bool
+	 */
+	public static function transfer_new_key( array $license ): bool {
+		/**
+		 * Filters whether a transfer accepted in the account also issues a new license key.
+		 *
+		 * @param bool                $new_key Default: the setting "New license key on transfer" (off: the key stays, activated sites keep working).
+		 * @param array<string,mixed> $license License row before the transfer.
+		 */
+		return (bool) apply_filters( 'wplc_license_transfer_new_key', \WPLC\Settings\Registry::bool( 'transfer_new_key' ), $license );
 	}
 
 	/**
@@ -699,6 +720,12 @@ final class LicenseMembers {
 	private static function accept_member( array $row, int $user_id ): string {
 		global $wpdb;
 
+		// SET-LIC-18: with co-users switched off (0), an open invitation can no longer be accepted.
+		$license = self::license( (int) $row['license_id'] );
+		if ( $license && 0 === self::member_limit( $license ) ) {
+			return self::RESULT_NOT_ALLOWED;
+		}
+
 		$tables     = Schema::table_names();
 		$suppressed = $wpdb->suppress_errors( true );
 		// Compare-and-set on the hash: a second request with the same link changes nothing.
@@ -769,13 +796,11 @@ final class LicenseMembers {
 			self::delete_row( (int) $row['id'] );
 			return self::RESULT_INVALID;
 		}
-		/**
-		 * Filters whether a transfer accepted in the account also issues a new license key.
-		 *
-		 * @param bool                $new_key Default false: the key stays, activated sites keep working.
-		 * @param array<string,mixed> $license License row before the transfer.
-		 */
-		$new_key = (bool) apply_filters( 'wplc_license_transfer_new_key', false, $license );
+		if ( ! self::transfers_enabled( $license ) ) {
+			// SET-LIC-18: transfers switched off; an open transfer can no longer be accepted.
+			return self::RESULT_NOT_ALLOWED;
+		}
+		$new_key = self::transfer_new_key( $license );
 		$result  = SupportActions::change_owner( $license_id, $user_id, AuditReason::LICENSE_TRANSFERRED_BY_CUSTOMER, $user_id, $previous, $new_key, false );
 		if ( SupportActions::RESULT_PROCESSING === $result ) {
 			// A renewal payment is running; the link stays valid.

@@ -179,7 +179,7 @@ final class RenewalReviewAdmin {
 		echo '<li>' . esc_html__( 'Close without booking: you refunded the payment in WooCommerce or decided otherwise. The license is not extended. No refund is made here.', 'wp-license' ) . '</li>';
 		echo '</ul>';
 		/* translators: %s: number of days. */
-		echo '<p class="description">' . esc_html( sprintf( _n( 'While a review is open, the license does not expire, for at most %s day after the review started. Access to updates still ends with the grace period.', 'While a review is open, the license does not expire, for at most %s days after the review started. Access to updates still ends with the grace period.', LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS, 'wp-license' ), number_format_i18n( LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS ) ) ) . '</p>';
+		echo '<p class="description">' . esc_html( sprintf( _n( 'While a review is open, the license does not expire, for at most %s day after the review started. Access to updates still ends with the grace period.', 'While a review is open, the license does not expire, for at most %s days after the review started. Access to updates still ends with the grace period.', LicenseLifecycle::review_deferral_days(), 'wp-license' ), number_format_i18n( LicenseLifecycle::review_deferral_days() ) ) ) . '</p>';
 
 		if ( ! $cases ) {
 			echo '<p><strong>' . esc_html__( 'No renewal needs review.', 'wp-license' ) . '</strong></p></div>';

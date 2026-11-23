@@ -25,7 +25,7 @@ final class RegistryTest extends TestCase {
 			$this->assertMatchesRegularExpression( '/^[a-z][a-z0-9_]{2,40}$/', (string) $key );
 			$this->assertContains( $definition['type'], self::TYPES, $key );
 			$this->assertContains( $definition['group'], Registry::GROUPS, $key );
-			$this->assertContains( $definition['capability'], array( 'manage_settings', 'manage_package_hosts' ), $key );
+			$this->assertContains( $definition['capability'], array( 'manage_settings', 'manage_package_hosts', 'manage_policy' ), $key );
 			$this->assertIsBool( $definition['exportable'], $key );
 			$this->assertIsBool( $definition['secret'], $key );
 			$this->assertFalse( $definition['secret'] && $definition['exportable'], "$key: a secret is never exportable." );
