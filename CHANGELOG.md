@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Added (16 Nov 2026, two reserved Workflow keys and the multisite contract for add-ons; merged 23 Nov 2026)
+
+- **Entitlement catalog:** `workflow.custom_connectors` (runtime for custom connectors) and `workflow.multisite_network` (network-wide workflows in a multisite network) are reserved as planned keys of Workflow Captain Pro in `catalogs/workflow-captain-pro.json`, like the six existing `workflow.*` keys (F-01 of the suite specification). Not offered in the product editor. There is no entitlement for delays. An installation already at schema 25 picks the two keys up with the catalog file of the add-on's release package or with `wp wplc catalog import catalogs/workflow-captain-pro.json`.
+
 ### Changed (16 Nov 2026, evening: minimum versions, MINVER-1)
 
 - **WooCommerce 11.2.2 instead of 11.2.0 as the minimum** (11.2.0 carried order and payment data of an earlier Store API checkout into a later one in the same PHP process). **On MariaDB 11.6.2 and later the renewal transaction switches `innodb_snapshot_isolation` off for its connection**, so a row changed by another request between read and update no longer fails with error 1020 and rolls back the whole renewal; MySQL is not affected.
