@@ -351,17 +351,16 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
 		$steps    = $property->getValue();
 
-		$this->assertSame( '30', Schema::VERSION );
 		$this->assertSame( 'step_30_beta_per_plan', $steps['30'][1] );
-		$this->assertSame( array( '30' ), Schema::pending_step_versions( '28', Schema::VERSION, array_keys( $steps ) ) );
-		$this->assertSame( array( '30' ), Schema::pending_step_versions( '29', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '30' ), Schema::pending_step_versions( '28', '30', array_keys( $steps ) ) );
+		$this->assertSame( array( '30' ), Schema::pending_step_versions( '29', '30', array_keys( $steps ) ) );
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
 		$this->assertStringContainsString( 'beta_allowed tinyint(1) unsigned DEFAULT NULL', $source );
 		$this->assertSame( array( 0, 1, 'beta_updates' ), \WPLC\Catalog\PlanOverrides::FIELDS['beta_allowed'] );
 	}
 
 	/**
-	 * SET-LIC-46: schema 31 adds the tables of the outgoing webhooks; installs on 28 run only that step.
+	 * SET-LIC-46: schema 31 adds the tables of the outgoing webhooks; installs on 28 run steps 30 and 31, installs on 30 only step 31.
 	 */
 	public function test_schema_31_adds_the_webhook_tables(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
@@ -369,7 +368,8 @@ final class SchemaMigrationStepsTest extends TestCase {
 
 		$this->assertSame( '31', Schema::VERSION );
 		$this->assertSame( 'step_31_webhooks', $steps['31'][1] );
-		$this->assertSame( array( '31' ), Schema::pending_step_versions( '28', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '30', '31' ), Schema::pending_step_versions( '28', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '31' ), Schema::pending_step_versions( '30', Schema::VERSION, array_keys( $steps ) ) );
 		$this->assertSame( 'wp_3_wplc_webhook_endpoints', Schema::table_names_for_prefix( 'wp_3_' )['webhook_endpoints'] );
 		$this->assertSame( 'wp_3_wplc_webhook_deliveries', Schema::table_names_for_prefix( 'wp_3_' )['webhook_deliveries'] );
 
