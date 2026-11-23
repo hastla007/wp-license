@@ -445,6 +445,7 @@ final class PublicCancellation {
 				'form_url'    => is_string( $url ) ? $url : '',
 				'received_at' => $state['received_at'] > 0 ? Notifications::format_date( (int) $state['received_at'], true ) : '',
 				'support'     => Notifications::support_email(),
+				'support_url' => Notifications::support_url(),
 				'account_url' => CustomerPortal::account_url(),
 			),
 			'wp-license/',

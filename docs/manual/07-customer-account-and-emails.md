@@ -80,6 +80,7 @@ All emails are sent through WooCommerce's mailer to the account email of the lic
 - The co-user and transfer emails never contain the license key.
 - **The full license key is not in the emails by default.** Email is not a secure channel; the email shows the key prefix and links to the account. You can opt in under **WooCommerce → Settings → Emails → License issued**.
 - **Sender note:** a short text (for example a support contact) that the emails can show below their content, under **WooCommerce → License settings**.
+- **Support contact:** the address the emails, the customer account and the cancellation page name for questions is the setting **Support email address** (empty = the sender address of the WooCommerce emails); **Support page** adds a link in the customer account and on the cancellation page (chapter 13).
 - **Templates** live in `templates/emails/` (plain-text variants in `templates/emails/plain/`). Copy a template to `wp-license/emails/` (or `wp-license/emails/plain/`) in your theme to change its layout.
 - Every reminder and status email is recorded before sending and sent once per license and period. Sending is best effort: a mail failure never blocks checkout, renewal or cron. Watch the WooCommerce log (source `wp-license`) for "was not accepted by the mailer".
 - Disabling the "Upcoming automatic renewal" email holds back every automatic charge (unless you switch that rule off, chapter 8), and may conflict with consumer-protection rules.

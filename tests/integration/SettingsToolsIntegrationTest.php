@@ -92,7 +92,9 @@ final class SettingsToolsIntegrationTest extends WPLC_Integration_TestCase {
 
 		$this->assertSame( 1, $export['format'] );
 		$this->assertSame( 'wp-license', $export['plugin'] );
-		$this->assertSame( array_keys( Registry::definitions() ), array_keys( $export['settings'] ) );
+		$exportable = array_keys( wp_list_filter( Registry::definitions(), array( 'exportable' => true ) ) );
+		$this->assertSame( $exportable, array_keys( $export['settings'] ) );
+		$this->assertNotContains( 'debug_log', $exportable, 'The verbose log of this server is not exported (SET-LIC-29).' );
 		$this->assertSame( 21, $export['settings']['renewal_grace_days'] );
 		$json = (string) wp_json_encode( $export );
 		foreach ( array( 'WPLC_LICENSE_KEY_SECRET', 'whsec_', 'test-current-license-key', 'signing' ) as $needle ) {

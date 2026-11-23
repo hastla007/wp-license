@@ -321,6 +321,23 @@ final class RenewalReviewIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( RenewalProcessor::STATUS_REVIEW, $this->renewal( $case['renewal_id'] )['status'], 'The case stays open after the expiry.' );
 	}
 
+	/** SET-LIC-42: the deferral of an open review case is a setting. */
+	public function test_the_review_deferral_follows_the_setting(): void {
+		global $wpdb;
+		$case   = $this->unknown_result_case();
+		$tables = $this->tables();
+		$wpdb->update( $tables['licenses'], array( 'paid_until' => gmdate( 'Y-m-d H:i:s', time() - 20 * DAY_IN_SECONDS ) ), array( 'id' => $case['license_id'] ) );
+		$wpdb->update( $tables['renewals'], array( 'review_at' => gmdate( 'Y-m-d H:i:s', time() - 11 * DAY_IN_SECONDS ) ), array( 'id' => $case['renewal_id'] ) );
+		$this->assertTrue( LicenseLifecycle::expiry_deferred_by_review( $case['license_id'] ), 'Default 30 days.' );
+
+		update_option( \WPLC\Admin\Settings::OPTION, array( 'review_deferral_days' => '10' ) );
+		$this->assertSame( 10, LicenseLifecycle::review_deferral_days() );
+		$this->assertFalse( LicenseLifecycle::expiry_deferred_by_review( $case['license_id'] ) );
+		LicenseLifecycle::expire_due_licenses();
+		$this->assertSame( 'expired', $this->license( $case['license_id'] )['status'] );
+		delete_option( \WPLC\Admin\Settings::OPTION );
+	}
+
 	public function test_revoking_during_reconciliation_records_the_reason(): void {
 		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
 		$license_id = $this->seed_license( array( 'customer_id' => $customer ) )['id'];

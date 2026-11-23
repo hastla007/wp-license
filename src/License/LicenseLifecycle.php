@@ -1151,6 +1151,16 @@ final class LicenseLifecycle {
 	public const REVIEW_EXPIRY_DEFERRAL_DAYS = 30;
 
 	/**
+	 * Days an open review case defers the expiry: the setting "Open review case defers the expiry for"
+	 * (default REVIEW_EXPIRY_DEFERRAL_DAYS, SET-LIC-42).
+	 *
+	 * @return int
+	 */
+	public static function review_deferral_days(): int {
+		return \WPLC\Settings\Registry::int( 'review_deferral_days' );
+	}
+
+	/**
 	 * Whether an open review case currently defers the expiry of a license.
 	 *
 	 * @param int $license_id License ID.
@@ -1178,7 +1188,7 @@ final class LicenseLifecycle {
 	 * @return string
 	 */
 	public static function review_deferral_cutoff( int $now ): string {
-		return gmdate( 'Y-m-d H:i:s', $now - self::REVIEW_EXPIRY_DEFERRAL_DAYS * 86400 );
+		return gmdate( 'Y-m-d H:i:s', $now - self::review_deferral_days() * 86400 );
 	}
 
 	/**
@@ -1961,7 +1971,7 @@ final class LicenseLifecycle {
 		$cursor = 0;
 		do {
 			// Licenses with an open review case (a renewal that may have been paid) wait, at most
-			// REVIEW_EXPIRY_DEFERRAL_DAYS after the case was opened (T-154, T-137).
+			// review_deferral_days() after the case was opened (T-154, T-137).
 			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names from Schema::table_names(), values prepared.
 			$ids = (array) $wpdb->get_col(
 				$wpdb->prepare(

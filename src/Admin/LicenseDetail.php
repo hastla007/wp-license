@@ -104,7 +104,7 @@ final class LicenseDetail {
 	private static function render_review_notice( int $license_id ): void {
 		foreach ( RenewalReview::open_cases_for_license( $license_id ) as $case ) {
 			$since    = Format::utc_timestamp( $case['review_at'] ?: $case['updated_at'] );
-			$deferred = null !== $since ? $since + LicenseLifecycle::REVIEW_EXPIRY_DEFERRAL_DAYS * DAY_IN_SECONDS : null;
+			$deferred = null !== $since ? $since + LicenseLifecycle::review_deferral_days() * DAY_IN_SECONDS : null;
 			echo '<div class="notice notice-warning inline wplc-review-notice"><p><strong>' . esc_html__( 'A renewal of this license needs review.', 'wp-license' ) . '</strong> ';
 			if ( '' !== (string) $case['review_reason'] ) {
 				echo esc_html( AuditReason::label( (string) $case['review_reason'] ) ) . ' ';

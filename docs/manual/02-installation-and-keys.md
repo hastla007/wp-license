@@ -119,6 +119,8 @@ wp wplc signing-key --field=public_key
 | Largest quantity per order line | 100 | Largest quantity of one license product a customer can put into the cart and order; every unit becomes its own license. `0` = no limit. Orders you create yourself are not blocked, only noted (chapter 4). |
 | Suspended licenses count as ended after | 0 | Days of uninterrupted suspension after which a license is treated like an expired one by the personal data eraser and by retention. `0` = never. Irreversible for the data concerned; agree the period with legal counsel (chapter 9). |
 
+Chapter 13 lists every setting, including the support contact, the offline period of customer sites, the health alerts and the verbose log.
+
 The same page shows the Stripe webhook URL with a copy button, whether the secrets are configured, how many recent license keys verify with the current secret, whether automatic renewal is available and why not, the checkout type, the grace period and the database schema version.
 
 ## Who may do what

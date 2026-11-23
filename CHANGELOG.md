@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Added (23 Nov 2026: settings for the sale, part 2)
+
+More rules of the business become settings. As before, every default is the behaviour so far and every existing filter still decides last; nothing changes for an existing installation until a value is changed.
+
+- **Customer sites** (new tab): **offline period of customer sites** (1 to 90 days, default 14, administrators only; filter `wplc_offline_cache_days` wins; never beyond the end of access of the license) and **new sites per license and hour** (default 10, at least twice the live-site limit, 0 = no limit; filter `wplc_new_activations_per_hour` wins). The diagnostics page lists the technical limits of the license API, which stay constants.
+- **Texts and support** (new tab): **support email address** (empty = the shop sender as before; filter `wplc_support_email` wins) and **support page** (new filter `wplc_support_url`), linked in the customer account and on the cancellation page.
+- **Health alerts:** one threshold setting per figure of the diagnostics page ("Alert from: …", defaults as before, 0 = never alert; filter `wplc_health_alert_thresholds` wins) and a **Send test message** button below the settings form (capability and nonce; the same as `wp wplc settings test-alert`).
+- **Verbose log** (Operations): debug lines for 24 hours or 7 days; then it switches itself off (an hourly job sets the field back and writes the audit log). The constant `WPLC_DEBUG` and the filter `wplc_log_debug` work as before. Not part of an export.
+- **Automatic renewal:** **most licenses per combined renewal order** (default 20) and **how long an open review case defers the expiry** (default 30 days). **Rules of this shop:** **how long an upgrade offer stays payable** (default 24 hours).
+- **Reminder days** are one number field per reminder instead of a text field; values that are not kept are named on the screen (before they were dropped silently).
+- **Status table** of the settings page: screen readers hear the state of each row ("OK" / "Attention"), as on the diagnostics page.
+- **Audit log:** a link below the settings form opens the log filtered by "Settings"; import, reset, WP-CLI and the form all write there.
+
 ### Added (23 Nov 2026: settings for the sale)
 
 The shop that buys the server must be able to adapt it to its customers and its country. Rules of the business become settings with the behaviour so far as the default and a filter that decides last. Nothing changes for an existing installation until a value is changed. Manual chapter 13 lists every setting.

@@ -208,11 +208,11 @@ final class SettingsCommand {
 	 * @return void
 	 */
 	public function test_alert( array $args, array $assoc_args ): void {
-		if ( ! \WPLC\Admin\HealthAlertMail::recipients() ) {
+		$result = \WPLC\Admin\HealthAlertMail::send_test();
+		if ( 'no_recipient' === $result ) {
 			\WP_CLI::error( 'No recipient is set. Set one with "wp wplc settings set health_alert_recipients you@example.com".' );
 		}
-		\WPLC\Admin\HealthAlertMail::collect( 'test_message', 1, 1, '' );
-		if ( ! \WPLC\Admin\HealthAlertMail::send( true ) ) {
+		if ( 'sent' !== $result ) {
 			\WP_CLI::error( 'WordPress could not hand the email over for sending.' );
 		}
 		\WP_CLI::success( 'Test message handed over for sending.' );

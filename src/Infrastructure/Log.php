@@ -20,7 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Searching the log for one `request_id` shows everything one renewal run,
  * order hook or payment event did; searching for a `renewal_id` connects the
  * runs. Email addresses are masked. Lines of the level `debug` are written only
- * when the constant `WPLC_DEBUG` is true or the filter `wplc_log_debug` says so.
+ * when the constant `WPLC_DEBUG` is true, the setting "Verbose log" is on and has
+ * not run out, or the filter `wplc_log_debug` says so.
  */
 final class Log {
 
@@ -63,17 +64,47 @@ final class Log {
 	}
 
 	/**
+	 * Option with the Unix time until which the setting "Verbose log" is on (SET-LIC-29).
+	 */
+	public const VERBOSE_UNTIL_OPTION = 'wplc_debug_log_until';
+
+	/**
+	 * Seconds each choice of the setting "Verbose log" stays on.
+	 */
+	public const VERBOSE_PERIODS = array(
+		'24h' => 86400,
+		'7d'  => 604800,
+	);
+
+	/**
+	 * Unix time until which the setting "Verbose log" is on; 0 when it is off or has run out.
+	 *
+	 * @param int|null $now Unix time; defaults to now.
+	 * @return int
+	 */
+	public static function verbose_until( ?int $now = null ): int {
+		if ( ! function_exists( 'get_option' ) || ! isset( self::VERBOSE_PERIODS[ \WPLC\Settings\Registry::string( 'debug_log' ) ] ) ) {
+			return 0;
+		}
+		$until = (int) get_option( self::VERBOSE_UNTIL_OPTION, 0 );
+
+		return $until > ( null === $now ? time() : $now ) ? $until : 0;
+	}
+
+	/**
 	 * Whether debug lines are written.
+	 *
+	 * The constant WPLC_DEBUG, else the setting "Verbose log" until it runs out; the filter decides last.
 	 *
 	 * @return bool
 	 */
 	public static function debug_enabled(): bool {
-		$enabled = defined( 'WPLC_DEBUG' ) && (bool) constant( 'WPLC_DEBUG' );
+		$enabled = ( defined( 'WPLC_DEBUG' ) && (bool) constant( 'WPLC_DEBUG' ) ) || self::verbose_until() > 0;
 		if ( function_exists( 'apply_filters' ) ) {
 			/**
 			 * Filters whether the plugin writes debug lines to the WooCommerce log (A-133).
 			 *
-			 * @param bool $enabled Default: the constant WPLC_DEBUG.
+			 * @param bool $enabled Default: the constant WPLC_DEBUG, else the setting "Verbose log" until it runs out.
 			 */
 			$enabled = (bool) apply_filters( 'wplc_log_debug', $enabled );
 		}

@@ -420,6 +420,44 @@ final class Registry {
 	}
 
 	/**
+	 * Entries of a submitted list of whole numbers that the accepted value leaves out
+	 * (not a number, outside the limits, or beyond the largest number of entries).
+	 *
+	 * Only lists that drop such entries instead of rejecting the value have any; repeated
+	 * entries are not counted.
+	 *
+	 * @param string $key      Setting key.
+	 * @param mixed  $raw      Submitted value (text or array).
+	 * @param mixed  $accepted The value validate() accepted.
+	 * @return string[]
+	 */
+	public static function discarded( string $key, $raw, $accepted ): array {
+		$definition = self::definition( $key );
+		if ( null === $definition || 'int_list' !== $definition['type'] || ! is_string( $accepted ) ) {
+			return array();
+		}
+		if ( is_array( $raw ) ) {
+			$raw = implode( ',', array_filter( $raw, 'is_scalar' ) );
+		}
+		if ( ! is_scalar( $raw ) ) {
+			return array();
+		}
+		$kept    = '' === $accepted ? array() : array_map( 'intval', explode( ',', $accepted ) );
+		$dropped = array();
+		foreach ( (array) preg_split( '/[\s,;]+/', trim( (string) $raw ) ) as $part ) {
+			$part = (string) $part;
+			if ( '' === $part ) {
+				continue;
+			}
+			if ( ! ctype_digit( $part ) || strlen( $part ) > 9 || ! in_array( (int) $part, $kept, true ) ) {
+				$dropped[ $part ] = $part;
+			}
+		}
+
+		return array_values( array_slice( $dropped, 0, 10 ) );
+	}
+
+	/**
 	 * Check a list of short texts (one per line, or an array).
 	 *
 	 * @param array<string,mixed> $definition Definition.

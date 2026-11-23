@@ -94,6 +94,21 @@ final class HealthAlertMail {
 	}
 
 	/**
+	 * Send a test message to the recipients, also when an email already left today
+	 * (the button on the settings page and `wp wplc settings test-alert`).
+	 *
+	 * @return string `sent`, `no_recipient` or `failed`.
+	 */
+	public static function send_test(): string {
+		if ( ! self::recipients() ) {
+			return 'no_recipient';
+		}
+		self::collect( 'test_message', 1, 1, '' );
+
+		return self::send( true ) ? 'sent' : 'failed';
+	}
+
+	/**
 	 * Send the collected alerts, unless an email already left today.
 	 *
 	 * @param bool $force Send although an email left today (test message).

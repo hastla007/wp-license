@@ -49,6 +49,13 @@ final class Definitions {
 				'group'   => 'renewals',
 				'filter'  => 'wplc_combined_renewals',
 			),
+			'combined_renewal_max_lines' => array(
+				'type'    => 'int',
+				'default' => 20,
+				'min'     => 2,
+				'max'     => 100,
+				'group'   => 'renewals',
+			),
 			'renewal_grace_days'        => array(
 				'type'    => 'int',
 				'unit'    => 'days',
@@ -84,6 +91,14 @@ final class Definitions {
 				'max'     => 365,
 				'group'   => 'renewals',
 				'filter'  => 'wplc_manual_renewal_window_days',
+			),
+			'review_deferral_days'      => array(
+				'type'    => 'int',
+				'unit'    => 'days',
+				'default' => 30,
+				'min'     => 1,
+				'max'     => 365,
+				'group'   => 'renewals',
 			),
 
 			// Customer emails.
@@ -145,6 +160,33 @@ final class Definitions {
 				'group'   => 'rules',
 				'filter'  => 'wplc_suspended_license_ends_after_days',
 				'legal'   => true,
+			),
+			'upgrade_quote_hours'       => array(
+				'type'    => 'int',
+				'default' => 24,
+				'min'     => 1,
+				'max'     => 168,
+				'group'   => 'rules',
+			),
+
+			// Customer sites.
+			'offline_cache_days'        => array(
+				'type'       => 'int',
+				'unit'       => 'days',
+				'default'    => 14,
+				'min'        => 1,
+				'max'        => 90,
+				'group'      => 'sites',
+				'capability' => 'manage_package_hosts',
+				'filter'     => 'wplc_offline_cache_days',
+			),
+			'new_activations_per_hour'  => array(
+				'type'    => 'int',
+				'default' => 10,
+				'min'     => 0,
+				'max'     => 1000,
+				'group'   => 'sites',
+				'filter'  => 'wplc_new_activations_per_hour',
 			),
 
 			// Legal and privacy.
@@ -270,6 +312,24 @@ final class Definitions {
 				'legal'   => true,
 			),
 
+			// Texts and support.
+			'support_email'             => array(
+				'type'       => 'string',
+				'format'     => 'email',
+				'default'    => '',
+				'max_length' => 200,
+				'group'      => 'texts',
+				'filter'     => 'wplc_support_email',
+			),
+			'support_url'               => array(
+				'type'       => 'string',
+				'format'     => 'url',
+				'default'    => '',
+				'max_length' => 500,
+				'group'      => 'texts',
+				'filter'     => 'wplc_support_url',
+			),
+
 			// Operations.
 			'health_alert_recipients'   => array(
 				'type'       => 'string',
@@ -280,6 +340,16 @@ final class Definitions {
 				'group'      => 'operations',
 				'filter'     => 'wplc_health_alert_recipients',
 			),
+		) + self::alert_thresholds() + array(
+			'debug_log'                 => array(
+				'type'       => 'choice',
+				'default'    => 'off',
+				'choices'    => array( 'off', '24h', '7d' ),
+				'group'      => 'operations',
+				'filter'     => 'wplc_log_debug',
+				// The switch is about this server only; an export must not switch it on elsewhere.
+				'exportable' => false,
+			),
 			'uninstall_data'            => array(
 				'type'       => 'choice',
 				'default'    => 'keep',
@@ -288,5 +358,45 @@ final class Definitions {
 				'capability' => 'manage_package_hosts',
 			),
 		);
+	}
+
+	/**
+	 * Default alert threshold of every figure of the diagnostics page that can raise a health alert.
+	 * Today's values of the filter `wplc_health_alert_thresholds`.
+	 */
+	public const ALERT_THRESHOLDS = array(
+		'pending_webhooks'             => 1,
+		'manual_review_webhooks'       => 1,
+		'overdue_renewals'             => 1,
+		'stuck_processing_renewals'    => 1,
+		'paid_without_extension'       => 1,
+		'failed_scheduled_actions'     => 1,
+		'unmapped_license_products'    => 1,
+		'review_required_renewals'     => 1,
+		'orders_with_issuance_problem' => 1,
+		'failed_jobs'                  => 1,
+		'release_problems'             => 1,
+		'rejected_webhook_minutes'     => 5,
+	);
+
+	/**
+	 * One setting `alert_<figure>` per alert threshold (SET-LIC-22).
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	private static function alert_thresholds(): array {
+		$out = array();
+		foreach ( self::ALERT_THRESHOLDS as $metric => $threshold ) {
+			$out[ 'alert_' . $metric ] = array(
+				'type'    => 'int',
+				'default' => $threshold,
+				'min'     => 0,
+				'max'     => 100000,
+				'group'   => 'operations',
+				'filter'  => 'wplc_health_alert_thresholds',
+			);
+		}
+
+		return $out;
 	}
 }

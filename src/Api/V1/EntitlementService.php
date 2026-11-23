@@ -305,12 +305,13 @@ final class EntitlementService {
 				$access_end = null === $grace_end ? $paid_until : $grace_end;
 			}
 		}
-		$offline_days = self::OFFLINE_DAYS;
+		// SET-LIC-11: the setting "Offline period of customer sites" (default 14); the filter wins.
+		$offline_days = \WPLC\Settings\Registry::int( 'offline_cache_days' );
 		if ( function_exists( 'apply_filters' ) ) {
 			/**
 			 * Filter the number of days a client may rely on a signed snapshot offline.
 			 *
-			 * @param int                 $days    Default 14.
+			 * @param int                 $days    Default: the setting "Offline period of customer sites" (14).
 			 * @param array<string,mixed> $license License row.
 			 */
 			$offline_days = max( 1, (int) apply_filters( 'wplc_offline_cache_days', $offline_days, $license ) );

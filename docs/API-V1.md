@@ -144,7 +144,7 @@ The same object is returned by `POST /activations` and `POST /entitlements/check
 
 ### Offline use and `cache_expires_at`
 
-A client may keep the last verified snapshot (the `payload` string with its signatures) and use it while the server cannot be reached. The snapshot is valid until `cache_expires_at`; after that the client must treat the license as without access until it receives a new signed answer. Because `cache_expires_at` never exceeds `access_until`, a site that blocks the license server cannot outlast the paid time, and an honest site in the grace period is not locked out early. The client must take the deadline from the signed `cache_expires_at` of the snapshot it stores; it must not restart a local timer on every successful request, and it must not cap the time at `paid_until` on its own. The maximum offline window is 14 days (filter `wplc_offline_cache_days` on the server).
+A client may keep the last verified snapshot (the `payload` string with its signatures) and use it while the server cannot be reached. The snapshot is valid until `cache_expires_at`; after that the client must treat the license as without access until it receives a new signed answer. Because `cache_expires_at` never exceeds `access_until`, a site that blocks the license server cannot outlast the paid time, and an honest site in the grace period is not locked out early. The client must take the deadline from the signed `cache_expires_at` of the snapshot it stores; it must not restart a local timer on every successful request, and it must not cap the time at `paid_until` on its own. The maximum offline window is 14 days by default (setting "Offline period of customer sites", 1 to 90 days, and filter `wplc_offline_cache_days` on the server).
 
 ### Response signatures
 
@@ -372,7 +372,7 @@ Route-specific errors on top: `DELETE /activations/{activation_id}` answers `403
 
 Failed anonymous activation attempts (unknown key, invalid request) are counted per client address (IPv6: per /64) and per license-key prefix (the first 13 characters of the normalized key) **from that address**. After 30 failures per address or 20 per prefix and address within a minute, unknown keys and invalid requests are answered `429 rate_limited`, while a recognized key is still accepted; after another 30 (address) or 20 (prefix and address) requests in the same minute every request from that address returns `429 rate_limited`. The prefix is shown in mails and in the customer account, so there is no bucket per prefix alone: failures from one address never block the same key from another address. Guessing gains nothing from many addresses either, because after the prefix a key carries the rest of the license UUID and a 256-bit HMAC. The reasoning is in `docs/SECURITY-OPERATIONS.md` (T-142, P-09). A request whose address cannot be determined is counted in one shared bucket.
 
-Successful activations of **new** installation IDs are limited per license and UTC hour: twice the live-site limit, at least 10 (filter `wplc_new_activations_per_hour`, `0` disables it). Past the limit the answer is `429 rate_limited` with `Retry-After` set to the start of the next hour. Repeated activations of a known installation ID are not counted and never refused by this limit.
+Successful activations of **new** installation IDs are limited per license and UTC hour: twice the live-site limit, at least 10 (setting "New sites per license and hour", `0` disables it; filter `wplc_new_activations_per_hour`, `0` disables it). Past the limit the answer is `429 rate_limited` with `Retry-After` set to the start of the next hour. Repeated activations of a known installation ID are not counted and never refused by this limit.
 
 The buckets are stored as HMAC-SHA-256 with a server-side key (`WPLC_RATE_LIMIT_KEY` in `wp-config.php`, otherwise derived from the WordPress auth salt), so the table does not contain reversible hashes of addresses, key prefixes or installation IDs.
 
@@ -408,11 +408,11 @@ define( 'WPLC_TRUSTED_PROXIES', array( '173.245.48.0/20', '2400:cb00::/32' ) ); 
 | `wplc_development_site_limit` | filter | Development activations per license (0 forbids them). |
 | `wplc_is_staging_host` | filter | Accept or refuse a host as staging copy of a live site. |
 | `wplc_registrable_domain` | filter | Replace the built-in registrable-domain heuristic (for example with a public-suffix list). |
-| `wplc_offline_cache_days` | filter | Offline window of signed snapshots (default 14). |
+| `wplc_offline_cache_days` | filter | Offline window of signed snapshots (default: the setting "Offline period of customer sites", 14). |
 | `wplc_client_ip` | filter | Client address used for the activation limit. |
 | `wplc_log_api_rejection` | filter | Whether a rejected request is written to the log. |
 | `wplc_download_reuse_seconds` | filter | Reuse window of download tokens (default 0: strict single use). |
-| `wplc_new_activations_per_hour` | filter | New installation IDs one license may activate per hour (default: twice the live-site limit, at least 10; `0` disables the limit). |
+| `wplc_new_activations_per_hour` | filter | New installation IDs one license may activate per hour (default: twice the live-site limit, at least the setting "New sites per license and hour" (10); `0` disables the limit). |
 | `wplc/api_request_rejected` | action | Every error answer: code, status, method, route. |
 | `wplc/activation_site_mismatch` | action | An installation reported another address than the activated one. |
 | `wplc/response_signing_key_created` | action | The server created its signing key (first use without the constant). |

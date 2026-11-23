@@ -32,10 +32,12 @@ The tables are generated from the register (`php bin/settings-doc.php --write`).
 | Setting | Key | Value | Default | Filter (wins) | What it does |
 | --- | --- | --- | --- | --- | --- |
 | Combine automatic renewals | `combined_renewals` | on or off | `off` | `wplc_combined_renewals` | Only licenses with the same saved card, currency and billing interval are combined. Each license keeps its own renewal; a declined payment is retried per license. Manual renewals are never combined. Off by default. |
+| Combined renewal: most licenses per order | `combined_renewal_max_lines` | whole number, 2 to 100 | `20` | – | Largest number of licenses charged together in one combined renewal order. Further due licenses of the same customer are renewed in the next combined order or on their own. Default: 20. Only used when automatic renewals are combined. |
 | Grace period after the paid period | `renewal_grace_days` | whole number, 1 to 90 | `14` | `wplc_renewal_grace_days` | Days after the end of the paid period during which a license with a pending or failed automatic charge keeps its access. Default: 14. Keep it longer than the last retry day below, or the last attempts fall after access has ended. A changed value applies to renewals scheduled afterwards; renewals already scheduled keep their date. |
 | Retry days of a failed charge | `renewal_retry_days` | up to 6 whole numbers, each 1 to 60 | `1,3,7` | `wplc_renewal_retry_days` | Days after the start of the new period on which a failed automatic charge is tried again, separated by commas. The number of entries is the number of retries. Default: 1,3,7. Empty = no retry: the first failed charge is final. |
 | Manual renewal: days before the end | `manual_renewal_days_before` | whole number, 0 to 365 | `30` | `wplc_manual_renewal_window_days` | From this many days before the end of the paid period a customer can renew by hand in the account, and the emails offer it. Default: 30. 0 = only from the day the period ends. |
 | Manual renewal: days after the end | `manual_renewal_days_after` | whole number, 0 to 365 | `30` | `wplc_manual_renewal_window_days` | Until this many days after the end of the paid period an expired license can still be renewed and continues with the same key and the same sites. Default: 30. 0 = an expired license cannot be reactivated by the customer. |
+| Open review case defers the expiry for | `review_deferral_days` | whole number, 1 to 365 | `30` | – | Days, counted from the start of the case, during which a renewal that waits for your review (unknown payment result) keeps its license from expiring, because the customer may have paid. Access to updates still ends with the grace period. Afterwards the license expires normally; the case stays open and can still be booked. Default: 30. |
 
 ### Customer emails
 
@@ -52,6 +54,14 @@ The tables are generated from the register (`php bin/settings-doc.php --write`).
 | --- | --- | --- | --- | --- | --- |
 | Largest quantity per order line | `max_quantity_per_line` | whole number, 0 to 100000 | `100` | `wplc_max_license_quantity_per_line` | Largest quantity of one license product a customer can put into the cart and order. Every unit becomes a license of its own with its own key. Default: 100. 0 = no limit. An order you create yourself in the admin or through the REST API is not blocked; a larger quantity there is noted on the order and in the audit log. |
 | Suspended licenses count as ended after | `suspended_ends_after_days` | whole number, 0 to 3650 | `0` | `wplc_suspended_license_ends_after_days` | Default: 0 = never; a suspended license then keeps its customer and its data until you revoke it or it is reactivated. With a number of days, a license that stayed suspended without interruption for that long is treated like an expired or revoked one: a personal data erasure request detaches it from the customer and releases its sites, and the retention rules delete its installations and consent records after their periods. This cannot be undone. A license that was reactivated is never affected; a new suspension counts from its own start. Agree the period with your legal counsel. **Legal review.** |
+| Upgrade offer valid for | `upgrade_quote_hours` | whole number, 1 to 168 | `24` | – | Hours during which an unpaid upgrade order keeps its prorated price. The price falls every day; after this time the customer clicks "Upgrade" again for a new price. Default: 24. |
+
+### Customer sites
+
+| Setting | Key | Value | Default | Filter (wins) | What it does |
+| --- | --- | --- | --- | --- | --- |
+| Offline period of customer sites | `offline_cache_days` | whole number, 1 to 90 | `14` | `wplc_offline_cache_days` | Days a customer site may rely on the last signed answer of this server when it cannot reach it. Default: 14. The period never reaches beyond the end of access of the license: a license whose paid period or grace period ends earlier stops working offline at that end. Administrators only. |
+| New sites per license and hour | `new_activations_per_hour` | whole number, 0 to 1000 | `10` | `wplc_new_activations_per_hour` | How many new installations one license may activate within an hour, at least twice its live-site limit, so that an agency can still set up all its sites. Activating a known installation again does not count. Default: 10. 0 = no limit. |
 
 ### Legal and privacy
 
@@ -71,11 +81,31 @@ The tables are generated from the register (`php bin/settings-doc.php --write`).
 | Detach ended licenses from the customer after | `retention_anonymize_licenses` | whole number, 0 to 36500 | `3650` | `wplc_retention_days` | Days after the end of a license at which the owner, the payment token reference and the installations are removed. Counted from the end of the calendar year in which the license ended. Default: 3650 (ten years, the technical default so far). 0 = never. **Legal review.** |
 | Keep proof of renewal consent for | `retention_consents` | whole number, 0 to 36500 | `3650` | `wplc_retention_days` | Days after which the proof of a consent to automatic renewal is deleted, once its license has ended. Counted from the end of the calendar year of the consent. Default: 3650 (ten years, the technical default so far). 0 = never delete. **Legal review.** |
 
+### Texts and support
+
+| Setting | Key | Value | Default | Filter (wins) | What it does |
+| --- | --- | --- | --- | --- | --- |
+| Support email address | `support_email` | text, at most 200 characters | (empty) | `wplc_support_email` | Address that license emails, the customer account and the cancellation page name for questions. Empty (default) = the sender address of the WooCommerce emails, else the address of the site administrator. |
+| Support page | `support_url` | text, at most 500 characters | (empty) | `wplc_support_url` | Optional address of your support or contact page (https://…). The customer account and the cancellation page link to it next to the support address. Empty (default) = no link. |
+
 ### Operations
 
 | Setting | Key | Value | Default | Filter (wins) | What it does |
 | --- | --- | --- | --- | --- | --- |
 | Send health alerts to | `health_alert_recipients` | text, at most 500 characters | (empty) | `wplc_health_alert_recipients` | Email addresses, separated by commas, that get a message when a figure of the diagnostics page reaches its alert threshold (for example failed background jobs or rejected webhooks). At most one collected email per day. Empty (default) = no email; the alerts are then only available to code (action wplc/health_alert). |
+| Alert from: Pending Stripe events | `alert_pending_webhooks` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Alert from: Stripe events needing review (24 hours) | `alert_manual_review_webhooks` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Alert from: Stuck renewals (job not run, grace period over) | `alert_overdue_renewals` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Alert from: Renewals stuck in processing (over 1 hour) | `alert_stuck_processing_renewals` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Alert from: Paid renewals without extension | `alert_paid_without_extension` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Alert from: Failed scheduled actions (group wplc) | `alert_failed_scheduled_actions` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Alert from: License products without a plan | `alert_unmapped_license_products` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Alert from: Renewals needing review (unknown payment result, payment not applied) | `alert_review_required_renewals` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Alert from: Paid orders without their licenses | `alert_orders_with_issuance_problem` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Alert from: Failed background jobs (24 hours) | `alert_failed_jobs` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Alert from: Problems with update packages | `alert_release_problems` | whole number, 0 to 100000 | `1` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 1. 0 = never alert for this figure. |
+| Alert from: Minutes with rejected Stripe webhook requests (24 hours) | `alert_rejected_webhook_minutes` | whole number, 0 to 100000 | `5` | `wplc_health_alert_thresholds` | A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: 5. 0 = never alert for this figure. |
+| Verbose log | `debug_log` | one of `off`, `24h`, `7d` | `off` | `wplc_log_debug` | Writes additional lines of the level debug to the WooCommerce log (source wp-license) to trace a problem. It switches itself off after the chosen time. Off (default). The constant WPLC_DEBUG in wp-config.php switches it on permanently. |
 | When the plugin is deleted | `uninstall_data` | one of `keep`, `delete` | `keep` | – | Keep (default): licenses, activations, renewals, the audit log and the settings stay in the database when the plugin is deleted, because they are business records. Delete: the tables and options of the plugin are removed for good when it is deleted; uploaded packages and order data are never removed. The constant WPLC_REMOVE_ALL_DATA in wp-config.php also deletes. Deleting cannot be undone; make a backup first. Administrators only. |
 
 <!-- settings:end -->
@@ -92,7 +122,7 @@ Below the form, **Country profile** offers Germany, Austria, Switzerland, Europe
 
 ## Export, import and reset
 
-- **Export** downloads a JSON file (`format`, `plugin`, `plugin_version`, `exported_at`, `settings`). It contains every setting of this chapter and no secret.
+- **Export** downloads a JSON file (`format`, `plugin`, `plugin_version`, `exported_at`, `settings`). It contains every setting of this chapter except the verbose log, and no secret.
 - **Import** takes such a file (upload or pasted text), checks every value with the rules of the register and shows the differences. Values that are not valid and keys this version does not know are listed and left out. The trusted package hosts change only when you may change them.
 - **Reset to defaults** works per group or for all settings, with the same preview. The trusted package hosts are never part of a reset.
 - All three write to the audit log (`settings_exported`, `settings_imported`, `settings_reset`), in addition to the entry `settings_updated` with the old and new values.
@@ -104,7 +134,24 @@ Below the form, **Country profile** offers Germany, Austria, Switzerland, Europe
 
 ## Health alerts by email
 
-**Operations → Send health alerts to** takes up to five email addresses. When a figure of the diagnostics page reaches its alert threshold (chapter 9), these addresses get one collected email, at most one per day. Without an address nothing is sent; the action `wplc/health_alert` fires as before. Test it with `wp wplc settings test-alert`.
+**Operations → Send health alerts to** takes up to five email addresses. When a figure of the diagnostics page reaches its alert threshold (chapter 9), these addresses get one collected email, at most one per day. Without an address nothing is sent; the action `wplc/health_alert` fires as before.
+
+- **Thresholds.** Each figure has its own setting **Alert from: …** (default 1; rejected webhook minutes: 5). 0 never alerts for that figure. The filter `wplc_health_alert_thresholds` still decides last.
+- **Test.** **Send test message** below the form (or `wp wplc settings test-alert`) sends a test to the recipients, also when an alert email already left that day.
+- **History.** **Show all changes of the settings in the audit log** below the form opens the audit log filtered by the object type "Settings".
+
+## Customer sites
+
+- **Offline period of customer sites** (1 to 90 days, default 14, administrators only): how long a customer site may rely on the last signed answer of this server when it cannot reach it. The period never reaches beyond the end of access of the license. The filter `wplc_offline_cache_days` decides last. A different period per plan is not available yet.
+- **New sites per license and hour** (default 10, 0 = no limit): at least twice the live-site limit of the license, so an agency can still set up all its sites. The technical limits of the license API (requests per installation, failed sign-ins and activations, time window of signed requests) are fixed and listed on the diagnostics page.
+
+## Support contact
+
+**Texts and support → Support email address** is the address that license emails, the customer account and the cancellation page name. Empty (default) keeps the behaviour so far: the sender address of the WooCommerce emails, else the administrator. **Support page** adds a link to your support or contact page in the customer account and on the cancellation page. The filters `wplc_support_email` and `wplc_support_url` decide last.
+
+## Verbose log
+
+**Operations → Verbose log** writes additional debug lines to the WooCommerce log (source `wp-license`) for 24 hours or 7 days and then switches itself off; an hourly job sets the field back to "Off" and writes it to the audit log. To switch it on again after it ran out, choose a time again. The constant `WPLC_DEBUG` in `wp-config.php` switches it on permanently, the filter `wplc_log_debug` decides last. The value is not part of an export.
 
 ## For developers
 

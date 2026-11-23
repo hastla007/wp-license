@@ -87,6 +87,10 @@ final class Texts {
 				__( 'Combine automatic renewals', 'wp-license' ),
 				__( 'Only licenses with the same saved card, currency and billing interval are combined. Each license keeps its own renewal; a declined payment is retried per license. Manual renewals are never combined. Off by default.', 'wp-license' ),
 			),
+			'combined_renewal_max_lines' => array(
+				__( 'Combined renewal: most licenses per order', 'wp-license' ),
+				__( 'Largest number of licenses charged together in one combined renewal order. Further due licenses of the same customer are renewed in the next combined order or on their own. Default: 20. Only used when automatic renewals are combined.', 'wp-license' ),
+			),
 			'renewal_grace_days'        => array(
 				__( 'Grace period after the paid period', 'wp-license' ),
 				__( 'Days after the end of the paid period during which a license with a pending or failed automatic charge keeps its access. Default: 14. Keep it longer than the last retry day below, or the last attempts fall after access has ended. A changed value applies to renewals scheduled afterwards; renewals already scheduled keep their date.', 'wp-license' ),
@@ -102,6 +106,10 @@ final class Texts {
 			'manual_renewal_days_after' => array(
 				__( 'Manual renewal: days after the end', 'wp-license' ),
 				__( 'Until this many days after the end of the paid period an expired license can still be renewed and continues with the same key and the same sites. Default: 30. 0 = an expired license cannot be reactivated by the customer.', 'wp-license' ),
+			),
+			'review_deferral_days'      => array(
+				__( 'Open review case defers the expiry for', 'wp-license' ),
+				__( 'Days, counted from the start of the case, during which a renewal that waits for your review (unknown payment result) keeps its license from expiring, because the customer may have paid. Access to updates still ends with the grace period. Afterwards the license expires normally; the case stays open and can still be booked. Default: 30.', 'wp-license' ),
 			),
 			'reminder_days'             => array(
 				__( 'Reminder lead days', 'wp-license' ),
@@ -126,6 +134,18 @@ final class Texts {
 			'suspended_ends_after_days' => array(
 				__( 'Suspended licenses count as ended after', 'wp-license' ),
 				__( 'Default: 0 = never; a suspended license then keeps its customer and its data until you revoke it or it is reactivated. With a number of days, a license that stayed suspended without interruption for that long is treated like an expired or revoked one: a personal data erasure request detaches it from the customer and releases its sites, and the retention rules delete its installations and consent records after their periods. This cannot be undone. A license that was reactivated is never affected; a new suspension counts from its own start. Agree the period with your legal counsel.', 'wp-license' ),
+			),
+			'upgrade_quote_hours'       => array(
+				__( 'Upgrade offer valid for', 'wp-license' ),
+				__( 'Hours during which an unpaid upgrade order keeps its prorated price. The price falls every day; after this time the customer clicks "Upgrade" again for a new price. Default: 24.', 'wp-license' ),
+			),
+			'offline_cache_days'        => array(
+				__( 'Offline period of customer sites', 'wp-license' ),
+				__( 'Days a customer site may rely on the last signed answer of this server when it cannot reach it. Default: 14. The period never reaches beyond the end of access of the license: a license whose paid period or grace period ends earlier stops working offline at that end.', 'wp-license' ),
+			),
+			'new_activations_per_hour'  => array(
+				__( 'New sites per license and hour', 'wp-license' ),
+				__( 'How many new installations one license may activate within an hour, at least twice its live-site limit, so that an agency can still set up all its sites. Activating a known installation again does not count. Default: 10. 0 = no limit.', 'wp-license' ),
 			),
 			'withdrawal_consent_mode'   => array(
 				__( 'Consent to the immediate start (right of withdrawal)', 'wp-license' ),
@@ -179,15 +199,72 @@ final class Texts {
 				__( 'Keep proof of renewal consent for', 'wp-license' ),
 				__( 'Days after which the proof of a consent to automatic renewal is deleted, once its license has ended. Counted from the end of the calendar year of the consent. Default: 3650 (ten years, the technical default so far). 0 = never delete.', 'wp-license' ),
 			),
+			'support_email'             => array(
+				__( 'Support email address', 'wp-license' ),
+				__( 'Address that license emails, the customer account and the cancellation page name for questions. Empty (default) = the sender address of the WooCommerce emails, else the address of the site administrator.', 'wp-license' ),
+			),
+			'support_url'               => array(
+				__( 'Support page', 'wp-license' ),
+				__( 'Optional address of your support or contact page (https://…). The customer account and the cancellation page link to it next to the support address. Empty (default) = no link.', 'wp-license' ),
+			),
 			'health_alert_recipients'   => array(
 				__( 'Send health alerts to', 'wp-license' ),
 				__( 'Email addresses, separated by commas, that get a message when a figure of the diagnostics page reaches its alert threshold (for example failed background jobs or rejected webhooks). At most one collected email per day. Empty (default) = no email; the alerts are then only available to code (action wplc/health_alert).', 'wp-license' ),
+			),
+		) + self::alert_threshold_texts() + array(
+			'debug_log'                 => array(
+				__( 'Verbose log', 'wp-license' ),
+				__( 'Writes additional lines of the level debug to the WooCommerce log (source wp-license) to trace a problem. It switches itself off after the chosen time. Off (default). The constant WPLC_DEBUG in wp-config.php switches it on permanently.', 'wp-license' ),
 			),
 			'uninstall_data'            => array(
 				__( 'When the plugin is deleted', 'wp-license' ),
 				__( 'Keep (default): licenses, activations, renewals, the audit log and the settings stay in the database when the plugin is deleted, because they are business records. Delete: the tables and options of the plugin are removed for good when it is deleted; uploaded packages and order data are never removed. The constant WPLC_REMOVE_ALL_DATA in wp-config.php also deletes. Deleting cannot be undone; make a backup first.', 'wp-license' ),
 			),
 		);
+	}
+
+	/**
+	 * Names of the figures of the diagnostics page that can raise a health alert.
+	 *
+	 * @return array<string,string> Figure key => name.
+	 */
+	public static function alert_metrics(): array {
+		return array(
+			'pending_webhooks'             => __( 'Pending Stripe events', 'wp-license' ),
+			'manual_review_webhooks'       => __( 'Stripe events needing review (24 hours)', 'wp-license' ),
+			'overdue_renewals'             => __( 'Stuck renewals (job not run, grace period over)', 'wp-license' ),
+			'stuck_processing_renewals'    => __( 'Renewals stuck in processing (over 1 hour)', 'wp-license' ),
+			'paid_without_extension'       => __( 'Paid renewals without extension', 'wp-license' ),
+			'failed_scheduled_actions'     => __( 'Failed scheduled actions (group wplc)', 'wp-license' ),
+			'unmapped_license_products'    => __( 'License products without a plan', 'wp-license' ),
+			'review_required_renewals'     => __( 'Renewals needing review (unknown payment result, payment not applied)', 'wp-license' ),
+			'orders_with_issuance_problem' => __( 'Paid orders without their licenses', 'wp-license' ),
+			'failed_jobs'                  => __( 'Failed background jobs (24 hours)', 'wp-license' ),
+			'release_problems'             => __( 'Problems with update packages', 'wp-license' ),
+			'rejected_webhook_minutes'     => __( 'Minutes with rejected Stripe webhook requests (24 hours)', 'wp-license' ),
+		);
+	}
+
+	/**
+	 * Label and help of the alert thresholds (`alert_<figure>`).
+	 *
+	 * @return array<string,array{0:string,1:string}>
+	 */
+	private static function alert_threshold_texts(): array {
+		$out = array();
+		foreach ( self::alert_metrics() as $metric => $name ) {
+			$out[ 'alert_' . $metric ] = array(
+				/* translators: %s: name of a figure of the diagnostics page. */
+				sprintf( __( 'Alert from: %s', 'wp-license' ), $name ),
+				sprintf(
+					/* translators: %s: default threshold. */
+					__( 'A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: %s. 0 = never alert for this figure.', 'wp-license' ),
+					(string) Definitions::ALERT_THRESHOLDS[ $metric ]
+				),
+			);
+		}
+
+		return $out;
 	}
 
 	/**
@@ -207,6 +284,11 @@ final class Texts {
 				'auto' => __( 'Automatic: ask, unless Germanized or German Market is active', 'wp-license' ),
 				'on'   => __( 'Always ask', 'wp-license' ),
 				'off'  => __( 'Never ask', 'wp-license' ),
+			),
+			'debug_log'               => array(
+				'off' => __( 'Off', 'wp-license' ),
+				'24h' => __( 'On for 24 hours', 'wp-license' ),
+				'7d'  => __( 'On for 7 days', 'wp-license' ),
 			),
 			'uninstall_data'          => array(
 				'keep'   => __( 'Keep all data', 'wp-license' ),

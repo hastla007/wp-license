@@ -56,6 +56,7 @@ final class Settings {
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 		add_action( 'add_option_' . self::OPTION, array( self::class, 'audit_added' ), 10, 2 );
 		add_action( 'update_option_' . self::OPTION, array( self::class, 'audit_updated' ), 10, 2 );
+		add_action( \WPLC\Maintenance\DailyRunner::HOURLY_HOOK, array( self::class, 'expire_debug_log' ) );
 		if ( defined( 'WPLC_FILE' ) ) {
 			add_filter( 'plugin_action_links_' . plugin_basename( WPLC_FILE ), array( self::class, 'plugin_action_links' ) );
 		}
@@ -84,6 +85,7 @@ final class Settings {
 	 * @return void
 	 */
 	public static function audit_added( $option, $value ): void {
+		self::track_debug_log( self::defaults(), $value );
 		self::audit_change( self::defaults(), $value );
 	}
 
@@ -95,7 +97,43 @@ final class Settings {
 	 * @return void
 	 */
 	public static function audit_updated( $old_value, $value ): void {
+		self::track_debug_log( $old_value, $value );
 		self::audit_change( $old_value, $value );
+	}
+
+	/**
+	 * Start or stop the time of the setting "Verbose log" when its value changes (SET-LIC-29).
+	 *
+	 * @param mixed $old_value Previous settings.
+	 * @param mixed $value     New settings.
+	 * @return void
+	 */
+	private static function track_debug_log( $old_value, $value ): void {
+		$old = is_array( $old_value ) && isset( $old_value['debug_log'] ) ? (string) $old_value['debug_log'] : 'off';
+		$new = is_array( $value ) && isset( $value['debug_log'] ) ? (string) $value['debug_log'] : 'off';
+		if ( $old === $new ) {
+			return;
+		}
+		if ( isset( \WPLC\Infrastructure\Log::VERBOSE_PERIODS[ $new ] ) ) {
+			update_option( \WPLC\Infrastructure\Log::VERBOSE_UNTIL_OPTION, time() + \WPLC\Infrastructure\Log::VERBOSE_PERIODS[ $new ], false );
+		} else {
+			delete_option( \WPLC\Infrastructure\Log::VERBOSE_UNTIL_OPTION );
+		}
+	}
+
+	/**
+	 * Switch the setting "Verbose log" back to off once its time has run out (hourly, SET-LIC-29).
+	 *
+	 * Debug lines already stop at the end of the time (Log::verbose_until()); this makes the
+	 * setting say so too, with an entry in the audit log.
+	 *
+	 * @return void
+	 */
+	public static function expire_debug_log(): void {
+		if ( 'off' === Registry::string( 'debug_log' ) || \WPLC\Infrastructure\Log::verbose_until() > 0 ) {
+			return;
+		}
+		\WPLC\Settings\Changes::apply( array( 'debug_log' => 'off' ), 'settings_changed', 'The verbose log ran out and was switched off.', false );
 	}
 
 	/**
@@ -355,6 +393,23 @@ final class Settings {
 			}
 			if ( $result['ok'] ) {
 				$out[ $key ] = $result['value'];
+				$dropped     = Registry::discarded( $key, $input[ $key ], $result['value'] );
+				if ( $dropped ) {
+					// SET-LIC-37: entries that a list leaves out are reported, not dropped silently.
+					self::settings_error(
+						'wplc_discarded_' . $key,
+						sprintf(
+							/* translators: 1: name of a setting, 2: list of values, 3: smallest value, 4: largest value, 5: largest number of entries. */
+							__( '"%1$s": not kept: %2$s. Enter whole numbers from %3$s to %4$s, at most %5$s.', 'wp-license' ),
+							Texts::label( $key ),
+							implode( ', ', $dropped ),
+							number_format_i18n( (int) ( $definition['min'] ?? 0 ) ),
+							number_format_i18n( (int) ( $definition['max'] ?? 0 ) ),
+							number_format_i18n( (int) ( $definition['max_items'] ?? 0 ) )
+						),
+						'warning'
+					);
+				}
 				continue;
 			}
 			// SET-LIC-01: a value that cannot be accepted is reported and the stored value stays.
@@ -541,10 +596,11 @@ final class Settings {
 				echo ' <span role="status" aria-live="polite" data-wplc-copy-status="wplc-webhook-url"></span>';
 			} else {
 				$state = $row['state'] ?? '';
+				// SET-LIC-38: screen readers hear the state; the icon alone is hidden from them (as on the diagnostics page).
 				if ( 'ok' === $state ) {
-					echo '<span class="dashicons dashicons-yes-alt" style="color:#00a32a" aria-hidden="true"></span> ';
+					echo '<span class="dashicons dashicons-yes-alt" style="color:#00a32a" aria-hidden="true"></span><span class="screen-reader-text">' . esc_html( self::state_text( $state ) ) . '</span> ';
 				} elseif ( 'warning' === $state ) {
-					echo '<span class="dashicons dashicons-warning" style="color:#d63638" aria-hidden="true"></span> ';
+					echo '<span class="dashicons dashicons-warning" style="color:#d63638" aria-hidden="true"></span><span class="screen-reader-text">' . esc_html( self::state_text( $state ) ) . '</span> ';
 				}
 				echo esc_html( $row['value'] );
 			}
@@ -572,6 +628,25 @@ final class Settings {
 		 */
 		do_action( 'wplc_settings_page_tools', $tab );
 		echo '</div>';
+	}
+
+	/**
+	 * The state of a status row as a word (SET-LIC-38).
+	 *
+	 * @param string $state ok or warning.
+	 * @return string Empty for a row without a state.
+	 */
+	public static function state_text( string $state ): string {
+		if ( 'ok' === $state ) {
+			/* translators: State of a row of the status table: everything is fine. */
+			return __( 'OK:', 'wp-license' );
+		}
+		if ( 'warning' === $state ) {
+			/* translators: State of a row of the status table: something needs to be done. */
+			return __( 'Attention:', 'wp-license' );
+		}
+
+		return '';
 	}
 
 	/**
@@ -1056,13 +1131,42 @@ final class Settings {
 	}
 
 	/**
-	 * Render the reminder lead days input.
+	 * Render the reminder lead days as one number field per reminder (SET-LIC-37).
 	 *
 	 * @return void
 	 */
 	public static function render_reminder_days_field(): void {
-		echo '<input type="text" id="wplc_reminder_days" name="' . esc_attr( self::OPTION ) . '[reminder_days]" value="' . esc_attr( (string) self::get( 'reminder_days' ) ) . '" class="regular-text" pattern="[0-9 ,]*" aria-describedby="wplc_reminder_days_help">';
-		echo '<p class="description" id="wplc_reminder_days_help">' . esc_html__( 'Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7.', 'wp-license' ) . '</p>';
+		$definition = (array) Registry::definition( 'reminder_days' );
+		$days       = Registry::list( 'reminder_days' );
+		echo '<fieldset id="wplc_reminder_days" aria-describedby="wplc_reminder_days_help"><legend class="screen-reader-text">' . esc_html( Texts::label( 'reminder_days' ) ) . '</legend>';
+		for ( $i = 0; $i < (int) ( $definition['max_items'] ?? 6 ); $i++ ) {
+			$id = 'wplc_reminder_days_' . $i;
+			/* translators: %s: number of the reminder (1, 2, ...). */
+			echo '<label for="' . esc_attr( $id ) . '" class="screen-reader-text">' . esc_html( sprintf( __( 'Reminder %s: days before the end', 'wp-license' ), number_format_i18n( $i + 1 ) ) ) . '</label>';
+			echo '<input type="number" id="' . esc_attr( $id ) . '" name="' . esc_attr( self::OPTION . '[reminder_days][' . $i . ']' ) . '" value="' . esc_attr( isset( $days[ $i ] ) ? (string) $days[ $i ] : '' ) . '" min="' . esc_attr( (string) (int) ( $definition['min'] ?? 1 ) ) . '" max="' . esc_attr( (string) (int) ( $definition['max'] ?? 365 ) ) . '" step="1" class="small-text"> ';
+		}
+		echo esc_html__( 'days', 'wp-license' ) . '</fieldset>';
+		echo '<p class="description" id="wplc_reminder_days_help">' . esc_html__( 'Days before the end of the paid period on which a reminder is sent, one per field; leave the other fields empty. Default: 30 and 7. All fields empty = the default.', 'wp-license' ) . '</p>';
+		self::render_effective_value( 'reminder_days' );
+	}
+
+	/**
+	 * Render the choice of the verbose log with the time until it switches itself off (SET-LIC-29).
+	 *
+	 * @return void
+	 */
+	public static function render_debug_log_field(): void {
+		self::render_field( array( 'key' => 'debug_log' ) );
+		$until = \WPLC\Infrastructure\Log::verbose_until();
+		if ( $until > 0 ) {
+			/* translators: %s: date and time. */
+			echo '<p class="description wplc-effective"><span class="dashicons dashicons-info" aria-hidden="true"></span> ' . esc_html( sprintf( __( 'On until %s. Then it switches itself off.', 'wp-license' ), Format::date( gmdate( 'Y-m-d H:i:s', $until ), true ) ) ) . '</p>';
+		} elseif ( 'off' !== Registry::string( 'debug_log' ) ) {
+			echo '<p class="description wplc-effective"><span class="dashicons dashicons-info" aria-hidden="true"></span> ' . esc_html__( 'The time has run out; the verbose log is off. Choose "Off", save, and choose a time again to switch it on.', 'wp-license' ) . '</p>';
+		}
+		if ( defined( 'WPLC_DEBUG' ) && (bool) constant( 'WPLC_DEBUG' ) ) {
+			echo '<p class="description wplc-effective"><span class="dashicons dashicons-info" aria-hidden="true"></span> ' . esc_html__( 'In effect: on. The constant WPLC_DEBUG is set in wp-config.php.', 'wp-license' ) . '</p>';
+		}
 	}
 
 	/**

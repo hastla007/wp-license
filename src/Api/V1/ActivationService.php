@@ -648,20 +648,22 @@ final class ActivationService {
 	 * New installations a license may activate per hour (P-10).
 	 *
 	 * Repeated activations of a known installation ID do not count. The
-	 * default allows twice the live-site limit, at least
-	 * NEW_ACTIVATIONS_PER_HOUR, so an agency can still set up all its sites.
+	 * default allows twice the live-site limit, at least the setting "New
+	 * sites per license and hour" (NEW_ACTIVATIONS_PER_HOUR, SET-LIC-27), so
+	 * an agency can still set up all its sites. The setting 0 disables the limit.
 	 *
 	 * @param array<string,mixed> $license    License row.
 	 * @param int                 $site_limit Live-site limit of the license.
 	 * @return int Zero or less disables the limit.
 	 */
 	public static function new_activations_per_hour( array $license, int $site_limit ): int {
-		$limit = max( self::NEW_ACTIVATIONS_PER_HOUR, 2 * $site_limit );
+		$floor = \WPLC\Settings\Registry::int( 'new_activations_per_hour' );
+		$limit = 0 === $floor ? 0 : max( $floor, 2 * $site_limit );
 
 		/**
 		 * Filter how many new installations one license may activate per hour.
 		 *
-		 * @param int                 $limit      Default: twice the live-site limit, at least ten. Zero disables the limit.
+		 * @param int                 $limit      Default: twice the live-site limit, at least the setting "New sites per license and hour" (10); 0 when the setting is 0. Zero disables the limit.
 		 * @param array<string,mixed> $license    License row.
 		 * @param int                 $site_limit Live-site limit.
 		 */

@@ -700,8 +700,9 @@ final class CustomerPortal {
 		$status     = (string) ( $license['status'] ?? '' );
 		$paid_until = Format::utc_timestamp( $license['paid_until'] ?? '' );
 		$support    = Notifications::support_email();
+		$support    = '' !== $support ? $support : Notifications::support_url();
 		$contact    = '' !== $support
-			/* translators: %s: email address. */
+			/* translators: %s: email address or address of the support page. */
 			? ' ' . sprintf( __( 'Please contact our support: %s', 'wp-license' ), $support )
 			: ' ' . __( 'Please contact our support.', 'wp-license' );
 

@@ -656,30 +656,46 @@ final class Diagnostics {
 	}
 
 	/**
-	 * Alert thresholds per metric key, after the filter.
+	 * The technical limits of the license API (constants, SET-LIC-27), as translated lines.
+	 *
+	 * @return array<string,string> Constant => line.
+	 */
+	public static function technical_limits(): array {
+		return array(
+			/* translators: %s: number. */
+			'REQUESTS_PER_INSTALLATION' => sprintf( __( '%s requests per installation and minute', 'wp-license' ), number_format_i18n( \WPLC\Api\V1\Authenticator::REQUESTS_PER_INSTALLATION ) ),
+			/* translators: %s: number. */
+			'AUTH_FAILURES_PER_IP'      => sprintf( __( '%s failed sign-ins per address and minute', 'wp-license' ), number_format_i18n( \WPLC\Api\V1\Authenticator::AUTH_FAILURES_PER_IP ) ),
+			/* translators: %s: number. */
+			'ATTEMPTS_PER_IP'           => sprintf( __( '%s failed activations per address and minute', 'wp-license' ), number_format_i18n( \WPLC\Api\V1\ActivationService::ATTEMPTS_PER_IP ) ),
+			/* translators: %s: number. */
+			'ATTEMPTS_PER_KEY'          => sprintf( __( '%s failed activations per key reference, address and minute', 'wp-license' ), number_format_i18n( \WPLC\Api\V1\ActivationService::ATTEMPTS_PER_KEY ) ),
+			/* translators: %s: number of seconds. */
+			'TIMESTAMP_WINDOW'          => sprintf( __( 'signed requests are accepted %s seconds before or after the server time', 'wp-license' ), number_format_i18n( \WPLC\Api\V1\Authenticator::TIMESTAMP_WINDOW ) ),
+		);
+	}
+
+	/**
+	 * Alert thresholds per metric key: the settings "Alert from: …" (SET-LIC-22), then the filter.
+	 *
+	 * A setting of 0 leaves the figure out (never alert); the filter decides last and may add it again.
 	 *
 	 * @return array<string,mixed>
 	 */
-	private static function thresholds(): array {
-		$thresholds = apply_filters(
-			'wplc_health_alert_thresholds',
-			array(
-				'pending_webhooks'          => 1,
-				'manual_review_webhooks'    => 1,
-				'overdue_renewals'          => 1,
-				'stuck_processing_renewals' => 1,
-				'paid_without_extension'    => 1,
-				'failed_scheduled_actions'  => 1,
-				'unmapped_license_products' => 1,
-				'review_required_renewals'  => 1,
-				'orders_with_issuance_problem' => 1,
-				'failed_jobs'               => 1,
-				'release_problems'          => 1,
-				'rejected_webhook_minutes'  => 5,
-			)
-		);
-
-		return is_array( $thresholds ) ? $thresholds : array();
+	public static function thresholds(): array {
+		$configured = array();
+		foreach ( array_keys( \WPLC\Settings\Definitions::ALERT_THRESHOLDS ) as $metric ) {
+			$value = \WPLC\Settings\Registry::int( 'alert_' . $metric );
+			if ( $value > 0 ) {
+				$configured[ $metric ] = $value;
+			}
+		}
+		/**
+		 * Filters the alert thresholds per figure of the diagnostics page. Wins over the settings.
+		 *
+		 * @param array<string,int> $thresholds Figure key => number from which wplc/health_alert fires; from the settings "Alert from: …".
+		 */
+		return (array) apply_filters( 'wplc_health_alert_thresholds', $configured );
 	}
 
 	/**
@@ -1182,6 +1198,13 @@ final class Diagnostics {
 			}
 			$add( $label, $parts ? implode( ', ', $parts ) : __( 'None', 'wp-license' ) );
 		}
+		// SET-LIC-27: the technical limits of the license API are constants, shown here so nobody has to read the code.
+		$add(
+			__( 'Technical limits of the license API', 'wp-license' ),
+			implode( '; ', self::technical_limits() ),
+			'',
+			__( 'Fixed protection against overload and guessing; not a setting. The number of new sites per license and hour is a setting under License settings → Customer sites.', 'wp-license' )
+		);
 
 		// Infrastructure.
 		$lock = self::lock_self_test();

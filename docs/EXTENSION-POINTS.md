@@ -141,6 +141,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_gap_hold_days` | `src/Maintenance/GapGuard.php` | Filter the longest hold after a gap in days. |
 | `wplc_gap_reconcile_days` | `src/Maintenance/GapReconciler.php` | Filter how many days of orders and refunds are reconciled. |
 | `wplc_health_alert_recipients` | `src/Admin/HealthAlertMail.php` | Filters the recipients of health alert emails. Wins over the setting. |
+| `wplc_health_alert_thresholds` | `src/Admin/Diagnostics.php` | Filters the alert thresholds per figure of the diagnostics page. Wins over the settings. |
 | `wplc_install_steps` | `src/Notifications/Notifications.php` |  |
 | `wplc_is_local_development_url` | `src/Api/V1/ActivationService.php` | Allow a shop owner to explicitly approve a custom development hostname. |
 | `wplc_is_staging_host` | `src/Api/V1/SiteUrl.php` | Filter whether a host is accepted as the staging copy of a live site. |
@@ -206,7 +207,8 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_stripe_mode` | `src/Gateway/StripeRecurringAdapter.php` | Filters the mode the Stripe gateway is considered to run in. |
 | `wplc_stripe_site_id` | `src/Gateway/StripeRecurringAdapter.php` | Filters the site identifier sent to Stripe and expected in webhook events. |
 | `wplc_stripe_webhook_secrets` | `src/Api/V1/StripeWebhook.php` | Filters the Stripe webhook signing secrets of the current site. |
-| `wplc_support_email` | `src/Notifications/Notifications.php` | Filter the support contact named in license emails. |
+| `wplc_support_email` | `src/Notifications/Notifications.php` | Filter the support contact named in license emails. Wins over the setting. |
+| `wplc_support_url` | `src/Notifications/Notifications.php` | Filter the address of the support page that the customer account and the cancellation page link to. Wins over the setting. |
 | `wplc_suppress_renewal_order_email` | `src/Gateway/RenewalOrderEmails.php` | Filters whether a WooCommerce customer mail is suppressed for an automatic renewal order. |
 | `wplc_suspend_license_on_order_item_change` | `src/License/LicenseLifecycle.php` | Filters whether licenses are suspended when their order line is removed or its quantity lowered. |
 | `wplc_suspend_license_on_order_status` | `src/License/LicenseLifecycle.php` |  |

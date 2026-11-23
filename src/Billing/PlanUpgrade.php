@@ -64,6 +64,16 @@ final class PlanUpgrade {
 	public const QUOTE_TTL = 86400;
 
 	/**
+	 * Seconds an unpaid upgrade order stays payable: the setting "Upgrade offer valid for"
+	 * (hours, default 24 = QUOTE_TTL, SET-LIC-42).
+	 *
+	 * @return int
+	 */
+	public static function quote_ttl(): int {
+		return \WPLC\Settings\Registry::int( 'upgrade_quote_hours' ) * 3600;
+	}
+
+	/**
 	 * Notice codes of the customer forms (CustomerPortal::notice_messages()).
 	 */
 	private const NOTICE_CODES = array( 'upgrade_unavailable', 'upgrade_busy', 'upgrade_paid', 'upgrade_pending', 'upgrade_consent_required', 'plan_change_scheduled', 'plan_change_unavailable', 'plan_change_busy', 'plan_change_withdrawn', 'plan_change_not_withdrawn' );
@@ -890,7 +900,7 @@ final class PlanUpgrade {
 	 *
 	 * The quote is fixed when the order is created; it no longer applies when
 	 * the license's period or plan changed, the license cannot be upgraded
-	 * right now, or the quote is older than QUOTE_TTL (the prorated price
+	 * right now, or the quote is older than quote_ttl() (the prorated price
 	 * falls every day). The customer clicks "Upgrade" again for a new quote.
 	 *
 	 * @param \WC_Order $order Upgrade order.
@@ -918,7 +928,7 @@ final class PlanUpgrade {
 			$created   = $order->get_date_created();
 			$quoted_at = $created ? (int) $created->getTimestamp() : 0;
 		}
-		if ( $now - $quoted_at > self::QUOTE_TTL ) {
+		if ( $now - $quoted_at > self::quote_ttl() ) {
 			return AuditReason::UPGRADE_QUOTE_EXPIRED;
 		}
 

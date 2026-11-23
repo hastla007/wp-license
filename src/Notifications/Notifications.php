@@ -1251,24 +1251,46 @@ final class Notifications {
 	}
 
 	/**
-	 * Address customers can reply to: the sender address of the shop emails.
+	 * Address customers can reply to: the setting "Support email address", else the
+	 * sender address of the shop emails, else the address of the administrator (SET-LIC-23).
 	 *
 	 * @return string
 	 */
 	public static function support_email(): string {
-		$address = (string) get_option( 'woocommerce_email_from_address', '' );
+		$address = \WPLC\Settings\Registry::string( 'support_email' );
+		if ( ! is_email( $address ) ) {
+			$address = (string) get_option( 'woocommerce_email_from_address', '' );
+		}
 		if ( ! is_email( $address ) ) {
 			$address = (string) get_option( 'admin_email', '' );
 		}
 
 		/**
-		 * Filter the support contact named in license emails.
+		 * Filter the support contact named in license emails. Wins over the setting.
 		 *
-		 * @param string $address Email address.
+		 * @param string $address Email address: the setting "Support email address", else the shop sender, else the administrator.
 		 */
 		$filtered = (string) apply_filters( 'wplc_support_email', $address );
 
 		return is_email( $filtered ) ? $filtered : '';
+	}
+
+	/**
+	 * Address of the support page of the shop: the setting "Support page", or '' (SET-LIC-23).
+	 *
+	 * @return string An http(s) URL or ''.
+	 */
+	public static function support_url(): string {
+		/**
+		 * Filter the address of the support page that the customer account and the cancellation page link to. Wins over the setting.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param string $url The setting "Support page"; empty = no link.
+		 */
+		$url = (string) apply_filters( 'wplc_support_url', \WPLC\Settings\Registry::string( 'support_url' ) );
+
+		return 1 === preg_match( '#^https?://[^\s<>"\']+$#i', $url ) ? $url : '';
 	}
 
 	/**

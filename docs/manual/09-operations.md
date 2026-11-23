@@ -106,7 +106,7 @@ add_action( 'wplc/health_alert', function ( $metric, $value, $threshold, $url = 
 }, 10, 4 );
 ```
 
-Metrics: `pending_webhooks`, `manual_review_webhooks`, `rejected_webhook_minutes`, `overdue_renewals`, `review_required_renewals`, `stuck_processing_renewals`, `renewing_without_renewal`, `paid_without_extension`, `failed_scheduled_actions`, `unmapped_license_products`, `orders_with_issuance_problem`, `failed_jobs`, `release_problems`, `expired_download_grants`. Thresholds: filter `wplc_health_alert_thresholds`. Events that need a person are passed on at once: `renewal_blocked`, `renewal_needs_review`, `license_needs_review`, `renewal_lock_unavailable`, `response_signing_key_unavailable`, `price_change_not_applied`.
+Metrics: `pending_webhooks`, `manual_review_webhooks`, `rejected_webhook_minutes`, `overdue_renewals`, `review_required_renewals`, `stuck_processing_renewals`, `renewing_without_renewal`, `paid_without_extension`, `failed_scheduled_actions`, `unmapped_license_products`, `orders_with_issuance_problem`, `failed_jobs`, `release_problems`, `expired_download_grants`. Thresholds: settings "Alert from: …" (chapter 13), then the filter `wplc_health_alert_thresholds`. Events that need a person are passed on at once: `renewal_blocked`, `renewal_needs_review`, `license_needs_review`, `renewal_lock_unavailable`, `response_signing_key_unavailable`, `price_change_not_applied`.
 
 ### Scheduled jobs
 
