@@ -19,6 +19,9 @@ final class LicenseStateMachine {
 	 * Days before paid_until from which, and after paid_until until which, a
 	 * customer may renew manually. An expired license can only be reactivated
 	 * by a manual renewal payment inside this window.
+	 *
+	 * This is the default of the two settings; read the effective values with
+	 * manual_renewal_window().
 	 */
 	public const MANUAL_RENEWAL_WINDOW_DAYS = 30;
 
@@ -113,6 +116,60 @@ final class LicenseStateMachine {
 
 		return 'expired' === $status
 			&& $paid_until > 0
-			&& $paid_at <= $paid_until + self::MANUAL_RENEWAL_WINDOW_DAYS * 86400;
+			&& $paid_at <= $paid_until + self::renewal_days_after() * 86400;
+	}
+
+	/**
+	 * The window of manual renewal in days before and after paid_until (SET-LIC-16).
+	 *
+	 * Settings "Manual renewal: days before the end" and "… after the end" (30 and 30 by
+	 * default), then the filter `wplc_manual_renewal_window_days`, which wins. Each value is
+	 * kept between 0 and 365.
+	 *
+	 * @return array{before:int,after:int}
+	 */
+	public static function manual_renewal_window(): array {
+		$window = array(
+			'before' => \WPLC\Settings\Registry::int( 'manual_renewal_days_before' ),
+			'after'  => \WPLC\Settings\Registry::int( 'manual_renewal_days_after' ),
+		);
+		if ( function_exists( 'apply_filters' ) ) {
+			/**
+			 * Filters the window of manual renewal. Wins over the two settings.
+			 *
+			 * @since 0.2.0
+			 *
+			 * @param array<string,mixed> $window Keys `before` and `after`: days before and after the end of the paid period.
+			 */
+			$filtered = (array) apply_filters( 'wplc_manual_renewal_window_days', $window );
+			foreach ( array( 'before', 'after' ) as $side ) {
+				if ( isset( $filtered[ $side ] ) && is_numeric( $filtered[ $side ] ) ) {
+					$window[ $side ] = (int) $filtered[ $side ];
+				}
+			}
+		}
+
+		return array(
+			'before' => max( 0, min( 365, $window['before'] ) ),
+			'after'  => max( 0, min( 365, $window['after'] ) ),
+		);
+	}
+
+	/**
+	 * Days before paid_until from which a customer may renew manually.
+	 *
+	 * @return int
+	 */
+	public static function renewal_days_before(): int {
+		return self::manual_renewal_window()['before'];
+	}
+
+	/**
+	 * Days after paid_until until which an expired license may still be renewed manually.
+	 *
+	 * @return int
+	 */
+	public static function renewal_days_after(): int {
+		return self::manual_renewal_window()['after'];
 	}
 }

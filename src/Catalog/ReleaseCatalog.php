@@ -49,8 +49,7 @@ final class ReleaseCatalog {
 	 * @return bool
 	 */
 	public static function enabled(): bool {
-		$settings = function_exists( 'get_option' ) ? get_option( 'wplc_settings', array() ) : array();
-		$enabled  = ! ( is_array( $settings ) && isset( $settings['catalog_auto_import'] ) && ! $settings['catalog_auto_import'] );
+		$enabled = \WPLC\Settings\Registry::bool( 'catalog_auto_import' );
 
 		/**
 		 * Filters whether the catalog file of an uploaded release package is imported.

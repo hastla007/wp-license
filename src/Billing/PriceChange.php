@@ -88,10 +88,10 @@ final class PriceChange {
 	 * @return int
 	 */
 	public static function notice_days(): int {
-		$days     = self::DEFAULT_NOTICE_DAYS;
-		$settings = function_exists( 'get_option' ) ? get_option( 'wplc_settings', array() ) : array();
-		if ( is_array( $settings ) && isset( $settings['price_change_notice_days'] ) && is_numeric( $settings['price_change_notice_days'] ) ) {
-			$days = (int) $settings['price_change_notice_days'];
+		$days    = self::DEFAULT_NOTICE_DAYS;
+		$setting = \WPLC\Settings\Registry::stored()['price_change_notice_days'] ?? null;
+		if ( is_numeric( $setting ) ) {
+			$days = (int) $setting;
 		}
 
 		/**

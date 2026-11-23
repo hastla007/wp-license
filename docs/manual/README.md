@@ -22,6 +22,7 @@ Throughout the manual the examples use an invented vendor, **Acme Plugins**, tha
 | [10. WP-CLI reference](10-wp-cli.md) | Every `wp wplc` command with its options. |
 | [11. Troubleshooting and FAQ](11-troubleshooting.md) | Symptoms, causes and fixes. |
 | [12. Upgrading](12-upgrading.md) | Updating the server plugin, migrations, rollback, uninstall. |
+| [13. Settings](13-settings.md) | Every setting with its default, limits and filter; how settings, tabs and the change log work. |
 
 ## The first hour, in short
 
