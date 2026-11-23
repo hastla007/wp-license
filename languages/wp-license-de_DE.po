@@ -3,8 +3,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP License Captain 0.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-23T19:04:16+00:00\n"
-"PO-Revision-Date: 2026-11-23 19:04+0000\n"
+"POT-Creation-Date: 2026-11-23T19:46:39+00:00\n"
+"PO-Revision-Date: 2026-11-23 19:48+0000\n"
 "Last-Translator: \n"
 "Language-Team: German\n"
 "Language: de_DE\n"
@@ -31,8 +31,7 @@ msgstr "WP License Captain"
 msgid "License and update management for WP product plugins sold through WooCommerce."
 msgstr "Lizenz- und Update-Verwaltung für WP-Produkt-Plugins, die über WooCommerce verkauft werden."
 
-#: src/Account/CustomerPortal.php:158
-#: src/Account/CustomerPortal.php:212
+#: src/Account/CustomerPortal.php:170
 #: src/Admin/LicenseAdmin.php:93
 #: src/Admin/LicenseAdmin.php:102
 #: src/Admin/LicenseAdmin.php:110
@@ -42,7 +41,7 @@ msgstr "Lizenz- und Update-Verwaltung für WP-Produkt-Plugins, die über WooComm
 msgid "Licenses"
 msgstr "Lizenzen"
 
-#: src/Account/CustomerPortal.php:385
+#: src/Account/CustomerPortal.php:407
 msgid "Please sign in to view your licenses."
 msgstr "Bitte melde dich an, um deine Lizenzen anzuzeigen."
 
@@ -55,7 +54,7 @@ msgid "No licenses are associated with this account."
 msgstr "Mit diesem Konto sind keine Lizenzen verknüpft."
 
 #. translators: 1: number of live sites in use, 2: number of live sites included in the plan.
-#: src/Account/CustomerPortal.php:601
+#: src/Account/CustomerPortal.php:624
 #, php-format
 msgid "%1$d of %2$d"
 msgstr "%1$d von %2$d"
@@ -69,12 +68,12 @@ msgstr "Status:"
 msgid "License key:"
 msgstr "Lizenzschlüssel:"
 
-#: src/Admin/Settings.php:602
+#: src/Admin/Settings.php:646
 #: templates/myaccount/wplc-license.php:60
 msgid "Copied"
 msgstr "Kopiert"
 
-#: src/Admin/Settings.php:602
+#: src/Admin/Settings.php:646
 #: templates/myaccount/wplc-license.php:60
 msgid "Copy"
 msgstr "Kopieren"
@@ -88,11 +87,11 @@ msgid "Valid through:"
 msgstr "Gültig bis:"
 
 #. translators: %s: date.
-#: src/Account/CustomerPortal.php:595
-#: src/Account/CustomerPortal.php:636
-#: src/Account/SiteOverview.php:320
+#: src/Account/CustomerPortal.php:618
+#: src/Account/CustomerPortal.php:659
+#: src/Account/SiteOverview.php:412
 #: src/Billing/RenewInsteadNotice.php:202
-#: src/Notifications/Notifications.php:1020
+#: src/Notifications/Notifications.php:1068
 msgid "No expiry"
 msgstr "Kein Ablaufdatum"
 
@@ -104,7 +103,7 @@ msgstr "Live-Websites:"
 msgid "Renewal:"
 msgstr "Verlängerung:"
 
-#: src/Account/SiteOverview.php:138
+#: src/Account/SiteOverview.php:172
 #: templates/myaccount/wplc-license.php:131
 msgid "Sites"
 msgstr "Websites"
@@ -113,14 +112,14 @@ msgstr "Websites"
 msgid "No sites are activated."
 msgstr "Es sind keine Websites aktiviert."
 
-#: src/Account/SiteOverview.php:281
+#: src/Account/SiteOverview.php:373
 #: src/Admin/LicenseDetail.php:547
 #: templates/myaccount/wplc-license.php:138
 #: templates/myaccount/wplc-license.php:147
 msgid "Site"
 msgstr "Website"
 
-#: src/Account/SiteOverview.php:283
+#: src/Account/SiteOverview.php:375
 #: src/Admin/LicenseDetail.php:547
 #: src/Client/Messages.php:284
 #: templates/myaccount/wplc-license.php:139
@@ -134,7 +133,7 @@ msgstr "Umgebung"
 msgid "Activated"
 msgstr "Aktiviert"
 
-#: src/Account/SiteOverview.php:288
+#: src/Account/SiteOverview.php:380
 #: src/Admin/CatalogFileAdmin.php:80
 #: src/Admin/LicenseDetail.php:241
 #: src/Admin/LicenseDetail.php:602
@@ -145,15 +144,15 @@ msgstr "Aktiviert"
 msgid "Actions"
 msgstr "Aktionen"
 
-#: src/Account/CustomerPortal.php:752
+#: src/Account/CustomerPortal.php:775
 msgid "Cancelled. The license ends at the end of the paid period."
 msgstr "Gekündigt. Die Lizenz endet mit Ablauf des bezahlten Zeitraums."
 
-#: src/Account/CustomerPortal.php:755
+#: src/Account/CustomerPortal.php:778
 msgid "Renews automatically at the end of the paid period."
 msgstr "Verlängert sich automatisch am Ende des bezahlten Zeitraums."
 
-#: src/Account/CustomerPortal.php:757
+#: src/Account/CustomerPortal.php:780
 msgid "Does not renew automatically. Renew it yourself before it ends to keep updates and premium features."
 msgstr "Verlängert sich nicht automatisch. Verlängere die Lizenz rechtzeitig selbst, um Updates und Premium-Funktionen zu behalten."
 
@@ -169,98 +168,98 @@ msgstr "Dein Zahlungsanbieter fordert dich möglicherweise auf, die Zahlung zu b
 msgid "License pages"
 msgstr "Lizenzseiten"
 
-#: src/Account/SiteOverview.php:418
+#: src/Account/SiteOverview.php:510
 #: templates/myaccount/wplc-licenses.php:53
 msgid "Previous"
 msgstr "Zurück"
 
 #. translators: 1: current page, 2: number of pages.
-#: src/Account/SiteOverview.php:421
+#: src/Account/SiteOverview.php:513
 #: templates/myaccount/wplc-licenses.php:60
 #, php-format
 msgid "Page %1$d of %2$d"
 msgstr "Seite %1$d von %2$d"
 
-#: src/Account/SiteOverview.php:423
+#: src/Account/SiteOverview.php:515
 #: templates/myaccount/wplc-licenses.php:64
 msgid "Next"
 msgstr "Weiter"
 
-#: src/Account/CustomerPortal.php:868
+#: src/Account/CustomerPortal.php:891
 msgid "The site was deactivated. Its place is free again."
 msgstr "Die Website wurde deaktiviert. Ihr Platz ist wieder frei."
 
-#: src/Account/CustomerPortal.php:869
+#: src/Account/CustomerPortal.php:892
 msgid "The site activation was not found for this account."
 msgstr "Die Aktivierung dieser Website wurde für dieses Konto nicht gefunden."
 
-#: src/Account/CustomerPortal.php:870
+#: src/Account/CustomerPortal.php:893
 msgid "This site was already deactivated."
 msgstr "Diese Website wurde bereits deaktiviert."
 
-#: src/Account/CustomerPortal.php:871
+#: src/Account/CustomerPortal.php:894
 msgid "The site could not be deactivated. Please try again."
 msgstr "Die Website konnte nicht deaktiviert werden. Bitte versuche es erneut."
 
-#: src/Account/CustomerPortal.php:880
+#: src/Account/CustomerPortal.php:903
 msgid "Your cancellation is recorded. The license stays valid until the end of the paid period."
 msgstr "Deine Kündigung ist vermerkt. Die Lizenz bleibt bis zum Ende des bezahlten Zeitraums gültig."
 
-#: src/Account/CustomerPortal.php:881
+#: src/Account/CustomerPortal.php:904
 msgid "The license could not be cancelled. It may already be cancelled or no longer be active."
 msgstr "Die Lizenz konnte nicht gekündigt werden. Möglicherweise ist sie bereits gekündigt oder nicht mehr aktiv."
 
-#: src/Account/CustomerPortal.php:882
+#: src/Account/CustomerPortal.php:905
 msgid "Your cancellation was withdrawn. The license continues as before."
 msgstr "Deine Kündigung wurde zurückgenommen. Die Lizenz läuft wie bisher weiter."
 
-#: src/Account/CustomerPortal.php:883
+#: src/Account/CustomerPortal.php:906
 msgid "The cancellation could not be withdrawn. The license may already have ended."
 msgstr "Die Kündigung konnte nicht zurückgenommen werden. Möglicherweise ist die Lizenz bereits beendet."
 
-#: src/Account/CustomerPortal.php:884
+#: src/Account/CustomerPortal.php:907
 msgid "The license was not found for this account."
 msgstr "Die Lizenz wurde für dieses Konto nicht gefunden."
 
-#: src/Account/CustomerPortal.php:1238
+#: src/Account/CustomerPortal.php:1261
 msgid "You are not allowed to deactivate this site."
 msgstr "Du bist nicht berechtigt, diese Website zu deaktivieren."
 
-#: src/Account/CustomerPortal.php:1253
+#: src/Account/CustomerPortal.php:1276
 msgid "You are not allowed to cancel this license."
 msgstr "Du bist nicht berechtigt, diese Lizenz zu kündigen."
 
-#: src/Account/CustomerPortal.php:1268
+#: src/Account/CustomerPortal.php:1291
 #: src/Billing/PlanUpgrade.php:215
 #: src/Billing/PlanUpgrade.php:234
 msgid "You are not allowed to change this license."
 msgstr "Du bist nicht berechtigt, diese Lizenz zu ändern."
 
 #. translators: %s: site URL.
-#: src/Account/CustomerPortal.php:1354
+#: src/Account/CustomerPortal.php:1377
 #, php-format
 msgid "Deactivate %s? The site loses updates and premium features until it is activated again."
 msgstr "%s deaktivieren? Die Website erhält keine Updates und Premium-Funktionen mehr, bis sie erneut aktiviert wird."
 
-#: src/Account/CustomerPortal.php:1364
+#: src/Account/CustomerPortal.php:1387
 msgid "Deactivate"
 msgstr "Deaktivieren"
 
 #. translators: %s: site URL.
-#: src/Account/CustomerPortal.php:1366
+#: src/Account/CustomerPortal.php:1389
 #, php-format
 msgid "site %s"
 msgstr "Website %s"
 
-#: src/Account/CustomerPortal.php:1442
+#: src/Account/CustomerPortal.php:1465
 msgid "Cancel at period end"
 msgstr "Zum Ende des Zeitraums kündigen"
 
-#: src/Account/CustomerPortal.php:1476
+#: src/Account/CustomerPortal.php:1499
 msgid "Undo cancellation"
 msgstr "Kündigung zurücknehmen"
 
-#: src/Account/CustomerPortal.php:1489
+#: src/Account/CustomerPortal.php:1512
 #: templates/emails/plain/wplc-expiry-reminder.php:61
 #: templates/emails/wplc-expiry-reminder.php:61
 msgid "Renew now"
@@ -371,97 +370,97 @@ msgstr "Zugeordnete Produkte exportieren"
 msgid "Import mappings"
 msgstr "Zuordnungen importieren"
 
-#: src/Admin/Diagnostics.php:866
-#: src/Admin/Diagnostics.php:867
-#: src/Admin/Diagnostics.php:872
+#: src/Admin/Diagnostics.php:868
+#: src/Admin/Diagnostics.php:869
+#: src/Admin/Diagnostics.php:874
 msgid "License diagnostics"
 msgstr "Lizenzdiagnose"
 
-#: src/Admin/Diagnostics.php:811
-#: src/Admin/Diagnostics.php:1330
+#: src/Admin/Diagnostics.php:813
+#: src/Admin/Diagnostics.php:1352
 msgid "You do not have permission to view diagnostics."
 msgstr "Du bist nicht berechtigt, die Diagnose anzuzeigen."
 
 #. translators: 1: running PHP version, 2: minimum PHP version.
-#: src/Admin/Diagnostics.php:918
+#: src/Admin/Diagnostics.php:920
 msgid "PHP"
 msgstr "PHP"
 
-#: src/Admin/Diagnostics.php:922
+#: src/Admin/Diagnostics.php:924
 msgid "WordPress"
 msgstr "WordPress"
 
-#: src/Admin/Diagnostics.php:932
-#: src/Admin/Diagnostics.php:940
+#: src/Admin/Diagnostics.php:934
+#: src/Admin/Diagnostics.php:942
 msgid "WooCommerce"
 msgstr "WooCommerce"
 
-#: src/Admin/Diagnostics.php:940
-#: src/Admin/Diagnostics.php:1031
-#: src/Admin/Diagnostics.php:1085
+#: src/Admin/Diagnostics.php:942
+#: src/Admin/Diagnostics.php:1033
+#: src/Admin/Diagnostics.php:1087
 msgid "Unavailable"
 msgstr "Nicht verfügbar"
 
 #: src/Admin/AuditLogAdmin.php:203
-#: src/Admin/Diagnostics.php:897
-#: src/Admin/Diagnostics.php:947
-#: src/Admin/Diagnostics.php:1025
+#: src/Admin/Diagnostics.php:899
+#: src/Admin/Diagnostics.php:949
+#: src/Admin/Diagnostics.php:1027
 msgid "Unknown"
 msgstr "Unbekannt"
 
 #. translators: 1: MySQL or MariaDB, 2: version of the database server, 3: minimum version.
-#: src/Admin/Diagnostics.php:945
 #: src/Admin/Diagnostics.php:947
+#: src/Admin/Diagnostics.php:949
 msgid "Database"
 msgstr "Datenbank"
 
-#: src/Admin/Diagnostics.php:1030
+#: src/Admin/Diagnostics.php:1032
 msgid "HTTPS"
 msgstr "HTTPS"
 
-#: src/Admin/Diagnostics.php:1030
+#: src/Admin/Diagnostics.php:1032
 msgid "Enabled"
 msgstr "Aktiviert"
 
-#: src/Admin/Diagnostics.php:1030
+#: src/Admin/Diagnostics.php:1032
 msgid "Not detected"
 msgstr "Nicht erkannt"
 
-#: src/Admin/Diagnostics.php:1031
+#: src/Admin/Diagnostics.php:1033
 msgid "OpenSSL"
 msgstr "OpenSSL"
 
 #: src/Admin/CatalogFileAdmin.php:109
-#: src/Admin/Diagnostics.php:1031
-#: src/Admin/Diagnostics.php:1085
-#: src/Admin/Diagnostics.php:1097
-#: src/Admin/Settings.php:954
+#: src/Admin/Diagnostics.php:1033
+#: src/Admin/Diagnostics.php:1087
+#: src/Admin/Diagnostics.php:1099
+#: src/Admin/Settings.php:1015
 msgid "Available"
 msgstr "Verfügbar"
 
-#: src/Admin/Diagnostics.php:1084
-#: src/Admin/Settings.php:953
+#: src/Admin/Diagnostics.php:1086
+#: src/Admin/Settings.php:1014
 msgid "Action Scheduler"
 msgstr "Action Scheduler"
 
-#: src/Admin/Diagnostics.php:1108
+#: src/Admin/Diagnostics.php:1110
 msgid "Not loaded"
 msgstr "Nicht geladen"
 
-#: src/Admin/Diagnostics.php:1127
-#: src/Settings/Texts.php:322
+#: src/Admin/Diagnostics.php:1129
+#: src/Settings/Texts.php:375
 msgid "Pending Stripe events"
 msgstr "Ausstehende Stripe-Ereignisse"
 
-#: src/Admin/Diagnostics.php:1134
+#: src/Admin/Diagnostics.php:1136
 msgid "Unused expired download grants"
 msgstr "Ungenutzte abgelaufene Download-Freigaben"
 
-#: src/Admin/Diagnostics.php:1332
+#: src/Admin/Diagnostics.php:1354
 msgid "WP License Captain diagnostics"
 msgstr "WP License Captain – Diagnose"
 
-#: src/Admin/Diagnostics.php:1333
+#: src/Admin/Diagnostics.php:1355
 msgid "Read-only environment details for support. No license key, installation secret, token, or payment credential is displayed."
 msgstr "Schreibgeschützte Angaben zur Umgebung für den Support. Es werden keine Lizenzschlüssel, Installationsgeheimnisse, Token oder Zahlungszugangsdaten angezeigt."
 
@@ -563,19 +562,19 @@ msgstr "Manuell"
 msgid "Cancels at period end"
 msgstr "Endet zum Ende des Zeitraums"
 
-#: src/Admin/KeyConfigurationNotice.php:144
+#: src/Admin/KeyConfigurationNotice.php:145
 msgid "WP License Captain: secrets are not configured in wp-config.php."
 msgstr "WP License Captain: Die Geheimnisse sind nicht in der wp-config.php konfiguriert."
 
-#: src/Admin/KeyConfigurationNotice.php:146
+#: src/Admin/KeyConfigurationNotice.php:147
 msgid "License keys and installation credentials currently depend on the WordPress security salts. If the salts are changed (for example by a security plugin, a host migration, or a password reset tool), customers can no longer see their license keys and every activated site loses its connection and must be activated again."
 msgstr "Lizenzschlüssel und Installationszugangsdaten hängen derzeit von den WordPress-Sicherheitsschlüsseln (Salts) ab. Werden die Salts geändert (zum Beispiel durch ein Sicherheits-Plugin, einen Hosting-Umzug oder ein Werkzeug zum Zurücksetzen von Passwörtern), können Kunden ihre Lizenzschlüssel nicht mehr sehen, und jede aktivierte Website verliert ihre Verbindung und muss erneut aktiviert werden."
 
-#: src/Admin/KeyConfigurationNotice.php:159
+#: src/Admin/KeyConfigurationNotice.php:160
 msgid "Add the following to wp-config.php above the line that loads wp-settings.php. Replace every placeholder; the first entry must be an exact copy of the current salt values so existing data stays valid, the second entry is a new random secret of at least 64 characters."
 msgstr "Füge Folgendes in die wp-config.php ein, oberhalb der Zeile, die wp-settings.php lädt. Ersetze alle Platzhalter: Der erste Eintrag muss eine exakte Kopie der aktuellen Salt-Werte sein, damit vorhandene Daten gültig bleiben; der zweite Eintrag ist ein neues, zufälliges Geheimnis mit mindestens 64 Zeichen."
 
-#: src/Admin/KeyConfigurationNotice.php:164
+#: src/Admin/KeyConfigurationNotice.php:165
 msgid "Afterwards re-encrypt the stored credentials with the new key by running \"wp wplc rotate-installation-secrets\" (dry run) and then with \"--apply\"."
 msgstr "Verschlüssle anschließend die gespeicherten Zugangsdaten mit dem neuen Schlüssel neu: Führe „wp wplc rotate-installation-secrets“ zuerst als Probelauf und danach mit „--apply“ aus."
 
@@ -618,7 +617,7 @@ msgstr "Lizenzen durchsuchen"
 msgid "You do not have permission to change licenses."
 msgstr "Du bist nicht berechtigt, Lizenzen zu ändern."
 
-#: src/Account/SiteOverview.php:286
+#: src/Account/SiteOverview.php:378
 #: src/Admin/AuditLogAdmin.php:168
 #: src/Admin/LicenseBulkActions.php:559
 #: src/Admin/LicenseDetail.php:52
@@ -661,7 +660,7 @@ msgstr "Keine (manuell hinzugefügt)"
 msgid "Customer"
 msgstr "Kunde"
 
-#: src/Account/SiteOverview.php:282
+#: src/Account/SiteOverview.php:374
 #: src/Admin/LicenseDetail.php:200
 #: src/Admin/ReleaseAdmin.php:468
 #: src/Privacy/PersonalData.php:357
@@ -739,7 +738,7 @@ msgstr "Tarif"
 #: src/Admin/LicenseDetail.php:681
 #: src/Admin/LicenseListTable.php:101
 #: src/Admin/ReleaseAdmin.php:125
-#: src/Admin/Settings.php:595
+#: src/Admin/Settings.php:639
 #: src/Client/Messages.php:280
 #: src/Privacy/PersonalData.php:359
 #: src/Privacy/PersonalData.php:560
@@ -780,13 +779,13 @@ msgstr "Bezahlt bis"
 msgid "Access right now"
 msgstr "Zugriff zum jetzigen Zeitpunkt"
 
-#: src/Admin/Diagnostics.php:833
+#: src/Admin/Diagnostics.php:835
 #: src/Admin/LicenseDetail.php:206
 #: src/Privacy/PersonalData.php:351
 msgid "Yes"
 msgstr "Ja"
 
-#: src/Admin/Diagnostics.php:833
+#: src/Admin/Diagnostics.php:835
 #: src/Admin/LicenseDetail.php:206
 #: src/Privacy/PersonalData.php:352
 msgid "No"
@@ -1173,7 +1172,7 @@ msgstr "Lizenzierte Installationen erhalten die höchste veröffentlichte Versio
 msgid "No releases yet."
 msgstr "Noch keine Releases vorhanden."
 
-#: src/Account/SiteOverview.php:284
+#: src/Account/SiteOverview.php:376
 #: src/Admin/ReleaseAdmin.php:124
 #: src/Admin/ReleaseAdmin.php:474
 #: src/Update/CustomerDownload.php:137
@@ -1339,7 +1338,7 @@ msgstr "Manifest importieren"
 #: src/Admin/Settings.php:301
 #: src/Admin/Settings.php:302
 #: src/Admin/Settings.php:307
-#: src/Admin/Settings.php:591
+#: src/Admin/Settings.php:635
 msgid "License settings"
 msgstr "Lizenzeinstellungen"
 
@@ -1348,7 +1347,7 @@ msgstr "Lizenzeinstellungen"
 msgid "Updates"
 msgstr "Updates"
 
-#: src/Settings/Texts.php:80
+#: src/Settings/Texts.php:81
 msgid "Additional trusted package hosts"
 msgstr "Zusätzliche vertrauenswürdige Paket-Hosts"
 
@@ -1356,89 +1355,91 @@ msgstr "Zusätzliche vertrauenswürdige Paket-Hosts"
 msgid "Customer emails"
 msgstr "E-Mails an Kunden"
 
-#: src/Settings/Texts.php:136
+#: src/Settings/Texts.php:153
 msgid "Reminder lead days"
 msgstr "Vorlauf der Erinnerungen in Tagen"
 
-#: src/Settings/Texts.php:148
+#: src/Settings/Texts.php:165
 msgid "Sender note"
 msgstr "Hinweis des Absenders"
 
 #. translators: %d: number of rejected lines.
-#: src/Admin/Settings.php:477
+#: src/Admin/Settings.php:521
 #, php-format
 msgid "%d package host line was not a valid host name and was ignored. Enter host names only, without https:// or a path."
 msgid_plural "%d package host lines were not valid host names and were ignored. Enter host names only, without https:// or a path."
 msgstr[0] "%d Zeile mit Paket-Hosts war kein gültiger Hostname und wurde ignoriert. Gib nur Hostnamen ein, ohne https:// und ohne Pfad."
 msgstr[1] "%d Zeilen mit Paket-Hosts waren keine gültigen Hostnamen und wurden ignoriert. Gib nur Hostnamen ein, ohne https:// und ohne Pfad."
 
-#: src/Admin/Settings.php:588
-#: src/Admin/SettingsTools.php:89
+#: src/Admin/Settings.php:632
+#: src/Admin/SettingsTools.php:126
 msgid "You do not have permission to change license settings."
 msgstr "Du bist nicht berechtigt, die Lizenzeinstellungen zu ändern."
 
-#: src/Admin/Settings.php:620
+#: src/Admin/Settings.php:664
 msgid "Secrets are never stored in the database. Define them as constants in wp-config.php."
 msgstr "Geheimnisse werden niemals in der Datenbank gespeichert. Definiere sie als Konstanten in der wp-config.php."
 
-#: src/Admin/Settings.php:884
+#: src/Admin/Settings.php:945
 msgid "Database schema version"
 msgstr "Version des Datenbankschemas"
 
 #. translators: 1: installed schema version, 2: schema version expected by the code.
-#: src/Admin/Settings.php:886
+#: src/Admin/Settings.php:947
 #, php-format
 msgid "%1$s (expected: %2$s)"
 msgstr "%1$s (erwartet: %2$s)"
 
-#: src/Admin/Diagnostics.php:1110
-#: src/Admin/Settings.php:893
+#: src/Admin/Diagnostics.php:1112
+#: src/Admin/Settings.php:954
 msgid "Stripe webhook secret"
 msgstr "Stripe-Webhook-Geheimnis"
 
-#: src/Admin/Settings.php:898
+#: src/Admin/Settings.php:959
 msgid "Stripe webhook URL"
 msgstr "Stripe-Webhook-URL"
 
-#: src/Admin/Settings.php:900
+#: src/Admin/Settings.php:961
 msgid "Enter this URL as the endpoint in the Stripe dashboard."
 msgstr "Trage diese URL im Stripe-Dashboard als Endpunkt ein."
 
-#: src/Admin/Settings.php:909
+#: src/Admin/Settings.php:970
+#: src/Security/KeyAge.php:230
 msgid "License key secret"
 msgstr "Geheimnis für Lizenzschlüssel"
 
-#: src/Admin/Settings.php:911
+#: src/Admin/Settings.php:972
 msgid "Not configured. Keys are derived from the WordPress salts; rotating the salts invalidates every issued key. Define WPLC_LICENSE_KEY_SECRETS."
 msgstr "Nicht konfiguriert. Die Schlüssel werden aus den WordPress-Salts abgeleitet; ein Wechsel der Salts macht jeden ausgestellten Schlüssel ungültig. Definiere WPLC_LICENSE_KEY_SECRETS."
 
-#: src/Admin/Settings.php:912
-#: src/Admin/Settings.php:925
+#: src/Admin/Settings.php:973
+#: src/Admin/Settings.php:986
 msgid "Configured through a constant."
 msgstr "Über eine Konstante konfiguriert."
 
-#: src/Admin/Settings.php:922
+#: src/Admin/Settings.php:983
+#: src/Security/KeyAge.php:231
 msgid "Installation secret encryption key"
 msgstr "Verschlüsselungsschlüssel für Installationsgeheimnisse"
 
-#: src/Admin/Settings.php:924
+#: src/Admin/Settings.php:985
 msgid "Not configured. The WordPress salts are used; define WPLC_INSTALLATION_ENCRYPTION_KEYS."
 msgstr "Nicht konfiguriert. Es werden die WordPress-Salts verwendet; definiere WPLC_INSTALLATION_ENCRYPTION_KEYS."
 
-#: src/Admin/Settings.php:967
+#: src/Admin/Settings.php:1028
 msgid "Checkout type"
 msgstr "Art der Kasse"
 
-#: src/Admin/Settings.php:960
+#: src/Admin/Settings.php:1021
 msgid "Classic checkout"
 msgstr "Klassischer Checkout"
 
-#: src/Admin/Settings.php:973
+#: src/Admin/Settings.php:1034
 msgid "Renewal grace period"
 msgstr "Kulanzzeit bei Verlängerungen"
 
 #. translators: %d: number of days.
-#: src/Admin/Settings.php:975
+#: src/Admin/Settings.php:1036
 #, php-format
 msgid "%d day"
 msgid_plural "%d days"
@@ -1446,26 +1447,26 @@ msgstr[0] "%d Tag"
 msgstr[1] "%d Tage"
 
 #. translators: %s: host name of this site.
-#: src/Admin/Settings.php:1208
+#: src/Admin/Settings.php:1317
 #, php-format
 msgid "One host name per line, for example downloads.example.com. Update packages are only delivered from HTTPS URLs on these hosts. This site (%s) is always trusted."
 msgstr "Ein Hostname pro Zeile, zum Beispiel downloads.example.com. Update-Pakete werden nur von HTTPS-URLs auf diesen Hosts ausgeliefert. Diese Website (%s) ist immer vertrauenswürdig."
 
-#: src/Settings/Texts.php:137
+#: src/Settings/Texts.php:154
 msgid "Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7."
 msgstr "Tage vor dem Ende des bezahlten Zeitraums, an denen eine Erinnerung gesendet wird, durch Kommas getrennt. Standard: 30,7."
 
-#: src/Admin/Settings.php:1325
-#: src/Settings/Texts.php:149
+#: src/Admin/Settings.php:1434
+#: src/Settings/Texts.php:166
 msgid "Optional short text that license emails may show below their content, for example a support contact."
 msgstr "Optionaler kurzer Text, den Lizenz-E-Mails unter ihrem Inhalt anzeigen können, zum Beispiel ein Support-Kontakt."
 
-#: src/Account/CustomerPortal.php:896
+#: src/Account/CustomerPortal.php:919
 #: src/Billing/ManualRenewal.php:190
 msgid "This license cannot be renewed at the moment."
 msgstr "Diese Lizenz kann derzeit nicht verlängert werden."
 
-#: src/Account/CustomerPortal.php:897
+#: src/Account/CustomerPortal.php:920
 #: src/Billing/ManualRenewal.php:204
 #: src/Billing/ManualRenewal.php:223
 msgid "A renewal for this license is being processed. Please try again in a few minutes."
@@ -1475,12 +1476,12 @@ msgstr "Eine Verlängerung dieser Lizenz wird gerade verarbeitet. Bitte versuche
 msgid "This renewal has already been paid."
 msgstr "Diese Verlängerung wurde bereits bezahlt."
 
-#: src/Account/CustomerPortal.php:898
+#: src/Account/CustomerPortal.php:921
 #: src/Billing/ManualRenewal.php:242
 msgid "Your payment for this renewal has been received and is being processed."
 msgstr "Deine Zahlung für diese Verlängerung ist eingegangen und wird verarbeitet."
 
-#: src/Account/CustomerPortal.php:899
+#: src/Account/CustomerPortal.php:922
 #: src/Billing/ManualRenewal.php:245
 msgid "A renewal order for this license is already waiting for your payment to arrive."
 msgstr "Für diese Lizenz gibt es bereits eine Verlängerungsbestellung, die auf den Eingang deiner Zahlung wartet."
@@ -1789,7 +1790,7 @@ msgstr "Deine Lizenz für {product} verlängert sich am {charge_date}"
 msgid "Please activate WooCommerce before activating WP License Captain."
 msgstr "Bitte aktiviere WooCommerce, bevor du WP License Captain aktivierst."
 
-#: src/Plugin.php:465
+#: src/Plugin.php:466
 msgid "WP License Captain requires WooCommerce to be installed and active."
 msgstr "WP License Captain setzt voraus, dass WooCommerce installiert und aktiviert ist."
 
@@ -2215,15 +2216,15 @@ msgstr "Währung"
 msgid "Manage or cancel renewal"
 msgstr "Verlängerung verwalten oder kündigen"
 
-#: src/Admin/Settings.php:954
+#: src/Admin/Settings.php:1015
 msgid "Unavailable. Scheduled work falls back to WP-Cron, which is less reliable."
 msgstr "Nicht verfügbar. Geplante Aufgaben laufen ersatzweise über WP-Cron, das weniger zuverlässig ist."
 
-#: src/Admin/Settings.php:963
+#: src/Admin/Settings.php:1024
 msgid "Block checkout. The option for automatic renewal is offered as an additional checkout field."
 msgstr "Block-Checkout. Die Option für die automatische Verlängerung wird als zusätzliches Checkout-Feld angeboten."
 
-#: src/Admin/Settings.php:964
+#: src/Admin/Settings.php:1025
 msgid "The checkout page uses the block checkout, but this WooCommerce version has no additional checkout fields. Licenses bought here never renew automatically."
 msgstr "Die Kassenseite verwendet den Block-Checkout, aber diese WooCommerce-Version kennt keine zusätzlichen Checkout-Felder. Hier gekaufte Lizenzen verlängern sich nie automatisch."
 
@@ -2272,62 +2273,62 @@ msgstr "Die Zahlungsart Stripe ist in WooCommerce nicht aktiviert."
 msgid "Saved payment methods are switched off in the Stripe settings, so there is no card to renew with."
 msgstr "Gespeicherte Zahlungsarten sind in den Stripe-Einstellungen abgeschaltet; es gibt daher keine Karte für die Verlängerung."
 
-#: src/Admin/Diagnostics.php:826
+#: src/Admin/Diagnostics.php:828
 msgid "WPLC_PACKAGE_STORAGE_DIR constant"
 msgstr "Konstante WPLC_PACKAGE_STORAGE_DIR"
 
-#: src/Admin/Diagnostics.php:827
+#: src/Admin/Diagnostics.php:829
 msgid "wplc_package_storage_dir filter"
 msgstr "Filter wplc_package_storage_dir"
 
-#: src/Admin/Diagnostics.php:828
+#: src/Admin/Diagnostics.php:830
 msgid "Default (uploads directory)"
 msgstr "Standard (Upload-Verzeichnis)"
 
-#: src/Admin/Diagnostics.php:831
+#: src/Admin/Diagnostics.php:833
 msgid "Directory"
 msgstr "Verzeichnis"
 
-#: src/Admin/Diagnostics.php:832
+#: src/Admin/Diagnostics.php:834
 msgid "Configured by"
 msgstr "Festgelegt durch"
 
-#: src/Admin/Diagnostics.php:833
+#: src/Admin/Diagnostics.php:835
 msgid "Writable"
 msgstr "Beschreibbar"
 
-#: src/Admin/Diagnostics.php:834
+#: src/Admin/Diagnostics.php:836
 msgid "Public access"
 msgstr "Öffentlicher Zugriff"
 
-#: src/Admin/Diagnostics.php:837
+#: src/Admin/Diagnostics.php:839
 msgid "Last checked (UTC)"
 msgstr "Zuletzt geprüft (UTC)"
 
-#: src/Admin/Diagnostics.php:840
+#: src/Admin/Diagnostics.php:842
 msgid "Package storage"
 msgstr "Paketablage"
 
-#: src/Admin/Diagnostics.php:842
+#: src/Admin/Diagnostics.php:844
 #: src/Admin/ReleaseAdmin.php:641
 msgid "The constant is ignored and the default directory is used."
 msgstr "Die Konstante wird ignoriert, und das Standardverzeichnis wird verwendet."
 
-#: src/Admin/Diagnostics.php:851
+#: src/Admin/Diagnostics.php:853
 msgid "The directory lies inside the web root. Apache and IIS honour the generated .htaccess and web.config; nginx does not. Recommended: set WPLC_PACKAGE_STORAGE_DIR in wp-config.php to a directory outside the web root, or add this rule to the nginx server block:"
 msgstr "Das Verzeichnis liegt innerhalb des Webroots. Apache und IIS beachten die erzeugten Dateien .htaccess und web.config, nginx nicht. Empfohlen: Setze WPLC_PACKAGE_STORAGE_DIR in der wp-config.php auf ein Verzeichnis außerhalb des Webroots, oder füge diese Regel in den server-Block von nginx ein:"
 
-#: src/Admin/Diagnostics.php:858
+#: src/Admin/Diagnostics.php:860
 #: src/Admin/ReleaseAdmin.php:321
 msgid "Check again"
 msgstr "Erneut prüfen"
 
-#: src/Admin/Diagnostics.php:1176
+#: src/Admin/Diagnostics.php:1178
 msgid "Response signing key (Ed25519, public)"
 msgstr "Signaturschlüssel für Antworten (Ed25519, öffentlich)"
 
-#: src/Admin/Diagnostics.php:1129
-#: src/Settings/Texts.php:324
+#: src/Admin/Diagnostics.php:1131
+#: src/Settings/Texts.php:377
 msgid "Stuck renewals (job not run, grace period over)"
 msgstr "Hängende Verlängerungen (Auftrag nicht gelaufen, Kulanzzeit vorbei)"
 
@@ -2659,12 +2660,12 @@ msgstr "Die Lizenz ist gesperrt oder widerrufen und kann nicht verlängert werde
 msgid "The renewal could not be booked. Check the license status and try again."
 msgstr "Die Verlängerung konnte nicht gebucht werden. Prüfe den Lizenzstatus und versuche es erneut."
 
-#: src/Admin/Diagnostics.php:1131
-#: src/Settings/Texts.php:329
+#: src/Admin/Diagnostics.php:1133
+#: src/Settings/Texts.php:382
 msgid "Renewals needing review (unknown payment result, payment not applied)"
 msgstr "Zu prüfende Verlängerungen (unklares Zahlungsergebnis, Zahlung nicht angewendet)"
 
-#: src/Admin/Diagnostics.php:1351
+#: src/Admin/Diagnostics.php:1373
 msgid "Open \"Renewals to review\""
 msgstr "„Zu prüfende Verlängerungen“ öffnen"
 
@@ -2851,123 +2852,123 @@ msgstr "WP License Captain: Stripe hat gemeldet, dass die Verlängerungszahlung 
 msgid "A verified failed Stripe payment of the attempt with unknown result was recorded as a decline."
 msgstr "Eine geprüfte fehlgeschlagene Stripe-Zahlung des Versuchs mit unklarem Ergebnis wurde als Ablehnung erfasst."
 
-#: src/Account/SiteOverview.php:200
-#: src/Account/SiteOverview.php:454
+#: src/Account/SiteOverview.php:291
+#: src/Account/SiteOverview.php:546
 msgid "Please sign in to view your sites."
 msgstr "Bitte melde dich an, um deine Websites anzuzeigen."
 
-#: src/Account/SiteOverview.php:207
+#: src/Account/SiteOverview.php:298
 msgid "Your sites"
 msgstr "Deine Websites"
 
-#: src/Account/SiteOverview.php:209
+#: src/Account/SiteOverview.php:300
 msgid "No site is activated with your licenses yet. Enter the license key in the plugin on your site to activate it."
 msgstr "Mit deinen Lizenzen ist noch keine Website aktiviert. Gib den Lizenzschlüssel im Plugin auf deiner Website ein, um sie zu aktivieren."
 
 #. translators: 1: number of sites, 2: number of live sites, 3: number of sites that need attention, 4: number of sites with an update.
-#: src/Account/SiteOverview.php:223
+#: src/Account/SiteOverview.php:314
 #, php-format
 msgid "Sites: %1$d (live: %2$d). Need attention: %3$d. Update available: %4$d."
 msgstr "Websites: %1$d (live: %2$d). Handlungsbedarf: %3$d. Update verfügbar: %4$d."
 
 #. translators: %d: maximum number of activations shown.
-#: src/Account/SiteOverview.php:233
+#: src/Account/SiteOverview.php:324
 #, php-format
 msgid "Only the first %d activations are shown. The CSV export contains the same selection."
 msgstr "Es werden nur die ersten %d Aktivierungen angezeigt. Der CSV-Export enthält dieselbe Auswahl."
 
-#: src/Account/SiteOverview.php:247
+#: src/Account/SiteOverview.php:338
 msgid "No site matches the selection."
 msgstr "Keine Website entspricht der Auswahl."
 
-#: src/Account/SiteOverview.php:285
+#: src/Account/SiteOverview.php:377
 msgid "Last contact"
 msgstr "Letzter Kontakt"
 
-#: src/Account/SiteOverview.php:287
-#: src/Account/SiteOverview.php:347
+#: src/Account/SiteOverview.php:379
+#: src/Account/SiteOverview.php:439
 msgid "Needs attention"
 msgstr "Handlungsbedarf"
 
 #. translators: %s: version number.
-#: src/Account/SiteOverview.php:314
+#: src/Account/SiteOverview.php:406
 #, php-format
 msgid "Update: %s"
 msgstr "Update: %s"
 
-#: src/Account/SiteOverview.php:317
+#: src/Account/SiteOverview.php:409
 #: src/Client/Messages.php:290
 msgid "never"
 msgstr "nie"
 
 #. translators: %s: date.
-#: src/Account/SiteOverview.php:320
+#: src/Account/SiteOverview.php:412
 #, php-format
 msgid "until %s"
 msgstr "bis %s"
 
-#: src/Account/SiteOverview.php:329
+#: src/Account/SiteOverview.php:421
 msgid "Nothing to do"
 msgstr "Nichts zu tun"
 
-#: src/Account/SiteOverview.php:346
+#: src/Account/SiteOverview.php:438
 msgid "All sites"
 msgstr "Alle Websites"
 
-#: src/Account/SiteOverview.php:348
+#: src/Account/SiteOverview.php:440
 msgid "Update available"
 msgstr "Update verfügbar"
 
-#: src/Account/SiteOverview.php:351
+#: src/Account/SiteOverview.php:443
 msgid "Site address contains"
 msgstr "Adresse der Website enthält"
 
-#: src/Account/SiteOverview.php:353
+#: src/Account/SiteOverview.php:445
 msgid "Show"
 msgstr "Anzeigen"
 
-#: src/Account/SiteOverview.php:358
+#: src/Account/SiteOverview.php:450
 #: src/Admin/LicenseBulkActions.php:514
-#: src/Admin/SettingsTools.php:431
+#: src/Admin/SettingsTools.php:687
 msgid "Apply"
 msgstr "Übernehmen"
 
-#: src/Account/SiteOverview.php:360
+#: src/Account/SiteOverview.php:452
 msgid "Download as CSV"
 msgstr "Als CSV herunterladen"
 
-#: src/Account/SiteOverview.php:416
+#: src/Account/SiteOverview.php:508
 msgid "Sites pages"
 msgstr "Seiten der Websites"
 
-#: src/Account/SiteOverview.php:478
+#: src/Account/SiteOverview.php:570
 msgid "Latest version"
 msgstr "Neueste Version"
 
 #. translators: %s: license status, e.g. "Expired".
-#: src/Account/SiteOverview.php:763
+#: src/Account/SiteOverview.php:855
 #, php-format
 msgid "License is not active (%s): no updates, premium features off."
 msgstr "Lizenz nicht aktiv (%s): keine Updates, Premium-Funktionen aus."
 
-#: src/Account/SiteOverview.php:765
+#: src/Account/SiteOverview.php:857
 msgid "Renewal payment is overdue."
 msgstr "Die Zahlung für die Verlängerung ist überfällig."
 
 #. translators: %s: date.
-#: src/Account/SiteOverview.php:768
+#: src/Account/SiteOverview.php:860
 #, php-format
 msgid "License ends on %s and does not renew."
 msgstr "Die Lizenz endet am %s und verlängert sich nicht."
 
 #. translators: %s: version number.
-#: src/Account/SiteOverview.php:771
+#: src/Account/SiteOverview.php:863
 #, php-format
 msgid "Version %s is available."
 msgstr "Version %s ist verfügbar."
 
 #. translators: %d: number of days.
-#: src/Account/SiteOverview.php:774
+#: src/Account/SiteOverview.php:866
 #, php-format
 msgid "No contact for more than %d days."
 msgstr "Seit mehr als %d Tagen kein Kontakt."
@@ -3265,179 +3266,179 @@ msgstr "Verwende --prepare und --rotate in getrennten Schritten, mit einem Produ
 msgid "Unknown field."
 msgstr "Unbekanntes Feld."
 
-#: src/Account/CustomerPortal.php:387
+#: src/Account/CustomerPortal.php:409
 msgid "Sign in"
 msgstr "Anmelden"
 
 #. translators: %s: email address or address of the support page.
-#: src/Account/CustomerPortal.php:706
+#: src/Account/CustomerPortal.php:729
 #, php-format
 msgid "Please contact our support: %s"
 msgstr "Bitte wende dich an unseren Support: %s"
 
-#: src/Account/CustomerPortal.php:707
+#: src/Account/CustomerPortal.php:730
 msgid "Please contact our support."
 msgstr "Bitte wende dich an unseren Support."
 
 #. translators: %s: date.
-#: src/Account/CustomerPortal.php:714
+#: src/Account/CustomerPortal.php:737
 #, php-format
 msgid "We could not collect the renewal payment. The license keeps working until %s; without a payment it expires then."
 msgstr "Wir konnten die Zahlung für die Verlängerung nicht einziehen. Die Lizenz funktioniert weiter bis %s; ohne Zahlung läuft sie dann ab."
 
-#: src/Account/CustomerPortal.php:717
+#: src/Account/CustomerPortal.php:740
 msgid "We could not collect the renewal payment."
 msgstr "Wir konnten die Zahlung für die Verlängerung nicht einziehen."
 
-#: src/Account/CustomerPortal.php:719
+#: src/Account/CustomerPortal.php:742
 msgid "Use \"Complete renewal payment\" to pay now."
 msgstr "Verwende „Zahlung für die Verlängerung abschließen“, um jetzt zu bezahlen."
 
-#: src/Account/CustomerPortal.php:721
+#: src/Account/CustomerPortal.php:744
 msgid "Use \"Renew now\" to pay with any payment method."
 msgstr "Verwende „Jetzt verlängern“, um mit einer beliebigen Zahlungsart zu bezahlen."
 
-#: src/Account/CustomerPortal.php:721
+#: src/Account/CustomerPortal.php:744
 msgid "Please check your payment method."
 msgstr "Bitte prüfe deine Zahlungsart."
 
 #. translators: %s: date.
-#: src/Account/CustomerPortal.php:727
+#: src/Account/CustomerPortal.php:750
 #, php-format
 msgid "This license has expired: updates, downloads and new site activations are not available. You can still renew it until %s with \"Renew now\"; it then continues with the same key and the same sites."
 msgstr "Diese Lizenz ist abgelaufen: Updates, Downloads und neue Website-Aktivierungen sind nicht verfügbar. Du kannst sie noch bis %s mit „Jetzt verlängern“ verlängern; sie läuft dann mit demselben Schlüssel und denselben Websites weiter."
 
-#: src/Account/CustomerPortal.php:731
+#: src/Account/CustomerPortal.php:754
 msgid "This license has expired and can no longer be renewed. Updates, downloads and site activations are not available. To use the product again, please buy a new license."
 msgstr "Diese Lizenz ist abgelaufen und kann nicht mehr verlängert werden. Updates, Downloads und Website-Aktivierungen sind nicht verfügbar. Um das Produkt wieder zu nutzen, kaufe bitte eine neue Lizenz."
 
-#: src/Account/CustomerPortal.php:734
+#: src/Account/CustomerPortal.php:757
 msgid "This license is suspended. Updates, downloads and premium features are not available until the suspension is lifted."
 msgstr "Diese Lizenz ist gesperrt. Updates, Downloads und Premium-Funktionen sind nicht verfügbar, bis die Sperre aufgehoben wird."
 
-#: src/Account/CustomerPortal.php:737
+#: src/Account/CustomerPortal.php:760
 msgid "This license was revoked, for example because its order was refunded. It can no longer be used."
 msgstr "Diese Lizenz wurde widerrufen, zum Beispiel weil ihre Bestellung erstattet wurde. Sie kann nicht mehr verwendet werden."
 
 #. translators: 1: product name, 2: license reference such as WPLC-1A2B3C4D.
-#: src/Account/CustomerPortal.php:827
+#: src/Account/CustomerPortal.php:850
 #: src/Account/PaymentMethods.php:116
 #, php-format
 msgid "%1$s, license %2$s"
 msgstr "%1$s, Lizenz %2$s"
 
-#: src/Account/CustomerPortal.php:886
+#: src/Account/CustomerPortal.php:909
 msgid "Your session has expired, so nothing was changed. Please try again."
 msgstr "Deine Sitzung ist abgelaufen, daher wurde nichts geändert. Bitte versuche es erneut."
 
-#: src/Account/CustomerPortal.php:887
+#: src/Account/CustomerPortal.php:910
 msgid "Please sign in to manage your licenses."
 msgstr "Bitte melde dich an, um deine Lizenzen zu verwalten."
 
-#: src/Account/CustomerPortal.php:888
+#: src/Account/CustomerPortal.php:911
 msgid "This action is not available at the moment."
 msgstr "Diese Aktion ist im Moment nicht verfügbar."
 
-#: src/Account/CustomerPortal.php:890
+#: src/Account/CustomerPortal.php:913
 msgid "The payment method for the automatic renewal was changed."
 msgstr "Die Zahlungsart für die automatische Verlängerung wurde geändert."
 
-#: src/Account/CustomerPortal.php:891
+#: src/Account/CustomerPortal.php:914
 msgid "The payment method could not be used for the automatic renewal. Please choose another one."
 msgstr "Die Zahlungsart konnte für die automatische Verlängerung nicht verwendet werden. Bitte wähle eine andere."
 
-#: src/Account/CustomerPortal.php:892
+#: src/Account/CustomerPortal.php:915
 msgid "Automatic renewal is now switched on for this license."
 msgstr "Die automatische Verlängerung ist für diese Lizenz jetzt eingeschaltet."
 
-#: src/Account/CustomerPortal.php:893
+#: src/Account/CustomerPortal.php:916
 msgid "Automatic renewal could not be switched on. Please check the payment method and try again."
 msgstr "Die automatische Verlängerung konnte nicht eingeschaltet werden. Bitte prüfe die Zahlungsart und versuche es erneut."
 
-#: src/Account/CustomerPortal.php:894
+#: src/Account/CustomerPortal.php:917
 msgid "Please confirm the renewal terms to switch on automatic renewal."
 msgstr "Bitte bestätige die Verlängerungsbedingungen, um die automatische Verlängerung einzuschalten."
 
-#: src/Account/CustomerPortal.php:901
+#: src/Account/CustomerPortal.php:924
 #: src/Billing/PlanUpgrade.php:259
 msgid "This license cannot be upgraded to the chosen plan at the moment."
 msgstr "Für diese Lizenz ist ein Wechsel auf den gewählten Tarif im Moment nicht möglich."
 
-#: src/Account/CustomerPortal.php:902
-#: src/Account/CustomerPortal.php:908
+#: src/Account/CustomerPortal.php:925
+#: src/Account/CustomerPortal.php:931
 #: src/Billing/PlanUpgrade.php:374
 msgid "This license is being changed right now. Please try again in a few minutes."
 msgstr "Diese Lizenz wird gerade geändert. Bitte versuche es in einigen Minuten erneut."
 
-#: src/Account/CustomerPortal.php:903
+#: src/Account/CustomerPortal.php:926
 #: src/Billing/PlanUpgrade.php:293
 msgid "Your upgrade payment has been received and is being processed."
 msgstr "Deine Zahlung für das Upgrade ist eingegangen und wird verarbeitet."
 
-#: src/Account/CustomerPortal.php:904
+#: src/Account/CustomerPortal.php:927
 #: src/Billing/PlanUpgrade.php:296
 msgid "An upgrade order for this license is already waiting for your payment to arrive."
 msgstr "Für diese Lizenz wartet bereits eine Upgrade-Bestellung auf den Eingang deiner Zahlung."
 
-#: src/Account/CustomerPortal.php:905
+#: src/Account/CustomerPortal.php:928
 #: src/Billing/PlanUpgrade.php:276
 msgid "Please agree to the new amount of the automatic renewal to upgrade."
 msgstr "Bitte stimme dem neuen Betrag der automatischen Verlängerung zu, um das Upgrade durchzuführen."
 
-#: src/Account/CustomerPortal.php:906
+#: src/Account/CustomerPortal.php:929
 msgid "The plan change is recorded. It takes effect with the next renewal."
 msgstr "Der Tarifwechsel ist vorgemerkt. Er wird mit der nächsten Verlängerung wirksam."
 
-#: src/Account/CustomerPortal.php:907
+#: src/Account/CustomerPortal.php:930
 msgid "This plan change is not available for the license."
 msgstr "Dieser Tarifwechsel ist für die Lizenz nicht verfügbar."
 
-#: src/Account/CustomerPortal.php:909
+#: src/Account/CustomerPortal.php:932
 msgid "The scheduled plan change was withdrawn. The license keeps its current plan."
 msgstr "Der geplante Tarifwechsel wurde zurückgenommen. Die Lizenz behält ihren aktuellen Tarif."
 
-#: src/Account/CustomerPortal.php:910
+#: src/Account/CustomerPortal.php:933
 #: src/Admin/AdminNotices.php:85
 msgid "There is no scheduled plan change to withdraw."
 msgstr "Es gibt keinen geplanten Tarifwechsel, der zurückgenommen werden kann."
 
 #. translators: %s: date.
-#: src/Account/CustomerPortal.php:1438
+#: src/Account/CustomerPortal.php:1461
 #, php-format
 msgid "Cancel the automatic renewal? The license stays valid until %s and ends then. You will receive a confirmation by email."
 msgstr "Die automatische Verlängerung kündigen? Die Lizenz bleibt bis %s gültig und endet dann. Du erhältst eine Bestätigung per E-Mail."
 
-#: src/Account/CustomerPortal.php:1439
+#: src/Account/CustomerPortal.php:1462
 msgid "the end of the paid period"
 msgstr "zum Ende des bezahlten Zeitraums"
 
-#: src/Account/CustomerPortal.php:1458
+#: src/Account/CustomerPortal.php:1481
 msgid "Undo the cancellation? The license then continues after the paid period."
 msgstr "Die Kündigung zurücknehmen? Die Lizenz läuft dann nach dem bezahlten Zeitraum weiter."
 
 #. translators: 1: formatted amount, 2: date, 3: interval such as "every year".
-#: src/Account/CustomerPortal.php:1466
+#: src/Account/CustomerPortal.php:1489
 #, php-format
 msgid "Undo the cancellation? The license then renews automatically again: %1$s will be charged to your saved payment method on %2$s and then %3$s, until you cancel."
 msgstr "Die Kündigung zurücknehmen? Die Lizenz verlängert sich dann wieder automatisch: %1$s werden am %2$s und danach %3$s von deiner gespeicherten Zahlungsart abgebucht, bis du kündigst."
 
-#: src/Account/CustomerPortal.php:1472
+#: src/Account/CustomerPortal.php:1495
 msgid "Undo the cancellation? The license then renews automatically again and your saved payment method is charged on the renewal date."
 msgstr "Die Kündigung zurücknehmen? Die Lizenz verlängert sich dann wieder automatisch, und deine gespeicherte Zahlungsart wird am Verlängerungsdatum belastet."
 
-#: src/Account/CustomerPortal.php:1528
+#: src/Account/CustomerPortal.php:1551
 msgid "Your license is ready. You will find the license key, the download and the installation steps in your account under \"Licenses\"."
 msgstr "Deine Lizenz ist bereit. Den Lizenzschlüssel, den Download und die Installationsschritte findest du in deinem Konto unter „Lizenzen“."
 
-#: src/Account/CustomerPortal.php:1529
+#: src/Account/CustomerPortal.php:1552
 msgid "Your license is created as soon as your payment has been confirmed. You will then receive an email, and the license appears in your account under \"Licenses\"."
 msgstr "Deine Lizenz wird erstellt, sobald deine Zahlung bestätigt wurde. Du erhältst dann eine E-Mail, und die Lizenz erscheint in deinem Konto unter „Lizenzen“."
 
-#: src/Account/CustomerPortal.php:1532
+#: src/Account/CustomerPortal.php:1555
 msgid "Your license"
 msgstr "Deine Lizenz"
 
-#: src/Account/CustomerPortal.php:1534
+#: src/Account/CustomerPortal.php:1557
 msgid "Go to your licenses"
 msgstr "Zu deinen Lizenzen"
 
@@ -3711,479 +3712,479 @@ msgid "Until it runs again, licenses do not expire, failed payments are not retr
 msgstr "Bis er wieder läuft, laufen keine Lizenzen ab, fehlgeschlagene Zahlungen werden nicht wiederholt und Erinnerungen werden nicht gesendet. Prüfe WP-Cron oder den Cronjob des Servers und das PHP-Fehlerprotokoll."
 
 #: src/Admin/Diagnostics.php:334
-#: src/Admin/Settings.php:796
+#: src/Admin/Settings.php:847
 msgid "Open diagnostics"
 msgstr "Diagnose öffnen"
 
-#: src/Admin/Diagnostics.php:897
+#: src/Admin/Diagnostics.php:899
 msgid "Plugin version"
 msgstr "Plugin-Version"
 
-#: src/Admin/Diagnostics.php:954
+#: src/Admin/Diagnostics.php:956
 msgid "The database migration did not finish. Deactivate and reactivate the plugin, then check the PHP error log."
 msgstr "Die Datenbankmigration wurde nicht abgeschlossen. Deaktiviere und reaktiviere das Plugin und prüfe dann das PHP-Fehlerprotokoll."
 
-#: src/Admin/Diagnostics.php:957
+#: src/Admin/Diagnostics.php:959
 msgid "The database was already updated by a newer plugin version. This older version may not handle the data correctly; install the newer version again."
 msgstr "Die Datenbank wurde bereits von einer neueren Plugin-Version aktualisiert. Diese ältere Version verarbeitet die Daten möglicherweise nicht korrekt; installiere die neuere Version erneut."
 
-#: src/Admin/Diagnostics.php:959
+#: src/Admin/Diagnostics.php:961
 msgid "License schema (installed / expected)"
 msgstr "Lizenzschema (installiert / erwartet)"
 
-#: src/Admin/Diagnostics.php:963
+#: src/Admin/Diagnostics.php:965
 msgid "Last migration error"
 msgstr "Letzter Migrationsfehler"
 
-#: src/Admin/Diagnostics.php:967
+#: src/Admin/Diagnostics.php:969
 msgid "License tables"
 msgstr "Lizenztabellen"
 
-#: src/Admin/Diagnostics.php:968
+#: src/Admin/Diagnostics.php:970
 msgid "All present"
 msgstr "Alle vorhanden"
 
-#: src/Admin/Diagnostics.php:970
+#: src/Admin/Diagnostics.php:972
 msgid "These tables are missing. Deactivate and reactivate the plugin."
 msgstr "Diese Tabellen fehlen. Deaktiviere und reaktiviere das Plugin."
 
-#: src/Admin/Diagnostics.php:978
+#: src/Admin/Diagnostics.php:980
 msgid "Table structure"
 msgstr "Tabellenstruktur"
 
-#: src/Admin/Diagnostics.php:979
+#: src/Admin/Diagnostics.php:981
 msgid "Matches this plugin version"
 msgstr "Passt zu dieser Plugin-Version"
 
-#: src/Admin/Diagnostics.php:981
+#: src/Admin/Diagnostics.php:983
 msgid "Columns are missing or have another type than this version expects. The plugin repairs this in the next admin or cron request; if the row stays, check the database user's ALTER privilege."
 msgstr "Spalten fehlen oder haben einen anderen Typ, als diese Version erwartet. Das Plugin repariert dies bei der nächsten Admin- oder Cron-Anfrage; bleibt die Zeile bestehen, prüfe das ALTER-Recht des Datenbankbenutzers."
 
-#: src/Admin/Diagnostics.php:986
+#: src/Admin/Diagnostics.php:988
 msgid "WPLC_PAUSE_BILLING is set in wp-config.php"
 msgstr "WPLC_PAUSE_BILLING ist in der wp-config.php gesetzt"
 
-#: src/Admin/Diagnostics.php:987
+#: src/Admin/Diagnostics.php:989
 msgid "the database belongs to a newer plugin version"
 msgstr "die Datenbank gehört zu einer neueren Plugin-Version"
 
-#: src/Admin/Diagnostics.php:988
+#: src/Admin/Diagnostics.php:990
 msgid "the site address or database changed (copy or restore); confirm the notice at the top of the admin pages"
 msgstr "die Website-Adresse oder die Datenbank hat sich geändert (Kopie oder Wiederherstellung); bestätige den Hinweis oben auf den Admin-Seiten"
 
-#: src/Admin/Diagnostics.php:989
+#: src/Admin/Diagnostics.php:991
 msgid "the environment type is not \"production\""
 msgstr "der Umgebungstyp ist nicht „production“"
 
-#: src/Admin/Diagnostics.php:993
-#: src/Admin/Diagnostics.php:1046
+#: src/Admin/Diagnostics.php:995
+#: src/Admin/Diagnostics.php:1048
 msgid "Running"
 msgstr "Läuft"
 
 #. translators: %s: reason.
-#: src/Admin/Diagnostics.php:996
+#: src/Admin/Diagnostics.php:998
 #, php-format
 msgid "Paused: %s"
 msgstr "Pausiert: %s"
 
 #. translators: %s: reason.
-#: src/Admin/Diagnostics.php:996
+#: src/Admin/Diagnostics.php:998
 msgid "the filter wplc_billing_paused"
 msgstr "der Filter wplc_billing_paused"
 
-#: src/Admin/Diagnostics.php:998
+#: src/Admin/Diagnostics.php:1000
 msgid "Running (the pause was lifted by the filter wplc_billing_paused)"
 msgstr "Läuft (die Pause wurde durch den Filter wplc_billing_paused aufgehoben)"
 
-#: src/Admin/Diagnostics.php:1001
+#: src/Admin/Diagnostics.php:1003
 msgid "Charges, expiry and customer emails"
 msgstr "Abbuchungen, Ablauf und Kunden-E-Mails"
 
-#: src/Admin/Diagnostics.php:1004
+#: src/Admin/Diagnostics.php:1006
 msgid "While paused nothing is charged, no license expires and no reminder or status email is sent. The API keeps answering."
 msgstr "Während der Pause wird nichts abgebucht, keine Lizenz läuft ab und es werden keine Erinnerungs- oder Status-E-Mails gesendet. Die API antwortet weiterhin."
 
-#: src/Admin/Diagnostics.php:1009
+#: src/Admin/Diagnostics.php:1011
 msgid "Processing gap"
 msgstr "Verarbeitungslücke"
 
 #. translators: %s: date and time.
-#: src/Admin/Diagnostics.php:1011
+#: src/Admin/Diagnostics.php:1013
 #, php-format
 msgid "Licenses that became due during the gap are not expired before %s"
 msgstr "Lizenzen, die während der Lücke fällig wurden, laufen nicht vor %s ab"
 
-#: src/Admin/Diagnostics.php:1013
+#: src/Admin/Diagnostics.php:1015
 msgid "The plugin was inactive, billing was paused or the daily run stood still. Renewals and orders of that time are caught up first."
 msgstr "Das Plugin war inaktiv, die Abrechnung war pausiert oder der tägliche Lauf stand still. Verlängerungen und Bestellungen aus dieser Zeit werden zuerst nachgeholt."
 
-#: src/Admin/Diagnostics.php:1018
+#: src/Admin/Diagnostics.php:1020
 msgid "Server time (UTC) / site time"
 msgstr "Serverzeit (UTC) / Website-Zeit"
 
-#: src/Admin/Diagnostics.php:1024
+#: src/Admin/Diagnostics.php:1026
 msgid "Database time (UTC)"
 msgstr "Datenbankzeit (UTC)"
 
-#: src/Admin/Diagnostics.php:1027
+#: src/Admin/Diagnostics.php:1029
 msgid "The clocks of the web server and the database differ by more than two minutes. Signed API requests and expiry dates depend on them."
 msgstr "Die Uhren des Webservers und der Datenbank weichen um mehr als zwei Minuten voneinander ab. Signierte API-Anfragen und Ablaufdaten hängen davon ab."
 
-#: src/Admin/Diagnostics.php:1047
+#: src/Admin/Diagnostics.php:1049
 msgid "Not run yet"
 msgstr "Noch nicht gelaufen"
 
-#: src/Admin/Diagnostics.php:1048
+#: src/Admin/Diagnostics.php:1050
 msgid "Not run for more than 26 hours"
 msgstr "Seit mehr als 26 Stunden nicht gelaufen"
 
-#: src/Admin/Diagnostics.php:1049
+#: src/Admin/Diagnostics.php:1051
 msgid "Started, but did not finish"
 msgstr "Gestartet, aber nicht beendet"
 
-#: src/Admin/Diagnostics.php:1052
+#: src/Admin/Diagnostics.php:1054
 msgid "Last daily run"
 msgstr "Letzter täglicher Lauf"
 
-#: src/Admin/Diagnostics.php:1055
+#: src/Admin/Diagnostics.php:1057
 msgid "Licenses do not expire, failed payments are not retried and reminders are not sent. Check WP-Cron or the server cron job and the PHP error log."
 msgstr "Lizenzen laufen nicht ab, fehlgeschlagene Zahlungen werden nicht wiederholt und Erinnerungen werden nicht gesendet. Prüfe WP-Cron oder den Cronjob des Servers und das PHP-Fehlerprotokoll."
 
-#: src/Admin/Diagnostics.php:1059
+#: src/Admin/Diagnostics.php:1061
 msgid "Next daily run"
 msgstr "Nächster täglicher Lauf"
 
-#: src/Admin/Diagnostics.php:1060
+#: src/Admin/Diagnostics.php:1062
 msgid "Not scheduled"
 msgstr "Nicht geplant"
 
-#: src/Admin/Diagnostics.php:1062
+#: src/Admin/Diagnostics.php:1064
 msgid "Deactivate and reactivate the plugin to schedule it again."
 msgstr "Deaktiviere und reaktiviere das Plugin, um ihn erneut zu planen."
 
 #. translators: %s: internal job name.
-#: src/Admin/Diagnostics.php:1069
+#: src/Admin/Diagnostics.php:1071
 #, php-format
 msgid "Last run: %s"
 msgstr "Letzter Lauf: %s"
 
 #. translators: %s: internal job name.
-#: src/Admin/Diagnostics.php:1075
+#: src/Admin/Diagnostics.php:1077
 #, php-format
 msgid "Last failure: %s"
 msgstr "Letzter Fehler: %s"
 
-#: src/Admin/Diagnostics.php:1078
+#: src/Admin/Diagnostics.php:1080
 msgid "The job threw an error and was skipped; the jobs after it still ran. The full message is in the WooCommerce log (source wp-license)."
 msgstr "Der Job hat einen Fehler ausgelöst und wurde übersprungen; die Jobs danach liefen trotzdem. Die vollständige Meldung steht im WooCommerce-Protokoll (Quelle wp-license)."
 
-#: src/Admin/Diagnostics.php:1087
+#: src/Admin/Diagnostics.php:1089
 msgid "Scheduled work falls back to WP-Cron, which is less reliable."
 msgstr "Geplante Aufgaben greifen auf WP-Cron zurück, was weniger zuverlässig ist."
 
-#: src/Admin/Diagnostics.php:1090
-#: src/Settings/Texts.php:327
+#: src/Admin/Diagnostics.php:1092
+#: src/Settings/Texts.php:380
 msgid "Failed scheduled actions (group wplc)"
 msgstr "Fehlgeschlagene geplante Aktionen (Gruppe wplc)"
 
-#: src/Admin/Diagnostics.php:1090
+#: src/Admin/Diagnostics.php:1092
 msgid "Open WooCommerce → Status → Scheduled Actions, filter by \"Failed\" and search for \"wplc\" to see the error of each action."
 msgstr "Öffne WooCommerce → Status → Geplante Aktionen, filtere nach „Fehlgeschlagen“ und suche nach „wplc“, um den Fehler jeder Aktion zu sehen."
 
-#: src/Admin/Diagnostics.php:1096
-#: src/Admin/Settings.php:943
+#: src/Admin/Diagnostics.php:1098
+#: src/Admin/Settings.php:1004
 msgid "Automatic renewal (Stripe)"
 msgstr "Automatische Verlängerung (Stripe)"
 
-#: src/Admin/Diagnostics.php:1108
+#: src/Admin/Diagnostics.php:1110
 msgid "Stripe gateway version"
 msgstr "Version des Stripe-Gateways"
 
-#: src/Admin/Diagnostics.php:1110
+#: src/Admin/Diagnostics.php:1112
 msgid "Set"
 msgstr "Gesetzt"
 
-#: src/Admin/Diagnostics.php:1110
+#: src/Admin/Diagnostics.php:1112
 msgid "Not set. Stripe events are rejected."
 msgstr "Nicht gesetzt. Stripe-Ereignisse werden abgelehnt."
 
-#: src/Admin/Diagnostics.php:1111
+#: src/Admin/Diagnostics.php:1113
 msgid "Last valid Stripe event"
 msgstr "Letztes gültiges Stripe-Ereignis"
 
-#: src/Admin/Diagnostics.php:1113
+#: src/Admin/Diagnostics.php:1115
 msgid "Last Stripe event in live mode"
 msgstr "Letztes Stripe-Ereignis im Live-Modus"
 
-#: src/Admin/Diagnostics.php:1113
+#: src/Admin/Diagnostics.php:1115
 msgid "Last Stripe event in test mode"
 msgstr "Letztes Stripe-Ereignis im Testmodus"
 
-#: src/Admin/Diagnostics.php:1120
+#: src/Admin/Diagnostics.php:1122
 msgid "Last rejected Stripe webhook request"
 msgstr "Letzte abgelehnte Stripe-Webhook-Anfrage"
 
-#: src/Admin/Diagnostics.php:1123
+#: src/Admin/Diagnostics.php:1125
 msgid "A request to the webhook URL had no valid signature. If this repeats, the signing secret in wp-config.php does not match the endpoint in the Stripe dashboard (live and test mode have different secrets)."
 msgstr "Eine Anfrage an die Webhook-URL hatte keine gültige Signatur. Wenn dies wiederholt auftritt, stimmt das Signaturgeheimnis in der wp-config.php nicht mit dem Endpunkt im Stripe-Dashboard überein (Live- und Testmodus haben unterschiedliche Geheimnisse)."
 
-#: src/Admin/Diagnostics.php:1127
+#: src/Admin/Diagnostics.php:1129
 msgid "Events that were received but not processed yet. They are retried by the background queue."
 msgstr "Ereignisse, die empfangen, aber noch nicht verarbeitet wurden. Sie werden von der Hintergrundwarteschlange erneut versucht."
 
-#: src/Admin/Diagnostics.php:1128
-#: src/Settings/Texts.php:323
+#: src/Admin/Diagnostics.php:1130
+#: src/Settings/Texts.php:376
 msgid "Stripe events needing review (24 hours)"
 msgstr "Stripe-Ereignisse, die geprüft werden müssen (24 Stunden)"
 
-#: src/Admin/Diagnostics.php:1128
+#: src/Admin/Diagnostics.php:1130
 msgid "The event could not be matched to a renewal. Compare the payment in the Stripe dashboard with the renewal order."
 msgstr "Das Ereignis konnte keiner Verlängerung zugeordnet werden. Vergleiche die Zahlung im Stripe-Dashboard mit der Verlängerungsbestellung."
 
-#: src/Admin/Diagnostics.php:1129
+#: src/Admin/Diagnostics.php:1131
 msgid "Renewals whose queued attempt or check should have run more than an hour ago, or whose grace period ended without the license being expired. Renewals waiting for their next retry are not counted."
 msgstr "Verlängerungen, deren eingeplanter Versuch oder Prüfung vor mehr als einer Stunde hätte laufen sollen oder deren Kulanzzeit endete, ohne dass die Lizenz abgelaufen ist. Verlängerungen, die auf ihre nächste Wiederholung warten, werden nicht gezählt."
 
-#: src/Admin/Diagnostics.php:1130
-#: src/Settings/Texts.php:325
+#: src/Admin/Diagnostics.php:1132
+#: src/Settings/Texts.php:378
 msgid "Renewals stuck in processing (over 1 hour)"
 msgstr "In der Verarbeitung hängende Verlängerungen (über 1 Stunde)"
 
-#: src/Admin/Diagnostics.php:1130
+#: src/Admin/Diagnostics.php:1132
 msgid "A payment attempt started and never reported back. Check the renewal order and the payment in Stripe before anything is retried."
 msgstr "Ein Zahlungsversuch wurde gestartet und hat sich nie zurückgemeldet. Prüfe die Verlängerungsbestellung und die Zahlung in Stripe, bevor etwas wiederholt wird."
 
-#: src/Admin/Diagnostics.php:1131
+#: src/Admin/Diagnostics.php:1133
 msgid "The payment provider did not give a final answer and the automatic check could not resolve it. Compare the renewal order with the payment in the provider's dashboard, then extend the license by hand or cancel the order. Nothing is charged again automatically."
 msgstr "Der Zahlungsanbieter hat keine endgültige Antwort gegeben, und die automatische Prüfung konnte dies nicht klären. Vergleiche die Verlängerungsbestellung mit der Zahlung im Dashboard des Anbieters und verlängere dann die Lizenz von Hand oder storniere die Bestellung. Es wird nicht automatisch erneut abgebucht."
 
-#: src/Admin/Diagnostics.php:1132
+#: src/Admin/Diagnostics.php:1134
 msgid "Licenses with automatic renewal but no open renewal"
 msgstr "Lizenzen mit automatischer Verlängerung, aber ohne offene Verlängerung"
 
-#: src/Admin/Diagnostics.php:1132
+#: src/Admin/Diagnostics.php:1134
 msgid "These licenses would not be charged at the end of their term. The daily run schedules missing renewals."
 msgstr "Diese Lizenzen würden am Ende ihrer Laufzeit nicht belastet. Der tägliche Lauf plant fehlende Verlängerungen ein."
 
-#: src/Admin/Diagnostics.php:1133
-#: src/Settings/Texts.php:326
+#: src/Admin/Diagnostics.php:1135
+#: src/Settings/Texts.php:379
 msgid "Paid renewals without extension"
 msgstr "Bezahlte Verlängerungen ohne Verlängerung der Laufzeit"
 
-#: src/Admin/Diagnostics.php:1133
+#: src/Admin/Diagnostics.php:1135
 msgid "The latest renewal of these licenses is paid, but the license does not run until the end of the paid period. Extend the term by hand or refund the order."
 msgstr "Die letzte Verlängerung dieser Lizenzen ist bezahlt, aber die Lizenz läuft nicht bis zum Ende des bezahlten Zeitraums. Verlängere die Laufzeit von Hand oder erstatte die Bestellung."
 
-#: src/Admin/Diagnostics.php:1137
-#: src/Settings/Texts.php:328
+#: src/Admin/Diagnostics.php:1139
+#: src/Settings/Texts.php:381
 msgid "License products without a plan"
 msgstr "Lizenzprodukte ohne Tarif"
 
-#: src/Admin/Diagnostics.php:1137
+#: src/Admin/Diagnostics.php:1139
 msgid "These products are ticked as license product but have no product key and plan. They are sold without a license. Open the product and complete the license fields."
 msgstr "Diese Produkte sind als Lizenzprodukt markiert, haben aber keinen Produktschlüssel und keinen Tarif. Sie werden ohne Lizenz verkauft. Öffne das Produkt und fülle die Lizenzfelder aus."
 
-#: src/Admin/Diagnostics.php:1139
-#: src/Settings/Texts.php:330
+#: src/Admin/Diagnostics.php:1141
+#: src/Settings/Texts.php:383
 msgid "Paid orders without their licenses"
 msgstr "Bezahlte Bestellungen ohne ihre Lizenzen"
 
-#: src/Admin/Diagnostics.php:1139
+#: src/Admin/Diagnostics.php:1141
 msgid "A license could not be created for these orders; the reason is in the order notes. Issuing is retried daily."
 msgstr "Für diese Bestellungen konnte keine Lizenz erstellt werden; der Grund steht in den Bestellnotizen. Die Ausstellung wird täglich erneut versucht."
 
-#: src/Admin/Diagnostics.php:1143
+#: src/Admin/Diagnostics.php:1145
 msgid "Update packages"
 msgstr "Update-Pakete"
 
-#: src/Admin/Diagnostics.php:1150
-#: src/Admin/Settings.php:932
+#: src/Admin/Diagnostics.php:1152
+#: src/Admin/Settings.php:993
 msgid "License keys verifiable with the current secret"
 msgstr "Mit dem aktuellen Geheimnis überprüfbare Lizenzschlüssel"
 
-#: src/Admin/Diagnostics.php:1154
+#: src/Admin/Diagnostics.php:1156
 msgid "The secret or the salts were changed. Customers with these keys see \"not available\" and their sites cannot be activated again. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS."
 msgstr "Das Geheimnis oder die Salts wurden geändert. Kunden mit diesen Schlüsseln sehen „nicht verfügbar“, und ihre Websites können nicht erneut aktiviert werden. Stelle das vorherige Geheimnis als zusätzlichen Eintrag in WPLC_LICENSE_KEY_SECRETS wieder her."
 
-#: src/Admin/Diagnostics.php:1158
+#: src/Admin/Diagnostics.php:1160
 msgid "Secrets in wp-config.php"
 msgstr "Geheimnisse in der wp-config.php"
 
-#: src/Admin/Diagnostics.php:1159
+#: src/Admin/Diagnostics.php:1161
 msgid "Not configured; the WordPress salts are used"
 msgstr "Nicht konfiguriert; die WordPress-Salts werden verwendet"
 
-#: src/Admin/Diagnostics.php:1159
+#: src/Admin/Diagnostics.php:1161
 msgid "Configured"
 msgstr "Konfiguriert"
 
-#: src/Admin/Diagnostics.php:1164
+#: src/Admin/Diagnostics.php:1166
 msgid "the PHP extension sodium is missing"
 msgstr "die PHP-Erweiterung sodium fehlt"
 
-#: src/Admin/Diagnostics.php:1165
+#: src/Admin/Diagnostics.php:1167
 msgid "WPLC_RESPONSE_SIGNING_KEY is not a valid key"
 msgstr "WPLC_RESPONSE_SIGNING_KEY ist kein gültiger Schlüssel"
 
-#: src/Admin/Diagnostics.php:1166
+#: src/Admin/Diagnostics.php:1168
 msgid "the stored key cannot be decrypted with the configured secrets"
 msgstr "der gespeicherte Schlüssel kann mit den konfigurierten Geheimnissen nicht entschlüsselt werden"
 
-#: src/Admin/Diagnostics.php:1167
+#: src/Admin/Diagnostics.php:1169
 msgid "the stored key is damaged"
 msgstr "der gespeicherte Schlüssel ist beschädigt"
 
-#: src/Admin/Diagnostics.php:1168
+#: src/Admin/Diagnostics.php:1170
 msgid "the stored key is gone"
 msgstr "der gespeicherte Schlüssel ist nicht mehr vorhanden"
 
-#: src/Admin/Diagnostics.php:1169
+#: src/Admin/Diagnostics.php:1171
 msgid "the key could not be encrypted for storage"
 msgstr "der Schlüssel konnte für die Speicherung nicht verschlüsselt werden"
 
-#: src/Admin/Diagnostics.php:1170
+#: src/Admin/Diagnostics.php:1172
 msgid "the key could not be stored"
 msgstr "der Schlüssel konnte nicht gespeichert werden"
 
-#: src/Admin/Diagnostics.php:1171
+#: src/Admin/Diagnostics.php:1173
 msgid "another request is creating the key"
 msgstr "eine andere Anfrage erstellt gerade den Schlüssel"
 
-#: src/Admin/Diagnostics.php:1172
+#: src/Admin/Diagnostics.php:1174
 msgid "no key available"
 msgstr "kein Schlüssel verfügbar"
 
-#: src/Admin/Diagnostics.php:1178
+#: src/Admin/Diagnostics.php:1180
 msgid "stored in the database"
 msgstr "in der Datenbank gespeichert"
 
 #. translators: %s: reason.
-#: src/Admin/Diagnostics.php:1180
+#: src/Admin/Diagnostics.php:1182
 #, php-format
 msgid "Unavailable: %s"
 msgstr "Nicht verfügbar: %s"
 
-#: src/Admin/Diagnostics.php:1183
+#: src/Admin/Diagnostics.php:1185
 msgid "The key is stored encrypted in the database. For a production server, keep it in wp-config.php as WPLC_RESPONSE_SIGNING_KEY (\"wp wplc signing-key\"), so a restored or copied database cannot change it."
 msgstr "Der Schlüssel ist verschlüsselt in der Datenbank gespeichert. Bewahre ihn auf einem Produktivserver als WPLC_RESPONSE_SIGNING_KEY in der wp-config.php auf („wp wplc signing-key“), damit eine wiederhergestellte oder kopierte Datenbank ihn nicht ändern kann."
 
-#: src/Admin/Diagnostics.php:1184
+#: src/Admin/Diagnostics.php:1186
 msgid "API responses are sent without the Ed25519 signature. Add-ons that require it treat the license server as unreachable."
 msgstr "API-Antworten werden ohne die Ed25519-Signatur gesendet. Add-ons, die sie voraussetzen, behandeln den Lizenzserver als nicht erreichbar."
 
-#: src/Admin/Diagnostics.php:1188
+#: src/Admin/Diagnostics.php:1210
 msgid "Installation secrets encrypted with an old key"
 msgstr "Mit einem alten Schlüssel verschlüsselte Installationsgeheimnisse"
 
-#: src/Admin/Diagnostics.php:1191
+#: src/Admin/Diagnostics.php:1213
 msgid "Run \"wp wplc rotate-installation-secrets\" before you remove the previous encryption key from wp-config.php."
 msgstr "Führe „wp wplc rotate-installation-secrets“ aus, bevor du den vorherigen Verschlüsselungsschlüssel aus der wp-config.php entfernst."
 
-#: src/Admin/Diagnostics.php:1193
+#: src/Admin/Diagnostics.php:1215
 msgid "Rejected API requests today (UTC)"
 msgstr "Abgelehnte API-Anfragen heute (UTC)"
 
-#: src/Admin/Diagnostics.php:1193
+#: src/Admin/Diagnostics.php:1215
 msgid "Rejected API requests yesterday (UTC)"
 msgstr "Abgelehnte API-Anfragen gestern (UTC)"
 
-#: src/Admin/Diagnostics.php:1104
-#: src/Admin/Diagnostics.php:1199
+#: src/Admin/Diagnostics.php:1106
+#: src/Admin/Diagnostics.php:1221
 msgid "None"
 msgstr "Keine"
 
-#: src/Admin/Diagnostics.php:1212
+#: src/Admin/Diagnostics.php:1234
 msgid "Database locks (GET_LOCK)"
 msgstr "Datenbanksperren (GET_LOCK)"
 
-#: src/Admin/Diagnostics.php:1213
+#: src/Admin/Diagnostics.php:1235
 msgid "Working"
 msgstr "Funktioniert"
 
-#: src/Admin/Diagnostics.php:1213
+#: src/Admin/Diagnostics.php:1235
 msgid "Not working"
 msgstr "Funktioniert nicht"
 
-#: src/Admin/Diagnostics.php:1215
+#: src/Admin/Diagnostics.php:1237
 msgid "Activations and renewals rely on named database locks. They fail behind database proxies that spread a request over several connections and on clusters with several writing nodes."
 msgstr "Aktivierungen und Verlängerungen sind auf benannte Datenbanksperren angewiesen. Sie schlagen hinter Datenbank-Proxys fehl, die eine Anfrage auf mehrere Verbindungen verteilen, sowie in Clustern mit mehreren schreibenden Knoten."
 
-#: src/Admin/Diagnostics.php:1232
+#: src/Admin/Diagnostics.php:1254
 msgid "Client address of this request"
 msgstr "Client-Adresse dieser Anfrage"
 
 #. translators: 1: address used for rate limits, 2: address of the direct peer.
-#: src/Admin/Diagnostics.php:1234
+#: src/Admin/Diagnostics.php:1256
 #, php-format
 msgid "%1$s (direct peer: %2$s)"
 msgstr "%1$s (direkter Gegenpartner: %2$s)"
 
-#: src/Admin/Diagnostics.php:1236
+#: src/Admin/Diagnostics.php:1258
 msgid "The direct peer is a private address, so a proxy or load balancer sits in front of this server, but WPLC_TRUSTED_PROXY_HEADER and WPLC_TRUSTED_PROXIES are not both defined. All customers then share one rate limit."
 msgstr "Der direkte Gegenpartner ist eine private Adresse, also steht ein Proxy oder Load Balancer vor diesem Server, aber WPLC_TRUSTED_PROXY_HEADER und WPLC_TRUSTED_PROXIES sind nicht beide definiert. Alle Kunden teilen sich dann ein Anfragelimit."
 
-#: src/Admin/Diagnostics.php:1239
+#: src/Admin/Diagnostics.php:1261
 msgid "Proxy constants"
 msgstr "Proxy-Konstanten"
 
 #. translators: 1: header name or "not set", 2: "set" or "not set".
-#: src/Admin/Diagnostics.php:1242
+#: src/Admin/Diagnostics.php:1264
 #, php-format
 msgid "WPLC_TRUSTED_PROXY_HEADER: %1$s; WPLC_TRUSTED_PROXIES: %2$s"
 msgstr "WPLC_TRUSTED_PROXY_HEADER: %1$s; WPLC_TRUSTED_PROXIES: %2$s"
 
-#: src/Admin/Diagnostics.php:1243
-#: src/Admin/Diagnostics.php:1244
+#: src/Admin/Diagnostics.php:1265
+#: src/Admin/Diagnostics.php:1266
 msgid "not set"
 msgstr "nicht gesetzt"
 
-#: src/Admin/Diagnostics.php:1244
+#: src/Admin/Diagnostics.php:1266
 msgid "set"
 msgstr "gesetzt"
 
-#: src/Admin/Diagnostics.php:1278
+#: src/Admin/Diagnostics.php:1300
 msgid "None received yet"
 msgstr "Noch keines empfangen"
 
 #. translators: State of a row of the status table: everything is fine.
-#: src/Admin/Diagnostics.php:1338
-#: src/Admin/Settings.php:721
+#: src/Admin/Diagnostics.php:1360
+#: src/Admin/Settings.php:765
 msgid "OK:"
 msgstr "In Ordnung:"
 
-#: src/Admin/Diagnostics.php:1340
+#: src/Admin/Diagnostics.php:1362
 msgid "Warning:"
 msgstr "Warnung:"
 
-#: src/Admin/Diagnostics.php:1377
+#: src/Admin/Diagnostics.php:1399
 msgid "Stripe events that need attention"
 msgstr "Stripe-Ereignisse, die Aufmerksamkeit erfordern"
 
-#: src/Admin/Diagnostics.php:1379
+#: src/Admin/Diagnostics.php:1401
 msgid "None."
 msgstr "Keine."
 
-#: src/Admin/Diagnostics.php:1382
+#: src/Admin/Diagnostics.php:1404
 msgid "Look the event up in the Stripe dashboard by its ID and compare the payment with the renewal order of the license. The latest 50 are shown."
 msgstr "Suche das Ereignis im Stripe-Dashboard anhand seiner ID und vergleiche die Zahlung mit der Verlängerungsbestellung der Lizenz. Die neuesten 50 werden angezeigt."
 
-#: src/Admin/Diagnostics.php:1384
+#: src/Admin/Diagnostics.php:1406
 msgid "Received"
 msgstr "Empfangen"
 
-#: src/Admin/Diagnostics.php:1384
+#: src/Admin/Diagnostics.php:1406
 msgid "Stripe event ID"
 msgstr "Stripe-Ereignis-ID"
 
-#: src/Admin/Diagnostics.php:1384
+#: src/Admin/Diagnostics.php:1406
 msgid "Type"
 msgstr "Typ"
 
-#: src/Admin/Diagnostics.php:1384
+#: src/Admin/Diagnostics.php:1406
 msgid "Outcome"
 msgstr "Ergebnis"
 
-#: src/Admin/Diagnostics.php:1384
+#: src/Admin/Diagnostics.php:1406
 msgid "Processed"
 msgstr "Verarbeitet"
 
@@ -4191,39 +4192,39 @@ msgstr "Verarbeitet"
 msgid "Payment result unclear – check manually"
 msgstr "Zahlungsergebnis unklar – manuell prüfen"
 
-#: src/Admin/KeyConfigurationNotice.php:114
+#: src/Admin/KeyConfigurationNotice.php:115
 msgid "WP License Captain: the response signing key is not available."
 msgstr "WP License Captain: Der Signaturschlüssel für Antworten ist nicht verfügbar."
 
-#: src/Admin/KeyConfigurationNotice.php:116
+#: src/Admin/KeyConfigurationNotice.php:117
 msgid "API responses are sent without the Ed25519 signature. Add-ons that verify it treat the license server as unreachable and fall back to their cached license state. The reason is shown under WooCommerce → Licenses → Diagnostics, row \"Response signing key\"."
 msgstr "API-Antworten werden ohne die Ed25519-Signatur gesendet. Add-ons, die sie prüfen, behandeln den Lizenzserver als nicht erreichbar und greifen auf ihren zwischengespeicherten Lizenzstatus zurück. Der Grund wird unter WooCommerce → Lizenzen → Diagnose in der Zeile „Signaturschlüssel für Antworten“ angezeigt."
 
-#: src/Admin/KeyConfigurationNotice.php:121
+#: src/Admin/KeyConfigurationNotice.php:122
 msgid "WP License Captain: issued license keys do not match the configured secret."
 msgstr "WP License Captain: Ausgestellte Lizenzschlüssel passen nicht zum konfigurierten Geheimnis."
 
-#: src/Admin/KeyConfigurationNotice.php:138
+#: src/Admin/KeyConfigurationNotice.php:139
 msgid "Add the previous secret as an additional entry to WPLC_LICENSE_KEY_SECRETS in wp-config.php (keep the current one), then run \"wp wplc recover-license-key-ids\" as a dry run and afterwards with \"--apply\". This notice stays until the keys verify again."
 msgstr "Füge das vorherige Geheimnis als zusätzlichen Eintrag zu WPLC_LICENSE_KEY_SECRETS in der wp-config.php hinzu (behalte das aktuelle bei), und führe dann „wp wplc recover-license-key-ids“ zuerst als Probelauf und anschließend mit „--apply“ aus. Dieser Hinweis bleibt bestehen, bis die Schlüssel wieder überprüfbar sind."
 
-#: src/Admin/KeyConfigurationNotice.php:151
+#: src/Admin/KeyConfigurationNotice.php:152
 msgid "Only an administrator with access to wp-config.php can fix this. Please pass this message on."
 msgstr "Nur ein Administrator mit Zugriff auf die wp-config.php kann dies beheben. Bitte gib diese Meldung weiter."
 
-#: src/Admin/KeyConfigurationNotice.php:168
+#: src/Admin/KeyConfigurationNotice.php:169
 msgid "Keep these values in a password manager and in your backups. This notice disappears as soon as the constants are defined and the issued keys verify."
 msgstr "Bewahre diese Werte in einem Passwort-Manager und in deinen Backups auf. Dieser Hinweis verschwindet, sobald die Konstanten definiert sind und die ausgestellten Schlüssel überprüfbar sind."
 
-#: src/Admin/KeyConfigurationNotice.php:218
+#: src/Admin/KeyConfigurationNotice.php:249
 msgid "WP License Captain: license key secrets need attention"
 msgstr "WP License Captain: Die Geheimnisse für Lizenzschlüssel erfordern Aufmerksamkeit"
 
-#: src/Admin/KeyConfigurationNotice.php:219
+#: src/Admin/KeyConfigurationNotice.php:250
 msgid "The secrets for license keys are not configured in wp-config.php, or issued license keys no longer match the configured secret. Customers may lose access to their keys. An administrator finds the details on the license settings page."
 msgstr "Die Geheimnisse für Lizenzschlüssel sind nicht in der wp-config.php konfiguriert, oder ausgestellte Lizenzschlüssel passen nicht mehr zum konfigurierten Geheimnis. Kunden können den Zugriff auf ihre Schlüssel verlieren. Ein Administrator findet die Details auf der Seite mit den Lizenzeinstellungen."
 
-#: src/Admin/KeyConfigurationNotice.php:220
+#: src/Admin/KeyConfigurationNotice.php:251
 #: src/Client/Messages.php:267
 msgid "Open license settings"
 msgstr "Lizenzeinstellungen öffnen"
@@ -4384,7 +4385,7 @@ msgid "When"
 msgstr "Wann"
 
 #: src/Admin/LicenseDetail.php:526
-#: src/Admin/SettingsTools.php:431
+#: src/Admin/SettingsTools.php:687
 msgid "Now"
 msgstr "Sofort"
 
@@ -4546,50 +4547,50 @@ msgstr "Benutzer #%d"
 msgid "System / WP-CLI"
 msgstr "System / WP-CLI"
 
-#: src/Settings/Texts.php:140
+#: src/Settings/Texts.php:157
 msgid "Renewal notice lead days"
 msgstr "Vorlauf für Verlängerungshinweise (Tage)"
 
-#: src/Admin/Settings.php:499
+#: src/Admin/Settings.php:543
 msgid "The trusted package hosts were not changed: only an administrator may change them."
 msgstr "Die vertrauenswürdigen Paket-Hosts wurden nicht geändert: Nur ein Administrator darf sie ändern."
 
-#: src/Admin/Settings.php:501
+#: src/Admin/Settings.php:545
 msgid "The trusted package hosts were not changed: someone else changed them after you opened this page. Check the list below and save again."
 msgstr "Die vertrauenswürdigen Paket-Hosts wurden nicht geändert: Jemand anderes hat sie geändert, nachdem du diese Seite geöffnet hast. Prüfe die Liste unten und speichere erneut."
 
-#: src/Admin/Settings.php:602
+#: src/Admin/Settings.php:646
 msgid "Copying failed. Select the address and copy it by hand."
 msgstr "Kopieren fehlgeschlagen. Markiere die Adresse und kopiere sie von Hand."
 
-#: src/Admin/Settings.php:894
+#: src/Admin/Settings.php:955
 msgid "A webhook signing secret is configured in wp-config.php."
 msgstr "Ein Webhook-Signaturgeheimnis ist in der wp-config.php konfiguriert."
 
-#: src/Admin/Settings.php:894
+#: src/Admin/Settings.php:955
 msgid "No webhook signing secret is configured (WPLC_STRIPE_WEBHOOK_SECRET in wp-config.php). Stripe events are rejected."
 msgstr "Es ist kein Webhook-Signaturgeheimnis konfiguriert (WPLC_STRIPE_WEBHOOK_SECRET in der wp-config.php). Stripe-Ereignisse werden abgelehnt."
 
-#: src/Admin/Settings.php:936
+#: src/Admin/Settings.php:997
 msgid "Some customers see \"not available\" instead of their key. The secret or the salts were changed. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS, or run \"wp wplc recover-license-key-ids\"."
 msgstr "Einige Kunden sehen „nicht verfügbar“ statt ihres Schlüssels. Das Geheimnis oder die Salts wurden geändert. Stelle das vorherige Geheimnis als zusätzlichen Eintrag in WPLC_LICENSE_KEY_SECRETS wieder her, oder führe „wp wplc recover-license-key-ids“ aus."
 
-#: src/Admin/Settings.php:945
+#: src/Admin/Settings.php:1006
 msgid "Available. Customers can opt in at checkout."
 msgstr "Verfügbar. Kunden können sie an der Kasse auswählen."
 
 #. translators: %s: reason, a full sentence.
-#: src/Admin/Settings.php:947
+#: src/Admin/Settings.php:1008
 #, php-format
 msgid "Switched off. %s Customers are not offered automatic renewal and renew manually in their account."
 msgstr "Ausgeschaltet. %s Kunden wird keine automatische Verlängerung angeboten; sie verlängern manuell in ihrem Konto."
 
-#: src/Admin/Settings.php:1199
+#: src/Admin/Settings.php:1308
 msgid "Only an administrator may change the trusted package hosts, because update packages for all customer sites are delivered from them."
 msgstr "Nur ein Administrator darf die vertrauenswürdigen Paket-Hosts ändern, weil von ihnen Update-Pakete für alle Kunden-Websites ausgeliefert werden."
 
-#: src/Admin/Settings.php:1295
-#: src/Settings/Texts.php:141
+#: src/Admin/Settings.php:1404
+#: src/Settings/Texts.php:158
 msgid "Days before an automatic charge on which the customer is told the date and the amount. Default: 7. A license is only charged after this email was accepted for sending; otherwise the charge is postponed and reported under Diagnostics."
 msgstr "Tage vor einer automatischen Abbuchung, an denen der Kunde über Datum und Betrag informiert wird. Standard: 7. Eine Lizenz wird erst belastet, nachdem diese E-Mail zum Versand angenommen wurde; andernfalls wird die Abbuchung verschoben und unter Diagnose gemeldet."
 
@@ -4968,12 +4969,12 @@ msgstr "Stripe hat die Verlängerungsanfrage wegen der Shop-Konfiguration abgele
 msgid "WP License Captain: Stripe declined the renewal payment (code %1$s, decline code %2$s, advice %3$s, outcome %4$s). Further automatic attempts: %5$s."
 msgstr "WP License Captain: Stripe hat die Zahlung für die Verlängerung abgelehnt (Code %1$s, Ablehnungscode %2$s, Empfehlung %3$s, Ergebnis %4$s). Weitere automatische Versuche: %5$s."
 
-#: src/Admin/Settings.php:702
+#: src/Admin/Settings.php:746
 #: src/Gateway/StripeRecurringAdapter.php:775
 msgid "yes"
 msgstr "ja"
 
-#: src/Admin/Settings.php:702
+#: src/Admin/Settings.php:746
 #: src/Gateway/StripeRecurringAdapter.php:775
 msgid "no"
 msgstr "nein"
@@ -5264,27 +5265,27 @@ msgstr "Handlungsbedarf: Die Karte für deine Lizenz für {product} ist nicht me
 msgid "Your saved card is no longer available"
 msgstr "Deine gespeicherte Karte ist nicht mehr verfügbar"
 
-#: src/Notifications/Notifications.php:1088
+#: src/Notifications/Notifications.php:1136
 msgid "Sample product"
 msgstr "Beispielprodukt"
 
-#: src/Notifications/Notifications.php:1089
+#: src/Notifications/Notifications.php:1137
 msgid "Sample plan"
 msgstr "Beispieltarif"
 
-#: src/Notifications/Notifications.php:1169
+#: src/Notifications/Notifications.php:1217
 msgid "You chose automatic renewal for your license. The email with your license lists the renewal date, the amount including tax and the interval."
 msgstr "Du hast für deine Lizenz die automatische Verlängerung gewählt. In der E-Mail mit deiner Lizenz findest du das Verlängerungsdatum, den Betrag einschließlich Steuern und das Intervall."
 
-#: src/Notifications/Notifications.php:1185
+#: src/Notifications/Notifications.php:1236
 msgid "Download the plugin ZIP file in your account under \"Licenses\"."
 msgstr "Lade die ZIP-Datei des Plugins in deinem Konto unter „Lizenzen“ herunter."
 
-#: src/Notifications/Notifications.php:1186
+#: src/Notifications/Notifications.php:1237
 msgid "In the WordPress dashboard of your site, go to Plugins > Add New > Upload Plugin, choose the ZIP file, then install and activate it."
 msgstr "Gehe im WordPress-Dashboard deiner Website zu Plugins > Neues Plugin hinzufügen > Plugin hochladen, wähle die ZIP-Datei aus und installiere und aktiviere das Plugin."
 
-#: src/Notifications/Notifications.php:1187
+#: src/Notifications/Notifications.php:1238
 msgid "Open the license settings of the plugin, enter your license key and activate the license for the site."
 msgstr "Öffne die Lizenzeinstellungen des Plugins, gib deinen Lizenzschlüssel ein und aktiviere die Lizenz für die Website."
 
@@ -5319,7 +5320,7 @@ msgid "You can cancel the automatic renewal at any time before the renewal date 
 msgstr "Du kannst die automatische Verlängerung jederzeit vor dem Verlängerungsdatum in deinem Konto unter „Lizenzen“ kündigen. Die Lizenz bleibt dann bis zum Ende des bezahlten Zeitraums gültig und wird nicht erneut berechnet."
 
 #. translators: %s: minimum WooCommerce version.
-#: src/Admin/Diagnostics.php:937
+#: src/Admin/Diagnostics.php:939
 #: src/Plugin.php:150
 #, php-format
 msgid "WP License Captain requires WooCommerce %s or later."
@@ -5394,7 +5395,7 @@ msgstr "Ereignis"
 msgid "Concerns"
 msgstr "Betrifft"
 
-#: src/Admin/SettingsTools.php:431
+#: src/Admin/SettingsTools.php:687
 #: src/Privacy/PersonalData.php:587
 msgid "Note"
 msgstr "Hinweis"
@@ -5411,6 +5412,7 @@ msgstr "Zustimmung erteilt am (UTC)"
 msgid "Given through"
 msgstr "Erteilt über"
 
+#: src/Admin/SettingsTools.php:613
 #: src/Privacy/PersonalData.php:605
 msgid "Language"
 msgstr "Sprache"
@@ -5894,24 +5896,24 @@ msgstr[0] "Dein letzter Lizenzexport endete nach %s Lizenz. Schränke die Filter
 msgstr[1] "Dein letzter Lizenzexport endete nach %s Lizenzen. Schränke die Filter ein, um den Rest zu exportieren."
 
 #. translators: 1: number of verifiable keys, 2: number of checked keys.
-#: src/Admin/Diagnostics.php:1152
-#: src/Admin/Settings.php:934
+#: src/Admin/Diagnostics.php:1154
+#: src/Admin/Settings.php:995
 #, php-format
 msgid "%1$s of the %2$s most recent key"
 msgid_plural "%1$s of the %2$s most recent keys"
 msgstr[0] "%1$s des %2$s neuesten Schlüssels"
 msgstr[1] "%1$s der %2$s neuesten Schlüssel"
 
-#: src/Admin/Diagnostics.php:1249
+#: src/Admin/Diagnostics.php:1271
 msgid "Proxy header ignored"
 msgstr "Proxy-Header ignoriert"
 
-#: src/Admin/Diagnostics.php:1249
+#: src/Admin/Diagnostics.php:1271
 msgid "Not used"
 msgstr "Nicht verwendet"
 
 #. translators: 1: number of keys that cannot be verified, 2: number of checked keys.
-#: src/Admin/KeyConfigurationNotice.php:126
+#: src/Admin/KeyConfigurationNotice.php:127
 #, php-format
 msgid "%1$s of the %2$s most recent license key cannot be reproduced. These customers see \"not available\" instead of their key, and their keys are rejected on activation. The secret in wp-config.php or the WordPress salts were changed."
 msgid_plural "%1$s of the %2$s most recent license keys cannot be reproduced. These customers see \"not available\" instead of their key, and their keys are rejected on activation. The secret in wp-config.php or the WordPress salts were changed."
@@ -6552,72 +6554,72 @@ msgid "The renewal amount was not changed. It can be changed for active and past
 msgstr "Der Verlängerungsbetrag wurde nicht geändert. Er kann nur bei aktiven und überfälligen Lizenzen geändert werden."
 
 #. translators: 1: version number, 2: address of the release page.
-#: src/Admin/Diagnostics.php:901
 #: src/Admin/Diagnostics.php:903
-#: src/Admin/Diagnostics.php:906
+#: src/Admin/Diagnostics.php:905
 #: src/Admin/Diagnostics.php:908
+#: src/Admin/Diagnostics.php:910
 msgid "Newest release"
 msgstr "Neuestes Release"
 
-#: src/Admin/Diagnostics.php:901
+#: src/Admin/Diagnostics.php:903
 msgid "Check switched off (WPLC_DISABLE_UPDATE_CHECK)"
 msgstr "Prüfung ausgeschaltet (WPLC_DISABLE_UPDATE_CHECK)"
 
-#: src/Admin/Diagnostics.php:903
+#: src/Admin/Diagnostics.php:905
 msgid "Not known yet. WordPress checks for updates twice a day."
 msgstr "Noch nicht bekannt. WordPress sucht zweimal täglich nach Updates."
 
 #. translators: 1: version number, 2: address of the release page.
-#: src/Admin/Diagnostics.php:906
+#: src/Admin/Diagnostics.php:908
 #, php-format
 msgid "%1$s is available: %2$s"
 msgstr "%1$s ist verfügbar: %2$s"
 
 #. translators: 1: version number, 2: address of the release page.
-#: src/Admin/Diagnostics.php:906
+#: src/Admin/Diagnostics.php:908
 msgid "Download the ZIP and its .sha256 from the release page, compare the checksum and install the ZIP by upload (docs/manual/12-upgrading.md)."
 msgstr "Lade die ZIP-Datei und die zugehörige .sha256-Datei von der Release-Seite herunter, vergleiche die Prüfsumme und installiere die ZIP-Datei per Upload (docs/manual/12-upgrading.md)."
 
-#: src/Admin/Diagnostics.php:1103
+#: src/Admin/Diagnostics.php:1105
 msgid "License emails switched off"
 msgstr "Lizenz-E-Mails ausgeschaltet"
 
-#: src/Admin/Diagnostics.php:1106
+#: src/Admin/Diagnostics.php:1108
 msgid "These emails are switched off under WooCommerce → Settings → Emails and are not sent to customers (each skipped email is logged under the source wp-license)."
 msgstr "Diese E-Mails sind unter WooCommerce → Einstellungen → E-Mails ausgeschaltet und werden nicht an Kunden gesendet (jede übersprungene E-Mail wird unter der Quelle wp-license protokolliert)."
 
-#: src/Admin/Diagnostics.php:1126
-#: src/Settings/Texts.php:333
+#: src/Admin/Diagnostics.php:1128
+#: src/Settings/Texts.php:386
 msgid "Minutes with rejected Stripe webhook requests (24 hours)"
 msgstr "Minuten mit abgelehnten Stripe-Webhook-Anfragen (24 Stunden)"
 
-#: src/Admin/Diagnostics.php:1126
+#: src/Admin/Diagnostics.php:1128
 msgid "Requests to the webhook URL without a valid signature, counted at most once a minute. A few can be scans of the URL; many mean that the signing secret does not match the endpoint in the Stripe dashboard."
 msgstr "Anfragen an die Webhook-URL ohne gültige Signatur, höchstens einmal pro Minute gezählt. Einige wenige können Scans der URL sein; viele bedeuten, dass das Signatur-Geheimnis nicht zum Endpunkt im Stripe-Dashboard passt."
 
-#: src/Admin/Diagnostics.php:1220
+#: src/Admin/Diagnostics.php:1242
 msgid "This database layer sends reads to replicas. The plugin routes the activation lock and the site-limit counts to the primary with send_reads_to_master(), but this has not been tested with replicas. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary, or the site limit may be exceeded (see docs/manual/09-operations.md)."
 msgstr "Diese Datenbankschicht leitet Lesezugriffe an Replikate. Das Plugin leitet die Aktivierungssperre und die Zählungen für das Website-Limit mit send_reads_to_master() an den Primärserver, dies wurde jedoch nicht mit Replikaten getestet. Leite die Tabellen wplc_activations und wplc_licenses sowie alle GET_LOCK-Aufrufe an den Primärserver, sonst kann das Website-Limit überschritten werden (siehe docs/manual/09-operations.md)."
 
-#: src/Admin/Diagnostics.php:1221
+#: src/Admin/Diagnostics.php:1243
 msgid "This database layer sends reads to replicas and offers no send_reads_to_master() switch. The activation lock and the site-limit counts may run on a replica, so the site limit can be exceeded. Route the wplc_activations and wplc_licenses tables and all GET_LOCK calls to the primary (see docs/manual/09-operations.md)."
 msgstr "Diese Datenbankschicht leitet Lesezugriffe an Replikate und bietet keinen send_reads_to_master()-Schalter. Die Aktivierungssperre und die Zählungen für das Website-Limit können auf einem Replikat laufen, sodass das Website-Limit überschritten werden kann. Leite die Tabellen wplc_activations und wplc_licenses sowie alle GET_LOCK-Aufrufe an den Primärserver (siehe docs/manual/09-operations.md)."
 
 #. translators: %s: PHP class name of the database layer.
-#: src/Admin/Diagnostics.php:1223
-#: src/Admin/Diagnostics.php:1226
-#: src/Admin/Diagnostics.php:1228
+#: src/Admin/Diagnostics.php:1245
+#: src/Admin/Diagnostics.php:1248
+#: src/Admin/Diagnostics.php:1250
 msgid "Database layer"
 msgstr "Datenbankschicht"
 
 #. translators: %s: PHP class name of the database layer.
-#: src/Admin/Diagnostics.php:1223
+#: src/Admin/Diagnostics.php:1245
 #, php-format
 msgid "%s (read/write splitting)"
 msgstr "%s (Lese-/Schreibtrennung)"
 
 #. translators: %s: PHP class name of the database layer.
-#: src/Admin/Diagnostics.php:1226
+#: src/Admin/Diagnostics.php:1248
 #, php-format
 msgid "%s (db.php drop-in)"
 msgstr "%s (db.php-Drop-in)"
@@ -6813,6 +6815,7 @@ msgid "Release %s? The site loses its connection until it is activated again."
 msgstr "%s freigeben? Die Website verliert ihre Verbindung, bis sie erneut aktiviert wird."
 
 #: src/Admin/LicenseDetail.php:946
+#: src/Admin/SettingsTools.php:607
 msgid "Email"
 msgstr "E-Mail"
 
@@ -6841,63 +6844,63 @@ msgid "Releases with a package URL are not delivered: without a resolver that re
 msgstr "Releases mit einer Paket-URL werden nicht ausgeliefert: Ohne einen Resolver, der eine kurzlebige signierte URL zurückgibt, würde jeder lizenzierte Kunde die dauerhafte Adresse erfahren und könnte sie auch nach Ende der Lizenz weiter nutzen. Lade stattdessen die ZIP-Datei hoch, oder füge einen Resolver hinzu (siehe docs/manual/05-releases-and-updates.md)."
 
 #: src/Admin/Settings.php:75
-#: src/Admin/Settings.php:854
+#: src/Admin/Settings.php:911
 msgid "Getting started"
 msgstr "Erste Schritte"
 
-#: src/Admin/Settings.php:793
+#: src/Admin/Settings.php:844
 msgid "Define the secrets in wp-config.php"
 msgstr "Geheimnisse in der wp-config.php definieren"
 
-#: src/Admin/Settings.php:794
+#: src/Admin/Settings.php:845
 msgid "Set WPLC_LICENSE_KEY_SECRETS (with WPLC_LICENSE_KEY_ID) and WPLC_INSTALLATION_ENCRYPTION_KEYS before the first license is sold. Keys issued without them depend on the WordPress salts and stop working when the salts change."
 msgstr "Setze WPLC_LICENSE_KEY_SECRETS (mit WPLC_LICENSE_KEY_ID) und WPLC_INSTALLATION_ENCRYPTION_KEYS, bevor die erste Lizenz verkauft wird. Ohne sie ausgestellte Schlüssel hängen von den WordPress-Salts ab und funktionieren nicht mehr, wenn sich die Salts ändern."
 
-#: src/Admin/Settings.php:811
+#: src/Admin/Settings.php:862
 msgid "Turn a product into a license product"
 msgstr "Ein Produkt zu einem Lizenzprodukt machen"
 
-#: src/Admin/Settings.php:814
+#: src/Admin/Settings.php:865
 msgid "Open products"
 msgstr "Produkte öffnen"
 
-#: src/Admin/Settings.php:829
+#: src/Admin/Settings.php:886
 msgid "Connect the Stripe webhook"
 msgstr "Stripe-Webhook verbinden"
 
-#: src/Admin/Settings.php:830
+#: src/Admin/Settings.php:887
 msgid "In the Stripe dashboard, add an endpoint with the webhook URL shown under \"Status\" below and the events listed in the documentation (docs/manual/08-renewals-and-stripe.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected."
 msgstr "Füge im Stripe-Dashboard einen Endpunkt mit der unten unter „Status“ angezeigten Webhook-URL und den in der Dokumentation (docs/manual/08-renewals-and-stripe.md) aufgeführten Ereignissen hinzu, und trage dessen Signaturgeheimnis in WPLC_STRIPE_WEBHOOK_SECRET ein. Ohne dieses werden von Stripe gemeldete Verlängerungen, Erstattungen und Zahlungsanfechtungen abgewiesen."
 
-#: src/Admin/Settings.php:817
+#: src/Admin/Settings.php:874
 msgid "Publish the first release"
 msgstr "Erstes Release veröffentlichen"
 
-#: src/Admin/Settings.php:818
+#: src/Admin/Settings.php:875
 msgid "Upload the add-on package and publish it, so that licensed sites can download it and receive updates."
 msgstr "Lade das Add-on-Paket hoch und veröffentliche es, damit lizenzierte Websites es herunterladen und Updates erhalten können."
 
-#: src/Admin/Settings.php:820
+#: src/Admin/Settings.php:877
 msgid "Open license releases"
 msgstr "Lizenz-Releases öffnen"
 
-#: src/Admin/Settings.php:823
+#: src/Admin/Settings.php:880
 msgid "Make a test purchase"
 msgstr "Testkauf durchführen"
 
-#: src/Admin/Settings.php:824
+#: src/Admin/Settings.php:881
 msgid "Buy the product with a test customer, check the license under Licenses and activate it in the add-on on a test site. The diagnostics page shows whether the daily background run works."
 msgstr "Kaufe das Produkt mit einem Testkunden, prüfe die Lizenz unter „Lizenzen“ und aktiviere sie im Add-on auf einer Test-Website. Die Diagnoseseite zeigt, ob der tägliche Hintergrundlauf funktioniert."
 
-#: src/Admin/Settings.php:861
+#: src/Admin/Settings.php:918
 msgid "Done"
 msgstr "Erledigt"
 
-#: src/Admin/Settings.php:863
+#: src/Admin/Settings.php:920
 msgid "To do"
 msgstr "Offen"
 
-#: src/Admin/Settings.php:981
+#: src/Admin/Settings.php:1042
 msgid "Anonymisation of ended licenses"
 msgstr "Anonymisierung beendeter Lizenzen"
 
@@ -7061,48 +7064,48 @@ msgstr "Schlüssel des hervorgehobenen Tarifs"
 msgid "Show features"
 msgstr "Funktionen anzeigen"
 
-#: src/Account/CustomerPortal.php:873
+#: src/Account/CustomerPortal.php:896
 msgid "The site was moved to your other license. The installed plugin keeps working without entering the new key."
 msgstr "Die Website wurde zu deiner anderen Lizenz verschoben. Das installierte Plugin funktioniert weiter, ohne dass der neue Schlüssel eingegeben werden muss."
 
-#: src/Account/CustomerPortal.php:874
+#: src/Account/CustomerPortal.php:897
 msgid "The site cannot be moved to this license. Sites can only be moved from a license that has ended or is ending to a newer license of the same product."
 msgstr "Die Website kann nicht zu dieser Lizenz verschoben werden. Websites können nur von einer beendeten oder auslaufenden Lizenz zu einer neueren Lizenz desselben Produkts verschoben werden."
 
-#: src/Account/CustomerPortal.php:875
+#: src/Account/CustomerPortal.php:898
 msgid "A staging site moves together with its live site. Move the live site instead."
 msgstr "Eine Staging-Website wird zusammen mit ihrer Live-Website verschoben. Verschiebe stattdessen die Live-Website."
 
-#: src/Account/CustomerPortal.php:876
+#: src/Account/CustomerPortal.php:899
 msgid "This site is already activated on the other license. Deactivate it here to free the place."
 msgstr "Diese Website ist bereits auf der anderen Lizenz aktiviert. Deaktiviere sie hier, um den Platz freizugeben."
 
-#: src/Account/CustomerPortal.php:877
+#: src/Account/CustomerPortal.php:900
 msgid "The other license has no free place for this site. Deactivate a site there first."
 msgstr "Die andere Lizenz hat keinen freien Platz für diese Website. Deaktiviere dort zuerst eine Website."
 
-#: src/Account/CustomerPortal.php:878
+#: src/Account/CustomerPortal.php:901
 msgid "One of the licenses is being changed right now. Please try again in a few minutes."
 msgstr "Eine der Lizenzen wird gerade geändert. Bitte versuche es in einigen Minuten erneut."
 
-#: src/Account/CustomerPortal.php:879
+#: src/Account/CustomerPortal.php:902
 msgid "The site could not be moved. Please try again."
 msgstr "Die Website konnte nicht verschoben werden. Bitte versuche es erneut."
 
 #. translators: 1: site URL, 2: license reference such as WPLC-1A2B3C4D, 3: date.
-#: src/Account/CustomerPortal.php:1391
+#: src/Account/CustomerPortal.php:1414
 #, php-format
 msgid "Move %1$s to license %2$s (valid through %3$s)? The site then counts towards that license, and the installed plugin keeps working without entering the new key."
 msgstr "%1$s zur Lizenz %2$s (gültig bis %3$s) verschieben? Die Website zählt dann für diese Lizenz, und das installierte Plugin funktioniert weiter, ohne dass der neue Schlüssel eingegeben werden muss."
 
 #. translators: %s: license reference such as WPLC-1A2B3C4D.
-#: src/Account/CustomerPortal.php:1407
+#: src/Account/CustomerPortal.php:1430
 #, php-format
 msgid "Move to %s"
 msgstr "Zu %s verschieben"
 
 #. translators: 1: button label, 2: site URL.
-#: src/Account/CustomerPortal.php:1409
+#: src/Account/CustomerPortal.php:1432
 #, php-format
 msgid "%1$s: site %2$s"
 msgstr "%1$s: Website %2$s"
@@ -7165,37 +7168,37 @@ msgstr "Alle Quellen"
 msgid "Unknown (older entries)"
 msgstr "Unbekannt (ältere Einträge)"
 
-#: src/Admin/Diagnostics.php:1288
+#: src/Admin/Diagnostics.php:1310
 msgid "Site cleanup helper (must-use)"
 msgstr "Hilfsdatei zur Website-Bereinigung (Must-Use)"
 
-#: src/Admin/Diagnostics.php:1291
+#: src/Admin/Diagnostics.php:1313
 msgid "Installed"
 msgstr "Installiert"
 
-#: src/Admin/Diagnostics.php:1295
+#: src/Admin/Diagnostics.php:1317
 msgid "Older copy installed"
 msgstr "Ältere Version installiert"
 
-#: src/Admin/Diagnostics.php:1295
+#: src/Admin/Diagnostics.php:1317
 msgid "Run wp wplc schema install-mu-helper to replace it with the version shipped with this plugin."
 msgstr "Führe wp wplc schema install-mu-helper aus, um sie durch die mit diesem Plugin ausgelieferte Version zu ersetzen."
 
 #. translators: %s: file name.
-#: src/Admin/Diagnostics.php:1300
+#: src/Admin/Diagnostics.php:1322
 #, php-format
 msgid "Another file named %s is in the must-use directory"
 msgstr "Im Must-Use-Verzeichnis befindet sich eine andere Datei namens %s"
 
-#: src/Admin/Diagnostics.php:1304
+#: src/Admin/Diagnostics.php:1326
 msgid "Not installed (not needed while the plugin is network-activated)"
 msgstr "Nicht installiert (nicht erforderlich, solange das Plugin netzwerkweit aktiviert ist)"
 
-#: src/Admin/Diagnostics.php:1307
+#: src/Admin/Diagnostics.php:1329
 msgid "Not installed"
 msgstr "Nicht installiert"
 
-#: src/Admin/Diagnostics.php:1307
+#: src/Admin/Diagnostics.php:1329
 msgid "If this site is deleted from the network admin while the plugin is not active on the main site, its wplc_* tables stay behind. Install the optional helper with wp wplc schema install-mu-helper (docs/manual/09-operations.md)."
 msgstr "Wenn diese Website in der Netzwerkverwaltung gelöscht wird, während das Plugin auf der Hauptwebsite nicht aktiv ist, bleiben ihre wplc_*-Tabellen zurück. Installiere die optionale Hilfsdatei mit wp wplc schema install-mu-helper (docs/manual/09-operations.md)."
 
@@ -7558,7 +7561,7 @@ msgid "Nothing was removed: tick the box next to \"Remove\" to confirm."
 msgstr "Es wurde nichts entfernt: Setze zur Bestätigung das Häkchen neben „Entfernen“."
 
 #. translators: 1: date, 2: amount.
-#: src/Account/CustomerPortal.php:623
+#: src/Account/CustomerPortal.php:646
 #, php-format
 msgid "From %1$s a renewal costs %2$s."
 msgstr "Ab dem %1$s kostet eine Verlängerung %2$s."
@@ -7746,12 +7749,12 @@ msgstr "Die Ankündigung jetzt per E-Mail an jeden Kunden dieser Lizenzen senden
 msgid "Up to 500 licenses are handled per submission. When more remain, submit the form again: licenses that already have the announcement are skipped."
 msgstr "Je Absenden werden bis zu 500 Lizenzen bearbeitet. Bleiben weitere übrig, sende das Formular erneut ab: Lizenzen, die die Ankündigung bereits haben, werden übersprungen."
 
-#: src/Settings/Texts.php:144
+#: src/Settings/Texts.php:161
 msgid "Price change notice period"
 msgstr "Ankündigungsfrist für Preisänderungen"
 
-#: src/Admin/Settings.php:1285
-#: src/Settings/Texts.php:145
+#: src/Admin/Settings.php:1394
+#: src/Settings/Texts.php:162
 msgid "Days between the email that announces a higher renewal price for an existing license and the first renewal at that price. Default: 60, at least 30. Have the period and the wording of the email checked by a lawyer."
 msgstr "Tage zwischen der E-Mail, die einen höheren Verlängerungspreis für eine bestehende Lizenz ankündigt, und der ersten Verlängerung zu diesem Preis. Vorgabe: 60, mindestens 30. Lass die Frist und den Wortlaut der E-Mail anwaltlich prüfen."
 
@@ -7921,16 +7924,16 @@ msgstr "Katalogdatei eines Release-Pakets nicht importiert"
 msgid "Catalog import removed entitlements that plans still grant"
 msgstr "Katalogimport hat Berechtigungen entfernt, die Tarife noch vergeben"
 
-#: src/Settings/Texts.php:84
+#: src/Settings/Texts.php:85
 msgid "Catalog file of release packages"
 msgstr "Katalogdatei aus Release-Paketen"
 
-#: src/Admin/Settings.php:1262
+#: src/Admin/Settings.php:1371
 msgid "Import the catalog file from release packages"
 msgstr "Die Katalogdatei aus Release-Paketen importieren"
 
-#: src/Admin/Settings.php:1263
-#: src/Settings/Texts.php:85
+#: src/Admin/Settings.php:1372
+#: src/Settings/Texts.php:86
 msgid "When a release is created from a ZIP, the file wplc-catalog.json in the plugin folder of the package is checked and imported into the license catalog. The release is created in any case; a file that is invalid or describes another product is not imported and reported. Plans and licenses are never changed."
 msgstr "Wird ein Release aus einer ZIP-Datei angelegt, wird die Datei wplc-catalog.json im Plugin-Ordner des Pakets geprüft und in den Lizenzkatalog importiert. Das Release wird in jedem Fall angelegt; eine Datei, die ungültig ist oder ein anderes Produkt beschreibt, wird nicht importiert und gemeldet. Tarife und Lizenzen werden nie geändert."
 
@@ -8023,40 +8026,40 @@ msgstr "Die Lizenz konnte nicht ausgestellt werden."
 msgid "It does not renew automatically. Please contact us before that date if you want to keep using it."
 msgstr "Sie verlängert sich nicht automatisch. Bitte melde dich vor diesem Datum bei uns, wenn du sie weiter nutzen möchtest."
 
-#: src/Admin/Settings.php:799
+#: src/Admin/Settings.php:850
 msgid "Pin the public key in your add-on"
 msgstr "Öffentlichen Schlüssel im Add-on hinterlegen"
 
-#: src/Admin/Settings.php:800
+#: src/Admin/Settings.php:851
 msgid "Put the response signing key into wp-config.php as WPLC_RESPONSE_SIGNING_KEY (\"wp wplc signing-key --generate\") and give its public key to the license client of your add-on (option public_keys)."
 msgstr "Trage den Signaturschlüssel für Antworten als WPLC_RESPONSE_SIGNING_KEY in die wp-config.php ein („wp wplc signing-key --generate“) und gib seinen öffentlichen Schlüssel an den Lizenz-Client deines Add-ons weiter (Option public_keys)."
 
-#: src/Admin/Settings.php:802
+#: src/Admin/Settings.php:853
 msgid "Show the public key"
 msgstr "Öffentlichen Schlüssel anzeigen"
 
-#: src/Admin/Settings.php:805
+#: src/Admin/Settings.php:856
 msgid "Import your catalog file"
 msgstr "Katalogdatei importieren"
 
-#: src/Admin/Settings.php:806
+#: src/Admin/Settings.php:857
 msgid "Describe your product and its entitlements in a wplc-catalog.json file (docs/manual/03-catalog-files.md) and import it here, or ship it in the plugin folder of your release package."
 msgstr "Beschreibe dein Produkt und seine Berechtigungen in einer Datei wplc-catalog.json (docs/manual/03-catalog-files.md) und importiere sie hier oder lege sie in den Plugin-Ordner deines Release-Pakets."
 
-#: src/Admin/Settings.php:808
+#: src/Admin/Settings.php:859
 msgid "Open catalog files"
 msgstr "Katalogdateien öffnen"
 
-#: src/Admin/Settings.php:812
+#: src/Admin/Settings.php:863
 msgid "Edit the WooCommerce product, tick \"License product\", enter the product key of your catalog file (for example acme-pro) and a plan key (for example single), and tick the entitlements of the plan. Keep both keys unchanged once the product is sold."
 msgstr "Bearbeite das WooCommerce-Produkt, setze den Haken bei „Lizenzprodukt“, trage den Produktschlüssel aus deiner Katalogdatei (zum Beispiel acme-pro) und einen Tarifschlüssel (zum Beispiel single) ein und hake die Berechtigungen des Tarifs an. Ändere beide Schlüssel nicht mehr, sobald das Produkt verkauft wird."
 
-#: src/Admin/Settings.php:826
+#: src/Admin/Settings.php:883
 msgid "Open licenses"
 msgstr "Lizenzen öffnen"
 
 #. translators: 1: number of finished setup steps, 2: number of all setup steps.
-#: src/Admin/Settings.php:856
+#: src/Admin/Settings.php:913
 #, php-format
 msgid "%1$s of %2$s steps done"
 msgstr "%1$s von %2$s Schritten erledigt"
@@ -8078,7 +8081,7 @@ msgid "The license could not be issued: it could not be saved in the database. C
 msgstr "Die Lizenz konnte nicht ausgestellt werden: Sie ließ sich nicht in der Datenbank speichern. Prüfe das Fehlerprotokoll der Datenbank."
 
 #. translators: %s: number of days.
-#: src/Admin/Settings.php:984
+#: src/Admin/Settings.php:1045
 #, php-format
 msgid "%s day after the end of the year in which the license ended"
 msgid_plural "%s days after the end of the year in which the license ended"
@@ -8346,23 +8349,23 @@ msgid "The co-user was not found. They may have left or been removed already."
 msgstr "Der Mitbenutzer wurde nicht gefunden. Möglicherweise hat er die Mitbenutzung bereits beendet oder wurde bereits entfernt."
 
 #. translators: 1: bucket name, 2: host name of the storage endpoint.
-#: src/Admin/Diagnostics.php:1036
 #: src/Admin/Diagnostics.php:1038
 #: src/Admin/Diagnostics.php:1040
+#: src/Admin/Diagnostics.php:1042
 msgid "Object storage (S3-compatible)"
 msgstr "Objektspeicher (S3-kompatibel)"
 
 #. translators: 1: bucket name, 2: host name of the storage endpoint.
-#: src/Admin/Diagnostics.php:1036
+#: src/Admin/Diagnostics.php:1038
 #, php-format
 msgid "Bucket %1$s on %2$s"
 msgstr "Bucket %1$s auf %2$s"
 
-#: src/Admin/Diagnostics.php:1038
+#: src/Admin/Diagnostics.php:1040
 msgid "Invalid configuration"
 msgstr "Ungültige Konfiguration"
 
-#: src/Admin/Diagnostics.php:1040
+#: src/Admin/Diagnostics.php:1042
 #: src/Client/Messages.php:237
 msgid "Not configured"
 msgstr "Nicht konfiguriert"
@@ -8420,16 +8423,16 @@ msgstr "Mitbenutzer sehen die Lizenz, ihren Schlüssel, ihre Websites und Downlo
 msgid "Object storage is configured: enter s3://%s/path/to/package.zip to deliver a private object through short-lived signed links."
 msgstr "Der Objektspeicher ist konfiguriert: Gib s3://%s/path/to/package.zip ein, um ein privates Objekt über kurzlebige signierte Links auszuliefern."
 
-#: src/Settings/Texts.php:108
+#: src/Settings/Texts.php:125
 msgid "Combine automatic renewals"
 msgstr "Automatische Verlängerungen zusammenfassen"
 
-#: src/Admin/Settings.php:1274
+#: src/Admin/Settings.php:1383
 msgid "Charge the licenses of one customer that renew automatically on the same day with one order and one payment"
 msgstr "Lizenzen eines Kunden, die am selben Tag automatisch verlängern, mit einer Bestellung und einer Zahlung abbuchen"
 
-#: src/Admin/Settings.php:1275
-#: src/Settings/Texts.php:109
+#: src/Admin/Settings.php:1384
+#: src/Settings/Texts.php:126
 msgid "Only licenses with the same saved card, currency and billing interval are combined. Each license keeps its own renewal; a declined payment is retried per license. Manual renewals are never combined. Off by default."
 msgstr "Zusammengefasst werden nur Lizenzen mit derselben gespeicherten Karte, Währung und Laufzeit. Jede Lizenz behält ihre eigene Verlängerung; eine abgelehnte Zahlung wird je Lizenz wiederholt. Manuelle Verlängerungen werden nie zusammengefasst. In der Vorgabe aus."
 
@@ -8625,67 +8628,47 @@ msgstr[1] "%s Mitbenutzerzugänge oder Einladungen zu geteilten Lizenzen wurden 
 msgid "An s3:// package location needs configured object storage (WPLC_S3_* constants), the bucket named in WPLC_S3_BUCKET and a valid object key."
 msgstr "Ein s3://-Paketort erfordert einen konfigurierten Objektspeicher (WPLC_S3_*-Konstanten), den in WPLC_S3_BUCKET genannten Bucket und einen gültigen Objektschlüssel."
 
-#: src/Update/S3Storage.php:359
+#: src/Update/S3Storage.php:382
 msgid "The object key is not valid."
 msgstr "Der Objektschlüssel ist ungültig."
 
 #. translators: %s: error message of the HTTP request.
-#: src/Update/S3Storage.php:378
+#: src/Update/S3Storage.php:401
 #, php-format
 msgid "The object storage could not be reached: %s"
 msgstr "Der Objektspeicher war nicht erreichbar: %s"
 
-#: src/Update/S3Storage.php:383
+#: src/Update/S3Storage.php:406
 msgid "The object storage accepted the signed request."
 msgstr "Der Objektspeicher hat die signierte Anfrage akzeptiert."
 
-#: src/Update/S3Storage.php:386
+#: src/Update/S3Storage.php:409
 msgid "Access denied (HTTP 403): check the access key, the secret, the region, the server clock and the read permission of the key."
 msgstr "Zugriff verweigert (HTTP 403): Prüfe den Zugriffsschlüssel, das Geheimnis, die Region, die Serveruhr und die Leseberechtigung des Schlüssels."
 
-#: src/Update/S3Storage.php:389
+#: src/Update/S3Storage.php:412
 msgid "The bucket was not found (HTTP 404)."
 msgstr "Der Bucket wurde nicht gefunden (HTTP 404)."
 
-#: src/Update/S3Storage.php:389
+#: src/Update/S3Storage.php:412
 msgid "The object was not found (HTTP 404)."
 msgstr "Das Objekt wurde nicht gefunden (HTTP 404)."
 
 #. translators: %d: HTTP status code.
-#: src/Update/S3Storage.php:393
+#: src/Update/S3Storage.php:416
 #, php-format
 msgid "The storage answered HTTP %d: the region or the endpoint does not match the bucket, or path-style addressing is needed."
 msgstr "Der Speicher antwortete mit HTTP %d: Die Region oder der Endpunkt passt nicht zum Bucket, oder die Adressierung im Pfad-Stil (path-style) ist erforderlich."
 
 #. translators: %d: HTTP status code.
-#: src/Update/S3Storage.php:397
+#: src/Update/S3Storage.php:420
 #, php-format
 msgid "Unexpected answer from the object storage: HTTP %d."
 msgstr "Unerwartete Antwort des Objektspeichers: HTTP %d."
 
-#: src/Update/S3Storage.php:425
-msgid "Object storage is not configured (WPLC_S3_BUCKET, WPLC_S3_ACCESS_KEY_ID and WPLC_S3_SECRET_ACCESS_KEY in wp-config.php)."
-msgstr "Der Objektspeicher ist nicht konfiguriert (WPLC_S3_BUCKET, WPLC_S3_ACCESS_KEY_ID und WPLC_S3_SECRET_ACCESS_KEY in der wp-config.php)."
-
-#: src/Update/S3Storage.php:426
-msgid "Object storage is configured incompletely: WPLC_S3_BUCKET, WPLC_S3_ACCESS_KEY_ID and WPLC_S3_SECRET_ACCESS_KEY are all required."
-msgstr "Der Objektspeicher ist unvollständig konfiguriert: WPLC_S3_BUCKET, WPLC_S3_ACCESS_KEY_ID und WPLC_S3_SECRET_ACCESS_KEY sind alle erforderlich."
-
-#: src/Update/S3Storage.php:427
-msgid "WPLC_S3_BUCKET is not a valid bucket name."
-msgstr "WPLC_S3_BUCKET ist kein gültiger Bucket-Name."
-
-#: src/Update/S3Storage.php:428
+#: src/Update/S3Storage.php:451
 msgid "WPLC_S3_ACCESS_KEY_ID or WPLC_S3_SECRET_ACCESS_KEY contains characters that are not allowed."
 msgstr "WPLC_S3_ACCESS_KEY_ID oder WPLC_S3_SECRET_ACCESS_KEY enthält unzulässige Zeichen."
-
-#: src/Update/S3Storage.php:429
-msgid "WPLC_S3_REGION is not a valid region name."
-msgstr "WPLC_S3_REGION ist kein gültiger Regionsname."
-
-#: src/Update/S3Storage.php:430
-msgid "WPLC_S3_ENDPOINT must be an HTTPS address on the standard port without a path, for example https://s3.eu-central-1.amazonaws.com."
-msgstr "WPLC_S3_ENDPOINT muss eine HTTPS-Adresse auf dem Standardport ohne Pfad sein, zum Beispiel https://s3.eu-central-1.amazonaws.com."
 
 #. translators: %s: comma-separated list of products with their license references.
 #: templates/emails/plain/wplc-license-renewed.php:37
@@ -8801,7 +8784,7 @@ msgid "Offer valid until"
 msgstr "Angebot gültig bis"
 
 #. translators: %s: minimum PHP version.
-#: src/Admin/Diagnostics.php:915
+#: src/Admin/Diagnostics.php:917
 #: src/Compatibility/Requirements.php:233
 #: src/Plugin.php:134
 #, php-format
@@ -8810,15 +8793,15 @@ msgstr "WP License Captain benötigt PHP %s oder neuer."
 
 #. translators: 1: running PHP version, 2: minimum PHP version.
 #. translators: 1: running version, 2: minimum version.
-#: src/Admin/Diagnostics.php:918
-#: src/Admin/Diagnostics.php:924
-#: src/Admin/Diagnostics.php:934
+#: src/Admin/Diagnostics.php:920
+#: src/Admin/Diagnostics.php:926
+#: src/Admin/Diagnostics.php:936
 #, php-format
 msgid "%1$s (minimum %2$s)"
 msgstr "%1$s (mindestens %2$s)"
 
 #. translators: 1: MySQL or MariaDB, 2: version of the database server, 3: minimum version.
-#: src/Admin/Diagnostics.php:945
+#: src/Admin/Diagnostics.php:947
 #: src/Compatibility/Requirements.php:221
 #, php-format
 msgid "%1$s %2$s (minimum %3$s)"
@@ -8861,7 +8844,7 @@ msgid "WP License Captain requires PHP %1$s or later; this site runs PHP %2$s. T
 msgstr "WP License Captain benötigt PHP %1$s oder neuer; diese Website läuft mit PHP %2$s. Das Plugin wird erst geladen, wenn PHP aktualisiert ist."
 
 #. translators: %s: minimum WordPress version.
-#: src/Admin/Diagnostics.php:927
+#: src/Admin/Diagnostics.php:929
 #, php-format
 msgid "WP License Captain requires WordPress %s or later."
 msgstr "WP License Captain benötigt WordPress %s oder neuer."
@@ -9635,22 +9618,22 @@ msgid "Rules of this shop"
 msgstr "Regeln dieses Shops"
 
 #: src/Catalog/ProductEditor.php:334
-#: src/Settings/Texts.php:152
+#: src/Settings/Texts.php:169
 msgid "Largest quantity per order line"
 msgstr "Höchstmenge je Bestellposition"
 
-#: src/Settings/Texts.php:156
+#: src/Settings/Texts.php:173
 msgid "Suspended licenses count as ended after"
 msgstr "Gesperrte Lizenzen gelten als beendet nach"
 
-#: src/Admin/Settings.php:1057
-#: src/Admin/Settings.php:1230
-#: src/Admin/Settings.php:1314
+#: src/Admin/Settings.php:1124
+#: src/Admin/Settings.php:1339
+#: src/Admin/Settings.php:1423
 msgid "days"
 msgstr "Tagen"
 
-#: src/Admin/Settings.php:1315
-#: src/Settings/Texts.php:157
+#: src/Admin/Settings.php:1424
+#: src/Settings/Texts.php:174
 msgid "Default: 0 = never; a suspended license then keeps its customer and its data until you revoke it or it is reactivated. With a number of days, a license that stayed suspended without interruption for that long is treated like an expired or revoked one: a personal data erasure request detaches it from the customer and releases its sites, and the retention rules delete its installations and consent records after their periods. This cannot be undone. A license that was reactivated is never affected; a new suspension counts from its own start. Agree the period with your legal counsel."
 msgstr "Standard: 0 = nie; eine gesperrte Lizenz behält dann ihren Kunden und ihre Daten, bis du sie widerrufst oder sie wieder aktiviert wird. Mit einer Zahl von Tagen wird eine Lizenz, die so lange ohne Unterbrechung gesperrt war, wie eine abgelaufene oder widerrufene behandelt: Eine Anfrage zur Löschung personenbezogener Daten löst sie vom Kunden und gibt ihre Websites frei, und die Aufbewahrungsregeln löschen ihre Installationen und Einwilligungsnachweise nach deren Fristen. Das lässt sich nicht rückgängig machen. Eine wieder aktivierte Lizenz ist nie betroffen; eine neue Sperre zählt ab ihrem eigenen Beginn. Stimme die Frist mit deiner Rechtsberatung ab."
 
@@ -9669,32 +9652,32 @@ msgid "WP License Captain: \"%1$s\" was ordered %2$d times; customers can order 
 msgstr "WP License Captain: „%1$s“ wurde %2$d-mal bestellt; Kunden können höchstens %3$d in einer Bestellung bestellen (Lizenzeinstellungen). Die Bestellung wurde nicht über die Kasse angelegt, deshalb wurde nichts blockiert und jedes Stück bekommt seine Lizenz."
 
 #. translators: %s: name of a PHP filter.
-#: src/Admin/Settings.php:1088
+#: src/Admin/Settings.php:1155
 #, php-format
 msgid "Code of the shop can change the value with the filter %s; the filter decides last."
 msgstr "Code des Shops kann den Wert mit dem Filter %s ändern; der Filter entscheidet zuletzt."
 
-#: src/Admin/Settings.php:652
+#: src/Admin/Settings.php:696
 msgid "Only an administrator may change this value."
 msgstr "Nur ein Administrator darf diesen Wert ändern."
 
 #. translators: %s: the value that is in effect.
-#: src/Admin/Settings.php:1130
+#: src/Admin/Settings.php:1239
 #, php-format
 msgid "In effect: %s (set by code of the shop, not by this field)."
 msgstr "Wirksam: %s (gesetzt durch Code des Shops, nicht durch dieses Feld)."
 
 #. translators: %s: the value that is in effect.
-#: src/Admin/Settings.php:1130
+#: src/Admin/Settings.php:1239
 msgid "empty"
 msgstr "leer"
 
-#: src/Admin/Settings.php:1154
+#: src/Admin/Settings.php:1263
 msgid "Groups of settings"
 msgstr "Gruppen der Einstellungen"
 
-#: src/Admin/Settings.php:1155
-#: src/Admin/SettingsTools.php:380
+#: src/Admin/Settings.php:1264
+#: src/Admin/SettingsTools.php:636
 msgid "All settings"
 msgstr "Alle Einstellungen"
 
@@ -9702,229 +9685,229 @@ msgstr "Alle Einstellungen"
 msgid "Customer sites"
 msgstr "Kunden-Websites"
 
-#: src/Settings/Texts.php:33
+#: src/Settings/Texts.php:34
 msgid "Legal and privacy"
 msgstr "Recht und Datenschutz"
 
-#: src/Settings/Texts.php:34
+#: src/Settings/Texts.php:35
 msgid "Texts and support"
 msgstr "Texte und Support"
 
-#: src/Settings/Texts.php:35
+#: src/Settings/Texts.php:36
 msgid "Operations"
 msgstr "Betrieb"
 
-#: src/Settings/Texts.php:45
+#: src/Settings/Texts.php:46
 msgid "This value has legal weight. The default is not legal advice; have it checked for your country (legal review)."
 msgstr "Dieser Wert hat rechtliches Gewicht. Die Vorgabe ist keine Rechtsberatung; lass ihn für dein Land prüfen (Rechtsprüfung)."
 
-#: src/Settings/Texts.php:81
+#: src/Settings/Texts.php:82
 msgid "One host name per line, for example downloads.example.com. Update packages are only delivered from HTTPS URLs on these hosts. This site is always trusted."
 msgstr "Ein Hostname pro Zeile, zum Beispiel downloads.example.com. Update-Pakete werden nur von HTTPS-Adressen auf diesen Hosts ausgeliefert. Diese Website gilt immer als vertrauenswürdig."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:406
+#: src/Settings/Texts.php:460
 #, php-format
 msgid "\"%s\" was not changed: enter a whole number."
 msgstr "„%s“ wurde nicht geändert: Gib eine ganze Zahl ein."
 
 #. translators: 1: name of a setting, 2: smallest value, 3: largest value.
-#: src/Settings/Texts.php:409
+#: src/Settings/Texts.php:463
 #, php-format
 msgid "\"%1$s\" was not changed: enter whole numbers from %2$s to %3$s."
 msgstr "„%1$s“ wurde nicht geändert: Gib ganze Zahlen von %2$s bis %3$s ein."
 
 #. translators: 1: name of a setting, 2: largest number of entries.
-#: src/Settings/Texts.php:412
+#: src/Settings/Texts.php:466
 #, php-format
 msgid "\"%1$s\" was not changed: at most %2$s entries are possible."
 msgstr "„%1$s“ wurde nicht geändert: Höchstens %2$s Einträge sind möglich."
 
 #. translators: 1: name of a setting, 2: largest number of characters.
-#: src/Settings/Texts.php:415
+#: src/Settings/Texts.php:469
 #, php-format
 msgid "\"%1$s\" was not changed: the text is longer than %2$s characters."
 msgstr "„%1$s“ wurde nicht geändert: Der Text ist länger als %2$s Zeichen."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:418
+#: src/Settings/Texts.php:472
 #, php-format
 msgid "\"%s\" was not changed: enter valid email addresses."
 msgstr "„%s“ wurde nicht geändert: Gib gültige E-Mail-Adressen ein."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:421
+#: src/Settings/Texts.php:475
 #, php-format
 msgid "\"%s\" was not changed: enter an address that starts with https://."
 msgstr "„%s“ wurde nicht geändert: Gib eine Adresse ein, die mit https:// beginnt."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:425
+#: src/Settings/Texts.php:479
 #, php-format
 msgid "\"%s\" was not changed: at least one entry is not valid. Enter one entry per line, lowercase letters, digits, dots and hyphens only."
 msgstr "„%s“ wurde nicht geändert: Mindestens ein Eintrag ist ungültig. Gib einen Eintrag pro Zeile ein, nur Kleinbuchstaben, Ziffern, Punkte und Bindestriche."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:429
+#: src/Settings/Texts.php:483
 #, php-format
 msgid "\"%s\" was not changed: the value is not valid."
 msgstr "„%s“ wurde nicht geändert: Der Wert ist ungültig."
 
 #. translators: 1: grace period in days, 2: last retry day.
-#: src/Admin/Settings.php:446
+#: src/Admin/Settings.php:490
 #, php-format
 msgid "The grace period (%1$s days) is not longer than the last retry day (%2$s). The last charge attempts would come after the customer has lost access. Make the grace period longer or remove the late retry days."
 msgstr "Die Kulanzfrist (%1$s Tage) ist nicht länger als der letzte Wiederholungstag (%2$s). Die letzten Abbuchungsversuche kämen erst, nachdem der Kunde den Zugang verloren hat. Verlängere die Kulanzfrist oder entferne die späten Wiederholungstage."
 
-#: src/Settings/Texts.php:116
+#: src/Settings/Texts.php:133
 msgid "Grace period after the paid period"
 msgstr "Kulanzfrist nach der bezahlten Zeit"
 
-#: src/Settings/Texts.php:117
+#: src/Settings/Texts.php:134
 msgid "Days after the end of the paid period during which a license with a pending or failed automatic charge keeps its access. Default: 14. Keep it longer than the last retry day below, or the last attempts fall after access has ended. A changed value applies to renewals scheduled afterwards; renewals already scheduled keep their date."
 msgstr "Tage nach dem Ende der bezahlten Zeit, in denen eine Lizenz mit offener oder fehlgeschlagener automatischer Abbuchung ihren Zugang behält. Vorgabe: 14. Halte sie länger als den letzten Wiederholungstag unten, sonst fallen die letzten Versuche in die Zeit nach dem Ende des Zugangs. Ein geänderter Wert gilt für Verlängerungen, die danach eingeplant werden; schon eingeplante behalten ihr Datum."
 
-#: src/Settings/Texts.php:120
+#: src/Settings/Texts.php:137
 msgid "Retry days of a failed charge"
 msgstr "Wiederholungstage einer fehlgeschlagenen Abbuchung"
 
-#: src/Settings/Texts.php:121
+#: src/Settings/Texts.php:138
 msgid "Days after the start of the new period on which a failed automatic charge is tried again, separated by commas. The number of entries is the number of retries. Default: 1,3,7. Empty = no retry: the first failed charge is final."
 msgstr "Tage nach Beginn der neuen Periode, an denen eine fehlgeschlagene automatische Abbuchung erneut versucht wird, durch Kommas getrennt. Die Zahl der Einträge ist die Zahl der Wiederholungen. Vorgabe: 1,3,7. Leer = keine Wiederholung: Die erste fehlgeschlagene Abbuchung ist endgültig."
 
-#: src/Settings/Texts.php:124
+#: src/Settings/Texts.php:141
 msgid "Manual renewal: days before the end"
 msgstr "Manuelle Verlängerung: Tage vor dem Ende"
 
-#: src/Settings/Texts.php:125
+#: src/Settings/Texts.php:142
 msgid "From this many days before the end of the paid period a customer can renew by hand in the account, and the emails offer it. Default: 30. 0 = only from the day the period ends."
 msgstr "Ab so vielen Tagen vor dem Ende der bezahlten Zeit kann ein Kunde im Konto von Hand verlängern, und die E-Mails bieten es an. Vorgabe: 30. 0 = erst ab dem Tag, an dem die Zeit endet."
 
-#: src/Settings/Texts.php:128
+#: src/Settings/Texts.php:145
 msgid "Manual renewal: days after the end"
 msgstr "Manuelle Verlängerung: Tage nach dem Ende"
 
-#: src/Settings/Texts.php:129
+#: src/Settings/Texts.php:146
 msgid "Until this many days after the end of the paid period an expired license can still be renewed and continues with the same key and the same sites. Default: 30. 0 = an expired license cannot be reactivated by the customer."
 msgstr "Bis so viele Tage nach dem Ende der bezahlten Zeit kann eine abgelaufene Lizenz noch verlängert werden und läuft mit demselben Schlüssel und denselben Websites weiter. Vorgabe: 30. 0 = Der Kunde kann eine abgelaufene Lizenz nicht wieder aktivieren."
 
-#: src/Admin/Settings.php:985
+#: src/Admin/Settings.php:1046
 msgid "Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice under \"Legal and privacy\" below."
 msgstr "Aus. Beendete Lizenzen bleiben mit dem Kundenkonto verknüpft, bis eine Löschanfrage eingeht oder das Konto gelöscht wird. Lege unten unter „Recht und Datenschutz“ eine Frist fest, die zu deiner Datenschutzerklärung passt."
 
-#: src/Settings/Texts.php:236
+#: src/Settings/Texts.php:285
 msgid "Consent to the immediate start (right of withdrawal)"
 msgstr "Zustimmung zum sofortigen Beginn (Widerrufsrecht)"
 
-#: src/Settings/Texts.php:237
+#: src/Settings/Texts.php:286
 msgid "Whether the checkout asks the customer to agree that the license is provided before the withdrawal period ends. \"Automatic\" (default) asks unless Germanized or German Market is active, because these plugins ask themselves."
 msgstr "Ob die Kasse den Kunden um die Zustimmung bittet, dass die Lizenz vor Ablauf der Widerrufsfrist bereitgestellt wird. „Automatisch“ (Vorgabe) fragt, außer Germanized oder German Market ist aktiv, weil diese Plugins selbst fragen."
 
-#: src/Settings/Texts.php:240
+#: src/Settings/Texts.php:289
 msgid "The consent is required to buy"
 msgstr "Die Zustimmung ist für den Kauf nötig"
 
-#: src/Settings/Texts.php:241
+#: src/Settings/Texts.php:290
 msgid "On (default): a license can only be bought with the consent. Off: the box is optional and only recorded when ticked; the customer then keeps the right of withdrawal."
 msgstr "An (Vorgabe): Eine Lizenz kann nur mit der Zustimmung gekauft werden. Aus: Das Kästchen ist freiwillig und wird nur festgehalten, wenn es angekreuzt ist; der Kunde behält dann sein Widerrufsrecht."
 
-#: src/Settings/Texts.php:244
+#: src/Settings/Texts.php:293
 msgid "Wording of the withdrawal consent"
 msgstr "Wortlaut der Zustimmung zum Widerruf"
 
-#: src/Settings/Texts.php:252
+#: src/Settings/Texts.php:301
 msgid "Wording of the consent to automatic renewal"
 msgstr "Wortlaut der Zustimmung zur automatischen Verlängerung"
 
-#: src/Settings/Texts.php:256
+#: src/Settings/Texts.php:305
 msgid "Keep the audit log for"
 msgstr "Audit-Protokoll aufbewahren für"
 
-#: src/Settings/Texts.php:257
+#: src/Settings/Texts.php:306
 msgid "Days after which entries of the audit log are deleted. Default: 730. 0 = never delete."
 msgstr "Tage, nach denen Einträge des Audit-Protokolls gelöscht werden. Vorgabe: 730. 0 = nie löschen."
 
-#: src/Settings/Texts.php:260
+#: src/Settings/Texts.php:309
 msgid "Keep processed payment events for"
 msgstr "Verarbeitete Zahlungsereignisse aufbewahren für"
 
-#: src/Settings/Texts.php:261
+#: src/Settings/Texts.php:310
 msgid "Days after which payment events that were processed completely are deleted. Default: 180. 0 = never delete."
 msgstr "Tage, nach denen vollständig verarbeitete Zahlungsereignisse gelöscht werden. Vorgabe: 180. 0 = nie löschen."
 
-#: src/Settings/Texts.php:264
+#: src/Settings/Texts.php:313
 msgid "Keep unresolved payment events for"
 msgstr "Ungelöste Zahlungsereignisse aufbewahren für"
 
-#: src/Settings/Texts.php:265
+#: src/Settings/Texts.php:314
 msgid "Days after which payment events that still need work are deleted. Default: 730. 0 = never delete."
 msgstr "Tage, nach denen Zahlungsereignisse gelöscht werden, die noch Arbeit brauchen. Vorgabe: 730. 0 = nie löschen."
 
-#: src/Settings/Texts.php:268
+#: src/Settings/Texts.php:317
 msgid "Keep deactivated sites of ended licenses for"
 msgstr "Deaktivierte Websites beendeter Lizenzen aufbewahren für"
 
-#: src/Settings/Texts.php:269
+#: src/Settings/Texts.php:318
 msgid "Days after which deactivated installations of ended licenses are deleted. Default: 365. 0 = never delete."
 msgstr "Tage, nach denen deaktivierte Installationen beendeter Lizenzen gelöscht werden. Vorgabe: 365. 0 = nie löschen."
 
-#: src/Settings/Texts.php:272
+#: src/Settings/Texts.php:321
 msgid "Keep deactivated sites of running licenses for"
 msgstr "Deaktivierte Websites laufender Lizenzen aufbewahren für"
 
-#: src/Settings/Texts.php:273
+#: src/Settings/Texts.php:322
 msgid "Days after which deactivated installations of running licenses are deleted. Default: 365. 0 = never delete."
 msgstr "Tage, nach denen deaktivierte Installationen laufender Lizenzen gelöscht werden. Vorgabe: 365. 0 = nie löschen."
 
-#: src/Settings/Texts.php:276
+#: src/Settings/Texts.php:325
 msgid "Switch off sites of an ended license after"
 msgstr "Websites einer beendeten Lizenz abschalten nach"
 
-#: src/Settings/Texts.php:277
+#: src/Settings/Texts.php:326
 msgid "Days after the paid period of an expired license at which its still active installations are deactivated. Default: 30. 0 = never."
 msgstr "Tage nach der bezahlten Zeit einer abgelaufenen Lizenz, nach denen ihre noch aktiven Installationen deaktiviert werden. Vorgabe: 30. 0 = nie."
 
-#: src/Settings/Texts.php:280
+#: src/Settings/Texts.php:329
 msgid "Keep the email log for"
 msgstr "E-Mail-Protokoll aufbewahren für"
 
-#: src/Settings/Texts.php:281
+#: src/Settings/Texts.php:330
 msgid "Days after which entries of the notification log are deleted. Default: 730. 0 = never delete."
 msgstr "Tage, nach denen Einträge des Benachrichtigungsprotokolls gelöscht werden. Vorgabe: 730. 0 = nie löschen."
 
-#: src/Settings/Texts.php:284
+#: src/Settings/Texts.php:333
 msgid "Detach ended licenses from the customer after"
 msgstr "Beendete Lizenzen vom Kunden lösen nach"
 
-#: src/Settings/Texts.php:285
+#: src/Settings/Texts.php:334
 msgid "Days after the end of a license at which the owner, the payment token reference and the installations are removed. Counted from the end of the calendar year in which the license ended. Default: 3650 (ten years, the technical default so far). 0 = never."
 msgstr "Tage nach dem Ende einer Lizenz, nach denen der Inhaber, der Verweis auf das Zahlungsmittel und die Installationen entfernt werden. Gezählt ab dem Ende des Kalenderjahres, in dem die Lizenz endete. Vorgabe: 3650 (zehn Jahre, die bisherige technische Vorgabe). 0 = nie."
 
-#: src/Settings/Texts.php:373
+#: src/Settings/Texts.php:427
 msgid "Automatic: ask, unless Germanized or German Market is active"
 msgstr "Automatisch: fragen, außer Germanized oder German Market ist aktiv"
 
-#: src/Settings/Texts.php:374
+#: src/Settings/Texts.php:428
 msgid "Always ask"
 msgstr "Immer fragen"
 
-#: src/Settings/Texts.php:375
+#: src/Settings/Texts.php:429
 msgid "Never ask"
 msgstr "Nie fragen"
 
-#: src/Settings/Texts.php:245
+#: src/Settings/Texts.php:294
 msgid "Text next to the checkbox. Empty (default) = the built-in wording in the language of the customer. Your own wording is shown as it is in every language. The text the customer saw is stored with the order as proof."
 msgstr "Text neben dem Kästchen. Leer (Vorgabe) = der eingebaute Wortlaut in der Sprache des Kunden. Dein eigener Wortlaut wird in jeder Sprache unverändert gezeigt. Der Text, den der Kunde gesehen hat, wird als Nachweis an der Bestellung gespeichert."
 
-#: src/Settings/Texts.php:253
+#: src/Settings/Texts.php:302
 msgid "Text next to the checkbox for automatic renewal, in the classic and in the block checkout. Empty (default) = the built-in wording in the language of the customer. Your own wording is shown as it is in every language. The text the customer saw is stored as proof of the consent."
 msgstr "Text neben dem Kästchen für die automatische Verlängerung, in der klassischen und in der Block-Kasse. Leer (Vorgabe) = der eingebaute Wortlaut in der Sprache des Kunden. Dein eigener Wortlaut wird in jeder Sprache unverändert gezeigt. Der Text, den der Kunde gesehen hat, wird als Nachweis der Zustimmung gespeichert."
 
-#: src/Settings/Texts.php:288
+#: src/Settings/Texts.php:337
 msgid "Keep proof of renewal consent for"
 msgstr "Nachweise der Zustimmung zur Verlängerung aufbewahren für"
 
-#: src/Settings/Texts.php:289
+#: src/Settings/Texts.php:338
 msgid "Days after which the proof of a consent to automatic renewal is deleted, once its license has ended. Counted from the end of the calendar year of the consent. Default: 3650 (ten years, the technical default so far). 0 = never delete."
 msgstr "Tage, nach denen der Nachweis einer Zustimmung zur automatischen Verlängerung gelöscht wird, sobald ihre Lizenz beendet ist. Gezählt ab dem Ende des Kalenderjahres der Zustimmung. Vorgabe: 3650 (zehn Jahre, die bisherige technische Vorgabe). 0 = nie löschen."
 
@@ -9950,60 +9933,60 @@ msgstr "Einzelheiten: WooCommerce → Lizenz-Diagnose. Höchstens eine dieser E-
 msgid "[%s] License server: health alert"
 msgstr "[%s] Lizenzserver: Meldung zum Zustand"
 
-#: src/Admin/Settings.php:398
+#: src/Admin/Settings.php:402
 msgid "\"When the plugin is deleted\" was not changed: tick the confirmation next to it to choose \"Delete tables and options\"."
 msgstr "„Wenn das Plugin gelöscht wird“ wurde nicht geändert: Kreuze die Bestätigung daneben an, um „Tabellen und Optionen löschen“ zu wählen."
 
-#: src/Admin/Settings.php:1107
+#: src/Admin/Settings.php:1216
 msgid "Yes, delete all license data when the plugin is deleted. I have a backup. (Needed only when you switch to \"Delete tables and options\".)"
 msgstr "Ja, alle Lizenzdaten löschen, wenn das Plugin gelöscht wird. Ich habe eine Sicherung. (Nur nötig, wenn du auf „Tabellen und Optionen löschen“ umstellst.)"
 
-#: src/Admin/Settings.php:1109
+#: src/Admin/Settings.php:1218
 msgid "In effect: delete. The constant WPLC_REMOVE_ALL_DATA is set in wp-config.php."
 msgstr "Wirksam: löschen. Die Konstante WPLC_REMOVE_ALL_DATA ist in der wp-config.php gesetzt."
 
-#: src/Admin/SettingsTools.php:156
+#: src/Admin/SettingsTools.php:383
 msgid "Choose a country profile."
 msgstr "Wähle ein Länderprofil."
 
-#: src/Admin/SettingsTools.php:173
+#: src/Admin/SettingsTools.php:400
 msgid "Choose what to reset."
 msgstr "Wähle, was zurückgesetzt werden soll."
 
-#: src/Admin/SettingsTools.php:190
+#: src/Admin/SettingsTools.php:417
 msgid "Choose an export file or paste its content."
 msgstr "Wähle eine Exportdatei oder füge ihren Inhalt ein."
 
-#: src/Admin/SettingsTools.php:195
+#: src/Admin/SettingsTools.php:422
 msgid "The file is too large to be a settings export."
 msgstr "Die Datei ist zu groß für einen Export der Einstellungen."
 
-#: src/Admin/SettingsTools.php:196
+#: src/Admin/SettingsTools.php:423
 msgid "This file is not a settings export of this plugin."
 msgstr "Diese Datei ist kein Export der Einstellungen dieses Plugins."
 
-#: src/Admin/SettingsTools.php:197
+#: src/Admin/SettingsTools.php:424
 msgid "This export has a format this version does not know. Update the plugin, or export again from the other shop."
 msgstr "Dieser Export hat ein Format, das diese Version nicht kennt. Aktualisiere das Plugin oder exportiere im anderen Shop erneut."
 
-#: src/Admin/SettingsTools.php:200
+#: src/Admin/SettingsTools.php:427
 msgid "This is not a settings export: the file could not be read."
 msgstr "Das ist kein Export der Einstellungen: Die Datei konnte nicht gelesen werden."
 
-#: src/Admin/SettingsTools.php:217
+#: src/Admin/SettingsTools.php:444
 msgid "The preview has expired. Nothing was changed; prepare it again."
 msgstr "Die Vorschau ist abgelaufen. Nichts wurde geändert; erstelle sie erneut."
 
-#: src/Admin/SettingsTools.php:220
+#: src/Admin/SettingsTools.php:447
 msgid "Nothing was changed: tick the confirmation below the preview first."
 msgstr "Nichts wurde geändert: Kreuze zuerst die Bestätigung unter der Vorschau an."
 
-#: src/Admin/SettingsTools.php:230
+#: src/Admin/SettingsTools.php:457
 msgid "Nothing was changed: no row was ticked."
 msgstr "Nichts wurde geändert: Keine Zeile war angekreuzt."
 
 #. translators: %s: number of settings.
-#: src/Admin/SettingsTools.php:243
+#: src/Admin/SettingsTools.php:470
 #, php-format
 msgid "%s setting was changed."
 msgid_plural "%s settings were changed."
@@ -10011,155 +9994,156 @@ msgstr[0] "%s Einstellung wurde geändert."
 msgstr[1] "%s Einstellungen wurden geändert."
 
 #. translators: %s: list of setting names.
-#: src/Admin/SettingsTools.php:249
+#: src/Admin/SettingsTools.php:476
 #, php-format
 msgid "Not changed: %s."
 msgstr "Nicht geändert: %s."
 
-#: src/Admin/SettingsTools.php:318
+#: src/Admin/SettingsTools.php:549
 msgid "Country profiles, export, import and reset"
 msgstr "Länderprofile, Export, Import und Zurücksetzen"
 
-#: src/Admin/SettingsTools.php:332
+#: src/Admin/SettingsTools.php:563
 msgid "Each of these tools first shows what would change, value by value. Nothing is changed until you tick the rows, confirm and apply."
 msgstr "Jedes dieser Werkzeuge zeigt zuerst Wert für Wert, was sich ändern würde. Nichts wird geändert, bis du die Zeilen ankreuzt, bestätigst und anwendest."
 
-#: src/Admin/SettingsTools.php:335
-#: src/Admin/SettingsTools.php:338
+#: src/Admin/SettingsTools.php:280
+#: src/Admin/SettingsTools.php:566
+#: src/Admin/SettingsTools.php:569
 msgid "Country profile"
 msgstr "Länderprofil"
 
-#: src/Admin/SettingsTools.php:336
+#: src/Admin/SettingsTools.php:567
 msgid "A country profile suggests values for the settings with legal weight (retention, consent, notice periods). It is a suggestion only. No value of a profile has been through a legal review yet: every value is marked \"unchecked\", and where nothing is fixed for a country the profile says \"please decide\". Have the values checked for your country before you rely on them."
 msgstr "Ein Länderprofil schlägt Werte für die Einstellungen mit rechtlichem Gewicht vor (Aufbewahrung, Zustimmung, Ankündigungsfristen). Es ist nur ein Vorschlag. Noch kein Wert eines Profils ist rechtlich geprüft: Jeder Wert ist als „ungeprüft“ gekennzeichnet, und wo für ein Land nichts festgelegt ist, sagt das Profil „bitte festlegen“. Lass die Werte für dein Land prüfen, bevor du dich darauf verlässt."
 
-#: src/Admin/SettingsTools.php:343
+#: src/Admin/SettingsTools.php:574
 msgid "Show suggestion"
 msgstr "Vorschlag zeigen"
 
-#: src/Admin/SettingsTools.php:347
+#: src/Admin/SettingsTools.php:578
 msgid "Export and import"
 msgstr "Export und Import"
 
-#: src/Admin/SettingsTools.php:348
+#: src/Admin/SettingsTools.php:579
 msgid "The export is a JSON file with all settings of this page. It contains no secret: keys and passwords are not settings and stay in wp-config.php. An import shows every difference before anything is changed."
 msgstr "Der Export ist eine JSON-Datei mit allen Einstellungen dieser Seite. Er enthält kein Geheimnis: Schlüssel und Passwörter sind keine Einstellungen und bleiben in der wp-config.php. Ein Import zeigt jeden Unterschied, bevor etwas geändert wird."
 
-#: src/Admin/SettingsTools.php:351
+#: src/Admin/SettingsTools.php:582
 msgid "Export settings"
 msgstr "Einstellungen exportieren"
 
-#: src/Admin/SettingsTools.php:354
+#: src/Admin/SettingsTools.php:585
 msgid "Export file"
 msgstr "Exportdatei"
 
-#: src/Admin/SettingsTools.php:355
+#: src/Admin/SettingsTools.php:586
 msgid "Or paste the content of the file"
 msgstr "Oder den Inhalt der Datei einfügen"
 
-#: src/Admin/SettingsTools.php:356
+#: src/Admin/SettingsTools.php:587
 msgid "Preview import"
 msgstr "Vorschau des Imports"
 
-#: src/Admin/SettingsTools.php:371
+#: src/Admin/SettingsTools.php:627
 msgid "Reset to defaults"
 msgstr "Auf Vorgaben zurücksetzen"
 
-#: src/Admin/SettingsTools.php:372
+#: src/Admin/SettingsTools.php:628
 msgid "Sets a group of settings, or all of them, back to the built-in defaults. The trusted package hosts are never reset here; remove them in their own field."
 msgstr "Setzt eine Gruppe von Einstellungen oder alle auf die eingebauten Vorgaben zurück. Die vertrauenswürdigen Paket-Hosts werden hier nie zurückgesetzt; entferne sie in ihrem eigenen Feld."
 
-#: src/Admin/SettingsTools.php:374
+#: src/Admin/SettingsTools.php:630
 msgid "Group to reset"
 msgstr "Gruppe, die zurückgesetzt wird"
 
-#: src/Admin/SettingsTools.php:381
+#: src/Admin/SettingsTools.php:637
 msgid "Preview reset"
 msgstr "Vorschau des Zurücksetzens"
 
 #. translators: %s: name of a country profile.
-#: src/Admin/SettingsTools.php:409
+#: src/Admin/SettingsTools.php:665
 #, php-format
 msgid "Suggestion of the country profile \"%s\""
 msgstr "Vorschlag des Länderprofils „%s“"
 
-#: src/Admin/SettingsTools.php:410
+#: src/Admin/SettingsTools.php:666
 msgid "Preview: reset to defaults"
 msgstr "Vorschau: auf Vorgaben zurücksetzen"
 
-#: src/Admin/SettingsTools.php:411
+#: src/Admin/SettingsTools.php:667
 msgid "Preview: import"
 msgstr "Vorschau: Import"
 
-#: src/Admin/SettingsTools.php:413
+#: src/Admin/SettingsTools.php:669
 msgid "Preview"
 msgstr "Vorschau"
 
-#: src/Admin/SettingsTools.php:415
+#: src/Admin/SettingsTools.php:671
 msgid "Unchecked: no value of this profile has been through a legal review. It is a suggestion, not legal advice. Nothing is ticked in advance."
 msgstr "Ungeprüft: Kein Wert dieses Profils ist rechtlich geprüft. Es ist ein Vorschlag, keine Rechtsberatung. Nichts ist vorab angekreuzt."
 
 #. translators: %s: date.
-#: src/Admin/SettingsTools.php:415
+#: src/Admin/SettingsTools.php:671
 #, php-format
 msgid "Legal review of this profile: %s. It remains a suggestion; nothing is ticked in advance."
 msgstr "Rechtsprüfung dieses Profils: %s. Es bleibt ein Vorschlag; nichts ist vorab angekreuzt."
 
 #. translators: %s: list of keys.
-#: src/Admin/SettingsTools.php:419
+#: src/Admin/SettingsTools.php:675
 #, php-format
 msgid "Left out, because this version does not know them: %s."
 msgstr "Ausgelassen, weil diese Version sie nicht kennt: %s."
 
-#: src/Admin/SettingsTools.php:423
+#: src/Admin/SettingsTools.php:679
 msgid "would change"
 msgstr "würde sich ändern"
 
-#: src/Admin/SettingsTools.php:424
+#: src/Admin/SettingsTools.php:680
 msgid "no change"
 msgstr "keine Änderung"
 
-#: src/Admin/SettingsTools.php:425
+#: src/Admin/SettingsTools.php:681
 msgid "not valid, is left out"
 msgstr "ungültig, wird ausgelassen"
 
-#: src/Admin/SettingsTools.php:426
+#: src/Admin/SettingsTools.php:682
 msgid "only an administrator may change this"
 msgstr "nur ein Administrator darf das ändern"
 
-#: src/Admin/SettingsTools.php:427
+#: src/Admin/SettingsTools.php:683
 msgid "unknown setting, is left out"
 msgstr "unbekannte Einstellung, wird ausgelassen"
 
-#: src/Admin/SettingsTools.php:428
+#: src/Admin/SettingsTools.php:684
 msgid "please decide: no value is suggested for this country"
 msgstr "bitte festlegen: Für dieses Land wird kein Wert vorgeschlagen"
 
-#: src/Admin/SettingsTools.php:431
+#: src/Admin/SettingsTools.php:687
 msgid "Setting"
 msgstr "Einstellung"
 
-#: src/Admin/SettingsTools.php:431
+#: src/Admin/SettingsTools.php:687
 msgid "Afterwards"
 msgstr "Danach"
 
-#: src/Admin/SettingsTools.php:437
+#: src/Admin/SettingsTools.php:693
 msgid "unchecked"
 msgstr "ungeprüft"
 
-#: src/Admin/SettingsTools.php:449
+#: src/Admin/SettingsTools.php:705
 msgid "I have checked the values and want to apply the ticked rows."
 msgstr "Ich habe die Werte geprüft und möchte die angekreuzten Zeilen anwenden."
 
-#: src/Admin/SettingsTools.php:450
+#: src/Admin/SettingsTools.php:706
 msgid "Apply ticked rows"
 msgstr "Angekreuzte Zeilen anwenden"
 
-#: src/Admin/SettingsTools.php:452
+#: src/Admin/SettingsTools.php:708
 msgid "There is nothing to apply."
 msgstr "Es gibt nichts anzuwenden."
 
-#: src/Admin/SettingsTools.php:457
+#: src/Admin/SettingsTools.php:713
 msgid "Discard the preview"
 msgstr "Vorschau verwerfen"
 
@@ -10183,221 +10167,221 @@ msgstr "Europäische Union (allgemein)"
 msgid "Other country"
 msgstr "Anderes Land"
 
-#: src/Settings/Texts.php:300
+#: src/Settings/Texts.php:349
 msgid "Send health alerts to"
 msgstr "Meldungen zum Zustand senden an"
 
-#: src/Settings/Texts.php:301
+#: src/Settings/Texts.php:350
 msgid "Email addresses, separated by commas, that get a message when a figure of the diagnostics page reaches its alert threshold (for example failed background jobs or rejected webhooks). At most one collected email per day. Empty (default) = no email; the alerts are then only available to code (action wplc/health_alert)."
 msgstr "E-Mail-Adressen, durch Kommas getrennt, die eine Nachricht bekommen, wenn eine Kennzahl der Diagnoseseite ihre Meldeschwelle erreicht (zum Beispiel fehlgeschlagene Hintergrundaufgaben oder abgelehnte Webhooks). Höchstens eine Sammel-E-Mail pro Tag. Leer (Vorgabe) = keine E-Mail; die Meldungen stehen dann nur Code zur Verfügung (Action wplc/health_alert)."
 
-#: src/Settings/Texts.php:309
+#: src/Settings/Texts.php:362
 msgid "When the plugin is deleted"
 msgstr "Wenn das Plugin gelöscht wird"
 
-#: src/Settings/Texts.php:310
+#: src/Settings/Texts.php:363
 msgid "Keep (default): licenses, activations, renewals, the audit log and the settings stay in the database when the plugin is deleted, because they are business records. Delete: the tables and options of the plugin are removed for good when it is deleted; uploaded packages and order data are never removed. The constant WPLC_REMOVE_ALL_DATA in wp-config.php also deletes. Deleting cannot be undone; make a backup first."
 msgstr "Behalten (Vorgabe): Lizenzen, Aktivierungen, Verlängerungen, das Audit-Protokoll und die Einstellungen bleiben in der Datenbank, wenn das Plugin gelöscht wird, weil sie Geschäftsunterlagen sind. Löschen: Die Tabellen und Optionen des Plugins werden beim Löschen endgültig entfernt; hochgeladene Pakete und Bestelldaten werden nie entfernt. Auch die Konstante WPLC_REMOVE_ALL_DATA in der wp-config.php löscht. Das Löschen lässt sich nicht rückgängig machen; erstelle vorher eine Sicherung."
 
-#: src/Settings/Texts.php:383
+#: src/Settings/Texts.php:437
 msgid "Keep all data"
 msgstr "Alle Daten behalten"
 
-#: src/Settings/Texts.php:384
+#: src/Settings/Texts.php:438
 msgid "Delete tables and options"
 msgstr "Tabellen und Optionen löschen"
 
 #. translators: %s: number.
-#: src/Admin/Diagnostics.php:666
+#: src/Admin/Diagnostics.php:668
 #, php-format
 msgid "%s requests per installation and minute"
 msgstr "%s Anfragen je Installation und Minute"
 
 #. translators: %s: number.
-#: src/Admin/Diagnostics.php:668
+#: src/Admin/Diagnostics.php:670
 #, php-format
 msgid "%s failed sign-ins per address and minute"
 msgstr "%s fehlgeschlagene Anmeldungen je Adresse und Minute"
 
 #. translators: %s: number.
-#: src/Admin/Diagnostics.php:670
+#: src/Admin/Diagnostics.php:672
 #, php-format
 msgid "%s failed activations per address and minute"
 msgstr "%s fehlgeschlagene Aktivierungen je Adresse und Minute"
 
 #. translators: %s: number.
-#: src/Admin/Diagnostics.php:672
+#: src/Admin/Diagnostics.php:674
 #, php-format
 msgid "%s failed activations per key reference, address and minute"
 msgstr "%s fehlgeschlagene Aktivierungen je Schlüssel-Referenz, Adresse und Minute"
 
 #. translators: %s: number of seconds.
-#: src/Admin/Diagnostics.php:674
+#: src/Admin/Diagnostics.php:676
 #, php-format
 msgid "signed requests are accepted %s seconds before or after the server time"
 msgstr "signierte Anfragen werden bis %s Sekunden vor oder nach der Serverzeit angenommen"
 
-#: src/Admin/Diagnostics.php:1203
+#: src/Admin/Diagnostics.php:1225
 msgid "Technical limits of the license API"
 msgstr "Technische Grenzen der Lizenz-API"
 
-#: src/Admin/Diagnostics.php:1206
+#: src/Admin/Diagnostics.php:1228
 msgid "Fixed protection against overload and guessing; not a setting. The number of new sites per license and hour is a setting under License settings → Customer sites."
 msgstr "Fester Schutz gegen Überlastung und Raten; keine Einstellung. Die Zahl neuer Websites je Lizenz und Stunde ist eine Einstellung unter Lizenzeinstellungen → Kunden-Websites."
 
 #. translators: 1: name of a setting, 2: list of values, 3: smallest value, 4: largest value, 5: largest number of entries.
-#: src/Admin/Settings.php:410
+#: src/Admin/Settings.php:414
 #, php-format
 msgid "\"%1$s\": not kept: %2$s. Enter whole numbers from %3$s to %4$s, at most %5$s."
 msgstr "„%1$s“: nicht übernommen: %2$s. Gib ganze Zahlen von %3$s bis %4$s ein, höchstens %5$s."
 
 #. translators: State of a row of the status table: something needs to be done.
-#: src/Admin/Settings.php:725
+#: src/Admin/Settings.php:769
 msgid "Attention:"
 msgstr "Achtung:"
 
 #. translators: %s: number of the reminder (1, 2, ...).
-#: src/Admin/Settings.php:1227
+#: src/Admin/Settings.php:1336
 #, php-format
 msgid "Reminder %s: days before the end"
 msgstr "Erinnerung %s: Tage vor dem Ende"
 
-#: src/Admin/Settings.php:1231
+#: src/Admin/Settings.php:1340
 msgid "Days before the end of the paid period on which a reminder is sent, one per field; leave the other fields empty. Default: 30 and 7. All fields empty = the default."
 msgstr "Tage vor dem Ende der bezahlten Zeit, an denen eine Erinnerung verschickt wird, eine je Feld; lass die übrigen Felder leer. Vorgabe: 30 und 7. Alle Felder leer = die Vorgabe."
 
 #. translators: %s: date and time.
-#: src/Admin/Settings.php:1245
+#: src/Admin/Settings.php:1354
 #, php-format
 msgid "On until %s. Then it switches itself off."
 msgstr "Eingeschaltet bis %s. Danach schaltet es sich selbst aus."
 
-#: src/Admin/Settings.php:1247
+#: src/Admin/Settings.php:1356
 msgid "The time has run out; the verbose log is off. Choose \"Off\", save, and choose a time again to switch it on."
 msgstr "Die Zeit ist abgelaufen; das ausführliche Protokoll ist aus. Wähle „Aus“, speichere und wähle erneut eine Zeit, um es einzuschalten."
 
-#: src/Admin/Settings.php:1250
+#: src/Admin/Settings.php:1359
 msgid "In effect: on. The constant WPLC_DEBUG is set in wp-config.php."
 msgstr "Wirksam: ein. Die Konstante WPLC_DEBUG ist in wp-config.php gesetzt."
 
-#: src/Admin/SettingsTools.php:138
+#: src/Admin/SettingsTools.php:204
 msgid "The test message was handed over for sending to the recipients of the health alerts."
 msgstr "Die Testnachricht wurde zum Versand an die Empfänger der Meldungen zum Zustand übergeben."
 
-#: src/Admin/SettingsTools.php:141
+#: src/Admin/SettingsTools.php:207
 msgid "No test message was sent: enter at least one address under \"Send health alerts to\" and save first."
 msgstr "Es wurde keine Testnachricht gesendet: Trage zuerst mindestens eine Adresse unter „Meldungen zum Zustand senden an“ ein und speichere."
 
-#: src/Admin/SettingsTools.php:144
+#: src/Admin/SettingsTools.php:210
 msgid "WordPress could not hand the test message over for sending. Check the email setup of this site."
 msgstr "WordPress konnte die Testnachricht nicht zum Versand übergeben. Prüfe die E-Mail-Einrichtung dieser Website."
 
-#: src/Admin/SettingsTools.php:360
+#: src/Admin/SettingsTools.php:591
 msgid "Test the health alerts"
 msgstr "Meldungen zum Zustand testen"
 
-#: src/Admin/SettingsTools.php:361
+#: src/Admin/SettingsTools.php:592
 msgid "Sends a test message to the addresses under \"Send health alerts to\", also when an alert email already left today."
 msgstr "Sendet eine Testnachricht an die Adressen unter „Meldungen zum Zustand senden an“, auch wenn heute schon eine Meldung verschickt wurde."
 
-#: src/Admin/SettingsTools.php:364
+#: src/Admin/SettingsTools.php:595
 msgid "Send test message"
 msgstr "Testnachricht senden"
 
-#: src/Admin/SettingsTools.php:368
+#: src/Admin/SettingsTools.php:624
 msgid "Show all changes of the settings in the audit log"
 msgstr "Alle Änderungen der Einstellungen im Audit-Protokoll anzeigen"
 
-#: src/Settings/Texts.php:112
+#: src/Settings/Texts.php:129
 msgid "Combined renewal: most licenses per order"
 msgstr "Sammelverlängerung: höchstens Lizenzen je Bestellung"
 
-#: src/Settings/Texts.php:113
+#: src/Settings/Texts.php:130
 msgid "Largest number of licenses charged together in one combined renewal order. Further due licenses of the same customer are renewed in the next combined order or on their own. Default: 20. Only used when automatic renewals are combined."
 msgstr "Höchstzahl der Lizenzen, die in einer Sammelbestellung gemeinsam abgebucht werden. Weitere fällige Lizenzen desselben Kunden werden in der nächsten Sammelbestellung oder einzeln verlängert. Vorgabe: 20. Gilt nur, wenn automatische Verlängerungen zusammengefasst werden."
 
-#: src/Settings/Texts.php:132
+#: src/Settings/Texts.php:149
 msgid "Open review case defers the expiry for"
 msgstr "Offener Prüffall schiebt den Ablauf auf um"
 
-#: src/Settings/Texts.php:133
+#: src/Settings/Texts.php:150
 msgid "Days, counted from the start of the case, during which a renewal that waits for your review (unknown payment result) keeps its license from expiring, because the customer may have paid. Access to updates still ends with the grace period. Afterwards the license expires normally; the case stays open and can still be booked. Default: 30."
 msgstr "Tage ab Beginn des Falls, in denen eine Verlängerung, die auf deine Prüfung wartet (unklares Zahlungsergebnis), ihre Lizenz vor dem Ablauf bewahrt, weil der Kunde bezahlt haben kann. Der Zugang zu Updates endet trotzdem mit der Kulanzfrist. Danach läuft die Lizenz normal ab; der Fall bleibt offen und kann weiter gebucht werden. Vorgabe: 30."
 
-#: src/Settings/Texts.php:160
+#: src/Settings/Texts.php:177
 msgid "Upgrade offer valid for"
 msgstr "Upgrade-Angebot gültig für"
 
-#: src/Settings/Texts.php:161
+#: src/Settings/Texts.php:178
 msgid "Hours during which an unpaid upgrade order keeps its prorated price. The price falls every day; after this time the customer clicks \"Upgrade\" again for a new price. Default: 24."
 msgstr "Stunden, in denen eine unbezahlte Upgrade-Bestellung ihren anteiligen Preis behält. Der Preis sinkt jeden Tag; danach klickt der Kunde erneut auf „Upgrade“ und erhält einen neuen Preis. Vorgabe: 24."
 
-#: src/Settings/Texts.php:180
+#: src/Settings/Texts.php:197
 msgid "Offline period of customer sites"
 msgstr "Offline-Frist der Kunden-Websites"
 
-#: src/Settings/Texts.php:184
+#: src/Settings/Texts.php:201
 msgid "New sites per license and hour"
 msgstr "Neue Websites je Lizenz und Stunde"
 
-#: src/Settings/Texts.php:185
+#: src/Settings/Texts.php:202
 msgid "How many new installations one license may activate within an hour, at least twice its live-site limit, so that an agency can still set up all its sites. Activating a known installation again does not count. Default: 10. 0 = no limit."
 msgstr "Wie viele neue Installationen eine Lizenz innerhalb einer Stunde aktivieren darf, mindestens das Doppelte ihres Live-Limits, damit eine Agentur alle ihre Websites einrichten kann. Eine bekannte Installation erneut zu aktivieren zählt nicht. Vorgabe: 10. 0 = keine Grenze."
 
-#: src/Settings/Texts.php:292
+#: src/Settings/Texts.php:341
 msgid "Support email address"
 msgstr "E-Mail-Adresse des Supports"
 
-#: src/Settings/Texts.php:293
+#: src/Settings/Texts.php:342
 msgid "Address that license emails, the customer account and the cancellation page name for questions. Empty (default) = the sender address of the WooCommerce emails, else the address of the site administrator."
 msgstr "Adresse, die Lizenz-E-Mails, das Kundenkonto und die Kündigungsseite für Fragen nennen. Leer (Vorgabe) = die Absenderadresse der WooCommerce-E-Mails, sonst die Adresse des Website-Administrators."
 
-#: src/Settings/Texts.php:296
+#: src/Settings/Texts.php:345
 #: templates/wplc-cancel.php:61
 msgid "Support page"
 msgstr "Support-Seite"
 
-#: src/Settings/Texts.php:297
+#: src/Settings/Texts.php:346
 msgid "Optional address of your support or contact page (https://…). The customer account and the cancellation page link to it next to the support address. Empty (default) = no link."
 msgstr "Optionale Adresse deiner Support- oder Kontaktseite (https://…). Das Kundenkonto und die Kündigungsseite verlinken sie neben der Support-Adresse. Leer (Vorgabe) = kein Link."
 
-#: src/Settings/Texts.php:305
+#: src/Settings/Texts.php:358
 msgid "Verbose log"
 msgstr "Ausführliches Protokoll"
 
-#: src/Settings/Texts.php:306
+#: src/Settings/Texts.php:359
 msgid "Writes additional lines of the level debug to the WooCommerce log (source wp-license) to trace a problem. It switches itself off after the chosen time. Off (default). The constant WPLC_DEBUG in wp-config.php switches it on permanently."
 msgstr "Schreibt zusätzliche Zeilen der Stufe debug in das WooCommerce-Protokoll (Quelle wp-license), um einem Fehler nachzugehen. Es schaltet sich nach der gewählten Zeit selbst aus. Aus (Vorgabe). Die Konstante WPLC_DEBUG in wp-config.php schaltet es dauerhaft ein."
 
-#: src/Settings/Texts.php:331
+#: src/Settings/Texts.php:384
 msgid "Failed background jobs (24 hours)"
 msgstr "Fehlgeschlagene Hintergrundaufgaben (24 Stunden)"
 
-#: src/Settings/Texts.php:332
+#: src/Settings/Texts.php:385
 msgid "Problems with update packages"
 msgstr "Probleme mit Update-Paketen"
 
 #. translators: %s: name of a figure of the diagnostics page.
-#: src/Settings/Texts.php:347
+#: src/Settings/Texts.php:401
 #, php-format
 msgid "Alert from: %s"
 msgstr "Meldung ab: %s"
 
 #. translators: %s: default threshold.
-#: src/Settings/Texts.php:350
+#: src/Settings/Texts.php:404
 #, php-format
 msgid "A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: %s. 0 = never alert for this figure."
 msgstr "Eine Meldung zum Zustand entsteht, wenn diese Kennzahl der Diagnoseseite diese Zahl erreicht: Die Aktion wplc/health_alert wird ausgelöst und, mit Empfängern oben, die gesammelte E-Mail versandt. Vorgabe: %s. 0 = für diese Kennzahl nie melden."
 
-#: src/Settings/Texts.php:378
+#: src/Settings/Texts.php:432
 msgid "Off"
 msgstr "Aus"
 
-#: src/Settings/Texts.php:379
+#: src/Settings/Texts.php:433
 msgid "On for 24 hours"
 msgstr "Ein für 24 Stunden"
 
-#: src/Settings/Texts.php:380
+#: src/Settings/Texts.php:434
 msgid "On for 7 days"
 msgstr "Ein für 7 Tage"
 
@@ -10525,49 +10509,49 @@ msgstr "Hersteller-Regeln, die auf jede Kunden-Website wirken: Staging- und Entw
 msgid "The line does not have as many columns as the header line."
 msgstr "Die Zeile hat nicht so viele Spalten wie die Kopfzeile."
 
-#: src/Admin/Settings.php:649
+#: src/Admin/Settings.php:693
 msgid "This is a manufacturer rule that acts on every customer site: only users with the capability wplc_manage_policy (by default administrators) may change it."
 msgstr "Dies ist eine Hersteller-Regel, die auf jede Kunden-Website wirkt: Nur Benutzer mit der Berechtigung wplc_manage_policy (standardmäßig Administratoren) dürfen sie ändern."
 
-#: src/Admin/Settings.php:667
+#: src/Admin/Settings.php:711
 msgid "Administrators"
 msgstr "Administratoren"
 
-#: src/Admin/Settings.php:667
+#: src/Admin/Settings.php:711
 msgid "Shop managers and administrators"
 msgstr "Shop-Manager und Administratoren"
 
-#: src/Admin/Settings.php:698
+#: src/Admin/Settings.php:742
 msgid "Who may do what"
 msgstr "Wer darf was"
 
-#: src/Admin/Settings.php:699
+#: src/Admin/Settings.php:743
 msgid "The capabilities of the plugin are not stored on roles; each one follows a WordPress capability unless a role stores it explicitly (for example with a role editor plugin or wp cap add). Developers can change the mapping with the filter wplc_capability."
 msgstr "Die Berechtigungen des Plugins sind nicht an Rollen gespeichert; jede folgt einer WordPress-Berechtigung, außer eine Rolle speichert sie ausdrücklich (zum Beispiel mit einem Rollen-Editor-Plugin oder wp cap add). Entwickler können die Zuordnung mit dem Filter wplc_capability ändern."
 
-#: src/Admin/Settings.php:700
+#: src/Admin/Settings.php:744
 msgid "Capability"
 msgstr "Berechtigung"
 
-#: src/Admin/Settings.php:700
+#: src/Admin/Settings.php:744
 msgid "Allows"
 msgstr "Erlaubt"
 
-#: src/Admin/Settings.php:700
+#: src/Admin/Settings.php:744
 msgid "By default"
 msgstr "Standardmäßig"
 
-#: src/Admin/Settings.php:700
+#: src/Admin/Settings.php:744
 msgid "You"
 msgstr "Du"
 
 #. translators: 1: capability name, 2: list of settings.
-#: src/Admin/Settings.php:707
+#: src/Admin/Settings.php:751
 #, php-format
 msgid "Settings that need %1$s: %2$s."
 msgstr "Einstellungen, die %1$s brauchen: %2$s."
 
-#: src/Admin/Settings.php:1075
+#: src/Admin/Settings.php:1142
 msgid "Reset this list to the default when saving"
 msgstr "Diese Liste beim Speichern auf die Vorgabe zurücksetzen"
 
@@ -10576,7 +10560,7 @@ msgid "A value for this plan is outside its limits: staging sites 0 to 10, devel
 msgstr "Ein Wert dieses Tarifs liegt außerhalb seiner Grenzen: Staging-Websites 0 bis 10, Entwicklungs-Websites 0 bis 100, Offline-Frist 1 bis 90 Tage, Höchstmenge 0 bis 100000, Mitbenutzer 0 bis 100. Lass ein Feld leer, um die globale Einstellung zu verwenden."
 
 #: src/Catalog/ProductEditor.php:331
-#: src/Settings/Texts.php:188
+#: src/Settings/Texts.php:205
 msgid "Staging sites per live site"
 msgstr "Staging-Websites je Live-Website"
 
@@ -10605,7 +10589,7 @@ msgid "Largest quantity of this plan in one cart line (0 to 100000; 0 = no limit
 msgstr "Höchstmenge dieses Tarifs in einer Warenkorbposition (0 bis 100000; 0 = keine Grenze)."
 
 #: src/Catalog/ProductEditor.php:335
-#: src/Settings/Texts.php:220
+#: src/Settings/Texts.php:237
 msgid "Co-users per license"
 msgstr "Mitbenutzer je Lizenz"
 
@@ -10627,160 +10611,488 @@ msgstr "Lass ein Feld leer, um die globale Einstellung zu verwenden (Lizenzeinst
 msgid "Global: %s"
 msgstr "Global: %s"
 
-#: src/Settings/Texts.php:88
+#: src/Settings/Texts.php:89
 msgid "Downloads after the paid period"
 msgstr "Downloads nach dem bezahlten Zeitraum"
 
-#: src/Settings/Texts.php:89
+#: src/Settings/Texts.php:90
 msgid "On (default): a customer whose paid period has ended can still download, in the account, the versions that were published while the license was paid. Off: no download at all after the end. Revoked, suspended and unpaid licenses never download."
 msgstr "An (Vorgabe): Ein Kunde, dessen bezahlter Zeitraum beendet ist, kann im Konto weiterhin die Versionen herunterladen, die veröffentlicht wurden, während die Lizenz bezahlt war. Aus: nach dem Ende gar kein Download. Widerrufene, gesperrte und unbezahlte Lizenzen laden nie herunter."
 
-#: src/Settings/Texts.php:92
+#: src/Settings/Texts.php:93
 msgid "Versions to choose from in the account"
 msgstr "Versionen zur Auswahl im Kundenkonto"
 
-#: src/Settings/Texts.php:93
+#: src/Settings/Texts.php:94
 msgid "How many published versions the customer can choose from when downloading in the account, newest first. Default: 10. 1 = only the latest version."
 msgstr "Aus wie vielen veröffentlichten Versionen der Kunde beim Download im Konto wählen kann, die neueste zuerst. Vorgabe: 10. 1 = nur die neueste Version."
 
-#: src/Settings/Texts.php:96
+#: src/Settings/Texts.php:97
 msgid "Downloads per license and hour"
 msgstr "Downloads je Lizenz und Stunde"
 
-#: src/Settings/Texts.php:97
+#: src/Settings/Texts.php:98
 msgid "How many downloads from the customer account one license may start within an hour. Default: 10. Updates installed by the customer sites do not count."
 msgstr "Wie viele Downloads aus dem Kundenkonto eine Lizenz innerhalb einer Stunde starten darf. Vorgabe: 10. Updates, die die Kunden-Websites installieren, zählen nicht."
 
-#: src/Settings/Texts.php:100
+#: src/Settings/Texts.php:101
 msgid "Reuse of a download link"
 msgstr "Wiederverwendung eines Download-Links"
 
-#: src/Settings/Texts.php:101
+#: src/Settings/Texts.php:102
 msgid "Seconds during which a used download link of an update still works for a second fetch (some download managers and proxies fetch twice). Default: 0 = strict single use, the safest choice. At most 600."
 msgstr "Sekunden, in denen ein benutzter Download-Link eines Updates für einen zweiten Abruf noch funktioniert (manche Download-Manager und Proxys rufen zweimal ab). Vorgabe: 0 = strikt einmalig, die sicherste Wahl. Höchstens 600."
 
-#: src/Settings/Texts.php:104
+#: src/Settings/Texts.php:105
 msgid "Download link valid for"
 msgstr "Download-Link gültig für"
 
-#: src/Settings/Texts.php:105
+#: src/Settings/Texts.php:106
 msgid "Seconds during which the download link that a customer site receives for an update can be used. Default: 300 (five minutes); 60 to 900. The site asks for a new link right before it downloads, so a short time is enough."
 msgstr "Sekunden, in denen der Download-Link, den eine Kunden-Website für ein Update erhält, verwendet werden kann. Vorgabe: 300 (fünf Minuten); 60 bis 900. Die Website fragt direkt vor dem Download nach einem neuen Link, deshalb genügt eine kurze Zeit."
 
-#: src/Settings/Texts.php:153
+#: src/Settings/Texts.php:170
 msgid "Largest quantity of one license product a customer can put into the cart and order. Every unit becomes a license of its own with its own key. Default: 100. 0 = no limit. An order you create yourself in the admin or through the REST API is not blocked; a larger quantity there is noted on the order and in the audit log. A plan can set its own largest quantity in the product editor."
 msgstr "Höchstmenge eines Lizenzprodukts, die ein Kunde in den Warenkorb legen und bestellen kann. Jede Einheit wird eine eigene Lizenz mit eigenem Schlüssel. Vorgabe: 100. 0 = keine Grenze. Eine Bestellung, die du selbst im Admin oder über die REST-API anlegst, wird nicht blockiert; eine größere Menge wird dort an der Bestellung und im Audit-Protokoll vermerkt. Ein Tarif kann im Produkteditor seine eigene Höchstmenge festlegen."
 
-#: src/Settings/Texts.php:164
+#: src/Settings/Texts.php:181
 msgid "Show the license term at the price"
 msgstr "Laufzeit am Preis anzeigen"
 
-#: src/Settings/Texts.php:165
+#: src/Settings/Texts.php:182
 msgid "On (default): the price of a license product shows its term, for example \"/ year\". Off: the price is shown as WooCommerce prints it."
 msgstr "An (Vorgabe): Der Preis eines Lizenzprodukts zeigt seine Laufzeit, zum Beispiel „/ Jahr“. Aus: Der Preis wird so gezeigt, wie WooCommerce ihn ausgibt."
 
-#: src/Settings/Texts.php:168
+#: src/Settings/Texts.php:185
 msgid "Renew licenses of products no longer sold"
 msgstr "Lizenzen nicht mehr verkaufter Produkte verlängern"
 
-#: src/Settings/Texts.php:169
+#: src/Settings/Texts.php:186
 msgid "Off (default): a customer cannot renew a license by hand in the account while its product is not for sale (private, draft or not purchasable). On: such a license can still be renewed at the price of its plan. Automatic renewals are not affected."
 msgstr "Aus (Vorgabe): Ein Kunde kann eine Lizenz im Konto nicht von Hand verlängern, solange ihr Produkt nicht zum Verkauf steht (privat, Entwurf oder nicht kaufbar). An: Eine solche Lizenz kann weiterhin zum Preis ihres Tarifs verlängert werden. Automatische Verlängerungen sind nicht betroffen."
 
-#: src/Settings/Texts.php:172
+#: src/Settings/Texts.php:189
 msgid "Deleting the saved card ends automatic renewal"
 msgstr "Löschen der gespeicherten Karte beendet die automatische Verlängerung"
 
-#: src/Settings/Texts.php:173
+#: src/Settings/Texts.php:190
 msgid "On (default): when the customer deletes the saved payment method in the account, through a personal data erasure or by deleting the account, automatic renewal of the licenses paid with it is switched off. Off: automatic renewal stays on, and the next charge fails unless another component moves the licenses to a new payment method."
 msgstr "An (Vorgabe): Löscht der Kunde die gespeicherte Zahlungsart im Konto, über eine Löschung personenbezogener Daten oder durch Löschen des Kontos, wird die automatische Verlängerung der damit bezahlten Lizenzen ausgeschaltet. Aus: Die automatische Verlängerung bleibt an, und die nächste Abbuchung scheitert, außer eine andere Komponente stellt die Lizenzen auf eine neue Zahlungsart um."
 
-#: src/Settings/Texts.php:176
+#: src/Settings/Texts.php:193
 msgid "Payment methods paid on delivery"
 msgstr "Zahlungsarten mit Zahlung bei Lieferung"
 
-#: src/Settings/Texts.php:177
+#: src/Settings/Texts.php:194
 msgid "IDs of WooCommerce payment methods, one per line, whose orders count as paid only when they are completed, because the order is \"processing\" before the money arrived. Licenses, manual renewals and plan upgrades paid with them start when you complete the order. Default: cod (cash on delivery)."
 msgstr "IDs von WooCommerce-Zahlungsarten, eine pro Zeile, deren Bestellungen erst als bezahlt gelten, wenn sie abgeschlossen sind, weil die Bestellung „in Bearbeitung“ ist, bevor das Geld eingegangen ist. Lizenzen, manuelle Verlängerungen und Tarif-Upgrades, die damit bezahlt werden, starten, wenn du die Bestellung abschließt. Vorgabe: cod (Nachnahme)."
 
-#: src/Settings/Texts.php:181
+#: src/Settings/Texts.php:198
 msgid "Days a customer site may rely on the last signed answer of this server when it cannot reach it. Default: 14. The period never reaches beyond the end of access of the license: a license whose paid period or grace period ends earlier stops working offline at that end. A plan can set its own period in the product editor."
 msgstr "Tage, die sich eine Kunden-Website auf die letzte signierte Antwort dieses Servers verlassen darf, wenn sie ihn nicht erreicht. Vorgabe: 14. Die Frist reicht nie über das Ende des Zugangs der Lizenz hinaus: Eine Lizenz, deren bezahlter Zeitraum oder Kulanzfrist früher endet, funktioniert offline nur bis zu diesem Ende. Ein Tarif kann im Produkteditor seine eigene Frist festlegen."
 
-#: src/Settings/Texts.php:189
+#: src/Settings/Texts.php:206
 msgid "How many staging copies each live site of a license may activate free of charge. A staging site must be plausible for a copy of its live site (same domain, a local address or a hosting provider domain below); otherwise it counts as a live site. Default: 1. 0 = staging sites are not included. A plan can set its own number in the product editor."
 msgstr "Wie viele Staging-Kopien jede Live-Website einer Lizenz kostenlos aktivieren darf. Eine Staging-Website muss als Kopie ihrer Live-Website plausibel sein (gleiche Domain, eine lokale Adresse oder eine Hoster-Domain unten); sonst zählt sie als Live-Website. Vorgabe: 1. 0 = Staging-Websites sind nicht enthalten. Ein Tarif kann im Produkteditor seine eigene Zahl festlegen."
 
-#: src/Settings/Texts.php:192
+#: src/Settings/Texts.php:209
 msgid "Development sites per license"
 msgstr "Entwicklungs-Websites je Lizenz"
 
-#: src/Settings/Texts.php:193
+#: src/Settings/Texts.php:210
 msgid "How many development installations on local addresses a license may activate at the same time without using a live slot: at least this number and at least twice the live-site limit of the license. Default: 5. 0 = development sites are not included. A plan can set its own exact number in the product editor."
 msgstr "Wie viele Entwicklungsinstallationen auf lokalen Adressen eine Lizenz gleichzeitig aktivieren darf, ohne einen Live-Platz zu belegen: mindestens diese Zahl und mindestens das Doppelte des Live-Limits der Lizenz. Vorgabe: 5. 0 = Entwicklungs-Websites sind nicht enthalten. Ein Tarif kann im Produkteditor seine eigene genaue Zahl festlegen."
 
-#: src/Settings/Texts.php:196
+#: src/Settings/Texts.php:213
 msgid "Staging: name parts"
 msgstr "Staging: Namensteile"
 
 #. translators: %s: list of the built-in name parts.
-#: src/Settings/Texts.php:199
+#: src/Settings/Texts.php:216
 #, php-format
 msgid "Parts of an address left of the domain that mark a copy of a site, one per line (for example staging for staging.shop.example). A live site cannot move to such an address with its activation; the copy activates as a staging site of its own. Only the part left of the domain counts: a top-level domain such as .dev never makes a site a staging copy. Default: %s."
 msgstr "Teile einer Adresse links der Domain, die eine Kopie einer Website kennzeichnen, einer pro Zeile (zum Beispiel staging für staging.shop.example). Eine Live-Website kann mit ihrer Aktivierung nicht auf eine solche Adresse umziehen; die Kopie aktiviert sich als eigene Staging-Website. Nur der Teil links der Domain zählt: Eine Top-Level-Domain wie .dev macht eine Website nie zur Staging-Kopie. Vorgabe: %s."
 
-#: src/Settings/Texts.php:204
+#: src/Settings/Texts.php:221
 msgid "Staging: hosting provider domains"
 msgstr "Staging: Domains der Hoster"
 
 #. translators: %s: list of the built-in domains.
-#: src/Settings/Texts.php:207
+#: src/Settings/Texts.php:224
 #, php-format
 msgid "Domains of hosting providers whose subdomains are temporary or staging addresses, one per line, without the leading dot (for example kinsta.cloud for mysite.kinsta.cloud). A subdomain of these domains is accepted as the staging copy of any live site. At least two parts (example.com); a single top-level domain is not accepted. Default: %s."
 msgstr "Domains von Hostern, deren Subdomains vorläufige oder Staging-Adressen sind, eine pro Zeile, ohne den führenden Punkt (zum Beispiel kinsta.cloud für mysite.kinsta.cloud). Eine Subdomain dieser Domains wird als Staging-Kopie jeder Live-Website angenommen. Mindestens zwei Teile (example.com); eine einzelne Top-Level-Domain wird nicht angenommen. Vorgabe: %s."
 
-#: src/Settings/Texts.php:212
+#: src/Settings/Texts.php:229
 msgid "Local addresses: endings"
 msgstr "Lokale Adressen: Endungen"
 
 #. translators: %s: list of the built-in endings.
-#: src/Settings/Texts.php:215
+#: src/Settings/Texts.php:232
 #, php-format
 msgid "Endings of addresses that only exist on a local computer or network, one per line, without the leading dot (for example test for shop.test). Development sites are only accepted on such addresses, on names without a dot and on private IP addresses; they also count as staging copies. Do not add an ending of the public internet (such as com): every site under it could then activate as a development site without using a live slot. Default: %s."
 msgstr "Endungen von Adressen, die es nur auf einem lokalen Rechner oder in einem lokalen Netz gibt, eine pro Zeile, ohne den führenden Punkt (zum Beispiel test für shop.test). Entwicklungs-Websites werden nur auf solchen Adressen, auf Namen ohne Punkt und auf privaten IP-Adressen angenommen; sie zählen auch als Staging-Kopien. Füge keine Endung des öffentlichen Internets hinzu (wie com): Jede Website darunter könnte sich dann als Entwicklungs-Website aktivieren, ohne einen Live-Platz zu belegen. Vorgabe: %s."
 
-#: src/Settings/Texts.php:221
+#: src/Settings/Texts.php:238
 msgid "How many co-users the owner of a license can invite in the customer account (accepted co-users plus open invitations). Co-users see the license with its key, sites and downloads in their own account. Default: 5. 0 = co-users are switched off: nobody can be invited and open invitations can no longer be accepted; co-users who accepted before keep their access until the owner removes them. A plan can set its own number in the product editor."
 msgstr "Wie viele Mitbenutzer der Inhaber einer Lizenz im Kundenkonto einladen kann (angenommene Mitbenutzer plus offene Einladungen). Mitbenutzer sehen die Lizenz mit ihrem Schlüssel, ihren Websites und Downloads in ihrem eigenen Konto. Vorgabe: 5. 0 = Mitbenutzer sind ausgeschaltet: Niemand kann eingeladen werden, und offene Einladungen können nicht mehr angenommen werden; Mitbenutzer, die vorher angenommen haben, behalten ihren Zugang, bis der Inhaber sie entfernt. Ein Tarif kann im Produkteditor seine eigene Zahl festlegen."
 
-#: src/Settings/Texts.php:224
+#: src/Settings/Texts.php:241
 msgid "Invitations valid for"
 msgstr "Einladungen gültig für"
 
-#: src/Settings/Texts.php:225
+#: src/Settings/Texts.php:242
 msgid "Days during which the link of an invitation (co-user or transfer) can be accepted. Default: 14. A changed value applies to invitations sent afterwards."
 msgstr "Tage, in denen der Link einer Einladung (Mitbenutzer oder Übergabe) angenommen werden kann. Vorgabe: 14. Ein geänderter Wert gilt für danach versendete Einladungen."
 
-#: src/Settings/Texts.php:228
+#: src/Settings/Texts.php:245
 msgid "Customers can transfer licenses"
 msgstr "Kunden können Lizenzen übergeben"
 
-#: src/Settings/Texts.php:229
+#: src/Settings/Texts.php:246
 msgid "On (default): the owner can hand a license over to another customer from the account; the recipient accepts with the link in an email. Off: the transfer form is hidden and open transfers can no longer be accepted; you can still change the owner in the admin."
 msgstr "An (Vorgabe): Der Inhaber kann eine Lizenz im Konto an einen anderen Kunden übergeben; der Empfänger nimmt mit dem Link in einer E-Mail an. Aus: Das Formular für die Übergabe ist ausgeblendet, und offene Übergaben können nicht mehr angenommen werden; den Inhaber kannst du weiterhin im Admin ändern."
 
-#: src/Settings/Texts.php:232
+#: src/Settings/Texts.php:249
 msgid "New license key on transfer"
 msgstr "Neuer Lizenzschlüssel bei der Übergabe"
 
-#: src/Settings/Texts.php:233
+#: src/Settings/Texts.php:250
 msgid "Off (default): the license keeps its key and the activated sites keep working after a transfer accepted in the account. On: the transfer also issues a new key, so the previous owner can no longer use the old one; the new owner enters the new key on the sites."
 msgstr "Aus (Vorgabe): Nach einer im Konto angenommenen Übergabe behält die Lizenz ihren Schlüssel, und die aktivierten Websites funktionieren weiter. An: Die Übergabe stellt auch einen neuen Schlüssel aus, sodass der bisherige Inhaber den alten nicht mehr verwenden kann; der neue Inhaber trägt den neuen Schlüssel auf den Websites ein."
 
-#: src/Settings/Texts.php:248
+#: src/Settings/Texts.php:297
 msgid "Cancellation page: requests per hour"
 msgstr "Kündigungsseite: Anfragen je Stunde"
 
-#: src/Settings/Texts.php:249
+#: src/Settings/Texts.php:298
 msgid "How many cancellation requests the public cancellation page (shortcode [wplc_cancel]) accepts per hour, counted per visitor address, per license reference and, for order numbers, per email address. Default: 5. The page itself is shown where you place the shortcode. Whether it meets a legal requirement for a cancellation button in your country is for you to check."
 msgstr "Wie viele Kündigungsanfragen die öffentliche Kündigungsseite (Shortcode [wplc_cancel]) je Stunde annimmt, gezählt je Besucheradresse, je Lizenzreferenz und bei Bestellnummern je E-Mail-Adresse. Vorgabe: 5. Die Seite selbst erscheint dort, wo du den Shortcode einfügst. Ob sie eine rechtliche Vorgabe für einen Kündigungsbutton in deinem Land erfüllt, musst du prüfen."
+
+#. translators: %s: name of a kind of key.
+#: src/Admin/Diagnostics.php:1193
+#, php-format
+msgid "Age: %s"
+msgstr "Alter: %s"
+
+#. translators: 1: key ID, 2: date, 3: number of months.
+#: src/Admin/Diagnostics.php:1196
+#, php-format
+msgid "Key %1$s, first seen on %2$s (%3$s month)"
+msgid_plural "Key %1$s, first seen on %2$s (%3$s months)"
+msgstr[0] "Schlüssel %1$s, zuerst gesehen am %2$s (%3$s Monat)"
+msgstr[1] "Schlüssel %1$s, zuerst gesehen am %2$s (%3$s Monate)"
+
+#. translators: 1: number of months, 2: how to rotate the key.
+#: src/Admin/Diagnostics.php:1204
+#, php-format
+msgid "Older than %1$s months (setting \"Remind to rotate keys after\"). %2$s"
+msgstr "Älter als %1$s Monate (Einstellung „An Schlüsselwechsel erinnern nach“). %2$s"
+
+#: src/Admin/Diagnostics.php:1205
+msgid "Keys carry no date: the age counts from the day this server first saw the key."
+msgstr "Schlüssel tragen kein Datum: Das Alter zählt ab dem Tag, an dem dieser Server den Schlüssel zuerst gesehen hat."
+
+#. translators: %s: number of months.
+#: src/Admin/KeyConfigurationNotice.php:197
+#, php-format
+msgid "WP License Captain: keys older than %s months should be rotated."
+msgstr "WP License Captain: Schlüssel, die älter als %s Monate sind, sollten gewechselt werden."
+
+#: src/Admin/KeyConfigurationNotice.php:202
+msgid "The age counts from the day this server first saw the key. The diagnostics page shows the age of every key. Change the period under License settings → Operations."
+msgstr "Das Alter zählt ab dem Tag, an dem dieser Server den Schlüssel zuerst gesehen hat. Die Diagnoseseite zeigt das Alter jedes Schlüssels. Die Frist änderst du unter Lizenzeinstellungen → Betrieb."
+
+#. translators: %s: address part of a page, e.g. "orders".
+#: src/Admin/Settings.php:438
+#, php-format
+msgid "The addresses of the customer account were not changed: \"%s\" is already the address of another page of the account. Choose an address of its own for each page."
+msgstr "Die Adressen des Kundenkontos wurden nicht geändert: „%s“ ist schon die Adresse einer anderen Seite des Kontos. Wähle für jede Seite eine eigene Adresse."
+
+#: src/Admin/Settings.php:868
+msgid "Decide the rules of your shop"
+msgstr "Lege die Regeln deines Shops fest"
+
+#: src/Admin/Settings.php:869
+msgid "Answer three questions before the first sale: which country profile fits your shop (retention, consent and notice periods), how many staging copies a customer may run next to each live site, and how long a customer keeps access when an automatic payment fails. Every answer can be changed later in the settings below."
+msgstr "Beantworte vor dem ersten Verkauf drei Fragen: welches Länderprofil zu deinem Shop passt (Aufbewahrung, Zustimmungen und Ankündigungsfristen), wie viele Staging-Kopien ein Kunde neben jeder Live-Website betreiben darf und wie lange ein Kunde den Zugang behält, wenn eine automatische Zahlung scheitert. Jede Antwort lässt sich später in den Einstellungen unten ändern."
+
+#. translators: %s: name of a PHP constant.
+#: src/Admin/Settings.php:1159
+#, php-format
+msgid "Set in wp-config.php with %s; the constant wins over this field."
+msgstr "In der wp-config.php mit %s gesetzt; die Konstante gewinnt gegen dieses Feld."
+
+#. translators: 1: bucket name, 2: host name of the storage endpoint.
+#: src/Admin/Settings.php:1182
+#, php-format
+msgid "In use: bucket %1$s on %2$s."
+msgstr "In Benutzung: Bucket %1$s auf %2$s."
+
+#: src/Admin/Settings.php:1188
+msgid "Not in use. Update packages are delivered from this site or from the trusted package hosts."
+msgstr "Nicht in Benutzung. Update-Pakete werden von dieser Website oder von den vertrauenswürdigen Paket-Hosts ausgeliefert."
+
+#: src/Admin/Settings.php:1191
+msgid "State of the object storage:"
+msgstr "Zustand des Objektspeichers:"
+
+#: src/Admin/Settings.php:1201
+msgid "Test the connection"
+msgstr "Verbindung testen"
+
+#: src/Admin/Settings.php:1201
+msgid "Sends one signed request for the bucket. Save changed fields first."
+msgstr "Sendet eine signierte Anfrage an den Bucket. Speichere geänderte Felder vorher."
+
+#. translators: %s: list of setting names.
+#: src/Admin/SettingsTools.php:236
+#, php-format
+msgid "Not saved, because the value is not valid: %s. Check the numbers and answer again."
+msgstr "Nicht gespeichert, weil der Wert nicht gültig ist: %s. Prüfe die Zahlen und antworte noch einmal."
+
+#: src/Admin/SettingsTools.php:248
+msgid "Your answers were saved."
+msgstr "Deine Antworten wurden gespeichert."
+
+#. translators: %s: list of setting names.
+#: src/Admin/SettingsTools.php:252
+#, php-format
+msgid "Changed: %s."
+msgstr "Geändert: %s."
+
+#: src/Admin/SettingsTools.php:258
+msgid "Check the suggestion of the country profile below and apply the rows you want; nothing is ticked in advance."
+msgstr "Prüfe den Vorschlag des Länderprofils unten und übernimm die Zeilen, die du willst; nichts ist vorab angehakt."
+
+#: src/Admin/SettingsTools.php:274
+msgid "Change the answers"
+msgstr "Antworten ändern"
+
+#: src/Admin/SettingsTools.php:274
+msgid "Answer the questions"
+msgstr "Fragen beantworten"
+
+#: src/Admin/SettingsTools.php:279
+msgid "1. Which country profile fits your shop?"
+msgstr "1. Welches Länderprofil passt zu deinem Shop?"
+
+#: src/Admin/SettingsTools.php:280
+msgid "None: keep the current values"
+msgstr "Keins: aktuelle Werte behalten"
+
+#: src/Admin/SettingsTools.php:284
+msgid "Suggests retention, consent and notice periods. You see every value before anything changes; no value of a profile has been through a legal review yet."
+msgstr "Schlägt Aufbewahrung, Zustimmungen und Ankündigungsfristen vor. Du siehst jeden Wert, bevor sich etwas ändert; kein Wert eines Profils wurde bisher rechtlich geprüft."
+
+#: src/Admin/SettingsTools.php:288
+msgid "2. How many staging copies may a customer run next to each live site?"
+msgstr "2. Wie viele Staging-Kopien darf ein Kunde neben jeder Live-Website betreiben?"
+
+#: src/Admin/SettingsTools.php:289
+msgid "3. How many days does a customer keep access when an automatic payment fails?"
+msgstr "3. Wie viele Tage behält ein Kunde den Zugang, wenn eine automatische Zahlung scheitert?"
+
+#: src/Admin/SettingsTools.php:307
+msgid "Save the answers"
+msgstr "Antworten speichern"
+
+#: src/Admin/SettingsTools.php:335
+msgid "No test email was sent: choose one of the license emails."
+msgstr "Keine Test-E-Mail gesendet: Wähle eine der Lizenz-E-Mails."
+
+#: src/Admin/SettingsTools.php:338
+msgid "No test email was sent: enter a valid email address."
+msgstr "Keine Test-E-Mail gesendet: Gib eine gültige E-Mail-Adresse ein."
+
+#: src/Admin/SettingsTools.php:341
+msgid "No test email was sent: choose one of the installed languages."
+msgstr "Keine Test-E-Mail gesendet: Wähle eine der installierten Sprachen."
+
+#. translators: %s: number of emails.
+#: src/Admin/SettingsTools.php:352
+#, php-format
+msgid "No test email was sent: you sent %s test emails within the last hour. Try again later."
+msgstr "Keine Test-E-Mail gesendet: Du hast in der letzten Stunde %s Test-E-Mails gesendet. Versuche es später noch einmal."
+
+#: src/Admin/SettingsTools.php:361
+msgid "WordPress could not hand the test email over for sending. Check the email setup of this site."
+msgstr "WordPress konnte die Test-E-Mail nicht zum Versand übergeben. Prüfe die E-Mail-Einrichtung dieser Website."
+
+#. translators: 1: title of the email, 2: email address, 3: language code.
+#: src/Admin/SettingsTools.php:367
+#, php-format
+msgid "The test email \"%1$s\" was handed over for sending to %2$s (language: %3$s). It contains sample data only."
+msgstr "Die Test-E-Mail „%1$s“ wurde zum Versand an %2$s übergeben (Sprache: %3$s). Sie enthält nur Beispieldaten."
+
+#: src/Admin/SettingsTools.php:602
+msgid "Send a test email"
+msgstr "Test-E-Mail senden"
+
+#. translators: %s: number of emails.
+#: src/Admin/SettingsTools.php:604
+#, php-format
+msgid "Sends one license email with the sample data of the preview to any address, in any installed language, also when the email is switched off for customers. The subject starts with \"[Test]\". At most %s test emails per hour."
+msgstr "Sendet eine Lizenz-E-Mail mit den Beispieldaten der Vorschau an eine beliebige Adresse und in einer installierten Sprache, auch wenn die E-Mail für Kunden ausgeschaltet ist. Der Betreff beginnt mit „[Test]“. Höchstens %s Test-E-Mails je Stunde."
+
+#: src/Admin/SettingsTools.php:612
+msgid "Send to"
+msgstr "Senden an"
+
+#: src/Admin/SettingsTools.php:619
+msgid "Send test email"
+msgstr "Test-E-Mail senden"
+
+#. translators: %s: subject of the email.
+#: src/Notifications/Emails/LicenseEmail.php:213
+#, php-format
+msgid "[Test] %s"
+msgstr "[Test] %s"
+
+#: src/Security/KeyAge.php:232
+msgid "Response signing key"
+msgstr "Signaturschlüssel für Antworten"
+
+#: src/Security/KeyAge.php:246
+msgid "Add a new entry to WPLC_LICENSE_KEY_SECRETS, keep the old one, and point WPLC_LICENSE_KEY_ID to the new entry. Keys issued before keep working."
+msgstr "Füge WPLC_LICENSE_KEY_SECRETS einen neuen Eintrag hinzu, behalte den alten und lass WPLC_LICENSE_KEY_ID auf den neuen Eintrag zeigen. Bereits ausgegebene Schlüssel funktionieren weiter."
+
+#: src/Security/KeyAge.php:247
+msgid "Add a new entry to WPLC_INSTALLATION_ENCRYPTION_KEYS, keep the old one, point WPLC_INSTALLATION_ENCRYPTION_KEY_ID to it and run \"wp wplc rotate-installation-secrets --apply\"."
+msgstr "Füge WPLC_INSTALLATION_ENCRYPTION_KEYS einen neuen Eintrag hinzu, behalte den alten, lass WPLC_INSTALLATION_ENCRYPTION_KEY_ID darauf zeigen und führe „wp wplc rotate-installation-secrets --apply“ aus."
+
+#: src/Security/KeyAge.php:248
+msgid "Prepare the next key with \"wp wplc signing-key --prepare\", ship its public key with a release of your add-ons, then switch with \"wp wplc signing-key --rotate\" (or replace WPLC_RESPONSE_SIGNING_KEY)."
+msgstr "Bereite den nächsten Schlüssel mit „wp wplc signing-key --prepare“ vor, liefere seinen öffentlichen Schlüssel mit einem Release deiner Add-ons aus und wechsle dann mit „wp wplc signing-key --rotate“ (oder ersetze WPLC_RESPONSE_SIGNING_KEY)."
+
+#: src/Settings/Texts.php:33
+msgid "Customer account"
+msgstr "Kundenkonto"
+
+#: src/Settings/Texts.php:109
+msgid "Object storage: bucket"
+msgstr "Objektspeicher: Bucket"
+
+#: src/Settings/Texts.php:110
+msgid "Name of the private bucket that update packages are delivered from (S3-compatible storage such as Amazon S3 or Cloudflare R2). Empty (default) = no object storage. The access key ID and the secret stay in wp-config.php (WPLC_S3_ACCESS_KEY_ID, WPLC_S3_SECRET_ACCESS_KEY); without them the bucket is not used. When WPLC_S3_BUCKET is defined in wp-config.php, the constant wins and the field is read-only."
+msgstr "Name des privaten Buckets, aus dem Update-Pakete ausgeliefert werden (S3-kompatibler Speicher wie Amazon S3 oder Cloudflare R2). Leer (Vorgabe) = kein Objektspeicher. Zugangsschlüssel-ID und Geheimnis bleiben in der wp-config.php (WPLC_S3_ACCESS_KEY_ID, WPLC_S3_SECRET_ACCESS_KEY); ohne sie wird der Bucket nicht benutzt. Ist WPLC_S3_BUCKET in der wp-config.php definiert, gewinnt die Konstante und das Feld ist schreibgeschützt."
+
+#: src/Settings/Texts.php:113
+msgid "Object storage: region"
+msgstr "Objektspeicher: Region"
+
+#: src/Settings/Texts.php:114
+msgid "Region of the bucket, for example eu-central-1; auto for Cloudflare R2. Empty (default) = us-east-1. When WPLC_S3_REGION is defined in wp-config.php, the constant wins and the field is read-only."
+msgstr "Region des Buckets, zum Beispiel eu-central-1; auto für Cloudflare R2. Leer (Vorgabe) = us-east-1. Ist WPLC_S3_REGION in der wp-config.php definiert, gewinnt die Konstante und das Feld ist schreibgeschützt."
+
+#: src/Settings/Texts.php:117
+msgid "Object storage: endpoint"
+msgstr "Objektspeicher: Endpunkt"
+
+#: src/Settings/Texts.php:118
+msgid "HTTPS address of the storage service without a path, for example https://ACCOUNT-ID.r2.cloudflarestorage.com. Empty (default) = Amazon S3 in the region above. When WPLC_S3_ENDPOINT is defined in wp-config.php, the constant wins and the field is read-only."
+msgstr "HTTPS-Adresse des Speicherdienstes ohne Pfad, zum Beispiel https://ACCOUNT-ID.r2.cloudflarestorage.com. Leer (Vorgabe) = Amazon S3 in der Region oben. Ist WPLC_S3_ENDPOINT in der wp-config.php definiert, gewinnt die Konstante und das Feld ist schreibgeschützt."
+
+#: src/Settings/Texts.php:121
+msgid "Object storage: bucket in the path"
+msgstr "Objektspeicher: Bucket im Pfad"
+
+#: src/Settings/Texts.php:122
+msgid "On: the bucket is addressed in the path of the address (https://endpoint/bucket/…), which some providers such as MinIO need. Off (default): the bucket is a subdomain of the endpoint; bucket names with dots or capital letters always use the path. When WPLC_S3_PATH_STYLE is defined in wp-config.php, the constant wins and the field is read-only."
+msgstr "An: Der Bucket wird im Pfad der Adresse angesprochen (https://endpunkt/bucket/…), was manche Anbieter wie MinIO brauchen. Aus (Vorgabe): Der Bucket ist eine Subdomain des Endpunkts; Bucket-Namen mit Punkten oder Großbuchstaben nutzen immer den Pfad. Ist WPLC_S3_PATH_STYLE in der wp-config.php definiert, gewinnt die Konstante und das Feld ist schreibgeschützt."
+
+#: src/Settings/Texts.php:253
+msgid "Address of the license page"
+msgstr "Adresse der Lizenzseite"
+
+#: src/Settings/Texts.php:254
+msgid "Last part of the address of the license page in the customer account, for example licenses or lizenzen: lowercase letters, digits and hyphens. Default: wplc-licenses. The new address works at once; links in emails sent before lead to the old address and find no page. It must differ from the site page and from the other pages of the account."
+msgstr "Letzter Teil der Adresse der Lizenzseite im Kundenkonto, zum Beispiel licenses oder lizenzen: Kleinbuchstaben, Ziffern und Bindestriche. Vorgabe: wplc-licenses. Die neue Adresse gilt sofort; Links in vorher gesendeten E-Mails führen zur alten Adresse und finden keine Seite. Sie muss sich von der Website-Seite und den anderen Seiten des Kontos unterscheiden."
+
+#: src/Settings/Texts.php:257
+msgid "Menu item of the license page"
+msgstr "Menüpunkt der Lizenzseite"
+
+#: src/Settings/Texts.php:258
+msgid "Name of the license page in the menu of the customer account and its heading. Empty (default) = \"Licenses\" in the language of the customer. Your own name is shown as it is in every language."
+msgstr "Name der Lizenzseite im Menü des Kundenkontos und ihre Überschrift. Leer (Vorgabe) = „Lizenzen“ in der Sprache des Kunden. Dein eigener Name wird in jeder Sprache so gezeigt, wie er ist."
+
+#: src/Settings/Texts.php:261
+msgid "Licenses per page"
+msgstr "Lizenzen je Seite"
+
+#: src/Settings/Texts.php:262
+msgid "How many licenses the license page of the customer account shows at a time; further licenses are on the next pages. Default: 10."
+msgstr "Wie viele Lizenzen die Lizenzseite des Kundenkontos auf einmal zeigt; weitere Lizenzen stehen auf den nächsten Seiten. Vorgabe: 10."
+
+#: src/Settings/Texts.php:265
+msgid "Address of the site page"
+msgstr "Adresse der Website-Seite"
+
+#: src/Settings/Texts.php:266
+msgid "Last part of the address of the page \"Sites\" in the customer account, for example sites or websites: lowercase letters, digits and hyphens. Default: wplc-sites. It must differ from the license page and from the other pages of the account."
+msgstr "Letzter Teil der Adresse der Seite „Websites“ im Kundenkonto, zum Beispiel sites oder websites: Kleinbuchstaben, Ziffern und Bindestriche. Vorgabe: wplc-sites. Sie muss sich von der Lizenzseite und den anderen Seiten des Kontos unterscheiden."
+
+#: src/Settings/Texts.php:269
+msgid "Menu item of the site page"
+msgstr "Menüpunkt der Website-Seite"
+
+#: src/Settings/Texts.php:270
+msgid "Name of the page \"Sites\" in the menu of the customer account. Empty (default) = \"Sites\" in the language of the customer. Your own name is shown as it is in every language."
+msgstr "Name der Seite „Websites“ im Menü des Kundenkontos. Leer (Vorgabe) = „Websites“ in der Sprache des Kunden. Dein eigener Name wird in jeder Sprache so gezeigt, wie er ist."
+
+#: src/Settings/Texts.php:273
+msgid "Sites per page"
+msgstr "Websites je Seite"
+
+#: src/Settings/Texts.php:274
+msgid "How many sites the page \"Sites\" of the customer account shows at a time. Default: 25."
+msgstr "Wie viele Websites die Seite „Websites“ des Kundenkontos auf einmal zeigt. Vorgabe: 25."
+
+#: src/Settings/Texts.php:277
+msgid "Site counts as not seen after"
+msgstr "Website gilt als nicht gesehen nach"
+
+#: src/Settings/Texts.php:278
+msgid "Days without contact after which the page \"Sites\" marks a site with \"No contact for more than … days\". Default: 14."
+msgstr "Tage ohne Kontakt, nach denen die Seite „Websites“ eine Website mit „Seit mehr als … Tagen kein Kontakt“ markiert. Vorgabe: 14."
+
+#: src/Settings/Texts.php:281
+msgid "License counts as ending soon"
+msgstr "Lizenz gilt als bald endend"
+
+#: src/Settings/Texts.php:282
+msgid "Days before the end of the paid period from which the page \"Sites\" marks a license that does not renew automatically as ending soon. Default: 30."
+msgstr "Tage vor dem Ende der bezahlten Zeit, ab denen die Seite „Websites“ eine Lizenz ohne automatische Verlängerung als bald endend markiert. Vorgabe: 30."
+
+#: src/Settings/Texts.php:354
+msgid "Remind to rotate keys after"
+msgstr "An Schlüsselwechsel erinnern nach"
+
+#: src/Settings/Texts.php:355
+msgid "Months after which the license key secret, the installation secret encryption key and the response signing key should be replaced. A key that is older is shown on the diagnostics page, raises the health figure \"Keys due for rotation\" and a notice for administrators. Default: 0 = no reminder. The age counts from the day this server first saw the key (keys carry no date of their own; for keys that existed before, from the first day after the update that added this setting). Replacing a key stays a task for wp-config.php and WP-CLI."
+msgstr "Monate, nach denen das Geheimnis für Lizenzschlüssel, der Verschlüsselungsschlüssel für Installationsgeheimnisse und der Signaturschlüssel für Antworten ersetzt werden sollten. Ein älterer Schlüssel wird auf der Diagnoseseite gezeigt, erhöht die Kennzahl „Fällige Schlüsselwechsel“ und löst einen Hinweis für Administratoren aus. Vorgabe: 0 = keine Erinnerung. Das Alter zählt ab dem Tag, an dem dieser Server den Schlüssel zuerst gesehen hat (Schlüssel tragen kein eigenes Datum; bei schon vorhandenen Schlüsseln ab dem ersten Tag nach dem Update, das diese Einstellung gebracht hat). Der Wechsel selbst bleibt Aufgabe der wp-config.php und von WP-CLI."
+
+#: src/Settings/Texts.php:387
+msgid "Keys due for rotation"
+msgstr "Fällige Schlüsselwechsel"
+
+#: src/Update/S3Storage.php:448
+msgid "Object storage is not configured (bucket under License settings → Updates or WPLC_S3_BUCKET, and WPLC_S3_ACCESS_KEY_ID and WPLC_S3_SECRET_ACCESS_KEY in wp-config.php)."
+msgstr "Objektspeicher ist nicht eingerichtet (Bucket unter Lizenzeinstellungen → Updates oder WPLC_S3_BUCKET, dazu WPLC_S3_ACCESS_KEY_ID und WPLC_S3_SECRET_ACCESS_KEY in der wp-config.php)."
+
+#: src/Update/S3Storage.php:449
+msgid "Object storage is configured incompletely: the bucket (License settings → Updates or WPLC_S3_BUCKET), WPLC_S3_ACCESS_KEY_ID and WPLC_S3_SECRET_ACCESS_KEY are all required."
+msgstr "Objektspeicher ist unvollständig eingerichtet: Bucket (Lizenzeinstellungen → Updates oder WPLC_S3_BUCKET), WPLC_S3_ACCESS_KEY_ID und WPLC_S3_SECRET_ACCESS_KEY sind alle nötig."
+
+#: src/Update/S3Storage.php:450
+msgid "The bucket (setting or WPLC_S3_BUCKET) is not a valid bucket name."
+msgstr "Der Bucket (Einstellung oder WPLC_S3_BUCKET) ist kein gültiger Bucket-Name."
+
+#: src/Update/S3Storage.php:452
+msgid "The region (setting or WPLC_S3_REGION) is not a valid region name."
+msgstr "Die Region (Einstellung oder WPLC_S3_REGION) ist kein gültiger Regionsname."
+
+#: src/Update/S3Storage.php:453
+msgid "The endpoint (setting or WPLC_S3_ENDPOINT) must be an HTTPS address on the standard port without a path, for example https://s3.eu-central-1.amazonaws.com."
+msgstr "Der Endpunkt (Einstellung oder WPLC_S3_ENDPOINT) muss eine HTTPS-Adresse auf dem Standard-Port ohne Pfad sein, zum Beispiel https://s3.eu-central-1.amazonaws.com."
