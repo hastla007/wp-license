@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Changed (23 Nov 2026: client library 2.3.0, license screen of the server)
+
+- **Client library 2.3.0:** a product can give its own texts (`texts`, an array code => text or a callable) that replace texts of the library; stored credentials without a key hash no longer count as "this key is already active". No action for add-ons (`packaging/client/CHANGELOG-CLIENT.md`).
+- **Own license of the server:** its license screen, notices and Site Health texts are translated (German "du" and "Sie"; the texts of the library are now part of the translation template) and no longer speak of premium features that are switched off: without a valid license the plugin keeps working and only gets no updates and no support.
+
 ### Fixed (23 Nov 2026: security audit of 14 Nov 2026 checked point by point)
 
 - **Cash on delivery and existing licenses:** a manual renewal order or a plan upgrade order paid by cash on delivery is "processing" in WooCommerce before any money arrived. Both were booked at that moment: the term was extended, the higher plan applied. They now wait for "completed", like a first purchase (filter `wplc_issue_after_completion_gateways`, default `cod`).
