@@ -277,6 +277,8 @@ final class LicenseIssuer {
 		/**
 		 * Filters the payment methods whose orders only get their licenses once the order is completed.
 		 *
+		 * The same list decides when a manual renewal order and a plan upgrade order count as paid.
+		 *
 		 * @since 0.2.0
 		 *
 		 * @param string[]  $gateway_ids Default: cash on delivery.
