@@ -68,11 +68,11 @@ final class TermDisplay {
 		 *
 		 * @since 0.2.0
 		 *
-		 * @param bool                     $show    Default true.
+		 * @param bool                     $show    Default: the setting "Show the license term at the price" (on).
 		 * @param \WC_Product              $product Product.
 		 * @param array<string,mixed>|null $mapping Plan of the product.
 		 */
-		if ( ! $mapping || ! apply_filters( 'wplc_show_license_term', true, $product, $mapping ) ) {
+		if ( ! $mapping || ! apply_filters( 'wplc_show_license_term', \WPLC\Settings\Registry::bool( 'show_license_term' ), $product, $mapping ) ) {
 			return $html;
 		}
 

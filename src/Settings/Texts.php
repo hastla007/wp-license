@@ -160,6 +160,22 @@ final class Texts {
 				__( 'Upgrade offer valid for', 'wp-license' ),
 				__( 'Hours during which an unpaid upgrade order keeps its prorated price. The price falls every day; after this time the customer clicks "Upgrade" again for a new price. Default: 24.', 'wp-license' ),
 			),
+			'show_license_term'         => array(
+				__( 'Show the license term at the price', 'wp-license' ),
+				__( 'On (default): the price of a license product shows its term, for example "/ year". Off: the price is shown as WooCommerce prints it.', 'wp-license' ),
+			),
+			'renew_unsold_products'     => array(
+				__( 'Renew licenses of products no longer sold', 'wp-license' ),
+				__( 'Off (default): a customer cannot renew a license by hand in the account while its product is not for sale (private, draft or not purchasable). On: such a license can still be renewed at the price of its plan. Automatic renewals are not affected.', 'wp-license' ),
+			),
+			'renewal_off_on_card_deletion' => array(
+				__( 'Deleting the saved card ends automatic renewal', 'wp-license' ),
+				__( 'On (default): when the customer deletes the saved payment method in the account, through a personal data erasure or by deleting the account, automatic renewal of the licenses paid with it is switched off. Off: automatic renewal stays on, and the next charge fails unless another component moves the licenses to a new payment method.', 'wp-license' ),
+			),
+			'issue_after_completion_gateways' => array(
+				__( 'Payment methods paid on delivery', 'wp-license' ),
+				__( 'IDs of WooCommerce payment methods, one per line, whose orders count as paid only when they are completed, because the order is "processing" before the money arrived. Licenses, manual renewals and plan upgrades paid with them start when you complete the order. Default: cod (cash on delivery).', 'wp-license' ),
+			),
 			'offline_cache_days'        => array(
 				__( 'Offline period of customer sites', 'wp-license' ),
 				__( 'Days a customer site may rely on the last signed answer of this server when it cannot reach it. Default: 14. The period never reaches beyond the end of access of the license: a license whose paid period or grace period ends earlier stops working offline at that end. A plan can set its own period in the product editor.', 'wp-license' ),
@@ -227,6 +243,10 @@ final class Texts {
 			'withdrawal_consent_text'   => array(
 				__( 'Wording of the withdrawal consent', 'wp-license' ),
 				__( 'Text next to the checkbox. Empty (default) = the built-in wording in the language of the customer. Your own wording is shown as it is in every language. The text the customer saw is stored with the order as proof.', 'wp-license' ),
+			),
+			'public_cancel_hourly_limit' => array(
+				__( 'Cancellation page: requests per hour', 'wp-license' ),
+				__( 'How many cancellation requests the public cancellation page (shortcode [wplc_cancel]) accepts per hour, counted per visitor address, per license reference and, for order numbers, per email address. Default: 5. The page itself is shown where you place the shortcode. Whether it meets a legal requirement for a cancellation button in your country is for you to check.', 'wp-license' ),
 			),
 			'recurring_consent_text'    => array(
 				__( 'Wording of the consent to automatic renewal', 'wp-license' ),

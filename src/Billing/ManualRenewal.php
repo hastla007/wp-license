@@ -82,10 +82,10 @@ final class ManualRenewal {
 		/**
 		 * Filters whether customers may renew a license in their account when its product is not for sale.
 		 *
-		 * @param bool                $allowed False (default): no customer renewal; true: renewal at the plan price.
+		 * @param bool                $allowed Default: the setting "Renew licenses of products no longer sold" (off: no customer renewal; on: renewal at the plan price).
 		 * @param array<string,mixed> $license License row.
 		 */
-		if ( (bool) apply_filters( 'wplc_manual_renewal_for_unsold_products', false, $license ) ) {
+		if ( (bool) apply_filters( 'wplc_manual_renewal_for_unsold_products', \WPLC\Settings\Registry::bool( 'renew_unsold_products' ), $license ) ) {
 			return false;
 		}
 

@@ -212,6 +212,33 @@ final class Definitions {
 				'max'     => 168,
 				'group'   => 'rules',
 			),
+			// Switches for functions that were filters only (SET-LIC-26).
+			'show_license_term'         => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_show_license_term',
+			),
+			'renew_unsold_products'     => array(
+				'type'    => 'bool',
+				'default' => 0,
+				'group'   => 'rules',
+				'filter'  => 'wplc_manual_renewal_for_unsold_products',
+			),
+			'renewal_off_on_card_deletion' => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_disable_renewal_on_token_deletion',
+			),
+			'issue_after_completion_gateways' => array(
+				'type'      => 'string_list',
+				'default'   => array( 'cod' ),
+				'pattern'   => '/^[a-z0-9][a-z0-9_-]{0,63}$/',
+				'max_items' => 20,
+				'group'     => 'rules',
+				'filter'    => 'wplc_issue_after_completion_gateways',
+			),
 
 			// Customer sites.
 			'offline_cache_days'        => array(
@@ -342,6 +369,15 @@ final class Definitions {
 				'group'      => 'legal',
 				'filter'     => 'wplc_withdrawal_consent_text',
 				'legal'      => true,
+			),
+			'public_cancel_hourly_limit' => array(
+				'type'    => 'int',
+				'default' => 5,
+				'min'     => 1,
+				'max'     => 100,
+				'group'   => 'legal',
+				'filter'  => 'wplc_public_cancel_hourly_limit',
+				'legal'   => true,
 			),
 			'recurring_consent_text'    => array(
 				'type'       => 'text',

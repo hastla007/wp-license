@@ -504,4 +504,70 @@ final class PolicySettingsIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertEqualsWithDelta( time() + 90, strtotime( $expires . ' UTC' ), 5 );
 		remove_all_filters( 'wplc_update_packages' );
 	}
+
+	// ------------------------------------------------------------------ SET-LIC-26
+
+	/** SET-LIC-26: switches for functions that were filters only; defaults as before, the filters win. */
+	public function test_switches_for_functions_that_were_filters(): void {
+		// Term at the price.
+		$product = $this->create_license_product();
+		$product = wc_get_product( $product->get_id() );
+		$this->assertNotSame( 'PRICE', \WPLC\Catalog\TermDisplay::price_html( 'PRICE', $product ), 'Default: the term is shown.' );
+		$this->submit( array( 'show_license_term' => '0' ) );
+		$this->assertSame( 'PRICE', \WPLC\Catalog\TermDisplay::price_html( 'PRICE', $product ) );
+		add_filter( 'wplc_show_license_term', '__return_true' );
+		$this->assertNotSame( 'PRICE', \WPLC\Catalog\TermDisplay::price_html( 'PRICE', $product ), 'The filter wins.' );
+		remove_all_filters( 'wplc_show_license_term' );
+
+		// Manual renewal of products that are no longer sold.
+		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
+		$order    = $this->create_paid_order( array( array( $product, 1 ) ), $customer );
+		$license = $this->licenses_for_order( $order->get_id() )[0];
+		$product->set_status( 'private' );
+		$product->save();
+		$this->assertTrue( \WPLC\Billing\ManualRenewal::blocked_as_not_for_sale( $license ), 'Default: blocked as before.' );
+		$this->submit( array( 'renew_unsold_products' => '1' ) );
+		$this->assertFalse( \WPLC\Billing\ManualRenewal::blocked_as_not_for_sale( $license ) );
+
+		// Payment methods paid on delivery.
+		$paid = $this->create_order( array( array( $this->create_license_product( array( 'plan_key' => 'bank' ) ), 1 ) ), $customer );
+		$paid->set_payment_method( 'bacs' );
+		$paid->set_status( 'processing' );
+		$paid->save();
+		$this->assertTrue( \WPLC\License\LicenseIssuer::money_has_arrived( $paid ), 'Default: only cash on delivery waits.' );
+		$this->submit( array( 'issue_after_completion_gateways' => "cod\nbacs" ) );
+		$this->assertSame( array( 'cod', 'bacs' ), Registry::list( 'issue_after_completion_gateways' ) );
+		$this->assertFalse( \WPLC\License\LicenseIssuer::money_has_arrived( $paid ) );
+		$this->submit( array( 'issue_after_completion_gateways' => 'Not a gateway!' ) );
+		$this->assertSame( array( 'cod', 'bacs' ), Registry::list( 'issue_after_completion_gateways' ), 'Invalid IDs are refused.' );
+
+		// Deleting the saved card.
+		$card = $this->seed_license( array( 'renewal_enabled' => 1, 'payment_token_id' => 4811 ) );
+		wp_set_current_user( $customer );
+		$GLOBALS['wp']->query_vars['delete-payment-method'] = '4811';
+		wp_set_current_user( $this->admin );
+		$this->submit( array( 'renewal_off_on_card_deletion' => '0' ) );
+		wp_set_current_user( $customer );
+		do_action( 'woocommerce_payment_token_deleted', 4811, null );
+		unset( $GLOBALS['wp']->query_vars['delete-payment-method'] );
+		$this->assertSame( 1, (int) $this->license( $card['id'] )['renewal_enabled'], 'Switched off: automatic renewal stays on.' );
+		wp_set_current_user( $this->admin );
+
+		// Cancellation page: requests per hour (legal weight).
+		$this->assertTrue( Registry::definition( 'public_cancel_hourly_limit' )['legal'] );
+		$this->submit( array( 'public_cancel_hourly_limit' => '2' ) );
+		$seen = null;
+		add_filter(
+			'wplc_public_cancel_hourly_limit',
+			static function ( $limit ) use ( &$seen ) {
+				$seen = $limit;
+				return $limit;
+			}
+		);
+		$method = new ReflectionMethod( \WPLC\Account\PublicCancellation::class, 'limited' );
+		$method->setAccessible( true );
+		$method->invoke( null, 'someone@example.test', 'WPLC-1A2B3C4D' );
+		remove_all_filters( 'wplc_public_cancel_hourly_limit' );
+		$this->assertSame( 2, $seen, 'The filter receives the setting.' );
+	}
 }

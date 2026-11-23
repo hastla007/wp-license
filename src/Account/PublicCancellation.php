@@ -214,9 +214,9 @@ final class PublicCancellation {
 		 * counted per client address, per reference and (for order numbers) per
 		 * e-mail address.
 		 *
-		 * @param int $limit Requests per hour.
+		 * @param int $limit Requests per hour. Default: the setting "Cancellation page: requests per hour" (5).
 		 */
-		$limit   = max( 1, (int) apply_filters( 'wplc_public_cancel_hourly_limit', self::DEFAULT_HOURLY_LIMIT ) );
+		$limit   = max( 1, (int) apply_filters( 'wplc_public_cancel_hourly_limit', \WPLC\Settings\Registry::int( 'public_cancel_hourly_limit' ) ) );
 		$ip      = class_exists( ClientIp::class ) ? ClientIp::current() : '';
 		// "WPLC-1A2B3C4D" and "1A2B3C4D" are the same reference.
 		$buckets = array( 'public-cancel-ref' => (string) preg_replace( '/^WPLC-(?=[0-9A-F]{8}$)/', '', $reference ) );

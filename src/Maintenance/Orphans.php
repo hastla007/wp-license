@@ -176,7 +176,8 @@ final class Orphans {
 		 * Filter whether deleting a payment method switches automatic renewal off.
 		 *
 		 * True by default only for deletions the customer asked for (My Account,
-		 * privacy erasure, deleted account). Return false when another component
+		 * privacy erasure, deleted account), and only while the setting "Deleting
+		 * the saved card ends automatic renewal" is on. Return false when another component
 		 * moves the licenses to a different payment method, or true for a
 		 * deletion of your own that should stop renewals.
 		 *
@@ -184,7 +185,9 @@ final class Orphans {
 		 * @param int    $token_id Deleted payment token ID.
 		 * @param string $context  'customer', 'privacy', 'user_deleted', 'gateway_sync' or 'other'.
 		 */
-		if ( ! apply_filters( 'wplc_disable_renewal_on_token_deletion', in_array( $context, array( 'customer', 'privacy', 'user_deleted' ), true ), $token_id, $context ) ) {
+		// SET-LIC-26: the setting "Deleting the saved card ends automatic renewal" (on) for the deletions the customer asked for.
+		$disable = \WPLC\Settings\Registry::bool( 'renewal_off_on_card_deletion' ) && in_array( $context, array( 'customer', 'privacy', 'user_deleted' ), true );
+		if ( ! apply_filters( 'wplc_disable_renewal_on_token_deletion', $disable, $token_id, $context ) ) {
 			return;
 		}
 		$tables = Schema::table_names();

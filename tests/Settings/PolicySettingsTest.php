@@ -244,4 +244,20 @@ final class PolicySettingsTest extends TestCase {
 		$this->assertSame( 30, \WPLC\Update\PackageStream::reuse_seconds() );
 		$this->assertSame( 60, \WPLC\Api\V1\UpdateService::grant_seconds() );
 	}
+
+	// ------------------------------------------------------------------ SET-LIC-26
+
+	/** SET-LIC-26: the switches default to what the filters returned so far. */
+	public function test_switches_default_to_the_filter_defaults(): void {
+		$defaults = Registry::defaults();
+		$this->assertSame( 1, $defaults['show_license_term'] );
+		$this->assertSame( 0, $defaults['renew_unsold_products'] );
+		$this->assertSame( 1, $defaults['renewal_off_on_card_deletion'] );
+		$this->assertSame( array( 'cod' ), $defaults['issue_after_completion_gateways'] );
+		$this->assertSame( \WPLC\Account\PublicCancellation::DEFAULT_HOURLY_LIMIT, $defaults['public_cancel_hourly_limit'] );
+		$this->assertTrue( Registry::definition( 'public_cancel_hourly_limit' )['legal'], 'The cancellation page needs a legal review.' );
+		$this->assertSame( array( 'cod', 'bacs', 'my_gateway-2' ), Registry::validate( 'issue_after_completion_gateways', "COD\nbacs\nmy_gateway-2" )['value'] );
+		$this->assertSame( 'invalid_entries', Registry::validate( 'issue_after_completion_gateways', 'gateway!' )['code'] );
+		$this->assertSame( 'out_of_range', Registry::validate( 'public_cancel_hourly_limit', '0' )['code'] );
+	}
 }
