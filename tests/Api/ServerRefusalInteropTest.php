@@ -104,7 +104,6 @@ final class ServerRefusalInteropTest extends TestCase {
 		$this->kit = new WPLC_Client_Test_Kit();
 		// The signing key of this server is the key the add-on pins (the fake server of the kit uses the same seed).
 		$property = new ReflectionProperty( ResponseSigner::class, 'secret_key' );
-		$property->setAccessible( true );
 		$property->setValue( null, ResponseSigner::secret_key_from( base64_encode( str_repeat( "\x07", 32 ) ) ) );
 		$this->previous_wpdb = $GLOBALS['wpdb'] ?? null;
 	}

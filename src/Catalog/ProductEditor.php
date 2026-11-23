@@ -676,6 +676,18 @@ final class ProductEditor {
 	}
 
 	/**
+	 * Mirror the values of a plan that was saved outside the product editor (WP-CLI) in the product
+	 * meta, so the editor shows what the plan holds.
+	 *
+	 * @param \WC_Product         $product Product.
+	 * @param array<string,mixed> $data    product_key, plan_key, billing_interval, live_site_limit, support_level, entitlements.
+	 * @return void
+	 */
+	public static function mirror_meta( $product, array $data ): void {
+		self::write_meta( $product, $data, true );
+	}
+
+	/**
 	 * Keep the catalog in step with a product that was saved anywhere.
 	 *
 	 * - A mapped product: its plan takes over the current regular price (quick

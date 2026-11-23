@@ -58,6 +58,29 @@
         "de_DE_formal": "Erweiterte Protokolle"
       },
       "status": "planned"
+    },
+    {
+      "key": "workflow.custom_connectors",
+      "label": {
+        "en": "Runtime for custom connectors",
+        "de_DE": "Laufzeit für eigene Connectoren",
+        "de_DE_formal": "Laufzeit für eigene Connectoren"
+      },
+      "description": {
+        "en": "The runtime only. Connectors of customer projects are products of their own.",
+        "de_DE": "Nur die Laufzeit. Connectoren für Kundenprojekte sind eigene Produkte.",
+        "de_DE_formal": "Nur die Laufzeit. Connectoren für Kundenprojekte sind eigene Produkte."
+      },
+      "status": "planned"
+    },
+    {
+      "key": "workflow.multisite_network",
+      "label": {
+        "en": "Network-wide workflows in a multisite network",
+        "de_DE": "Netzwerkweite Workflows in einem Multisite-Netzwerk",
+        "de_DE_formal": "Netzwerkweite Workflows in einem Multisite-Netzwerk"
+      },
+      "status": "planned"
     }
   ]
 }

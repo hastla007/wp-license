@@ -325,7 +325,6 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 
 		wp_set_current_user( $customer );
 		$release = new ReflectionMethod( \WPLC\Account\CustomerPortal::class, 'deactivate_site' );
-		$release->setAccessible( true );
 		$this->assertSame( 'site_deactivated', $release->invoke( null, (int) $row['id'] ) );
 		wp_set_current_user( 0 );
 		$this->assertCount( 0, $this->active_activations( $license['id'] ) );

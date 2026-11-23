@@ -18,7 +18,7 @@ No `composer.lock` is committed: the dependencies are development tools only and
 | PHPCS coding standard | `quality.yml` / `phpcs` | no (report only) | WordPress-Extra and WordPress-Docs style |
 | PHPStan level 5 | `quality.yml` / `phpstan` | yes (new errors) | Undefined methods/variables, wrong argument counts and types in `src/` and `wp-license.php` |
 | Plugin ZIP | `package.yml` / `zip` | yes | `bin/build-zip.sh` (the release build) on PHP 8.5: versions agree, ZIP contents, class map covers `src/` |
-| End-to-end run | `e2e.yml` / `e2e (WP latest, WC 11.2.2, PHP 8.5)` | yes | The 15 flows of `tests/e2e/` in a real WordPress + WooCommerce shop with MySQL 9.7, including concurrent requests ([tests/e2e/README.md](../tests/e2e/README.md)) |
+| End-to-end run | `e2e.yml` / `e2e (WP latest, WC 11.2.2, PHP 8.5)` | yes | The 16 flows of `tests/e2e/` in a real WordPress + WooCommerce shop with MySQL 9.7, including concurrent requests ([tests/e2e/README.md](../tests/e2e/README.md)) |
 
 `wordpress-integration` is a single job that fails unless every integration cell passed; use it (and `unit (8.5)`, `phpcs`, `phpstan`, `zip`, `e2e (…)`) as required checks.
 
@@ -44,7 +44,7 @@ Unit tests load `tests/bootstrap.php`, which only defines constants. They must n
 
 - Path case and percent-encoding are not normalized; spaces and raw UTF-8 in the path are accepted.
 - An empty port (`https://example.com:`) is accepted, a leading dot in the host is dropped, a NUL byte in the path becomes `_`.
-- `https://example.com/?` and `https://example.com/#` are rejected on PHP 8 but accepted on PHP 7.4, because `parse_url()` reports empty components only since PHP 8.0.
+- `https://example.com/?` and `https://example.com/#` are rejected (an empty query or fragment; `parse_url()` reports empty components since PHP 8.0, and the plugin needs PHP 8.5).
 
 ## Integration tests
 

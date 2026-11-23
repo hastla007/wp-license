@@ -14,6 +14,14 @@
  *   `wp i18n make-pot` of the add-on picks the strings up;
  * - `@package WPLC` becomes the first segment of the namespace.
  *
+ * It also writes `wplc-client-source.json` next to the copies (PK-06): version of the library, the
+ * commit of the license server repository the copies were made from, the checksum of the seven
+ * source files (the same value per version as in `packaging/client/checksums.json`) and the
+ * checksum of every exported file. A receiver reads the origin from this file instead of writing
+ * it down by hand. The commit comes from `--source-commit=`, else from `SOURCE.json` of the library
+ * package (`license-client-<version>.zip`), else from Git when the source is `src/Client` of a
+ * checkout of the license server; otherwise it is `unknown`.
+ *
  * Run it in the build step of the add-on (or once, and commit the result).
  * The script needs PHP only, no WordPress. The exported library (client 2.2.0 and later)
  * needs PHP 8.5, so the add-on declares at least `Requires PHP: 8.5`.
@@ -21,13 +29,13 @@
  * @package WPLC
  */
 
-// phpcs:disable WordPress.WP.AlternativeFunctions -- command line script without WordPress.
+// phpcs:disable WordPress.WP.AlternativeFunctions, WordPress.PHP.DiscouragedPHPFunctions -- command line script without WordPress.
 
 if ( 'cli' !== PHP_SAPI ) {
 	exit( 1 );
 }
 
-$wplc_options = getopt( '', array( 'target:', 'namespace:', 'text-domain:', 'source::' ) );
+$wplc_options = getopt( '', array( 'target:', 'namespace:', 'text-domain:', 'source::', 'source-commit::' ) );
 $wplc_target  = isset( $wplc_options['target'] ) ? rtrim( (string) $wplc_options['target'], '/' ) : '';
 $wplc_ns      = isset( $wplc_options['namespace'] ) ? trim( (string) $wplc_options['namespace'], '\\' ) : '';
 $wplc_domain  = isset( $wplc_options['text-domain'] ) ? (string) $wplc_options['text-domain'] : '';
@@ -49,10 +57,52 @@ if ( ! is_dir( $wplc_target ) && ! mkdir( $wplc_target, 0755, true ) ) {
 	exit( 1 );
 }
 
+/**
+ * Checksum of the library content: one line `<file name>\0<sha256 of the file>` per file, sorted
+ * by name, hashed again. bin/package-client.php and tests/Client/ClientSourceTest.php compute the same.
+ *
+ * @param array<string,string> $hashes File name => sha256 of the unchanged source file.
+ * @return string
+ */
+function wplc_export_content_sha256( array $hashes ): string {
+	ksort( $hashes, SORT_STRING );
+	$lines = '';
+	foreach ( $hashes as $name => $hash ) {
+		$lines .= $name . "\0" . $hash . "\n";
+	}
+
+	return hash( 'sha256', $lines );
+}
+
+/**
+ * Run a Git command in the source directory.
+ *
+ * @param string $dir     Directory.
+ * @param string $command Arguments after `git`.
+ * @return string|null Trimmed output, null on failure.
+ */
+function wplc_export_git( string $dir, string $command ): ?string {
+	if ( ! function_exists( 'exec' ) ) {
+		return null;
+	}
+	$output = array();
+	$status = 1;
+	exec( 'git -C ' . escapeshellarg( $dir ) . ' ' . $command . ' 2>/dev/null', $output, $status );
+
+	return 0 === $status ? trim( implode( "\n", $output ) ) : null;
+}
+
 $wplc_package = explode( '\\', $wplc_ns )[0];
 $wplc_count   = 0;
+$wplc_origin  = array();
+$wplc_copies  = array();
+$wplc_version = '';
 foreach ( (array) glob( $wplc_source . '/*.php' ) as $wplc_file ) {
 	$wplc_code = (string) file_get_contents( $wplc_file );
+	$wplc_origin[ basename( $wplc_file ) ] = hash( 'sha256', $wplc_code );
+	if ( 'LicenseManager.php' === basename( $wplc_file ) && 1 === preg_match( "/const VERSION = '([^']+)';/", $wplc_code, $wplc_match ) ) {
+		$wplc_version = $wplc_match[1];
+	}
 	$wplc_code = str_replace(
 		array( 'namespace WPLC\\Client;', "'wp-license'", '@package WPLC' ),
 		array( 'namespace ' . $wplc_ns . ';', "'" . $wplc_domain . "'", '@package ' . $wplc_package ),
@@ -66,7 +116,52 @@ foreach ( (array) glob( $wplc_source . '/*.php' ) as $wplc_file ) {
 		fwrite( STDERR, 'Cannot write ' . $wplc_target . '/' . basename( $wplc_file ) . ".\n" );
 		exit( 1 );
 	}
+	$wplc_copies[ basename( $wplc_file ) ] = hash( 'sha256', $wplc_code );
 	++$wplc_count;
 }
 
-fwrite( STDOUT, "Exported {$wplc_count} files to {$wplc_target} (namespace {$wplc_ns}, text domain {$wplc_domain}).\n" );
+// Origin of the copies (PK-06).
+$wplc_checksum = wplc_export_content_sha256( $wplc_origin );
+$wplc_commit   = isset( $wplc_options['source-commit'] ) && is_string( $wplc_options['source-commit'] ) ? strtolower( trim( $wplc_options['source-commit'] ) ) : '';
+$wplc_modified = false;
+if ( '' !== $wplc_commit && 1 !== preg_match( '/^[0-9a-f]{7,64}$/', $wplc_commit ) ) {
+	fwrite( STDERR, "--source-commit must be a Git commit hash.\n" );
+	exit( 2 );
+}
+if ( '' === $wplc_commit ) {
+	$wplc_package_source = dirname( $wplc_source, 2 ) . '/SOURCE.json';
+	$wplc_package_data   = is_file( $wplc_package_source ) ? json_decode( (string) file_get_contents( $wplc_package_source ), true ) : null;
+	if ( is_array( $wplc_package_data ) && isset( $wplc_package_data['content_sha256'], $wplc_package_data['source_commit'] ) ) {
+		// Library package: the commit is the one the package was built from, as long as the files are unchanged.
+		$wplc_commit   = (string) $wplc_package_data['source_commit'];
+		$wplc_modified = ! empty( $wplc_package_data['source_modified'] ) || $wplc_checksum !== (string) $wplc_package_data['content_sha256'];
+	} elseif ( 'src/Client/' === wplc_export_git( $wplc_source, 'rev-parse --show-prefix' ) && is_file( dirname( $wplc_source, 2 ) . '/wp-license.php' ) ) {
+		// Checkout of the license server.
+		$wplc_commit   = (string) wplc_export_git( $wplc_source, 'rev-parse HEAD' );
+		$wplc_modified = '' !== (string) wplc_export_git( $wplc_source, 'status --porcelain -- .' );
+	}
+}
+if ( 1 !== preg_match( '/^[0-9a-f]{7,64}$/', $wplc_commit ) ) {
+	$wplc_commit = 'unknown';
+}
+$wplc_record = array(
+	'library'         => 'WP License Captain license client (src/Client)',
+	'version'         => $wplc_version,
+	'source_commit'   => $wplc_commit,
+	'source_modified' => $wplc_modified,
+	'content_sha256'  => $wplc_checksum,
+	'namespace'       => $wplc_ns,
+	'text_domain'     => $wplc_domain,
+	'files'           => $wplc_copies,
+);
+if ( false === file_put_contents( $wplc_target . '/wplc-client-source.json', json_encode( $wplc_record, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n" ) ) {
+	fwrite( STDERR, 'Cannot write ' . $wplc_target . "/wplc-client-source.json.\n" );
+	exit( 1 );
+}
+if ( 'unknown' === $wplc_commit ) {
+	fwrite( STDERR, "Note: the source commit is unknown (no SOURCE.json of the library package, no Git checkout of the license server). Pass --source-commit=<hash>.\n" );
+} elseif ( $wplc_modified ) {
+	fwrite( STDERR, "Note: the source files differ from commit {$wplc_commit}; wplc-client-source.json says so (source_modified).\n" );
+}
+
+fwrite( STDOUT, "Exported {$wplc_count} files to {$wplc_target} (namespace {$wplc_ns}, text domain {$wplc_domain}; library {$wplc_version}, source commit {$wplc_commit}).\n" );

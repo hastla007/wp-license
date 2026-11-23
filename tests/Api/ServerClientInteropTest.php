@@ -30,7 +30,6 @@ final class ServerClientInteropTest extends TestCase {
 		$secret           = ResponseSigner::secret_key_from( base64_encode( str_repeat( "\x05", 32 ) ) );
 		$this->public_key = ResponseSigner::public_key_of( $secret );
 		$property         = new ReflectionProperty( ResponseSigner::class, 'secret_key' );
-		$property->setAccessible( true );
 		$property->setValue( null, $secret );
 	}
 

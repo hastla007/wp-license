@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-17T06:24:08+00:00\n"
+"POT-Creation-Date: 2026-11-23T09:30:41+00:00\n"
 "PO-Revision-Date: 2026-11-17 06:24+0000\n"
 "Language: de_DE_formal\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -18,7 +18,7 @@ msgstr ""
 #: wp-license.php
 #: src/Admin/LicenseAdmin.php:90
 #: src/Admin/LicenseAdmin.php:99
-#: src/Compatibility/Requirements.php:228
+#: src/Compatibility/Requirements.php:244
 #: src/Privacy/PersonalData.php:95
 #: src/Privacy/PersonalData.php:109
 #: src/Privacy/PersonalData.php:124
@@ -2217,43 +2217,43 @@ msgid "A customer account is required to buy a license. Please log in or create 
 msgstr "Für den Kauf einer Lizenz ist ein Kundenkonto erforderlich. Bitte melden Sie sich an oder erstellen Sie ein Konto und versuchen Sie es erneut."
 
 #. translators: 1: required WooCommerce version, 2: installed WooCommerce version.
-#: src/Compatibility/Requirements.php:395
+#: src/Compatibility/Requirements.php:413
 #, php-format
 msgid "WP License Captain requires WooCommerce %1$s or later; version %2$s is installed. Licenses keep working, but the automatic renewal option is not offered in the block checkout until WooCommerce is updated."
 msgstr "WP License Captain benötigt WooCommerce %1$s oder neuer; installiert ist Version %2$s. Lizenzen funktionieren weiterhin, aber die Option für die automatische Verlängerung wird im Block-Checkout erst nach einem WooCommerce-Update angeboten."
 
-#: src/Compatibility/Requirements.php:397
+#: src/Compatibility/Requirements.php:415
 #: src/Gateway/StripeRecurringAdapter.php:1261
 msgid "unknown"
 msgstr "unbekannt"
 
-#: src/Compatibility/Requirements.php:485
+#: src/Compatibility/Requirements.php:503
 msgid "The WooCommerce Stripe Gateway is not active."
 msgstr "Das WooCommerce Stripe Gateway ist nicht aktiv."
 
 #. translators: 1: installed Stripe gateway version, 2: required version.
-#: src/Compatibility/Requirements.php:492
+#: src/Compatibility/Requirements.php:510
 #, php-format
 msgid "WooCommerce Stripe Gateway %1$s is too old for automatic renewals; version %2$s or later is required."
 msgstr "WooCommerce Stripe Gateway %1$s ist für automatische Verlängerungen zu alt; erforderlich ist Version %2$s oder neuer."
 
 #. translators: 1: installed Stripe gateway version, 2: list of missing PHP classes or methods.
-#: src/Compatibility/Requirements.php:499
+#: src/Compatibility/Requirements.php:517
 #, php-format
 msgid "WooCommerce Stripe Gateway %1$s no longer provides the functions the renewal adapter needs (%2$s). Automatic renewals are switched off."
 msgstr "WooCommerce Stripe Gateway %1$s stellt die Funktionen, die der Verlängerungsadapter benötigt, nicht mehr bereit (%2$s). Automatische Verlängerungen sind abgeschaltet."
 
 #. translators: 1: installed Stripe gateway version, 2: newest verified version.
-#: src/Compatibility/Requirements.php:506
+#: src/Compatibility/Requirements.php:524
 #, php-format
 msgid "WooCommerce Stripe Gateway %1$s is newer than the last verified version %2$s. Automatic renewals stay enabled; test a renewal after gateway updates."
 msgstr "WooCommerce Stripe Gateway %1$s ist neuer als die zuletzt geprüfte Version %2$s. Automatische Verlängerungen bleiben aktiv; testen Sie nach Gateway-Updates eine Verlängerung."
 
-#: src/Compatibility/Requirements.php:570
+#: src/Compatibility/Requirements.php:588
 msgid "The Stripe payment method is not enabled in WooCommerce."
 msgstr "Die Zahlungsart Stripe ist in WooCommerce nicht aktiviert."
 
-#: src/Compatibility/Requirements.php:577
+#: src/Compatibility/Requirements.php:595
 msgid "Saved payment methods are switched off in the Stripe settings, so there is no card to renew with."
 msgstr "Gespeicherte Zahlungsarten sind in den Stripe-Einstellungen abgeschaltet; es gibt daher keine Karte für die Verlängerung."
 
@@ -4828,7 +4828,7 @@ msgid "The license settings were not saved."
 msgstr "Die Lizenzeinstellungen wurden nicht gespeichert."
 
 #. translators: 1: product name or variation, 2: error message.
-#: src/Catalog/ProductEditor.php:794
+#: src/Catalog/ProductEditor.php:806
 #, php-format
 msgid "License settings of \"%1$s\": %2$s"
 msgstr "Lizenzeinstellungen von „%1$s“: %2$s"
@@ -8769,7 +8769,7 @@ msgstr "Angebot gültig bis"
 
 #. translators: %s: minimum PHP version.
 #: src/Admin/Diagnostics.php:899
-#: src/Compatibility/Requirements.php:217
+#: src/Compatibility/Requirements.php:233
 #: src/Plugin.php:134
 #, php-format
 msgid "WP License Captain requires PHP %s or later."
@@ -8786,38 +8786,38 @@ msgstr "%1$s (mindestens %2$s)"
 
 #. translators: 1: MySQL or MariaDB, 2: version of the database server, 3: minimum version.
 #: src/Admin/Diagnostics.php:929
-#: src/Compatibility/Requirements.php:205
+#: src/Compatibility/Requirements.php:221
 #, php-format
 msgid "%1$s %2$s (minimum %3$s)"
 msgstr "%1$s %2$s (mindestens %3$s)"
 
 #. translators: 1: minimum MySQL version, 2: minimum MariaDB version, 3: MySQL or MariaDB, 4: version of this database server.
-#: src/Compatibility/Requirements.php:156
+#: src/Compatibility/Requirements.php:172
 #, php-format
 msgid "WP License Captain supports MySQL %1$s or later and MariaDB %2$s or later; this site uses %3$s %4$s. Nothing is blocked, but older database servers are not tested. Ask your host for an update."
 msgstr "WP License Captain unterstützt MySQL %1$s oder neuer und MariaDB %2$s oder neuer; diese Website nutzt %3$s %4$s. Nichts wird gesperrt, aber ältere Datenbankserver sind nicht getestet. Bitten Sie Ihren Hoster um ein Update."
 
-#: src/Compatibility/Requirements.php:183
+#: src/Compatibility/Requirements.php:199
 msgid "WP License Captain: PHP and database versions"
 msgstr "WP License Captain: PHP- und Datenbankversionen"
 
 #. translators: 1: running PHP version, 2: minimum PHP version.
-#: src/Compatibility/Requirements.php:202
+#: src/Compatibility/Requirements.php:218
 #, php-format
 msgid "PHP %1$s (minimum %2$s)"
 msgstr "PHP %1$s (mindestens %2$s)"
 
 #. translators: 1: minimum MySQL version, 2: minimum MariaDB version.
-#: src/Compatibility/Requirements.php:207
+#: src/Compatibility/Requirements.php:223
 #, php-format
 msgid "Database server version unknown (minimum MySQL %1$s or MariaDB %2$s)"
 msgstr "Version des Datenbankservers unbekannt (mindestens MySQL %1$s oder MariaDB %2$s)"
 
-#: src/Compatibility/Requirements.php:224
+#: src/Compatibility/Requirements.php:240
 msgid "PHP and the database server meet the requirements of WP License Captain"
 msgstr "PHP und der Datenbankserver erfüllen die Anforderungen von WP License Captain"
 
-#: src/Compatibility/Requirements.php:225
+#: src/Compatibility/Requirements.php:241
 msgid "PHP or the database server is older than WP License Captain supports"
 msgstr "PHP oder der Datenbankserver ist älter, als WP License Captain unterstützt"
 
@@ -8834,7 +8834,59 @@ msgid "WP License Captain requires WordPress %s or later."
 msgstr "WP License Captain benötigt WordPress %s oder neuer."
 
 #. translators: 1: required WordPress version, 2: installed WordPress version.
-#: src/Compatibility/Requirements.php:380
+#: src/Compatibility/Requirements.php:398
 #, php-format
 msgid "WP License Captain requires WordPress %1$s or later; version %2$s is installed. The plugin is not tested on this version. Please update WordPress."
 msgstr "WP License Captain benötigt WordPress %1$s oder neuer; installiert ist Version %2$s. Das Plugin ist mit dieser Version nicht getestet. Bitte aktualisieren Sie WordPress."
+
+#. translators: 1: product key, 2: WooCommerce product ID, 3: plan key, 4: plan ID.
+#: src/CLI/ProjectProductCommand.php:86
+#, php-format
+msgid "Project product %1$s created (WooCommerce product %2$d), plan %3$s has the ID %4$d."
+msgstr "Projektprodukt %1$s angelegt (WooCommerce-Produkt %2$d), der Tarif %3$s hat die ID %4$d."
+
+#. translators: 1: product key, 2: WooCommerce product ID, 3: plan key, 4: plan ID.
+#: src/CLI/ProjectProductCommand.php:88
+#, php-format
+msgid "Project product %1$s updated (WooCommerce product %2$d), plan %3$s has the ID %4$d."
+msgstr "Projektprodukt %1$s aktualisiert (WooCommerce-Produkt %2$d), der Tarif %3$s hat die ID %4$d."
+
+#: src/CLI/ProjectProductCommand.php:119
+msgid "--sites must be a number from 1 to 1000."
+msgstr "--sites muss eine Zahl von 1 bis 1000 sein."
+
+#: src/CLI/ProjectProductCommand.php:122
+msgid "--support must be community, standard or priority."
+msgstr "--support muss community, standard oder priority sein."
+
+#. translators: 1: plan key, 2: product key.
+#: src/CLI/ProjectProductCommand.php:135
+#, php-format
+msgid "Several WooCommerce products carry the plan %1$s of %2$s. Edit them in the product editor."
+msgstr "Mehrere WooCommerce-Produkte tragen den Tarif %1$s von %2$s. Bearbeiten Sie sie im Produkteditor."
+
+#: src/CLI/ProjectProductCommand.php:141
+msgid "Give --name: the product does not exist yet."
+msgstr "Geben Sie --name an: Das Produkt gibt es noch nicht."
+
+#. translators: 1: plan key, 2: product key.
+#: src/CLI/ProjectProductCommand.php:154
+#, php-format
+msgid "The plan %1$s of %2$s belongs to a product that is not private. This command only changes project products; edit the other ones in the product editor."
+msgstr "Der Tarif %1$s von %2$s gehört zu einem Produkt, das nicht privat ist. Dieser Befehl ändert nur Projektprodukte; bearbeiten Sie die anderen im Produkteditor."
+
+#: src/CLI/ProjectProductCommand.php:163
+msgid "WooCommerce did not save the product."
+msgstr "WooCommerce hat das Produkt nicht gespeichert."
+
+#. translators: %s: product key.
+#: src/CLI/ProjectProductCommand.php:223
+#, php-format
+msgid "The catalog has no entry for %s. Import the catalog file of the plugin first (wp wplc catalog import)."
+msgstr "Der Katalog hat keinen Eintrag für %s. Importieren Sie zuerst die Katalogdatei des Plugins (wp wplc catalog import)."
+
+#. translators: 1: product key, 2: comma-separated entitlement keys.
+#: src/CLI/ProjectProductCommand.php:228
+#, php-format
+msgid "The catalog file of %1$s does not define: %2$s"
+msgstr "Die Katalogdatei von %1$s definiert nicht: %2$s"

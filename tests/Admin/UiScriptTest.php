@@ -17,7 +17,7 @@ final class UiScriptTest extends TestCase {
 		$script = dirname( __DIR__ ) . '/js/wplc-ui.test.js';
 		$output = array();
 		$status = 0;
-		exec( escapeshellarg( $node ) . ' --test ' . escapeshellarg( $script ) . ' 2>&1', $output, $status );
+		exec( escapeshellarg( $node ) . ' --test --test-reporter=tap ' . escapeshellarg( $script ) . ' 2>&1', $output, $status );
 
 		$this->assertSame( 0, $status, implode( "\n", $output ) );
 		$this->assertStringContainsString( '# pass 3', implode( "\n", $output ) );
@@ -31,7 +31,7 @@ final class UiScriptTest extends TestCase {
 		$script = dirname( __DIR__ ) . '/js/wplc-product-editor.test.js';
 		$output = array();
 		$status = 0;
-		exec( escapeshellarg( $node ) . ' --test ' . escapeshellarg( $script ) . ' 2>&1', $output, $status );
+		exec( escapeshellarg( $node ) . ' --test --test-reporter=tap ' . escapeshellarg( $script ) . ' 2>&1', $output, $status );
 
 		$this->assertSame( 0, $status, implode( "\n", $output ) );
 		$this->assertStringContainsString( '# pass 4', implode( "\n", $output ) );

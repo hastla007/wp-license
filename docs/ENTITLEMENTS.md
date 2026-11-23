@@ -110,7 +110,7 @@ The keys below are the ones the product editor offers as tick boxes (`WPLC\Catal
 | Affiliate Captain Pro (`affiliate-captain-pro`) | `affiliate.extended_api`, `affiliate.automated_payouts`, `affiliate.white_label_portal`, `affiliate.webhooks` | Built. |
 | Pass Captain Pro (`pass-captain-pro`) | `pass.e_invoicing`, `pass.card_terminal`, `pass.waiting_room`, `pass.write_api`, `pass.white_label` | Built. `pass.e_invoicing` delivers XRechnung 3.0 XML (UBL and CII) and, since captain-pro `e54eda9` (16 Nov 2026), a ZUGFeRD PDF/A-3 with the CII XML embedded; the external validations of the PDF are still open there (captain-pro `docs/PASS-E-INVOICE.md`). |
 | Voucher Captain Pro (`voucher-captain-pro`) | none yet | No premium function is built. The cut of 16 Nov 2026 (owner decision) plans company orders, wallet passes, SMS delivery and white label (status `planned`, next section). Nothing can be sold for it yet. |
-| Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`), Course Captain Pro (`course-captain-pro`) | none yet | Planned (product status `planned` in the catalog file). The product keys resolve to the prefixes `workflow.`, `form.`, `review.`, `course.`; the product editor does not suggest them and offers no key for them. Six `workflow.*` keys are reserved (next section). |
+| Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`), Course Captain Pro (`course-captain-pro`) | none yet | Planned (product status `planned` in the catalog file). The product keys resolve to the prefixes `workflow.`, `form.`, `review.`, `course.`; the product editor does not suggest them and offers no key for them. Eight `workflow.*` keys are reserved (next section). |
 
 Support is the plan attribute `support.level` (`standard` or `priority`) and nothing else (owner decision of 16 Nov 2026, R-24). The three former keys `*.priority_support` (one each for `affiliate.`, `voucher.` and `pass.`), which no add-on checked, are no longer in the catalog. A plan or license that still stores one keeps it in the advanced JSON field; it has no effect.
 
@@ -137,8 +137,10 @@ These keys are reserved for functions that are planned but that no released add-
 | `workflow.advanced_logic` | Workflow Captain Pro: advanced logic |
 | `workflow.recipe_templates` | Workflow Captain Pro: recipe templates |
 | `workflow.extended_logs` | Workflow Captain Pro: extended logs |
+| `workflow.custom_connectors` | Workflow Captain Pro: runtime for custom connectors (the connectors of customer projects are products of their own) |
+| `workflow.multisite_network` | Workflow Captain Pro: network-wide workflows in a multisite network |
 
-The six `workflow.*` keys are boolean and belong to every plan (`single`, `business`, `agency`) once the add-on is released; captain-pro uses the same names (its TODO, WFC-PRO-03). No Workflow add-on exists yet, and `workflow-captain-pro` is a planned product key that the product editor does not suggest.
+The eight `workflow.*` keys are boolean and belong to every plan (`single`, `business`, `agency`) once the add-on is released; captain-pro uses the same names (its TODO, WFC-PRO-03). `workflow.custom_connectors` and `workflow.multisite_network` were reserved on 16 Nov 2026 (F-01 of the suite specification in wp-workflowmaster); there is no entitlement for delays, waiting steps stay in the free Workflow core. The add-on exists in captain-pro but is held back (not released); `workflow-captain-pro` stays a planned product key that the product editor does not suggest. On a multisite network every participating subsite of `workflow.multisite_network` holds its own activation and uses one live site (`MULTISITE.md`, "Add-ons on a customer network").
 
 ## Creating a project product
 
@@ -146,6 +148,14 @@ A project product is a plugin built for one client (for example a connector for 
 
 1. **Product.** Create a simple, virtual WooCommerce product, named the way the client should see it in their account and emails, and set its visibility to **Private** (Publish box → Visibility). Tick "License product" and enter the product key of the connector: key = plugin folder = text domain, for example `learnboating-form-connector`. The connector's catalog file uses its own entitlement prefix (one prefix per connector, see [CATALOG-FILE.md](CATALOG-FILE.md)). The price may stay at 0.
 2. **Plan.** In the same product box choose the plan key (for example `project`), the number of live sites and the entitlements of the connector. The plan stays active while the product is private; only moving the product to the trash deactivates it.
+
+   Steps 1 and 2 on the command line, after the catalog file of the connector was imported (`wp wplc catalog import <file>`):
+
+   ```
+   wp wplc project-product save --product=learnboating-form-connector --name="LearnBoating Form Connector" --sites=1 --format=json
+   ```
+
+   It creates the private product with the plan `project` and every available entitlement of the catalog file, or updates it when it exists, and prints the product ID and the plan ID (`docs/manual/10-wp-cli.md`; PK-07, `tests/integration/ProjectProductCliIntegrationTest.php`).
 3. **License by hand.** WooCommerce → Licenses → **Add license manually**: customer (user ID or email address of the client's account), the plan of the project product, the end date and a reason. Or on the command line:
 
    ```

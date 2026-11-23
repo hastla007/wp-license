@@ -469,6 +469,12 @@ final class SiteUrlNormalizationTest extends TestCase {
 			'other port'                => array( 'https://example.com:8443', 'https://example.com', false ),
 			'www is the whole host'     => array( 'https://www.com', 'https://com', false ),
 			'wwwshop is not www.'       => array( 'https://wwwshop.example.com', 'https://shop.example.com', false ),
+			// WF-MS-25: every subsite of a multisite network is a site of its own (B2), never the network root.
+			'two subsites of a subdirectory network' => array( 'https://example.com/zwei/', 'https://example.com/drei/', false ),
+			'subsite and main site'                  => array( 'https://example.com/zwei', 'https://example.com/', false ),
+			'two subsites of a subdomain network'    => array( 'https://zwei.example.com', 'https://drei.example.com', false ),
+			'mapped domain is a new address'         => array( 'https://shop-zwei.example', 'https://example.com/zwei', false ),
+			'subsite with and without www'           => array( 'https://www.example.com/zwei/', 'https://example.com/zwei', true ),
 		);
 	}
 

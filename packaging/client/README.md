@@ -10,6 +10,7 @@ There is no separate client plugin: every add-on carries its own copy of this li
 | --- | --- |
 | `src/Client/` | The library, namespace `WPLC\Client`. `load.php` requires the six classes. |
 | `bin/export-client.php` | Copies the library into an add-on under the add-on's own namespace and text domain. |
+| `SOURCE.json` | Version, source commit and checksum of the library in this package. The export script copies them into `wplc-client-source.json` of every export, so each add-on can tell which library it ships. |
 | `bin/client-contract-test.php` | Runs activate → check → update check → deactivate against your server and verifies the signatures. |
 | `CHANGELOG-CLIENT.md` | Changes by library version. |
 

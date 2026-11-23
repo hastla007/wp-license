@@ -32,7 +32,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 
 	public function test_every_registered_step_is_within_the_current_version(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 		$this->assertNotEmpty( $steps );
 		foreach ( array_keys( $steps ) as $version ) {
@@ -48,7 +47,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 
 	public function test_schema_13_adds_the_renewal_product_step(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 		$this->assertArrayHasKey( '13', $steps );
 		$this->assertSame( 'step_13_renewal_product_column', $steps['13'][1] );
@@ -58,7 +56,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 
 	public function test_schema_14_adds_the_renewal_review_step(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 		$this->assertArrayHasKey( '14', $steps );
 		$this->assertSame( 'step_14_renewal_review_columns', $steps['14'][1] );
@@ -69,7 +66,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 
 	public function test_schema_15_adds_the_list_index_step(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 		$this->assertArrayHasKey( '15', $steps );
 		$this->assertSame( 'step_15_list_indexes', $steps['15'][1] );
@@ -80,7 +76,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 
 	public function test_schema_16_adds_the_grant_activation_step(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 		$this->assertArrayHasKey( '16', $steps );
 		$this->assertSame( 'step_16_grant_activation_column', $steps['16'][1] );
@@ -89,7 +84,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 
 	public function test_schema_17_adds_the_plan_change_step(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 		$this->assertArrayHasKey( '17', $steps );
 		$this->assertSame( 'step_17_plan_change_columns', $steps['17'][1] );
@@ -191,7 +185,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 
 	public function test_upgrade_from_schema_11_adopts_the_reminder_log(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 
 		$this->assertArrayHasKey( '12', $steps );
@@ -234,7 +227,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 	 */
 	public function test_schema_21_merges_both_development_lines(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 
 		$this->assertSame( 'step_21_merged_schema', $steps['21'][1] );
@@ -261,7 +253,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 	 */
 	public function test_schema_22_adds_the_lookup_index_step(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 
 		$this->assertSame( 'step_22_lookup_indexes', $steps['22'][1] );
@@ -280,7 +271,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 	 */
 	public function test_schema_23_adds_the_audit_source_step(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 
 		$this->assertSame( '23', \WPLC\License\AuditLog::SOURCE_SCHEMA );
@@ -300,7 +290,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 	 */
 	public function test_schema_24_imports_the_bundled_catalog_files(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 
 		$this->assertSame( 'step_24_import_bundled_catalogs', $steps['24'][1] );
@@ -313,7 +302,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 	 */
 	public function test_schema_25_adds_the_price_change_columns(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 
 		$this->assertSame( 'step_25_price_change_columns', $steps['25'][1] );
@@ -329,7 +317,6 @@ final class SchemaMigrationStepsTest extends TestCase {
 	 */
 	public function test_schema_26_adds_the_license_members_table(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
-		$property->setAccessible( true );
 		$steps = $property->getValue();
 
 		$this->assertSame( '26', Schema::VERSION );

@@ -66,7 +66,7 @@ final class ClientPackageTest extends TestCase {
 			$entries[] = (string) $archive->getNameIndex( $i );
 		}
 		$prefix   = 'license-client-' . $version . '/';
-		$expected = array( 'CHANGELOG-CLIENT.md', 'README.md', 'bin/client-contract-test.php', 'bin/export-client.php' );
+		$expected = array( 'CHANGELOG-CLIENT.md', 'README.md', 'SOURCE.json', 'bin/client-contract-test.php', 'bin/export-client.php' );
 		foreach ( glob( self::root() . '/src/Client/*.php' ) as $file ) {
 			$expected[] = 'src/Client/' . basename( $file );
 		}
@@ -127,6 +127,153 @@ final class ClientPackageTest extends TestCase {
 		$this->assertSame( 1, $status );
 		$this->assertStringContainsString( 'do not share one VERSION', $output );
 		$this->assertDirectoryDoesNotExist( $root . '/dist' );
+	}
+
+	/**
+	 * Checksum of the library content, as bin/export-client.php and bin/package-client.php compute it.
+	 *
+	 * @param string $dir Directory with the unchanged library files.
+	 */
+	private static function content_sha256( string $dir ): string {
+		$lines = '';
+		$files = (array) glob( $dir . '/*.php' );
+		sort( $files, SORT_STRING );
+		foreach ( $files as $file ) {
+			$lines .= basename( $file ) . "\0" . hash_file( 'sha256', $file ) . "\n";
+		}
+
+		return hash( 'sha256', $lines );
+	}
+
+	public function test_pk06_content_and_version_number_belong_together(): void {
+		$checksums = json_decode( (string) file_get_contents( self::root() . '/packaging/client/checksums.json' ), true );
+		$this->assertIsArray( $checksums );
+		$this->assertArrayHasKey(
+			LicenseClient::VERSION,
+			$checksums,
+			'packaging/client/checksums.json has no line for the VERSION of src/Client. Add one with the new version.'
+		);
+		$this->assertSame(
+			$checksums[ LicenseClient::VERSION ],
+			self::content_sha256( self::root() . '/src/Client' ),
+			'src/Client changed but VERSION is still ' . LicenseClient::VERSION . '. A published version never gets a second content: raise VERSION in every class, add a section to packaging/client/CHANGELOG-CLIENT.md and a NEW line to packaging/client/checksums.json (keep the old lines).'
+		);
+		foreach ( $checksums as $version => $checksum ) {
+			$this->assertMatchesRegularExpression( '/^[0-9]+\.[0-9]+\.[0-9]+$/', (string) $version );
+			$this->assertMatchesRegularExpression( '/^[0-9a-f]{64}$/', (string) $checksum );
+		}
+		$this->assertSame( count( $checksums ), count( array_unique( $checksums ) ), 'Two versions never share one content.' );
+	}
+
+	public function test_pk06_an_export_names_its_version_source_commit_and_checksums(): void {
+		$commit = str_repeat( 'ab12', 10 );
+		$target = $this->temp_dir();
+		exec( 'php ' . escapeshellarg( self::root() . '/bin/export-client.php' ) . ' --target=' . escapeshellarg( $target ) . " --namespace='Acme\\Licensing' --text-domain=acme-addon --source-commit=" . $commit . ' 2>&1', $output, $status );
+		$this->assertSame( 0, $status, implode( "\n", $output ) );
+		$record = json_decode( (string) file_get_contents( $target . '/wplc-client-source.json' ), true );
+		$this->assertSame( array( 'library', 'version', 'source_commit', 'source_modified', 'content_sha256', 'namespace', 'text_domain', 'files' ), array_keys( $record ) );
+		$this->assertSame( LicenseClient::VERSION, $record['version'] );
+		$this->assertSame( $commit, $record['source_commit'] );
+		$this->assertFalse( $record['source_modified'] );
+		$this->assertSame( self::content_sha256( self::root() . '/src/Client' ), $record['content_sha256'] );
+		$this->assertSame( array( 'Acme\\Licensing', 'acme-addon' ), array( $record['namespace'], $record['text_domain'] ) );
+		$this->assertCount( 7, $record['files'] );
+		foreach ( $record['files'] as $name => $hash ) {
+			$this->assertSame( hash_file( 'sha256', $target . '/' . $name ), $hash, $name . ': the receiver can check that the copy is unchanged.' );
+		}
+
+		// Without the option the commit comes from the Git checkout of the license server.
+		exec( 'git -C ' . escapeshellarg( self::root() ) . ' rev-parse HEAD 2>/dev/null', $head, $git_status );
+		$other = $this->temp_dir();
+		exec( 'php ' . escapeshellarg( self::root() . '/bin/export-client.php' ) . ' --target=' . escapeshellarg( $other ) . " --namespace='Acme\\Licensing' --text-domain=acme-addon 2>&1", $output, $status );
+		$this->assertSame( 0, $status, implode( "\n", $output ) );
+		$record = json_decode( (string) file_get_contents( $other . '/wplc-client-source.json' ), true );
+		if ( 0 === $git_status && 1 === preg_match( '/^[0-9a-f]{40,64}$/', (string) ( $head[0] ?? '' ) ) ) {
+			$this->assertSame( $head[0], $record['source_commit'] );
+		} else {
+			$this->assertSame( 'unknown', $record['source_commit'], 'No Git here: the export says so instead of guessing.' );
+		}
+
+		// A copy of src/Client inside some other repository is not taken for a checkout of the server.
+		$foreign = $this->temp_dir();
+		mkdir( $foreign . '/lib/Client', 0755, true );
+		foreach ( glob( self::root() . '/src/Client/*.php' ) as $file ) {
+			copy( $file, $foreign . '/lib/Client/' . basename( $file ) );
+		}
+		exec( 'php ' . escapeshellarg( self::root() . '/bin/export-client.php' ) . ' --source=' . escapeshellarg( $foreign . '/lib/Client' ) . ' --target=' . escapeshellarg( $foreign . '/out' ) . " --namespace='Acme\\Licensing' --text-domain=acme-addon 2>&1", $output, $status );
+		$this->assertSame( 0, $status, implode( "\n", $output ) );
+		$this->assertSame( 'unknown', json_decode( (string) file_get_contents( $foreign . '/out/wplc-client-source.json' ), true )['source_commit'] );
+
+		exec( 'php ' . escapeshellarg( self::root() . '/bin/export-client.php' ) . ' --target=' . escapeshellarg( $this->temp_dir() ) . " --namespace='Acme\\Licensing' --text-domain=acme-addon --source-commit=main 2>&1", $output, $status );
+		$this->assertSame( 2, $status, 'A branch name is not a commit.' );
+	}
+
+	public function test_pk06_the_package_carries_its_source_into_every_export(): void {
+		$commit = str_repeat( 'cd34', 10 );
+		$out    = $this->temp_dir();
+		exec( 'php ' . escapeshellarg( self::root() . '/bin/package-client.php' ) . ' --out=' . escapeshellarg( $out ) . ' --source-commit=' . $commit . ' 2>&1', $output, $status );
+		$this->assertSame( 0, $status, implode( "\n", $output ) );
+
+		$archive = new ZipArchive();
+		$this->assertTrue( $archive->open( $out . '/license-client-' . LicenseClient::VERSION . '.zip' ) );
+		$unpacked = $this->temp_dir();
+		$this->assertTrue( $archive->extractTo( $unpacked ) );
+		$archive->close();
+		$package = $unpacked . '/license-client-' . LicenseClient::VERSION;
+		$source  = json_decode( (string) file_get_contents( $package . '/SOURCE.json' ), true );
+		$this->assertSame( array( 'library', 'version', 'source_commit', 'source_modified', 'content_sha256', 'files' ), array_keys( $source ) );
+		$this->assertSame( array( LicenseClient::VERSION, $commit, false ), array( $source['version'], $source['source_commit'], $source['source_modified'] ) );
+		$this->assertSame( self::content_sha256( self::root() . '/src/Client' ), $source['content_sha256'] );
+
+		$export = static function ( string $target ) use ( $package ): array {
+			exec( 'php ' . escapeshellarg( $package . '/bin/export-client.php' ) . ' --target=' . escapeshellarg( $target ) . " --namespace='Acme\\Licensing' --text-domain=acme-addon 2>&1", $output, $status );
+			return array( $status, json_decode( (string) @file_get_contents( $target . '/wplc-client-source.json' ), true ) );
+		};
+		list( $status, $record ) = $export( $unpacked . '/addon-a' );
+		$this->assertSame( 0, $status );
+		$this->assertSame( array( $commit, false, $source['content_sha256'] ), array( $record['source_commit'], $record['source_modified'], $record['content_sha256'] ) );
+
+		// Somebody edits the unpacked library: the export still names the commit, and says that the content differs.
+		file_put_contents( $package . '/src/Client/Updater.php', "\n// local patch\n", FILE_APPEND );
+		list( $status, $record ) = $export( $unpacked . '/addon-b' );
+		$this->assertSame( 0, $status );
+		$this->assertSame( array( $commit, true ), array( $record['source_commit'], $record['source_modified'] ) );
+		$this->assertNotSame( $source['content_sha256'], $record['content_sha256'] );
+	}
+
+	public function test_pk06_the_package_refuses_a_changed_library_under_the_same_version(): void {
+		$root = $this->temp_dir();
+		mkdir( $root . '/bin' );
+		mkdir( $root . '/src/Client', 0755, true );
+		mkdir( $root . '/packaging/client', 0755, true );
+		foreach ( array( 'package-client.php', 'export-client.php', 'client-contract-test.php' ) as $script ) {
+			copy( self::root() . '/bin/' . $script, $root . '/bin/' . $script );
+		}
+		foreach ( glob( self::root() . '/src/Client/*.php' ) as $file ) {
+			copy( $file, $root . '/src/Client/' . basename( $file ) );
+		}
+		foreach ( array( 'README.md', 'CHANGELOG-CLIENT.md', 'checksums.json' ) as $file ) {
+			copy( self::root() . '/packaging/client/' . $file, $root . '/packaging/client/' . $file );
+		}
+		$run = static function () use ( $root ): array {
+			exec( 'php ' . escapeshellarg( $root . '/bin/package-client.php' ) . ' --out=' . escapeshellarg( $root . '/dist' ) . ' 2>&1', $output, $status );
+			return array( $status, implode( "\n", $output ) );
+		};
+
+		list( $status, $output ) = $run();
+		$this->assertSame( 0, $status, $output );
+		$this->assertStringContainsString( 'the source commit is unknown', $output, 'A copy outside the Git checkout does not borrow a commit.' );
+		$archive = new ZipArchive();
+		$this->assertTrue( $archive->open( $root . '/dist/license-client-' . LicenseClient::VERSION . '.zip' ) );
+		$this->assertSame( 'unknown', json_decode( (string) $archive->getFromName( 'license-client-' . LicenseClient::VERSION . '/SOURCE.json' ), true )['source_commit'] );
+		$archive->close();
+		unlink( $root . '/dist/license-client-' . LicenseClient::VERSION . '.zip' );
+
+		file_put_contents( $root . '/src/Client/Updater.php', "\n// a change without a new version\n", FILE_APPEND );
+		list( $status, $output ) = $run();
+		$this->assertSame( 1, $status );
+		$this->assertStringContainsString( 'checksums.json does not list this content of src/Client under ' . LicenseClient::VERSION, $output );
+		$this->assertFileDoesNotExist( $root . '/dist/license-client-' . LicenseClient::VERSION . '.zip' );
 	}
 
 	public function test_contract_test_arguments(): void {

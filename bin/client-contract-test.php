@@ -523,11 +523,9 @@ final class WPLC_Client_Contract_Test {
 			$raw = curl_exec( $handle );
 			if ( false === $raw ) {
 				$error = curl_error( $handle );
-				curl_close( $handle );
 				return new WP_Error( 'http_request_failed', $error );
 			}
 			$size = (int) curl_getinfo( $handle, CURLINFO_HEADER_SIZE );
-			curl_close( $handle );
 
 			return self::response( (string) substr( (string) $raw, 0, $size ), (string) substr( (string) $raw, $size ) );
 		}

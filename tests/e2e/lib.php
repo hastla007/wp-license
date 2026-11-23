@@ -724,7 +724,6 @@ function e2e_parallel( array $requests, float $lead = 0.8 ): array {
 			'json'     => json_decode( $body, true ),
 		);
 		curl_multi_remove_handle( $multi, $handle );
-		curl_close( $handle );
 	}
 	curl_multi_close( $multi );
 	// The server processes changed the database: drop this process's object cache.

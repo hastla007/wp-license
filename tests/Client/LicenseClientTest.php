@@ -842,7 +842,6 @@ final class LicenseClientTest extends TestCase {
 		foreach ( array( $client, $unlicensed ) as $subject ) {
 			// Without its Messages instance, building a WP_Error would fail: the cheap checks must not need one.
 			$property = new ReflectionProperty( LicenseClient::class, 'messages' );
-			$property->setAccessible( true );
 			$property->setValue( $subject, null );
 			$subject->is_activated();
 			$subject->installation_id();
@@ -861,7 +860,6 @@ final class LicenseClientTest extends TestCase {
 		$this->assertSame( 'License', $messages->get( 'ui.title' ) );
 
 		$property = new ReflectionProperty( Messages::class, 'texts' );
-		$property->setAccessible( true );
 		$texts = $property->getValue( $messages );
 		$this->assertIsArray( $texts );
 		$texts['ui.title'] = 'memoized';
