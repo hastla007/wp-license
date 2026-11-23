@@ -39,6 +39,21 @@ Per add-on, in its own repository (the tasks are listed there, section "Premium 
 
 The library has one version for all its classes (`LicenseManager::VERSION`). To update an add-on, run the export again from the wanted tag of this repository and release the add-on. There is no shared package and no automatic distribution: each add-on ships the copy it was tested with.
 
+## Where a copy comes from
+
+Every export writes `wplc-client-source.json` next to the copied files. A receiver reads the origin of its copy from this file and does not write it down by hand:
+
+| Field | Meaning |
+|---|---|
+| `version` | `LicenseManager::VERSION` of the copied library. |
+| `source_commit` | Commit of this repository the copy was made from: from `--source-commit=`, from `SOURCE.json` of the library package `license-client-<version>.zip`, or from Git when the export runs in a checkout of this repository. `unknown` when none of them is available (the script prints a note). |
+| `source_modified` | `true` when the source files differed from that commit (uncommitted changes, or an edited unpacked package). |
+| `content_sha256` | Checksum of the seven source files before the export. For a published version it equals the line of that version in `packaging/client/checksums.json`. |
+| `namespace`, `text_domain` | The values the export was run with. |
+| `files` | SHA-256 of every exported file, to check later that the copy was not edited. |
+
+Content and version number belong together: `packaging/client/checksums.json` holds one checksum per published version, `bin/package-client.php` refuses to build a package whose content is not listed under its version, and `ClientPackageTest::test_pk06_content_and_version_number_belong_together` fails as soon as `src/Client` changes while `VERSION` stays the same. A change of the library therefore needs a new `VERSION` in every class, a section in `packaging/client/CHANGELOG-CLIENT.md` and a new line in `checksums.json`; existing lines are never changed. The list starts with 2.2.0: version 2.1.0 existed with three different contents (16 Nov 2026), which is what this rule prevents. The copy vendored into the starter by `examples/premium-addon-starter/bin/vendor-client.php` names the SHA-256 of each source file in its file header.
+
 ## Status
 
 Stand 16 Nov 2026:

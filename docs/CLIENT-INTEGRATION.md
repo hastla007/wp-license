@@ -54,7 +54,7 @@ php bin/export-client.php --target=/path/to/voucher-captain-pro/includes/licensi
     --namespace='VoucherCaptainPro\Licensing' --text-domain=voucher-captain-pro
 ```
 
-It copies `src/Client/*.php`, replaces `namespace WPLC\Client;` by the given namespace and the text domain `wp-license` by the add-on's, and fails if a file still refers to `WPLC\Client`. The add-on then always runs exactly the version it was tested with, and `wp i18n make-pot` of the add-on finds the strings of `Messages.php`. [php-scoper](https://github.com/humbug/php-scoper) with a prefix for `WPLC\Client` gives the same result if the add-on already uses it.
+It copies `src/Client/*.php`, replaces `namespace WPLC\Client;` by the given namespace and the text domain `wp-license` by the add-on's, and fails if a file still refers to `WPLC\Client`. Next to the copies it writes `wplc-client-source.json` with the version of the library, the commit of the license server it was copied from and checksums ([CLIENT-REPOS.md](CLIENT-REPOS.md), "Where a copy comes from"); keep that file in the add-on's repository. The add-on then always runs exactly the version it was tested with, and `wp i18n make-pot` of the add-on finds the strings of `Messages.php`. [php-scoper](https://github.com/humbug/php-scoper) with a prefix for `WPLC\Client` gives the same result if the add-on already uses it.
 
 **Without the script: an unchanged copy.** Every class is declared inside `if ( ! class_exists( ... ) )`, so two add-ons with the same unchanged files do not end in "Cannot declare class". The limits of this way:
 
