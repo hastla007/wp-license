@@ -148,6 +148,14 @@ A project product is a plugin built for one client (for example a connector for 
 
 1. **Product.** Create a simple, virtual WooCommerce product, named the way the client should see it in their account and emails, and set its visibility to **Private** (Publish box → Visibility). Tick "License product" and enter the product key of the connector: key = plugin folder = text domain, for example `learnboating-form-connector`. The connector's catalog file uses its own entitlement prefix (one prefix per connector, see [CATALOG-FILE.md](CATALOG-FILE.md)). The price may stay at 0.
 2. **Plan.** In the same product box choose the plan key (for example `project`), the number of live sites and the entitlements of the connector. The plan stays active while the product is private; only moving the product to the trash deactivates it.
+
+   Steps 1 and 2 on the command line, after the catalog file of the connector was imported (`wp wplc catalog import <file>`):
+
+   ```
+   wp wplc project-product save --product=learnboating-form-connector --name="LearnBoating Form Connector" --sites=1 --format=json
+   ```
+
+   It creates the private product with the plan `project` and every available entitlement of the catalog file, or updates it when it exists, and prints the product ID and the plan ID (`docs/manual/10-wp-cli.md`; PK-07, `tests/integration/ProjectProductCliIntegrationTest.php`).
 3. **License by hand.** WooCommerce → Licenses → **Add license manually**: customer (user ID or email address of the client's account), the plan of the project product, the end date and a reason. Or on the command line:
 
    ```

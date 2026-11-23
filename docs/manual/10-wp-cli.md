@@ -85,6 +85,29 @@ Announces a higher renewal price with notice, or withdraws an announcement (chap
 | `wp wplc catalog export <product-key>` | Print the catalog file of one product (`> wplc-catalog.json`). |
 | `wp wplc catalog remove <product-key> [--yes]` | Remove a product; plans and licenses keep their entitlements. |
 
+### `wp wplc project-product save`
+
+Creates or updates a **project product** (chapter 4): a private, virtual WooCommerce product that costs nothing, with one plan. It does what the product editor does for "License product", product key, plan, live sites and entitlements, so a project can be set up by a script. The first run creates the WooCommerce product; a later run with the same product key and plan key updates it and keeps the plan ID. A product that is not private is never changed by this command.
+
+| Option | Meaning |
+| --- | --- |
+| `--product=<product-key>` | Product key of the plugin, its folder name (required). |
+| `--name=<name>` | Name the client sees in the account and in emails; needed when the product is created. |
+| `--plan=<plan-key>` | Plan key. Default: `project`. |
+| `--sites=<number>` | Live sites, 1 to 1000. Default: 1. |
+| `--entitlements=<keys>` | Comma-separated keys of the product's catalog file, `all` (default: every available key of the catalog file) or `none`. Import the catalog file first. |
+| `--support=<level>` | `community`, `standard` (default) or `priority`. |
+| `--format=<format>` | `text` (default) or `json`: `product_id`, `plan_id`, `product_key`, `plan_key`, `created`, `entitlements`. |
+
+A whole project product from the command line:
+
+```sh
+wp wplc catalog import acme-connector/wplc-catalog.json
+wp wplc project-product save --product=acme-connector --name="Acme Connector" --sites=2 --format=json
+wp wplc license issue --plan-id=<plan_id> --customer=client@example.com --expires=2027-12-31 --reason="Project contract" --yes
+wp wplc release create --product=acme-connector --version=1.0.0 --zip=acme-connector.zip --publish
+```
+
 ## Releases
 
 ### `wp wplc release create`

@@ -29,7 +29,7 @@
  * @package WPLC
  */
 
-// phpcs:disable WordPress.WP.AlternativeFunctions -- command line script without WordPress.
+// phpcs:disable WordPress.WP.AlternativeFunctions, WordPress.PHP.DiscouragedPHPFunctions -- command line script without WordPress.
 
 if ( 'cli' !== PHP_SAPI ) {
 	exit( 1 );
