@@ -121,7 +121,6 @@ final class PluginPartsTest extends TestCase {
 		// DISABLE_WP_CRON without a system cron: the daily event never ran for 37 hours.
 		$plugin   = ( new ReflectionClass( Vendor\Product\Premium\Plugin::class ) )->newInstanceWithoutConstructor();
 		$property = new ReflectionProperty( Vendor\Product\Premium\Plugin::class, 'license' );
-		$property->setAccessible( true );
 		$property->setValue( $plugin, Fixtures::service( Fixtures::time( 60 + 37 * 3600 ) ) );
 
 		$GLOBALS['wp_stub']['can'] = false;

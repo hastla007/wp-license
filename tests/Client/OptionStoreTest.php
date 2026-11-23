@@ -103,7 +103,6 @@ final class OptionStoreTest extends TestCase {
 		// phpcs:enable
 		$messages = new Messages( 'test-addon' );
 		$texts    = new ReflectionProperty( Messages::class, 'texts' );
-		$texts->setAccessible( true );
 
 		$this->assertSame( 'License', $messages->get( 'ui.title' ) );
 		$this->assertNull( $texts->getValue( $messages ), 'Before init: used once, not kept.' );

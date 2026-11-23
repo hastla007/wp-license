@@ -1016,7 +1016,6 @@ final class LicenseManagerTest extends TestCase {
 
 		// Several add-ons / instances read the same snapshot in a new request: one (slow) verification.
 		$memo = new ReflectionProperty( LicenseClient::class, 'verified' );
-		$memo->setAccessible( true );
 		$memo->setValue( null, array() );
 		$calls = 0;
 		for ( $i = 0; $i < 3; $i++ ) {
@@ -1050,7 +1049,6 @@ final class LicenseManagerTest extends TestCase {
 			return sodium_crypto_sign_verify_detached( $signature, $message, $key );
 		};
 		$memo = new ReflectionProperty( LicenseClient::class, 'verified' );
-		$memo->setAccessible( true );
 		$this->kit->manager( array( 'signature_verifier' => $verifier ) )->activate( self::KEY );
 
 		$memo->setValue( null, array() );
@@ -1092,7 +1090,6 @@ final class LicenseManagerTest extends TestCase {
 
 		$manager  = $this->kit->manager();
 		$property = new ReflectionProperty( LicenseClient::class, 'messages' );
-		$property->setAccessible( true );
 		$property->setValue( $manager->client(), null );
 
 		// Would fail with an Error if a WP_Error with a text were built (feature checks run before init).

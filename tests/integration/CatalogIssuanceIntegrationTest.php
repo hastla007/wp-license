@@ -335,7 +335,6 @@ final class CatalogIssuanceIntegrationTest extends WPLC_Integration_TestCase {
 		// protection is off. Mark the (temporary) table as ready for this test.
 		\WPLC\Notifications\ReminderLog::maybe_install();
 		$ready = new ReflectionProperty( \WPLC\Notifications\ReminderLog::class, 'ready' );
-		$ready->setAccessible( true );
 		$was_ready = $ready->getValue();
 		$ready->setValue( null, true );
 

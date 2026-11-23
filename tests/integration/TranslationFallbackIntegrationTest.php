@@ -16,7 +16,6 @@ final class TranslationFallbackIntegrationTest extends WP_UnitTestCase {
 		restore_previous_locale();
 		if ( null !== $this->available ) {
 			$property = new ReflectionProperty( $GLOBALS['wp_locale_switcher'], 'available_languages' );
-			$property->setAccessible( true );
 			$property->setValue( $GLOBALS['wp_locale_switcher'], $this->available );
 		}
 		unload_textdomain( 'wp-license' );
@@ -44,7 +43,6 @@ final class TranslationFallbackIntegrationTest extends WP_UnitTestCase {
 		// The test site has no core language packs; let the switcher accept de_AT as installed.
 		$switcher  = $GLOBALS['wp_locale_switcher'];
 		$property  = new ReflectionProperty( $switcher, 'available_languages' );
-		$property->setAccessible( true );
 		$this->available = (array) $property->getValue( $switcher );
 		$property->setValue( $switcher, array_merge( $this->available, array( 'de_AT' ) ) );
 

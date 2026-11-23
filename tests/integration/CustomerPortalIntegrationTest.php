@@ -599,7 +599,6 @@ final class CustomerPortalIntegrationTest extends WPLC_Portal_TestCase {
 		// ReleaseUpdateIntegrationTest); the string surgery on its markup is gone.
 		$this->assertFalse( method_exists( CustomerPortal::class, 'retarget_form' ) );
 		$method = new ReflectionMethod( \WPLC\Update\CustomerDownload::class, 'form_url' );
-		$method->setAccessible( true );
 		$this->assertSame( CustomerPortal::form_url(), $method->invoke( null ) );
 		$this->assertStringNotContainsString( 'wp-admin', (string) $method->invoke( null ) );
 	}

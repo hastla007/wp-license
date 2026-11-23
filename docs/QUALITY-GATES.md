@@ -44,7 +44,7 @@ Unit tests load `tests/bootstrap.php`, which only defines constants. They must n
 
 - Path case and percent-encoding are not normalized; spaces and raw UTF-8 in the path are accepted.
 - An empty port (`https://example.com:`) is accepted, a leading dot in the host is dropped, a NUL byte in the path becomes `_`.
-- `https://example.com/?` and `https://example.com/#` are rejected on PHP 8 but accepted on PHP 7.4, because `parse_url()` reports empty components only since PHP 8.0.
+- `https://example.com/?` and `https://example.com/#` are rejected (an empty query or fragment; `parse_url()` reports empty components since PHP 8.0, and the plugin needs PHP 8.5).
 
 ## Integration tests
 

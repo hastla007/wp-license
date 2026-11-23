@@ -17,7 +17,6 @@ final class RenewalProcessorIntegrationTest extends WPLC_Renewal_TestCase {
 
 	private function finish_paid( array $renewal, array $license, WC_Order $order ): bool {
 		$method = new ReflectionMethod( RenewalProcessor::class, 'finish_paid' );
-		$method->setAccessible( true );
 
 		return (bool) $method->invoke( null, $renewal, $license, $order, 'renewal_paid', 'test' );
 	}

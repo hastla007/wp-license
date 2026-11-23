@@ -93,7 +93,6 @@ final class PublicCancellationIntegrationTest extends WPLC_Portal_TestCase {
 		$_POST                     = wp_slash( $post );
 		$_SERVER['REQUEST_METHOD'] = $post ? 'POST' : 'GET';
 		$state                     = new ReflectionProperty( PublicCancellation::class, 'state' );
-		$state->setAccessible( true );
 		$state->setValue( null, null );
 		PublicCancellation::handle_post();
 		$html                      = do_shortcode( '[wplc_cancel]' );
