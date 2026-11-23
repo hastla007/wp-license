@@ -19,7 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Dispute follow-ups do not change a license. A won dispute does not lift the
  * suspension by itself: whether the customer gets the license back is the
- * shop's decision. An early fraud warning switches automatic renewal off for
+ * shop's decision, unless the shop chose the setting "Won payment dispute
+ * reactivates the license" (SET-LIC-17, default off). An early fraud warning switches automatic renewal off for
  * the licenses of the payment (P-58), so the reported card is not charged
  * again off-session; the license itself stays usable. The events are written
  * to the order and the audit log and announced through actions.
@@ -131,19 +132,29 @@ final class StripeEventHandler {
 
 		$status = sanitize_key( (string) ( $payload['dispute_status'] ?? '' ) );
 		if ( 'won' === $status ) {
+			// SET-LIC-17: only with the setting "Won payment dispute reactivates the license" (default off).
+			$restored = LicenseLifecycle::restore_after_won_dispute( $license_ids, $order_id, $dispute_id );
 			$order->add_order_note(
-				sprintf(
-					/* translators: %s: Stripe dispute ID. */
-					__( 'WP License Captain: dispute %s was decided for the shop. Suspended licenses stay suspended until an administrator reactivates them.', 'wp-license' ),
-					$dispute_id
-				)
+				$restored
+					? sprintf(
+						/* translators: 1: Stripe dispute ID, 2: list of license IDs. */
+						__( 'WP License Captain: dispute %1$s was decided for the shop. The licenses suspended because of it were reactivated automatically: %2$s.', 'wp-license' ),
+						$dispute_id,
+						'#' . implode( ', #', $restored )
+					)
+					: sprintf(
+						/* translators: %s: Stripe dispute ID. */
+						__( 'WP License Captain: dispute %s was decided for the shop. Suspended licenses stay suspended until an administrator reactivates them.', 'wp-license' ),
+						$dispute_id
+					)
 			);
-			AuditLog::record( 'dispute_won', 'order', $order_id, $dispute_id, null, array( 'licenses' => $license_ids ) );
+			AuditLog::record( 'dispute_won', 'order', $order_id, $dispute_id, null, array( 'licenses' => $license_ids, 'restored' => $restored ) );
 			foreach ( $license_ids as $license_id ) {
 				/**
 				 * Fires when a dispute about a license payment was decided for the shop.
 				 *
-				 * The license is not reactivated automatically.
+				 * The license is not reactivated automatically, unless the setting "Won payment
+				 * dispute reactivates the license" is on (SET-LIC-17); then it fires after that.
 				 *
 				 * @param int    $license_id License ID.
 				 * @param int    $order_id Disputed order.

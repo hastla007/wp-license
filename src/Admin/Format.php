@@ -304,6 +304,7 @@ final class Format {
 			'site_transferred_out'            => __( 'Site moved to another license', 'wp-license' ),
 			'site_transferred_in'             => __( 'Site taken over from another license', 'wp-license' ),
 			'chargeback_received'             => __( 'Chargeback received', 'wp-license' ),
+			'partial_refund_review'           => __( 'Partial refund: please review', 'wp-license' ),
 			'payment_method_changed'          => __( 'Payment method changed', 'wp-license' ),
 			'package_downloaded'              => __( 'Package downloaded', 'wp-license' ),
 			'settings_updated'                => __( 'Settings changed', 'wp-license' ),

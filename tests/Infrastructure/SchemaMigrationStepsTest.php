@@ -320,7 +320,7 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$steps = $property->getValue();
 
 		$this->assertSame( 'step_27_suspended_at', $steps['27'][1] );
-		$this->assertSame( array( '27', '28' ), Schema::pending_step_versions( '26', '28', array_keys( $steps ) ) );
+		$this->assertSame( array( '27', '28', '30', '31' ), Schema::pending_step_versions( '26', Schema::VERSION, array_keys( $steps ) ) );
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
 		$this->assertStringContainsString( 'suspended_at datetime DEFAULT NULL', $source );
 		// Licenses that are suspended at the upgrade count from the upgrade, only rows without a time.
@@ -335,12 +335,29 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$steps    = $property->getValue();
 
 		$this->assertSame( 'step_28_plan_overrides', $steps['28'][1] );
-		$this->assertSame( array( '28' ), Schema::pending_step_versions( '27', '28', array_keys( $steps ) ) );
+		$this->assertSame( array( '28', '30', '31' ), Schema::pending_step_versions( '27', Schema::VERSION, array_keys( $steps ) ) );
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
 		foreach ( array( 'staging_site_limit smallint(5) unsigned DEFAULT NULL', 'development_site_limit smallint(5) unsigned DEFAULT NULL', 'offline_cache_days smallint(5) unsigned DEFAULT NULL', 'max_quantity_per_line int(10) unsigned DEFAULT NULL', 'co_user_limit smallint(5) unsigned DEFAULT NULL' ) as $column ) {
 			$this->assertStringContainsString( $column, $source );
 		}
-		$this->assertSame( array_keys( \WPLC\Catalog\PlanOverrides::FIELDS ), array( 'staging_site_limit', 'development_site_limit', 'offline_cache_days', 'max_quantity_per_line', 'co_user_limit' ) );
+		$this->assertSame( array_slice( array_keys( \WPLC\Catalog\PlanOverrides::FIELDS ), 0, 5 ), array( 'staging_site_limit', 'development_site_limit', 'offline_cache_days', 'max_quantity_per_line', 'co_user_limit' ) );
+	}
+
+	/**
+	 * SET-LIC-20: schema 30 adds the beta right per plan; NULL (every existing plan) means "global setting".
+	 * Version 29 is left to a parallel line of work: the runner skips the missing number.
+	 */
+	public function test_schema_30_adds_the_beta_right_per_plan(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$steps    = $property->getValue();
+
+		$this->assertSame( '30', Schema::VERSION );
+		$this->assertSame( 'step_30_beta_per_plan', $steps['30'][1] );
+		$this->assertSame( array( '30' ), Schema::pending_step_versions( '28', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '30' ), Schema::pending_step_versions( '29', Schema::VERSION, array_keys( $steps ) ) );
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		$this->assertStringContainsString( 'beta_allowed tinyint(1) unsigned DEFAULT NULL', $source );
+		$this->assertSame( array( 0, 1, 'beta_updates' ), \WPLC\Catalog\PlanOverrides::FIELDS['beta_allowed'] );
 	}
 
 	/**

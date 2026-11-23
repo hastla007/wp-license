@@ -8,7 +8,7 @@ WP License Captain adds a page **Licenses** to the WooCommerce customer account 
 - the sites in use, with a button to deactivate a site (its staging site goes with it);
 - "Renew now" inside the manual renewal window (chapter 8);
 - cancel or resume the automatic renewal;
-- upgrade to a more expensive plan (prorated) or switch to a cheaper one at the next renewal;
+- upgrade to a more expensive plan (prorated by day) or switch to a cheaper one at the next renewal; each of the two offers can be switched off under License settings → Rules of this shop ("Customers can upgrade their plan", "Customers can switch to a cheaper plan", both on by default; switched off, the offer is not shown and a request is refused; administrators can always change the plan);
 - "Move to …" for the sites of an ending license when the customer owns a newer license of the same product;
 - a download of the latest release (or one of up to nine older versions);
 - **Co-users** and **Transfer** (below).

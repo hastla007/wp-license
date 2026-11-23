@@ -30,7 +30,7 @@ Clients therefore must request a fresh grant with `POST /updates/check` right be
 | `product_key` | yes | Product key of the add-on. Must be the product of the license. |
 | `current_version` | yes | Installed version. |
 | `download` | no | `true`: create a download grant and return `package`. `false`: metadata only, **no grant is stored** — use this for the periodic check. Omitted: behaves like `true` for clients that predate the field (filter `wplc_update_check_issues_download`, return `false` once every shipped client sends the field). |
-| `channel` | no | `stable` (default) or `beta`. A beta installation receives beta **and** stable releases, whichever is higher. Unknown values count as `stable`. |
+| `channel` | no | `stable` (default) or `beta`. A beta installation receives beta **and** stable releases, whichever is higher. Unknown values count as `stable`. Since 23 Nov 2026 (SET-LIC-20) `beta` is only served to licenses that may use it (setting "Beta versions for licenses", default allowed; per plan under "Rules of this plan"; filter `wplc_license_update_channels`); any other license is answered from `stable`. The entitlement answer lists the channels of the license as `update_channels`. |
 | `target_version` | no | Ask for exactly this published version, also an older one (rollback). Needs a license with access. |
 | `wp_version`, `php_version` | no | Versions of the site. If omitted, the versions the installation last reported with an entitlement check are used. |
 | `core_version` | no | Version of the free core plugin the add-on extends. |
@@ -48,7 +48,7 @@ HTTP 200 with the signed envelope (`data`, `signature`, `payload`, `payload_sign
 | `update_available` | bool | `true` when the offered `version` is higher than `current_version`. Also `true` for a license without access (see `license_active`), so the client can show "version X is available, renew to get it". |
 | `current_version` | string | Echo of the request. |
 | `product_key` | string | Echo of the request. |
-| `channel` | string | `stable` or `beta`, as understood by the server. |
+| `channel` | string | `stable` or `beta`: the channel the answer was served from (`stable` when the license may not use beta). |
 | `license_active` | bool | Whether the license currently gives access to updates. |
 | `reason` | string | Only when no package is offered. One of: `up_to_date`, `package_unavailable` (no deliverable release, or `target_version` unknown), `incompatible` (a release exists but the site does not meet its requirements), `license_expired`, `license_suspended`, `license_revoked`, `license_pending`, `license_inactive`. |
 | `blocked` | object | Only when a higher version was skipped because of its requirements: `version`, `unmet` (list of `requires_php`, `requires_wp`, `requires_core`), `requires_php`, `requires_wp`, `requires_core`. |

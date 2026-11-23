@@ -61,6 +61,18 @@ final class ApiContractTest extends TestCase {
 		$this->assertArrayHasKey( 'StripeSignature', $contract['components']['securitySchemes'] );
 	}
 
+	/** SET-LIC-20: update_channels is a new optional field; v1 stays compatible for older clients. */
+	public function test_update_channels_is_an_optional_field_of_the_entitlement_data(): void {
+		$contract = json_decode( (string) file_get_contents( dirname( __DIR__, 2 ) . '/docs/openapi-v1.json' ), true, 512, JSON_THROW_ON_ERROR );
+		$data     = $contract['components']['schemas']['EntitlementData'];
+
+		$this->assertSame( array( 'activation_id', 'installation_id', 'activation_status', 'license_status', 'access', 'entitlements', 'server_time', 'cache_expires_at' ), $data['required'], 'No new required field.' );
+		$this->assertSame( 'array', $data['properties']['update_channels']['type'] );
+		$this->assertSame( array( 'stable', 'beta' ), $data['properties']['update_channels']['items']['enum'] );
+		$this->assertNotContains( 'channel', $contract['components']['schemas']['UpdateCheckRequest']['required'] );
+		$this->assertArrayHasKey( 'channel', $contract['components']['schemas']['UpdateCheckData']['properties'] );
+	}
+
 	/**
 	 * Responses each operation can return according to src/Api/V1 (T-145).
 	 *

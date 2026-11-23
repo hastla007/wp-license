@@ -397,6 +397,11 @@ final class Settings {
 				continue;
 			}
 			$result = Registry::validate( $key, $input[ $key ] );
+			if ( $result['ok'] && $result['value'] !== $out[ $key ] && Registry::is_locked( $key ) ) {
+				// E-04: the license key prefix is fixed once a license was issued; the stored value stays.
+				self::settings_error( 'wplc_locked_' . $key, Texts::problem( $key, 'locked' ) );
+				continue;
+			}
 			if ( $result['ok'] && 'uninstall_data' === $key && 'delete' === $result['value'] && 'delete' !== $out[ $key ] && self::is_form_submission() && empty( $input['uninstall_data_confirm'] ) ) {
 				// S10: deleting data is only chosen with an explicit confirmation.
 				self::settings_error( 'wplc_uninstall_not_confirmed', __( '"When the plugin is deleted" was not changed: tick the confirmation next to it to choose "Delete tables and options".', 'wp-license' ) );
@@ -1100,7 +1105,8 @@ final class Settings {
 		$name     = self::OPTION . '[' . $key . ']';
 		$value    = Registry::get( $key );
 		$constant = Registry::locking_constant( $key );
-		$readonly = ! Capabilities::can( (string) $definition['capability'] ) || '' !== $constant;
+		$locked   = Registry::is_locked( $key );
+		$readonly = $locked || ! Capabilities::can( (string) $definition['capability'] ) || '' !== $constant;
 		if ( '' !== $constant ) {
 			// SET-LIC-30: the field shows the value of the constant, which wins (only settings that are no secret have one).
 			$value = constant( $constant );
@@ -1157,6 +1163,10 @@ final class Settings {
 		if ( '' !== $constant ) {
 			/* translators: %s: name of a PHP constant. */
 			echo ' <strong>' . esc_html( sprintf( __( 'Set in wp-config.php with %s; the constant wins over this field.', 'wp-license' ), $constant ) ) . '</strong>';
+		}
+		if ( $locked ) {
+			// E-04: why the field cannot be changed any more.
+			echo ' ' . esc_html__( 'Fixed: licenses were already issued with this value, and their keys contain it. Changing it would make every issued key invalid.', 'wp-license' );
 		} elseif ( $readonly ) {
 			echo ' ' . esc_html( self::readonly_note( (string) $definition['capability'] ) );
 		}

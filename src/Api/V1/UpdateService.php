@@ -96,7 +96,8 @@ final class UpdateService {
 
 		// Versions sent with this request win; otherwise the ones the installation reported last.
 		$context = array(
-			'channel' => ReleaseRegistry::normalize_channel( self::text_param( $request, 'channel', 20 ) ),
+			// SET-LIC-20: beta only when the license may use it; otherwise the stable channel.
+			'channel' => \WPLC\Update\UpdateChannels::effective( self::text_param( $request, 'channel', 20 ), $license ),
 			'current_version' => $current,
 			// A specific (older) version is a download feature and needs a license with access (B-145).
 			'target_version' => $has_access ? self::text_param( $request, 'target_version', 40 ) : '',

@@ -93,7 +93,8 @@ A license that grants no access cannot be activated: `403 license_expired` (paid
     "grace_until": null,
     "activation_status": "active",
     "product_key": "voucher-captain-pro",
-    "cache_expires_at": "2026-11-26 00:00:00"
+    "cache_expires_at": "2026-11-26 00:00:00",
+    "update_channels": ["stable", "beta"]
   },
   "signature": "hex HMAC-SHA-256 (legacy)",
   "payload": "{\"data\":{\"activation_id\":123,...},\"nonce\":\"uuid-v4\"}",
@@ -127,6 +128,7 @@ The same object is returned by `POST /activations` and `POST /entitlements/check
 | `deactivated_at` | Only for a released installation. |
 | `server_time` | Server clock when the answer was signed. |
 | `cache_expires_at` | Until then the client may rely on this snapshot without reaching the server: `server_time` + 14 days, **but never later than `access_until`**. See [Offline use](#offline-use-and-cache_expires_at). |
+| `update_channels` | Since 0.2.0 (SET-LIC-20, optional field): update channels the license may use, `stable` first: `["stable"]` or `["stable", "beta"]`. Decided by the setting "Beta versions for licenses" (default: beta allowed), the rule of the plan ("Rules of this plan") and the filter `wplc_license_update_channels`. Client library 2.4.0 shows the checkbox "Receive beta versions" only when the list contains `beta`; a server that does not send the field gives beta to every client that asks. |
 
 ### Status values
 
@@ -295,6 +297,8 @@ Signed `data`:
 | No release is published for the product | `{"update_available": false, "reason": "package_unavailable"}` |
 | The reported version is the newest | `{"update_available": false, "current_version": "<as reported>"}` |
 | Update available | `update_available: true`, `product_key`, `version`, `package_url` (one-use URL of `GET /updates/download/{token}`), `sha256` (lowercase hex of the ZIP), `requires_php`, `requires_wp`, `tested_wp`, `release_notes` (HTML, filtered with `wp_kses_post`), `download_expires_at` (UTC, five minutes after the check) |
+
+The optional field `channel` (`stable` or `beta`) selects the update channel. A license that may not use beta (`update_channels` of the entitlement answer, SET-LIC-20) is answered from the stable channel; the signed `channel` of the answer names the channel that was used.
 
 Whether a release is newer is decided against the higher of `current_version` and the `product_version` the installation reported last (activation or entitlement check); a check with `current_version: "0"` does not get a package for a version the installation already reported. An older version is requested explicitly with `target_version`.
 

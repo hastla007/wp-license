@@ -284,7 +284,8 @@ final class CatalogCsv {
 			str_getcsv( rtrim( $first, "\r\n" ), $delimiter, '"', '\\' )
 		);
 		// A file exported before the overrides per plan (nine columns) still imports and keeps them.
-		if ( self::headers() !== $headers && self::legacy_headers() !== $headers ) {
+		// Files of schema 28 (five overrides, without beta_allowed) are still accepted.
+		if ( self::headers() !== $headers && self::legacy_headers() !== $headers && array_slice( self::headers(), 0, 14 ) !== $headers ) {
 			fclose( $handle );
 			return self::empty_result( 'bad_header' );
 		}

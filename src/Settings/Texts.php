@@ -121,6 +121,11 @@ final class Texts {
 				__( 'Object storage: bucket in the path', 'wp-license' ),
 				__( 'On: the bucket is addressed in the path of the address (https://endpoint/bucket/…), which some providers such as MinIO need. Off (default): the bucket is a subdomain of the endpoint; bucket names with dots or capital letters always use the path. When WPLC_S3_PATH_STYLE is defined in wp-config.php, the constant wins and the field is read-only.', 'wp-license' ),
 			),
+			// Owner decisions of 23.11.2026 (settings part 6).
+			'beta_updates'              => array(
+				__( 'Beta versions for licenses', 'wp-license' ),
+				__( 'On (default, as before): licenses may receive beta versions when the customer site asks for them; with client library 2.4.0 the customer turns them on in the add-on. Off: only stable versions, unless a plan allows beta under "Rules of this plan" in the product editor. A plan can also forbid beta while this is on. A client without the right gets the newest stable version; the signed answer lists the channels of the license (update_channels).', 'wp-license' ),
+			),
 			'combined_renewals'         => array(
 				__( 'Combine automatic renewals', 'wp-license' ),
 				__( 'Only licenses with the same saved card, currency and billing interval are combined. Each license keeps its own renewal; a declined payment is retried per license. Manual renewals are never combined. Off by default.', 'wp-license' ),
@@ -192,6 +197,35 @@ final class Texts {
 			'issue_after_completion_gateways' => array(
 				__( 'Payment methods paid on delivery', 'wp-license' ),
 				__( 'IDs of WooCommerce payment methods, one per line, whose orders count as paid only when they are completed, because the order is "processing" before the money arrived. Licenses, manual renewals and plan upgrades paid with them start when you complete the order. Default: cod (cash on delivery).', 'wp-license' ),
+			),
+			// Owner decisions of 23.11.2026 (settings part 6).
+			'suspend_on_order_cancelled' => array(
+				__( 'Cancelled or failed order suspends its licenses', 'wp-license' ),
+				__( 'On (default): when a paid order is cancelled or fails afterwards (for example a bounced direct debit), the licenses it issued or renewed are suspended until you reactivate them. Off: the licenses stay as they are; check the order yourself. A full refund always revokes the licenses, whatever is set here.', 'wp-license' ),
+			),
+			'suspend_on_order_item_change' => array(
+				__( 'Removed order line suspends its licenses', 'wp-license' ),
+				__( 'On (default): when a line of a paid order is removed or its quantity lowered after the licenses were issued, the licenses above the new quantity are suspended until you reactivate them. Off: they stay as they are.', 'wp-license' ),
+			),
+			'partial_refund_review'     => array(
+				__( 'Partial refund by amount: review notice', 'wp-license' ),
+				__( 'On (default): a refund of part of the amount without refunding whole licenses changes no license, but asks you to review it: it is written to the order notes and the audit log of each license of the order, and the health alert "license needs review" is sent to the alert recipients. Off: no notice, as before (a renewal or upgrade order still gets its own order note). Refunding licenses by quantity revokes them in both cases.', 'wp-license' ),
+			),
+			'restore_after_won_dispute' => array(
+				__( 'Won payment dispute reactivates the license', 'wp-license' ),
+				__( 'Off (default): a license suspended because of a payment dispute stays suspended when the dispute is decided for the shop, until you reactivate it. On: it is reactivated automatically (only when it is still suspended because of that dispute and its paid period has not ended).', 'wp-license' ),
+			),
+			'plan_upgrades_enabled'     => array(
+				__( 'Customers can upgrade their plan', 'wp-license' ),
+				__( 'On (default): the customer account offers a more expensive plan of the same product; the customer pays the price difference for the rest of the paid period, prorated by day. Off: the offer is not shown and a request is refused. Administrators can always change the plan.', 'wp-license' ),
+			),
+			'plan_downgrades_enabled'   => array(
+				__( 'Customers can switch to a cheaper plan', 'wp-license' ),
+				__( 'On (default): the customer account offers a cheaper plan of the same product, which starts with the next renewal (no credit for the current period). Off: the offer is not shown and a request is refused; a switch already scheduled stays. Administrators can always change the plan.', 'wp-license' ),
+			),
+			'license_key_prefix'        => array(
+				__( 'License key prefix', 'wp-license' ),
+				__( 'The first four characters of every license key and license reference, for example ACME for ACME-1A2B3C4D. A letter followed by three letters or digits. Default: WPLC. Can only be changed before the first license is issued, because every key contains it; the length of the keys stays the same.', 'wp-license' ),
 			),
 			'offline_cache_days'        => array(
 				__( 'Offline period of customer sites', 'wp-license' ),
@@ -477,6 +511,12 @@ final class Texts {
 			case 'not_a_url':
 				/* translators: %s: name of a setting. */
 				return sprintf( __( '"%s" was not changed: enter an address that starts with https://.', 'wp-license' ), $label );
+			case 'not_a_key_prefix':
+				/* translators: %s: name of a setting. */
+				return sprintf( __( '"%s" was not changed: enter four characters, a letter followed by letters or digits, for example ACME.', 'wp-license' ), $label );
+			case 'locked':
+				/* translators: %s: name of a setting. */
+				return sprintf( __( '"%s" was not changed: licenses were already issued with the current value, and their keys would stop working.', 'wp-license' ), $label );
 			case 'invalid_entries':
 			case 'invalid_hosts':
 				/* translators: %s: name of a setting. */

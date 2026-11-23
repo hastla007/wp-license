@@ -125,6 +125,14 @@ final class Definitions {
 				'constant'   => 'WPLC_S3_PATH_STYLE',
 				'exportable' => false,
 			),
+			// Owner decisions of 23.11.2026 (settings part 6): beta only with the right of the plan (SET-LIC-20, E-05).
+			'beta_updates'              => array(
+				'type'       => 'bool',
+				'default'    => 1,
+				'group'      => 'updates',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_license_update_channels',
+			),
 
 			// Renewals.
 			'combined_renewals'         => array(
@@ -278,6 +286,60 @@ final class Definitions {
 				'max_items' => 20,
 				'group'     => 'rules',
 				'filter'    => 'wplc_issue_after_completion_gateways',
+			),
+			// Owner decisions of 23.11.2026 (settings part 6): refunds, cancellations and disputes (SET-LIC-17, E-07).
+			'suspend_on_order_cancelled' => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_suspend_license_on_order_status',
+				'legal'   => true,
+			),
+			'suspend_on_order_item_change' => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_suspend_license_on_order_item_change',
+				'legal'   => true,
+			),
+			'partial_refund_review'     => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_partial_refund_review',
+				'legal'   => true,
+			),
+			'restore_after_won_dispute' => array(
+				'type'    => 'bool',
+				'default' => 0,
+				'group'   => 'rules',
+				'filter'  => 'wplc_restore_license_after_won_dispute',
+				'legal'   => true,
+			),
+			// Owner decisions of 23.11.2026 (settings part 6): plan changes stay prorated by day, two switches (E-08).
+			'plan_upgrades_enabled'     => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_plan_upgrades_enabled',
+				'legal'   => true,
+			),
+			'plan_downgrades_enabled'   => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_plan_downgrades_enabled',
+				'legal'   => true,
+			),
+			// Owner decisions of 23.11.2026 (settings part 6): key prefix, only before the first license (E-04).
+			'license_key_prefix'        => array(
+				'type'       => 'string',
+				'default'    => 'WPLC',
+				'format'     => 'key_prefix',
+				'max_length' => 4,
+				'group'      => 'rules',
+				'capability' => 'manage_policy',
+				'locked'     => array( \WPLC\License\LicenseKey::class, 'prefix_locked' ),
 			),
 
 			// Customer sites.

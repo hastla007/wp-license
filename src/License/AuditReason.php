@@ -110,6 +110,9 @@ final class AuditReason {
 	public const TRANSFER_STARTED               = 'transfer_started';
 	public const TRANSFER_CANCELLED             = 'transfer_cancelled';
 	public const LICENSE_TRANSFERRED_BY_CUSTOMER = 'license_transferred_by_customer';
+	// Refund and dispute rules (SET-LIC-17).
+	public const PARTIAL_REFUND_REVIEW          = 'partial_refund_review';
+	public const DISPUTE_WON_RESTORED           = 'dispute_won_restored';
 
 	/**
 	 * Build the stored form of a reason.
@@ -311,6 +314,11 @@ final class AuditReason {
 			self::TRANSFER_STARTED               => array( __( 'The license owner started a transfer to another customer. It takes effect when the recipient accepts it.', 'wp-license' ), array() ),
 			self::TRANSFER_CANCELLED             => array( __( 'The license owner cancelled the open transfer.', 'wp-license' ), array() ),
 			self::LICENSE_TRANSFERRED_BY_CUSTOMER => array( __( 'Transferred by the previous owner; the recipient accepted the transfer in their account.', 'wp-license' ), array() ),
+			// Refund and dispute rules (SET-LIC-17).
+			/* translators: 1: WooCommerce order number, 2: refunded amount, 3: currency code. */
+			self::PARTIAL_REFUND_REVIEW          => array( __( 'Order #%1$d was partially refunded (%2$s %3$s) without refunding licenses; the license was not changed. Please review it.', 'wp-license' ), array( 'order', 'amount', 'currency' ) ),
+			/* translators: 1: Stripe dispute ID, 2: WooCommerce order number. */
+			self::DISPUTE_WON_RESTORED           => array( __( 'Stripe dispute %1$s about order #%2$d was decided for the shop; the license was reactivated automatically (setting "Won payment dispute reactivates the license").', 'wp-license' ), array( 'dispute', 'order' ) ),
 			// Automatic renewals and payment events.
 			self::RENEWAL_ALREADY_PAID           => array( __( 'The renewal order was already paid.', 'wp-license' ), array() ),
 			self::RENEWAL_CONFIRMED_BY_ADAPTER   => array( __( 'The payment gateway confirmed the renewal.', 'wp-license' ), array() ),

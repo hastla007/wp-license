@@ -631,9 +631,10 @@ final class LicenseListTable extends \WP_List_Table {
 	 * Condition for "key_prefix contains the fragment", or null when no license can match.
 	 *
 	 * Same result as `key_prefix LIKE '%fragment%'`, which reads every row:
-	 * - Every prefix is "WPLC-" and 8 hex digits (LicenseKey::prefix()). A
-	 *   plain ASCII fragment with any other character cannot match.
-	 * - A fragment starting with "WPLC-" can only match at the start, so an
+	 * - Every prefix is the key prefix of the shop ("WPLC-" by default, E-04) and 8 hex
+	 *   digits (LicenseKey::prefix()). A plain ASCII fragment with any other character
+	 *   cannot match.
+	 * - A fragment starting with the key prefix can only match at the start, so an
 	 *   anchored LIKE uses the key_prefix index as a range.
 	 * - Otherwise the matching IDs are collected from the key_prefix index
 	 *   alone (index-only scan). Too many matches keep the plain LIKE.
@@ -644,11 +645,12 @@ final class LicenseListTable extends \WP_List_Table {
 	private static function key_prefix_condition( string $fragment ): ?array {
 		global $wpdb;
 
-		$ascii = 1 !== preg_match( '/[^\x20-\x7e]/', $fragment );
-		if ( '' === $fragment || strlen( $fragment ) > 32 || ( $ascii && 1 === preg_match( '/[^0-9A-FLPW\-]/i', $fragment ) ) ) {
+		$ascii  = 1 !== preg_match( '/[^\x20-\x7e]/', $fragment );
+		$prefix = \WPLC\License\LicenseKey::key_prefix();
+		if ( '' === $fragment || strlen( $fragment ) > 32 || ( $ascii && 1 === preg_match( '/[^0-9A-F' . $prefix . '\-]/i', $fragment ) ) ) {
 			return null;
 		}
-		if ( $ascii && 1 === preg_match( '/^WPLC-[0-9A-F]{0,8}$/i', $fragment ) ) {
+		if ( $ascii && 1 === preg_match( '/^' . $prefix . '-[0-9A-F]{0,8}$/i', $fragment ) ) {
 			return array(
 				'sql'    => 'key_prefix LIKE %s',
 				'params' => array( $wpdb->esc_like( $fragment ) . '%' ),

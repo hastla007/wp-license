@@ -36,8 +36,9 @@ final class Changes {
 	 *
 	 * Row states: `change` (valid and different), `same` (valid, nothing to do), `invalid`
 	 * (rejected by the register, `error` says why), `forbidden` (the current user may not
-	 * change this setting), `unknown` (no such setting), `undecided` (a suggestion without
-	 * a value: the shop has to decide).
+	 * change this setting), `locked` (the setting may no longer change, e.g. the license key
+	 * prefix once a license was issued), `unknown` (no such setting), `undecided` (a suggestion
+	 * without a value: the shop has to decide).
 	 *
 	 * @param array<string,mixed> $candidate  Key => value (null = no value suggested).
 	 * @param bool                $check_caps Whether the capability of the current user counts (false for WP-CLI).
@@ -84,6 +85,10 @@ final class Changes {
 			$row['state'] = ( $kept['ok'] ? $kept['value'] : $current[ $key ] ) === $result['value'] ? 'same' : 'change';
 			if ( 'change' === $row['state'] && $check_caps && ! Capabilities::can( (string) $definition['capability'] ) ) {
 				$row['state'] = 'forbidden';
+			}
+			if ( 'change' === $row['state'] && Registry::is_locked( $key ) ) {
+				// E-04: e.g. the license key prefix once a license was issued.
+				$row['state'] = 'locked';
 			}
 			$rows[] = $row;
 		}

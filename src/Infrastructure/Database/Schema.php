@@ -72,6 +72,7 @@ final class Schema {
 	 * 26: table `license_members`: co-users of a license and pending invitations (co-user invitations
 	 *     and transfers to another customer, B-139). Created by dbDelta; the step checks that the table
 	 *     and its indexes exist. No data changes.
+	 * 30: plans.beta_allowed, beta versions per plan (SET-LIC-20); NULL = the global setting.
 	 * 31: tables `webhook_endpoints` and `webhook_deliveries`: outgoing webhooks (target URL, encrypted
 	 *     secret, selected events) and their delivery log (SET-LIC-46). Created by dbDelta; the step checks
 	 *     that both tables and their indexes exist. No data changes.
@@ -142,6 +143,7 @@ final class Schema {
 		'26' => array( self::class, 'step_26_license_members' ),
 		'27' => array( self::class, 'step_27_suspended_at' ),
 		'28' => array( self::class, 'step_28_plan_overrides' ),
+		'30' => array( self::class, 'step_30_beta_per_plan' ),
 		'31' => array( self::class, 'step_31_webhooks' ),
 	);
 
@@ -876,6 +878,7 @@ final class Schema {
 				offline_cache_days smallint(5) unsigned DEFAULT NULL,
 				max_quantity_per_line int(10) unsigned DEFAULT NULL,
 				co_user_limit smallint(5) unsigned DEFAULT NULL,
+				beta_allowed tinyint(1) unsigned DEFAULT NULL,
 				active tinyint(1) NOT NULL DEFAULT 1,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
@@ -1701,6 +1704,31 @@ final class Schema {
 		);
 
 		return 5 === $count;
+	}
+
+	/**
+	 * Schema 30: beta versions per plan (SET-LIC-20, owner decision E-05 of 23.11.2026).
+	 *
+	 * `plans.beta_allowed`: 1 = licenses of the plan may receive beta versions, 0 = only stable
+	 * releases, NULL (every existing plan) = the setting "Beta versions for licenses", whose
+	 * default allows beta as before. dbDelta adds the column; this step only checks it exists.
+	 * (Version 29 is left to a parallel line of work; the step runner skips missing numbers.)
+	 *
+	 * @return bool
+	 */
+	private static function step_30_beta_per_plan(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		global $wpdb;
+
+		$tables = self::table_names();
+		$count  = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+				$tables['plans'],
+				'beta_allowed'
+			)
+		);
+
+		return 1 === $count;
 	}
 
 	/**

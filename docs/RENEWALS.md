@@ -403,7 +403,7 @@ A **full** refund of a paid renewal order (`woocommerce_order_fully_refunded`, s
 - switches automatic renewal off and cancels open renewal rows,
 - does not revoke the license. It ends through the normal rules; with `paid_until` in the past, access ends immediately and the daily job sets it to `expired`.
 
-A partial refund of a renewal order changes nothing on the license. Exception (B-191): a refund of a whole line of a combined renewal order takes back that line's license like a full refund (see "Combined renewal").
+A partial refund of a renewal order changes nothing on the license; a refund by amount only raises the review notice of the setting "Partial refund by amount: review notice" (default on, SET-LIC-17: audit `partial_refund_review`, action `wplc/license_needs_review`, order note). Exception (B-191): a refund of a whole line of a combined renewal order takes back that line's license like a full refund (see "Combined renewal").
 
 Double payment (P-15): when the order records a second payment for the same period (`_wplc_duplicate_transaction_id` or `_wplc_duplicate_payment_intent_id`), a full refund in WooCommerce refunds the payment on the order while the other one still pays the period. The renewal is then **not** rolled back and automatic renewal stays on; the refund is reported once (order note, audit `renewal_duplicate_refunded`, `wplc/renewal_needs_review`). The second payment is refunded in the payment gateway (the order note of the double payment names it). If both were refunded, shorten the term with "Change term".
 

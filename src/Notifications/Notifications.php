@@ -1135,7 +1135,7 @@ final class Notifications {
 		return array(
 			'product' => __( 'Sample product', 'wp-license' ),
 			'plan' => __( 'Sample plan', 'wp-license' ),
-			'key_prefix' => 'WPLC-1A2B3C4D',
+			'key_prefix' => \WPLC\License\LicenseKey::key_prefix() . '-1A2B3C4D',
 			'valid_until' => self::format_date( $now + 30 * 86400 ),
 			'days_left' => '7',
 			'amount' => Placeholders::plain( $price ),

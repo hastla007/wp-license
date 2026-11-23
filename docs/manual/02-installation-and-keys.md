@@ -121,6 +121,8 @@ wp wplc signing-key --field=public_key
 
 Chapter 13 lists every setting, including the support contact, the offline period of customer sites, the health alerts and the verbose log.
 
+**License key prefix (decide before the first sale).** Every key and every license reference starts with four characters and a hyphen, `WPLC-` by default. Under License settings → Rules of this shop you can choose your own four characters (a letter, then letters or digits, for example `ACME`) **as long as no license exists**. Every key contains the prefix and the stored check value is made from the whole key, so after the first license the field is read-only and shows why; the form, an import, a reset and WP-CLI leave it unchanged. The length of keys (106 characters) and references (13) stays the same; a shorter key format is a separate question. Set the placeholder of the key field in the add-ons to match (client library 2.4.0, `brand['key_placeholder']`); the client does not check the prefix of a typed key.
+
 The same page shows the Stripe webhook URL with a copy button, whether the secrets are configured, how many recent license keys verify with the current secret, whether automatic renewal is available and why not, the checkout type, the grace period and the database schema version.
 
 ## Who may do what

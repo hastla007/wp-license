@@ -222,7 +222,7 @@ Use `network => true` for an add-on that is network-activated and licensed per W
 
 `register()` hooks the updater when the add-on has a usable `Update URI`. It checks for updates during the WordPress update check (cached for twelve hours), fills "View details" with the changelog, fetches a fresh one-time link right before the download, accepts only HTTPS (also on redirects) up to 100 MB (filter `{prefix}_license_max_package_bytes`), compares the SHA-256 with the signed value and makes sure the unpacked folder contains the add-on's main file. A license without access sees that a version exists, with the reason in the plugin row and a link to the license screen.
 
-Beta versions (since 2.4.0): with `allow_channel_choice => true` the customer ticks "Receive beta versions" on the license screen (default off, per site); the update check then asks for `channel: beta`. The box is shown while the signed answer of the server does not exclude beta (`update_channels`). `channel => beta` in the build still makes every site ask for beta.
+Beta versions (since 2.4.0): with `allow_channel_choice => true` the customer ticks "Receive beta versions" on the license screen (default off, per site); the update check then asks for `channel: beta`. The box is shown while the signed answer of the server does not exclude beta (`update_channels`); the server decides per license and plan (chapter 5, "Beta versions for licenses"). `channel => beta` in the build still makes every site ask for beta.
 
 ## Screen, notices, daily check, hooks
 

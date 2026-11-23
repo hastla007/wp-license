@@ -33,7 +33,7 @@ final class LicenseSearch {
 	public const TYPE_LICENSE_KEY_HASH = 'license_key_hash';
 
 	/**
-	 * Length of the public key prefix "WPLC-" + 8 hex characters (LicenseKey::prefix()).
+	 * Length of the public key prefix "WPLC-" (or the shop's own four characters, E-04) + 8 hex characters (LicenseKey::prefix()).
 	 */
 	private const KEY_PREFIX_LENGTH = 13;
 
@@ -111,7 +111,7 @@ final class LicenseSearch {
 		if ( self::TYPE_TEXT === $search['type'] ) {
 			$compact = preg_replace( '/\s+/', '', $search['value'] );
 			$compact = is_string( $compact ) ? $compact : $search['value'];
-			if ( 0 === stripos( $compact, 'WPLC-' ) && strlen( $compact ) > self::KEY_PREFIX_LENGTH ) {
+			if ( 0 === stripos( $compact, LicenseKey::key_prefix() . '-' ) && strlen( $compact ) > self::KEY_PREFIX_LENGTH ) {
 				$prefix = strtoupper( substr( $compact, 0, self::KEY_PREFIX_LENGTH ) );
 				return array(
 					'type'  => self::TYPE_TEXT,
@@ -169,12 +169,12 @@ final class LicenseSearch {
 	}
 
 	/**
-	 * Whether a string has the shape of a complete license key (WPLC-<uuid>-<64 hex>).
+	 * Whether a string has the shape of a complete license key (<prefix>-<uuid>-<64 hex>, E-04).
 	 *
 	 * @param string $value Candidate without whitespace.
 	 * @return bool
 	 */
 	public static function is_full_license_key( string $value ): bool {
-		return 1 === preg_match( '/^WPLC-[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}-[0-9A-F]{64}$/i', $value );
+		return 1 === preg_match( '/^' . \WPLC\License\LicenseKey::prefix_alternatives() . '-[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}-[0-9A-F]{64}$/i', $value );
 	}
 }

@@ -81,7 +81,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc/license_member_added` | `src/License/LicenseMembers.php` | 0.2.0 | – | Fires after a user accepted a co-user invitation. |
 | `wplc/license_member_invited` | `src/License/LicenseMembers.php` | 0.2.0 | – | Fires after the owner invited a co-user. |
 | `wplc/license_member_removed` | `src/License/LicenseMembers.php` | 0.2.0 | – | Fires after a co-user was removed or an open invitation withdrawn. |
-| `wplc/license_needs_review` | `src/License/LicenseLifecycle.php` | 0.1.0 | – | Fires when a license was suspended and needs a decision by the shop. |
+| `wplc/license_needs_review` | `src/License/LicenseLifecycle.php` | 0.1.0 | – | Fires when a license was suspended or otherwise needs a decision by the shop (since 0.2.0 also for a partial refund by amount, SET-LIC-17). |
 | `wplc/license_owner_changed` | `src/Admin/SupportActions.php` | 0.1.0 | – | Fires after a license was handed over to another user. |
 | `wplc/license_plan_changed` | `src/License/PlanChange.php` | 0.2.0 | yes | Fires after the plan of a license changed (upgrade, downgrade at renewal, administrator change, revert). |
 | `wplc/license_status_changed` | `src/License/LicenseLifecycle.php` | 0.1.0 | yes | Fires after every successful license status transition and renewal. |
@@ -163,6 +163,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_license_owner_for_guest_order` | `src/License/LicenseIssuer.php` | Filters the owner of the licenses of an order without a customer account. |
 | `wplc_license_transfer_enabled` | `src/License/LicenseMembers.php` | Filters whether the owner can transfer a license to another customer from the account. |
 | `wplc_license_transfer_new_key` | `src/License/LicenseMembers.php` | Filters whether a transfer accepted in the account also issues a new license key. |
+| `wplc_license_update_channels` | `src/Update/UpdateChannels.php` | Filters the update channels a license may use (SET-LIC-20); default `stable`, plus `beta` when the plan (or the setting "Beta versions for licenses") allows it. Sent as `update_channels`; a request for another channel is served stable. Wins over the setting and the plan. |
 | `wplc_local_host_suffixes` | `src/Api/V1/SiteUrl.php` | Filters the endings of local addresses, without the leading dot (SET-LIC-09). Wins over the setting. |
 | `wplc_lock_self_test` | `src/Admin/Diagnostics.php` | Lets the package that owns the lock helper answer the self-test with its own implementation. |
 | `wplc_log_api_rejection` | `src/Api/V1/ApiLog.php` | Filter whether this rejection is written to the log. |
@@ -177,8 +178,11 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_package_offload_header` | `src/Update/PackageStream.php` | Filters a header that hands the file to the web server instead of PHP (B-25). |
 | `wplc_package_storage_dir` | `src/Update/LocalPackageStorage.php` | Filters the private package directory, e.g. to move it outside the web root. |
 | `wplc_package_storage_probe` | `src/Update/PackageStorageCheck.php` | Filters whether the package directory may be probed over HTTP. |
+| `wplc_partial_refund_review` | `src/License/LicenseLifecycle.php` | Filters whether a partial refund by amount asks the shop to review the licenses of the order (SET-LIC-17). Wins over the setting. |
 | `wplc_payment_token_id_for_order` | `src/License/LicenseIssuer.php` |  |
+| `wplc_plan_downgrades_enabled` | `src/Billing/PlanUpgrade.php` | Filters whether customers may switch to a cheaper plan in the account (E-08). Wins over the setting. |
 | `wplc_plan_label` | `src/Notifications/Notifications.php` | Filter the plan name shown to customers. |
+| `wplc_plan_upgrades_enabled` | `src/Billing/PlanUpgrade.php` | Filters whether customers may upgrade their plan in the account (E-08). Wins over the setting. |
 | `wplc_price_change_notice_days` | `src/Billing/PriceChange.php` | Filters the notice period of a renewal price change in days. |
 | `wplc_pricing_table_plans` | `src/Account/PricingTable.php` | Filters the plans of the pricing table (block `wplc/pricing`, shortcode `[wplc_pricing]`). |
 | `wplc_product_docs_url` | `src/Notifications/Notifications.php` | Filter the documentation URL shown with the installation steps. |
@@ -201,6 +205,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_renewal_retry_days` | `src/Billing/RenewalProcessor.php` | Filters the retry schedule of failed renewal charges (A-135). |
 | `wplc_require_package_resolver` | `src/Api/V1/UpdateService.php` | Filters whether packages may only be delivered through a resolver. |
 | `wplc_resolve_update_package_url` | `src/Update/ReleaseRegistry.php` |  |
+| `wplc_restore_license_after_won_dispute` | `src/License/LicenseLifecycle.php` | Filters whether a won dispute reactivates the licenses it suspended (SET-LIC-17). Wins over the setting. |
 | `wplc_retention_days` | `src/Maintenance/Retention.php` | Filter the retention periods in days. |
 | `wplc_retention_time_budget` | `src/Maintenance/Retention.php` | Filter the seconds one retention run may take. |
 | `wplc_review_payment_reference` | `src/Billing/RenewalReview.php` | Filters the transaction ID stored when a reviewed renewal order is booked as paid. |
@@ -222,8 +227,8 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_support_email` | `src/Notifications/Notifications.php` | Filter the support contact named in license emails. Wins over the setting. |
 | `wplc_support_url` | `src/Notifications/Notifications.php` | Filter the address of the support page that the customer account and the cancellation page link to. Wins over the setting. |
 | `wplc_suppress_renewal_order_email` | `src/Gateway/RenewalOrderEmails.php` | Filters whether a WooCommerce customer mail is suppressed for an automatic renewal order. |
-| `wplc_suspend_license_on_order_item_change` | `src/License/LicenseLifecycle.php` | Filters whether licenses are suspended when their order line is removed or its quantity lowered. |
-| `wplc_suspend_license_on_order_status` | `src/License/LicenseLifecycle.php` |  |
+| `wplc_suspend_license_on_order_item_change` | `src/License/LicenseLifecycle.php` | Filters whether licenses are suspended when their order line is removed or its quantity lowered. Wins over the setting "Removed order line suspends its licenses" (SET-LIC-17). |
+| `wplc_suspend_license_on_order_status` | `src/License/LicenseLifecycle.php` | Filters whether licenses are suspended when their paid order is cancelled or fails. Wins over the setting "Cancelled or failed order suspends its licenses" (SET-LIC-17). |
 | `wplc_suspended_license_ends_after_days` | `src/License/EndedLicenses.php` | Filters the days after which a suspended license counts as ended (0 = never). Wins over the setting. |
 | `wplc_translation_fallback_locale` | `src/Plugin.php` | Filters the shipped translation used for a locale without its own file (B-120). |
 | `wplc_update_check_issues_download` | `src/Api/V1/UpdateService.php` | Filters whether an update check without the `download` parameter creates a download grant. |

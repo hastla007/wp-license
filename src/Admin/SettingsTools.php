@@ -680,6 +680,7 @@ final class SettingsTools {
 			'same'      => __( 'no change', 'wp-license' ),
 			'invalid'   => __( 'not valid, is left out', 'wp-license' ),
 			'forbidden' => __( 'only an administrator may change this', 'wp-license' ),
+			'locked'    => __( 'fixed: licenses were already issued with this value', 'wp-license' ),
 			'unknown'   => __( 'unknown setting, is left out', 'wp-license' ),
 			'undecided' => __( 'please decide: no value is suggested for this country', 'wp-license' ),
 		);

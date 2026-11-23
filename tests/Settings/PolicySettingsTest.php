@@ -193,7 +193,9 @@ final class PolicySettingsTest extends TestCase {
 			list( $min, $max, $setting ) = $rule;
 			$definition                  = Registry::definition( $setting );
 			$this->assertNotNull( $definition, $field );
-			$this->assertSame( array( (int) $definition['min'], (int) $definition['max'] ), array( $min, $max ), $field );
+			// A switch (SET-LIC-20: beta_allowed) is 0 or 1 like its bool setting.
+			$limits = 'bool' === $definition['type'] ? array( 0, 1 ) : array( (int) $definition['min'], (int) $definition['max'] );
+			$this->assertSame( $limits, array( $min, $max ), $field );
 			$this->assertSame( array( 'ok' => true, 'value' => null ), \WPLC\Catalog\PlanOverrides::normalize( $field, '' ), $field );
 			$this->assertSame( array( 'ok' => true, 'value' => $max ), \WPLC\Catalog\PlanOverrides::normalize( $field, (string) $max ), $field );
 			$this->assertFalse( \WPLC\Catalog\PlanOverrides::normalize( $field, (string) ( $max + 1 ) )['ok'], $field );

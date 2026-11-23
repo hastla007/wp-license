@@ -67,7 +67,7 @@ $account_url = isset( $account_url ) ? (string) $account_url : '';
 	<?php elseif ( 'limited' === $state['view'] ) : ?>
 
 		<p class="wplc-cancel-limited" role="alert"><?php esc_html_e( 'Too many cancellation requests were sent in a short time. Please try again in an hour.', 'wp-license' ); ?></p>
-		<p><?php esc_html_e( 'If you entered an order number, you can also use the license reference from your license e-mail (it starts with WPLC-) or cancel in your customer account.', 'wp-license' ); ?></p>
+		<p><?php /* translators: %s: first characters of every license reference, e.g. WPLC-. */ echo esc_html( sprintf( __( 'If you entered an order number, you can also use the license reference from your license e-mail (it starts with %s) or cancel in your customer account.', 'wp-license' ), \WPLC\License\LicenseKey::key_prefix() . '-' ) ); ?></p>
 
 	<?php elseif ( 'review' === $state['view'] ) : ?>
 
@@ -93,7 +93,7 @@ $account_url = isset( $account_url ) ? (string) $account_url : '';
 	<?php else : ?>
 
 		<h2><?php esc_html_e( 'Cancel automatic renewal', 'wp-license' ); ?></h2>
-		<p><?php esc_html_e( 'Here you can cancel the automatic renewal of a license without signing in. You find the license reference (for example WPLC-1A2B3C4D) in every e-mail about your license; the order number is in your order confirmation.', 'wp-license' ); ?></p>
+		<p><?php /* translators: %s: example of a license reference, e.g. WPLC-1A2B3C4D. */ echo esc_html( sprintf( __( 'Here you can cancel the automatic renewal of a license without signing in. You find the license reference (for example %s) in every e-mail about your license; the order number is in your order confirmation.', 'wp-license' ), \WPLC\License\LicenseKey::key_prefix() . '-1A2B3C4D' ) ); ?></p>
 		<?php if ( '' !== (string) $state['error'] ) : ?>
 			<p class="wplc-cancel-error woocommerce-error" role="alert"><?php echo esc_html( (string) $state['error'] ); ?></p>
 		<?php endif; ?>

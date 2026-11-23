@@ -72,6 +72,9 @@ final class Registry {
 	 * - constant: name of a constant in wp-config.php that wins over the stored value; while it is
 	 *   defined the field is read-only and a save keeps the stored value (SET-LIC-30)
 	 * - pattern (string): the text must match it; an empty text is always accepted
+	 * - format: for a string, `email`, `emails`, `url` or `key_prefix`
+	 * - locked: callable that returns true while the value may no longer change (the field is
+	 *   read-only, a save, import, reset or WP-CLI call keeps the stored value; see is_locked())
 	 *
 	 * @return array<string,array<string,mixed>>
 	 */
@@ -197,6 +200,22 @@ final class Registry {
 		$constant   = null === $definition ? '' : (string) $definition['constant'];
 
 		return '' !== $constant && defined( $constant ) ? $constant : '';
+	}
+
+	/**
+	 * Whether a setting may no longer change (definition field `locked`), e.g. the license key
+	 * prefix once a license was issued (E-04).
+	 *
+	 * @param string $key Setting key.
+	 * @return bool
+	 */
+	public static function is_locked( string $key ): bool {
+		$definition = self::definition( $key );
+		if ( null === $definition || empty( $definition['locked'] ) || ! is_callable( $definition['locked'] ) ) {
+			return false;
+		}
+
+		return (bool) call_user_func( $definition['locked'] );
 	}
 
 	/**
@@ -332,6 +351,16 @@ final class Registry {
 				} else {
 					$text = function_exists( 'sanitize_text_field' ) ? sanitize_text_field( $text ) : trim( strip_tags( $text ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
 				}
+				$format = (string) ( $definition['format'] ?? '' );
+				if ( 'key_prefix' === $format ) {
+					// E-04: four characters, upper case; a trailing hyphen is the separator, not part of the prefix.
+					$text = strtoupper( rtrim( trim( $text ), '-' ) );
+					if ( 1 !== preg_match( '/^[A-Z][A-Z0-9]{3}$/D', $text ) ) {
+						return self::failure( 'not_a_key_prefix', 'Expected four characters: a letter, then letters or digits.' );
+					}
+
+					return self::success( $text );
+				}
 				$max    = (int) ( $definition['max_length'] ?? 500 );
 				$length = function_exists( 'mb_strlen' ) ? mb_strlen( $text ) : strlen( $text );
 				if ( $length > $max ) {
@@ -341,7 +370,6 @@ final class Registry {
 						return self::failure( 'too_long', sprintf( 'Expected at most %d characters.', $max ) );
 					}
 				}
-				$format = (string) ( $definition['format'] ?? '' );
 				if ( '' !== $text && 'email' === $format && ! self::is_email( $text ) ) {
 					return self::failure( 'not_an_email', 'Expected an email address.' );
 				}
