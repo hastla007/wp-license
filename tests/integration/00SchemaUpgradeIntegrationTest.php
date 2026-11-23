@@ -282,6 +282,15 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 
 		require dirname( __DIR__, 2 ) . '/uninstall.php';
 
+		// S10: the data is kept unless the site chose "delete" (or the constant is set).
+		$settings = get_option( 'wplc_settings', array() );
+		$this->assertFalse( wplc_uninstall_remove_data(), 'Default: keep.' );
+		update_option( 'wplc_settings', array( 'uninstall_data' => 'delete' ) );
+		$this->assertTrue( wplc_uninstall_remove_data() );
+		update_option( 'wplc_settings', array( 'uninstall_data' => 'anything else' ) );
+		$this->assertFalse( wplc_uninstall_remove_data() );
+		update_option( 'wplc_settings', $settings );
+
 		$this->assertFalse( wp_next_scheduled( 'wplc_daily_lifecycle' ) );
 		$this->assertFalse( wp_next_scheduled( 'wplc_process_renewal', array( 41 ) ) );
 		$this->assertFalse( wp_next_scheduled( 'wplc/renewal_grace_ended', array( 42 ) ) );

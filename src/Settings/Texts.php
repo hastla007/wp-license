@@ -179,6 +179,14 @@ final class Texts {
 				__( 'Keep proof of renewal consent for', 'wp-license' ),
 				__( 'Days after which the proof of a consent to automatic renewal is deleted, once its license has ended. Counted from the end of the calendar year of the consent. Default: 3650 (ten years, the technical default so far). 0 = never delete.', 'wp-license' ),
 			),
+			'health_alert_recipients'   => array(
+				__( 'Send health alerts to', 'wp-license' ),
+				__( 'Email addresses, separated by commas, that get a message when a figure of the diagnostics page reaches its alert threshold (for example failed background jobs or rejected webhooks). At most one collected email per day. Empty (default) = no email; the alerts are then only available to code (action wplc/health_alert).', 'wp-license' ),
+			),
+			'uninstall_data'            => array(
+				__( 'When the plugin is deleted', 'wp-license' ),
+				__( 'Keep (default): licenses, activations, renewals, the audit log and the settings stay in the database when the plugin is deleted, because they are business records. Delete: the tables and options of the plugin are removed for good when it is deleted; uploaded packages and order data are never removed. The constant WPLC_REMOVE_ALL_DATA in wp-config.php also deletes. Deleting cannot be undone; make a backup first.', 'wp-license' ),
+			),
 		);
 	}
 
@@ -199,6 +207,10 @@ final class Texts {
 				'auto' => __( 'Automatic: ask, unless Germanized or German Market is active', 'wp-license' ),
 				'on'   => __( 'Always ask', 'wp-license' ),
 				'off'  => __( 'Never ask', 'wp-license' ),
+			),
+			'uninstall_data'          => array(
+				'keep'   => __( 'Keep all data', 'wp-license' ),
+				'delete' => __( 'Delete tables and options', 'wp-license' ),
 			),
 		);
 

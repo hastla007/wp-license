@@ -269,6 +269,24 @@ final class Definitions {
 				'filter'  => 'wplc_retention_days',
 				'legal'   => true,
 			),
+
+			// Operations.
+			'health_alert_recipients'   => array(
+				'type'       => 'string',
+				'format'     => 'emails',
+				'default'    => '',
+				'max_length' => 500,
+				'max_items'  => 5,
+				'group'      => 'operations',
+				'filter'     => 'wplc_health_alert_recipients',
+			),
+			'uninstall_data'            => array(
+				'type'       => 'choice',
+				'default'    => 'keep',
+				'choices'    => array( 'keep', 'delete' ),
+				'group'      => 'operations',
+				'capability' => 'manage_package_hosts',
+			),
 		);
 	}
 }

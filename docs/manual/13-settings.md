@@ -71,7 +71,40 @@ The tables are generated from the register (`php bin/settings-doc.php --write`).
 | Detach ended licenses from the customer after | `retention_anonymize_licenses` | whole number, 0 to 36500 | `3650` | `wplc_retention_days` | Days after the end of a license at which the owner, the payment token reference and the installations are removed. Counted from the end of the calendar year in which the license ended. Default: 3650 (ten years, the technical default so far). 0 = never. **Legal review.** |
 | Keep proof of renewal consent for | `retention_consents` | whole number, 0 to 36500 | `3650` | `wplc_retention_days` | Days after which the proof of a consent to automatic renewal is deleted, once its license has ended. Counted from the end of the calendar year of the consent. Default: 3650 (ten years, the technical default so far). 0 = never delete. **Legal review.** |
 
+### Operations
+
+| Setting | Key | Value | Default | Filter (wins) | What it does |
+| --- | --- | --- | --- | --- | --- |
+| Send health alerts to | `health_alert_recipients` | text, at most 500 characters | (empty) | `wplc_health_alert_recipients` | Email addresses, separated by commas, that get a message when a figure of the diagnostics page reaches its alert threshold (for example failed background jobs or rejected webhooks). At most one collected email per day. Empty (default) = no email; the alerts are then only available to code (action wplc/health_alert). |
+| When the plugin is deleted | `uninstall_data` | one of `keep`, `delete` | `keep` | – | Keep (default): licenses, activations, renewals, the audit log and the settings stay in the database when the plugin is deleted, because they are business records. Delete: the tables and options of the plugin are removed for good when it is deleted; uploaded packages and order data are never removed. The constant WPLC_REMOVE_ALL_DATA in wp-config.php also deletes. Deleting cannot be undone; make a backup first. Administrators only. |
+
 <!-- settings:end -->
+
+## Country profiles
+
+Below the form, **Country profile** offers Germany, Austria, Switzerland, European Union (general) and Other country. A profile is a **suggestion** for the settings with legal weight:
+
+- It shows every value now and afterwards. Nothing is ticked in advance, and nothing changes until you tick rows, tick the confirmation and apply.
+- **No profile has been through a legal review.** Every value is marked "unchecked". The profile "Germany" suggests the built-in defaults, which were written with German rules in mind; the other profiles say "please decide" for every value, because nothing has been fixed for these countries. A profile never invents a value.
+- Retention stays technically as it is; a profile only suggests.
+- A law firm or the shop itself can supply checked values with the filter `wplc_settings_country_profiles` (per profile: `values` and the date `reviewed`). They are still only suggested.
+- Applying a profile writes the audit entry `settings_preset_applied`.
+
+## Export, import and reset
+
+- **Export** downloads a JSON file (`format`, `plugin`, `plugin_version`, `exported_at`, `settings`). It contains every setting of this chapter and no secret.
+- **Import** takes such a file (upload or pasted text), checks every value with the rules of the register and shows the differences. Values that are not valid and keys this version does not know are listed and left out. The trusted package hosts change only when you may change them.
+- **Reset to defaults** works per group or for all settings, with the same preview. The trusted package hosts are never part of a reset.
+- All three write to the audit log (`settings_exported`, `settings_imported`, `settings_reset`), in addition to the entry `settings_updated` with the old and new values.
+- The same on the command line: `wp wplc settings` (chapter 10).
+
+## Deleting the plugin
+
+**Operations → When the plugin is deleted** decides what happens to the data: **Keep** (default) leaves tables and options in the database; **Delete** removes them for good and needs an administrator and a ticked confirmation. The constant `WPLC_REMOVE_ALL_DATA` in `wp-config.php` deletes as well. Uploaded packages and order data are never removed. On a network the choice is made per site.
+
+## Health alerts by email
+
+**Operations → Send health alerts to** takes up to five email addresses. When a figure of the diagnostics page reaches its alert threshold (chapter 9), these addresses get one collected email, at most one per day. Without an address nothing is sent; the action `wplc/health_alert` fires as before. Test it with `wp wplc settings test-alert`.
 
 ## For developers
 

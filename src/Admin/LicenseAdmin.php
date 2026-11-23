@@ -70,6 +70,8 @@ final class LicenseAdmin {
 		Capabilities::register_hooks();
 		AdminNotices::register_hooks();
 		Settings::register_hooks();
+		SettingsTools::register_hooks();
+		HealthAlertMail::register_hooks();
 		RenewalReviewAdmin::register_hooks();
 		LicenseBulkActions::register_hooks();
 		AuditLogAdmin::register_hooks();

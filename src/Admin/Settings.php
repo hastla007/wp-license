@@ -348,6 +348,11 @@ final class Settings {
 				continue;
 			}
 			$result = Registry::validate( $key, $input[ $key ] );
+			if ( $result['ok'] && 'uninstall_data' === $key && 'delete' === $result['value'] && 'delete' !== $out[ $key ] && self::is_form_submission() && empty( $input['uninstall_data_confirm'] ) ) {
+				// S10: deleting data is only chosen with an explicit confirmation.
+				self::settings_error( 'wplc_uninstall_not_confirmed', __( '"When the plugin is deleted" was not changed: tick the confirmation next to it to choose "Delete tables and options".', 'wp-license' ) );
+				continue;
+			}
 			if ( $result['ok'] ) {
 				$out[ $key ] = $result['value'];
 				continue;
@@ -930,6 +935,22 @@ final class Settings {
 		}
 		echo '</p>';
 		self::render_effective_value( $key );
+	}
+
+	/**
+	 * Render the choice of what happens to the data when the plugin is deleted (S10).
+	 *
+	 * @return void
+	 */
+	public static function render_uninstall_data_field(): void {
+		self::render_field( array( 'key' => 'uninstall_data' ) );
+		if ( ! Capabilities::can( 'manage_package_hosts' ) ) {
+			return;
+		}
+		echo '<p><label for="wplc_uninstall_data_confirm"><input type="checkbox" id="wplc_uninstall_data_confirm" name="' . esc_attr( self::OPTION ) . '[uninstall_data_confirm]" value="1"> ' . esc_html__( 'Yes, delete all license data when the plugin is deleted. I have a backup. (Needed only when you switch to "Delete tables and options".)', 'wp-license' ) . '</label></p>';
+		if ( defined( 'WPLC_REMOVE_ALL_DATA' ) && true === WPLC_REMOVE_ALL_DATA ) {
+			echo '<p class="description wplc-effective"><span class="dashicons dashicons-info" aria-hidden="true"></span> ' . esc_html__( 'In effect: delete. The constant WPLC_REMOVE_ALL_DATA is set in wp-config.php.', 'wp-license' ) . '</p>';
+		}
 	}
 
 	/**
