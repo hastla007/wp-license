@@ -139,14 +139,12 @@ final class LicenseStateMachine {
 			 *
 			 * @since 0.2.0
 			 *
-			 * @param array<string,int> $window Keys `before` and `after`: days before and after the end of the paid period.
+			 * @param array<string,mixed> $window Keys `before` and `after`: days before and after the end of the paid period.
 			 */
-			$filtered = apply_filters( 'wplc_manual_renewal_window_days', $window );
-			if ( is_array( $filtered ) ) {
-				foreach ( array( 'before', 'after' ) as $side ) {
-					if ( isset( $filtered[ $side ] ) && is_numeric( $filtered[ $side ] ) ) {
-						$window[ $side ] = (int) $filtered[ $side ];
-					}
+			$filtered = (array) apply_filters( 'wplc_manual_renewal_window_days', $window );
+			foreach ( array( 'before', 'after' ) as $side ) {
+				if ( isset( $filtered[ $side ] ) && is_numeric( $filtered[ $side ] ) ) {
+					$window[ $side ] = (int) $filtered[ $side ];
 				}
 			}
 		}
