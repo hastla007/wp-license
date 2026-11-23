@@ -47,7 +47,7 @@ if ( ! function_exists( 'wplc_consistency_tasks' ) ) {
 			if ( 1 !== preg_match( '/^- \[( |x)\] (.*)$/', $line, $match ) ) {
 				continue;
 			}
-			$id = 1 === preg_match( '/^\*\*([A-Z]+(?:-[A-Z]+)?-\d+)\b/', $match[2], $found ) ? $found[1] : '';
+			$id = 1 === preg_match( '/^\*\*([A-Z]+(?:-[A-Z]+)?-P?\d+)\b/', $match[2], $found ) ? $found[1] : '';
 			// The first tag counts: a note may quote the tag of another task.
 			$severity = 1 === preg_match( '/\[(KRITISCH|WICHTIG|OPTIMIERUNG)\]/', $match[2], $found ) ? $found[1] : '';
 			$tasks[]  = array(

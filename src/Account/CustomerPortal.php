@@ -724,7 +724,7 @@ final class CustomerPortal {
 					return sprintf(
 						/* translators: %s: date. */
 						__( 'This license has expired: updates, downloads and new site activations are not available. You can still renew it until %s with "Renew now"; it then continues with the same key and the same sites.', 'wp-license' ),
-						Notifications::format_date( $paid_until + LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS * 86400 )
+						Notifications::format_date( $paid_until + LicenseStateMachine::renewal_days_after() * 86400 )
 					);
 				}
 				return __( 'This license has expired and can no longer be renewed. Updates, downloads and site activations are not available. To use the product again, please buy a new license.', 'wp-license' );

@@ -26,15 +26,16 @@ fi
 # The catalog header carries the plugin version (wp i18n make-pot would otherwise keep an old one).
 version="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*\([^[:space:]]*\).*$/\1/p' wp-license.php | head -n 1)"
 
-# src/Client is the library the add-ons ship: its texts use the text domain of the add-on and
-# are shown on customer sites, never by this plugin, so they stay out of this catalog.
+# src/Client is the library the add-ons ship. Its texts (all in src/Client/Messages.php) belong to
+# this catalog too since the server shows its own license screen with the same library
+# (Infrastructure\SelfLicense, text domain wp-license): without them that screen stays English.
 # --allow-root is harmless for normal users and required in CI containers.
 "${wp_cli[@]}" --allow-root i18n make-pot . languages/wp-license.pot \
 	--slug=wp-license \
 	--domain=wp-license \
 	--package-name="WP License Captain" \
 	--include=src,templates,wp-license.php,assets/js \
-	--exclude=vendor,tests,tools,docs,bin,build,dist,examples,.github,.claude,src/Client \
+	--exclude=vendor,tests,tools,docs,bin,build,dist,examples,.github,.claude \
 	--headers="{\"Project-Id-Version\":\"WP License Captain ${version}\",\"Report-Msgid-Bugs-To\":\"\",\"Last-Translator\":\"\",\"Language-Team\":\"\"}"
 
 # Merge new/changed strings into the translations (marks changed ones fuzzy).

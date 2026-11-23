@@ -4,6 +4,12 @@ Changes of the library in `src/Client` (namespace `WPLC\Client`), by library ver
 
 Every version works with every server that answers API v1 (see "Compatibility" in `README.md`). A line marked **Action** needs a change in the add-on.
 
+## 2.3.0
+
+- New: own texts of the product. `LicenseManager` (and `LicenseClient`) accept `texts`: an array code => text, or a callable that returns one, which replaces texts of the library (`notice.expired`, `ui.access_until`, `health.good_text` and so on; the codes are the keys of `Messages`). For a product whose license does not switch "premium features" on and off, for example one whose license only covers updates and support. Without `texts` nothing changes.
+- Changed: stored credentials without a key hash (written by a library before 2.0, which was never delivered) no longer count as "this key is already active" for every key; the entered key is activated. No effect on credentials written by 2.x.
+- No **Action** needed. Works with every server that answers API v1, as before.
+
 ## 2.2.0
 
 - **Action:** the library needs PHP 8.5 or later, the newest PHP release line (2.1.1 ran on PHP 7.4). Raise `Requires PHP` of the add-on to at least 8.5 before you ship it with this version. No change of behaviour or of the API; works with every server that answers API v1, as before.

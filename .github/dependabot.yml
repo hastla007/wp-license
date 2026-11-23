@@ -1,0 +1,32 @@
+# Dependabot keeps the pinned GitHub actions (commit hashes, see docs/QUALITY-GATES.md) and the
+# development tools of composer.json current. One pull request per ecosystem and day at most,
+# so the Actions queue is not filled with single updates; security updates come as their own group.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+      time: "05:00"
+      timezone: Europe/Vienna
+    open-pull-requests-limit: 2
+    groups:
+      all:
+        patterns: ["*"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: daily
+      time: "05:00"
+      timezone: Europe/Vienna
+    open-pull-requests-limit: 2
+    groups:
+      all:
+        patterns: ["*"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]

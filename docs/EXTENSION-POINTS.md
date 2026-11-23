@@ -104,6 +104,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc/stripe_webhook_received` | `src/Api/V1/StripeWebhook.php` | 0.1.0 | – |  |
 | `wplc_daily_lifecycle` | `src/Maintenance/DailyRunner.php` | 0.1.0 | – |  |
 | `wplc_release_package_missing` | `src/Update/ReleaseRegistry.php` | 0.1.0 | – | Fires when a published release cannot be offered because its file is missing on this server (A-111). |
+| `wplc_settings_page_tools` | `src/Admin/Settings.php` | 0.2.0 | – | Fires below the settings form: tools that work on the settings (country profiles, export, import, reset). |
 
 ## Filters
 
@@ -139,6 +140,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_gap_due_margin_days` | `src/Maintenance/GapGuard.php` | Filter how many days before the gap a due date is still protected. |
 | `wplc_gap_hold_days` | `src/Maintenance/GapGuard.php` | Filter the longest hold after a gap in days. |
 | `wplc_gap_reconcile_days` | `src/Maintenance/GapReconciler.php` | Filter how many days of orders and refunds are reconciled. |
+| `wplc_health_alert_recipients` | `src/Admin/HealthAlertMail.php` | Filters the recipients of health alert emails. Wins over the setting. |
 | `wplc_install_steps` | `src/Notifications/Notifications.php` |  |
 | `wplc_is_local_development_url` | `src/Api/V1/ActivationService.php` | Allow a shop owner to explicitly approve a custom development hostname. |
 | `wplc_is_staging_host` | `src/Api/V1/SiteUrl.php` | Filter whether a host is accepted as the staging copy of a live site. |
@@ -157,6 +159,8 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_log_api_rejection` | `src/Api/V1/ApiLog.php` | Filter whether this rejection is written to the log. |
 | `wplc_log_debug` | `src/Infrastructure/Log.php` | Filters whether the plugin writes debug lines to the WooCommerce log (A-133). |
 | `wplc_manual_renewal_for_unsold_products` | `src/Billing/ManualRenewal.php` | Filters whether customers may renew a license in their account when its product is not for sale (private, draft, not purchasable). Default false: such licenses are extended only by the shop owner with "Change term"; return true to allow the customer renewal at the plan price. |
+| `wplc_manual_renewal_window_days` | `src/License/LicenseStateMachine.php` | Filters the window of manual renewal. Wins over the two settings. |
+| `wplc_max_license_quantity_per_line` | `src/Catalog/QuantityLimit.php` | Filters the largest quantity of a license product in one order line. Wins over the setting. |
 | `wplc_new_activations_per_hour` | `src/Api/V1/ActivationService.php` | Filter how many new installations one license may activate per hour. |
 | `wplc_offer_planned_entitlements` | `src/Catalog/EntitlementCatalog.php` | Filters whether entitlements that are planned but not shipped by any add-on yet are offered in the product editor (default: no). |
 | `wplc_offline_cache_days` | `src/Api/V1/EntitlementService.php` | Filter the number of days a client may rely on a signed snapshot offline. |
@@ -171,6 +175,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_product_docs_url` | `src/Notifications/Notifications.php` | Filter the documentation URL shown with the installation steps. |
 | `wplc_public_cancel_hourly_limit` | `src/Account/PublicCancellation.php` | Filter how many public cancellation requests are accepted per hour, |
 | `wplc_public_cancel_order_id` | `src/Account/PublicCancellation.php` | Filter the order ID for an order number typed on the public cancellation |
+| `wplc_recurring_consent_text` | `src/Billing/RecurringConsent.php` | Filters the wording of the consent to automatic renewal (classic and block checkout). Wins over the setting. |
 | `wplc_recurring_gateway_adapters` | `src/Gateway/Registry.php` |  |
 | `wplc_registrable_domain` | `src/Api/V1/SiteUrl.php` | Filter the registrable domain derived from a host (for example with a public-suffix list). |
 | `wplc_release_product_slug` | `src/Update/ReleaseRegistry.php` | Filters the plugin folder a product's packages must contain. |
@@ -194,6 +199,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_schema_can_migrate` | `src/Infrastructure/Database/Schema.php` | Filter whether this request may run a schema migration. |
 | `wplc_self_update_check_enabled` | `src/Infrastructure/SelfUpdateCheck.php` | Filters whether the plugin looks for new releases of itself (A-42). |
 | `wplc_self_update_release_api` | `src/Infrastructure/SelfUpdateCheck.php` | Filters the API address of the latest release (A-42). |
+| `wplc_settings_country_profiles` | `src/Settings/Presets.php` | Filters the country profiles (suggestions for the settings with legal weight). |
 | `wplc_shop_base_currency` | `src/Catalog/Catalog.php` | Filters the currency product prices are entered in (B-189). |
 | `wplc_show_license_term` | `src/Catalog/TermDisplay.php` | Filters whether the license term is appended to the price of a license product. |
 | `wplc_stripe_adapter_status` | `src/Compatibility/Requirements.php` | Filters whether the Stripe renewal adapter is usable. |
@@ -204,6 +210,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_suppress_renewal_order_email` | `src/Gateway/RenewalOrderEmails.php` | Filters whether a WooCommerce customer mail is suppressed for an automatic renewal order. |
 | `wplc_suspend_license_on_order_item_change` | `src/License/LicenseLifecycle.php` | Filters whether licenses are suspended when their order line is removed or its quantity lowered. |
 | `wplc_suspend_license_on_order_status` | `src/License/LicenseLifecycle.php` |  |
+| `wplc_suspended_license_ends_after_days` | `src/License/EndedLicenses.php` | Filters the days after which a suspended license counts as ended (0 = never). Wins over the setting. |
 | `wplc_translation_fallback_locale` | `src/Plugin.php` | Filters the shipped translation used for a locale without its own file (B-120). |
 | `wplc_update_check_issues_download` | `src/Api/V1/UpdateService.php` | Filters whether an update check without the `download` parameter creates a download grant. |
 | `wplc_update_package_hosts` | `src/Update/PackageStream.php` |  |

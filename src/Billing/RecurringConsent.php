@@ -116,7 +116,21 @@ final class RecurringConsent {
 	 * @return string
 	 */
 	public static function label(): string {
-		return __( 'Renew automatically: I authorize charging my saved payment method the renewal price shown for each license at the end of every term, until I cancel. Without this option the license ends after the paid term.', 'wp-license' );
+		$text = __( 'Renew automatically: I authorize charging my saved payment method the renewal price shown for each license at the end of every term, until I cancel. Without this option the license ends after the paid term.', 'wp-license' );
+		$own  = trim( \WPLC\Settings\Registry::string( 'recurring_consent_text' ) );
+
+		/**
+		 * Filters the wording of the consent to automatic renewal (classic and block checkout). Wins over the setting.
+		 *
+		 * The text is stored verbatim as evidence of the consent. Legal wording is the shop owner's decision.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param string $text The wording of the setting "Wording of the consent to automatic renewal", else the built-in wording.
+		 */
+		$filtered = (string) apply_filters( 'wplc_recurring_consent_text', '' !== $own ? $own : $text );
+
+		return '' !== trim( $filtered ) ? $filtered : $text;
 	}
 
 	/**

@@ -28,7 +28,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.2.0';
+		const VERSION = '2.3.0';
 
 		/**
 		 * A signed answer ended the activation: rights and credentials are dropped.
@@ -136,6 +136,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 *     @type string[]        $public_keys     Base64 Ed25519 public keys of the license server. Required.
 		 *     @type string          $name            Display name of the add-on.
 		 *     @type string          $text_domain     Text domain of the add-on.
+		 *     @type array|callable  $texts           Since 2.3.0: own texts by code (array code => text, or a callable
+		 *                                            returning one) that replace texts of the library, for a product
+		 *                                            whose license does not switch "premium features" on and off.
 		 *     @type string          $option_prefix   Prefix of options and hooks. Default: product key with underscores.
 		 *     @type bool            $network         Multisite: one activation for the whole network. Default false.
 		 *     @type string          $update_uri      Value of the `Update URI` header. Default: read from the plugin file.
@@ -253,6 +256,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 					// An empty list would switch the server signature off; the facade does not allow that.
 					'public_keys'        => empty( $public_keys ) ? array( '' ) : $public_keys,
 					'text_domain'        => (string) $this->config['text_domain'],
+					'texts'              => $config['texts'] ?? null,
 					'network'            => $network,
 					'fallback_urls'      => $config['fallback_urls'] ?? array(),
 					'rest_base'          => $config['rest_base'] ?? '',

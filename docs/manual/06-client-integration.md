@@ -149,6 +149,7 @@ To rotate the server key: ship an add-on version that lists the old **and** the 
 | `settings_url` | | Admin address of your own page that calls `render_settings()`. |
 | `capability` | | Who may manage the license. Default `manage_options` (`manage_network_options` in network mode). |
 | `account_url` | | Customer account of your shop; appended to the grace and expiry notices. |
+| `texts` | | Since 2.3.0: your own texts by code (an array code => text, or a callable returning one) in place of texts of the library, for a product whose license does not switch "premium features" on and off. The codes are the keys in `Messages.php`, for example `notice.expired` or `ui.access_until`. |
 | `fallback_urls`, `rest_base` | | See "The server address". |
 
 ## Methods of the facade

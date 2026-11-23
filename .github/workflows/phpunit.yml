@@ -11,9 +11,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# One run per pull request: a new push to the pull request cancels the run of the older commit.
+# Runs on main (and started by hand) are never cancelled.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -33,8 +35,8 @@ jobs:
         include:
           - { php: "8.6", experimental: true }
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ matrix.php }}
           extensions: intl, mbstring, openssl, sodium
@@ -43,7 +45,7 @@ jobs:
       - name: Validate Composer metadata
         run: composer validate --no-check-publish
       # No composer.lock is committed (dev-only dependencies, PHP matrix), so the key is composer.json + PHP version.
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: vendor
           key: ${{ runner.os }}-vendor-php${{ matrix.php }}-${{ hashFiles('composer.json') }}
@@ -104,15 +106,15 @@ jobs:
       WPLC_EXPECT_WP_VERSION: ${{ matrix.wp }}
       WPLC_EXPECT_WC_VERSION: ${{ matrix.wc }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ matrix.php }}
           extensions: mysqli, intl, mbstring, openssl, sodium
           tools: composer:v2
           coverage: none
       - run: sudo apt-get update && sudo apt-get install -y default-mysql-client subversion unzip
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: vendor
           key: ${{ runner.os }}-vendor-php${{ matrix.php }}-${{ hashFiles('composer.json') }}
@@ -123,8 +125,11 @@ jobs:
         run: composer test:integration
 
   # One stable check name for branch protection, independent of the matrix cells.
+  # Runs also when a cell failed, so the failure is reported under this name. It does not run when
+  # the whole run was cancelled (a newer commit of the pull request replaced it): a cancelled run
+  # is not a test result, and the run of the newer commit reports under the same name.
   wordpress-integration:
-    if: always()
+    if: ${{ !cancelled() }}
     needs: integration
     runs-on: ubuntu-latest
     steps:

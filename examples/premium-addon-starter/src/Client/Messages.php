@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 ac20065f62c91338585a974469bc6ddf7378b4c2ebf9941013aab6f2d2c621e4). Do not edit: change the server copy and re-vendor.
+ * (source sha256 b1a240f4418618a5329f3f372ed1cb09c5e3c079f0ee91ac4f6c46a631f5def9). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -33,7 +33,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.2.0';
+		const VERSION = '2.3.0';
 
 		/**
 		 * Text domain literal used in this file.
@@ -62,12 +62,27 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		private $texts_locale = '';
 
 		/**
+		 * Texts of the product that replace texts of the library: an array code => text, or a
+		 * callable that returns one (called when a text is needed, so it may translate).
+		 *
+		 * @var array<string,string>|callable|null
+		 */
+		private $overrides;
+
+		/**
 		 * Constructor.
 		 *
-		 * @param string $text_domain Text domain of the add-on.
+		 * @since 2.3.0 Second parameter.
+		 *
+		 * @param string                             $text_domain Text domain of the add-on.
+		 * @param array<string,string>|callable|null $overrides   Own texts of the product by code (for example
+		 *                                                        `notice.expired`), or a callable returning them.
+		 *                                                        For products whose license does not switch
+		 *                                                        "premium features" on and off.
 		 */
-		public function __construct( string $text_domain = '' ) {
+		public function __construct( string $text_domain = '', $overrides = null ) {
 			$this->text_domain = '' === $text_domain ? self::SOURCE_DOMAIN : $text_domain;
+			$this->overrides   = is_array( $overrides ) || is_callable( $overrides ) ? $overrides : null;
 		}
 
 		/**
@@ -106,6 +121,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		 * @return string
 		 */
 		public function get( string $code ): string {
+			if ( null !== $this->overrides ) {
+				// A callable may be an array too (class and method); an array of texts has codes as keys and is never callable.
+				$own = is_callable( $this->overrides ) ? call_user_func( $this->overrides ) : $this->overrides;
+				if ( is_array( $own ) && isset( $own[ $code ] ) && is_string( $own[ $code ] ) && '' !== $own[ $code ] ) {
+					return $own[ $code ];
+				}
+			}
 			$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : '';
 			$texts  = $this->texts;
 			if ( null === $texts || $locale !== $this->texts_locale ) {

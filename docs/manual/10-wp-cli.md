@@ -167,6 +167,36 @@ Issues new keys for every license derived with one (leaked) secret ID. Without `
 
 Remaps licenses to a configured key ID whose secret reproduces their stored verifier (after a renamed ring entry). Dry run without `--apply`; exit code 1 while rows are left.
 
+## Settings
+
+### `wp wplc settings list [--group=<group>] [--format=<format>]`
+
+Lists every setting of **WooCommerce → License settings** with its stored value, its default, the value in effect after the filters of the shop (where it can be told) and the filter that belongs to it (chapter 13).
+
+### `wp wplc settings get <key>` / `wp wplc settings set <key> <value> [--yes]`
+
+Reads or changes one setting. `set` uses the same check as the settings page and refuses a value that is not valid; lists are separated by commas, switches are `1` or `0`. Setting `uninstall_data` to `delete` needs `--yes`.
+
+### `wp wplc settings export` / `wp wplc settings import <file> [--apply] [--yes]`
+
+`export` prints all settings as JSON, the same format as the export of the settings page. It contains no secret. `import` shows the differences between the file and the stored settings and changes nothing; with `--apply` it changes them. One value that is not valid stops the whole import.
+
+```
+wp wplc settings export > wplc-settings.json
+wp wplc settings import wplc-settings.json
+wp wplc settings import wplc-settings.json --apply
+```
+
+### `wp wplc settings reset [--group=<group>] [--apply]`
+
+Shows what a reset of one group, or of all settings, to the built-in defaults would change; `--apply` does it. The trusted package hosts are never reset.
+
+### `wp wplc settings test-alert`
+
+Sends a test message to the recipients of the health alerts (setting `health_alert_recipients`).
+
+Every change made with these commands is written to the audit log with the source `cli`.
+
 ## Repair
 
 Thin wrappers around the steps the scheduler normally runs; all guards (locks, status checks, idempotency) apply unchanged.

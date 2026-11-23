@@ -398,6 +398,7 @@ final class Plugin {
 		ReleaseAdmin::register_hooks();
 		ProductEditor::register_hooks();
 		\WPLC\Catalog\TermDisplay::register_hooks();
+		\WPLC\Catalog\QuantityLimit::register_hooks();
 		LicenseIssuer::register_hooks();
 		LicenseLifecycle::register_hooks();
 		\WPLC\Events\AfterCommit::register_hooks();

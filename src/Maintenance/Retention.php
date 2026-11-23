@@ -106,12 +106,6 @@ final class Retention {
 	 */
 	private const MAX_DAYS = 36500;
 
-	/**
-	 * License states after which deactivated installations may be deleted.
-	 *
-	 * @var string[]
-	 */
-	private const TERMINAL_STATES = array( 'expired', 'revoked', 'cancelled' );
 
 	/**
 	 * Inbox outcomes that still need work. They are kept beyond `event_inbox` and only fall under `event_inbox_open`.
@@ -204,7 +198,24 @@ final class Retention {
 	 */
 	public static function configured_days(): array {
 		/** This filter is documented in Retention::run(). */
-		return self::effective_days( apply_filters( 'wplc_retention_days', self::DEFAULT_DAYS ) );
+		return self::effective_days( apply_filters( 'wplc_retention_days', self::setting_days() ) );
+	}
+
+	/**
+	 * The retention periods of the settings page (SET-LIC-04): DEFAULT_DAYS overlaid with the settings
+	 * `retention_<rule>`. The filter `wplc_retention_days` is applied by the callers and wins.
+	 *
+	 * @return array<string,int>
+	 */
+	public static function setting_days(): array {
+		$days = self::DEFAULT_DAYS;
+		foreach ( array_keys( $days ) as $rule ) {
+			if ( null !== \WPLC\Settings\Registry::definition( 'retention_' . $rule ) ) {
+				$days[ $rule ] = \WPLC\Settings\Registry::int( 'retention_' . $rule );
+			}
+		}
+
+		return $days;
 	}
 
 	/**
@@ -230,9 +241,11 @@ final class Retention {
 			/**
 			 * Filter the retention periods in days.
 			 *
-			 * @param array<string,int> $days See Retention::DEFAULT_DAYS for the keys. Zero disables a rule.
+			 * Wins over the settings under "Legal and privacy".
+			 *
+			 * @param array<string,int> $days The settings (defaults: Retention::DEFAULT_DAYS, which also lists the keys). Zero disables a rule.
 			 */
-			$days    = apply_filters( 'wplc_retention_days', self::DEFAULT_DAYS );
+			$days    = apply_filters( 'wplc_retention_days', self::setting_days() );
 			$cutoffs = self::cutoffs( $days, time() );
 			/**
 			 * Filter the seconds one retention run may take.
@@ -386,6 +399,9 @@ final class Retention {
 	private static function process_batch( string $rule, string $cutoff ): int {
 		global $wpdb;
 
+		// Built from constants and a computed date (License\EndedLicenses), safe to put into a query.
+		$ended_l_sql = \WPLC\License\EndedLicenses::condition( 'l' );
+
 		$tables = Schema::table_names();
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- only table names are interpolated.
@@ -447,11 +463,8 @@ final class Retention {
 			case 'consents':
 				$result = $wpdb->query(
 					$wpdb->prepare(
-						"DELETE FROM {$tables['consents']} WHERE id IN ( SELECT id FROM ( SELECT c.id FROM {$tables['consents']} c LEFT JOIN {$tables['licenses']} l ON l.id = c.license_id WHERE c.consent_at < %s AND ( l.id IS NULL OR l.status IN (%s,%s,%s) ) ORDER BY c.id ASC LIMIT %d ) batch )",
+						"DELETE FROM {$tables['consents']} WHERE id IN ( SELECT id FROM ( SELECT c.id FROM {$tables['consents']} c LEFT JOIN {$tables['licenses']} l ON l.id = c.license_id WHERE c.consent_at < %s AND ( l.id IS NULL OR {$ended_l_sql} ) ORDER BY c.id ASC LIMIT %d ) batch )",
 						$cutoff,
-						self::TERMINAL_STATES[0],
-						self::TERMINAL_STATES[1],
-						self::TERMINAL_STATES[2],
 						self::BATCH_SIZE
 					)
 				);
@@ -485,7 +498,7 @@ final class Retention {
 		global $wpdb;
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- table names and one %d per ID.
-		$license_condition = $ended ? 'l.status IN (%s,%s,%s)' : '( l.id IS NULL OR l.status NOT IN (%s,%s,%s) )';
+		$license_condition = $ended ? \WPLC\License\EndedLicenses::condition( 'l' ) : '( l.id IS NULL OR NOT ' . \WPLC\License\EndedLicenses::condition( 'l' ) . ' )';
 		// Anti-join instead of NOT EXISTS (T-89): MariaDB materialized the subquery by
 		// scanning every activation; the LEFT JOIN looks children up in staging_parent.
 		$ids               = $wpdb->get_col(
@@ -494,9 +507,6 @@ final class Retention {
 				'active',
 				'active',
 				$cutoff,
-				self::TERMINAL_STATES[0],
-				self::TERMINAL_STATES[1],
-				self::TERMINAL_STATES[2],
 				self::BATCH_SIZE
 			)
 		);
@@ -507,17 +517,18 @@ final class Retention {
 
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 
-		// Replay-protection rows of a deleted installation have no further use.
-		$wpdb->query(
-			$wpdb->prepare( "DELETE FROM {$tables['request_nonces']} WHERE activation_id IN ({$placeholders})", $ids )
-		);
-
 		// The status and date conditions are repeated so a row reactivated in between is kept.
 		$result = $wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$tables['activations']} WHERE id IN ({$placeholders}) AND status <> %s AND deactivated_at IS NOT NULL AND deactivated_at < %s",
 				array_merge( $ids, array( 'active', $cutoff ) )
 			)
+		);
+
+		// Replay-protection rows of a deleted installation have no further use. Only after the
+		// installation is gone: one that was reactivated in between keeps its used nonces.
+		$wpdb->query(
+			$wpdb->prepare( "DELETE n FROM {$tables['request_nonces']} n LEFT JOIN {$tables['activations']} a ON a.id = n.activation_id WHERE n.activation_id IN ({$placeholders}) AND a.id IS NULL", $ids )
 		);
 		// phpcs:enable
 
@@ -549,8 +560,10 @@ final class Retention {
 			}
 			$after   = isset( self::$ended_cursor[ $kind ] ) ? self::$ended_cursor[ $kind ] : 0;
 			$staging = 'live' === $kind ? 'IS NULL' : 'IS NOT NULL';
+			// A license suspended for longer than the shop's setting counts as ended (EndedLicenses); built from constants and a date.
+			$suspended = \WPLC\License\EndedLicenses::suspended_condition( 'l' );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- only the fixed "IS [NOT] NULL" above is interpolated.
-			$sql   = "SELECT a.id FROM %i a INNER JOIN %i l ON l.id = a.license_id WHERE a.status = %s AND a.staging_parent_id {$staging} AND a.id > %d AND ( l.status = %s OR ( l.status IN (%s,%s) AND l.paid_until IS NOT NULL AND l.paid_until < %s ) ) ORDER BY a.id ASC LIMIT %d";
+			$sql   = "SELECT a.id FROM %i a INNER JOIN %i l ON l.id = a.license_id WHERE a.status = %s AND a.staging_parent_id {$staging} AND a.id > %d AND ( l.status = %s OR ( l.status = %s AND l.paid_until IS NOT NULL AND l.paid_until < %s ) OR {$suspended} ) ORDER BY a.id ASC LIMIT %d";
 			$found = $wpdb->get_col(
 				$wpdb->prepare(
 					$sql, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- built above from constants only.
@@ -560,7 +573,6 @@ final class Retention {
 					$after,
 					'revoked',
 					'expired',
-					'cancelled',
 					$cutoff,
 					$need
 				)
@@ -597,13 +609,14 @@ final class Retention {
 	private static function anonymize_licenses( array $tables, string $cutoff ): int {
 		global $wpdb;
 
+		// Built from constants and a computed date (License\EndedLicenses), safe to put into a query.
+		$ended_sql = \WPLC\License\EndedLicenses::condition();
+		$ended_l_sql = \WPLC\License\EndedLicenses::condition( 'l' );
+
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- only table names are interpolated.
 		$ids = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT l.id FROM {$tables['licenses']} l WHERE l.status IN (%s,%s,%s) AND COALESCE( l.revoked_at, l.paid_until, l.updated_at ) < %s AND l.updated_at < %s AND ( l.customer_id > 0 OR l.payment_token_id > 0 OR EXISTS ( SELECT 1 FROM {$tables['activations']} a WHERE a.license_id = l.id ) ) ORDER BY l.id ASC LIMIT %d",
-				self::TERMINAL_STATES[0],
-				self::TERMINAL_STATES[1],
-				self::TERMINAL_STATES[2],
+				"SELECT l.id FROM {$tables['licenses']} l WHERE {$ended_l_sql} AND COALESCE( l.revoked_at, l.paid_until, l.updated_at ) < %s AND l.updated_at < %s AND ( l.customer_id > 0 OR l.payment_token_id > 0 OR EXISTS ( SELECT 1 FROM {$tables['activations']} a WHERE a.license_id = l.id ) ) ORDER BY l.id ASC LIMIT %d",
 				$cutoff,
 				$cutoff,
 				self::SMALL_BATCH_SIZE
@@ -615,11 +628,8 @@ final class Retention {
 			$license_id = (int) $license_id;
 			$updated    = $wpdb->query(
 				$wpdb->prepare(
-					"UPDATE {$tables['licenses']} SET customer_id = 0, payment_token_id = 0, renewal_enabled = 0, next_payment_at = NULL, price_change_amount_minor = NULL, price_change_effective_at = NULL, price_change_announced_at = NULL, price_change_notified_at = NULL, price_change_notice_days = NULL WHERE id = %d AND status IN (%s,%s,%s)",
+					"UPDATE {$tables['licenses']} SET customer_id = 0, payment_token_id = 0, renewal_enabled = 0, next_payment_at = NULL, price_change_amount_minor = NULL, price_change_effective_at = NULL, price_change_announced_at = NULL, price_change_notified_at = NULL, price_change_notice_days = NULL WHERE id = %d AND {$ended_sql}",
 					$license_id,
-					self::TERMINAL_STATES[0],
-					self::TERMINAL_STATES[1],
-					self::TERMINAL_STATES[2]
 				)
 			);
 			if ( false === $updated ) {

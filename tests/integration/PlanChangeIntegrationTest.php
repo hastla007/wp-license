@@ -14,6 +14,7 @@ use WPLC\Api\V1\ActivationService;
 use WPLC\Billing\ManualRenewal;
 use WPLC\Billing\PlanUpgrade;
 use WPLC\Billing\RenewalOrder;
+use WPLC\Billing\RenewalProcessor;
 use WPLC\License\LicenseKey;
 use WPLC\License\LicenseLifecycle;
 use WPLC\License\PlanChange;
@@ -286,6 +287,48 @@ final class PlanChangeIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertTrue( PlanChange::order_bills_product( $renewal, $this->product_id( 'business' ) ) );
 		$this->assertSame( '149.00', wc_format_decimal( $renewal->get_total(), 2 ) );
 		$this->assertTrue( RenewalOrder::net_matches( $renewal ) );
+	}
+
+	/**
+	 * Security audit of 14 Nov 2026 (SA-02): cash on delivery is "processing" before any money
+	 * arrived. A manual renewal and an upgrade paid that way count when the order is completed,
+	 * like a first purchase (A-24).
+	 */
+	public function test_sa02_cash_on_delivery_extends_and_upgrades_only_when_completed(): void {
+		$license_id = $this->buy( 'solo' );
+		$this->set_license( $license_id, array( 'paid_until' => gmdate( 'Y-m-d H:i:s', time() + 5 * DAY_IN_SECONDS ) ) );
+		$before = (string) $this->license( $license_id )['paid_until'];
+
+		$renewal = ManualRenewal::start( $license_id, $this->customer );
+		$this->assertInstanceOf( WC_Order::class, $renewal );
+		$renewal->set_payment_method( 'cod' );
+		$renewal->save();
+		$renewal->update_status( 'processing' );
+		$this->assertTrue( wc_get_order( $renewal->get_id() )->is_paid(), 'WooCommerce calls the order paid.' );
+		$this->assertSame( $before, (string) $this->license( $license_id )['paid_until'], 'No money yet: the term is unchanged.' );
+		RenewalProcessor::reconcile_paid_renewal_order( $renewal->get_id() );
+		$this->assertSame( $before, (string) $this->license( $license_id )['paid_until'], 'The repair job does not book it either.' );
+
+		wc_get_order( $renewal->get_id() )->update_status( 'completed' );
+		$this->assertGreaterThan( strtotime( $before . ' UTC' ), strtotime( (string) $this->license( $license_id )['paid_until'] . ' UTC' ), 'Completed: the term is extended.' );
+
+		$upgrade = $this->start_upgrade( $license_id );
+		$upgrade->set_payment_method( 'cod' );
+		$upgrade->save();
+		$upgrade->update_status( 'processing' );
+		$this->assertSame( 'solo', $this->license( $license_id )['plan_key'] );
+		wc_get_order( $upgrade->get_id() )->update_status( 'completed' );
+		$this->assertSame( 'business', $this->license( $license_id )['plan_key'] );
+
+		// Another payment method that is "processing" was paid: it counts at once, as before.
+		$second = $this->buy( 'solo' );
+		$this->set_license( $second, array( 'paid_until' => gmdate( 'Y-m-d H:i:s', time() + 5 * DAY_IN_SECONDS ) ) );
+		$before = (string) $this->license( $second )['paid_until'];
+		$order  = ManualRenewal::start( $second, $this->customer );
+		$order->set_payment_method( 'bacs' );
+		$order->save();
+		$order->update_status( 'processing' );
+		$this->assertGreaterThan( strtotime( $before . ' UTC' ), strtotime( (string) $this->license( $second )['paid_until'] . ' UTC' ) );
 	}
 
 	public function test_lower_site_limit_keeps_existing_sites_and_blocks_new_activations(): void {

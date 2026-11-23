@@ -11,6 +11,8 @@ use WPLC\Compatibility\Requirements;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
 use WPLC\License\LicenseLifecycle;
+use WPLC\Settings\Registry;
+use WPLC\Settings\Texts;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -18,13 +20,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * WooCommerce → License settings. Secrets stay in wp-config.php constants.
+ *
+ * What a setting is (key, type, default, limits, group, capability) stands in
+ * Settings\Registry; this class is the page, the form and the change log.
  */
 final class Settings {
 
 	/**
 	 * Option name and settings group.
 	 */
-	public const OPTION = 'wplc_settings';
+	public const OPTION = Registry::OPTION;
 
 	/**
 	 * Package hosts the last sanitize() call of this request stored or kept (null before the first call).
@@ -70,12 +75,6 @@ final class Settings {
 
 		return $links;
 	}
-
-	/**
-	 * Settings whose values are written to the audit log. Other keys are
-	 * recorded by name only (the sender note is free text shown to customers).
-	 */
-	private const AUDITED_VALUES = array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import', 'combined_renewals' );
 
 	/**
 	 * Audit the first save of the option.
@@ -125,8 +124,9 @@ final class Settings {
 	/**
 	 * Compare two settings arrays for the audit log.
 	 *
-	 * Missing keys count as their default. Values are included only for
-	 * AUDITED_VALUES; any other changed key appears in `changed` only.
+	 * Missing keys count as their default. Old and new value of every changed
+	 * setting are recorded; free text is shortened (Registry::PREVIEW_LENGTH) and a
+	 * setting flagged as secret appears by name only.
 	 *
 	 * @param array<string,mixed> $old Previous settings.
 	 * @param array<string,mixed> $new New settings.
@@ -150,10 +150,13 @@ final class Settings {
 				continue;
 			}
 			$changed[] = $key;
-			if ( in_array( $key, self::AUDITED_VALUES, true ) ) {
-				$before[ $key ] = $old_value;
-				$after[ $key ]  = $new_value;
+			$definition = Registry::definition( $key );
+			if ( null === $definition || $definition['secret'] ) {
+				continue;
 			}
+			$as_text        = in_array( $definition['type'], array( 'string', 'text' ), true );
+			$before[ $key ] = $as_text ? Registry::display( $key, $old_value ) : $old_value;
+			$after[ $key ]  = $as_text ? Registry::display( $key, $new_value ) : $new_value;
 		}
 
 		return array(
@@ -169,34 +172,18 @@ final class Settings {
 	 * @return array<string,mixed>
 	 */
 	public static function defaults(): array {
-		return array(
-			'package_hosts' => array(),
-			'reminder_days' => '30,7',
-			'renewal_notice_days' => 7,
-			'price_change_notice_days' => \WPLC\Billing\PriceChange::DEFAULT_NOTICE_DAYS,
-			'catalog_auto_import' => 1,
-			'combined_renewals' => 0,
-			'sender_note'   => '',
-		);
+		return Registry::defaults();
 	}
 
 	/**
 	 * Read one setting.
 	 *
-	 * @param string $key     Setting key: package_hosts (string[]), reminder_days (string), sender_note (string).
+	 * @param string $key     Setting key (see Settings\Definitions).
 	 * @param mixed  $default Value when the setting is not stored; null uses the built-in default.
 	 * @return mixed
 	 */
 	public static function get( string $key, $default = null ) {
-		$stored = get_option( self::OPTION, array() );
-		if ( is_array( $stored ) && array_key_exists( $key, $stored ) ) {
-			return $stored[ $key ];
-		}
-		if ( null !== $default ) {
-			return $default;
-		}
-		$defaults = self::defaults();
-		return array_key_exists( $key, $defaults ) ? $defaults[ $key ] : null;
+		return Registry::get( $key, $default );
 	}
 
 	/**
@@ -256,11 +243,12 @@ final class Settings {
 	 *
 	 * @param string $code    Error code.
 	 * @param string $message Translated message.
+	 * @param string $type    error or warning.
 	 * @return void
 	 */
-	private static function settings_error( string $code, string $message ): void {
+	private static function settings_error( string $code, string $message, string $type = 'error' ): void {
 		if ( function_exists( 'add_settings_error' ) ) {
-			add_settings_error( self::OPTION, $code, $message, 'error' );
+			add_settings_error( self::OPTION, $code, $message, $type );
 		}
 	}
 
@@ -297,66 +285,30 @@ final class Settings {
 			)
 		);
 
-		add_settings_section( 'wplc_updates', __( 'Updates', 'wp-license' ), '__return_false', self::PAGE );
-		add_settings_field(
-			'wplc_package_hosts',
-			__( 'Additional trusted package hosts', 'wp-license' ),
-			array( self::class, 'render_package_hosts_field' ),
-			self::PAGE,
-			'wplc_updates',
-			array( 'label_for' => 'wplc_package_hosts' )
-		);
-
-		add_settings_field(
-			'wplc_catalog_auto_import',
-			__( 'Catalog file of release packages', 'wp-license' ),
-			array( self::class, 'render_catalog_auto_import_field' ),
-			self::PAGE,
-			'wplc_updates',
-			array( 'label_for' => 'wplc_catalog_auto_import' )
-		);
-		add_settings_section( 'wplc_renewals', __( 'Automatic renewal', 'wp-license' ), '__return_false', self::PAGE );
-		add_settings_field(
-			'wplc_combined_renewals',
-			__( 'Combine automatic renewals', 'wp-license' ),
-			array( self::class, 'render_combined_renewals_field' ),
-			self::PAGE,
-			'wplc_renewals',
-			array( 'label_for' => 'wplc_combined_renewals' )
-		);
-		add_settings_section( 'wplc_emails', __( 'Customer emails', 'wp-license' ), '__return_false', self::PAGE );
-		add_settings_field(
-			'wplc_reminder_days',
-			__( 'Reminder lead days', 'wp-license' ),
-			array( self::class, 'render_reminder_days_field' ),
-			self::PAGE,
-			'wplc_emails',
-			array( 'label_for' => 'wplc_reminder_days' )
-		);
-		add_settings_field(
-			'wplc_renewal_notice_days',
-			__( 'Renewal notice lead days', 'wp-license' ),
-			array( self::class, 'render_renewal_notice_days_field' ),
-			self::PAGE,
-			'wplc_emails',
-			array( 'label_for' => 'wplc_renewal_notice_days' )
-		);
-		add_settings_field(
-			'wplc_price_change_notice_days',
-			__( 'Price change notice period', 'wp-license' ),
-			array( self::class, 'render_price_change_notice_days_field' ),
-			self::PAGE,
-			'wplc_emails',
-			array( 'label_for' => 'wplc_price_change_notice_days' )
-		);
-		add_settings_field(
-			'wplc_sender_note',
-			__( 'Sender note', 'wp-license' ),
-			array( self::class, 'render_sender_note_field' ),
-			self::PAGE,
-			'wplc_emails',
-			array( 'label_for' => 'wplc_sender_note' )
-		);
+		// Sections and fields come from the register; a field with a renderer of its own
+		// (render_<key>_field) keeps it, every other field uses the generic one.
+		$titles = Texts::groups();
+		foreach ( Registry::GROUPS as $group ) {
+			$keys = Registry::keys_of_group( $group );
+			if ( ! $keys ) {
+				continue;
+			}
+			add_settings_section( 'wplc_' . $group, $titles[ $group ] ?? $group, '__return_false', self::PAGE );
+			foreach ( $keys as $key ) {
+				$own = 'render_' . $key . '_field';
+				add_settings_field(
+					'wplc_' . $key,
+					Texts::label( $key ),
+					method_exists( self::class, $own ) ? array( self::class, $own ) : array( self::class, 'render_field' ),
+					self::PAGE,
+					'wplc_' . $group,
+					array(
+						'label_for' => 'wplc_' . $key,
+						'key'       => $key,
+					)
+				);
+			}
+		}
 	}
 
 	/**
@@ -367,18 +319,86 @@ final class Settings {
 	 * old form cannot wipe other settings (B-134). The trusted package hosts are
 	 * only changed from the form when the user may change them and the form was
 	 * rendered with the list that is stored now; an old browser tab can therefore
-	 * not bring back a host that was removed in the meantime.
+	 * not bring back a host that was removed in the meantime. Every other key is
+	 * checked with the rules of the register; a value that cannot be accepted is
+	 * reported on the screen and the stored value stays.
 	 *
 	 * @param mixed $input Raw option value.
 	 * @return array<string,mixed>
 	 */
 	public static function sanitize( $input ): array {
-		$input    = is_array( $input ) ? $input : array();
-		$defaults = self::defaults();
-		$stored   = function_exists( 'get_option' ) ? get_option( self::OPTION, array() ) : array();
-		$current  = array_merge( $defaults, is_array( $stored ) ? array_intersect_key( $stored, $defaults ) : array() );
+		$input   = is_array( $input ) ? $input : array();
+		$current = Registry::all();
+		$out     = array();
 
-		$current_hosts = is_array( $current['package_hosts'] ) ? array_values( array_filter( $current['package_hosts'], 'is_string' ) ) : array();
+		foreach ( Registry::definitions() as $key => $definition ) {
+			$key = (string) $key;
+			if ( 'package_hosts' === $key ) {
+				$out[ $key ] = self::sanitize_package_hosts( $input, $current[ $key ] );
+				continue;
+			}
+
+			// What is stored now, brought into the valid form (an old or hand-edited value never survives a save).
+			$kept        = Registry::validate( $key, $current[ $key ] );
+			$out[ $key ] = $kept['ok'] ? $kept['value'] : $definition['default'];
+			if ( ! array_key_exists( $key, $input ) ) {
+				continue;
+			}
+			if ( self::is_form_submission() && ! Capabilities::can( (string) $definition['capability'] ) ) {
+				continue;
+			}
+			$result = Registry::validate( $key, $input[ $key ] );
+			if ( $result['ok'] && 'uninstall_data' === $key && 'delete' === $result['value'] && 'delete' !== $out[ $key ] && self::is_form_submission() && empty( $input['uninstall_data_confirm'] ) ) {
+				// S10: deleting data is only chosen with an explicit confirmation.
+				self::settings_error( 'wplc_uninstall_not_confirmed', __( '"When the plugin is deleted" was not changed: tick the confirmation next to it to choose "Delete tables and options".', 'wp-license' ) );
+				continue;
+			}
+			if ( $result['ok'] ) {
+				$out[ $key ] = $result['value'];
+				continue;
+			}
+			// SET-LIC-01: a value that cannot be accepted is reported and the stored value stays.
+			self::settings_error( 'wplc_invalid_' . $key, Texts::problem( $key, $result['code'] ) );
+		}
+
+		foreach ( self::combination_warnings( $out ) as $code => $message ) {
+			self::settings_error( $code, $message, 'warning' );
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Warnings about values that are each valid but do not fit together. The values are saved all the same.
+	 *
+	 * @param array<string,mixed> $values Settings in stored form.
+	 * @return array<string,string> Code => translated message.
+	 */
+	public static function combination_warnings( array $values ): array {
+		$warnings = array();
+		$retries  = array_filter( array_map( 'intval', explode( ',', (string) ( $values['renewal_retry_days'] ?? '' ) ) ) );
+		$grace    = (int) ( $values['renewal_grace_days'] ?? 0 );
+		if ( $retries && $grace > 0 && $grace <= max( $retries ) ) {
+			$warnings['wplc_grace_before_last_retry'] = sprintf(
+				/* translators: 1: grace period in days, 2: last retry day. */
+				__( 'The grace period (%1$s days) is not longer than the last retry day (%2$s). The last charge attempts would come after the customer has lost access. Make the grace period longer or remove the late retry days.', 'wp-license' ),
+				number_format_i18n( $grace ),
+				number_format_i18n( max( $retries ) )
+			);
+		}
+
+		return $warnings;
+	}
+
+	/**
+	 * The trusted package hosts after a save.
+	 *
+	 * @param array<string,mixed> $input   Submitted values.
+	 * @param mixed               $current Stored list.
+	 * @return string[]
+	 */
+	private static function sanitize_package_hosts( array $input, $current ): array {
+		$current_hosts = is_array( $current ) ? array_values( array_filter( $current, 'is_string' ) ) : array();
 		$hosts_out     = $current_hosts;
 		if ( array_key_exists( 'package_hosts', $input ) ) {
 			$raw_hosts = $input['package_hosts'];
@@ -425,40 +445,7 @@ final class Settings {
 
 		self::$accepted_hosts = $hosts_out;
 
-		$days = self::sanitize_reminder_days( is_string( $current['reminder_days'] ) ? $current['reminder_days'] : '' );
-		if ( array_key_exists( 'reminder_days', $input ) ) {
-			$days = self::sanitize_reminder_days( is_string( $input['reminder_days'] ) ? $input['reminder_days'] : '' );
-		}
-
-		$raw_note = is_string( $current['sender_note'] ) ? $current['sender_note'] : '';
-		if ( array_key_exists( 'sender_note', $input ) ) {
-			$raw_note = is_string( $input['sender_note'] ) ? $input['sender_note'] : '';
-		}
-		$note = function_exists( 'sanitize_textarea_field' ) ? sanitize_textarea_field( $raw_note ) : trim( strip_tags( $raw_note ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
-
-		$notice_days = isset( $current['renewal_notice_days'] ) && is_numeric( $current['renewal_notice_days'] ) ? (int) $current['renewal_notice_days'] : 7;
-		if ( array_key_exists( 'renewal_notice_days', $input ) && is_scalar( $input['renewal_notice_days'] ) && ctype_digit( trim( (string) $input['renewal_notice_days'] ) ) ) {
-			$notice_days = (int) trim( (string) $input['renewal_notice_days'] );
-		}
-
-		$change_days = isset( $current['price_change_notice_days'] ) && is_numeric( $current['price_change_notice_days'] ) ? (int) $current['price_change_notice_days'] : \WPLC\Billing\PriceChange::DEFAULT_NOTICE_DAYS;
-		if ( array_key_exists( 'price_change_notice_days', $input ) && is_scalar( $input['price_change_notice_days'] ) && ctype_digit( trim( (string) $input['price_change_notice_days'] ) ) ) {
-			$change_days = (int) trim( (string) $input['price_change_notice_days'] );
-		}
-
-		return array(
-			'package_hosts' => $hosts_out,
-			'reminder_days' => $days,
-			// B-41: at least one day; the notice cannot be switched off here.
-			'renewal_notice_days' => max( 1, min( 60, $notice_days ) ),
-			// INH-05: never below the floor of 30 days.
-			'price_change_notice_days' => \WPLC\Billing\PriceChange::clamp_notice_days( $change_days ),
-			// PROD-03: the form sends a hidden 0 before the checkbox, so an unticked box is stored as off.
-			'catalog_auto_import' => array_key_exists( 'catalog_auto_import', $input ) ? ( empty( $input['catalog_auto_import'] ) ? 0 : 1 ) : ( isset( $current['catalog_auto_import'] ) && ! $current['catalog_auto_import'] ? 0 : 1 ),
-			// B-191: off unless the form (or a stored value) says on.
-			'combined_renewals' => array_key_exists( 'combined_renewals', $input ) ? ( empty( $input['combined_renewals'] ) ? 0 : 1 ) : ( empty( $current['combined_renewals'] ) ? 0 : 1 ),
-			'sender_note'   => function_exists( 'mb_substr' ) ? mb_substr( $note, 0, 500 ) : substr( $note, 0, 500 ),
-		);
+		return $hosts_out;
 	}
 
 	/**
@@ -468,25 +455,7 @@ final class Settings {
 	 * @return array{valid:string[],invalid:string[]}
 	 */
 	public static function parse_hosts( string $raw ): array {
-		$valid   = array();
-		$invalid = array();
-		$lines   = preg_split( '/[\r\n,]+/', $raw );
-		foreach ( is_array( $lines ) ? $lines : array() as $line ) {
-			$line = strtolower( trim( $line ) );
-			if ( '' === $line ) {
-				continue;
-			}
-			if ( self::is_valid_hostname( $line ) ) {
-				$valid[ $line ] = $line;
-			} else {
-				$invalid[] = $line;
-			}
-		}
-
-		return array(
-			'valid'   => array_slice( array_values( $valid ), 0, 50 ),
-			'invalid' => $invalid,
-		);
+		return Registry::parse_hosts( $raw );
 	}
 
 	/**
@@ -496,13 +465,7 @@ final class Settings {
 	 * @return bool
 	 */
 	public static function is_valid_hostname( string $host ): bool {
-		if ( strlen( $host ) > 253 || false === strpos( $host, '.' ) ) {
-			return false;
-		}
-		if ( ! preg_match( '/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $host ) ) {
-			return false;
-		}
-		return true;
+		return Registry::is_valid_hostname( $host );
 	}
 
 	/**
@@ -512,19 +475,9 @@ final class Settings {
 	 * @return string Unique values between 1 and 365, longest first; the default when nothing valid remains.
 	 */
 	public static function sanitize_reminder_days( string $raw ): string {
-		$days  = array();
-		$parts = preg_split( '/[\s,;]+/', $raw );
-		foreach ( is_array( $parts ) ? $parts : array() as $part ) {
-			if ( '' !== $part && ctype_digit( $part ) && (int) $part >= 1 && (int) $part <= 365 ) {
-				$days[ (int) $part ] = (int) $part;
-			}
-		}
-		if ( ! $days ) {
-			return '30,7';
-		}
-		rsort( $days );
+		$result = Registry::validate( 'reminder_days', $raw );
 
-		return implode( ',', array_slice( $days, 0, 6 ) );
+		return $result['ok'] ? (string) $result['value'] : (string) Registry::defaults()['reminder_days'];
 	}
 
 	/**
@@ -603,11 +556,22 @@ final class Settings {
 		echo '</tbody></table>';
 		echo '<p class="description">' . esc_html__( 'Secrets are never stored in the database. Define them as constants in wp-config.php.', 'wp-license' ) . '</p>';
 
+		$tab = self::current_tab();
+		self::render_tabs( $tab );
 		echo '<form method="post" action="' . esc_url( admin_url( 'options.php' ) ) . '">';
 		settings_fields( self::OPTION );
-		do_settings_sections( self::PAGE );
+		self::render_sections( $tab );
 		submit_button();
-		echo '</form></div>';
+		echo '</form>';
+		/**
+		 * Fires below the settings form: tools that work on the settings (country profiles, export, import, reset).
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param string $tab Current tab: a group key, or '' for all settings.
+		 */
+		do_action( 'wplc_settings_page_tools', $tab );
+		echo '</div>';
 	}
 
 	/**
@@ -857,14 +821,14 @@ final class Settings {
 			'value' => sprintf( _n( '%d day', '%d days', LicenseLifecycle::grace_days(), 'wp-license' ), LicenseLifecycle::grace_days() ),
 		);
 
-		// B-45: ended licenses are detached from the customer ten years after the end of the year (filter wplc_retention_days).
+		// B-45: ended licenses are detached from the customer ten years after the end of the year (setting retention_anonymize_licenses, filter wplc_retention_days).
 		$anonymize = \WPLC\Maintenance\Retention::configured_days()['anonymize_licenses'];
 		$rows[]    = array(
 			'label' => __( 'Anonymisation of ended licenses', 'wp-license' ),
 			'value' => $anonymize > 0
 				/* translators: %s: number of days. */
 				? sprintf( _n( '%s day after the end of the year in which the license ended', '%s days after the end of the year in which the license ended', $anonymize, 'wp-license' ), number_format_i18n( $anonymize ) )
-				: __( 'Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice with the filter wplc_retention_days (key anonymize_licenses).', 'wp-license' ),
+				: __( 'Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice under "Legal and privacy" below.', 'wp-license' ),
 			'state' => $anonymize > 0 ? 'ok' : '',
 		);
 
@@ -903,6 +867,165 @@ final class Settings {
 		$page_id = (int) wc_get_page_id( 'checkout' );
 
 		return $page_id > 0 && has_block( 'woocommerce/checkout', $page_id );
+	}
+
+	/**
+	 * Render a field from its definition in the register (every setting without a renderer of its own).
+	 *
+	 * @param mixed $args Arguments of add_settings_field(): `key`.
+	 * @return void
+	 */
+	public static function render_field( $args ): void {
+		$key        = is_array( $args ) && isset( $args['key'] ) ? (string) $args['key'] : '';
+		$definition = Registry::definition( $key );
+		if ( null === $definition ) {
+			return;
+		}
+		$id       = 'wplc_' . $key;
+		$name     = self::OPTION . '[' . $key . ']';
+		$value    = Registry::get( $key );
+		$readonly = ! Capabilities::can( (string) $definition['capability'] );
+		// A read-only field has no name: a missing key keeps the stored value.
+		$name_attr = $readonly ? '' : ' name="' . esc_attr( $name ) . '"';
+		$lock      = $readonly ? ' readonly' : '';
+		$help      = ' aria-describedby="' . esc_attr( $id ) . '_help"';
+
+		switch ( $definition['type'] ) {
+			case 'bool':
+				if ( ! $readonly ) {
+					echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="0">';
+				}
+				echo '<input type="checkbox" id="' . esc_attr( $id ) . '"' . $name_attr . ' value="1"' . checked( ! empty( $value ), true, false ) . ( $readonly ? ' disabled' : '' ) . $help . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
+				break;
+			case 'int':
+				echo '<input type="number" id="' . esc_attr( $id ) . '"' . $name_attr . ' value="' . esc_attr( (string) Registry::int( $key ) ) . '" class="small-text" min="' . esc_attr( (string) (int) ( $definition['min'] ?? 0 ) ) . '" max="' . esc_attr( (string) (int) ( $definition['max'] ?? 0 ) ) . '" step="1"' . $lock . $help . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
+				if ( 'days' === ( $definition['unit'] ?? '' ) ) {
+					echo ' ' . esc_html__( 'days', 'wp-license' );
+				}
+				break;
+			case 'choice':
+				echo '<select id="' . esc_attr( $id ) . '"' . $name_attr . ( $readonly ? ' disabled' : '' ) . $help . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
+				$labels = Texts::choices( $key );
+				foreach ( (array) ( $definition['choices'] ?? array() ) as $choice ) {
+					echo '<option value="' . esc_attr( (string) $choice ) . '"' . selected( (string) $value, (string) $choice, false ) . '>' . esc_html( $labels[ $choice ] ?? (string) $choice ) . '</option>';
+				}
+				echo '</select>';
+				break;
+			case 'text':
+			case 'string_list':
+			case 'hosts':
+				$text = is_array( $value ) ? implode( "\n", array_filter( $value, 'is_scalar' ) ) : (string) $value;
+				$rows = 'text' === $definition['type'] ? 4 : max( 3, min( 12, substr_count( $text, "\n" ) + 2 ) );
+				echo '<textarea id="' . esc_attr( $id ) . '"' . $name_attr . ' rows="' . esc_attr( (string) $rows ) . '" cols="50" class="large-text' . ( 'text' === $definition['type'] ? '' : ' code' ) . '"' . ( isset( $definition['max_length'] ) ? ' maxlength="' . esc_attr( (string) (int) $definition['max_length'] ) . '"' : '' ) . $lock . $help . '>' . esc_textarea( $text ) . '</textarea>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
+				break;
+			default:
+				echo '<input type="text" id="' . esc_attr( $id ) . '"' . $name_attr . ' value="' . esc_attr( is_scalar( $value ) ? (string) $value : '' ) . '" class="regular-text"' . $lock . $help . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
+		}
+
+		echo '<p class="description" id="' . esc_attr( $id ) . '_help">' . esc_html( Texts::help( $key ) );
+		if ( $definition['legal'] ) {
+			echo ' <strong>' . esc_html( Texts::legal_note() ) . '</strong>';
+		}
+		if ( '' !== $definition['filter'] ) {
+			/* translators: %s: name of a PHP filter. */
+			echo ' ' . esc_html( sprintf( __( 'Code of the shop can change the value with the filter %s; the filter decides last.', 'wp-license' ), $definition['filter'] ) );
+		}
+		if ( $readonly ) {
+			echo ' ' . esc_html__( 'Only an administrator may change this value.', 'wp-license' );
+		}
+		echo '</p>';
+		self::render_effective_value( $key );
+	}
+
+	/**
+	 * Render the choice of what happens to the data when the plugin is deleted (S10).
+	 *
+	 * @return void
+	 */
+	public static function render_uninstall_data_field(): void {
+		self::render_field( array( 'key' => 'uninstall_data' ) );
+		if ( ! Capabilities::can( 'manage_package_hosts' ) ) {
+			return;
+		}
+		echo '<p><label for="wplc_uninstall_data_confirm"><input type="checkbox" id="wplc_uninstall_data_confirm" name="' . esc_attr( self::OPTION ) . '[uninstall_data_confirm]" value="1"> ' . esc_html__( 'Yes, delete all license data when the plugin is deleted. I have a backup. (Needed only when you switch to "Delete tables and options".)', 'wp-license' ) . '</label></p>';
+		if ( defined( 'WPLC_REMOVE_ALL_DATA' ) && true === WPLC_REMOVE_ALL_DATA ) {
+			echo '<p class="description wplc-effective"><span class="dashicons dashicons-info" aria-hidden="true"></span> ' . esc_html__( 'In effect: delete. The constant WPLC_REMOVE_ALL_DATA is set in wp-config.php.', 'wp-license' ) . '</p>';
+		}
+	}
+
+	/**
+	 * Say so when code of the shop (a filter) changes the stored value (SET-LIC-32).
+	 *
+	 * @param string $key Setting key.
+	 * @return void
+	 */
+	private static function render_effective_value( string $key ): void {
+		$effective = \WPLC\Settings\Effective::value( $key );
+		if ( null === $effective ) {
+			return;
+		}
+		$stored = Registry::display( $key, Registry::get( $key ) );
+		$shown  = Registry::display( $key, $effective );
+		if ( $stored === $shown ) {
+			return;
+		}
+		/* translators: %s: the value that is in effect. */
+		echo '<p class="description wplc-effective"><span class="dashicons dashicons-info" aria-hidden="true"></span> ' . esc_html( sprintf( __( 'In effect: %s (set by code of the shop, not by this field).', 'wp-license' ), '' === $shown ? __( 'empty', 'wp-license' ) : $shown ) ) . '</p>';
+	}
+
+	/**
+	 * The tab the page shows: a group key, or '' for all groups.
+	 *
+	 * @return string
+	 */
+	public static function current_tab(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display only.
+		$tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+
+		return in_array( $tab, Registry::GROUPS, true ) && Registry::keys_of_group( $tab ) ? $tab : '';
+	}
+
+	/**
+	 * Tabs: all settings, or one group (SET-LIC-32).
+	 *
+	 * @param string $current Current tab.
+	 * @return void
+	 */
+	private static function render_tabs( string $current ): void {
+		$base   = admin_url( 'admin.php?page=' . self::PAGE );
+		$titles = Texts::groups();
+		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Groups of settings', 'wp-license' ) . '">';
+		echo '<a class="nav-tab' . ( '' === $current ? ' nav-tab-active' : '' ) . '" href="' . esc_url( $base ) . '"' . ( '' === $current ? ' aria-current="page"' : '' ) . '>' . esc_html__( 'All settings', 'wp-license' ) . '</a>';
+		foreach ( Registry::GROUPS as $group ) {
+			if ( ! Registry::keys_of_group( $group ) ) {
+				continue;
+			}
+			echo '<a class="nav-tab' . ( $group === $current ? ' nav-tab-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', $group, $base ) ) . '"' . ( $group === $current ? ' aria-current="page"' : '' ) . '>' . esc_html( $titles[ $group ] ?? $group ) . '</a>';
+		}
+		echo '</nav>';
+	}
+
+	/**
+	 * Print the sections of the form: all of them, or the one of the current tab.
+	 *
+	 * A tab posts only its own fields; sanitize() keeps every key that is missing.
+	 *
+	 * @param string $tab Current tab.
+	 * @return void
+	 */
+	private static function render_sections( string $tab ): void {
+		global $wp_settings_sections, $wp_settings_fields;
+		if ( '' === $tab || ! isset( $wp_settings_sections[ self::PAGE ]['wplc_' . $tab ] ) ) {
+			do_settings_sections( self::PAGE );
+			return;
+		}
+		$section = $wp_settings_sections[ self::PAGE ]['wplc_' . $tab ];
+		echo '<h2>' . esc_html( (string) $section['title'] ) . '</h2>';
+		if ( isset( $wp_settings_fields[ self::PAGE ]['wplc_' . $tab ] ) ) {
+			echo '<table class="form-table" role="presentation">';
+			do_settings_fields( self::PAGE, 'wplc_' . $tab );
+			echo '</table>';
+		}
 	}
 
 	/**
@@ -984,6 +1107,26 @@ final class Settings {
 	public static function render_renewal_notice_days_field(): void {
 		echo '<input type="number" id="wplc_renewal_notice_days" name="' . esc_attr( self::OPTION ) . '[renewal_notice_days]" value="' . esc_attr( (string) (int) self::get( 'renewal_notice_days' ) ) . '" class="small-text" min="1" max="60" step="1" aria-describedby="wplc_renewal_notice_days_help">';
 		echo '<p class="description" id="wplc_renewal_notice_days_help">' . esc_html__( 'Days before an automatic charge on which the customer is told the date and the amount. Default: 7. A license is only charged after this email was accepted for sending; otherwise the charge is postponed and reported under Diagnostics.', 'wp-license' ) . '</p>';
+	}
+
+	/**
+	 * Render the largest quantity of a license product in one order line.
+	 *
+	 * @return void
+	 */
+	public static function render_max_quantity_per_line_field(): void {
+		echo '<input type="number" id="wplc_max_quantity_per_line" name="' . esc_attr( self::OPTION ) . '[max_quantity_per_line]" value="' . esc_attr( (string) (int) self::get( 'max_quantity_per_line' ) ) . '" class="small-text" min="0" max="' . esc_attr( (string) \WPLC\Catalog\QuantityLimit::MAX_SETTING ) . '" step="1" aria-describedby="wplc_max_quantity_per_line_help">';
+		echo '<p class="description" id="wplc_max_quantity_per_line_help">' . esc_html__( 'Largest quantity of one license product a customer can put into the cart and order. Every unit becomes a license of its own with its own key. Default: 100. 0 = no limit. An order you create yourself in the admin or through the REST API is not blocked; a larger quantity there is noted on the order and in the audit log.', 'wp-license' ) . '</p>';
+	}
+
+	/**
+	 * Render the number of days after which a suspended license counts as ended.
+	 *
+	 * @return void
+	 */
+	public static function render_suspended_ends_after_days_field(): void {
+		echo '<input type="number" id="wplc_suspended_ends_after_days" name="' . esc_attr( self::OPTION ) . '[suspended_ends_after_days]" value="' . esc_attr( (string) (int) self::get( 'suspended_ends_after_days' ) ) . '" class="small-text" min="0" max="' . esc_attr( (string) \WPLC\License\EndedLicenses::MAX_DAYS ) . '" step="1" aria-describedby="wplc_suspended_ends_after_days_help"> ' . esc_html__( 'days', 'wp-license' );
+		echo '<p class="description" id="wplc_suspended_ends_after_days_help">' . esc_html__( 'Default: 0 = never; a suspended license then keeps its customer and its data until you revoke it or it is reactivated. With a number of days, a license that stayed suspended without interruption for that long is treated like an expired or revoked one: a personal data erasure request detaches it from the customer and releases its sites, and the retention rules delete its installations and consent records after their periods. This cannot be undone. A license that was reactivated is never affected; a new suspension counts from its own start. Agree the period with your legal counsel.', 'wp-license' ) . '</p>';
 	}
 
 	/**

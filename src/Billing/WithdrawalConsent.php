@@ -81,13 +81,17 @@ final class WithdrawalConsent {
 		/**
 		 * Filters whether the checkout asks for consent to the immediate start of the license.
 		 *
-		 * Default: true, unless Germanized or German Market is active (they ask for it themselves).
+		 * Wins over the setting "Consent to the immediate start". Default of the setting ("Automatic"):
+		 * true, unless Germanized or German Market is active (they ask for it themselves).
 		 *
 		 * @since 0.2.0
 		 *
-		 * @param bool $enabled Default as described.
+		 * @param bool $enabled What the setting says.
 		 */
-		return (bool) apply_filters( 'wplc_withdrawal_consent_enabled', ! self::legal_plugin_active() );
+		$mode    = \WPLC\Settings\Registry::string( 'withdrawal_consent_mode' );
+		$enabled = 'on' === $mode || ( 'off' !== $mode && ! self::legal_plugin_active() );
+
+		return (bool) apply_filters( 'wplc_withdrawal_consent_enabled', $enabled );
 	}
 
 	/**
@@ -102,9 +106,9 @@ final class WithdrawalConsent {
 		 *
 		 * @since 0.2.0
 		 *
-		 * @param bool $required Default true.
+		 * @param bool $required The setting "The consent is required to buy" (default true).
 		 */
-		return (bool) apply_filters( 'wplc_withdrawal_consent_required', true );
+		return (bool) apply_filters( 'wplc_withdrawal_consent_required', \WPLC\Settings\Registry::bool( 'withdrawal_consent_required' ) );
 	}
 
 	/**
@@ -129,9 +133,10 @@ final class WithdrawalConsent {
 		 *
 		 * @since 0.2.0
 		 *
-		 * @param string $text Default wording.
+		 * @param string $text The wording of the setting "Wording of the withdrawal consent", else the built-in wording.
 		 */
-		$filtered = (string) apply_filters( 'wplc_withdrawal_consent_text', $text );
+		$own      = trim( \WPLC\Settings\Registry::string( 'withdrawal_consent_text' ) );
+		$filtered = (string) apply_filters( 'wplc_withdrawal_consent_text', '' !== $own ? $own : $text );
 
 		return '' !== trim( $filtered ) ? $filtered : $text;
 	}

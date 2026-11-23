@@ -64,9 +64,10 @@ cp docs/catalog-file.schema.json "${STAGE}/docs/"
 # generate the optimized autoloader directly: no network, reproducible.
 RUNTIME_PACKAGES="$(php -r '$c = json_decode((string) file_get_contents("composer.json"), true); echo implode(" ", array_filter(array_keys($c["require"] ?? array()), function ($p) { return "php" !== $p && 0 !== strpos($p, "ext-"); }));')"
 if [ -z "${RUNTIME_PACKAGES}" ]; then
-	composer dump-autoload --working-dir="${STAGE}" --no-dev --optimize --no-interaction
+	# No Composer plugin and no script of composer.json runs in the build of the sold package.
+	composer dump-autoload --working-dir="${STAGE}" --no-dev --optimize --no-interaction --no-plugins --no-scripts
 else
-	composer install --working-dir="${STAGE}" --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress
+	composer install --working-dir="${STAGE}" --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress --no-plugins --no-scripts
 fi
 rm -f "${STAGE}/composer.json" "${STAGE}/composer.lock"
 if [ ! -f "${STAGE}/vendor/autoload.php" ]; then

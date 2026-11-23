@@ -48,7 +48,8 @@ final class LicenseLifecycle {
 	/**
 	 * Default grace period after the paid period during which a renewing license keeps its rights.
 	 *
-	 * Read the effective value with grace_days(); the filter `wplc_renewal_grace_days` can change it.
+	 * Read the effective value with grace_days(): the setting "Grace period after the paid period",
+	 * then the filter `wplc_renewal_grace_days`.
 	 */
 	public const GRACE_DAYS = 14;
 
@@ -270,12 +271,12 @@ final class LicenseLifecycle {
 	 * @return int Days, between 1 and 90.
 	 */
 	public static function grace_days(): int {
-		$days = self::GRACE_DAYS;
+		$days = \WPLC\Settings\Registry::int( 'renewal_grace_days' );
 		if ( function_exists( 'apply_filters' ) ) {
 			/**
-			 * Filters the renewal grace period in days (A-135).
+			 * Filters the renewal grace period in days (A-135). Wins over the setting.
 			 *
-			 * @param int $days Default 14. Clamped to 1 to 90.
+			 * @param int $days Setting "Grace period after the paid period" (default 14). Clamped to 1 to 90.
 			 */
 			$days = (int) apply_filters( 'wplc_renewal_grace_days', $days );
 		}
@@ -1582,7 +1583,7 @@ final class LicenseLifecycle {
 		$renews = 'suspended' === $old_status && ! empty( $license['renewal_enabled'] ) && empty( $license['cancel_at_period_end'] );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = NULL, paid_until = %s, renewal_enabled = IF( %d = 1, renewal_enabled, 0 ), next_payment_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s",
+				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = NULL, suspended_at = NULL, paid_until = %s, renewal_enabled = IF( %d = 1, renewal_enabled, 0 ), next_payment_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s",
 				$tables['licenses'],
 				'active',
 				'',
@@ -1954,7 +1955,7 @@ final class LicenseLifecycle {
 		$deadline = microtime( true ) + (int) apply_filters( 'wplc_expiry_time_budget', self::EXPIRY_TIME_BUDGET );
 		$now = time();
 		$now_utc = gmdate( 'Y-m-d H:i:s', $now );
-		$unattempted_after = gmdate( 'Y-m-d H:i:s', $now - LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS * DAY_IN_SECONDS );
+		$unattempted_after = gmdate( 'Y-m-d H:i:s', $now - LicenseStateMachine::renewal_days_after() * DAY_IN_SECONDS );
 		$more = false;
 
 		$cursor = 0;
@@ -2135,11 +2136,14 @@ final class LicenseLifecycle {
 		$now = gmdate( 'Y-m-d H:i:s' );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s AND IFNULL( paid_until, '' ) = %s",
+				// suspended_at: the start of this suspension (EndedLicenses); empty for every other status.
+				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = IF( %d = 1, %s, NULL ), suspended_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s AND IFNULL( paid_until, '' ) = %s",
 				$tables['licenses'],
 				$new_status,
 				self::clip( sanitize_textarea_field( $reason ) ),
 				'revoked' === $new_status ? 1 : 0,
+				$now,
+				'suspended' === $new_status ? 1 : 0,
 				$now,
 				$now,
 				$license_id,

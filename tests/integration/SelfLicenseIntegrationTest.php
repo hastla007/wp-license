@@ -109,6 +109,15 @@ final class SelfLicenseIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( \WPLC\Client\LicenseStatus::STATE_UNLICENSED, $manager->status()->state, 'The own license is not valid.' );
 		$manager->run_scheduled_check();
 
+		// The license screen and the notices say so: no text speaks of premium features that are switched off.
+		$messages = $manager->client()->messages();
+		$this->assertSame( 'Updates and support until', $messages->get( 'ui.access_until' ) );
+		$this->assertSame( 'WP License Captain: enter your license key to receive updates and support.', sprintf( $messages->get( 'notice.unlicensed' ), 'WP License Captain' ) );
+		foreach ( array_keys( SelfLicense::texts() ) as $code ) {
+			$this->assertStringNotContainsStringIgnoringCase( 'premium', $messages->get( $code ), $code );
+		}
+		$this->assertSame( 'Activate', $messages->get( 'ui.activate' ), 'Every other text is the one of the library.' );
+
 		// Selling: a paid order gets its license.
 		$customer = self::factory()->user->create();
 		$order    = $this->create_paid_order( array( array( $this->create_license_product(), 1 ) ), $customer );

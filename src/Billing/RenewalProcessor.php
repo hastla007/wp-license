@@ -295,7 +295,7 @@ final class RenewalProcessor {
 			// still renew manually.
 			$late_attempt = 0 === (int) $renewal['attempt_count']
 				&& $start
-				&& $now < $start + LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS * DAY_IN_SECONDS;
+				&& $now < $start + LicenseStateMachine::renewal_days_after() * DAY_IN_SECONDS;
 			if ( ! $late_attempt ) {
 				self::close_renewal( $renewal, 'expired', 'grace_ended' );
 				self::expire_license( (int) $license['id'] );
@@ -763,6 +763,17 @@ final class RenewalProcessor {
 			ManualRenewal::complete_locked( $order, $renewal, $license );
 			return;
 		}
+		// The same proof as for a payment that arrives through a hook (reconcile_paid_locked): the order
+		// is paid in full, so its pre-tax line must still be the stored net renewal price, in the
+		// currency of the license. Anything else is shown to the administrator, never booked.
+		if (
+			! RenewalOrder::net_matches( $order )
+			|| strtoupper( (string) $license['renewal_currency'] ) !== strtoupper( (string) $order->get_currency() )
+			|| 'yes' === $order->get_meta( RenewalOrder::META_AMOUNT_MISMATCH, true )
+		) {
+			RenewalOrder::flag_for_review( $order, (int) $renewal['id'], __( 'Paid customer recovery order did not match the stored renewal amount', 'wp-license' ), 'renewal_recovery_amount_mismatch' );
+			return;
+		}
 		self::finish_paid( $renewal, $license, $order, $audit_action, $reason );
 	}
 
@@ -858,12 +869,14 @@ final class RenewalProcessor {
 	 * @return int[]
 	 */
 	public static function retry_days(): array {
+		// The setting "Retry days of a failed charge"; an empty list means no retry.
+		$setting = \WPLC\Settings\Registry::list( 'renewal_retry_days' );
 		/**
-		 * Filters the retry schedule of failed renewal charges (A-135).
+		 * Filters the retry schedule of failed renewal charges (A-135). Wins over the setting.
 		 *
-		 * @param int[] $days Days after the period start, ascending. Default 1, 3 and 7.
+		 * @param int[] $days Days after the period start, ascending. Default 1, 3 and 7; empty for no retry.
 		 */
-		$days = (array) apply_filters( 'wplc_renewal_retry_days', self::DEFAULT_RETRY_DAYS );
+		$days = (array) apply_filters( 'wplc_renewal_retry_days', $setting );
 		$days = array_values( array_filter( array_map( 'absint', $days ) ) );
 		sort( $days );
 
@@ -1765,6 +1778,11 @@ final class RenewalProcessor {
 		if ( ! $order instanceof \WC_Order || ! $order->is_paid() ) {
 			return;
 		}
+		// Cash on delivery is "processing" before any money arrived: the term is extended when the
+		// order is completed, the same rule as for a first purchase.
+		if ( ! \WPLC\License\LicenseIssuer::money_has_arrived( $order ) ) {
+			return;
+		}
 		if ( RenewalOrder::is_combined( $order ) ) {
 			// B-191: every license of a combined order is booked from the one payment.
 			CombinedRenewal::reconcile_paid( $order );
@@ -2068,7 +2086,7 @@ final class RenewalProcessor {
 				global $wpdb;
 
 				$tables = Schema::table_names();
-				$window_end = gmdate( 'Y-m-d H:i:s', time() - LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS * DAY_IN_SECONDS );
+				$window_end = gmdate( 'Y-m-d H:i:s', time() - LicenseStateMachine::renewal_days_after() * DAY_IN_SECONDS );
 				$rows = (array) $wpdb->get_results(
 					$wpdb->prepare(
 						"SELECT r.* FROM {$tables['renewals']} r LEFT JOIN {$tables['licenses']} l ON l.id = r.license_id

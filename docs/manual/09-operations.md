@@ -216,6 +216,7 @@ The server is meant to run on **one** site of a network: the site where WooComme
 - The export contains licenses, installations, renewals, consents, license history (redacted), the email log and downloads; never secrets, hashes, keys, tokens or package URLs.
 - The erasure detaches ended licenses from the account and deletes their installations; licenses still in force are kept (erasing them would stop a paid service), but their automatic renewal is switched off and the payment references are removed. WooCommerce orders are handled by WooCommerce's own eraser.
 - A deleted customer account detaches its licenses and switches automatic renewal off; the licenses run until the end of the paid period.
+- A **suspended** license counts as in force and is kept, unless you set **Suspended licenses count as ended after … days** in the license settings (default 0 = never). With a period, a license that stayed suspended that long without interruption is treated like an expired one by the erasure and by the retention rules below; a license that was reactivated is never affected, and a new suspension counts from its own start. What is deleted then cannot be restored.
 
 **Automatic retention** (daily, filter `wplc_retention_days`; `0` disables a rule):
 

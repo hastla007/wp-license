@@ -24,12 +24,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 final class PersonalData {
 
-	/**
-	 * License states whose service period has ended and may be detached.
-	 *
-	 * @var string[]
-	 */
-	private const TERMINAL_STATES = array( 'expired', 'revoked', 'cancelled' );
 
 	/**
 	 * Licenses exported per page.
@@ -922,6 +916,9 @@ final class PersonalData {
 	private static function erase_user( int $user_id ): array {
 		global $wpdb;
 
+		// Built from constants and a computed date (License\EndedLicenses), safe to put into a query.
+		$ended_sql = \WPLC\License\EndedLicenses::condition();
+
 		$result  = array(
 			'items_removed' => false,
 			'items_retained' => false,
@@ -939,11 +936,8 @@ final class PersonalData {
 		// 1. Ended licenses: detach and delete what belongs to them.
 		$ended = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT id FROM {$tables['licenses']} WHERE customer_id = %d AND status IN (%s,%s,%s) ORDER BY id ASC LIMIT %d",
+				"SELECT id FROM {$tables['licenses']} WHERE customer_id = %d AND {$ended_sql} ORDER BY id ASC LIMIT %d",
 				$user_id,
-				self::TERMINAL_STATES[0],
-				self::TERMINAL_STATES[1],
-				self::TERMINAL_STATES[2],
 				$limit
 			)
 		);
@@ -961,11 +955,8 @@ final class PersonalData {
 		$refs_cleared = 0;
 		$in_force     = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT id FROM {$tables['licenses']} WHERE customer_id = %d AND status NOT IN (%s,%s,%s) AND ( renewal_enabled = 1 OR payment_token_id > 0 OR gateway_customer_ref IS NOT NULL OR gateway_method_ref IS NOT NULL ) ORDER BY id ASC LIMIT %d",
+				"SELECT id FROM {$tables['licenses']} WHERE customer_id = %d AND NOT {$ended_sql} AND ( renewal_enabled = 1 OR payment_token_id > 0 OR gateway_customer_ref IS NOT NULL OR gateway_method_ref IS NOT NULL ) ORDER BY id ASC LIMIT %d",
 				$user_id,
-				self::TERMINAL_STATES[0],
-				self::TERMINAL_STATES[1],
-				self::TERMINAL_STATES[2],
 				$limit
 			)
 		);
@@ -1028,11 +1019,8 @@ final class PersonalData {
 
 		$retained = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$tables['licenses']} WHERE customer_id = %d AND status NOT IN (%s,%s,%s)",
+				"SELECT COUNT(*) FROM {$tables['licenses']} WHERE customer_id = %d AND NOT {$ended_sql}",
 				$user_id,
-				self::TERMINAL_STATES[0],
-				self::TERMINAL_STATES[1],
-				self::TERMINAL_STATES[2]
 			)
 		);
 		// phpcs:enable
@@ -1165,6 +1153,9 @@ final class PersonalData {
 	private static function erase_ended_license( int $license_id, int $user_id, int $actor ): bool {
 		global $wpdb;
 
+		// Built from constants and a computed date (License\EndedLicenses), safe to put into a query.
+		$ended_sql = \WPLC\License\EndedLicenses::condition();
+
 		$tables = Schema::table_names();
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- only table names are interpolated.
@@ -1178,13 +1169,10 @@ final class PersonalData {
 		// Compare-and-set first: a license that was reactivated in the meantime keeps everything.
 		$detached = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$tables['licenses']} SET customer_id = 0, payment_token_id = 0, renewal_enabled = 0, next_payment_at = NULL, price_change_amount_minor = NULL, price_change_effective_at = NULL, price_change_announced_at = NULL, price_change_notified_at = NULL, price_change_notice_days = NULL, updated_at = %s WHERE id = %d AND customer_id = %d AND status IN (%s,%s,%s)",
+				"UPDATE {$tables['licenses']} SET customer_id = 0, payment_token_id = 0, renewal_enabled = 0, next_payment_at = NULL, price_change_amount_minor = NULL, price_change_effective_at = NULL, price_change_announced_at = NULL, price_change_notified_at = NULL, price_change_notice_days = NULL, updated_at = %s WHERE id = %d AND customer_id = %d AND {$ended_sql}",
 				gmdate( 'Y-m-d H:i:s' ),
 				$license_id,
 				$user_id,
-				self::TERMINAL_STATES[0],
-				self::TERMINAL_STATES[1],
-				self::TERMINAL_STATES[2]
 			)
 		);
 		if ( ! $detached ) {

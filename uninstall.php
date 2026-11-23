@@ -18,8 +18,10 @@
  *   set with the wplc_package_storage_dir filter),
  * - order and order item meta (_wplc_*) and the refund markers.
  *
- * To remove the tables and options as well, define this in wp-config.php
- * before deleting the plugin:
+ * To remove the tables and options as well, either choose "Delete tables and
+ * options" under License settings → Operations → "When the plugin is deleted"
+ * (per site, with a confirmation; default: keep), or define this in
+ * wp-config.php before deleting the plugin:
  *
  *     define( 'WPLC_REMOVE_ALL_DATA', true );
  *
@@ -80,6 +82,7 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 			// Cached list of the license products; rebuilt from the catalog.
 			'wplc_license_product_ids',
 			'wplc_gap_window',
+			'wplc_health_alert_mail_date',
 			'wplc_gap_reconciled_orders',
 			'wplc_gap_reconcile_cursor',
 			'wplc_billing_paused_since',
@@ -127,7 +130,23 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 	}
 }
 
-$wplc_remove_data = defined( 'WPLC_REMOVE_ALL_DATA' ) && true === WPLC_REMOVE_ALL_DATA;
+if ( ! function_exists( 'wplc_uninstall_remove_data' ) ) {
+	/**
+	 * Whether the data of the current site is removed: the constant, or the setting
+	 * "When the plugin is deleted" = "Delete tables and options" of this site. Default: keep.
+	 *
+	 * @return bool
+	 */
+	function wplc_uninstall_remove_data(): bool {
+		if ( defined( 'WPLC_REMOVE_ALL_DATA' ) && true === WPLC_REMOVE_ALL_DATA ) {
+			return true;
+		}
+		// The plugin's classes are not loaded during uninstall: read the option itself.
+		$settings = get_option( 'wplc_settings', array() );
+
+		return is_array( $settings ) && isset( $settings['uninstall_data'] ) && 'delete' === $settings['uninstall_data'];
+	}
+}
 
 if ( is_multisite() && function_exists( 'get_sites' ) ) {
 	// Scheduled events and options are per site; without the loop the sub-sites keep theirs.
@@ -140,7 +159,7 @@ if ( is_multisite() && function_exists( 'get_sites' ) ) {
 	);
 	foreach ( (array) $wplc_site_ids as $wplc_site_id ) {
 		switch_to_blog( (int) $wplc_site_id );
-		wplc_uninstall_site( $wplc_remove_data );
+		wplc_uninstall_site( wplc_uninstall_remove_data() );
 		restore_current_blog();
 	}
 	// Network-wide transients (the release check `wplc_self_update`, A-42; and leftovers of other versions).
@@ -150,7 +169,7 @@ if ( is_multisite() && function_exists( 'get_sites' ) ) {
 		delete_site_transient( substr( (string) $wplc_site_transient, strlen( '_site_transient_' ) ) );
 	}
 } else {
-	wplc_uninstall_site( $wplc_remove_data );
+	wplc_uninstall_site( wplc_uninstall_remove_data() );
 	// Cached answer of the release check (A-42); stored as a site option on a single site.
 	delete_site_transient( 'wplc_self_update' );
 }

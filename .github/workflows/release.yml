@@ -20,8 +20,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      # A release is only built from a commit that is part of main.
+      - name: The tag is on main
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" refs/remotes/origin/main; then
+            echo "Tag ${GITHUB_REF_NAME} (${GITHUB_SHA}) is not on main." >&2
+            exit 1
+          fi
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: "8.5"
           coverage: none
@@ -31,15 +42,17 @@ jobs:
       - name: Unit tests
         run: vendor/bin/phpunit
 
+  # Builds with read access only; the job that may write to the repository runs no code of it.
   build:
     needs: test
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # create the GitHub release and upload the ZIP
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: "8.5"
           coverage: none
@@ -63,7 +76,7 @@ jobs:
         run: bin/build-zip.sh "${{ steps.version.outputs.version }}"
 
       - name: Upload the build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: wp-license-captain-${{ steps.version.outputs.version }}
           path: |
@@ -73,14 +86,26 @@ jobs:
             dist/license-client-*.zip.sha256
           if-no-files-found: error
 
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub release and upload the ZIP
+    steps:
+      - name: Download the build artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: wp-license-captain-${{ needs.build.outputs.version }}
+          path: dist
+
       - name: Attach the package to the GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: |
-            dist/wp-license-captain-${{ steps.version.outputs.version }}.zip
-            dist/wp-license-captain-${{ steps.version.outputs.version }}.zip.sha256
+            dist/wp-license-captain-${{ needs.build.outputs.version }}.zip
+            dist/wp-license-captain-${{ needs.build.outputs.version }}.zip.sha256
             dist/license-client-*.zip
             dist/license-client-*.zip.sha256
           fail_on_unmatched_files: true
           generate_release_notes: true
-          prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
+          prerelease: ${{ needs.build.outputs.prerelease == 'true' }}
