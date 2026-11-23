@@ -1765,6 +1765,11 @@ final class RenewalProcessor {
 		if ( ! $order instanceof \WC_Order || ! $order->is_paid() ) {
 			return;
 		}
+		// Cash on delivery is "processing" before any money arrived: the term is extended when the
+		// order is completed, the same rule as for a first purchase.
+		if ( ! \WPLC\License\LicenseIssuer::money_has_arrived( $order ) ) {
+			return;
+		}
 		if ( RenewalOrder::is_combined( $order ) ) {
 			// B-191: every license of a combined order is booked from the one payment.
 			CombinedRenewal::reconcile_paid( $order );

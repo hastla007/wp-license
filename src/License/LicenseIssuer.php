@@ -273,7 +273,7 @@ final class LicenseIssuer {
 	 * @param \WC_Order $order Order.
 	 * @return bool
 	 */
-	private static function money_has_arrived( $order ): bool {
+	public static function money_has_arrived( $order ): bool {
 		/**
 		 * Filters the payment methods whose orders only get their licenses once the order is completed.
 		 *

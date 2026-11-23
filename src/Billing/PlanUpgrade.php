@@ -380,6 +380,10 @@ final class PlanUpgrade {
 		if ( ! $order instanceof \WC_Order || ! self::is_upgrade_order( $order ) || ! $order->is_paid() || ! in_array( (string) $order->get_meta( self::META_STATE, true ), array( '', self::STATE_CANCELLED ), true ) ) {
 			return;
 		}
+		// Cash on delivery is "processing" before any money arrived: the upgrade applies when the order is completed.
+		if ( ! \WPLC\License\LicenseIssuer::money_has_arrived( $order ) ) {
+			return;
+		}
 		$license_id = absint( $order->get_meta( self::META_LICENSE, true ) );
 		if ( ! PlanChange::get_license( $license_id ) ) {
 			self::flag_review( $order, $license_id, AuditReason::UPGRADE_LICENSE_NOT_ACTIVE );
