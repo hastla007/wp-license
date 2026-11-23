@@ -1302,7 +1302,7 @@ final class Settings {
 	 */
 	public static function render_max_quantity_per_line_field(): void {
 		echo '<input type="number" id="wplc_max_quantity_per_line" name="' . esc_attr( self::OPTION ) . '[max_quantity_per_line]" value="' . esc_attr( (string) (int) self::get( 'max_quantity_per_line' ) ) . '" class="small-text" min="0" max="' . esc_attr( (string) \WPLC\Catalog\QuantityLimit::MAX_SETTING ) . '" step="1" aria-describedby="wplc_max_quantity_per_line_help">';
-		echo '<p class="description" id="wplc_max_quantity_per_line_help">' . esc_html__( 'Largest quantity of one license product a customer can put into the cart and order. Every unit becomes a license of its own with its own key. Default: 100. 0 = no limit. An order you create yourself in the admin or through the REST API is not blocked; a larger quantity there is noted on the order and in the audit log.', 'wp-license' ) . '</p>';
+		echo '<p class="description" id="wplc_max_quantity_per_line_help">' . esc_html( Texts::help( 'max_quantity_per_line' ) ) . '</p>';
 	}
 
 	/**

@@ -123,6 +123,8 @@ final class Catalog {
 				return __( 'The WooCommerce product does not exist.', 'wp-license' );
 			case 'invalid_price':
 				return __( 'The product needs a valid regular price before it can become a license product.', 'wp-license' );
+			case 'invalid_override':
+				return __( 'A value for this plan is outside its limits: staging sites 0 to 10, development sites 0 to 100, offline period 1 to 90 days, largest quantity 0 to 100000, co-users 0 to 100. Leave a field empty to use the global setting.', 'wp-license' );
 			case 'subscription_product':
 				return __( 'WooCommerce Subscriptions products cannot be license products: Subscriptions bills its own renewals and WP License Captain renews licenses itself, so the customer would be charged twice. Use a simple or variable product.', 'wp-license' );
 			default:
@@ -152,7 +154,9 @@ final class Catalog {
 	 * @param int                 $product_id WooCommerce parent product ID.
 	 * @param int                 $variation_id WooCommerce variation ID, or zero.
 	 * @param array<string,mixed> $data Mapping values: product_key, plan_key, billing_interval, live_site_limit,
-	 *                                  support_level, entitlements, display_name, update_display_name.
+	 *                                  support_level, entitlements, display_name, update_display_name, and
+	 *                                  `overrides` (column of PlanOverrides::FIELDS => value, '' or null for the
+	 *                                  global setting); overrides that are not passed keep their stored value.
 	 * @return bool False on failure; last_error() tells why.
 	 */
 	public static function save_mapping( int $product_id, int $variation_id, array $data ): bool {
@@ -205,6 +209,16 @@ final class Catalog {
 		}
 		// B-189: the currency product prices are entered in, not the currency a multi-currency plugin shows.
 		$currency = self::base_currency();
+
+		// SET-LIC-21: overrides per plan; only the ones passed are changed.
+		$overrides = array();
+		foreach ( isset( $data['overrides'] ) && is_array( $data['overrides'] ) ? $data['overrides'] : array() as $field => $raw ) {
+			$checked = PlanOverrides::normalize( (string) $field, $raw );
+			if ( ! $checked['ok'] ) {
+				return self::fail( 'invalid_override' );
+			}
+			$overrides[ (string) $field ] = $checked['value'];
+		}
 
 		$entitlements = $data['entitlements'] ?? array();
 		if ( ! is_array( $entitlements ) ) {
@@ -298,6 +312,21 @@ final class Catalog {
 
 		if ( false === $result ) {
 			return self::fail( 'db_error' );
+		}
+		if ( $overrides ) {
+			$updated = $wpdb->update(
+				$tables['plans'],
+				$overrides,
+				array(
+					'woocommerce_product_id'   => $product_id,
+					'woocommerce_variation_id' => $variation_id,
+				),
+				null,
+				array( '%d', '%d' )
+			);
+			if ( false === $updated ) {
+				return self::fail( 'db_error' );
+			}
 		}
 
 		self::flush_product_ids();
@@ -706,6 +735,7 @@ final class Catalog {
 		if ( function_exists( 'delete_option' ) ) {
 			delete_option( self::IDS_OPTION );
 		}
+		PlanOverrides::flush();
 	}
 
 	/**
@@ -783,7 +813,7 @@ final class Catalog {
 	 * @return void
 	 */
 	private static function audit_change( ?array $before, ?array $after ): void {
-		$fields = array( 'product_key', 'plan_key', 'woocommerce_product_id', 'woocommerce_variation_id', 'billing_interval', 'price_minor', 'price_decimals', 'currency', 'live_site_limit', 'support_level', 'entitlements_json', 'active' );
+		$fields = array_merge( array( 'product_key', 'plan_key', 'woocommerce_product_id', 'woocommerce_variation_id', 'billing_interval', 'price_minor', 'price_decimals', 'currency', 'live_site_limit', 'support_level', 'entitlements_json' ), array_keys( PlanOverrides::FIELDS ), array( 'active' ) );
 		$pick   = static function ( ?array $row ) use ( $fields ): ?array {
 			if ( null === $row ) {
 				return null;

@@ -24,6 +24,10 @@ final class PolicySettingsTest extends TestCase {
 		'wplc_local_host_suffixes',
 		'wplc_staging_site_limit',
 		'wplc_development_site_limit',
+		'wplc_license_member_limit',
+		'wplc_license_invitation_days',
+		'wplc_license_transfer_enabled',
+		'wplc_license_transfer_new_key',
 	);
 
 	protected function tearDown(): void {
@@ -144,5 +148,61 @@ final class PolicySettingsTest extends TestCase {
 		$this->assertSame( 'This license does not include staging sites.', ActivationService::staging_limit_message( 0 ) );
 		$this->assertSame( 'This live site already has its included staging activation.', ActivationService::staging_limit_message( 1 ) );
 		$this->assertStringContainsString( ' 3 ', ActivationService::staging_limit_message( 3 ) );
+	}
+
+	// ------------------------------------------------------------------ SET-LIC-18
+
+	/** SET-LIC-18: co-users and transfer default to the behaviour so far; the filters win. */
+	public function test_co_user_and_transfer_settings(): void {
+		$license = array( 'id' => 0 );
+		$this->assertSame( \WPLC\License\LicenseMembers::DEFAULT_LIMIT, Registry::defaults()['co_user_limit'] );
+		$this->assertSame( \WPLC\License\LicenseMembers::DEFAULT_INVITATION_DAYS, Registry::defaults()['invitation_days'] );
+		$this->assertSame( 5, \WPLC\License\LicenseMembers::member_limit( $license ) );
+		$this->assertSame( 14, \WPLC\License\LicenseMembers::invitation_days( 'member' ) );
+		$this->assertTrue( \WPLC\License\LicenseMembers::transfers_enabled( $license ) );
+		$this->assertFalse( \WPLC\License\LicenseMembers::transfer_new_key( $license ) );
+		foreach ( array( 'co_user_limit', 'invitation_days', 'transfers_enabled', 'transfer_new_key' ) as $key ) {
+			$this->assertSame( 'sharing', Registry::definition( $key )['group'], $key );
+			$this->assertSame( 'manage_policy', Registry::definition( $key )['capability'], $key );
+		}
+		$this->assertArrayHasKey( 'sharing', Texts::groups() );
+		$this->assertSame( 0, Registry::validate( 'co_user_limit', '0' )['value'], '0 = co-users switched off.' );
+		$this->assertSame( 'out_of_range', Registry::validate( 'invitation_days', '0' )['code'] );
+		$this->assertSame( 'out_of_range', Registry::validate( 'invitation_days', '91' )['code'] );
+
+		$GLOBALS['wplc_test_filters']['wplc_license_member_limit'][]     = static fn() => 9;
+		$GLOBALS['wplc_test_filters']['wplc_license_invitation_days'][]  = static fn() => 30;
+		$GLOBALS['wplc_test_filters']['wplc_license_transfer_enabled'][] = static fn() => false;
+		$GLOBALS['wplc_test_filters']['wplc_license_transfer_new_key'][] = static fn() => true;
+		$this->assertSame( 9, \WPLC\License\LicenseMembers::member_limit( $license ) );
+		$this->assertSame( 30, \WPLC\License\LicenseMembers::invitation_days( 'transfer' ) );
+		$this->assertFalse( \WPLC\License\LicenseMembers::transfers_enabled( $license ) );
+		$this->assertTrue( \WPLC\License\LicenseMembers::transfer_new_key( $license ) );
+	}
+
+	// ------------------------------------------------------------------ SET-LIC-21
+
+	/** SET-LIC-21: each override has the limits of the setting it replaces; empty = global setting. */
+	public function test_overrides_per_plan_follow_the_limits_of_their_settings(): void {
+		foreach ( \WPLC\Catalog\PlanOverrides::FIELDS as $field => $rule ) {
+			list( $min, $max, $setting ) = $rule;
+			$definition                  = Registry::definition( $setting );
+			$this->assertNotNull( $definition, $field );
+			$this->assertSame( array( (int) $definition['min'], (int) $definition['max'] ), array( $min, $max ), $field );
+			$this->assertSame( array( 'ok' => true, 'value' => null ), \WPLC\Catalog\PlanOverrides::normalize( $field, '' ), $field );
+			$this->assertSame( array( 'ok' => true, 'value' => $max ), \WPLC\Catalog\PlanOverrides::normalize( $field, (string) $max ), $field );
+			$this->assertFalse( \WPLC\Catalog\PlanOverrides::normalize( $field, (string) ( $max + 1 ) )['ok'], $field );
+			$this->assertFalse( \WPLC\Catalog\PlanOverrides::normalize( $field, '-1' )['ok'], $field );
+			$this->assertFalse( \WPLC\Catalog\PlanOverrides::normalize( $field, '2.5' )['ok'], $field );
+		}
+		$this->assertFalse( \WPLC\Catalog\PlanOverrides::normalize( 'offline_cache_days', '0' )['ok'], 'At least one day.' );
+		$this->assertFalse( \WPLC\Catalog\PlanOverrides::normalize( 'unknown', '1' )['ok'] );
+		$this->assertSame( array_keys( \WPLC\Catalog\PlanOverrides::FIELDS ), array_keys( \WPLC\Catalog\ProductEditor::override_texts() ) );
+
+		$this->assertSame( 3, \WPLC\Catalog\PlanOverrides::of_plan( array( 'staging_site_limit' => '3' ), 'staging_site_limit' ) );
+		$this->assertNull( \WPLC\Catalog\PlanOverrides::of_plan( array( 'staging_site_limit' => null ), 'staging_site_limit' ) );
+		$this->assertNull( \WPLC\Catalog\PlanOverrides::of_plan( null, 'staging_site_limit' ) );
+		$this->assertNull( \WPLC\Catalog\PlanOverrides::of_plan( array( 'offline_cache_days' => '0' ), 'offline_cache_days' ), 'A stored value outside the limits counts as global.' );
+		$this->assertFalse( \WPLC\Catalog\PlanOverrides::any(), 'Without a database nothing is overridden.' );
 	}
 }

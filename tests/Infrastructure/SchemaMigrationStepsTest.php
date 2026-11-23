@@ -319,13 +319,29 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
 		$steps = $property->getValue();
 
-		$this->assertSame( '27', Schema::VERSION );
 		$this->assertSame( 'step_27_suspended_at', $steps['27'][1] );
-		$this->assertSame( array( '27' ), Schema::pending_step_versions( '26', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '27', '28' ), Schema::pending_step_versions( '26', Schema::VERSION, array_keys( $steps ) ) );
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
 		$this->assertStringContainsString( 'suspended_at datetime DEFAULT NULL', $source );
 		// Licenses that are suspended at the upgrade count from the upgrade, only rows without a time.
 		$this->assertStringContainsString( "'UPDATE %i SET suspended_at = %s WHERE status = %s AND suspended_at IS NULL'", $source );
+	}
+
+	/**
+	 * SET-LIC-21: schema 28 adds the overrides per plan; NULL (every existing plan) means "global setting".
+	 */
+	public function test_schema_28_adds_the_overrides_per_plan(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$steps    = $property->getValue();
+
+		$this->assertSame( '28', Schema::VERSION );
+		$this->assertSame( 'step_28_plan_overrides', $steps['28'][1] );
+		$this->assertSame( array( '28' ), Schema::pending_step_versions( '27', Schema::VERSION, array_keys( $steps ) ) );
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		foreach ( array( 'staging_site_limit smallint(5) unsigned DEFAULT NULL', 'development_site_limit smallint(5) unsigned DEFAULT NULL', 'offline_cache_days smallint(5) unsigned DEFAULT NULL', 'max_quantity_per_line int(10) unsigned DEFAULT NULL', 'co_user_limit smallint(5) unsigned DEFAULT NULL' ) as $column ) {
+			$this->assertStringContainsString( $column, $source );
+		}
+		$this->assertSame( array_keys( \WPLC\Catalog\PlanOverrides::FIELDS ), array( 'staging_site_limit', 'development_site_limit', 'offline_cache_days', 'max_quantity_per_line', 'co_user_limit' ) );
 	}
 
 	/**

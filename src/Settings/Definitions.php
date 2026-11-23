@@ -240,6 +240,41 @@ final class Definitions {
 				'filter'     => 'wplc_local_host_suffixes',
 			),
 
+			// Co-users and transfer (SET-LIC-18).
+			'co_user_limit'             => array(
+				'type'       => 'int',
+				'default'    => 5,
+				'min'        => 0,
+				'max'        => 100,
+				'group'      => 'sharing',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_license_member_limit',
+			),
+			'invitation_days'           => array(
+				'type'       => 'int',
+				'unit'       => 'days',
+				'default'    => 14,
+				'min'        => 1,
+				'max'        => 90,
+				'group'      => 'sharing',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_license_invitation_days',
+			),
+			'transfers_enabled'         => array(
+				'type'       => 'bool',
+				'default'    => 1,
+				'group'      => 'sharing',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_license_transfer_enabled',
+			),
+			'transfer_new_key'          => array(
+				'type'       => 'bool',
+				'default'    => 0,
+				'group'      => 'sharing',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_license_transfer_new_key',
+			),
+
 			// Legal and privacy.
 			'withdrawal_consent_mode'   => array(
 				'type'    => 'choice',

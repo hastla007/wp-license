@@ -302,6 +302,8 @@ final class ProductEditor {
 				),
 			)
 		);
+		self::render_override_fields( $plan, $suffix );
+
 		$stored = json_decode( (string) $values['entitlements'], true );
 		$split  = EntitlementCatalog::split( is_array( $stored ) ? $stored : array() );
 		self::render_entitlement_checklist( $split['checked'], (string) $values['product_key'], $suffix );
@@ -317,6 +319,53 @@ final class ProductEditor {
 				'description' => __( 'Optional JSON object for numeric limits and entitlement keys that are not in the list above. The live-site limit and support level are added automatically.', 'wp-license' ),
 			)
 		);
+	}
+
+	/**
+	 * Labels and help texts of the overrides per plan (SET-LIC-21).
+	 *
+	 * @return array<string,array{0:string,1:string}> Column => label, help.
+	 */
+	public static function override_texts(): array {
+		return array(
+			'staging_site_limit'     => array( __( 'Staging sites per live site', 'wp-license' ), __( 'Staging copies each live site of this plan may activate (0 to 10; 0 = none).', 'wp-license' ) ),
+			'development_site_limit' => array( __( 'Development sites', 'wp-license' ), __( 'Development installations on local addresses a license of this plan may hold at the same time, exactly this number (0 to 100; 0 = none).', 'wp-license' ) ),
+			'offline_cache_days'     => array( __( 'Offline period (days)', 'wp-license' ), __( 'Days a customer site of this plan may rely on the last signed answer (1 to 90). Never beyond the end of access.', 'wp-license' ) ),
+			'max_quantity_per_line'  => array( __( 'Largest quantity per order line', 'wp-license' ), __( 'Largest quantity of this plan in one cart line (0 to 100000; 0 = no limit).', 'wp-license' ) ),
+			'co_user_limit'          => array( __( 'Co-users per license', 'wp-license' ), __( 'Co-users the owner of a license of this plan can invite (0 to 100; 0 = none).', 'wp-license' ) ),
+		);
+	}
+
+	/**
+	 * Render the overrides per plan: empty = the global setting (SET-LIC-21).
+	 *
+	 * @param array<string,mixed>|null $plan   Stored plan, null for a product without one.
+	 * @param string                   $suffix Variation array suffix.
+	 * @return void
+	 */
+	private static function render_override_fields( ?array $plan, string $suffix ): void {
+		echo '<p class="form-field wplc-plan-overrides-intro"><strong>' . esc_html__( 'Rules of this plan', 'wp-license' ) . '</strong> ' . esc_html__( 'Leave a field empty to use the global setting (License settings). The filters of the global values still decide last.', 'wp-license' ) . '</p>';
+		foreach ( self::override_texts() as $field => $text ) {
+			list( $min, $max, $setting ) = PlanOverrides::FIELDS[ $field ];
+			$own                         = PlanOverrides::of_plan( $plan, $field );
+			woocommerce_wp_text_input(
+				array(
+					'id'                => self::field_name( '_wplc_' . $field, $suffix ),
+					'label'             => $text[0],
+					'type'              => 'number',
+					'value'             => null === $own ? '' : (string) $own,
+					/* translators: %s: value of the global setting. */
+					'placeholder'       => sprintf( __( 'Global: %s', 'wp-license' ), (string) \WPLC\Settings\Registry::int( $setting ) ),
+					'desc_tip'          => true,
+					'description'       => $text[1],
+					'custom_attributes' => array(
+						'min'  => (string) $min,
+						'max'  => (string) $max,
+						'step' => '1',
+					),
+				)
+			);
+		}
 	}
 
 	/**
@@ -565,7 +614,20 @@ final class ProductEditor {
 			$display_name = sanitize_text_field( wp_unslash( $source['_wplc_product_display_name'] ) );
 		}
 
+		// SET-LIC-21: an override is only changed when its field was part of the form.
+		$overrides = array();
+		foreach ( array_keys( PlanOverrides::FIELDS ) as $field ) {
+			$posted = $source[ self::field_base( '_wplc_' . $field, $suffix ) ] ?? null;
+			if ( '' !== $suffix ) {
+				$posted = is_array( $posted ) ? ( $posted[ absint( trim( $suffix, '[]' ) ) ] ?? null ) : null;
+			}
+			if ( null !== $posted ) {
+				$overrides[ $field ] = $get( '_wplc_' . $field );
+			}
+		}
+
 		return array(
+			'overrides' => $overrides,
 			'enabled' => 'yes' === $get( '_wplc_is_license_product' ),
 			'product_key' => Catalog::normalize_key( $get( '_wplc_product_key' ) ),
 			'plan_key' => Catalog::normalize_key( $get( '_wplc_plan_key' ) ),

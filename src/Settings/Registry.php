@@ -36,7 +36,7 @@ final class Registry {
 	/**
 	 * Groups (tabs of the settings page), in display order.
 	 */
-	public const GROUPS = array( 'updates', 'renewals', 'emails', 'rules', 'sites', 'legal', 'texts', 'operations' );
+	public const GROUPS = array( 'updates', 'renewals', 'emails', 'rules', 'sites', 'sharing', 'legal', 'texts', 'operations' );
 
 	/**
 	 * Longest text a change log entry or a preview shows.

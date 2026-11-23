@@ -39,7 +39,7 @@ Lookups by `license_id` from an action, optionally narrowed by the owner's user 
 
 ## Co-users and transfers (B-139)
 
-The co-user and transfer hooks (`wplc/license_member_*`, `wplc/license_transfer_started`, `wplc/license_transferred`, `wplc_license_member_limit` default 5, `wplc_license_invitation_days` default 14, `wplc_license_transfer_enabled` default true, `wplc_license_transfer_new_key` default false) are described in [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#co-users-and-transfers-by-the-customer). An accepted transfer also fires `wplc/license_owner_changed` first, like the owner change in the admin. The account template `myaccount/wplc-license.php` prints the co-user and transfer forms through its template action `wplc_account_license_sharing` (license row, display values); a theme copy made before this version needs that line added.
+The co-user and transfer hooks (`wplc/license_member_*`, `wplc/license_transfer_started`, `wplc/license_transferred`, `wplc_license_member_limit`, `wplc_license_invitation_days`, `wplc_license_transfer_enabled`, `wplc_license_transfer_new_key`; their defaults are the settings under License settings → Co-users and transfer, 5, 14, on and off unless changed) are described in [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#co-users-and-transfers-by-the-customer). An accepted transfer also fires `wplc/license_owner_changed` first, like the owner change in the admin. The account template `myaccount/wplc-license.php` prints the co-user and transfer forms through its template action `wplc_account_license_sharing` (license row, display values); a theme copy made before this version needs that line added.
 
 ## Catalog files instead of filters
 

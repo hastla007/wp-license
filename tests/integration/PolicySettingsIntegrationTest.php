@@ -6,6 +6,14 @@
  */
 
 use WPLC\Admin\Capabilities;
+use WPLC\Admin\CatalogCsv;
+use WPLC\Api\V1\ActivationService;
+use WPLC\Api\V1\EntitlementService;
+use WPLC\Catalog\Catalog;
+use WPLC\Catalog\PlanOverrides;
+use WPLC\Catalog\ProductEditor;
+use WPLC\Catalog\QuantityLimit;
+use WPLC\License\LicenseMembers;
 use WPLC\Admin\Settings;
 use WPLC\Security\ResponseSigner;
 use WPLC\Api\V1\SiteUrl;
@@ -237,5 +245,185 @@ final class PolicySettingsIntegrationTest extends WPLC_Integration_TestCase {
 		$none  = $this->activate_via_api( $other['key'], array( 'environment' => 'development', 'site_url' => 'http://dev1.local' ) )['response'];
 		$this->assertApiError( 409, 'development_limit', $none );
 		$this->assertSame( 'This license does not include development sites.', $none->get_data()['message'] );
+	}
+
+	// ------------------------------------------------------------------ SET-LIC-21
+
+	/**
+	 * Temporary CSV file.
+	 *
+	 * @param string $content Content.
+	 * @return string
+	 */
+	private function csv_file( string $content ): string {
+		$path = (string) tempnam( sys_get_temp_dir(), 'wplc-csv-' );
+		file_put_contents( $path, $content ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		return $path;
+	}
+
+	/**
+	 * Stored plan of a simple product.
+	 *
+	 * @param int $product_id Product ID.
+	 * @return array<string,mixed>
+	 */
+	private function plan( int $product_id ): array {
+		$plan = Catalog::find_exact_mapping( $product_id );
+		$this->assertIsArray( $plan );
+		return $plan;
+	}
+
+	/** SET-LIC-21: a plan replaces the global values for its licenses and cart lines; empty = global; the filters win. */
+	public function test_overrides_per_plan_replace_the_global_settings(): void {
+		$product = $this->create_license_product();
+		$other   = $this->create_license_product( array( 'plan_key' => 'agency' ) );
+		$this->assertNull( $this->plan( $product->get_id() )['staging_site_limit'], 'A new plan uses the global settings.' );
+
+		$this->assertTrue(
+			Catalog::save_mapping(
+				$product->get_id(),
+				0,
+				$this->mapping_data(
+					array(
+						'overrides' => array(
+							'staging_site_limit'     => '3',
+							'development_site_limit' => '0',
+							'offline_cache_days'     => '30',
+							'max_quantity_per_line'  => '2',
+							'co_user_limit'          => '',
+						),
+					)
+				)
+			)
+		);
+		$plan = $this->plan( $product->get_id() );
+		$this->assertSame( '3', (string) $plan['staging_site_limit'] );
+		$this->assertSame( '0', (string) $plan['development_site_limit'] );
+		$this->assertNull( $plan['co_user_limit'], 'Empty = global setting.' );
+
+		// Saving without overrides (another path, e.g. the price sync) keeps them.
+		$this->assertTrue( Catalog::save_mapping( $product->get_id(), 0, $this->mapping_data() ) );
+		$this->assertSame( '3', (string) $this->plan( $product->get_id() )['staging_site_limit'] );
+
+		// Outside the limits: nothing is saved.
+		$this->assertFalse( Catalog::save_mapping( $product->get_id(), 0, $this->mapping_data( array( 'overrides' => array( 'offline_cache_days' => '0' ) ) ) ) );
+		$this->assertSame( 'invalid_override', Catalog::last_error() );
+		$this->assertSame( '30', (string) $this->plan( $product->get_id() )['offline_cache_days'] );
+
+		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
+		$order    = $this->create_paid_order( array( array( $product, 1 ), array( $other, 1 ) ), $customer );
+		$licenses = $this->licenses_for_order( $order->get_id() );
+		$this->assertCount( 2, $licenses );
+		list( $own, $global ) = (string) $licenses[0]['plan_key'] === 'single' ? array( $licenses[0], $licenses[1] ) : array( $licenses[1], $licenses[0] );
+
+		$this->assertSame( 3, ActivationService::staging_site_limit( $own ) );
+		$this->assertSame( 1, ActivationService::staging_site_limit( $global ) );
+		$this->assertSame( 0, ActivationService::development_site_limit( $own, 1 ), 'Exactly the number of the plan.' );
+		$this->assertSame( 5, ActivationService::development_site_limit( $global, 1 ) );
+		$now = time();
+		$this->assertEqualsWithDelta( $now + 30 * DAY_IN_SECONDS, strtotime( EntitlementService::access_fields( $own, $now )['cache_expires_at'] . ' UTC' ), 2 );
+		$this->assertEqualsWithDelta( $now + 14 * DAY_IN_SECONDS, strtotime( EntitlementService::access_fields( $global, $now )['cache_expires_at'] . ' UTC' ), 2 );
+		$this->assertSame( 2, QuantityLimit::max( wc_get_product( $product->get_id() ) ) );
+		$this->assertSame( 100, QuantityLimit::max( wc_get_product( $other->get_id() ) ) );
+
+		// Empty override: the global setting, also after it changed.
+		$this->submit( array( 'co_user_limit' => '7' ) );
+		$this->assertSame( 7, LicenseMembers::member_limit( $own ) );
+
+		// The filters of the global values still decide last.
+		add_filter( 'wplc_staging_site_limit', static fn() => 9 );
+		add_filter( 'wplc_offline_cache_days', static fn() => 2 );
+		try {
+			$this->assertSame( 9, ActivationService::staging_site_limit( $own ) );
+			$this->assertEqualsWithDelta( $now + 2 * DAY_IN_SECONDS, strtotime( EntitlementService::access_fields( $own, $now )['cache_expires_at'] . ' UTC' ), 2 );
+		} finally {
+			remove_all_filters( 'wplc_staging_site_limit' );
+			remove_all_filters( 'wplc_offline_cache_days' );
+		}
+
+		// A changed plan applies to its existing licenses at once.
+		$this->assertTrue( Catalog::save_mapping( $product->get_id(), 0, $this->mapping_data( array( 'overrides' => array( 'staging_site_limit' => '' ) ) ) ) );
+		$this->assertSame( 1, ActivationService::staging_site_limit( $own ) );
+	}
+
+	/** SET-LIC-21: the product editor shows and saves the overrides; empty fields mean "global setting". */
+	public function test_product_editor_saves_the_overrides(): void {
+		$product = $this->create_license_product();
+		$html    = $this->capture(
+			static function () use ( $product ) {
+				global $post, $thepostid;
+				$post      = get_post( $product->get_id() ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+				$thepostid = $product->get_id(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+				ProductEditor::render_product_fields();
+			}
+		);
+		foreach ( array_keys( PlanOverrides::FIELDS ) as $field ) {
+			$this->assertStringContainsString( 'name="_wplc_' . $field . '"', $html, $field );
+		}
+		$this->assertStringContainsString( 'placeholder="Global: 14"', $html );
+
+		$_POST = wp_slash(
+			array(
+				'woocommerce_meta_nonce'      => wp_create_nonce( 'woocommerce_save_data' ),
+				ProductEditor::PRESENT_FIELD  => '1',
+				'_wplc_is_license_product'    => 'yes',
+				'_wplc_product_key'           => 'test-product',
+				'_wplc_plan_key'              => 'single',
+				'_wplc_billing_interval'      => 'year',
+				'_wplc_live_site_limit'       => '1',
+				'_wplc_support_level'         => 'standard',
+				'_wplc_entitlements_json'     => '',
+				'_wplc_staging_site_limit'    => '2',
+				'_wplc_development_site_limit' => '',
+				'_wplc_offline_cache_days'    => '45',
+				'_wplc_max_quantity_per_line' => '',
+				'_wplc_co_user_limit'         => '0',
+			)
+		);
+		ProductEditor::save_product_fields( $product->get_id() );
+		$_POST = array();
+		$plan  = $this->plan( $product->get_id() );
+		$this->assertSame( '2', (string) $plan['staging_site_limit'] );
+		$this->assertNull( $plan['development_site_limit'] );
+		$this->assertSame( '45', (string) $plan['offline_cache_days'] );
+		$this->assertSame( '0', (string) $plan['co_user_limit'] );
+	}
+
+	/** SET-LIC-21: the catalog CSV carries the overrides; a file with the old header still imports and keeps them. */
+	public function test_catalog_csv_carries_the_overrides(): void {
+		$product = $this->create_license_product( array( 'overrides' => array( 'staging_site_limit' => '4' ) ) );
+		$product->set_sku( 'POLICY-SKU' );
+		$product->save();
+
+		$rows = CatalogCsv::export_rows();
+		$row  = null;
+		foreach ( $rows as $candidate ) {
+			if ( (string) $product->get_id() === $candidate[0] ) {
+				$row = $candidate;
+			}
+		}
+		$this->assertIsArray( $row );
+		$this->assertCount( 14, $row );
+		$this->assertSame( '4', $row[9] );
+		$this->assertSame( '', $row[10] );
+
+		$header = 'product_id,variation_id,sku,product_key,plan_key,billing_interval,live_site_limit,support_level,entitlements_json';
+		$line   = $product->get_id() . ',0,POLICY-SKU,test-product,single,year,1,standard,';
+		$result = CatalogCsv::import_file( $this->csv_file( $header . "\n" . $line . "\n" ) );
+		$this->assertSame( 1, $result['imported'], wp_json_encode( $result ) );
+		$this->assertSame( '4', (string) $this->plan( $product->get_id() )['staging_site_limit'], 'Old header: overrides kept.' );
+
+		$full   = $header . ',staging_site_limit,development_site_limit,offline_cache_days,max_quantity_per_line,co_user_limit';
+		$result = CatalogCsv::import_file( $this->csv_file( $full . "\n" . $line . ',,3,60,,1' . "\n" ) );
+		$this->assertSame( 1, $result['imported'], wp_json_encode( $result ) );
+		$plan = $this->plan( $product->get_id() );
+		$this->assertNull( $plan['staging_site_limit'], 'An empty cell clears the override.' );
+		$this->assertSame( '3', (string) $plan['development_site_limit'] );
+		$this->assertSame( '60', (string) $plan['offline_cache_days'] );
+		$this->assertSame( '1', (string) $plan['co_user_limit'] );
+
+		$result = CatalogCsv::import_file( $this->csv_file( $full . "\n" . $line . ',11,,,,' . "\n" ) );
+		$this->assertSame( 0, $result['imported'] );
+		$this->assertSame( 'invalid_override', $result['errors'][0]['reason'] );
 	}
 }

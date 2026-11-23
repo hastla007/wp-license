@@ -534,6 +534,54 @@ final class LicenseMembersIntegrationTest extends WPLC_Portal_TestCase {
 		$this->assertRedirectWithNotice( 'invitation_invalid', $this->accept( $recipient, $id, $token ) );
 	}
 
+	/** SET-LIC-18: number of co-users, validity of invitations, transfer on/off and a new key come from the settings. */
+	public function test_co_users_and_transfer_follow_the_settings(): void {
+		global $wpdb;
+		$recipient = self::factory()->user->create( array( 'role' => 'customer', 'user_email' => 'recipient@example.test' ) );
+		$license   = $this->seed_license( array( 'customer_id' => $this->owner ) );
+		$this->assertSame( 5, LicenseMembers::member_limit( $this->license( $license['id'] ) ), 'Default as before.' );
+		$this->assertSame( 14, LicenseMembers::invitation_days( LicenseMembers::KIND_MEMBER ) );
+
+		update_option( \WPLC\Settings\Registry::OPTION, array( 'co_user_limit' => 1, 'invitation_days' => 3 ) );
+		$this->assertRedirectWithNotice( 'member_invited', $this->invite( 'one@example.test' ) );
+		$row = $this->member_rows( $license['id'] )[0];
+		$this->assertEqualsWithDelta( time() + 3 * DAY_IN_SECONDS, strtotime( $row['expires_at'] . ' UTC' ), 120, 'Valid for the configured days.' );
+		$this->assertSame( LicenseMembers::RESULT_LIMIT, LicenseMembers::invite( $license['id'], 'two@example.test', $this->owner ) );
+
+		// Switched off (0): no new invitation, and an open one can no longer be accepted.
+		$this->assertRedirectWithNotice( 'member_removed', $this->post_form( $this->owner, 'wplc_remove_member', array(), array( 'name="member_id" value="' . (int) $row['id'] . '"' ) ) );
+		reset_phpmailer_instance();
+		$this->assertRedirectWithNotice( 'member_invited', $this->invite( 'invitee@example.test' ) );
+		list( $id, $token ) = $this->last_link();
+		update_option( \WPLC\Settings\Registry::OPTION, array( 'co_user_limit' => 0 ) );
+		$this->assertSame( '', $this->find_form( $this->render_portal( $this->owner ), array( 'value="wplc_invite_member"' ) ), 'No invitation form.' );
+		$this->assertRedirectWithNotice( 'member_not_allowed', $this->accept( $this->invitee, $id, $token ) );
+		$this->assertFalse( LicenseMembers::is_member( $license['id'], $this->invitee ) );
+
+		// The filter still decides last.
+		add_filter( 'wplc_license_member_limit', static fn() => 2 );
+		$this->assertSame( 2, LicenseMembers::member_limit( $this->license( $license['id'] ) ) );
+		remove_all_filters( 'wplc_license_member_limit' );
+
+		// Transfers switched off: no form, and an open transfer can no longer be accepted.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->tables()['license_members']} WHERE license_id = %d", $license['id'] ) );
+		reset_phpmailer_instance();
+		$this->assertRedirectWithNotice( 'transfer_started', $this->post_form( $this->owner, 'wplc_start_transfer', array( 'email' => 'recipient@example.test', 'confirm_transfer' => '1' ) ) );
+		list( $id, $token ) = $this->last_link();
+		update_option( \WPLC\Settings\Registry::OPTION, array( 'transfers_enabled' => 0 ) );
+		$this->assertSame( '', $this->find_form( $this->render_portal( $this->owner ), array( 'value="wplc_start_transfer"' ) ) );
+		$this->assertRedirectWithNotice( 'member_not_allowed', $this->accept( $recipient, $id, $token ) );
+		$this->assertSame( (string) $this->owner, (string) $this->license( $license['id'] )['customer_id'] );
+
+		// Switched on again with "new key on transfer": the accepted transfer issues a new key.
+		update_option( \WPLC\Settings\Registry::OPTION, array( 'transfers_enabled' => 1, 'transfer_new_key' => 1 ) );
+		$hash_before = (string) $this->license( $license['id'] )['license_key_hash'];
+		$this->assertRedirectWithNotice( 'transfer_accepted', $this->accept( $recipient, $id, $token ) );
+		$after = $this->license( $license['id'] );
+		$this->assertSame( (string) $recipient, (string) $after['customer_id'] );
+		$this->assertNotSame( $hash_before, (string) $after['license_key_hash'], 'A new key.' );
+	}
+
 	public function test_owner_cancels_a_transfer_and_an_expired_transfer_is_refused(): void {
 		global $wpdb;
 		$license   = $this->seed_license( array( 'customer_id' => $this->owner, 'renewal_enabled' => 1 ) );

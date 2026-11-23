@@ -8,6 +8,7 @@
 namespace WPLC\Admin;
 
 use WPLC\Catalog\Catalog;
+use WPLC\Catalog\PlanOverrides;
 use WPLC\Infrastructure\Database\Schema;
 use WPLC\License\AuditLog;
 
@@ -184,20 +185,23 @@ final class CatalogCsv {
 			if ( ! $product ) {
 				continue;
 			}
-			$rows[] = array_map(
-				array( self::class, 'escape_cell' ),
-				array(
-					(string) $product_id,
-					(string) $variation_id,
-					(string) $product->get_sku( 'edit' ),
-					(string) $plan['product_key'],
-					(string) $plan['plan_key'],
-					(string) $plan['billing_interval'],
-					(string) $plan['live_site_limit'],
-					(string) $plan['support_level'],
-					(string) $plan['entitlements_json'],
-				)
+			$cells = array(
+				(string) $product_id,
+				(string) $variation_id,
+				(string) $product->get_sku( 'edit' ),
+				(string) $plan['product_key'],
+				(string) $plan['plan_key'],
+				(string) $plan['billing_interval'],
+				(string) $plan['live_site_limit'],
+				(string) $plan['support_level'],
+				(string) $plan['entitlements_json'],
 			);
+			// SET-LIC-21: overrides per plan, empty = global setting.
+			foreach ( array_keys( PlanOverrides::FIELDS ) as $field ) {
+				$own     = PlanOverrides::of_plan( $plan, $field );
+				$cells[] = null === $own ? '' : (string) $own;
+			}
+			$rows[] = array_map( array( self::class, 'escape_cell' ), $cells );
 		}
 
 		return $rows;
@@ -279,7 +283,8 @@ final class CatalogCsv {
 			},
 			str_getcsv( rtrim( $first, "\r\n" ), $delimiter, '"', '\\' )
 		);
-		if ( self::headers() !== $headers ) {
+		// A file exported before the overrides per plan (nine columns) still imports and keeps them.
+		if ( self::headers() !== $headers && self::legacy_headers() !== $headers ) {
 			fclose( $handle );
 			return self::empty_result( 'bad_header' );
 		}
@@ -472,6 +477,19 @@ final class CatalogCsv {
 			return 'product_locked';
 		}
 
+		// SET-LIC-21: overrides per plan, empty = global setting; a file without these columns keeps them.
+		$overrides = array();
+		foreach ( array_keys( PlanOverrides::FIELDS ) as $field ) {
+			if ( ! array_key_exists( $field, $row ) ) {
+				continue;
+			}
+			$checked = PlanOverrides::normalize( $field, self::unescape_cell( (string) $row[ $field ] ) );
+			if ( ! $checked['ok'] ) {
+				return 'invalid_override';
+			}
+			$overrides[ $field ] = $checked['value'];
+		}
+
 		$saved = Catalog::save_mapping(
 			$product_id,
 			$variation_id,
@@ -482,6 +500,7 @@ final class CatalogCsv {
 				'live_site_limit' => $site_limit,
 				'support_level' => $support,
 				'entitlements' => $entitlements,
+				'overrides' => $overrides,
 			)
 		);
 		if ( ! $saved ) {
@@ -518,7 +537,7 @@ final class CatalogCsv {
 			case 'too_many_rows':
 				return __( 'The file has more than 1,000 rows. The remaining rows were not imported.', 'wp-license' );
 			case 'column_count':
-				return __( 'The line does not have nine columns.', 'wp-license' );
+				return __( 'The line does not have as many columns as the header line.', 'wp-license' );
 			case 'sku_mismatch':
 				return __( 'The SKU does not match the SKU of this product in the shop.', 'wp-license' );
 			case 'not_a_variation_of_product':
@@ -527,6 +546,8 @@ final class CatalogCsv {
 				return __( 'The product ID is a variation. Put the parent product in product_id and the variation in variation_id.', 'wp-license' );
 			case 'invalid_support_level':
 				return __( 'The support level must be community, standard or priority.', 'wp-license' );
+			case 'invalid_override':
+				return Catalog::error_message( 'invalid_override' );
 			case 'invalid_site_limit':
 				return __( 'The live site limit must be a whole number from 1 to 1000.', 'wp-license' );
 			case 'invalid_entitlements':
@@ -617,6 +638,15 @@ final class CatalogCsv {
 	 * @return string[]
 	 */
 	private static function headers(): array {
+		return array_merge( self::legacy_headers(), array_keys( PlanOverrides::FIELDS ) );
+	}
+
+	/**
+	 * Header of files exported before the overrides per plan (SET-LIC-21); still accepted.
+	 *
+	 * @return string[]
+	 */
+	private static function legacy_headers(): array {
 		return array( 'product_id', 'variation_id', 'sku', 'product_key', 'plan_key', 'billing_interval', 'live_site_limit', 'support_level', 'entitlements_json' );
 	}
 }

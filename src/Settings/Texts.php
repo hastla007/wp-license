@@ -29,6 +29,7 @@ final class Texts {
 			'emails'     => __( 'Customer emails', 'wp-license' ),
 			'rules'      => __( 'Rules of this shop', 'wp-license' ),
 			'sites'      => __( 'Customer sites', 'wp-license' ),
+			'sharing'    => __( 'Co-users and transfer', 'wp-license' ),
 			'legal'      => __( 'Legal and privacy', 'wp-license' ),
 			'texts'      => __( 'Texts and support', 'wp-license' ),
 			'operations' => __( 'Operations', 'wp-license' ),
@@ -129,7 +130,7 @@ final class Texts {
 			),
 			'max_quantity_per_line'     => array(
 				__( 'Largest quantity per order line', 'wp-license' ),
-				__( 'Largest quantity of one license product a customer can put into the cart and order. Every unit becomes a license of its own with its own key. Default: 100. 0 = no limit. An order you create yourself in the admin or through the REST API is not blocked; a larger quantity there is noted on the order and in the audit log.', 'wp-license' ),
+				__( 'Largest quantity of one license product a customer can put into the cart and order. Every unit becomes a license of its own with its own key. Default: 100. 0 = no limit. An order you create yourself in the admin or through the REST API is not blocked; a larger quantity there is noted on the order and in the audit log. A plan can set its own largest quantity in the product editor.', 'wp-license' ),
 			),
 			'suspended_ends_after_days' => array(
 				__( 'Suspended licenses count as ended after', 'wp-license' ),
@@ -141,7 +142,7 @@ final class Texts {
 			),
 			'offline_cache_days'        => array(
 				__( 'Offline period of customer sites', 'wp-license' ),
-				__( 'Days a customer site may rely on the last signed answer of this server when it cannot reach it. Default: 14. The period never reaches beyond the end of access of the license: a license whose paid period or grace period ends earlier stops working offline at that end.', 'wp-license' ),
+				__( 'Days a customer site may rely on the last signed answer of this server when it cannot reach it. Default: 14. The period never reaches beyond the end of access of the license: a license whose paid period or grace period ends earlier stops working offline at that end. A plan can set its own period in the product editor.', 'wp-license' ),
 			),
 			'new_activations_per_hour'  => array(
 				__( 'New sites per license and hour', 'wp-license' ),
@@ -178,6 +179,22 @@ final class Texts {
 					__( 'Endings of addresses that only exist on a local computer or network, one per line, without the leading dot (for example test for shop.test). Development sites are only accepted on such addresses, on names without a dot and on private IP addresses; they also count as staging copies. Do not add an ending of the public internet (such as com): every site under it could then activate as a development site without using a live slot. Default: %s.', 'wp-license' ),
 					implode( ', ', Definitions::LOCAL_HOST_SUFFIXES )
 				),
+			),
+			'co_user_limit'             => array(
+				__( 'Co-users per license', 'wp-license' ),
+				__( 'How many co-users the owner of a license can invite in the customer account (accepted co-users plus open invitations). Co-users see the license with its key, sites and downloads in their own account. Default: 5. 0 = co-users are switched off: nobody can be invited and open invitations can no longer be accepted; co-users who accepted before keep their access until the owner removes them. A plan can set its own number in the product editor.', 'wp-license' ),
+			),
+			'invitation_days'           => array(
+				__( 'Invitations valid for', 'wp-license' ),
+				__( 'Days during which the link of an invitation (co-user or transfer) can be accepted. Default: 14. A changed value applies to invitations sent afterwards.', 'wp-license' ),
+			),
+			'transfers_enabled'         => array(
+				__( 'Customers can transfer licenses', 'wp-license' ),
+				__( 'On (default): the owner can hand a license over to another customer from the account; the recipient accepts with the link in an email. Off: the transfer form is hidden and open transfers can no longer be accepted; you can still change the owner in the admin.', 'wp-license' ),
+			),
+			'transfer_new_key'          => array(
+				__( 'New license key on transfer', 'wp-license' ),
+				__( 'Off (default): the license keeps its key and the activated sites keep working after a transfer accepted in the account. On: the transfer also issues a new key, so the previous owner can no longer use the old one; the new owner enters the new key on the sites.', 'wp-license' ),
 			),
 			'withdrawal_consent_mode'   => array(
 				__( 'Consent to the immediate start (right of withdrawal)', 'wp-license' ),

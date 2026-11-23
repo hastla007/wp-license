@@ -644,13 +644,19 @@ final class ActivationService {
 	 */
 	public static function development_site_limit( array $license, int $site_limit ): int {
 		// SET-LIC-10: the setting "Development sites per license" is the minimum (default 5); 0 forbids them.
-		$minimum = \WPLC\Settings\Registry::int( 'development_sites' );
-		$limit   = 0 === $minimum ? 0 : max( $minimum, 2 * $site_limit );
+		// SET-LIC-21: a plan with its own number uses exactly that number.
+		$own = \WPLC\Catalog\PlanOverrides::for_license( $license, 'development_site_limit' );
+		if ( null !== $own ) {
+			$limit = $own;
+		} else {
+			$minimum = \WPLC\Settings\Registry::int( 'development_sites' );
+			$limit   = 0 === $minimum ? 0 : max( $minimum, 2 * $site_limit );
+		}
 
 		/**
 		 * Filter the number of development activations per license. Zero forbids them.
 		 *
-		 * @param int                 $limit      Default: twice the live-site limit, at least the setting "Development sites per license" (5); 0 when the setting is 0.
+		 * @param int                 $limit      Default: the number of the plan, else twice the live-site limit, at least the setting "Development sites per license" (5); 0 when the setting is 0.
 		 * @param array<string,mixed> $license    License row.
 		 * @param int                 $site_limit Live-site limit.
 		 */
@@ -664,14 +670,15 @@ final class ActivationService {
 	 * @return int 0 = staging sites are not included.
 	 */
 	public static function staging_site_limit( array $license ): int {
-		$limit = \WPLC\Settings\Registry::int( 'staging_sites_per_live' );
+		// SET-LIC-21: the number of the plan, else the setting.
+		$limit = \WPLC\Catalog\PlanOverrides::for_license( $license, 'staging_site_limit' ) ?? \WPLC\Settings\Registry::int( 'staging_sites_per_live' );
 
 		/**
 		 * Filter the number of staging activations per live site. Zero forbids them.
 		 *
 		 * @since 0.2.0
 		 *
-		 * @param int                 $limit   Default: the setting "Staging sites per live site" (1).
+		 * @param int                 $limit   Default: the number of the plan, else the setting "Staging sites per live site" (1).
 		 * @param array<string,mixed> $license License row.
 		 */
 		return max( 0, (int) apply_filters( 'wplc_staging_site_limit', $limit, $license ) );
