@@ -1,8 +1,65 @@
 {
-  "format": 1,
-  "product_key": "form-captain-pro",
-  "prefix": "form",
-  "name": "Form Captain Pro",
-  "status": "planned",
-  "entitlements": []
+    "format": 1,
+    "product_key": "form-captain-pro",
+    "prefix": "form",
+    "name": "Form Captain Pro",
+    "status": "available",
+    "generator": "captain-pro build/build.php",
+    "addon": "0.1.0",
+    "entitlements": [
+        {
+            "key": "form.webhooks",
+            "label": {
+                "en": "Webhooks: signed submissions to other systems",
+                "de_DE": "Webhooks: signierte Einsendungen an andere Systeme",
+                "de_DE_formal": "Webhooks: signierte Einsendungen an andere Systeme"
+            },
+            "status": "available"
+        },
+        {
+            "key": "form.advanced_logic",
+            "label": {
+                "en": "Advanced conditions (AND/OR) and routing of notifications and confirmations",
+                "de_DE": "Erweiterte Bedingungen (UND/ODER) und Weiterleitung von Benachrichtigungen und Bestätigungen",
+                "de_DE_formal": "Erweiterte Bedingungen (UND/ODER) und Weiterleitung von Benachrichtigungen und Bestätigungen"
+            },
+            "status": "available"
+        },
+        {
+            "key": "form.pdf",
+            "label": {
+                "en": "PDF of an entry",
+                "de_DE": "PDF eines Eintrags",
+                "de_DE_formal": "PDF eines Eintrags"
+            },
+            "status": "available"
+        },
+        {
+            "key": "form.uploads",
+            "label": {
+                "en": "File uploads with content checks and protected downloads",
+                "de_DE": "Datei-Uploads mit Inhaltsprüfung und geschützten Downloads",
+                "de_DE_formal": "Datei-Uploads mit Inhaltsprüfung und geschützten Downloads"
+            },
+            "status": "available"
+        },
+        {
+            "key": "form.multi_step",
+            "label": {
+                "en": "Multi-step forms with progress display and saved drafts",
+                "de_DE": "Mehrstufige Formulare mit Fortschrittsanzeige und gespeicherten Entwürfen",
+                "de_DE_formal": "Mehrstufige Formulare mit Fortschrittsanzeige und gespeicherten Entwürfen"
+            },
+            "status": "available"
+        },
+        {
+            "key": "form.woocommerce_questionnaires",
+            "label": {
+                "en": "WooCommerce buyer questionnaires after purchase",
+                "de_DE": "WooCommerce-Käuferfragebögen nach dem Kauf",
+                "de_DE_formal": "WooCommerce-Käuferfragebögen nach dem Kauf"
+            },
+            "status": "available"
+        }
+    ]
 }

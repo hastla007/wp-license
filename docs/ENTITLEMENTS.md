@@ -59,17 +59,18 @@ The product key on a license product in the shop and the key the premium add-on 
 
 | Product | Product key | Entitlement prefix | Premium add-on |
 |---|---|---|---|
-| Voucher Captain | `voucher-captain-pro` | `voucher.` | `voucher-captain-pro` |
 | Pass Captain | `pass-captain-pro` | `pass.` | `pass-captain-pro` |
 | Affiliate Captain | `affiliate-captain-pro` | `affiliate.` | `affiliate-captain-pro` |
+| Form Captain | `form-captain-pro` | `form.` | `form-captain-pro` |
+| Review Captain | `review-captain-pro` | `review.` | `review-captain-pro` |
 
 The product editor suggests these keys. The plan key (`single`, `business` or `agency`, see [Plans and entitlements](#plans-and-entitlements)) is set per product or variation and is independent of the product key.
 
-Planned add-ons, not released and not for sale yet (status `planned` in their catalog file): `workflow-captain-pro` (`workflow.`), `form-captain-pro` (`form.`), `review-captain-pro` (`review.`), `course-captain-pro` (`course.`).
+Planned add-ons, not released and not for sale yet (status `planned` in their catalog file): `voucher-captain-pro` (`voucher.`; built in captain-pro, but held back by the owner), `workflow-captain-pro` (`workflow.`), `course-captain-pro` (`course.`).
 
 ## Identifier rules
 
-- Prefix keys by product: `affiliate.`, `voucher.`, or `pass.` (planned: `workflow.`, `form.`, `review.`, `course.`). One prefix belongs to one product.
+- Prefix keys by product: `affiliate.`, `pass.`, `form.` or `review.` (planned: `voucher.`, `workflow.`, `course.`). One prefix belongs to one product.
 - Use lowercase snake_case after the prefix; never reuse a key for different behavior.
 - Server plans return a boolean or a documented numeric limit. Clients fail closed for new premium features when an entitlement is absent or invalid.
 - Plan key/SKU assignment is a separate configuration step; the tables below are the decided model, not live catalog data.
@@ -105,12 +106,14 @@ Prices are not part of this document. The prices proposed in captain-pro `docs/T
 
 The keys below are the ones the product editor offers as tick boxes (`WPLC\Catalog\EntitlementCatalog::all()`, filled from the catalog files). A key has the status `available` only when the premium add-on ships the function; the core plugins have no keys. The labels (English, `de_DE`, `de_DE_formal`) are in the catalog files, not in the translations of the server.
 
-| Product (product key) | Keys in every plan (`single`, `business`, `agency`) | State of the add-on (captain-pro, 16 Nov 2026) |
+| Product (product key) | Keys in every plan (`single`, `business`, `agency`) | State of the add-on (captain-pro) |
 |---|---|---|
-| Affiliate Captain Pro (`affiliate-captain-pro`) | `affiliate.extended_api`, `affiliate.automated_payouts`, `affiliate.white_label_portal`, `affiliate.webhooks` | Built. |
+| Affiliate Captain Pro (`affiliate-captain-pro`) | `affiliate.webhooks`, `affiliate.automated_payouts`, `affiliate.white_label_portal`, `affiliate.extended_api` | Built. Five further functions are built in captain-pro `main` but held back by the owner (status `planned`, next section). |
 | Pass Captain Pro (`pass-captain-pro`) | `pass.e_invoicing`, `pass.card_terminal`, `pass.waiting_room`, `pass.write_api`, `pass.white_label` | Built. `pass.e_invoicing` delivers XRechnung 3.0 XML (UBL and CII) and, since captain-pro `e54eda9` (16 Nov 2026), a ZUGFeRD PDF/A-3 with the CII XML embedded; the external validations of the PDF are still open there (captain-pro `docs/PASS-E-INVOICE.md`). |
-| Voucher Captain Pro (`voucher-captain-pro`) | none yet | No premium function is built. The cut of 16 Nov 2026 (owner decision) plans company orders, wallet passes, SMS delivery and white label (status `planned`, next section). Nothing can be sold for it yet. |
-| Workflow Captain Pro (`workflow-captain-pro`), Form Captain Pro (`form-captain-pro`), Review Captain Pro (`review-captain-pro`), Course Captain Pro (`course-captain-pro`) | none yet | Planned (product status `planned` in the catalog file). The product keys resolve to the prefixes `workflow.`, `form.`, `review.`, `course.`; the product editor does not suggest them and offers no key for them. Eight `workflow.*` keys are reserved (next section). |
+| Form Captain Pro (`form-captain-pro`) | `form.webhooks`, `form.advanced_logic`, `form.pdf`, `form.uploads`, `form.multi_step`, `form.woocommerce_questionnaires` | Built and released by the owner (catalog file from the captain-pro build). |
+| Review Captain Pro (`review-captain-pro`) | `review.platform_sync`, `review.review_requests`, `review.advanced_widgets`, `review.analytics`, `review.suite_integrations`, `review.custom_connectors` | Built and released by the owner (catalog file from the captain-pro build); replies on the platforms follow after the MVP. |
+| Voucher Captain Pro (`voucher-captain-pro`) | none yet | Company orders, wallet passes, SMS delivery and white label are built in captain-pro, but the owner holds the add-on back (decision H1): product status `planned`, the four keys `planned` (next section). Nothing can be sold for it yet. |
+| Workflow Captain Pro (`workflow-captain-pro`), Course Captain Pro (`course-captain-pro`) | none yet | Planned (product status `planned` in the catalog file). The product keys resolve to the prefixes `workflow.` and `course.`; the product editor does not suggest them and offers no key for them. Eight `workflow.*` keys are reserved (next section). |
 
 Support is the plan attribute `support.level` (`standard` or `priority`) and nothing else (owner decision of 16 Nov 2026, R-24). The three former keys `*.priority_support` (one each for `affiliate.`, `voucher.` and `pass.`), which no add-on checked, are no longer in the catalog. A plan or license that still stores one keeps it in the advanced JSON field; it has no effect.
 
@@ -122,15 +125,15 @@ These keys are reserved for functions that are planned but that no released add-
 
 | Key | Planned function |
 |---|---|
-| `affiliate.store_credit` | Payout as store credit |
-| `affiliate.stripe_connect` | Payouts via Stripe Connect |
-| `affiliate.leaderboard` | Leaderboard and milestone emails |
-| `affiliate.multi_tier` | Multi-tier commissions |
-| `affiliate.multiple_programs` | Multiple programs |
-| `voucher.bulk_orders` | Voucher Captain Pro: company orders (many vouchers from a CSV list) |
-| `voucher.wallet_passes` | Voucher Captain Pro: Apple and Google Wallet passes |
-| `voucher.sms_delivery` | Voucher Captain Pro: voucher link by SMS |
-| `voucher.white_label` | Voucher Captain Pro: white label, same scope as Pass Captain Pro (owner decision E2 of 16 Nov 2026) |
+| `affiliate.store_credit` | Payouts as store credit (WooCommerce coupons); built, held back by the owner (H1) |
+| `affiliate.stripe_connect` | Payouts through Stripe Connect; built, held back by the owner (H1) |
+| `affiliate.leaderboard` | Leaderboard and milestone e-mails; built, held back by the owner (H1) |
+| `affiliate.multi_tier` | Sub-affiliates with team commissions; built, held back by the owner (H1) |
+| `affiliate.multiple_programs` | Multiple partner programs; built, held back by the owner (H1) |
+| `voucher.bulk_orders` | Voucher Captain Pro: company orders (many vouchers from a CSV list); built, held back (H1) |
+| `voucher.wallet_passes` | Voucher Captain Pro: Apple and Google Wallet passes for vouchers; built, held back (H1) |
+| `voucher.sms_delivery` | Voucher Captain Pro: voucher link by SMS; built, held back (H1) |
+| `voucher.white_label` | Voucher Captain Pro: white label, own product name and logo (owner decision E2 of 16 Nov 2026); built, held back (H1) |
 | `workflow.suite_integrations` | Workflow Captain Pro: integrations with the other Captain plugins |
 | `workflow.webhooks` | Workflow Captain Pro: webhooks |
 | `workflow.event_correlation` | Workflow Captain Pro: event correlation |

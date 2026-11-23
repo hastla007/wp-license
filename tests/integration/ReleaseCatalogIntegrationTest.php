@@ -170,7 +170,7 @@ final class ReleaseCatalogIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'file_too_large', ReleaseCatalog::last_result()['reason'] );
 		$this->assertCount( 4, $this->audit( 'catalog_release_import_refused' ) );
 		$known = EntitlementCatalog::known_keys();
-		$this->assertCount( 10, $known, 'The nine shipped keys and the one of the first package; nothing from the refused files.' );
+		$this->assertCount( 22, $known, 'The 21 shipped keys and the one of the first package; nothing from the refused files.' );
 		$this->assertContains( 'acme.pdf_export', $known );
 		$this->assertNotContains( 'acme.evil', $known );
 	}
@@ -269,6 +269,8 @@ final class ReleaseCatalogIntegrationTest extends WPLC_Integration_TestCase {
 			'pass-captain-pro'      => array( 'available', 5, 0 ),
 			'affiliate-captain-pro' => array( 'available', 4, 5 ),
 			'voucher-captain-pro'   => array( 'planned', 0, 4 ),
+			'form-captain-pro'      => array( 'available', 6, 0 ),
+			'review-captain-pro'    => array( 'available', 6, 0 ),
 		);
 		foreach ( $expected as $product => $want ) {
 			$zips = (array) glob( rtrim( $dist, '/' ) . '/' . $product . '-*.zip' );
@@ -299,10 +301,10 @@ final class ReleaseCatalogIntegrationTest extends WPLC_Integration_TestCase {
 
 		// What the product editor offers afterwards.
 		$this->assertSame(
-			array( 'affiliate.webhooks', 'affiliate.automated_payouts', 'affiliate.white_label_portal', 'affiliate.extended_api', 'pass.e_invoicing', 'pass.card_terminal', 'pass.white_label', 'pass.waiting_room', 'pass.write_api' ),
+			array( 'affiliate.webhooks', 'affiliate.automated_payouts', 'affiliate.white_label_portal', 'affiliate.extended_api', 'form.webhooks', 'form.advanced_logic', 'form.pdf', 'form.uploads', 'form.multi_step', 'form.woocommerce_questionnaires', 'pass.e_invoicing', 'pass.card_terminal', 'pass.white_label', 'pass.waiting_room', 'pass.write_api', 'review.platform_sync', 'review.review_requests', 'review.advanced_widgets', 'review.analytics', 'review.suite_integrations', 'review.custom_connectors' ),
 			EntitlementCatalog::known_keys()
 		);
-		$this->assertSame( array( 'affiliate-captain-pro', 'pass-captain-pro' ), array_keys( EntitlementCatalog::known_product_keys() ), 'Voucher Captain Pro is planned in its package: not suggested.' );
+		$this->assertSame( array( 'affiliate-captain-pro', 'form-captain-pro', 'pass-captain-pro', 'review-captain-pro' ), array_keys( EntitlementCatalog::known_product_keys() ), 'Voucher Captain Pro is planned in its package: not suggested.' );
 		$this->assertArrayHasKey( 'voucher-captain-pro', EntitlementCatalog::planned_product_keys() );
 		$this->assertCount( 0, $this->audit( 'catalog_release_import_refused' ) );
 	}

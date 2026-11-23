@@ -182,7 +182,11 @@ final class CatalogStore {
 			}
 		}
 		if ( $existing ) {
-			$report['result'] = (string) ( $existing['fingerprint'] ?? '' ) === $fingerprint ? self::RESULT_UNCHANGED : self::RESULT_UPDATED;
+			// A vendor's file takes a product over from the shipped copy even when the content is the same
+			// (the shipped copies are byte-for-byte copies of the add-on build, PROD-02): from then on
+			// import_bundled() leaves the product alone.
+			$takes_over       = self::SOURCE_BUNDLED === (string) ( $existing['source'] ?? '' ) && self::SOURCE_BUNDLED !== $source;
+			$report['result'] = (string) ( $existing['fingerprint'] ?? '' ) === $fingerprint && ! $takes_over ? self::RESULT_UNCHANGED : self::RESULT_UPDATED;
 		}
 		if ( $dry_run || self::RESULT_UNCHANGED === $report['result'] ) {
 			return $report;

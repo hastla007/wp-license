@@ -1,90 +1,93 @@
 {
-  "format": 1,
-  "product_key": "affiliate-captain-pro",
-  "prefix": "affiliate",
-  "name": "Affiliate Captain Pro",
-  "status": "available",
-  "entitlements": [
-    {
-      "key": "affiliate.extended_api",
-      "label": {
-        "en": "Extended API",
-        "de_DE": "Erweiterte API",
-        "de_DE_formal": "Erweiterte API"
-      },
-      "status": "available"
-    },
-    {
-      "key": "affiliate.automated_payouts",
-      "label": {
-        "en": "Automated payouts",
-        "de_DE": "Automatische Auszahlungen",
-        "de_DE_formal": "Automatische Auszahlungen"
-      },
-      "status": "available"
-    },
-    {
-      "key": "affiliate.white_label_portal",
-      "label": {
-        "en": "White-label portal",
-        "de_DE": "White-Label-Portal",
-        "de_DE_formal": "White-Label-Portal"
-      },
-      "status": "available"
-    },
-    {
-      "key": "affiliate.webhooks",
-      "label": {
-        "en": "Webhooks",
-        "de_DE": "Webhooks",
-        "de_DE_formal": "Webhooks"
-      },
-      "status": "available"
-    },
-    {
-      "key": "affiliate.store_credit",
-      "label": {
-        "en": "Payout as store credit",
-        "de_DE": "Auszahlung als Shop-Guthaben",
-        "de_DE_formal": "Auszahlung als Shop-Guthaben"
-      },
-      "status": "planned"
-    },
-    {
-      "key": "affiliate.stripe_connect",
-      "label": {
-        "en": "Payouts via Stripe Connect",
-        "de_DE": "Auszahlungen über Stripe Connect",
-        "de_DE_formal": "Auszahlungen über Stripe Connect"
-      },
-      "status": "planned"
-    },
-    {
-      "key": "affiliate.leaderboard",
-      "label": {
-        "en": "Leaderboard and milestone emails",
-        "de_DE": "Bestenliste und Meilenstein-Mails",
-        "de_DE_formal": "Bestenliste und Meilenstein-Mails"
-      },
-      "status": "planned"
-    },
-    {
-      "key": "affiliate.multi_tier",
-      "label": {
-        "en": "Multi-tier commissions",
-        "de_DE": "Mehrstufige Provisionen",
-        "de_DE_formal": "Mehrstufige Provisionen"
-      },
-      "status": "planned"
-    },
-    {
-      "key": "affiliate.multiple_programs",
-      "label": {
-        "en": "Multiple programs",
-        "de_DE": "Mehrere Programme",
-        "de_DE_formal": "Mehrere Programme"
-      },
-      "status": "planned"
-    }
-  ]
+    "format": 1,
+    "product_key": "affiliate-captain-pro",
+    "prefix": "affiliate",
+    "name": "Affiliate Captain Pro",
+    "status": "available",
+    "generator": "captain-pro build/build.php",
+    "addon": "0.1.0",
+    "held": "Built, but not yet released by the owner (decision H1): the scope of the four functions of pull request 7 and their acceptance are open (TODO.md, E5 b), and affiliate.multiple_programs was built after decision E3 without an acceptance.",
+    "entitlements": [
+        {
+            "key": "affiliate.webhooks",
+            "label": {
+                "en": "Webhooks: signed notifications to other systems",
+                "de_DE": "Webhooks: signierte Benachrichtigungen an andere Systeme",
+                "de_DE_formal": "Webhooks: signierte Benachrichtigungen an andere Systeme"
+            },
+            "status": "available"
+        },
+        {
+            "key": "affiliate.automated_payouts",
+            "label": {
+                "en": "Automatic payouts through PayPal",
+                "de_DE": "Automatische Auszahlungen über PayPal",
+                "de_DE_formal": "Automatische Auszahlungen über PayPal"
+            },
+            "status": "available"
+        },
+        {
+            "key": "affiliate.white_label_portal",
+            "label": {
+                "en": "White-label partner area",
+                "de_DE": "White-Label-Partnerbereich",
+                "de_DE_formal": "White-Label-Partnerbereich"
+            },
+            "status": "available"
+        },
+        {
+            "key": "affiliate.extended_api",
+            "label": {
+                "en": "REST API for partners, commissions and payouts",
+                "de_DE": "REST-API für Partner, Provisionen und Auszahlungen",
+                "de_DE_formal": "REST-API für Partner, Provisionen und Auszahlungen"
+            },
+            "status": "available"
+        },
+        {
+            "key": "affiliate.store_credit",
+            "label": {
+                "en": "Payouts as store credit (WooCommerce coupons)",
+                "de_DE": "Auszahlungen als Shop-Guthaben (WooCommerce-Gutscheine)",
+                "de_DE_formal": "Auszahlungen als Shop-Guthaben (WooCommerce-Gutscheine)"
+            },
+            "status": "planned"
+        },
+        {
+            "key": "affiliate.stripe_connect",
+            "label": {
+                "en": "Payouts through Stripe Connect",
+                "de_DE": "Auszahlungen über Stripe Connect",
+                "de_DE_formal": "Auszahlungen über Stripe Connect"
+            },
+            "status": "planned"
+        },
+        {
+            "key": "affiliate.leaderboard",
+            "label": {
+                "en": "Leaderboard and milestone e-mails",
+                "de_DE": "Bestenliste und Meilenstein-E-Mails",
+                "de_DE_formal": "Bestenliste und Meilenstein-E-Mails"
+            },
+            "status": "planned"
+        },
+        {
+            "key": "affiliate.multi_tier",
+            "label": {
+                "en": "Sub-affiliates with team commissions",
+                "de_DE": "Sub-Partner mit Team-Provisionen",
+                "de_DE_formal": "Sub-Partner mit Team-Provisionen"
+            },
+            "status": "planned"
+        },
+        {
+            "key": "affiliate.multiple_programs",
+            "label": {
+                "en": "Multiple partner programs",
+                "de_DE": "Mehrere Partnerprogramme",
+                "de_DE_formal": "Mehrere Partnerprogramme"
+            },
+            "status": "planned"
+        }
+    ]
 }
