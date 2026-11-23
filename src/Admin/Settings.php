@@ -816,14 +816,14 @@ final class Settings {
 			'value' => sprintf( _n( '%d day', '%d days', LicenseLifecycle::grace_days(), 'wp-license' ), LicenseLifecycle::grace_days() ),
 		);
 
-		// B-45: ended licenses are detached from the customer ten years after the end of the year (filter wplc_retention_days).
+		// B-45: ended licenses are detached from the customer ten years after the end of the year (setting retention_anonymize_licenses, filter wplc_retention_days).
 		$anonymize = \WPLC\Maintenance\Retention::configured_days()['anonymize_licenses'];
 		$rows[]    = array(
 			'label' => __( 'Anonymisation of ended licenses', 'wp-license' ),
 			'value' => $anonymize > 0
 				/* translators: %s: number of days. */
 				? sprintf( _n( '%s day after the end of the year in which the license ended', '%s days after the end of the year in which the license ended', $anonymize, 'wp-license' ), number_format_i18n( $anonymize ) )
-				: __( 'Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice with the filter wplc_retention_days (key anonymize_licenses).', 'wp-license' ),
+				: __( 'Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice under "Legal and privacy" below.', 'wp-license' ),
 			'state' => $anonymize > 0 ? 'ok' : '',
 		);
 
@@ -894,6 +894,9 @@ final class Settings {
 				break;
 			case 'int':
 				echo '<input type="number" id="' . esc_attr( $id ) . '"' . $name_attr . ' value="' . esc_attr( (string) Registry::int( $key ) ) . '" class="small-text" min="' . esc_attr( (string) (int) ( $definition['min'] ?? 0 ) ) . '" max="' . esc_attr( (string) (int) ( $definition['max'] ?? 0 ) ) . '" step="1"' . $lock . $help . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
+				if ( 'days' === ( $definition['unit'] ?? '' ) ) {
+					echo ' ' . esc_html__( 'days', 'wp-license' );
+				}
 				break;
 			case 'choice':
 				echo '<select id="' . esc_attr( $id ) . '"' . $name_attr . ( $readonly ? ' disabled' : '' ) . $help . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.

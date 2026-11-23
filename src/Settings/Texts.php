@@ -127,6 +127,58 @@ final class Texts {
 				__( 'Suspended licenses count as ended after', 'wp-license' ),
 				__( 'Default: 0 = never; a suspended license then keeps its customer and its data until you revoke it or it is reactivated. With a number of days, a license that stayed suspended without interruption for that long is treated like an expired or revoked one: a personal data erasure request detaches it from the customer and releases its sites, and the retention rules delete its installations and consent records after their periods. This cannot be undone. A license that was reactivated is never affected; a new suspension counts from its own start. Agree the period with your legal counsel.', 'wp-license' ),
 			),
+			'withdrawal_consent_mode'   => array(
+				__( 'Consent to the immediate start (right of withdrawal)', 'wp-license' ),
+				__( 'Whether the checkout asks the customer to agree that the license is provided before the withdrawal period ends. "Automatic" (default) asks unless Germanized or German Market is active, because these plugins ask themselves.', 'wp-license' ),
+			),
+			'withdrawal_consent_required' => array(
+				__( 'The consent is required to buy', 'wp-license' ),
+				__( 'On (default): a license can only be bought with the consent. Off: the box is optional and only recorded when ticked; the customer then keeps the right of withdrawal.', 'wp-license' ),
+			),
+			'withdrawal_consent_text'   => array(
+				__( 'Wording of the withdrawal consent', 'wp-license' ),
+				__( 'Text next to the checkbox. Empty (default) = the built-in wording in the language of the customer. Your own wording is shown as it is in every language. The text the customer saw is stored with the order as proof.', 'wp-license' ),
+			),
+			'recurring_consent_text'    => array(
+				__( 'Wording of the consent to automatic renewal', 'wp-license' ),
+				__( 'Text next to the checkbox for automatic renewal, in the classic and in the block checkout. Empty (default) = the built-in wording in the language of the customer. Your own wording is shown as it is in every language. The text the customer saw is stored as proof of the consent.', 'wp-license' ),
+			),
+			'retention_audit_log' => array(
+				__( 'Keep the audit log for', 'wp-license' ),
+				__( 'Days after which entries of the audit log are deleted. Default: 730. 0 = never delete.', 'wp-license' ),
+			),
+			'retention_event_inbox' => array(
+				__( 'Keep processed payment events for', 'wp-license' ),
+				__( 'Days after which payment events that were processed completely are deleted. Default: 180. 0 = never delete.', 'wp-license' ),
+			),
+			'retention_event_inbox_open' => array(
+				__( 'Keep unresolved payment events for', 'wp-license' ),
+				__( 'Days after which payment events that still need work are deleted. Default: 730. 0 = never delete.', 'wp-license' ),
+			),
+			'retention_activations' => array(
+				__( 'Keep deactivated sites of ended licenses for', 'wp-license' ),
+				__( 'Days after which deactivated installations of ended licenses are deleted. Default: 365. 0 = never delete.', 'wp-license' ),
+			),
+			'retention_inactive_activations' => array(
+				__( 'Keep deactivated sites of running licenses for', 'wp-license' ),
+				__( 'Days after which deactivated installations of running licenses are deleted. Default: 365. 0 = never delete.', 'wp-license' ),
+			),
+			'retention_ended_license_activations' => array(
+				__( 'Switch off sites of an ended license after', 'wp-license' ),
+				__( 'Days after the paid period of an expired license at which its still active installations are deactivated. Default: 30. 0 = never.', 'wp-license' ),
+			),
+			'retention_reminder_log' => array(
+				__( 'Keep the email log for', 'wp-license' ),
+				__( 'Days after which entries of the notification log are deleted. Default: 730. 0 = never delete.', 'wp-license' ),
+			),
+			'retention_anonymize_licenses' => array(
+				__( 'Detach ended licenses from the customer after', 'wp-license' ),
+				__( 'Days after the end of a license at which the owner, the payment token reference and the installations are removed. Counted from the end of the calendar year in which the license ended. Default: 3650 (ten years, the technical default so far). 0 = never.', 'wp-license' ),
+			),
+			'retention_consents' => array(
+				__( 'Keep proof of renewal consent for', 'wp-license' ),
+				__( 'Days after which the proof of a consent to automatic renewal is deleted, once its license has ended. Counted from the end of the calendar year of the consent. Default: 3650 (ten years, the technical default so far). 0 = never delete.', 'wp-license' ),
+			),
 		);
 	}
 
@@ -142,7 +194,13 @@ final class Texts {
 		 *
 		 * @var array<string,array<string,string>> $all
 		 */
-		$all = array();
+		$all = array(
+			'withdrawal_consent_mode' => array(
+				'auto' => __( 'Automatic: ask, unless Germanized or German Market is active', 'wp-license' ),
+				'on'   => __( 'Always ask', 'wp-license' ),
+				'off'  => __( 'Never ask', 'wp-license' ),
+			),
+		);
 
 		return $all[ $key ] ?? array();
 	}

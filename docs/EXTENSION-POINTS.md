@@ -174,6 +174,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_product_docs_url` | `src/Notifications/Notifications.php` | Filter the documentation URL shown with the installation steps. |
 | `wplc_public_cancel_hourly_limit` | `src/Account/PublicCancellation.php` | Filter how many public cancellation requests are accepted per hour, |
 | `wplc_public_cancel_order_id` | `src/Account/PublicCancellation.php` | Filter the order ID for an order number typed on the public cancellation |
+| `wplc_recurring_consent_text` | `src/Billing/RecurringConsent.php` | Filters the wording of the consent to automatic renewal (classic and block checkout). Wins over the setting. |
 | `wplc_recurring_gateway_adapters` | `src/Gateway/Registry.php` |  |
 | `wplc_registrable_domain` | `src/Api/V1/SiteUrl.php` | Filter the registrable domain derived from a host (for example with a public-suffix list). |
 | `wplc_release_product_slug` | `src/Update/ReleaseRegistry.php` | Filters the plugin folder a product's packages must contain. |

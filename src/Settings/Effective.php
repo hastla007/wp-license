@@ -32,6 +32,7 @@ final class Effective {
 			'renewal_retry_days'        => array( '\\WPLC\\Billing\\RenewalProcessor', 'retry_days' ),
 			'manual_renewal_days_before' => array( '\\WPLC\\License\\LicenseStateMachine', 'renewal_days_before' ),
 			'manual_renewal_days_after' => array( '\\WPLC\\License\\LicenseStateMachine', 'renewal_days_after' ),
+			'withdrawal_consent_required' => array( '\\WPLC\\Billing\\WithdrawalConsent', 'required' ),
 			'reminder_days'             => array( '\\WPLC\\Notifications\\Notifications', 'lead_days' ),
 			'renewal_notice_days'       => array( '\\WPLC\\Notifications\\Notifications', 'notice_days' ),
 			'price_change_notice_days'  => array( '\\WPLC\\Billing\\PriceChange', 'notice_days' ),
@@ -48,6 +49,16 @@ final class Effective {
 	public static function value( string $key ) {
 		$readers    = self::readers();
 		$definition = Registry::definition( $key );
+		if ( null !== $definition && 0 === strpos( $key, 'retention_' ) && class_exists( '\\WPLC\\Maintenance\\Retention' ) ) {
+			try {
+				$days = \WPLC\Maintenance\Retention::configured_days();
+			} catch ( \Throwable $error ) {
+				return null;
+			}
+			$rule = substr( $key, 10 );
+
+			return isset( $days[ $rule ] ) ? (int) $days[ $rule ] : null;
+		}
 		if ( null === $definition || ! isset( $readers[ $key ] ) || ! is_callable( $readers[ $key ] ) ) {
 			return null;
 		}

@@ -217,4 +217,32 @@ final class RegistryTest extends TestCase {
 			unset( $GLOBALS['wplc_test_filters']['wplc_manual_renewal_window_days'] );
 		}
 	}
+
+	/** SET-LIC-04, S9: every retention rule is a setting; the technical default stays as it was. */
+	public function test_every_retention_rule_is_a_setting_with_the_default_so_far(): void {
+		foreach ( \WPLC\Maintenance\Retention::DEFAULT_DAYS as $rule => $days ) {
+			$definition = Registry::definition( 'retention_' . $rule );
+			$this->assertNotNull( $definition, $rule );
+			$this->assertSame( $days, $definition['default'], $rule );
+			$this->assertSame( 0, $definition['min'], "$rule: 0 switches the rule off." );
+			$this->assertSame( 36500, $definition['max'], $rule );
+			$this->assertTrue( $definition['legal'], $rule );
+			$this->assertSame( 'wplc_retention_days', $definition['filter'], $rule );
+		}
+		$this->assertSame( \WPLC\Maintenance\Retention::DEFAULT_DAYS, \WPLC\Maintenance\Retention::setting_days() );
+	}
+
+	/** SET-LIC-05, -06: consent settings default to the behaviour so far and carry the legal note. */
+	public function test_consent_settings_are_neutral_by_default(): void {
+		$this->assertSame( 'auto', Registry::defaults()['withdrawal_consent_mode'] );
+		$this->assertSame( 1, Registry::defaults()['withdrawal_consent_required'] );
+		$this->assertSame( '', Registry::defaults()['withdrawal_consent_text'], 'No wording of our own is prescribed.' );
+		$this->assertSame( '', Registry::defaults()['recurring_consent_text'] );
+		foreach ( array( 'withdrawal_consent_mode', 'withdrawal_consent_required', 'withdrawal_consent_text', 'recurring_consent_text' ) as $key ) {
+			$this->assertTrue( Registry::definition( $key )['legal'], $key );
+		}
+		$this->assertSame( 'not_a_choice', Registry::validate( 'withdrawal_consent_mode', 'sometimes' )['code'] );
+		$this->assertSame( 'too_long', Registry::validate( 'recurring_consent_text', str_repeat( 'a', 1001 ) )['code'] );
+		$this->assertSame( 'I agree.', Registry::validate( 'recurring_consent_text', ' <b>I agree.</b> ' )['value'] );
+	}
 }

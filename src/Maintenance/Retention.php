@@ -198,7 +198,24 @@ final class Retention {
 	 */
 	public static function configured_days(): array {
 		/** This filter is documented in Retention::run(). */
-		return self::effective_days( apply_filters( 'wplc_retention_days', self::DEFAULT_DAYS ) );
+		return self::effective_days( apply_filters( 'wplc_retention_days', self::setting_days() ) );
+	}
+
+	/**
+	 * The retention periods of the settings page (SET-LIC-04): DEFAULT_DAYS overlaid with the settings
+	 * `retention_<rule>`. The filter `wplc_retention_days` is applied by the callers and wins.
+	 *
+	 * @return array<string,int>
+	 */
+	public static function setting_days(): array {
+		$days = self::DEFAULT_DAYS;
+		foreach ( array_keys( $days ) as $rule ) {
+			if ( null !== \WPLC\Settings\Registry::definition( 'retention_' . $rule ) ) {
+				$days[ $rule ] = \WPLC\Settings\Registry::int( 'retention_' . $rule );
+			}
+		}
+
+		return $days;
 	}
 
 	/**
@@ -224,9 +241,11 @@ final class Retention {
 			/**
 			 * Filter the retention periods in days.
 			 *
-			 * @param array<string,int> $days See Retention::DEFAULT_DAYS for the keys. Zero disables a rule.
+			 * Wins over the settings under "Legal and privacy".
+			 *
+			 * @param array<string,int> $days The settings (defaults: Retention::DEFAULT_DAYS, which also lists the keys). Zero disables a rule.
 			 */
-			$days    = apply_filters( 'wplc_retention_days', self::DEFAULT_DAYS );
+			$days    = apply_filters( 'wplc_retention_days', self::setting_days() );
 			$cutoffs = self::cutoffs( $days, time() );
 			/**
 			 * Filter the seconds one retention run may take.
