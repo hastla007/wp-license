@@ -379,6 +379,13 @@ final class Settings {
 			// What is stored now, brought into the valid form (an old or hand-edited value never survives a save).
 			$kept        = Registry::validate( $key, $current[ $key ] );
 			$out[ $key ] = $kept['ok'] ? $kept['value'] : $definition['default'];
+			if ( ! empty( $definition['resettable'] ) && ! empty( $input[ $key . '_reset' ] ) ) {
+				// SET-LIC-09: "Reset to default" of a list field wins over the text submitted with it.
+				if ( ! self::is_form_submission() || Capabilities::can( (string) $definition['capability'] ) ) {
+					$out[ $key ] = $definition['default'];
+				}
+				continue;
+			}
 			if ( ! array_key_exists( $key, $input ) ) {
 				continue;
 			}
@@ -611,6 +618,7 @@ final class Settings {
 		}
 		echo '</tbody></table>';
 		echo '<p class="description">' . esc_html__( 'Secrets are never stored in the database. Define them as constants in wp-config.php.', 'wp-license' ) . '</p>';
+		self::render_capability_overview();
 
 		$tab = self::current_tab();
 		self::render_tabs( $tab );
@@ -628,6 +636,77 @@ final class Settings {
 		 */
 		do_action( 'wplc_settings_page_tools', $tab );
 		echo '</div>';
+	}
+
+	/**
+	 * Why a field is read-only for the current user.
+	 *
+	 * @param string $capability Capability key of the setting.
+	 * @return string
+	 */
+	public static function readonly_note( string $capability ): string {
+		if ( 'manage_policy' === $capability ) {
+			return __( 'This is a manufacturer rule that acts on every customer site: only users with the capability wplc_manage_policy (by default administrators) may change it.', 'wp-license' );
+		}
+
+		return __( 'Only an administrator may change this value.', 'wp-license' );
+	}
+
+	/**
+	 * Rows of the overview "Who may do what" (SET-LIC-31).
+	 *
+	 * @return array<int,array{capability:string,allows:string,default:string,granted:bool}>
+	 */
+	public static function capability_rows(): array {
+		$rows         = array();
+		$descriptions = Capabilities::descriptions();
+		foreach ( Capabilities::defaults() as $capability => $default ) {
+			$rows[] = array(
+				'capability' => $capability,
+				'allows'     => $descriptions[ $capability ] ?? '',
+				'default'    => 'manage_options' === $default ? __( 'Administrators', 'wp-license' ) : ( 'manage_woocommerce' === $default ? __( 'Shop managers and administrators', 'wp-license' ) : $default ),
+				'granted'    => function_exists( 'current_user_can' ) && current_user_can( Capabilities::cap( $capability ) ),
+			);
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Settings that need a capability other than wplc_manage_settings, by capability.
+	 *
+	 * @return array<string,string[]> Capability key => labels of the settings.
+	 */
+	public static function restricted_settings(): array {
+		$out = array();
+		foreach ( Registry::definitions() as $key => $definition ) {
+			if ( 'manage_settings' !== $definition['capability'] ) {
+				$out[ (string) $definition['capability'] ][] = Texts::label( (string) $key );
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Print the overview "Who may do what": every capability of the plugin, its default and
+	 * whether the current user holds it, and the settings that need more than wplc_manage_settings.
+	 *
+	 * @return void
+	 */
+	private static function render_capability_overview(): void {
+		echo '<details class="wplc-capabilities"><summary><strong>' . esc_html__( 'Who may do what', 'wp-license' ) . '</strong></summary>';
+		echo '<p class="description">' . esc_html__( 'The capabilities of the plugin are not stored on roles; each one follows a WordPress capability unless a role stores it explicitly (for example with a role editor plugin or wp cap add). Developers can change the mapping with the filter wplc_capability.', 'wp-license' ) . '</p>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Capability', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'Allows', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'By default', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'You', 'wp-license' ) . '</th></tr></thead><tbody>';
+		foreach ( self::capability_rows() as $row ) {
+			echo '<tr><td><code>' . esc_html( $row['capability'] ) . '</code></td><td>' . esc_html( $row['allows'] ) . '</td><td>' . esc_html( $row['default'] ) . '</td><td>' . esc_html( $row['granted'] ? __( 'yes', 'wp-license' ) : __( 'no', 'wp-license' ) ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
+		foreach ( self::restricted_settings() as $capability => $labels ) {
+			/* translators: 1: capability name, 2: list of settings. */
+			echo '<p class="description">' . esc_html( sprintf( __( 'Settings that need %1$s: %2$s.', 'wp-license' ), 'wplc_' . $capability, implode( ', ', $labels ) ) ) . '</p>';
+		}
+		echo '</details>';
 	}
 
 	/**
@@ -992,6 +1071,9 @@ final class Settings {
 				$text = is_array( $value ) ? implode( "\n", array_filter( $value, 'is_scalar' ) ) : (string) $value;
 				$rows = 'text' === $definition['type'] ? 4 : max( 3, min( 12, substr_count( $text, "\n" ) + 2 ) );
 				echo '<textarea id="' . esc_attr( $id ) . '"' . $name_attr . ' rows="' . esc_attr( (string) $rows ) . '" cols="50" class="large-text' . ( 'text' === $definition['type'] ? '' : ' code' ) . '"' . ( isset( $definition['max_length'] ) ? ' maxlength="' . esc_attr( (string) (int) $definition['max_length'] ) . '"' : '' ) . $lock . $help . '>' . esc_textarea( $text ) . '</textarea>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
+				if ( ! empty( $definition['resettable'] ) && ! $readonly ) {
+					echo '<br><label for="' . esc_attr( $id ) . '_reset"><input type="checkbox" id="' . esc_attr( $id ) . '_reset" name="' . esc_attr( self::OPTION . '[' . $key . '_reset]' ) . '" value="1"> ' . esc_html__( 'Reset this list to the default when saving', 'wp-license' ) . '</label>';
+				}
 				break;
 			default:
 				echo '<input type="text" id="' . esc_attr( $id ) . '"' . $name_attr . ' value="' . esc_attr( is_scalar( $value ) ? (string) $value : '' ) . '" class="regular-text"' . $lock . $help . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
@@ -1006,7 +1088,7 @@ final class Settings {
 			echo ' ' . esc_html( sprintf( __( 'Code of the shop can change the value with the filter %s; the filter decides last.', 'wp-license' ), $definition['filter'] ) );
 		}
 		if ( $readonly ) {
-			echo ' ' . esc_html__( 'Only an administrator may change this value.', 'wp-license' );
+			echo ' ' . esc_html( self::readonly_note( (string) $definition['capability'] ) );
 		}
 		echo '</p>';
 		self::render_effective_value( $key );

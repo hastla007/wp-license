@@ -189,7 +189,7 @@ A released installation still authenticates and receives a signed `deactivated` 
 Limits that depend on what the client says about itself:
 
 - **Staging** is free (one per live site), so its host is checked: same registrable domain as the live site, a local host, a staging label or a hosting provider's staging domain. Any other host is counted as a live site. The registrable domain is derived without a public-suffix list (last two labels, three under generic second-level names of country codes such as `co.uk`); sites under a shared suffix that is not in that short list (`*.github.io`, `*.myshopify.com`) are treated as one domain. Install a filter on `wplc_registrable_domain` or `wplc_is_staging_host` if that matters for your products.
-- **Development** activations do not use a live slot and their host is only checked by name or private address range, which a customer controls. They are therefore capped per license (twice the live-site limit, at least 5; filter `wplc_development_site_limit`, 0 forbids them).
+- **Development** activations do not use a live slot and their host is only checked by name or private address range, which a customer controls. They are therefore capped per license (twice the live-site limit, at least 5; setting "Development sites per license" and filter `wplc_development_site_limit`, 0 forbids them). The list of local endings is a setting as well; adding an ending of the public internet would let any site under it activate as a development site, so the setting is a manufacturer rule (`wplc_manage_policy`, administrators by default).
 
 ### Database requirements of the activation lock
 

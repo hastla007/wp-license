@@ -95,7 +95,7 @@
             "$ref": "#/components/responses/ApiError"
           }
         },
-        "description": "Not HMAC-authenticated; possession of the license key authorizes it. Error codes: 400 invalid_activation (data.fields lists the rejected fields), development_site_invalid, staging_parent_required, rest_missing_callback_param, rest_invalid_param; 401 invalid_key; 403 product_mismatch, license_expired, license_suspended, license_revoked, license_inactive (data.license_status); 409 site_limit (data.site_limit, data.site_count), staging_limit, development_limit (data.development_limit, data.development_count), staging_parent_invalid, staging_site_invalid, site_move_refused (a live activation may not move to a staging or local address; data.site_url is the activated address), installation_conflict, activation_deactivated, activation_conflict; 429 rate_limited (failed attempts per address, or too many new installations of the license in the current hour; Retry-After); 500 activation_failed, server_configuration; 503 retry_later, rate_limit_store_unavailable."
+        "description": "Not HMAC-authenticated; possession of the license key authorizes it. Error codes: 400 invalid_activation (data.fields lists the rejected fields), development_site_invalid, staging_parent_required, rest_missing_callback_param, rest_invalid_param; 401 invalid_key; 403 product_mismatch, license_expired, license_suspended, license_revoked, license_inactive (data.license_status); 409 site_limit (data.site_limit, data.site_count), staging_limit (data.staging_limit, data.staging_count), development_limit (data.development_limit, data.development_count), staging_parent_invalid, staging_site_invalid, site_move_refused (a live activation may not move to a staging or local address; data.site_url is the activated address), installation_conflict, activation_deactivated, activation_conflict; 429 rate_limited (failed attempts per address, or too many new installations of the license in the current hour; Retry-After); 500 activation_failed, server_configuration; 503 retry_later, rate_limit_store_unavailable."
       }
     },
     "/activations/{activation_id}": {
@@ -679,6 +679,14 @@
               "site_count": {
                 "type": "integer",
                 "description": "site_limit."
+              },
+              "staging_limit": {
+                "type": "integer",
+                "description": "staging_limit: staging sites per live site (0 = the license includes none)."
+              },
+              "staging_count": {
+                "type": "integer",
+                "description": "staging_limit."
               },
               "development_limit": {
                 "type": "integer",

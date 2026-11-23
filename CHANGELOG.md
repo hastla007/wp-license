@@ -10,6 +10,14 @@ Consolidation of all earlier development branches into one code base. Preview: c
 
 - **Client library 2.4.0** (`packaging/client/CHANGELOG-CLIENT.md`), all optional, no action for add-ons: the customer may opt in to **beta versions** per site where the build allows it (`allow_channel_choice`; the box is shown while the signed answer does not exclude beta through `update_channels`), the **environment of an activation** can be corrected on the license screen when the detection is wrong (the server decides as before; the message says when and why a staging site counts as a live site), and **brand values** of the vendor (`brand`: support address, support page, placeholder of the key field), which `bin/export-client.php --support-email= --support-url= --key-placeholder=` writes into the exported copy.
 
+### Added (23 Nov 2026: settings for the sale, part 3)
+
+Rules of the manufacturer level become settings: they decide how the add-ons behave on every customer site. Every default is the behaviour so far and every existing filter still decides last.
+
+- **New capability `wplc_manage_policy`** (by default everyone with `manage_options`, i.e. administrators) for the manufacturer rules. A shop manager sees them read-only. The **offline period of customer sites** moved from the package-host capability to it (same users by default). The settings page has an overview **Who may do what**: every capability of the plugin, its default, whether the current user holds it, and the settings that need more than `wplc_manage_settings`.
+- **Customer sites:** **staging sites per live site** (default 1, 0 = none; new filter `wplc_staging_site_limit`) and **development sites per license** (default 5 and at least twice the live-site limit as before, 0 = none; filter `wplc_development_site_limit` wins). The refusals `staging_limit` and `development_limit` name the number; `staging_limit` carries `data.staging_limit` and `data.staging_count`.
+- **Staging rules as lists:** name parts, hosting provider domains and local address endings, one per line, each with **Reset this list to the default when saving**. Only valid entries are accepted (a hosting provider domain needs at least two parts). New filters `wplc_staging_labels`, `wplc_staging_host_suffixes`, `wplc_local_host_suffixes`; `wplc_is_staging_host`, `wplc_registrable_domain` and `wplc_is_local_development_url` still decide last over the result.
+
 ### Added (23 Nov 2026: settings for the sale, part 2)
 
 More rules of the business become settings. As before, every default is the behaviour so far and every existing filter still decides last; nothing changes for an existing installation until a value is changed.

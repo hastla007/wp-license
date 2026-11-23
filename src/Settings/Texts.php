@@ -147,6 +147,38 @@ final class Texts {
 				__( 'New sites per license and hour', 'wp-license' ),
 				__( 'How many new installations one license may activate within an hour, at least twice its live-site limit, so that an agency can still set up all its sites. Activating a known installation again does not count. Default: 10. 0 = no limit.', 'wp-license' ),
 			),
+			'staging_sites_per_live'    => array(
+				__( 'Staging sites per live site', 'wp-license' ),
+				__( 'How many staging copies each live site of a license may activate free of charge. A staging site must be plausible for a copy of its live site (same domain, a local address or a hosting provider domain below); otherwise it counts as a live site. Default: 1. 0 = staging sites are not included. A plan can set its own number in the product editor.', 'wp-license' ),
+			),
+			'development_sites'         => array(
+				__( 'Development sites per license', 'wp-license' ),
+				__( 'How many development installations on local addresses a license may activate at the same time without using a live slot: at least this number and at least twice the live-site limit of the license. Default: 5. 0 = development sites are not included. A plan can set its own exact number in the product editor.', 'wp-license' ),
+			),
+			'staging_labels'            => array(
+				__( 'Staging: name parts', 'wp-license' ),
+				sprintf(
+					/* translators: %s: list of the built-in name parts. */
+					__( 'Parts of an address left of the domain that mark a copy of a site, one per line (for example staging for staging.shop.example). A live site cannot move to such an address with its activation; the copy activates as a staging site of its own. Only the part left of the domain counts: a top-level domain such as .dev never makes a site a staging copy. Default: %s.', 'wp-license' ),
+					implode( ', ', Definitions::STAGING_LABELS )
+				),
+			),
+			'staging_host_suffixes'     => array(
+				__( 'Staging: hosting provider domains', 'wp-license' ),
+				sprintf(
+					/* translators: %s: list of the built-in domains. */
+					__( 'Domains of hosting providers whose subdomains are temporary or staging addresses, one per line, without the leading dot (for example kinsta.cloud for mysite.kinsta.cloud). A subdomain of these domains is accepted as the staging copy of any live site. At least two parts (example.com); a single top-level domain is not accepted. Default: %s.', 'wp-license' ),
+					implode( ', ', Definitions::STAGING_HOST_SUFFIXES )
+				),
+			),
+			'local_host_suffixes'       => array(
+				__( 'Local addresses: endings', 'wp-license' ),
+				sprintf(
+					/* translators: %s: list of the built-in endings. */
+					__( 'Endings of addresses that only exist on a local computer or network, one per line, without the leading dot (for example test for shop.test). Development sites are only accepted on such addresses, on names without a dot and on private IP addresses; they also count as staging copies. Do not add an ending of the public internet (such as com): every site under it could then activate as a development site without using a live slot. Default: %s.', 'wp-license' ),
+					implode( ', ', Definitions::LOCAL_HOST_SUFFIXES )
+				),
+			),
 			'withdrawal_consent_mode'   => array(
 				__( 'Consent to the immediate start (right of withdrawal)', 'wp-license' ),
 				__( 'Whether the checkout asks the customer to agree that the license is provided before the withdrawal period ends. "Automatic" (default) asks unless Germanized or German Market is active, because these plugins ask themselves.', 'wp-license' ),

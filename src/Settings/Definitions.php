@@ -177,7 +177,7 @@ final class Definitions {
 				'min'        => 1,
 				'max'        => 90,
 				'group'      => 'sites',
-				'capability' => 'manage_package_hosts',
+				'capability' => 'manage_policy',
 				'filter'     => 'wplc_offline_cache_days',
 			),
 			'new_activations_per_hour'  => array(
@@ -187,6 +187,57 @@ final class Definitions {
 				'max'     => 1000,
 				'group'   => 'sites',
 				'filter'  => 'wplc_new_activations_per_hour',
+			),
+			'staging_sites_per_live'    => array(
+				'type'       => 'int',
+				'default'    => 1,
+				'min'        => 0,
+				'max'        => 10,
+				'group'      => 'sites',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_staging_site_limit',
+			),
+			'development_sites'         => array(
+				'type'       => 'int',
+				'default'    => 5,
+				'min'        => 0,
+				'max'        => 100,
+				'group'      => 'sites',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_development_site_limit',
+			),
+			'staging_labels'            => array(
+				'type'       => 'string_list',
+				'default'    => self::STAGING_LABELS,
+				'pattern'    => '/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/',
+				'max_items'  => 50,
+				'resettable' => true,
+				'group'      => 'sites',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_staging_labels',
+			),
+			'staging_host_suffixes'     => array(
+				'type'       => 'string_list',
+				'default'    => self::STAGING_HOST_SUFFIXES,
+				// At least two labels: a single label (a top-level domain) would make every shop under it a staging copy.
+				'pattern'    => '/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/',
+				'ltrim'      => '.',
+				'max_items'  => 100,
+				'resettable' => true,
+				'group'      => 'sites',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_staging_host_suffixes',
+			),
+			'local_host_suffixes'       => array(
+				'type'       => 'string_list',
+				'default'    => self::LOCAL_HOST_SUFFIXES,
+				'pattern'    => '/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/',
+				'ltrim'      => '.',
+				'max_items'  => 50,
+				'resettable' => true,
+				'group'      => 'sites',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_local_host_suffixes',
 			),
 
 			// Legal and privacy.
@@ -359,6 +410,48 @@ final class Definitions {
 			),
 		);
 	}
+
+	/**
+	 * Subdomain labels that mark a staging copy (SET-LIC-09; the list so far of SiteUrl).
+	 */
+	public const STAGING_LABELS = array( 'staging', 'stage', 'stg', 'dev', 'test', 'testing', 'preprod', 'preview', 'sandbox', 'uat' );
+
+	/**
+	 * Domains of hosting providers' temporary and staging hosts; their subdomains count as staging (SET-LIC-09).
+	 */
+	public const STAGING_HOST_SUFFIXES = array(
+		'wpengine.com',
+		'wpenginepowered.com',
+		'kinsta.cloud',
+		'pantheonsite.io',
+		'cloudwaysapps.com',
+		'flywheelsites.com',
+		'flywheelstaging.com',
+		'myftpupload.com',
+		'sg-host.com',
+		'wpstage.net',
+		'wpcomstaging.com',
+		'instawp.xyz',
+		'tastewp.com',
+		'runcloud.link',
+		'ngrok.io',
+		'ngrok-free.app',
+	);
+
+	/**
+	 * Endings of names that never resolve on the public internet or belong to local development tools (SET-LIC-09).
+	 */
+	public const LOCAL_HOST_SUFFIXES = array(
+		'localhost',
+		'test',
+		'local',
+		'internal',
+		'lan',
+		'home.arpa',
+		'localdomain',
+		'ddev.site',
+		'lndo.site',
+	);
 
 	/**
 	 * Default alert threshold of every figure of the diagnostics page that can raise a health alert.

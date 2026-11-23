@@ -57,7 +57,9 @@ final class Registry {
 	 * - type: int, bool, string, text, int_list, string_list, hosts, choice
 	 * - default: stored form of the default value
 	 * - min, max: bounds of an int or of each entry of an int_list
-	 * - max_items, max_length, choices, pattern (for entries of a string_list)
+	 * - max_items, max_length, choices, pattern (for entries of a string_list), ltrim (characters removed
+	 *   from the start of each entry of a string_list, e.g. the dot of ".example.com")
+	 * - resettable: the field offers "reset to default" of its own (lists with a built-in default)
 	 * - clamp: an int outside its bounds is moved to the nearest bound instead of being rejected
 	 *   (only the settings that existed before the register; their forms behaved like that)
 	 * - empty_default: an empty int_list is replaced by the default (true) or stored as empty (false)
@@ -472,10 +474,14 @@ final class Registry {
 			return self::failure( 'not_a_list', 'Expected one entry per line.' );
 		}
 		$pattern = (string) ( $definition['pattern'] ?? '/^[a-z0-9][a-z0-9.-]{0,62}$/' );
+		$strip   = (string) ( $definition['ltrim'] ?? '' );
 		$values  = array();
 		$bad     = array();
-		foreach ( (array) preg_split( '/[\r\n,;]+/', (string) $raw ) as $part ) {
+		foreach ( (array) preg_split( '/[\r\n,;\s]+/', (string) $raw ) as $part ) {
 			$part = strtolower( trim( (string) $part ) );
+			if ( '' !== $strip ) {
+				$part = ltrim( $part, $strip );
+			}
 			if ( '' === $part ) {
 				continue;
 			}

@@ -156,6 +156,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_license_owner_for_guest_order` | `src/License/LicenseIssuer.php` | Filters the owner of the licenses of an order without a customer account. |
 | `wplc_license_transfer_enabled` | `src/License/LicenseMembers.php` | Filters whether the owner can transfer a license to another customer from the account. |
 | `wplc_license_transfer_new_key` | `src/License/LicenseMembers.php` | Filters whether a transfer accepted in the account also issues a new license key. |
+| `wplc_local_host_suffixes` | `src/Api/V1/SiteUrl.php` | Filters the endings of local addresses, without the leading dot (SET-LIC-09). Wins over the setting. |
 | `wplc_lock_self_test` | `src/Admin/Diagnostics.php` | Lets the package that owns the lock helper answer the self-test with its own implementation. |
 | `wplc_log_api_rejection` | `src/Api/V1/ApiLog.php` | Filter whether this rejection is written to the log. |
 | `wplc_log_debug` | `src/Infrastructure/Log.php` | Filters whether the plugin writes debug lines to the WooCommerce log (A-133). |
@@ -203,6 +204,9 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_settings_country_profiles` | `src/Settings/Presets.php` | Filters the country profiles (suggestions for the settings with legal weight). |
 | `wplc_shop_base_currency` | `src/Catalog/Catalog.php` | Filters the currency product prices are entered in (B-189). |
 | `wplc_show_license_term` | `src/Catalog/TermDisplay.php` | Filters whether the license term is appended to the price of a license product. |
+| `wplc_staging_host_suffixes` | `src/Api/V1/SiteUrl.php` | Filters the hosting provider domains whose subdomains are staging copies, without the leading dot (SET-LIC-09). Wins over the setting. |
+| `wplc_staging_labels` | `src/Api/V1/SiteUrl.php` | Filters the name parts that mark a staging copy (SET-LIC-09). Wins over the setting "Staging: name parts". |
+| `wplc_staging_site_limit` | `src/Api/V1/ActivationService.php` | Filter the number of staging activations per live site. Zero forbids them. |
 | `wplc_stripe_adapter_status` | `src/Compatibility/Requirements.php` | Filters whether the Stripe renewal adapter is usable. |
 | `wplc_stripe_mode` | `src/Gateway/StripeRecurringAdapter.php` | Filters the mode the Stripe gateway is considered to run in. |
 | `wplc_stripe_site_id` | `src/Gateway/StripeRecurringAdapter.php` | Filters the site identifier sent to Stripe and expected in webhook events. |

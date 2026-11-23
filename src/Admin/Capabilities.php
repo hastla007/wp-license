@@ -21,8 +21,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * By default administrators and shop managers keep their previous access, except
  * for publishing releases, changing the trusted package hosts, restoring revoked
- * licenses and announcing new renewal prices: these deliver code, access or a new
- * price to customers and need `manage_options`.
+ * licenses, announcing new renewal prices and the manufacturer rules (SET-LIC-31):
+ * these deliver code, access or a new price to customers, or change how the add-ons
+ * behave on every customer site, and need `manage_options`.
  *
  * Other packages ask `apply_filters( 'wplc_capability', $default_cap, $action_slug )`;
  * this class answers with the matching `wplc_*` capability.
@@ -39,6 +40,7 @@ final class Capabilities {
 	public const MANAGE_SETTINGS      = 'wplc_manage_settings';
 	public const MANAGE_PACKAGE_HOSTS = 'wplc_manage_package_hosts';
 	public const CHANGE_PRICES        = 'wplc_change_prices';
+	public const MANAGE_POLICY        = 'wplc_manage_policy';
 
 	/**
 	 * Register the capability filters.
@@ -71,6 +73,29 @@ final class Capabilities {
 			self::MANAGE_PACKAGE_HOSTS => 'manage_options',
 			// Owner decision of 16 Nov 2026 (T-94): announcing a new renewal price stays with the administrator.
 			self::CHANGE_PRICES        => 'manage_options',
+			// SET-LIC-31: rules of the manufacturer level act on every customer site (staging, offline period, downloads, co-users).
+			self::MANAGE_POLICY        => 'manage_options',
+		);
+	}
+
+	/**
+	 * What each capability allows, for the overview "Who may do what" (SET-LIC-31).
+	 *
+	 * @return array<string,string> Capability => translated description.
+	 */
+	public static function descriptions(): array {
+		return array(
+			self::VIEW_LICENSES        => __( 'License list and detail, CSV export of licenses', 'wp-license' ),
+			self::MANAGE_LICENSES      => __( 'Suspend, revoke, reactivate, change term, release sites, new key, change owner, bulk actions, renewals to review', 'wp-license' ),
+			self::GRANT_LICENSES       => __( 'Add a license by hand, extend several licenses, issue missing licenses for an order', 'wp-license' ),
+			self::RESTORE_LICENSES     => __( 'Restore a revoked license', 'wp-license' ),
+			self::MANAGE_CATALOG       => __( 'License fields of products and plans, catalog files, catalog CSV', 'wp-license' ),
+			self::PUBLISH_RELEASES     => __( 'Create, publish, withdraw and delete releases', 'wp-license' ),
+			self::VIEW_DIAGNOSTICS     => __( 'Diagnostics, complete audit log and its export', 'wp-license' ),
+			self::MANAGE_SETTINGS      => __( 'Open the license settings and change the rules of this shop', 'wp-license' ),
+			self::MANAGE_PACKAGE_HOSTS => __( 'Trusted package hosts; what happens to the data when the plugin is deleted', 'wp-license' ),
+			self::CHANGE_PRICES        => __( 'Announce and withdraw a new renewal price', 'wp-license' ),
+			self::MANAGE_POLICY        => __( 'Manufacturer rules that act on every customer site: staging and development sites, offline period, downloads, co-users and transfer', 'wp-license' ),
 		);
 	}
 
@@ -93,7 +118,7 @@ final class Capabilities {
 		 * @param string $cap  Capability to check.
 		 * @param string $slug Action slug, e.g. view_licenses, manage_licenses, grant_licenses,
 		 *                     restore_licenses, manage_catalog, publish_releases, view_diagnostics,
-		 *                     manage_settings, manage_package_hosts, change_prices.
+		 *                     manage_settings, manage_package_hosts, change_prices, manage_policy.
 		 */
 		$filtered = (string) apply_filters( 'wplc_capability', $cap, $slug );
 

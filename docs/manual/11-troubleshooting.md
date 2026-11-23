@@ -52,7 +52,7 @@ Start with **WooCommerce → License diagnostics**: every row with a problem nam
 
 **Is the license key in the emails?** Not by default. You can enable it for the "License issued" email; email is not a secure channel.
 
-**Can a customer use one license on a staging site?** Yes: one staging site per live site is free, and development activations on local addresses do not use a live slot (capped at twice the live-site limit, at least 5; filter `wplc_development_site_limit`).
+**Can a customer use one license on a staging site?** Yes: one staging site per live site is free, and development activations on local addresses do not use a live slot (capped at twice the live-site limit, at least 5; filter `wplc_development_site_limit`). Both numbers and the lists of staging and local addresses are settings under **License settings → Customer sites** (chapter 13).
 
 **What happens when a license expires?** The add-on switches its premium features off at the end of the signed offline window. Data the customer created stays, and the free core plugin is not affected. Updates stop.
 

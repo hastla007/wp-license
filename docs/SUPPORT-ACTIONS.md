@@ -17,13 +17,14 @@ The plugin has its own capabilities (`src/Admin/Capabilities.php`). Nothing is w
 | `wplc_manage_catalog` | License fields of products, catalog CSV | `manage_woocommerce` |
 | `wplc_publish_releases` | Publish, withdraw and delete releases | `manage_options` |
 | `wplc_view_diagnostics` | License diagnostics, complete audit log and its export | `manage_woocommerce` |
-| `wplc_manage_settings` | License settings except the package hosts | `manage_woocommerce` |
+| `wplc_manage_settings` | License settings except the package hosts and the manufacturer rules | `manage_woocommerce` |
 | `wplc_manage_package_hosts` | Trusted package hosts in the settings | `manage_options` |
 | `wplc_change_prices` | Announce a higher renewal price with notice and withdraw it (license detail and the plan-wide screen) | `manage_options` |
+| `wplc_manage_policy` | Manufacturer rules in the settings that act on every customer site: staging and development sites, offline period, downloads, co-users and transfer (SET-LIC-31) | `manage_options` |
 
-Releases and package hosts decide which code reaches every customer site, restoring a revoked license gives access back, and a price change raises what customers pay; these four therefore need an administrator. Key rotation (`wp wplc rotate-installation-secrets`, `wp wplc signing-key`, `wp wplc rekey-licenses`) needs WP-CLI access to the server and is the administrator's as well.
+Releases and package hosts decide which code reaches every customer site, restoring a revoked license gives access back, and a price change raises what customers pay; these four therefore need an administrator. The manufacturer rules change how the add-ons behave on every customer site and need an administrator as well (`wplc_manage_policy`). Key rotation (`wp wplc rotate-installation-secrets`, `wp wplc signing-key`, `wp wplc rekey-licenses`) needs WP-CLI access to the server and is the administrator's as well.
 
-**Who does support (owner decision of 16 Nov 2026, T-94):** one named person with the WooCommerce role **Shop manager**. With the defaults above that role holds every support capability (view, manage and grant licenses, catalog, diagnostics, settings) but not price changes, releases, package hosts, restoring revoked licenses or key rotation. The administrator holds all capabilities and can do support as well.
+**Who does support (owner decision of 16 Nov 2026, T-94):** one named person with the WooCommerce role **Shop manager**. With the defaults above that role holds every support capability (view, manage and grant licenses, catalog, diagnostics, settings) but not price changes, releases, package hosts, manufacturer rules, restoring revoked licenses or key rotation. The administrator holds all capabilities and can do support as well.
 
 Every screen and handler checks these capabilities, never `manage_woocommerce` directly (P-07): a capability stored as denied on a role takes effect everywhere, and a support role without shop access can use everything its capabilities allow. Users without `wplc_manage_licenses` do not see the bulk controls and checkboxes of the license list.
 

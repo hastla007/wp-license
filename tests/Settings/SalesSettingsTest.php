@@ -43,11 +43,11 @@ final class SalesSettingsTest extends TestCase {
 	}
 
 	public function test_limits_groups_and_capabilities(): void {
-		// SET-LIC-11: 1 to 90 days; a rule for every customer site, so administrators only (like the package hosts).
+		// SET-LIC-11: 1 to 90 days; a rule for every customer site, so a manufacturer rule (SET-LIC-31).
 		$this->assertSame( 'out_of_range', Registry::validate( 'offline_cache_days', '0' )['code'] );
 		$this->assertSame( 'out_of_range', Registry::validate( 'offline_cache_days', '91' )['code'] );
 		$this->assertSame( 90, Registry::validate( 'offline_cache_days', '90' )['value'] );
-		$this->assertSame( 'manage_package_hosts', Registry::definition( 'offline_cache_days' )['capability'] );
+		$this->assertSame( 'manage_policy', Registry::definition( 'offline_cache_days' )['capability'] );
 		$this->assertSame( 'sites', Registry::definition( 'offline_cache_days' )['group'] );
 		$this->assertStringContainsString( 'never reaches beyond the end of access', Texts::help( 'offline_cache_days' ) );
 
