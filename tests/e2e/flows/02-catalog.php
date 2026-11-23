@@ -416,7 +416,7 @@ while ( false !== ( $row = fgetcsv( $stream, 0, ',', '"', '\\' ) ) ) {
 	$parsed[] = $row;
 }
 fclose( $stream );
-e2e_eq( array( 'product_id', 'variation_id', 'sku', 'product_key', 'plan_key', 'billing_interval', 'live_site_limit', 'support_level', 'entitlements_json' ), $parsed[0] ?? null, 'CSV header row' );
+e2e_eq( array( 'product_id', 'variation_id', 'sku', 'product_key', 'plan_key', 'billing_interval', 'live_site_limit', 'support_level', 'entitlements_json', 'staging_site_limit', 'development_site_limit', 'offline_cache_days', 'max_quantity_per_line', 'co_user_limit' ), $parsed[0] ?? null, 'CSV header row (SET-LIC-21: five plan overrides after the nine original columns)' );
 e2e_eq( array( (string) $simple_id, '0', 'VC-PRO', 'voucher-captain-pro', 'pro', 'year', '1', 'priority' ), array_slice( $parsed[1] ?? array(), 0, 8 ), 'CSV row of the simple product' );
 
 // Wipe the mappings, import the exported file unchanged: the catalog must be identical.
