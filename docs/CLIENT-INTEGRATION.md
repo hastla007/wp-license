@@ -59,7 +59,7 @@ It copies `src/Client/*.php`, replaces `namespace WPLC\Client;` by the given nam
 **Without the script: an unchanged copy.** Every class is declared inside `if ( ! class_exists( ... ) )`, so two add-ons with the same unchanged files do not end in "Cannot declare class". The limits of this way:
 
 - The copy that is loaded **first** is used by all add-ons, also when it is the older one. WordPress loads plugins in the alphabetical order of their folders.
-- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.2.0`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.3.0', '<' )`) and show a message; it cannot replace a class that is already declared.
+- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.3.0`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.3.0', '<' )`) and show a message; it cannot replace a class that is already declared.
 - The strings keep the text domain `wp-license`. They are translated through the `text_domain` setting only if the add-on's language files contain them; `make-pot` does not find them on its own.
 
 Use the unchanged copy for experiments only.
@@ -186,6 +186,7 @@ The add-on never reads the file at run time; it is for the shop. Import it there
 | `settings_url` | | Full admin address of the add-on's own page that calls `render_settings()` (for `settings_parent => false`). The form returns there after an action and notices link to it. Without it, `settings_url()` is empty: notices carry no link and the form returns to the page that sent it. The filter `{prefix}_license_settings_url` still applies. |
 | `capability` | | Who may manage the license. Default `manage_options` (`manage_network_options` in network mode). |
 | `account_url` | | Customer account of the shop; appended to the grace and expiry notices. |
+| `texts` | | Since 2.3.0: your own texts by code (an array code => text, or a callable returning one) in place of texts of the library, for a product whose license does not switch "premium features" on and off. The codes are the keys in `Messages.php`, for example `notice.expired` or `ui.access_until`. |
 | `fallback_urls`, `rest_base` | | See above. |
 | `store`, `transport`, `clock` | | Test doubles: an `OptionStore`, a replacement for `wp_safe_remote_request()` (also used for the package download), a replacement for `time()`. |
 | `signature_verifier` | | Test double: replacement for `sodium_crypto_sign_verify_detached()`; `false` simulates a PHP without any Ed25519 implementation. |

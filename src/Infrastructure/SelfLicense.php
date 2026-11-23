@@ -167,6 +167,8 @@ final class SelfLicense {
 						'public_keys'   => $config['public_keys'],
 						'name'          => 'WP License Captain',
 						'text_domain'   => 'wp-license',
+						// The license of the server only decides about updates and support, never about a function.
+						'texts'         => array( self::class, 'texts' ),
 						'option_prefix' => self::PREFIX,
 						'account_url'   => $config['account_url'],
 						// The header of the plugin file; WordPress asks the filter of its host for updates.
@@ -177,6 +179,45 @@ final class SelfLicense {
 		}
 
 		return self::$manager ? self::$manager : null;
+	}
+
+	/**
+	 * Texts of the license screen and the notices that differ from the client library: the library
+	 * speaks of "premium features" that a license switches on and off. This plugin has none; without a
+	 * valid license it keeps working and only gets no updates and no support.
+	 *
+	 * @return array<string,string> Text by code of the library.
+	 */
+	public static function texts(): array {
+		return array(
+			'error.wplc_connection_failed'   => __( 'The license server could not be reached. The plugin keeps working; the check is repeated automatically.', 'wp-license' ),
+			'error.wplc_ed25519_unavailable' => __( 'This web server cannot check the signature of the license server (the PHP sodium functions are missing). Updates stay off until PHP provides them; the plugin keeps working.', 'wp-license' ),
+			/* translators: %s: name of the plugin. */
+			'notice.unlicensed'              => __( '%s: enter your license key to receive updates and support.', 'wp-license' ),
+			/* translators: 1: name of the plugin, 2: date. */
+			'notice.grace'                   => __( '%1$s: the renewal payment is overdue. Updates and support stay available until %2$s.', 'wp-license' ),
+			/* translators: %s: name of the plugin. */
+			'notice.expired'                 => __( '%s: the license has expired. The plugin keeps working with all its functions; updates and support are no longer available.', 'wp-license' ),
+			/* translators: %s: name of the plugin. */
+			'notice.revoked'                 => __( '%s: the license has been revoked. The plugin keeps working; updates and support are no longer available.', 'wp-license' ),
+			/* translators: %s: name of the plugin. */
+			'notice.inactive'                => __( '%s: the license is not active. The plugin keeps working; updates and support are not available.', 'wp-license' ),
+			/* translators: %s: name of the plugin. */
+			'notice.stale'                   => __( '%s: the license could not be verified for too long. The plugin keeps working; updates are not available until the license server can be reached again.', 'wp-license' ),
+			/* translators: %s: name of the plugin. */
+			'notice.stale_clock_ahead'       => __( '%s: the clock of this site is ahead, or the offline period has expired. The plugin keeps working; updates are not available until the license server confirms the license again. Please check the date and time of the web server.', 'wp-license' ),
+			/* translators: 1: name of the plugin, 2: date. */
+			'notice.offline'                 => __( '%1$s: the license server cannot be reached. Updates stay available until %2$s; the check is repeated automatically.', 'wp-license' ),
+			'ui.access_until'                => __( 'Updates and support until', 'wp-license' ),
+			'ui.deactivate_confirm'          => __( 'I confirm that this site gives up its license. The plugin keeps working; it receives no updates until the license key is entered again.', 'wp-license' ),
+			'debug.signature.none'           => __( 'not available: updates stay off', 'wp-license' ),
+			/* translators: 1: date and time of the last check, 2: date until which the confirmation is valid. */
+			'health.good_text'               => __( 'The license server confirmed the license on %1$s. Updates stay available without a connection until %2$s; the check runs once a day.', 'wp-license' ),
+			/* translators: 1: reason, 2: date and time of the last successful check, 3: date, 4: host name of the license server. */
+			'health.failing_text'            => __( 'The last check failed: %1$s Last successful check: %2$s. Updates stay available until %3$s; the check is repeated automatically. If this persists, make sure that this site can reach %4$s.', 'wp-license' ),
+			/* translators: 1: date and time of the last successful check, 2: date, 3: host name of the license server. */
+			'health.overdue_text'            => __( 'Last successful check: %1$s. Updates stay available until %2$s, unless the license server confirms the license before then. Make sure that WP-Cron runs and that this site can reach %3$s, or check the license now.', 'wp-license' ),
+		);
 	}
 
 	/**

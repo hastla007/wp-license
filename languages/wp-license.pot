@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-23T13:22:17+00:00\n"
+"POT-Creation-Date: 2026-11-23T13:27:06+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -871,7 +871,7 @@ msgstr ""
 
 #: src/Account/SiteOverview.php:283
 #: src/Admin/LicenseDetail.php:547
-#: src/Client/Messages.php:256
+#: src/Client/Messages.php:277
 #: templates/myaccount/wplc-license.php:139
 #: templates/myaccount/wplc-license.php:148
 msgid "Environment"
@@ -897,7 +897,7 @@ msgstr ""
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Billing/RenewalOrder.php:974
 #: src/Billing/RenewalOrder.php:1235
-#: src/Client/Messages.php:243
+#: src/Client/Messages.php:264
 #: src/License/LicenseIssuer.php:257
 msgid "License"
 msgstr ""
@@ -925,7 +925,7 @@ msgid "Update: %s"
 msgstr ""
 
 #: src/Account/SiteOverview.php:317
-#: src/Client/Messages.php:262
+#: src/Client/Messages.php:283
 msgid "never"
 msgstr ""
 
@@ -1589,7 +1589,7 @@ msgstr ""
 #: src/Admin/ReleaseAdmin.php:559
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Admin/RenewalReviewAdmin.php:282
-#: src/Client/Messages.php:281
+#: src/Client/Messages.php:302
 msgid "Reason"
 msgstr ""
 
@@ -1767,7 +1767,7 @@ msgstr ""
 #: src/Admin/LicenseListTable.php:101
 #: src/Admin/ReleaseAdmin.php:125
 #: src/Admin/Settings.php:580
-#: src/Client/Messages.php:252
+#: src/Client/Messages.php:273
 #: src/Privacy/PersonalData.php:365
 #: src/Privacy/PersonalData.php:566
 #: templates/emails/plain/wplc-license-blocked.php:43
@@ -2321,7 +2321,7 @@ msgid "Invalid configuration"
 msgstr ""
 
 #: src/Admin/Diagnostics.php:1024
-#: src/Client/Messages.php:211
+#: src/Client/Messages.php:232
 msgid "Not configured"
 msgstr ""
 
@@ -2821,7 +2821,7 @@ msgstr ""
 
 #: src/Admin/Format.php:27
 #: src/Admin/Format.php:52
-#: src/Client/Messages.php:202
+#: src/Client/Messages.php:223
 msgid "Active"
 msgstr ""
 
@@ -2831,7 +2831,7 @@ msgid "Payment overdue"
 msgstr ""
 
 #: src/Admin/Format.php:29
-#: src/Client/Messages.php:205
+#: src/Client/Messages.php:226
 #: templates/emails/plain/wplc-license-blocked.php:43
 #: templates/emails/wplc-license-blocked.php:43
 msgid "Suspended"
@@ -2839,7 +2839,7 @@ msgstr ""
 
 #: src/Admin/Format.php:30
 #: src/Admin/LicenseDetail.php:215
-#: src/Client/Messages.php:206
+#: src/Client/Messages.php:227
 #: templates/emails/plain/wplc-license-blocked.php:43
 #: templates/emails/wplc-license-blocked.php:43
 msgid "Revoked"
@@ -2847,7 +2847,7 @@ msgstr ""
 
 #: src/Admin/Format.php:31
 #: src/Admin/Format.php:87
-#: src/Client/Messages.php:204
+#: src/Client/Messages.php:225
 msgid "Expired"
 msgstr ""
 
@@ -3098,7 +3098,7 @@ msgid "Site deactivated"
 msgstr ""
 
 #: src/Admin/Format.php:302
-#: src/Client/Messages.php:209
+#: src/Client/Messages.php:230
 msgid "Site address changed"
 msgstr ""
 
@@ -3206,7 +3206,7 @@ msgid "The secrets for license keys are not configured in wp-config.php, or issu
 msgstr ""
 
 #: src/Admin/KeyConfigurationNotice.php:220
-#: src/Client/Messages.php:241
+#: src/Client/Messages.php:262
 msgid "Open license settings"
 msgstr ""
 
@@ -3476,7 +3476,7 @@ msgstr ""
 #: src/Admin/LicenseDetail.php:205
 #: src/Admin/LicenseDetail.php:935
 #: src/Admin/LicenseListTable.php:102
-#: src/Client/Messages.php:253
+#: src/Client/Messages.php:274
 msgid "Paid until"
 msgstr ""
 
@@ -3653,7 +3653,7 @@ msgid "The paid period of this suspended license has ended. It becomes active ag
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:425
-#: src/Client/Messages.php:244
+#: src/Client/Messages.php:265
 #: src/Notifications/Emails/LicenseIssuedEmail.php:65
 #: templates/emails/plain/wplc-license-issued.php:43
 #: templates/emails/wplc-license-issued.php:43
@@ -6384,621 +6384,621 @@ msgid "More licenses follow (--max-rows). Continue with --after-id=%d."
 msgstr ""
 
 #. translators: %s: error code of the license server.
-#: src/Client/Messages.php:153
+#: src/Client/Messages.php:174
 #, php-format
 msgid "The license server answered with the error \"%s\"."
 msgstr ""
 
-#: src/Client/Messages.php:154
+#: src/Client/Messages.php:175
 msgid "The license settings of this plugin are incomplete (server address, product key or signature key)."
 msgstr ""
 
-#: src/Client/Messages.php:155
+#: src/Client/Messages.php:176
 msgid "Please enter your license key."
 msgstr ""
 
-#: src/Client/Messages.php:156
+#: src/Client/Messages.php:177
 msgid "This site has not been activated with a license key yet."
 msgstr ""
 
-#: src/Client/Messages.php:157
+#: src/Client/Messages.php:178
 msgid "The address of this site differs from the address the license was activated for. This looks like a copy of the site. Activate the license for this address."
 msgstr ""
 
-#: src/Client/Messages.php:158
+#: src/Client/Messages.php:179
 msgid "The activation data could not be stored in the database of this site. Check the database and try again."
 msgstr ""
 
-#: src/Client/Messages.php:159
+#: src/Client/Messages.php:180
 msgid "The answer of the license server could not be stored in the database of this site. Check the database; the check is repeated automatically."
 msgstr ""
 
-#: src/Client/Messages.php:160
+#: src/Client/Messages.php:181
 msgid "The license data could not be removed from the database of this site. Check the database and try again."
 msgstr ""
 
-#: src/Client/Messages.php:161
+#: src/Client/Messages.php:182
 msgid "The request to the license server could not be prepared."
 msgstr ""
 
-#: src/Client/Messages.php:162
+#: src/Client/Messages.php:183
 msgid "The license server answered with an unexpected error."
 msgstr ""
 
-#: src/Client/Messages.php:163
+#: src/Client/Messages.php:184
 msgid "The license server could not be reached. Premium features keep working; the check is repeated automatically."
 msgstr ""
 
-#: src/Client/Messages.php:164
+#: src/Client/Messages.php:185
 msgid "The request was answered by a firewall or security service instead of the license server. Please ask your host to allow outgoing requests to the license server."
 msgstr ""
 
-#: src/Client/Messages.php:165
+#: src/Client/Messages.php:186
 msgid "The license server sent an answer this plugin cannot read."
 msgstr ""
 
-#: src/Client/Messages.php:166
+#: src/Client/Messages.php:187
 msgid "The answer of the license server could not be verified and was ignored."
 msgstr ""
 
-#: src/Client/Messages.php:167
+#: src/Client/Messages.php:188
 msgid "The answer does not carry a valid signature of the license server and was ignored. Updating this plugin may solve this."
 msgstr ""
 
-#: src/Client/Messages.php:168
+#: src/Client/Messages.php:189
 msgid "The answer of the license server does not belong to this request and was ignored."
 msgstr ""
 
-#: src/Client/Messages.php:169
+#: src/Client/Messages.php:190
 msgid "The answer of the license server is for another product and was ignored."
 msgstr ""
 
-#: src/Client/Messages.php:170
+#: src/Client/Messages.php:191
 msgid "The answer of the license server is older than one already received and was ignored."
 msgstr ""
 
-#: src/Client/Messages.php:171
+#: src/Client/Messages.php:192
 msgid "This web server cannot check the signature of the license server (the PHP sodium functions are missing). Premium features stay off until PHP provides them."
 msgstr ""
 
-#: src/Client/Messages.php:173
+#: src/Client/Messages.php:194
 msgid "The activation request was rejected as incomplete. Check the license key."
 msgstr ""
 
-#: src/Client/Messages.php:174
+#: src/Client/Messages.php:195
 msgid "This license key is unknown. Please check it for typing errors."
 msgstr ""
 
-#: src/Client/Messages.php:175
+#: src/Client/Messages.php:196
 msgid "This license key belongs to another product."
 msgstr ""
 
-#: src/Client/Messages.php:176
+#: src/Client/Messages.php:197
 msgid "This license has expired. Renew it to activate this site."
 msgstr ""
 
-#: src/Client/Messages.php:177
+#: src/Client/Messages.php:198
 msgid "This license is suspended. Please contact support."
 msgstr ""
 
-#: src/Client/Messages.php:178
+#: src/Client/Messages.php:199
 msgid "This license has been revoked."
 msgstr ""
 
-#: src/Client/Messages.php:179
+#: src/Client/Messages.php:200
 msgid "This license is not active."
 msgstr ""
 
-#: src/Client/Messages.php:180
+#: src/Client/Messages.php:201
 msgid "The license of this activation no longer exists on the license server."
 msgstr ""
 
-#: src/Client/Messages.php:181
+#: src/Client/Messages.php:202
 msgid "All sites of this license are in use. Release a site in your customer account or upgrade the license."
 msgstr ""
 
-#: src/Client/Messages.php:182
+#: src/Client/Messages.php:203
 msgid "The live site already has a staging site. Release it in your customer account first."
 msgstr ""
 
-#: src/Client/Messages.php:183
+#: src/Client/Messages.php:204
 msgid "Too many development sites are activated for this license. Release unused ones in your customer account."
 msgstr ""
 
-#: src/Client/Messages.php:184
+#: src/Client/Messages.php:205
 msgid "A development activation is only possible on a local address (localhost, *.test, *.local)."
 msgstr ""
 
-#: src/Client/Messages.php:185
+#: src/Client/Messages.php:206
 msgid "A staging site must be linked to an activated live site of the same license."
 msgstr ""
 
-#: src/Client/Messages.php:186
+#: src/Client/Messages.php:207
 msgid "The live site this staging site belongs to is not activated for this license."
 msgstr ""
 
-#: src/Client/Messages.php:187
+#: src/Client/Messages.php:208
 msgid "A staging activation cannot move to an address that is unrelated to its live site."
 msgstr ""
 
-#: src/Client/Messages.php:188
+#: src/Client/Messages.php:209
 msgid "The activation data of this site does not match the license server. Please activate again."
 msgstr ""
 
-#: src/Client/Messages.php:189
+#: src/Client/Messages.php:210
 msgid "The activation was interrupted by a parallel request. Please try again."
 msgstr ""
 
-#: src/Client/Messages.php:190
+#: src/Client/Messages.php:211
 msgid "The activation of this site was released. Enter the license key to activate it again."
 msgstr ""
 
-#: src/Client/Messages.php:191
+#: src/Client/Messages.php:212
 msgid "The license server does not know the activation of this site. Enter the license key to activate it again."
 msgstr ""
 
-#: src/Client/Messages.php:192
+#: src/Client/Messages.php:213
 msgid "The license server cannot read the activation of this site. Enter the license key to activate it again."
 msgstr ""
 
-#: src/Client/Messages.php:193
+#: src/Client/Messages.php:214
 msgid "The stored activation does not belong to this installation."
 msgstr ""
 
-#: src/Client/Messages.php:194
+#: src/Client/Messages.php:215
 msgid "This site is not the one the license was activated for."
 msgstr ""
 
-#: src/Client/Messages.php:195
+#: src/Client/Messages.php:216
 msgid "A live site activation cannot be moved to a staging, local or test address. Activate this copy as a staging site instead."
 msgstr ""
 
-#: src/Client/Messages.php:196
+#: src/Client/Messages.php:217
 msgid "The license server rejected the signature of this site."
 msgstr ""
 
-#: src/Client/Messages.php:197
+#: src/Client/Messages.php:218
 msgid "The clock of this server differs too much from the clock of the license server."
 msgstr ""
 
-#: src/Client/Messages.php:198
+#: src/Client/Messages.php:219
 msgid "Too many requests. Please try again in a few minutes."
 msgstr ""
 
-#: src/Client/Messages.php:199
+#: src/Client/Messages.php:220
 msgid "The license is being changed right now. Please try again in a moment."
 msgstr ""
 
-#: src/Client/Messages.php:201
+#: src/Client/Messages.php:222
 msgid "Not activated"
 msgstr ""
 
-#: src/Client/Messages.php:203
+#: src/Client/Messages.php:224
 msgid "Payment overdue (grace period)"
 msgstr ""
 
-#: src/Client/Messages.php:207
+#: src/Client/Messages.php:228
 msgid "Not active"
 msgstr ""
 
-#: src/Client/Messages.php:208
+#: src/Client/Messages.php:229
 msgid "Released on the license server"
 msgstr ""
 
-#: src/Client/Messages.php:210
+#: src/Client/Messages.php:231
 msgid "Could not be verified for too long"
 msgstr ""
 
-#: src/Client/Messages.php:212
+#: src/Client/Messages.php:233
 msgid "The clock of this site is ahead, or the offline period has expired."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:214
+#: src/Client/Messages.php:235
 #, php-format
 msgid "%s: enter your license key to switch on the premium features and updates."
 msgstr ""
 
 #. translators: 1: name of the add-on, 2: date.
-#: src/Client/Messages.php:216
+#: src/Client/Messages.php:237
 #, php-format
 msgid "%1$s: the renewal payment is overdue. The premium features stay available until %2$s."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:218
+#: src/Client/Messages.php:239
 #, php-format
 msgid "%s: the license has expired. The premium features are switched off; your data is kept."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:220
+#: src/Client/Messages.php:241
 #, php-format
 msgid "%s: the license is suspended. Please contact support."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:222
+#: src/Client/Messages.php:243
 #, php-format
 msgid "%s: the license has been revoked. The premium features are switched off."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:224
+#: src/Client/Messages.php:245
 #, php-format
 msgid "%s: the license is not active. The premium features are switched off."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:226
+#: src/Client/Messages.php:247
 #, php-format
 msgid "%s: the activation of this site was released. Enter the license key to activate it again."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:228
+#: src/Client/Messages.php:249
 #, php-format
 msgid "%s: this site runs under another address than the one the license was activated for. Activate the license for this address."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:230
+#: src/Client/Messages.php:251
 #, php-format
 msgid "%s: the license could not be verified for too long. The premium features are switched off until the license server can be reached again."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:232
+#: src/Client/Messages.php:253
 #, php-format
 msgid "%s: the clock of this site is ahead, or the offline period has expired. The premium features are switched off until the license server confirms the license again. Please check the date and time of the web server."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:234
+#: src/Client/Messages.php:255
 #, php-format
 msgid "%s: the license settings of this plugin are incomplete."
 msgstr ""
 
 #. translators: 1: name of the add-on, 2: date.
-#: src/Client/Messages.php:236
+#: src/Client/Messages.php:257
 #, php-format
 msgid "%1$s: the license server cannot be reached. The premium features stay available until %2$s; the check is repeated automatically."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:238
+#: src/Client/Messages.php:259
 #, php-format
 msgid "%s: the license server no longer knows the activation of this site. Enter the license key again."
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:240
+#: src/Client/Messages.php:261
 #, php-format
 msgid "%s: the plugin header \"Update URI\" is missing, so updates cannot be delivered. Please report this to the vendor."
 msgstr ""
 
-#: src/Client/Messages.php:245
+#: src/Client/Messages.php:266
 msgid "Activate"
 msgstr ""
 
-#: src/Client/Messages.php:246
+#: src/Client/Messages.php:267
 msgid "Remove license from this site"
 msgstr ""
 
-#: src/Client/Messages.php:247
+#: src/Client/Messages.php:268
 msgid "Check now"
 msgstr ""
 
-#: src/Client/Messages.php:248
+#: src/Client/Messages.php:269
 msgid "Activate this address"
 msgstr ""
 
-#: src/Client/Messages.php:249
+#: src/Client/Messages.php:270
 msgid "The site moved here: transfer the activation"
 msgstr ""
 
-#: src/Client/Messages.php:250
+#: src/Client/Messages.php:271
 msgid "Remove the copied activation data from this site"
 msgstr ""
 
-#: src/Client/Messages.php:251
+#: src/Client/Messages.php:272
 msgid "Remove the license data from this site only"
 msgstr ""
 
-#: src/Client/Messages.php:254
+#: src/Client/Messages.php:275
 msgid "Premium features until"
 msgstr ""
 
-#: src/Client/Messages.php:255
+#: src/Client/Messages.php:276
 msgid "Live sites in use"
 msgstr ""
 
-#: src/Client/Messages.php:257
+#: src/Client/Messages.php:278
 msgid "Live site"
 msgstr ""
 
-#: src/Client/Messages.php:258
+#: src/Client/Messages.php:279
 msgid "Staging site"
 msgstr ""
 
-#: src/Client/Messages.php:259
+#: src/Client/Messages.php:280
 msgid "Development site"
 msgstr ""
 
-#: src/Client/Messages.php:260
+#: src/Client/Messages.php:281
 msgid "Last check"
 msgstr ""
 
-#: src/Client/Messages.php:261
+#: src/Client/Messages.php:282
 msgid "Last check failed"
 msgstr ""
 
-#: src/Client/Messages.php:263
+#: src/Client/Messages.php:284
 msgid "no end date"
 msgstr ""
 
-#: src/Client/Messages.php:264
+#: src/Client/Messages.php:285
 msgid "The license key is not stored on this site. Enter it again to change the license."
 msgstr ""
 
-#: src/Client/Messages.php:265
+#: src/Client/Messages.php:286
 msgid "The license was activated for this site."
 msgstr ""
 
-#: src/Client/Messages.php:266
+#: src/Client/Messages.php:287
 msgid "The license was removed from this site."
 msgstr ""
 
-#: src/Client/Messages.php:267
+#: src/Client/Messages.php:288
 msgid "The activation data was removed from this site. The activation of the original site was not changed."
 msgstr ""
 
-#: src/Client/Messages.php:268
+#: src/Client/Messages.php:289
 msgid "The license data was removed from this site without asking the license server. If the server still lists this activation, release it in your customer account."
 msgstr ""
 
-#: src/Client/Messages.php:269
+#: src/Client/Messages.php:290
 msgid "The license was checked."
 msgstr ""
 
-#: src/Client/Messages.php:270
+#: src/Client/Messages.php:291
 msgid "The activation was transferred to this address."
 msgstr ""
 
-#: src/Client/Messages.php:271
+#: src/Client/Messages.php:292
 msgid "Activated for"
 msgstr ""
 
-#: src/Client/Messages.php:272
+#: src/Client/Messages.php:293
 msgid "Address of this site"
 msgstr ""
 
 #. translators: 1: address the license was activated for, 2: address of this site.
-#: src/Client/Messages.php:274
+#: src/Client/Messages.php:295
 #, php-format
 msgid "Only if the site really moved: transferring moves the activation from %1$s to %2$s. The site at %1$s then loses the license. For a staging or test copy, activate this address instead."
 msgstr ""
 
-#: src/Client/Messages.php:275
+#: src/Client/Messages.php:296
 msgid "This site reports itself as a staging or development site."
 msgstr ""
 
 #. translators: %s: address the license was activated for.
-#: src/Client/Messages.php:277
+#: src/Client/Messages.php:298
 #, php-format
 msgid "I confirm that the site moved and no longer runs at %s."
 msgstr ""
 
-#: src/Client/Messages.php:278
+#: src/Client/Messages.php:299
 msgid "Nothing was transferred. Confirm that the site moved before you transfer the activation."
 msgstr ""
 
-#: src/Client/Messages.php:279
+#: src/Client/Messages.php:300
 msgid "I confirm that this site gives up its license. The premium features are switched off at once; to use them again, the license key must be entered again."
 msgstr ""
 
-#: src/Client/Messages.php:280
+#: src/Client/Messages.php:301
 msgid "Nothing was removed. Confirm that this site gives up its license before you remove it."
 msgstr ""
 
-#: src/Client/Messages.php:282
+#: src/Client/Messages.php:303
 msgid "You are not allowed to manage the license of this plugin."
 msgstr ""
 
-#: src/Client/Messages.php:283
+#: src/Client/Messages.php:304
 msgid "UTC"
 msgstr ""
 
-#: src/Client/Messages.php:285
+#: src/Client/Messages.php:306
 msgid "Offline period ends"
 msgstr ""
 
-#: src/Client/Messages.php:286
+#: src/Client/Messages.php:307
 msgid "Installation ID (shortened)"
 msgstr ""
 
-#: src/Client/Messages.php:287
+#: src/Client/Messages.php:308
 msgid "License server"
 msgstr ""
 
-#: src/Client/Messages.php:288
+#: src/Client/Messages.php:309
 msgid "Signature check"
 msgstr ""
 
-#: src/Client/Messages.php:289
+#: src/Client/Messages.php:310
 msgid "PHP sodium extension"
 msgstr ""
 
-#: src/Client/Messages.php:290
+#: src/Client/Messages.php:311
 msgid "sodium_compat of WordPress (slower)"
 msgstr ""
 
-#: src/Client/Messages.php:291
+#: src/Client/Messages.php:312
 msgid "not available: premium features stay off"
 msgstr ""
 
-#: src/Client/Messages.php:292
+#: src/Client/Messages.php:313
 msgid "Pinned server keys (fingerprints)"
 msgstr ""
 
-#: src/Client/Messages.php:293
+#: src/Client/Messages.php:314
 msgid "License client version"
 msgstr ""
 
-#: src/Client/Messages.php:294
+#: src/Client/Messages.php:315
 msgid "none"
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:297
+#: src/Client/Messages.php:318
 #, php-format
 msgid "%s: the license check works"
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:299
+#: src/Client/Messages.php:320
 #, php-format
 msgid "%s: the last license check failed"
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:301
+#: src/Client/Messages.php:322
 #, php-format
 msgid "%s: the license check is overdue"
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:303
+#: src/Client/Messages.php:324
 #, php-format
 msgid "%s: the offline period of the license ends soon"
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:305
+#: src/Client/Messages.php:326
 #, php-format
 msgid "%s: the license is not checked for this address"
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:307
+#: src/Client/Messages.php:328
 #, php-format
 msgid "%s: the license could not be verified"
 msgstr ""
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:309
+#: src/Client/Messages.php:330
 #, php-format
 msgid "%s: the license of this site was released"
 msgstr ""
 
 #. translators: 1: date and time of the last successful check, 2: date and time the offline period ends.
-#: src/Client/Messages.php:311
+#: src/Client/Messages.php:332
 #, php-format
 msgid "The license server confirmed the license on %1$s. The premium features stay available without a connection until %2$s; the check runs once a day."
 msgstr ""
 
 #. translators: 1: error message, 2: date and time of the last successful check, 3: date and time the offline period ends, 4: host name of the license server.
-#: src/Client/Messages.php:313
+#: src/Client/Messages.php:334
 #, php-format
 msgid "The last check failed: %1$s Last successful check: %2$s. The premium features stay available until %3$s; the check is repeated automatically. If this persists, make sure that this site can reach %4$s."
 msgstr ""
 
 #. translators: 1: date and time of the last successful check, 2: date and time the offline period ends, 3: host name of the license server.
-#: src/Client/Messages.php:315
+#: src/Client/Messages.php:336
 #, php-format
 msgid "Last successful check: %1$s. The premium features stay available until %2$s, unless the license server confirms the license before then. Make sure that WP-Cron runs and that this site can reach %3$s, or check the license now."
 msgstr ""
 
-#: src/Client/Messages.php:317
+#: src/Client/Messages.php:338
 msgid "Your license has expired. Renew it to receive this update."
 msgstr ""
 
-#: src/Client/Messages.php:318
+#: src/Client/Messages.php:339
 msgid "Your license is suspended; updates are not available. Please contact support."
 msgstr ""
 
-#: src/Client/Messages.php:319
+#: src/Client/Messages.php:340
 msgid "Your license has been revoked; updates are not available."
 msgstr ""
 
-#: src/Client/Messages.php:320
+#: src/Client/Messages.php:341
 msgid "Your license is not active yet; updates become available once it is."
 msgstr ""
 
-#: src/Client/Messages.php:321
+#: src/Client/Messages.php:342
 msgid "Your license is not active; updates are not available."
 msgstr ""
 
-#: src/Client/Messages.php:322
+#: src/Client/Messages.php:343
 msgid "Enter your license key to receive updates."
 msgstr ""
 
 #. translators: 1: version that cannot be installed, 2: list of unmet requirements.
-#: src/Client/Messages.php:324
+#: src/Client/Messages.php:345
 #, php-format
 msgid "Version %1$s is available but cannot be installed on this site: %2$s."
 msgstr ""
 
 #. translators: %s: version number.
-#: src/Client/Messages.php:326
+#: src/Client/Messages.php:347
 #, php-format
 msgid "PHP %s or newer is required"
 msgstr ""
 
 #. translators: %s: version number.
-#: src/Client/Messages.php:328
+#: src/Client/Messages.php:349
 #, php-format
 msgid "WordPress %s or newer is required"
 msgstr ""
 
 #. translators: %s: version number.
-#: src/Client/Messages.php:330
+#: src/Client/Messages.php:351
 #, php-format
 msgid "version %s or newer of the free base plugin is required"
 msgstr ""
 
-#: src/Client/Messages.php:331
+#: src/Client/Messages.php:352
 msgid "The update is no longer offered by the license server. Please check for updates again."
 msgstr ""
 
 #. translators: %s: reason.
-#: src/Client/Messages.php:333
+#: src/Client/Messages.php:354
 #, php-format
 msgid "The update could not be prepared: %s"
 msgstr ""
 
-#: src/Client/Messages.php:334
+#: src/Client/Messages.php:355
 msgid "The downloaded update does not match the checksum signed by the license server and was deleted."
 msgstr ""
 
-#: src/Client/Messages.php:335
+#: src/Client/Messages.php:356
 msgid "The license server offered a package for another product."
 msgstr ""
 
-#: src/Client/Messages.php:336
+#: src/Client/Messages.php:357
 msgid "The update package does not contain this plugin and was not installed."
 msgstr ""
 
-#: src/Client/Messages.php:337
+#: src/Client/Messages.php:358
 msgid "The update was offered over an insecure connection (not HTTPS) and was not downloaded."
 msgstr ""
 
 #. translators: %s: size limit in megabytes.
-#: src/Client/Messages.php:339
+#: src/Client/Messages.php:360
 #, php-format
 msgid "The update package is larger than %s MB and was not downloaded."
 msgstr ""
 
-#: src/Client/Messages.php:340
+#: src/Client/Messages.php:361
 msgid "The download of the update was redirected too often and was stopped."
 msgstr ""
 
-#: src/Client/Messages.php:342
+#: src/Client/Messages.php:363
 msgid "License check and updates"
 msgstr ""
 
 #. translators: 1: name of the add-on, 2: host name of the license server.
-#: src/Client/Messages.php:344
+#: src/Client/Messages.php:365
 #, php-format
 msgid "%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), for a staging site the installation ID of its live site, and the versions of the plugin, of the base plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent. Legal basis: our legitimate interest in the use of licensed software and in security updates (Art. 6(1)(f) GDPR)."
 msgstr ""
@@ -7305,6 +7305,92 @@ msgstr ""
 #: src/Infrastructure/Database/SiteCleanupHelper.php:124
 #, php-format
 msgid "Could not delete %s. Check the file permissions or delete the file by hand."
+msgstr ""
+
+#: src/Infrastructure/SelfLicense.php:193
+msgid "The license server could not be reached. The plugin keeps working; the check is repeated automatically."
+msgstr ""
+
+#: src/Infrastructure/SelfLicense.php:194
+msgid "This web server cannot check the signature of the license server (the PHP sodium functions are missing). Updates stay off until PHP provides them; the plugin keeps working."
+msgstr ""
+
+#. translators: %s: name of the plugin.
+#: src/Infrastructure/SelfLicense.php:196
+#, php-format
+msgid "%s: enter your license key to receive updates and support."
+msgstr ""
+
+#. translators: 1: name of the plugin, 2: date.
+#: src/Infrastructure/SelfLicense.php:198
+#, php-format
+msgid "%1$s: the renewal payment is overdue. Updates and support stay available until %2$s."
+msgstr ""
+
+#. translators: %s: name of the plugin.
+#: src/Infrastructure/SelfLicense.php:200
+#, php-format
+msgid "%s: the license has expired. The plugin keeps working with all its functions; updates and support are no longer available."
+msgstr ""
+
+#. translators: %s: name of the plugin.
+#: src/Infrastructure/SelfLicense.php:202
+#, php-format
+msgid "%s: the license has been revoked. The plugin keeps working; updates and support are no longer available."
+msgstr ""
+
+#. translators: %s: name of the plugin.
+#: src/Infrastructure/SelfLicense.php:204
+#, php-format
+msgid "%s: the license is not active. The plugin keeps working; updates and support are not available."
+msgstr ""
+
+#. translators: %s: name of the plugin.
+#: src/Infrastructure/SelfLicense.php:206
+#, php-format
+msgid "%s: the license could not be verified for too long. The plugin keeps working; updates are not available until the license server can be reached again."
+msgstr ""
+
+#. translators: %s: name of the plugin.
+#: src/Infrastructure/SelfLicense.php:208
+#, php-format
+msgid "%s: the clock of this site is ahead, or the offline period has expired. The plugin keeps working; updates are not available until the license server confirms the license again. Please check the date and time of the web server."
+msgstr ""
+
+#. translators: 1: name of the plugin, 2: date.
+#: src/Infrastructure/SelfLicense.php:210
+#, php-format
+msgid "%1$s: the license server cannot be reached. Updates stay available until %2$s; the check is repeated automatically."
+msgstr ""
+
+#: src/Infrastructure/SelfLicense.php:211
+msgid "Updates and support until"
+msgstr ""
+
+#: src/Infrastructure/SelfLicense.php:212
+msgid "I confirm that this site gives up its license. The plugin keeps working; it receives no updates until the license key is entered again."
+msgstr ""
+
+#: src/Infrastructure/SelfLicense.php:213
+msgid "not available: updates stay off"
+msgstr ""
+
+#. translators: 1: date and time of the last check, 2: date until which the confirmation is valid.
+#: src/Infrastructure/SelfLicense.php:215
+#, php-format
+msgid "The license server confirmed the license on %1$s. Updates stay available without a connection until %2$s; the check runs once a day."
+msgstr ""
+
+#. translators: 1: reason, 2: date and time of the last successful check, 3: date, 4: host name of the license server.
+#: src/Infrastructure/SelfLicense.php:217
+#, php-format
+msgid "The last check failed: %1$s Last successful check: %2$s. Updates stay available until %3$s; the check is repeated automatically. If this persists, make sure that this site can reach %4$s."
+msgstr ""
+
+#. translators: 1: date and time of the last successful check, 2: date, 3: host name of the license server.
+#: src/Infrastructure/SelfLicense.php:219
+#, php-format
+msgid "Last successful check: %1$s. Updates stay available until %2$s, unless the license server confirms the license before then. Make sure that WP-Cron runs and that this site can reach %3$s, or check the license now."
 msgstr ""
 
 #: src/License/AuditReason.php:218

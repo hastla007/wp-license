@@ -65,6 +65,52 @@ final class SelfLicenseTranslationsTest extends TestCase {
 		$this->assertSame( 'Bitte geben Sie Ihren Lizenzschlüssel ein.', self::translations( 'wp-license-de_DE_formal.po' )['Please enter your license key.'] );
 	}
 
+	/**
+	 * Texts of an array literal `'code' => __( 'text', 'wp-license' )` in a source file.
+	 *
+	 * @param string $file Path below the plugin root.
+	 * @return array<string,string> Code => English text.
+	 */
+	private static function coded_texts( string $file ): array {
+		$code = (string) file_get_contents( dirname( __DIR__, 2 ) . '/' . $file );
+		preg_match_all( "/'([a-z0-9_.]+)'\\s*=>\\s*__\\(\\s*'((?:[^'\\\\]|\\\\.)*)',\\s*'wp-license'\\s*\\)/", $code, $matches );
+
+		return array_combine( $matches[1], array_map( 'stripslashes', $matches[2] ) );
+	}
+
+	/**
+	 * The license of the server decides about updates and support only. Every text of the library
+	 * that speaks of premium features has a text of the server in its place, with the same placeholders.
+	 */
+	public function test_the_server_replaces_every_library_text_about_premium_features(): void {
+		$library = self::coded_texts( 'src/Client/Messages.php' );
+		$own     = self::coded_texts( 'src/Infrastructure/SelfLicense.php' );
+		$this->assertGreaterThan( 120, count( $library ) );
+
+		$about_features = array_keys(
+			array_filter(
+				$library,
+				static function ( string $text ): bool {
+					return false !== stripos( $text, 'premium' );
+				}
+			)
+		);
+		$this->assertNotEmpty( $about_features );
+		$this->assertSame( array(), array_values( array_diff( $about_features, array_keys( $own ) ) ), 'SelfLicense::texts() lacks these codes.' );
+
+		$placeholders = static function ( string $text ): array {
+			preg_match_all( '/%(?:\d+\$)?[sd]/', $text, $found );
+			sort( $found[0] );
+			return $found[0];
+		};
+		foreach ( $own as $code => $text ) {
+			$this->assertArrayHasKey( $code, $library, $code . ' is a code of the library.' );
+			$this->assertSame( $placeholders( $library[ $code ] ), $placeholders( $text ), $code );
+			$this->assertStringNotContainsStringIgnoringCase( 'premium', $text, $code );
+		}
+		$this->assertStringContainsString( "'texts'         => array( self::class, 'texts' ),", (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/SelfLicense.php' ) );
+	}
+
 	public function test_the_template_script_includes_the_library(): void {
 		$script = (string) file_get_contents( dirname( __DIR__, 2 ) . '/bin/make-pot.sh' );
 		$this->assertSame( 1, preg_match( '/--exclude=(\S+)/', $script, $match ) );

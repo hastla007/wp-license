@@ -34,7 +34,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\OptionStore', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.2.0';
+		const VERSION = '2.3.0';
 
 		/**
 		 * Whether values are stored for the whole network.
