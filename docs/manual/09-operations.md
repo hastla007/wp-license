@@ -116,7 +116,7 @@ Metrics: `pending_webhooks`, `manual_review_webhooks`, `rejected_webhook_minutes
 | --- | --- | --- |
 | `wplc_daily_lifecycle` | daily (WP-Cron) | Expiry, stuck renewals, reminders, catch-up, retention, cleanup, health alerts. With Action Scheduler each job runs as its own action `wplc_daily_job`. |
 | `wplc_cleanup_security_rows` | hourly (WP-Cron) | Deletes used nonces, old rate-limit rows and expired download grants. |
-| `wplc_process_renewal`, `wplc_process_stripe_webhook`, … | Action Scheduler group `wplc` | Charges, retries, webhook reconciliation (WooCommerce → Status → Scheduled Actions). |
+| `wplc_process_renewal`, `wplc_process_stripe_webhook`, `wplc_webhook_deliver`, … | Action Scheduler group `wplc` | Charges, retries, webhook reconciliation, attempts of the outgoing webhooks (chapter 14) (WooCommerce → Status → Scheduled Actions). |
 
 If WP-Cron does not run, licenses do not expire, reminders are not sent and the security tables grow without bound. Use a real system cron for `wp-cron.php`.
 
@@ -229,6 +229,7 @@ The server is meant to run on **one** site of a network: the site where WooComme
 | `activations` (deactivated installations of ended licenses) / `inactive_activations` | 365 / 365 days |
 | `ended_license_activations` (deactivate sites of ended licenses) | 30 days |
 | `reminder_log` | 730 days |
+| `webhook_deliveries` (delivery log of the outgoing webhooks, chapter 14) | 30 days |
 | `consents` (of ended licenses) | 3650 days, counted from the end of the year |
 | `anonymize_licenses` (detach owner of licenses ended longer ago) | 3650 days, counted from the end of the year in which the license ended |
 

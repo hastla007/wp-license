@@ -337,6 +337,10 @@ final class Texts {
 				__( 'Keep proof of renewal consent for', 'wp-license' ),
 				__( 'Days after which the proof of a consent to automatic renewal is deleted, once its license has ended. Counted from the end of the calendar year of the consent. Default: 3650 (ten years, the technical default so far). 0 = never delete.', 'wp-license' ),
 			),
+			'retention_webhook_deliveries' => array(
+				__( 'Keep the webhook delivery log for', 'wp-license' ),
+				__( 'Days after which entries of the delivery log of the outgoing webhooks (event, body with record IDs, status code, error) are deleted. Default: 30. 0 = never delete by age; in any case at most the newest 100 entries per endpoint are kept.', 'wp-license' ),
+			),
 			'support_email'             => array(
 				__( 'Support email address', 'wp-license' ),
 				__( 'Address that license emails, the customer account and the cancellation page name for questions. Empty (default) = the sender address of the WooCommerce emails, else the address of the site administrator.', 'wp-license' ),

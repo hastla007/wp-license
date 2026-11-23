@@ -23,6 +23,7 @@ Throughout the manual the examples use an invented vendor, **Acme Plugins**, tha
 | [11. Troubleshooting and FAQ](11-troubleshooting.md) | Symptoms, causes and fixes. |
 | [12. Upgrading](12-upgrading.md) | Updating the server plugin, migrations, rollback, uninstall. |
 | [13. Settings](13-settings.md) | Every setting with its default, limits and filter; how settings, tabs and the change log work. |
+| [14. Outgoing webhooks](14-webhooks.md) | Sending license events to other systems: endpoints, events, signature, retries, delivery log. |
 
 ## The first hour, in short
 

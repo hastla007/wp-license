@@ -34,6 +34,8 @@ final class RetentionCutoffTest extends TestCase {
 				'anonymize_licenses' => 3650,
 				// Wave 2: consent evidence of ended licenses, ten years.
 				'consents' => 3650,
+				// SET-LIC-46: delivery log of the outgoing webhooks.
+				'webhook_deliveries' => 30,
 			),
 			Retention::DEFAULT_DAYS
 		);
@@ -49,6 +51,7 @@ final class RetentionCutoffTest extends TestCase {
 				// Year-end rules: ten years back from 2027-03-10 is 2017-03-12, so only years up to 2016 qualify.
 				'anonymize_licenses' => '2017-01-01 00:00:00',
 				'consents' => '2017-01-01 00:00:00',
+				'webhook_deliveries' => '2027-02-08 08:00:00',
 			),
 			Retention::cutoffs( Retention::DEFAULT_DAYS, self::NOW )
 		);
@@ -88,6 +91,7 @@ final class RetentionCutoffTest extends TestCase {
 				'reminder_log' => 1.5,
 				'anonymize_licenses' => 'yes',
 				'consents' => 'never',
+				'webhook_deliveries' => '',
 				'licenses' => 1,
 			),
 			self::NOW
@@ -109,7 +113,7 @@ final class RetentionCutoffTest extends TestCase {
 
 	public function test_unknown_rules_are_ignored(): void {
 		$this->assertSame(
-			array( 'audit_log', 'event_inbox', 'event_inbox_open', 'activations', 'inactive_activations', 'ended_license_activations', 'reminder_log', 'anonymize_licenses', 'consents' ),
+			array( 'audit_log', 'event_inbox', 'event_inbox_open', 'activations', 'inactive_activations', 'ended_license_activations', 'reminder_log', 'anonymize_licenses', 'consents', 'webhook_deliveries' ),
 			array_keys( Retention::cutoffs( array( 'orders' => 1 ), self::NOW ) )
 		);
 	}

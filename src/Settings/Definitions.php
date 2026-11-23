@@ -577,6 +577,17 @@ final class Definitions {
 				'filter'  => 'wplc_retention_days',
 				'legal'   => true,
 			),
+			// SET-LIC-46: delivery log of the outgoing webhooks.
+			'retention_webhook_deliveries' => array(
+				'type'    => 'int',
+				'unit'    => 'days',
+				'default' => 30,
+				'min'     => 0,
+				'max'     => 36500,
+				'group'   => 'legal',
+				'filter'  => 'wplc_retention_days',
+				'legal'   => true,
+			),
 
 			// Texts and support.
 			'support_email'             => array(

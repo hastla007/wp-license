@@ -121,6 +121,7 @@ The tables are generated from the register (`php bin/settings-doc.php --write`).
 | Keep the email log for | `retention_reminder_log` | whole number, 0 to 36500 | `730` | `wplc_retention_days` | Days after which entries of the notification log are deleted. Default: 730. 0 = never delete. **Legal review.** |
 | Detach ended licenses from the customer after | `retention_anonymize_licenses` | whole number, 0 to 36500 | `3650` | `wplc_retention_days` | Days after the end of a license at which the owner, the payment token reference and the installations are removed. Counted from the end of the calendar year in which the license ended. Default: 3650 (ten years, the technical default so far). 0 = never. **Legal review.** |
 | Keep proof of renewal consent for | `retention_consents` | whole number, 0 to 36500 | `3650` | `wplc_retention_days` | Days after which the proof of a consent to automatic renewal is deleted, once its license has ended. Counted from the end of the calendar year of the consent. Default: 3650 (ten years, the technical default so far). 0 = never delete. **Legal review.** |
+| Keep the webhook delivery log for | `retention_webhook_deliveries` | whole number, 0 to 36500 | `30` | `wplc_retention_days` | Days after which entries of the delivery log of the outgoing webhooks (event, body with record IDs, status code, error) are deleted. Default: 30. 0 = never delete by age; in any case at most the newest 100 entries per endpoint are kept. **Legal review.** |
 
 ### Texts and support
 

@@ -139,6 +139,37 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['products']} WHERE product_key = %s", 'schema26-product' ) );
 	}
 
+	// SET-LIC-46: a database on schema 28 gets the two webhook tables with step 31 and keeps its data.
+	public function test_upgrade_from_schema_28_adds_the_webhook_tables(): void {
+		global $wpdb;
+
+		$this->permanent_tables();
+		$tables = Schema::table_names();
+		$now    = gmdate( 'Y-m-d H:i:s' );
+		$wpdb->insert( $tables['products'], array( 'product_key' => 'schema31-product', 'display_name' => 'Schema 31', 'active' => 1, 'created_at' => $now, 'updated_at' => $now ) );
+		$wpdb->query( "DROP TABLE IF EXISTS {$tables['webhook_endpoints']}" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$tables['webhook_deliveries']}" );
+		update_option( Schema::VERSION_OPTION, '28', true );
+		delete_option( Schema::VERIFIED_OPTION );
+		$this->assertContains( $tables['webhook_deliveries'] . ': table is missing', Schema::verify() );
+
+		$this->assertTrue( Schema::maybe_upgrade() );
+
+		$this->assertTrue( $this->table_exists( $tables['webhook_endpoints'] ) );
+		$this->assertTrue( $this->table_exists( $tables['webhook_deliveries'] ) );
+		$this->assertSame( '31', (string) get_option( Schema::VERSION_OPTION ) );
+		$this->assertSame( array(), Schema::verify() );
+		$this->assertSame( 'Schema 31', (string) $wpdb->get_var( $wpdb->prepare( "SELECT display_name FROM {$tables['products']} WHERE product_key = %s", 'schema31-product' ) ) );
+		// One delivery per endpoint and event ID.
+		$row = array( 'endpoint_id' => 9, 'event_id' => '11111111-1111-4111-8111-111111111111', 'event' => 'license.issued', 'payload' => '{}', 'created_at' => $now, 'updated_at' => $now );
+		$this->assertSame( 1, $wpdb->insert( $tables['webhook_deliveries'], $row ) );
+		$suppressed = $wpdb->suppress_errors( true );
+		$this->assertFalse( $wpdb->insert( $tables['webhook_deliveries'], $row ) );
+		$wpdb->suppress_errors( $suppressed );
+		$wpdb->query( "DELETE FROM {$tables['webhook_deliveries']} WHERE endpoint_id = 9" );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['products']} WHERE product_key = %s", 'schema31-product' ) );
+	}
+
 	// B-12, A-106: a failed ALTER is not booked as done, is reported and is retried after a pause.
 	public function test_failed_alter_keeps_the_old_version_and_is_retried_later(): void {
 		$this->permanent_tables();

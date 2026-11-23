@@ -117,14 +117,14 @@ if ( ! function_exists( 'wplc_uninstall_site' ) ) {
 			return;
 		}
 
-		$tables = array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log', 'license_members' );
+		$tables = array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log', 'license_members', 'webhook_endpoints', 'webhook_deliveries' );
 		foreach ( $tables as $table ) {
 			$name = $wpdb->prefix . 'wplc_' . $table;
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- fixed table names, explicit opt-in.
 			$wpdb->query( "DROP TABLE IF EXISTS `{$name}`" );
 		}
 		// Also the version options: a later reinstall must create the tables again.
-		foreach ( array( 'wplc_schema_version', 'wplc_reminder_log_version', 'wplc_settings', 'wplc_site_fingerprint', 'wplc_rewrite_version', 'wplc_response_signing_key', 'wplc_response_signing_key_id', 'wplc_response_signing_key_next', 'wplc_release_product_slugs', 'wplc_sites_endpoint_rules', 'wplc_entitlement_catalog', 'wplc_key_first_seen', 'wplc_setup_rules_decided' ) as $option ) {
+		foreach ( array( 'wplc_schema_version', 'wplc_reminder_log_version', 'wplc_settings', 'wplc_site_fingerprint', 'wplc_rewrite_version', 'wplc_response_signing_key', 'wplc_response_signing_key_id', 'wplc_response_signing_key_next', 'wplc_release_product_slugs', 'wplc_sites_endpoint_rules', 'wplc_entitlement_catalog', 'wplc_key_first_seen', 'wplc_setup_rules_decided', 'wplc_webhook_events', 'wplc_webhook_auto_disabled' ) as $option ) {
 			delete_option( $option );
 		}
 	}

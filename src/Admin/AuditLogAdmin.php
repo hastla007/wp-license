@@ -171,6 +171,7 @@ final class AuditLogAdmin {
 			'release'    => __( 'Release', 'wp-license' ),
 			'settings'   => __( 'Settings', 'wp-license' ),
 			'catalog'    => __( 'Catalog', 'wp-license' ),
+			'webhook'    => __( 'Webhook', 'wp-license' ),
 			'system'     => __( 'System', 'wp-license' ),
 		);
 	}

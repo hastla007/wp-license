@@ -426,6 +426,9 @@ final class Plugin {
 		PersonalData::register_hooks();
 		Notifications::register_hooks();
 		Retention::register_hooks();
+		// SET-LIC-46: outgoing webhooks (listeners of the contract actions, queue, admin screen).
+		\WPLC\Webhooks\Dispatcher::register_hooks();
+		\WPLC\Webhooks\Admin::register_hooks();
 		Orphans::register_hooks();
 		SiteGuard::register_hooks();
 		GapReconciler::register_hooks();

@@ -37,6 +37,10 @@ For plugins that run in the same WordPress as the server (the workflow add-on is
 
 Lookups by `license_id` from an action, optionally narrowed by the owner's user ID: `get( $license_id, $customer_user_id = 0 )` (summary: license_id, product_key, plan_key, status, access, expires_at, access_until, customer_user_id), `status()`, `plan()`, `expires_at()`, `entitlements()` (granted now; empty without access), `is_entitled( $license_id, $key )` and `for_user( $user_id, $product_key = '' )`. Every method runs SELECT queries only and never returns a key, key prefix, key hash, email address, site address, payment data or secret. Changing a license stays behind the capabilities `wplc_*` and nonces of the plugin's own screens and APIs.
 
+## Outgoing webhooks (SET-LIC-46)
+
+For systems outside the shop's WordPress (CRM, accounting, automation platforms) the eight actions of the contract above can be sent as signed HTTPS requests: **WooCommerce → License webhooks** or `wp wplc webhook`. The format, the signature, the retries and the events are described in [WEBHOOKS.md](WEBHOOKS.md). Three filters and one action belong to it: `wplc_webhook_payload` (the body, once per event; add data, but never a key, a secret or personal data the receiver does not need), `wplc_webhook_retry_delays`, `wplc_webhook_disable_after_failures` and `wplc/webhook_endpoint_disabled`. A webhook is queued by a listener of the contract action (priority 50), so it inherits the "after commit" promise; it is sent later by Action Scheduler (hook `wplc_webhook_deliver`, internal).
+
 ## Co-users and transfers (B-139)
 
 The co-user and transfer hooks (`wplc/license_member_*`, `wplc/license_transfer_started`, `wplc/license_transferred`, `wplc_license_member_limit`, `wplc_license_invitation_days`, `wplc_license_transfer_enabled`, `wplc_license_transfer_new_key`; their defaults are the settings under License settings → Co-users and transfer, 5, 14, on and off unless changed) are described in [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#co-users-and-transfers-by-the-customer). An accepted transfer also fires `wplc/license_owner_changed` first, like the owner change in the admin. The account template `myaccount/wplc-license.php` prints the co-user and transfer forms through its template action `wplc_account_license_sharing` (license row, display values); a theme copy made before this version needs that line added.
@@ -102,6 +106,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc/site_limit_reached` | `src/Events/LicenseEvents.php` | 0.2.0 | yes | Fires when an activation was refused because a site limit was reached (suite event `license.license.site_limit_reached`). |
 | `wplc/stripe_early_fraud_warning` | `src/Gateway/StripeEventHandler.php` | 0.1.0 | – | Fires when Stripe reports an early fraud warning for a license payment. |
 | `wplc/stripe_webhook_received` | `src/Api/V1/StripeWebhook.php` | 0.1.0 | – |  |
+| `wplc/webhook_endpoint_disabled` | `src/Webhooks/Dispatcher.php` | 0.2.0 | – | Fires after a webhook endpoint was switched off because its deliveries failed repeatedly (arguments: endpoint ID, failed deliveries in a row). |
 | `wplc_daily_lifecycle` | `src/Maintenance/DailyRunner.php` | 0.1.0 | – |  |
 | `wplc_release_package_missing` | `src/Update/ReleaseRegistry.php` | 0.1.0 | – | Fires when a published release cannot be offered because its file is missing on this server (A-111). |
 | `wplc_settings_page_tools` | `src/Admin/Settings.php` | 0.2.0 | – | Fires below the settings form: tools that work on the settings (country profiles, export, import, reset). |
@@ -228,6 +233,9 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_update_product_icons` | `src/Update/ReleaseRegistry.php` | Filters the icons of a product, in the shape WordPress expects: array( '1x' => url, '2x' => url, 'svg' => url ). |
 | `wplc_vendor_license_config` | `src/Infrastructure/SelfLicense.php` | Filters where this plugin gets its own updates from (the license server of its vendor). |
 | `wplc_verify_url_release_on_publish` | `src/Update/ReleaseRegistry.php` | Filters whether a URL package is downloaded and verified when its release is published. |
+| `wplc_webhook_disable_after_failures` | `src/Webhooks/Dispatcher.php` | Filters after how many failed deliveries in a row an endpoint is switched off (default 5, 0 = never). See [WEBHOOKS.md](WEBHOOKS.md). |
+| `wplc_webhook_payload` | `src/Webhooks/Dispatcher.php` | Filters the body of an outgoing webhook before it is stored and sent (arguments: envelope, event name; `id`, `event` and `created_at` cannot be changed). See [WEBHOOKS.md](WEBHOOKS.md#filters-and-actions). |
+| `wplc_webhook_retry_delays` | `src/Webhooks/Dispatcher.php` | Filters the seconds between the attempts of a webhook delivery (default 60, 300, 1800, 7200: five attempts). |
 | `wplc_withdrawal_consent_enabled` | `src/Billing/WithdrawalConsent.php` | Filters whether the checkout asks for consent to the immediate start of the license. |
 | `wplc_withdrawal_consent_required` | `src/Billing/WithdrawalConsent.php` | Filters whether a license can only be bought with the consent to the immediate start. |
 | `wplc_withdrawal_consent_text` | `src/Billing/WithdrawalConsent.php` | Filters the wording of the withdrawal consent. Legal wording is the shop owner's decision. |

@@ -40,5 +40,6 @@ final class Commands {
 		\WP_CLI::add_command( 'wplc storage', StorageCommand::class );
 		\WP_CLI::add_command( 'wplc project-product', ProjectProductCommand::class );
 		\WP_CLI::add_command( 'wplc settings', SettingsCommand::class );
+		\WP_CLI::add_command( 'wplc webhook', WebhookCommand::class );
 	}
 }

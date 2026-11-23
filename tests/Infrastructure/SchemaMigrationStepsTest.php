@@ -173,7 +173,7 @@ final class SchemaMigrationStepsTest extends TestCase {
 	public function test_table_names_are_stable_per_site_prefix(): void {
 		$tables = Schema::table_names_for_prefix( 'wp_2_' );
 		$this->assertSame(
-			array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log', 'license_members' ),
+			array( 'products', 'plans', 'licenses', 'activations', 'entitlements', 'renewals', 'download_tokens', 'event_inbox', 'request_nonces', 'request_limits', 'audit_log', 'releases', 'package_streams', 'consents', 'reminder_log', 'license_members', 'webhook_endpoints', 'webhook_deliveries' ),
 			array_keys( $tables )
 		);
 		$this->assertSame( 'wp_2_wplc_licenses', $tables['licenses'] );
@@ -320,7 +320,7 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$steps = $property->getValue();
 
 		$this->assertSame( 'step_27_suspended_at', $steps['27'][1] );
-		$this->assertSame( array( '27', '28' ), Schema::pending_step_versions( '26', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '27', '28' ), Schema::pending_step_versions( '26', '28', array_keys( $steps ) ) );
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
 		$this->assertStringContainsString( 'suspended_at datetime DEFAULT NULL', $source );
 		// Licenses that are suspended at the upgrade count from the upgrade, only rows without a time.
@@ -334,14 +334,41 @@ final class SchemaMigrationStepsTest extends TestCase {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
 		$steps    = $property->getValue();
 
-		$this->assertSame( '28', Schema::VERSION );
 		$this->assertSame( 'step_28_plan_overrides', $steps['28'][1] );
-		$this->assertSame( array( '28' ), Schema::pending_step_versions( '27', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '28' ), Schema::pending_step_versions( '27', '28', array_keys( $steps ) ) );
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
 		foreach ( array( 'staging_site_limit smallint(5) unsigned DEFAULT NULL', 'development_site_limit smallint(5) unsigned DEFAULT NULL', 'offline_cache_days smallint(5) unsigned DEFAULT NULL', 'max_quantity_per_line int(10) unsigned DEFAULT NULL', 'co_user_limit smallint(5) unsigned DEFAULT NULL' ) as $column ) {
 			$this->assertStringContainsString( $column, $source );
 		}
 		$this->assertSame( array_keys( \WPLC\Catalog\PlanOverrides::FIELDS ), array( 'staging_site_limit', 'development_site_limit', 'offline_cache_days', 'max_quantity_per_line', 'co_user_limit' ) );
+	}
+
+	/**
+	 * SET-LIC-46: schema 31 adds the tables of the outgoing webhooks; installs on 28 run only that step.
+	 */
+	public function test_schema_31_adds_the_webhook_tables(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$steps    = $property->getValue();
+
+		$this->assertSame( '31', Schema::VERSION );
+		$this->assertSame( 'step_31_webhooks', $steps['31'][1] );
+		$this->assertSame( array( '31' ), Schema::pending_step_versions( '28', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( 'wp_3_wplc_webhook_endpoints', Schema::table_names_for_prefix( 'wp_3_' )['webhook_endpoints'] );
+		$this->assertSame( 'wp_3_wplc_webhook_deliveries', Schema::table_names_for_prefix( 'wp_3_' )['webhook_deliveries'] );
+
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		$this->assertSame( 1, preg_match( "/CREATE TABLE \\{\\\$tables\\['webhook_endpoints'\\]\\} \\((.*?)\\) \\{\\\$charset_collate\\};/s", $source, $endpoints ) );
+		$parsed = Schema::expected_columns( 'CREATE TABLE wp_wplc_webhook_endpoints (' . $endpoints[1] . ')' );
+		$this->assertContains( 'secret_encrypted', array_keys( $parsed['columns'] ) );
+		$this->assertNotContains( 'secret', array_keys( $parsed['columns'] ), 'No plaintext secret column.' );
+
+		$this->assertSame( 1, preg_match( "/CREATE TABLE \\{\\\$tables\\['webhook_deliveries'\\]\\} \\((.*?)\\) \\{\\\$charset_collate\\};/s", $source, $deliveries ) );
+		$indexes = Schema::expected_indexes( 'CREATE TABLE wp_wplc_webhook_deliveries (' . $deliveries[1] . ')' );
+		foreach ( array( 'endpoint_event', 'endpoint_created', 'status_updated', 'created_at' ) as $index ) {
+			$this->assertContains( $index, $indexes );
+		}
+		// The event ID is the idempotency key per endpoint.
+		$this->assertStringContainsString( 'UNIQUE KEY endpoint_event (endpoint_id,event_id)', $deliveries[1] );
 	}
 
 	/**
