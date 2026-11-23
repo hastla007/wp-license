@@ -8,6 +8,10 @@ The sold ZIP contains no third-party code: `composer.json` has no runtime packag
 
 Every action in `.github/workflows/` is named by its commit hash with the version as a comment (`actions/checkout@<40 hex> # v4.4.0`), never by a tag that can be moved (`tests/Infrastructure/WorkflowHardeningTest.php`). To update one: look the hash of the new version up in the repository of the action (`git ls-remote https://github.com/actions/checkout 'refs/tags/v4.5.0^{}' refs/tags/v4.5.0`; for an annotated tag the line ending in `^{}` is the commit), replace hash and comment in all workflows in one commit. Only the job `publish` of `release.yml` has write access to the repository; it checks nothing out and runs no script, it only attaches the artifact of the job `build`.
 
+**Dependabot** (`.github/dependabot.yml`) is what keeps the pinned actions current: it opens a pull request that replaces hash and version comment together. It checks the GitHub actions and the development tools of `composer.json` daily at 05:00 (Europe/Vienna), bundles all updates of an ecosystem into one pull request (security updates in a group of their own) and keeps at most two pull requests open per ecosystem, so single updates do not fill the Actions queue.
+
+**No double runs.** A branch is tested through its pull request only: the workflows start on `pull_request`, on pushes to `main`, and by hand (`workflow_dispatch`); the release workflow on version tags. Each workflow has one run per pull request (`concurrency` by pull request number): a new commit cancels the run of the older commit of the same pull request. Runs on `main` are never cancelled. The summary job `wordpress-integration` does not run when its run was cancelled, so a superseded run does not look like a failed test; the run of the newer commit reports under the same name.
+
 ## Overview
 
 | Gate | Workflow / job | Blocking | What it proves |
