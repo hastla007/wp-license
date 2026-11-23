@@ -1240,7 +1240,7 @@ Zusammengeführt mit vorhandenen Aufgaben: UEB-10 und UEB-11 (erledigt, siehe SE
 
 ### Wartet auf Inhaber (Entscheidungen E-01 bis E-11 der Analyse)
 
-Keine dieser Fragen wird ohne den Inhaber gebaut. Nicht ohne ihn angefasst werden insbesondere: Editionen und Tarife des Servers, ausgehende Webhooks, Grenzen für Umzüge, SEPA, Mehrjahres-Laufzeiten, Schlüssel-Präfix.
+Die Fragen sind seit dem 23.11.2026 beantwortet (Absatz unter der Tabelle). Vorher galt: Keine dieser Fragen wird ohne den Inhaber gebaut. Nicht ohne ihn angefasst werden insbesondere: Editionen und Tarife des Servers, ausgehende Webhooks, Grenzen für Umzüge, SEPA, Mehrjahres-Laufzeiten, Schlüssel-Präfix.
 
 | Nr. | Frage (wartet auf Inhaber) | Möglichkeiten | Empfehlung |
 | --- | --- | --- | --- |
@@ -1255,6 +1255,8 @@ Keine dieser Fragen wird ohne den Inhaber gebaut. Nicht ohne ihn angefasst werde
 | E-09 | Ausgehende Webhooks (SET-LIC-46) | nicht bauen / für alle bauen / nur in „Plus“ | für alle bauen, nach dem Verkaufsstart. |
 | E-10 | Zahlungsarten der automatischen Verlängerung | nur Stripe-Karte (heute) / zusätzlich SEPA / weitere Adapter | „nur Stripe-Karte“ als Produktgrenze festhalten; SEPA als nächste Stufe. |
 | E-11 | Brutto-Anzeige für Verbraucher | folgt WooCommerce (heute) / eigener Schalter | bei WooCommerce lassen; Rechtsprüfung. |
+
+**Antworten des Inhabers vom 23.11.2026 (abends, direkt in dieser Sitzung):** E-01 eine Edition, Tarife nach Zahl der Shops und Support; E-02 ein Shop je Live-Installation, eine Staging-Kopie frei; E-03 nur Monat/Jahr, weitere Laufzeiten später als eigene Ausbaustufe; E-04 Präfix einstellbar nur vor der ersten ausgestellten Lizenz, Länge bleibt; E-05 Beta nur mit Recht je Tarif, vorhandene Tarife „erlaubt“, der Endkunde schaltet selbst ein, danach schalten die Captain-Add-ons das Beta-Kästchen der Client-Bibliothek ein; E-06 keine Grenze für Umzüge; E-07 wie heute, zusätzlich Prüfhinweis bei Teilerstattung nach Betrag; E-08 taggenau lassen, zwei Schalter; E-09 ausgehende Webhooks für alle, **jetzt** bauen (abweichend von der Empfehlung „nach dem Start“); E-10 nur Stripe-Karte als Produktgrenze, SEPA als nächste Stufe; E-11 Brutto-Anzeige bleibt bei WooCommerce. Außerdem: Hersteller-Regeln nur mit `wplc_manage_policy` (Vorgabe Administratoren), Shop-Manager nur lesend; R-31 bleibt zurückgehalten; Preise von Workflow Captain Pro bestätigt. Die Rechtsprüfungen unten bleiben davon unberührt.
 
 Rechtsprüfung nötig (gehört zu T-93): SET-LIC-04, -05, -06, -08, -17, -26 (Kündigungsseite), E-08, E-11 und die vorhandene Preisänderungsfrist.
 
