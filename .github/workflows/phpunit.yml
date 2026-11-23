@@ -11,9 +11,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# One run per pull request: a new push to the pull request cancels the run of the older commit.
+# Runs on main (and started by hand) are never cancelled.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -123,8 +125,11 @@ jobs:
         run: composer test:integration
 
   # One stable check name for branch protection, independent of the matrix cells.
+  # Runs also when a cell failed, so the failure is reported under this name. It does not run when
+  # the whole run was cancelled (a newer commit of the pull request replaced it): a cancelled run
+  # is not a test result, and the run of the newer commit reports under the same name.
   wordpress-integration:
-    if: always()
+    if: ${{ !cancelled() }}
     needs: integration
     runs-on: ubuntu-latest
     steps:

@@ -325,6 +325,58 @@ final class LicenseClientTest extends TestCase {
 		$this->assertSame( hash( 'sha256', 'WPLC-NEW-KEY' ), $this->kit->credentials()['license_key_hash'] );
 	}
 
+	/** Security audit of 14 Nov 2026 (SA-13), library 2.3.0: stored credentials without a key hash match no key. */
+	public function test_credentials_without_a_key_hash_do_not_count_as_this_key(): void {
+		$client      = $this->activated();
+		$stored      = $this->kit->store->data['test_addon_license'];
+		$credentials = is_array( $stored ) ? $stored : array();
+		$this->assertNotSame( '', (string) ( $credentials['license_key_hash'] ?? '' ) );
+		unset( $credentials['license_key_hash'] );
+		$this->kit->store->data['test_addon_license'] = $credentials;
+
+		$this->assertIsArray( $this->kit->client()->activate( 'WPLC-ANOTHER-KEY' ) );
+
+		$this->assertContains( 'POST /wplc/v1/activations', $this->routes(), 'The entered key is activated instead of answering "already active".' );
+		$this->assertSame( hash( 'sha256', 'WPLC-ANOTHER-KEY' ), $this->kit->credentials()['license_key_hash'] );
+	}
+
+	/**
+	 * Own texts of a product, as a static method.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function texts_from_a_method(): array {
+		return array( 'ui.title' => 'From a method' );
+	}
+
+	/** Library 2.3.0: a product replaces texts of the library with its own, as an array or through a callable. */
+	public function test_own_texts_of_the_product_replace_texts_of_the_library(): void {
+		$plain = new Messages( 'test-addon' );
+		$own   = new Messages( 'test-addon', array( 'ui.access_until' => 'Updates until', 'notice.expired' => '' ) );
+		$this->assertSame( 'Updates until', $own->get( 'ui.access_until' ) );
+		$this->assertSame( $plain->get( 'notice.expired' ), $own->get( 'notice.expired' ), 'An empty text does not replace anything.' );
+		$this->assertSame( $plain->get( 'ui.title' ), $own->get( 'ui.title' ) );
+		$this->assertSame( '', $own->get( 'no.such.code' ) );
+
+		$calls  = 0;
+		$lazy   = new Messages(
+			'test-addon',
+			static function () use ( &$calls ): array {
+				++$calls;
+				return array( 'error.wplc_connection_failed' => 'The plugin keeps working.' );
+			}
+		);
+		$this->assertSame( 0, $calls, 'Nothing is built before a text is needed.' );
+		$this->assertSame( 'The plugin keeps working.', $lazy->error( 'wplc_connection_failed' ) );
+
+		$this->assertSame( 'From a method', ( new Messages( 'test-addon', array( self::class, 'texts_from_a_method' ) ) )->get( 'ui.title' ), 'A callable given as class and method.' );
+
+		$client = $this->kit->client( array( 'texts' => array( 'ui.title' => 'Update license' ) ) );
+		$this->assertSame( 'Update license', $client->messages()->get( 'ui.title' ) );
+		$manager = $this->kit->manager( array( 'texts' => array( 'ui.title' => 'Update license' ) ) );
+		$this->assertSame( 'Update license', $manager->client()->messages()->get( 'ui.title' ) );
+	}
+
 	public function test_a102_data_of_another_product_is_rejected(): void {
 		$server          = $this->kit->server;
 		$server->queue[] = $server->signed( $server->entitlement( array( 'product_key' => 'other-addon' ) ) );

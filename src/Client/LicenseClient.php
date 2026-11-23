@@ -32,7 +32,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.2.0';
+		const VERSION = '2.3.0';
 
 		/**
 		 * Context of the Ed25519 signature over the payload text.
@@ -170,6 +170,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 *     @type string[]    $public_keys    Base64 Ed25519 public keys of the license server. Several keys
 		 *                                       allow a rotation. Without keys only the HMAC is checked (tests).
 		 *     @type string      $text_domain    Text domain of the add-on.
+		 *     @type array|callable $texts       Since 2.3.0: own texts by code that replace texts of the library (see Messages).
 		 *     @type string[]    $fallback_urls  Further server addresses tried when the first cannot be reached.
 		 *     @type string      $rest_base      Full REST base when the server does not use `/wp-json`,
 		 *                                       e.g. `https://shop.example/index.php?rest_route=`.
@@ -210,7 +211,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 			$this->product_key     = strtolower( preg_replace( '/[^A-Za-z0-9_-]/', '', $product_key ) );
 			$this->product_version = substr( trim( $product_version ), 0, 30 );
 			$this->option_key      = strtolower( preg_replace( '/[^A-Za-z0-9_]/', '', $option_key ) );
-			$this->messages        = new Messages( isset( $args['text_domain'] ) ? (string) $args['text_domain'] : '' );
+			$this->messages        = new Messages( isset( $args['text_domain'] ) ? (string) $args['text_domain'] : '', $args['texts'] ?? null );
 			$this->store           = isset( $args['store'] ) && $args['store'] instanceof OptionStore ? $args['store'] : new OptionStore( ! empty( $args['network'] ) );
 			$this->transport       = isset( $args['transport'] ) && is_callable( $args['transport'] ) ? $args['transport'] : null;
 			$this->clock           = isset( $args['clock'] ) && is_callable( $args['clock'] ) ? $args['clock'] : null;
@@ -455,7 +456,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 					}
 				} elseif ( ! $force ) {
 					$stored_hash = (string) ( $stored['license_key_hash'] ?? '' );
-					if ( '' === $stored_hash || hash_equals( $stored_hash, $key_hash ) ) {
+					// Since 2.3.0 stored credentials without a key hash match no key: the entered key is activated.
+					if ( '' !== $stored_hash && hash_equals( $stored_hash, $key_hash ) ) {
 						$current = $this->check_entitlements();
 						if ( ! is_wp_error( $current ) ) {
 							if ( 'deactivated' !== ( $current['activation_status'] ?? '' ) ) {

@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Added (23 Nov 2026: two rules of the shop as settings)
+
+- **Largest quantity per order line** (License settings → Rules of this shop; default 100, 0 = no limit): the largest quantity of a license product a customer can order in one line. Enforced on the server in the quantity field, when adding to the cart and again in cart and checkout, classic and Store API (block checkout). The filter `wplc_max_license_quantity_per_line` wins over the setting and receives the product. An order created in the admin or through the REST API is not blocked: it gets a note and the audit entry `order_quantity_above_limit`. Before, the quantity was unlimited.
+- **Suspended licenses count as ended after … days** (same section; default 0 = never, which is the behaviour so far): with a number of days, a license that stayed suspended without interruption that long is treated like an expired or revoked one by the personal data eraser and by the retention rules. Irreversible for the data concerned; the help text says so. Filter `wplc_suspended_license_ends_after_days`. **Schema 27** adds `licenses.suspended_at` (set when a license becomes suspended, cleared when it leaves that state); licenses suspended at the upgrade count from the upgrade. One rule for "ended" in both places (`License\EndedLicenses`).
+
+### Changed (23 Nov 2026: client library 2.3.0, license screen of the server)
+
+- **Client library 2.3.0:** a product can give its own texts (`texts`, an array code => text or a callable) that replace texts of the library; stored credentials without a key hash no longer count as "this key is already active". No action for add-ons (`packaging/client/CHANGELOG-CLIENT.md`).
+- **Own license of the server:** its license screen, notices and Site Health texts are translated (German "du" and "Sie"; the texts of the library are now part of the translation template) and no longer speak of premium features that are switched off: without a valid license the plugin keeps working and only gets no updates and no support.
+
 ### Fixed (23 Nov 2026: security audit of 14 Nov 2026 checked point by point)
 
 - **Cash on delivery and existing licenses:** a manual renewal order or a plan upgrade order paid by cash on delivery is "processing" in WooCommerce before any money arrived. Both were booked at that moment: the term was extended, the higher plan applied. They now wait for "completed", like a first purchase (filter `wplc_issue_after_completion_gateways`, default `cod`).

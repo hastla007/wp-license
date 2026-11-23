@@ -119,7 +119,7 @@ final class SchemaUpgradeIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( Schema::maybe_upgrade() );
 
 		$this->assertTrue( $this->table_exists( $tables['license_members'] ) );
-		$this->assertSame( '26', (string) get_option( Schema::VERSION_OPTION ) );
+		$this->assertSame( Schema::VERSION, (string) get_option( Schema::VERSION_OPTION ) );
 		$this->assertSame( array(), Schema::verify() );
 		$indexes = array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s', $tables['license_members'] ) ) );
 		foreach ( array( 'PRIMARY', 'token_hash', 'license_member', 'user_status', 'email_status', 'status_expires', 'invited_by' ) as $index ) {

@@ -1582,7 +1582,7 @@ final class LicenseLifecycle {
 		$renews = 'suspended' === $old_status && ! empty( $license['renewal_enabled'] ) && empty( $license['cancel_at_period_end'] );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = NULL, paid_until = %s, renewal_enabled = IF( %d = 1, renewal_enabled, 0 ), next_payment_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s",
+				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = NULL, suspended_at = NULL, paid_until = %s, renewal_enabled = IF( %d = 1, renewal_enabled, 0 ), next_payment_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s",
 				$tables['licenses'],
 				'active',
 				'',
@@ -2135,11 +2135,14 @@ final class LicenseLifecycle {
 		$now = gmdate( 'Y-m-d H:i:s' );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s AND IFNULL( paid_until, '' ) = %s",
+				// suspended_at: the start of this suspension (EndedLicenses); empty for every other status.
+				"UPDATE %i SET status = %s, status_reason = %s, revoked_at = IF( %d = 1, %s, NULL ), suspended_at = IF( %d = 1, %s, NULL ), updated_at = %s WHERE id = %d AND status = %s AND IFNULL( paid_until, '' ) = %s",
 				$tables['licenses'],
 				$new_status,
 				self::clip( sanitize_textarea_field( $reason ) ),
 				'revoked' === $new_status ? 1 : 0,
+				$now,
+				'suspended' === $new_status ? 1 : 0,
 				$now,
 				$now,
 				$license_id,

@@ -73,7 +73,7 @@ final class Schema {
 	 *     and transfers to another customer, B-139). Created by dbDelta; the step checks that the table
 	 *     and its indexes exist. No data changes.
 	 */
-	public const VERSION = '26';
+	public const VERSION = '27';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -137,6 +137,7 @@ final class Schema {
 		'24' => array( self::class, 'step_24_import_bundled_catalogs' ),
 		'25' => array( self::class, 'step_25_price_change_columns' ),
 		'26' => array( self::class, 'step_26_license_members' ),
+		'27' => array( self::class, 'step_27_suspended_at' ),
 	);
 
 	/**
@@ -906,6 +907,7 @@ final class Schema {
 				plan_order_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				cancel_at_period_end tinyint(1) NOT NULL DEFAULT 0,
 				revoked_at datetime DEFAULT NULL,
+				suspended_at datetime DEFAULT NULL,
 				billing_interval varchar(10) NOT NULL DEFAULT 'year',
 				starts_at datetime NOT NULL,
 				paid_until datetime DEFAULT NULL,
@@ -1586,6 +1588,36 @@ final class Schema {
 	 */
 	private static function step_26_license_members(): bool { // @phpstan-ignore method.unused (called through self::$steps)
 		return self::indexes_exist( array( 'license_members' => array( 'PRIMARY', 'token_hash', 'license_member', 'user_status', 'email_status', 'status_expires', 'invited_by' ) ) );
+	}
+
+	/**
+	 * Schema 27: `licenses.suspended_at`, the time a license became suspended.
+	 *
+	 * The shop may let a license that stayed suspended for a number of days count as ended for
+	 * the privacy eraser and for retention (License\EndedLicenses; off by default). That needs a
+	 * time that says since when. dbDelta adds the column. Licenses that are suspended at the
+	 * upgrade get the time of the upgrade: when they really were suspended is not stored
+	 * reliably, and the later date is the careful one (nothing counts as ended earlier than it
+	 * would with a known date). Idempotent: only rows without a time are filled.
+	 *
+	 * @return bool
+	 */
+	private static function step_27_suspended_at(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		global $wpdb;
+
+		$tables = self::table_names();
+		$exists = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+				$tables['licenses'],
+				'suspended_at'
+			)
+		);
+		if ( 1 !== $exists ) {
+			return false;
+		}
+
+		return false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET suspended_at = %s WHERE status = %s AND suspended_at IS NULL', $tables['licenses'], gmdate( 'Y-m-d H:i:s' ), 'suspended' ) );
 	}
 
 	/**

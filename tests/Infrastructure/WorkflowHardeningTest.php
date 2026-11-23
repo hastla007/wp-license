@@ -64,6 +64,43 @@ final class WorkflowHardeningTest extends TestCase {
 		$this->assertStringContainsString( 'git merge-base --is-ancestor "${GITHUB_SHA}" refs/remotes/origin/main', $release );
 	}
 
+	/**
+	 * A branch is tested once, through its pull request: pushes start a run only on main (and
+	 * on tags, for the release). A new commit cancels the run of the older commit of the same
+	 * pull request and nothing else; a cancelled run is not reported as a failed test.
+	 */
+	public function test_no_double_runs_and_only_superseded_pull_request_runs_are_cancelled(): void {
+		foreach ( self::workflows() as $name => $content ) {
+			$this->assertSame( 1, preg_match( '/^on:\n(.*?)\n(?=\S)/ms', $content, $on ), $name );
+			if ( 'release.yml' === $name ) {
+				$this->assertSame( "  push:\n    tags:\n      - \"v*\"", rtrim( $on[1] ), 'The release runs for version tags only.' );
+				$this->assertStringContainsString( "concurrency:\n  group: release-\${{ github.ref }}\n  cancel-in-progress: false\n", $content );
+				continue;
+			}
+			$this->assertSame( "  pull_request:\n  push:\n    branches: [main]\n  workflow_dispatch:", rtrim( $on[1] ), $name . ': pull requests, pushes to main, by hand. No push trigger for other branches.' );
+			$this->assertStringContainsString(
+				"concurrency:\n  group: \${{ github.workflow }}-\${{ github.event.pull_request.number || github.ref }}\n  cancel-in-progress: \${{ github.event_name == 'pull_request' }}\n",
+				$content,
+				$name . ': one run per pull request, never cancelled on main.'
+			);
+		}
+
+		$phpunit = self::workflows()['phpunit.yml'];
+		$this->assertStringContainsString( "  wordpress-integration:\n    if: \${{ !cancelled() }}\n    needs: integration\n", $phpunit, 'The summary reports failures, not cancelled runs.' );
+		$this->assertStringContainsString( 'if [ "${{ needs.integration.result }}" != "success" ]; then', $phpunit, 'Anything but success of the cells still fails the summary.' );
+		$this->assertSame( 0, substr_count( $phpunit, 'continue-on-error: true' ), 'No job hides its failure (only the experimental PHP cells, by expression).' );
+	}
+
+	public function test_dependabot_bundles_updates_per_ecosystem(): void {
+		$config = (string) file_get_contents( dirname( __DIR__, 2 ) . '/.github/dependabot.yml' );
+		$this->assertSame( 2, preg_match_all( '/^  - package-ecosystem: (github-actions|composer)$/m', $config, $ecosystems ) );
+		$this->assertSame( array( 'github-actions', 'composer' ), $ecosystems[1] );
+		$this->assertFileDoesNotExist( dirname( __DIR__, 2 ) . '/package.json', 'No npm ecosystem here; add it to dependabot.yml when that changes.' );
+		foreach ( array( 'interval: daily', 'time: "05:00"', 'timezone: Europe/Vienna', 'open-pull-requests-limit: 2', "      all:\n        patterns: [\"*\"]", "      security:\n        applies-to: security-updates\n        patterns: [\"*\"]" ) as $line ) {
+			$this->assertSame( 2, substr_count( $config, $line ), $line . ' (once per ecosystem)' );
+		}
+	}
+
 	public function test_the_package_build_runs_no_composer_plugin_or_script(): void {
 		$script = (string) file_get_contents( dirname( __DIR__, 2 ) . '/bin/build-zip.sh' );
 		preg_match_all( '/^\s*composer (?:install|dump-autoload|update) .*$/m', $script, $matches );

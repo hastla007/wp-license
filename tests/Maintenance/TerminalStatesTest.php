@@ -7,6 +7,7 @@
  */
 
 use PHPUnit\Framework\TestCase;
+use WPLC\License\EndedLicenses;
 use WPLC\License\LicenseStateMachine;
 use WPLC\Maintenance\Retention;
 use WPLC\Privacy\PersonalData;
@@ -32,13 +33,17 @@ final class TerminalStatesTest extends TestCase {
 	}
 
 	public function test_ended_states_exist_and_are_the_same_for_erasure_and_retention(): void {
-		$eraser    = ( new ReflectionClass( PersonalData::class ) )->getConstant( 'TERMINAL_STATES' );
-		$retention = ( new ReflectionClass( Retention::class ) )->getConstant( 'TERMINAL_STATES' );
+		$eraser = EndedLicenses::STATES;
 
 		$this->assertSame( array( 'expired', 'revoked' ), $eraser );
-		$this->assertSame( $eraser, $retention );
+		// One rule for both: neither class keeps a list of its own.
+		foreach ( array( PersonalData::class, Retention::class ) as $class ) {
+			$this->assertFalse( ( new ReflectionClass( $class ) )->hasConstant( 'TERMINAL_STATES' ), $class );
+			$this->assertStringContainsString( 'EndedLicenses::condition', (string) file_get_contents( (string) ( new ReflectionClass( $class ) )->getFileName() ) );
+		}
 		$this->assertSame( array(), array_values( array_diff( $eraser, self::reachable_states() ) ), 'A state no license can have (such as the renewal state "cancelled") is not listed.' );
-		// A suspended license can become active again (admin_restore), so it is not treated as ended.
+		// A suspended license can become active again (admin_restore), so it is not in the fixed list;
+		// the shop may let it count as ended after a number of days (setting, default 0 = never).
 		$this->assertNotContains( 'suspended', $eraser );
 		$this->assertContains( 'suspended', self::reachable_states() );
 		$this->assertNotContains( 'cancelled', self::reachable_states() );

@@ -830,7 +830,7 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertTrue( $first->is_entitled( 'feature.flag' ) );
 		$this->assertFalse( $second->is_entitled( 'feature.flag' ) );
 		$this->assertSame( LicenseStatus::STATE_UNLICENSED, $second->status()->state );
-		$this->assertSame( '2.2.0', LicenseManager::VERSION );
+		$this->assertSame( '2.3.0', LicenseManager::VERSION );
 		$this->assertSame( LicenseManager::VERSION, LicenseClient::VERSION );
 	}
 
@@ -1191,7 +1191,7 @@ final class LicenseManagerTest extends TestCase {
 		$this->assertSame( gmdate( 'Y-m-d H:i:s', $this->kit->now - 3600 + 14 * DAY_IN_SECONDS ) . ' UTC', $fields['offline_until']['debug'] );
 		$this->assertSame( 'production', $fields['environment']['debug'] );
 		$this->assertSame( 'license.example', $fields['server']['value'] );
-		$this->assertSame( '2.2.0', $fields['version']['value'] );
+		$this->assertSame( '2.3.0', $fields['version']['value'] );
 		$this->assertSame( substr( hash( 'sha256', base64_decode( $this->kit->server->public_key ) ), 0, 16 ), $fields['keys']['debug'] );
 		$this->assertContains( $fields['signature']['debug'], array( 'native', 'compat' ) );
 
