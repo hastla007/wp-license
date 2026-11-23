@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Added (23 Nov 2026: client library 2.4.0)
+
+- **Client library 2.4.0** (`packaging/client/CHANGELOG-CLIENT.md`), all optional, no action for add-ons: the customer may opt in to **beta versions** per site where the build allows it (`allow_channel_choice`; the box is shown while the signed answer does not exclude beta through `update_channels`), the **environment of an activation** can be corrected on the license screen when the detection is wrong (the server decides as before; the message says when and why a staging site counts as a live site), and **brand values** of the vendor (`brand`: support address, support page, placeholder of the key field), which `bin/export-client.php --support-email= --support-url= --key-placeholder=` writes into the exported copy.
+
 ### Added (23 Nov 2026: settings for the sale, part 2)
 
 More rules of the business become settings. As before, every default is the behaviour so far and every existing filter still decides last; nothing changes for an existing installation until a value is changed.

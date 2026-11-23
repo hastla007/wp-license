@@ -45,6 +45,8 @@ It runs the unchanged library without WordPress over real HTTPS: activate (as a 
 
 ## Getting the library into the add-on
 
+Since 2.4.0 the export script also takes the brand values of the vendor: `--support-email=support@example.com --support-url=https://example.com/support/ --key-placeholder='ACME-…'`. They are written into `LicenseManager::BUILD_BRAND` of the copy (the line marked `// wplc-export:brand`) and listed under `brand` in `wplc-client-source.json`; the setting `brand` still overrides them value by value. Without the options the line stays empty and the screen shows no support contact and the placeholder `WPLC-…`.
+
 Three add-ons can be active on one site, each with its own copy and possibly different versions. There are two ways to ship the copy.
 
 **Recommended: a copy with the add-on's own namespace.** Run the export script in the build of the add-on, or once, and commit the result:
@@ -59,7 +61,7 @@ It copies `src/Client/*.php`, replaces `namespace WPLC\Client;` by the given nam
 **Without the script: an unchanged copy.** Every class is declared inside `if ( ! class_exists( ... ) )`, so two add-ons with the same unchanged files do not end in "Cannot declare class". The limits of this way:
 
 - The copy that is loaded **first** is used by all add-ons, also when it is the older one. WordPress loads plugins in the alphabetical order of their folders.
-- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.3.0`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.3.0', '<' )`) and show a message; it cannot replace a class that is already declared.
+- Every class has a `VERSION` constant (`LicenseManager::VERSION`, currently `2.4.0`). An add-on that needs a newer copy than the one that won can only notice it (`version_compare( LicenseManager::VERSION, '2.4.0', '<' )`) and show a message; it cannot replace a class that is already declared.
 - The strings keep the text domain `wp-license`. They are translated through the `text_domain` setting only if the add-on's language files contain them; `make-pot` does not find them on its own.
 
 Use the unchanged copy for experiments only.
@@ -83,6 +85,13 @@ return array(
 	'server_url'  => defined( 'VOUCHER_CAPTAIN_PRO_LICENSE_SERVER' ) ? VOUCHER_CAPTAIN_PRO_LICENSE_SERVER : 'https://licenses.example.com',
 	'public_keys' => array( 'iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w=' ), // wp wplc signing-key --field=public_key
 	'account_url' => 'https://shop.example.com/my-account/licenses/',
+	// Since 2.4.0, optional: the brand of the vendor and the customer's choice of beta versions.
+	'brand'       => array(
+		'support_email'   => 'support@example.com',
+		'support_url'     => 'https://example.com/support/',
+		'key_placeholder' => 'WPLC-…',
+	),
+	'allow_channel_choice' => true,
 );
 ```
 
@@ -180,13 +189,15 @@ The add-on never reads the file at run time; it is for the shop. Import it there
 | `option_prefix` | | Prefix of options, hooks and form fields. |
 | `network` | | Multisite: one activation for the network. Default `false`. See [Multisite](#multisite). |
 | `update_uri` | | Value of the `Update URI` header; saves reading the plugin file (without it the header is read once per request and kept in memory). Recommended. |
-| `channel` | | `stable` (default) or `beta`. |
+| `channel` | | `stable` (default) or `beta`. `beta` makes every site of the build ask for beta versions; the customer cannot change it. |
+| `allow_channel_choice` | | Since 2.4.0: `true` offers the customer the checkbox "Receive beta versions" on the license screen (default off, stored per site in `{prefix}_license_channel`), while `channel` is `stable`. Shown while the verified signed answer does not exclude beta (`update_channels`, see [Updates](#updates)). Default `false`. |
 | `core_version` | | Version of the free core plugin, as a string or a closure. The server then holds back releases whose `requires_core` is higher. |
 | `settings_parent` | | Admin menu of the license screen. Default `options-general.php` (`settings.php` in network mode). `false`: no screen; call `render_settings()` inside the add-on's own page and set `settings_url`. |
 | `settings_url` | | Full admin address of the add-on's own page that calls `render_settings()` (for `settings_parent => false`). The form returns there after an action and notices link to it. Without it, `settings_url()` is empty: notices carry no link and the form returns to the page that sent it. The filter `{prefix}_license_settings_url` still applies. |
 | `capability` | | Who may manage the license. Default `manage_options` (`manage_network_options` in network mode). |
 | `account_url` | | Customer account of the shop; appended to the grace and expiry notices. |
 | `texts` | | Since 2.3.0: your own texts by code (an array code => text, or a callable returning one) in place of texts of the library, for a product whose license does not switch "premium features" on and off. The codes are the keys in `Messages.php`, for example `notice.expired` or `ui.access_until`. |
+| `brand` | | Since 2.4.0: brand values of the vendor, an array with `support_email` (support address), `support_url` (http(s) address of the support page) and `key_placeholder` (placeholder of the key field, default `WPLC-…`, at most 80 characters). The support contact is shown under the license screen and appended to the notices of a suspended or revoked license. Invalid values are ignored. Overrides the values that `bin/export-client.php` wrote into the copy (`LicenseManager::BUILD_BRAND`) value by value. |
 | `fallback_urls`, `rest_base` | | See above. |
 | `store`, `transport`, `clock` | | Test doubles: an `OptionStore`, a replacement for `wp_safe_remote_request()` (also used for the package download), a replacement for `time()`. |
 | `signature_verifier` | | Test double: replacement for `sodium_crypto_sign_verify_detached()`; `false` simulates a PHP without any Ed25519 implementation. |
@@ -313,6 +324,8 @@ Staging flow, as the customer sees it:
 
 A staging site set up from scratch needs the installation ID of the live site; it is shown on the license screen of the live site. Pass it as the third argument of `activate()`.
 
+**Choosing the environment on the license screen** (since 2.4.0). When `wp_get_environment_type()` is wrong (a staging copy without `WP_ENVIRONMENT_TYPE`, a live site that reports `staging`), the administrator corrects it for the activation under "Type of this site": "Detected automatically: …" is preselected (so the request is the same as before unless it is changed), then live site, staging site, development site, and for a staging site the field "Installation ID of the live site" (not shown on a copy, which takes the ID from the copied data). The section is collapsed while the detection says "live site" and open otherwise. The server decides as before (`src/Api/V1/ActivationService.php`): when it counts a staging request as a live site because the address does not belong to the live site, the form says so and why ("The license server counts it as a live site, not as a staging site, because …"), and a `409 site_limit` for such a request starts with the same explanation (`data.requested_environment: staging`). A staging request without the live site's ID on a site without any activation, or with an ID that is not a UUID, is stopped before the request with `wplc_staging_parent_missing`, whose text says where to find the ID. `LicenseClient::ENVIRONMENTS` lists the three values; an unknown value from the form means "detected".
+
 ### The same site under a new address
 
 A change of scheme (`http` → `https`), of a leading `www.` or of the case of the path is not a change; the comparison follows the server's rule for "the same site". The address is the stored `home` option of the site (network mode: domain and path of the network), read without the `home_url` filter: multilingual plugins with one domain per language (WPML, Polylang) and domain mapping plugins filter `home_url()` per request, and a second language domain must not count as a copy. After a real move to another domain the state is `site_changed`. The license screen then shows both addresses (activated for, address of this site) and offers "The site moved here: transfer the activation" (`move()`) behind a checkbox "I confirm that the site moved and no longer runs at …"; without the confirmation nothing is sent (`run_form_action( 'move', $key, $confirmed )`). The warning says that the site at the old address loses the license and that a staging copy should be activated for its own address instead. The activation request is then repeated with the stored installation ID and secret, and the server stores the new address instead of counting a second site. A staging site cannot move to a host that is unrelated to its live site (`staging_site_invalid`).
@@ -351,11 +364,13 @@ Use `network => true` for an add-on that is network-activated and licensed per i
 5. **Folder.** In `upgrader_source_selection` the unpacked folder must contain the main file of the add-on (otherwise `wplc_update_folder`); a different folder name is corrected.
 6. **Afterwards.** `upgrader_process_complete` forgets the cached feed.
 
+**Update channel** (since 2.4.0). `channel` of the update request is `LicenseManager::update_channel()`: `beta` when the build sets `channel => beta`, or when it allows the choice (`allow_channel_choice => true`) and the customer ticked "Receive beta versions" on this site; otherwise `stable`, as before. The checkbox appears on the license screen of an activated site (not on a copy) while the verified signed entitlement answer does not exclude beta: a server that limits beta per license sends the list of channels the license may use in `update_channels` (for example `["stable"]`; planned on the server with SET-LIC-20); a server without that field gives beta to every client that asks, so the box is shown. A site that chose beta keeps the box so it can switch back. The choice is stored per site in `{prefix}_license_channel` (a network option in network mode; with per-site activations on a network the update check uses the choice of the site whose credentials it uses), changing it drops the cached update offer, and `uninstall()` removes it. Switching back to stable installs no older version; the next stable version that is newer than the installed one is offered. Asking for beta never unlocks more than the license covers: the server decides what a beta request returns. Methods: `update_channel()`, `beta_chosen()`, `offers_channel_choice()`, `choose_beta( bool )` (`wplc_beta_unavailable` when there is no choice, `wplc_setting_not_saved` when the database refused the value).
+
 A license without access still sees that a version exists: the server answers signed `license_active: false` with a `reason`. The entry then has no package, WordPress shows "automatic update is unavailable", and the updater adds the reason in the plugin row (`in_plugin_update_message-{file}`) with a link to the license screen. A version that is held back because of `requires_php`, `requires_wp` or `requires_core` is explained the same way. Without an activation, and on a copy of the site, the updater sends nothing.
 
 ## Screen, notices, daily check
 
-- **License screen:** status (with the reason of a `stale` state), paid until, sites in use, environment with the installation ID, last check, last error; a key field with "Activate"; "Check now"; "Remove license from this site" behind the checkbox "I confirm that this site gives up its license …" (since 2.1.0). The key and the installation secret are never printed. The form posts to `admin-post.php` (action `{prefix}_license`) with a nonce and the capability check.
+- **License screen:** status (with the reason of a `stale` state), paid until, sites in use, environment with the installation ID, last check, last error; a key field with "Activate"; "Check now"; "Remove license from this site" behind the checkbox "I confirm that this site gives up its license …" (since 2.1.0). Since 2.4.0 also: the row "Updates" and the checkbox "Receive beta versions" with its own button (with `allow_channel_choice`), "Type of this site" next to the key field, and the support contact of the brand under the form ("Help with the license: …"); the key field shows `key_placeholder`. The key and the installation secret are never printed. The form posts to `admin-post.php` (action `{prefix}_license`) with a nonce and the capability check.
 - **Site Health** (since 2.1.0): `register()` adds a section "{name} – License" under Tools → Site Health → Info (filter `debug_information`, method `debug_information()`): state and reason, last successful check, last error with code and time, end of the offline window, environment, the first eight characters of the installation ID, the host of the license server, how signatures are checked (PHP sodium extension, `sodium_compat`, or not at all), fingerprints of the pinned keys (first 16 hex characters of their SHA-256) and the library version. Never the license key (it is not stored), the installation secret, its hash or the snapshot. Each field has a `debug` value in English for "Copy site info to clipboard".
 - **Site Health test "License check"** (since 2.1.1): `register()` also adds a direct test `{prefix}_license_check` under Tools → Site Health → Status (filter `site_status_tests`, methods `site_status_tests()` and `site_health_test()`), as long as the add-on is configured and this site holds an activation or a signed answer released it. Result *good* while the last successful check is at most 36 hours old (`LicenseManager::CATCH_UP_AFTER`) and nothing failed since; *recommended* when the last check failed, the check is overdue, the server no longer knows the activation, the site address changed, or less than three days of the signed offline window are left (`LicenseManager::HEALTH_LOW_WINDOW`); *critical* when the snapshot is `stale` (also with reason `clock_ahead`) or a signed answer released the activation. The description names the dates, the error text and the host of the license server and links to the license screen; never the key, the secret or the snapshot.
 - **Notices** for `grace`, `expired`, `suspended`, `revoked`, `inactive`, `deactivated`, `site_changed`, `stale`, `misconfigured`, for "the server no longer knows this site" and for a server that could not be reached for more than three days (with the date at which the features stop). The hint for a site without a license appears on the dashboard and the plugin list only.
@@ -377,11 +392,11 @@ Hooks (the prefix is the option prefix of the add-on):
 ### The license form and `run_form_action()`
 
 ```php
-public function run_form_action( string $action, string $license_key = '', bool $confirmed = false ): array
+public function run_form_action( string $action, string $license_key = '', bool $confirmed = false, array $options = array() ): array
 // returns array( 'type' => 'success'|'error', 'text' => string )
 ```
 
-`$action` is `activate`, `move`, `deactivate`, `forget` or `check` (anything else checks). `$confirmed` is the administrator's confirmation:
+`$action` is `activate`, `move`, `deactivate`, `forget`, `channel` (since 2.4.0) or `check` (anything else checks). `$options` (since 2.4.0, optional): `environment` (`production`, `staging`, `development`; empty or unknown = detected) and `staging_parent` (installation ID of the live site) for `activate`, `beta` (bool) for `channel`. `handle_settings_form()` reads them from the fields `wplc_environment`, `wplc_staging_parent` and `wplc_beta`. `$confirmed` is the administrator's confirmation:
 
 - `move`: the site moved and the old address loses the license (checkbox `wplc_confirm_move`). Unchanged.
 - `deactivate` (**new in 2.1.0**): this site gives up its license (checkbox `wplc_confirm_deactivate`). Without `$confirmed = true` nothing is sent and the result is `type: error` with the text "Nothing was removed. Confirm that this site gives up its license before you remove it." This applies whenever the release would reach the server, i.e. the site is activated and runs under its activated address. On a copy of the site (`site_changed`) `deactivate` only removes the copied data and needs no confirmation, as before.
@@ -417,6 +432,8 @@ All texts live in `Messages.php` with their English source. After the export the
 **No translation before `init`** (since 2.1.0). WordPress 6.7 and later report "Translation loading for the … domain was triggered too early" when a translation is requested before `init`. Feature checks (`is_entitled()`, `status()`) build no text at all. Errors that the library creates before `init` (for example `wplc_not_activated` from `refresh()` on `plugins_loaded`) carry their **code as message**; `Messages::ready()` tells whether texts may be built. Show errors with `LicenseManager::error_text( $error )`, which looks the text up when it is shown, instead of `get_error_message()`. After `init` both give the same text.
 
 New texts in 2.1.0 (keys in `Messages.php`; to translate in the add-on): `reason.clock_ahead`, `notice.stale_clock_ahead`, `ui.deactivate_confirm`, `ui.deactivate_unconfirmed`, `ui.reason`, `debug.offline_until`, `debug.installation`, `debug.server`, `debug.signature`, `debug.signature.native`, `debug.signature.compat`, `debug.signature.none`, `debug.keys`, `debug.version`, `debug.none`.
+
+New texts in 2.4.0 (environment, update channel, brand): `error.wplc_staging_parent_missing`, `error.wplc_beta_unavailable`, `error.wplc_setting_not_saved`, `notice.support`, `ui.site_type`, `ui.site_type.detected`, `ui.site_type_help`, `ui.staging_parent`, `ui.saved.activated_as_live`, `ui.staging_counted_as_live`, `ui.channel`, `ui.channel.stable`, `ui.channel.beta`, `ui.beta`, `ui.beta_help`, `ui.save_channel`, `ui.saved.channel_beta`, `ui.saved.channel_stable`, `ui.support`.
 
 New texts in 2.1.1 (Site Health test "License check"): `health.good`, `health.failing`, `health.overdue`, `health.running_low`, `health.site_changed`, `health.stale`, `health.locked`, `health.good_text`, `health.failing_text`, `health.overdue_text`.
 

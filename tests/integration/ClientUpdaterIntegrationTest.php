@@ -513,6 +513,32 @@ final class ClientUpdaterIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$this->assertSame( 'untouched', $updater->filter_plugin_information( 'untouched', 'query_plugins', (object) array( 'slug' => 'wplc-client-it' ) ) );
 	}
 
+	/** SET-LIC-33 (client 2.4.0): the customer's choice of beta versions reaches the real server. */
+	public function test_set_lic33_beta_by_choice_of_the_customer_gets_the_beta_release(): void {
+		$this->addon();
+		$this->publish( '1.1.0' );
+		$this->publish( '1.2.0-beta1', array( 'channel' => 'beta' ) );
+
+		// Same add-on, built with the choice switched on.
+		$manager = $this->manager( '1.0.0', array( 'allow_channel_choice' => true ) );
+		$updater = $manager->updater();
+		$this->assertTrue( $manager->offers_channel_choice(), 'The real server sends no update_channels: beta for every client that asks.' );
+		$this->assertSame( '1.1.0', $updater->metadata( true )['version'], 'Default off: stable only.' );
+		$this->assertSame( 'stable', end( $this->http_log )['body']['channel'] );
+
+		$this->assertSame( 'success', $manager->run_form_action( 'channel', '', false, array( 'beta' => true ) )['type'] );
+		$this->http_log = array();
+		$this->assertSame( '1.2.0-beta1', $updater->metadata()['version'], 'The choice drops the cached offer.' );
+		$this->assertSame( 'beta', end( $this->http_log )['body']['channel'] );
+
+		$manager->run_form_action( 'channel', '', false, array( 'beta' => false ) );
+		$this->assertSame( '1.1.0', $updater->metadata()['version'] );
+
+		// Without allow_channel_choice the stored choice does not count.
+		$manager->choose_beta( true );
+		$this->assertSame( '1.1.0', $this->manager()->updater()->metadata( true )['version'] );
+	}
+
 	public function test_updater_is_silent_without_activation_and_on_a_copy_of_the_site(): void {
 		$this->install_plugin( '1.0.0' );
 		$manager = $this->manager();

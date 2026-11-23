@@ -40,7 +40,7 @@ It covers section "B. Premium-Add-on" (B1–B11) of the core plugins' TODO.md. E
 | `Config::SERVER_URL`, `Update URI` | HTTPS URL of the shop running WP License Captain | | | |
 | `Config::SERVER_PUBLIC_KEYS` | pinned Ed25519 key(s) of the server | output of `wp wplc signing-key --field=public_key` on the license server | | |
 
-Owner decision of 16 Nov 2026 for all Captain plugins (MINVER-1): the minimum is the newest PHP version, 8.5, and the vendored license client (2.3.0; PHP 8.5 since 2.2.0) needs it. The starter therefore declares `Requires PHP: 8.5`; keep `Requires PHP` and `Config::MIN_PHP` equal to the core plugin's minimum and never below 8.5.
+Owner decision of 16 Nov 2026 for all Captain plugins (MINVER-1): the minimum is the newest PHP version, 8.5, and the vendored license client (2.4.0; PHP 8.5 since 2.2.0) needs it. The starter therefore declares `Requires PHP: 8.5`; keep `Requires PHP` and `Config::MIN_PHP` equal to the core plugin's minimum and never below 8.5.
 
 Owner decision of 17 Nov 2026, also for all Captain plugins, add-ons and connectors: WordPress 7.0 and WooCommerce 11.2.2 are the minimums. The starter declares `Requires at least: 7.0`; never lower it. An add-on that needs WooCommerce declares `WC requires at least: 11.2.2` or the core plugin's higher minimum.
 

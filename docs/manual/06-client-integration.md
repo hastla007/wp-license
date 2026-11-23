@@ -143,13 +143,15 @@ To rotate the server key: ship an add-on version that lists the old **and** the 
 | `option_prefix` | | Prefix of options, hooks and form fields. |
 | `network` | | Multisite: one activation for the whole network. Default `false`. |
 | `update_uri` | | Value of the `Update URI` header; saves reading the plugin file. Recommended. |
-| `channel` | | `stable` (default) or `beta`. |
+| `channel` | | `stable` (default) or `beta`. `beta` makes every site of the build ask for beta versions; the customer cannot change it. |
+| `allow_channel_choice` | | Since 2.4.0: `true` offers the customer the checkbox "Receive beta versions" on the license screen (default off, stored per site in `{prefix}_license_channel`), while `channel` is `stable`. Shown while the verified signed answer does not exclude beta (`update_channels`, see "Updates"). Default `false`. |
 | `core_version` | | Version of your free core plugin (string or closure); the server then holds back releases whose `requires_core` is higher. |
 | `settings_parent` | | Admin menu of the license screen. Default `options-general.php` (`settings.php` in network mode). `false`: no screen; call `render_settings()` in your own page and set `settings_url`. |
 | `settings_url` | | Admin address of your own page that calls `render_settings()`. |
 | `capability` | | Who may manage the license. Default `manage_options` (`manage_network_options` in network mode). |
 | `account_url` | | Customer account of your shop; appended to the grace and expiry notices. |
 | `texts` | | Since 2.3.0: your own texts by code (an array code => text, or a callable returning one) in place of texts of the library, for a product whose license does not switch "premium features" on and off. The codes are the keys in `Messages.php`, for example `notice.expired` or `ui.access_until`. |
+| `brand` | | Since 2.4.0: brand values of the vendor, an array with `support_email` (support address), `support_url` (http(s) address of the support page) and `key_placeholder` (placeholder of the key field, default `WPLC-…`, at most 80 characters). The support contact is shown under the license screen and appended to the notices of a suspended or revoked license. Invalid values are ignored. Overrides the values that `bin/export-client.php` wrote into the copy (`LicenseManager::BUILD_BRAND`) value by value. |
 | `fallback_urls`, `rest_base` | | See "The server address". |
 
 ## Methods of the facade
@@ -198,6 +200,7 @@ All dates of `LicenseStatus` are UTC (`Y-m-d H:i:s`).
 
 - Activation with the same key on an activated site reuses the activation; a new site slot is only used when the server says the installation is unknown. The license key is sent once and never stored.
 - The environment is derived from `wp_get_environment_type()`: `staging` → `staging`; `local` and `development` → `development`; everything else → `production`. The server accepts `development` only on local addresses and counts a `staging` request on an implausible host as a live site.
+- **Wrong detection** (since 2.4.0): under "Type of this site" on the license screen the administrator chooses live, staging or development for the activation (preselected: "Detected automatically"), for a staging site with the installation ID of its live site. The server decides as before; when it counts a staging site as a live site, the message says why. Own forms pass `array( 'environment' => …, 'staging_parent' => … )` as the fourth argument of `run_form_action( 'activate', $key, false, $options )`.
 - **Staging:** a live site has one free staging site. When a site is copied, the copy notices the address change (`site_changed`), switches premium features off and sends **nothing** with the copied credentials. The administrator enters the key on the copy; with `WP_ENVIRONMENT_TYPE=staging` it becomes the free staging site of the live site.
 - **Moved site:** after a real domain move the license screen offers "The site moved here: transfer the activation" behind a confirmation checkbox.
 - **Deactivation** on the license screen also needs a confirmation checkbox ("I confirm that this site gives up its license …"). Own forms pass the confirmation as the third argument of `run_form_action( 'deactivate', '', $confirmed )`.
@@ -218,6 +221,8 @@ Use `network => true` for an add-on that is network-activated and licensed per W
 ## Updates
 
 `register()` hooks the updater when the add-on has a usable `Update URI`. It checks for updates during the WordPress update check (cached for twelve hours), fills "View details" with the changelog, fetches a fresh one-time link right before the download, accepts only HTTPS (also on redirects) up to 100 MB (filter `{prefix}_license_max_package_bytes`), compares the SHA-256 with the signed value and makes sure the unpacked folder contains the add-on's main file. A license without access sees that a version exists, with the reason in the plugin row and a link to the license screen.
+
+Beta versions (since 2.4.0): with `allow_channel_choice => true` the customer ticks "Receive beta versions" on the license screen (default off, per site); the update check then asks for `channel: beta`. The box is shown while the signed answer of the server does not exclude beta (`update_channels`). `channel => beta` in the build still makes every site ask for beta.
 
 ## Screen, notices, daily check, hooks
 

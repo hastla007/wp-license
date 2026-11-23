@@ -32,7 +32,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.3.0';
+		const VERSION = '2.4.0';
 
 		/**
 		 * Context of the Ed25519 signature over the payload text.
@@ -50,6 +50,11 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * Seconds a pending activation (UUID and secret stored before the request) is reused.
 		 */
 		const PENDING_LIFETIME = 86400;
+
+		/**
+		 * Environments the license server knows (API v1, `environment` of an activation), since 2.4.0 as a constant.
+		 */
+		const ENVIRONMENTS = array( 'production', 'staging', 'development' );
 
 		/**
 		 * Base URLs of the REST API (primary first), without trailing slash.
@@ -400,6 +405,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 *
 		 * `wp_get_environment_type()` "staging" becomes `staging`, "local" and
 		 * "development" become `development`, everything else `production`.
+		 * When the detection is wrong, the license screen lets the administrator
+		 * choose one of ENVIRONMENTS for the activation (since 2.4.0).
 		 *
 		 * @return string
 		 */

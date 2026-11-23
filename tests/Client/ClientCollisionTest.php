@@ -46,7 +46,7 @@ final class ClientCollisionTest extends TestCase {
 		$copy   = $this->temp_dir();
 		foreach ( (array) glob( $source . '/*.php' ) as $file ) {
 			// The second add-on ships an older copy of the same classes.
-			file_put_contents( $copy . '/' . basename( $file ), str_replace( "const VERSION = '2.3.0';", "const VERSION = '1.9.0';", (string) file_get_contents( $file ) ) );
+			file_put_contents( $copy . '/' . basename( $file ), str_replace( "const VERSION = '2.4.0';", "const VERSION = '1.9.0';", (string) file_get_contents( $file ) ) );
 		}
 
 		list( $status, $output ) = $this->run_php(
@@ -55,7 +55,7 @@ final class ClientCollisionTest extends TestCase {
 			'echo \WPLC\Client\LicenseClient::VERSION, " ", \WPLC\Client\LicenseManager::VERSION, " ", \WPLC\Client\Updater::VERSION, " ", \WPLC\Client\OptionStore::VERSION, " ", \WPLC\Client\Messages::VERSION, " ", \WPLC\Client\LicenseStatus::VERSION;'
 		);
 		$this->assertSame( 0, $status, $output );
-		$this->assertSame( '2.3.0 2.3.0 2.3.0 2.3.0 2.3.0 2.3.0', $output );
+		$this->assertSame( '2.4.0 2.4.0 2.4.0 2.4.0 2.4.0 2.4.0', $output );
 
 		// Loaded in the other order the older copy wins: this is the documented limit of the guard.
 		list( $status, $output ) = $this->run_php(
@@ -106,6 +106,41 @@ final class ClientCollisionTest extends TestCase {
 		// Wrong arguments end with an error instead of a half-written copy.
 		exec( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( $script ) . ' --target=' . escapeshellarg( $this->temp_dir() ) . ' --namespace=' . escapeshellarg( 'WPLC\\Client' ) . ' --text-domain=x 2>&1', $output, $status );
 		$this->assertSame( 2, $status );
+	}
+
+	/** SET-LIC-35 (2.4.0): the export script writes the vendor's brand values into the copy. */
+	public function test_set_lic35_export_script_sets_the_brand_values_of_the_vendor(): void {
+		$script = dirname( __DIR__, 2 ) . '/bin/export-client.php';
+		$target = $this->temp_dir();
+		$base   = escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( $script ) . ' --target=' . escapeshellarg( $target ) . ' --namespace=' . escapeshellarg( 'VendorPro\\Licensing' ) . ' --text-domain=vendor-pro';
+
+		exec( $base . ' --support-email=help@vendor.example --support-url=' . escapeshellarg( 'https://vendor.example/support' ) . ' --key-placeholder=' . escapeshellarg( "VEND-…'s key" ) . ' 2>&1', $output, $status );
+		$this->assertSame( 0, $status, implode( "\n", $output ) );
+		$record = json_decode( (string) file_get_contents( $target . '/wplc-client-source.json' ), true );
+		$this->assertSame( array( 'support_email' => 'help@vendor.example', 'support_url' => 'https://vendor.example/support', 'key_placeholder' => "VEND-…'s key" ), $record['brand'] );
+
+		list( $status, $output ) = $this->run_php(
+			'require ' . var_export( $target . '/load.php', true ) . ";\n" .
+			'echo json_encode( \VendorPro\Licensing\LicenseManager::BUILD_BRAND, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ), "\n";' . "\n" .
+			'$m = new \VendorPro\Licensing\LicenseManager( array( "product_key" => "vendor-pro", "brand" => array( "support_url" => "https://other.example/help" ) ) );' . "\n" .
+			'echo json_encode( $m->brand(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );'
+		);
+		$this->assertSame( 0, $status, $output );
+		$this->assertSame(
+			'{"support_email":"help@vendor.example","support_url":"https://vendor.example/support","key_placeholder":"VEND-…\'s key"}' . "\n" .
+			'{"support_email":"help@vendor.example","support_url":"https://other.example/help","key_placeholder":"VEND-…\'s key"}',
+			$output,
+			'The setting `brand` of the add-on overrides the build value by value.'
+		);
+
+		// Without brand values the copy keeps the empty line; wrong values end with an error.
+		exec( $base . ' 2>&1', $output, $status );
+		$this->assertSame( 0, $status );
+		$this->assertStringContainsString( 'const BUILD_BRAND = array(); // wplc-export:brand', (string) file_get_contents( $target . '/LicenseManager.php' ) );
+		foreach ( array( '--support-email=nobody', '--support-url=' . escapeshellarg( 'javascript:alert(1)' ), '--key-placeholder=' . str_repeat( 'x', 81 ) ) as $wrong ) {
+			exec( $base . ' ' . $wrong . ' 2>&1', $output, $status );
+			$this->assertSame( 2, $status, $wrong );
+		}
 	}
 
 	public function test_library_has_no_dependency_on_the_server_or_on_woocommerce(): void {

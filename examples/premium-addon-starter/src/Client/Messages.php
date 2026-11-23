@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 b1a240f4418618a5329f3f372ed1cb09c5e3c079f0ee91ac4f6c46a631f5def9). Do not edit: change the server copy and re-vendor.
+ * (source sha256 ae4c34f14c66140e5ba04a8459371a02ee1a1daf9215ba8154fc0956c78972e0). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -33,7 +33,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.3.0';
+		const VERSION = '2.4.0';
 
 		/**
 		 * Text domain literal used in this file.
@@ -194,6 +194,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'error.wplc_product_mismatch'         => __( 'The answer of the license server is for another product and was ignored.', 'premium-addon-starter' ),
 				'error.wplc_response_stale'           => __( 'The answer of the license server is older than one already received and was ignored.', 'premium-addon-starter' ),
 				'error.wplc_ed25519_unavailable'      => __( 'This web server cannot check the signature of the license server (the PHP sodium functions are missing). Premium features stay off until PHP provides them.', 'premium-addon-starter' ),
+				// Since 2.4.0: environment and update channel chosen on the license screen.
+				'error.wplc_staging_parent_missing'   => __( 'For a staging site, enter the installation ID of its live site. It is shown on the license screen of the live site, next to "Environment".', 'premium-addon-starter' ),
+				'error.wplc_beta_unavailable'         => __( 'Beta versions are not available for this license.', 'premium-addon-starter' ),
+				'error.wplc_setting_not_saved'        => __( 'The setting could not be stored in the database of this site. Check the database and try again.', 'premium-addon-starter' ),
 				// Errors of the license server (docs/API-V1.md, "Error codes").
 				'error.invalid_activation'            => __( 'The activation request was rejected as incomplete. Check the license key.', 'premium-addon-starter' ),
 				'error.invalid_key'                   => __( 'This license key is unknown. Please check it for typing errors.', 'premium-addon-starter' ),
@@ -264,6 +268,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				/* translators: %s: name of the add-on. */
 				'notice.update_uri_missing'           => __( '%s: the plugin header "Update URI" is missing, so updates cannot be delivered. Please report this to the vendor.', 'premium-addon-starter' ),
 				'notice.open_settings'                => __( 'Open license settings', 'premium-addon-starter' ),
+				/* translators: %s: e-mail address and/or web address of the vendor's support. */
+				'notice.support'                      => __( 'Support: %s', 'premium-addon-starter' ),
 				// Settings screen.
 				'ui.title'                            => __( 'License', 'premium-addon-starter' ),
 				'ui.license_key'                      => __( 'License key', 'premium-addon-starter' ),
@@ -306,6 +312,23 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'ui.reason'                           => __( 'Reason', 'premium-addon-starter' ),
 				'ui.forbidden'                        => __( 'You are not allowed to manage the license of this plugin.', 'premium-addon-starter' ),
 				'ui.utc'                              => __( 'UTC', 'premium-addon-starter' ),
+				// Since 2.4.0: environment of the activation, update channel, support contact.
+				'ui.site_type'                        => __( 'Type of this site', 'premium-addon-starter' ),
+				/* translators: %s: detected type of the site, e.g. "Live site". */
+				'ui.site_type.detected'               => __( 'Detected automatically: %s', 'premium-addon-starter' ),
+				'ui.site_type_help'                   => __( 'Change this only if the detection is wrong. The license server decides by its own rules: a staging site counts as a live site unless its address belongs to its live site (the same domain, a local address or a staging domain of a host), and a development site needs a local address.', 'premium-addon-starter' ),
+				'ui.staging_parent'                   => __( 'Installation ID of the live site (staging site only)', 'premium-addon-starter' ),
+				'ui.saved.activated_as_live'          => __( 'The license was activated for this site. The license server counts it as a live site, not as a staging site, because its address does not belong to the live site of this license (the same domain, a local address or a staging domain of a host).', 'premium-addon-starter' ),
+				'ui.staging_counted_as_live'          => __( 'This site was to be activated as a staging site, but its address does not belong to the live site of this license, so the license server counts it as a further live site.', 'premium-addon-starter' ),
+				'ui.channel'                          => __( 'Updates', 'premium-addon-starter' ),
+				'ui.channel.stable'                   => __( 'Stable versions', 'premium-addon-starter' ),
+				'ui.channel.beta'                     => __( 'Beta and stable versions', 'premium-addon-starter' ),
+				'ui.beta'                             => __( 'Receive beta versions', 'premium-addon-starter' ),
+				'ui.beta_help'                        => __( 'Beta versions are test versions before a release and may contain errors; try them on a staging site first. Switching back installs no older version: the next stable version newer than the installed one is offered.', 'premium-addon-starter' ),
+				'ui.save_channel'                     => __( 'Save update setting', 'premium-addon-starter' ),
+				'ui.saved.channel_beta'               => __( 'This site now receives beta versions.', 'premium-addon-starter' ),
+				'ui.saved.channel_stable'             => __( 'This site now receives stable versions only.', 'premium-addon-starter' ),
+				'ui.support'                          => __( 'Help with the license', 'premium-addon-starter' ),
 				// Site Health → Info.
 				'debug.offline_until'                 => __( 'Offline period ends', 'premium-addon-starter' ),
 				'debug.installation'                  => __( 'Installation ID (shortened)', 'premium-addon-starter' ),

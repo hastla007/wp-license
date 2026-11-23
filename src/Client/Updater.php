@@ -39,7 +39,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.3.0';
+		const VERSION = '2.4.0';
 
 		/**
 		 * Seconds a successful check is cached.
@@ -193,10 +193,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 				return (array) $cached['data'];
 			}
 
-			$fields = $this->request_fields();
-			$data   = $this->as_source(
-				static function () use ( $client, $fields ) {
-					return $client->check_update( false, $fields );
+			// The fields are read on the site whose credentials ask (its channel choice, since 2.4.0).
+			$data = $this->as_source(
+				function () use ( $client ) {
+					return $client->check_update( false, $this->request_fields() );
 				}
 			);
 			$offer_until = 0;
@@ -529,10 +529,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 			}
 			$messages = $this->manager->client()->messages();
 			$client   = $this->manager->client();
-			$fields   = $this->request_fields();
 			$update   = $this->as_source(
-				static function () use ( $client, $fields ) {
-					return $client->check_update( true, $fields );
+				function () use ( $client ) {
+					return $client->check_update( true, $this->request_fields() );
 				}
 			);
 			if ( null === $update ) {
@@ -803,6 +802,9 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 		/**
 		 * Optional fields of the update request.
 		 *
+		 * `channel` is LicenseManager::update_channel() since 2.4.0: `stable` unless the build sets `beta`
+		 * or the customer chose beta versions where the build allows it.
+		 *
 		 * @return array<string,string>
 		 */
 		private function request_fields(): array {
@@ -812,7 +814,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Updater', false ) ) {
 			}
 
 			return array(
-				'channel'      => 'beta' === $this->manager->config( 'channel' ) ? 'beta' : 'stable',
+				'channel'      => $this->manager->update_channel(),
 				'core_version' => is_string( $core ) ? $core : '',
 			);
 		}

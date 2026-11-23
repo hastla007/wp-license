@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/LicenseClient.php
- * (source sha256 6ae4f246ad85dde35112c000b8c71315ec6413d888e31770bd447b6b507036cc). Do not edit: change the server copy and re-vendor.
+ * (source sha256 a0e353dcf2c071b2bee8fa8c55e4e37479bb050c3f9f63fb1a4008e384db6277). Do not edit: change the server copy and re-vendor.
  *
  * Transport of the license client: activation, signed requests, verified answers.
  *
@@ -35,7 +35,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.3.0';
+		const VERSION = '2.4.0';
 
 		/**
 		 * Context of the Ed25519 signature over the payload text.
@@ -53,6 +53,11 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 * Seconds a pending activation (UUID and secret stored before the request) is reused.
 		 */
 		const PENDING_LIFETIME = 86400;
+
+		/**
+		 * Environments the license server knows (API v1, `environment` of an activation), since 2.4.0 as a constant.
+		 */
+		const ENVIRONMENTS = array( 'production', 'staging', 'development' );
 
 		/**
 		 * Base URLs of the REST API (primary first), without trailing slash.
@@ -403,6 +408,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		 *
 		 * `wp_get_environment_type()` "staging" becomes `staging`, "local" and
 		 * "development" become `development`, everything else `production`.
+		 * When the detection is wrong, the license screen lets the administrator
+		 * choose one of ENVIRONMENTS for the activation (since 2.4.0).
 		 *
 		 * @return string
 		 */
