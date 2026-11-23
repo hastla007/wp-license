@@ -111,7 +111,7 @@ final class Retention {
 	 *
 	 * @var string[]
 	 */
-	private const TERMINAL_STATES = array( 'expired', 'revoked', 'cancelled' );
+	private const TERMINAL_STATES = array( 'expired', 'revoked' );
 
 	/**
 	 * Inbox outcomes that still need work. They are kept beyond `event_inbox` and only fall under `event_inbox_open`.
@@ -447,11 +447,10 @@ final class Retention {
 			case 'consents':
 				$result = $wpdb->query(
 					$wpdb->prepare(
-						"DELETE FROM {$tables['consents']} WHERE id IN ( SELECT id FROM ( SELECT c.id FROM {$tables['consents']} c LEFT JOIN {$tables['licenses']} l ON l.id = c.license_id WHERE c.consent_at < %s AND ( l.id IS NULL OR l.status IN (%s,%s,%s) ) ORDER BY c.id ASC LIMIT %d ) batch )",
+						"DELETE FROM {$tables['consents']} WHERE id IN ( SELECT id FROM ( SELECT c.id FROM {$tables['consents']} c LEFT JOIN {$tables['licenses']} l ON l.id = c.license_id WHERE c.consent_at < %s AND ( l.id IS NULL OR l.status IN (%s,%s) ) ORDER BY c.id ASC LIMIT %d ) batch )",
 						$cutoff,
 						self::TERMINAL_STATES[0],
 						self::TERMINAL_STATES[1],
-						self::TERMINAL_STATES[2],
 						self::BATCH_SIZE
 					)
 				);
@@ -485,7 +484,7 @@ final class Retention {
 		global $wpdb;
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- table names and one %d per ID.
-		$license_condition = $ended ? 'l.status IN (%s,%s,%s)' : '( l.id IS NULL OR l.status NOT IN (%s,%s,%s) )';
+		$license_condition = $ended ? 'l.status IN (%s,%s)' : '( l.id IS NULL OR l.status NOT IN (%s,%s) )';
 		// Anti-join instead of NOT EXISTS (T-89): MariaDB materialized the subquery by
 		// scanning every activation; the LEFT JOIN looks children up in staging_parent.
 		$ids               = $wpdb->get_col(
@@ -496,7 +495,6 @@ final class Retention {
 				$cutoff,
 				self::TERMINAL_STATES[0],
 				self::TERMINAL_STATES[1],
-				self::TERMINAL_STATES[2],
 				self::BATCH_SIZE
 			)
 		);
@@ -507,17 +505,18 @@ final class Retention {
 
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 
-		// Replay-protection rows of a deleted installation have no further use.
-		$wpdb->query(
-			$wpdb->prepare( "DELETE FROM {$tables['request_nonces']} WHERE activation_id IN ({$placeholders})", $ids )
-		);
-
 		// The status and date conditions are repeated so a row reactivated in between is kept.
 		$result = $wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$tables['activations']} WHERE id IN ({$placeholders}) AND status <> %s AND deactivated_at IS NOT NULL AND deactivated_at < %s",
 				array_merge( $ids, array( 'active', $cutoff ) )
 			)
+		);
+
+		// Replay-protection rows of a deleted installation have no further use. Only after the
+		// installation is gone: one that was reactivated in between keeps its used nonces.
+		$wpdb->query(
+			$wpdb->prepare( "DELETE n FROM {$tables['request_nonces']} n LEFT JOIN {$tables['activations']} a ON a.id = n.activation_id WHERE n.activation_id IN ({$placeholders}) AND a.id IS NULL", $ids )
 		);
 		// phpcs:enable
 
@@ -550,7 +549,7 @@ final class Retention {
 			$after   = isset( self::$ended_cursor[ $kind ] ) ? self::$ended_cursor[ $kind ] : 0;
 			$staging = 'live' === $kind ? 'IS NULL' : 'IS NOT NULL';
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- only the fixed "IS [NOT] NULL" above is interpolated.
-			$sql   = "SELECT a.id FROM %i a INNER JOIN %i l ON l.id = a.license_id WHERE a.status = %s AND a.staging_parent_id {$staging} AND a.id > %d AND ( l.status = %s OR ( l.status IN (%s,%s) AND l.paid_until IS NOT NULL AND l.paid_until < %s ) ) ORDER BY a.id ASC LIMIT %d";
+			$sql   = "SELECT a.id FROM %i a INNER JOIN %i l ON l.id = a.license_id WHERE a.status = %s AND a.staging_parent_id {$staging} AND a.id > %d AND ( l.status = %s OR ( l.status = %s AND l.paid_until IS NOT NULL AND l.paid_until < %s ) ) ORDER BY a.id ASC LIMIT %d";
 			$found = $wpdb->get_col(
 				$wpdb->prepare(
 					$sql, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- built above from constants only.
@@ -560,7 +559,6 @@ final class Retention {
 					$after,
 					'revoked',
 					'expired',
-					'cancelled',
 					$cutoff,
 					$need
 				)
@@ -600,10 +598,9 @@ final class Retention {
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- only table names are interpolated.
 		$ids = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT l.id FROM {$tables['licenses']} l WHERE l.status IN (%s,%s,%s) AND COALESCE( l.revoked_at, l.paid_until, l.updated_at ) < %s AND l.updated_at < %s AND ( l.customer_id > 0 OR l.payment_token_id > 0 OR EXISTS ( SELECT 1 FROM {$tables['activations']} a WHERE a.license_id = l.id ) ) ORDER BY l.id ASC LIMIT %d",
+				"SELECT l.id FROM {$tables['licenses']} l WHERE l.status IN (%s,%s) AND COALESCE( l.revoked_at, l.paid_until, l.updated_at ) < %s AND l.updated_at < %s AND ( l.customer_id > 0 OR l.payment_token_id > 0 OR EXISTS ( SELECT 1 FROM {$tables['activations']} a WHERE a.license_id = l.id ) ) ORDER BY l.id ASC LIMIT %d",
 				self::TERMINAL_STATES[0],
 				self::TERMINAL_STATES[1],
-				self::TERMINAL_STATES[2],
 				$cutoff,
 				$cutoff,
 				self::SMALL_BATCH_SIZE
@@ -615,11 +612,10 @@ final class Retention {
 			$license_id = (int) $license_id;
 			$updated    = $wpdb->query(
 				$wpdb->prepare(
-					"UPDATE {$tables['licenses']} SET customer_id = 0, payment_token_id = 0, renewal_enabled = 0, next_payment_at = NULL, price_change_amount_minor = NULL, price_change_effective_at = NULL, price_change_announced_at = NULL, price_change_notified_at = NULL, price_change_notice_days = NULL WHERE id = %d AND status IN (%s,%s,%s)",
+					"UPDATE {$tables['licenses']} SET customer_id = 0, payment_token_id = 0, renewal_enabled = 0, next_payment_at = NULL, price_change_amount_minor = NULL, price_change_effective_at = NULL, price_change_announced_at = NULL, price_change_notified_at = NULL, price_change_notice_days = NULL WHERE id = %d AND status IN (%s,%s)",
 					$license_id,
 					self::TERMINAL_STATES[0],
 					self::TERMINAL_STATES[1],
-					self::TERMINAL_STATES[2]
 				)
 			);
 			if ( false === $updated ) {
