@@ -59,7 +59,7 @@ Diese Fragen kann niemand außer dem Inhaber beantworten. Jede Zeile nennt die F
 
 **Geplante Produkte (Abschnitte 11 und 12)**
 
-- **WFC-LIC-01 (E9) Preise Workflow:** Abschnitt 12 nennt 129/229/399 € als Produktentscheidung. Netto, zzgl. USt. (entschieden am 16.11.2026 für alle Produkte). Offen bleibt, ob die Beträge bestätigt sind.
+- ~~**WFC-LIC-01 (E9) Preise Workflow:**~~ entschieden am 23.11.2026 (E9/F-19, Bestätigung der Inhaberin, weitergegeben von der Workflow-Captain-Sitzung): Workflow Captain Pro kostet 129 € (`single`, 1 Website), 229 € (`business`, 5 Websites) und 399 € (`agency`, 25 Websites) netto im Jahr, zzgl. USt.; alle Tarife mit denselben Pro-Funktionen, Produktschlüssel `workflow-captain-pro`, Rechte `workflow.*`. Die Anlage im Shop bleibt Handarbeit der Inhaberin (WFC-LIC-01).
 - **FR-LIC-03 (E9) Review und Course:** Die Preise von Form Captain Pro sind bestätigt (59/129/249 € netto im Jahr, zzgl. USt., für 1/5/25 Websites; Entscheidung des Inhabers vom 16.11.2026, berichtigt von brutto auf netto). Offen: Welche Preise bekommen Review und Course? Brauchen einzelne Produkte oder Tarife eine eigene Staging-Regel oder einen eigenen Updatekanal? Heute gelten beide für den ganzen Shop.
 - ~~**WFC-LIC-05 (D3)**~~ entschieden am 16.11.2026: nur das Pro-Add-on verarbeitet die Lizenzereignisse. Bisherige Frage: Wo verläuft die Grenze zwischen dem kostenlosen Workflow-Kern und Workflow Captain Pro, und welcher der beiden verarbeitet die Lizenzereignisse des Shops? Der Kern darf nach der Grundregel nichts über Lizenzen wissen.
 - **D8, Datenschutz:** Die Nutzdaten der Lizenzereignisse enthalten nach der Entscheidung öffentliche Kennungen und die Benutzer-ID. Die datenschutzrechtliche Bewertung gehört in die rechtliche Prüfung (T-93).
