@@ -4,6 +4,10 @@ Every gate below runs in GitHub Actions on each pull request and on pushes to `m
 
 No `composer.lock` is committed: the dependencies are development tools only and `composer.json` resolves them for the PHP minimum (`config.platform.php` 8.5, MINVER-1), so CI and a development machine with an older PHP get the same versions. CI caches `vendor/` per PHP version and `composer.json` hash.
 
+The sold ZIP contains no third-party code: `composer.json` has no runtime package, and `bin/build-zip.sh` only generates the autoloader, with `--no-plugins --no-scripts`. That is why the lock file stays out; as soon as a runtime package is added, commit `composer.lock` and install from it in the build.
+
+Every action in `.github/workflows/` is named by its commit hash with the version as a comment (`actions/checkout@<40 hex> # v4.4.0`), never by a tag that can be moved (`tests/Infrastructure/WorkflowHardeningTest.php`). To update one: look the hash of the new version up in the repository of the action (`git ls-remote https://github.com/actions/checkout 'refs/tags/v4.5.0^{}' refs/tags/v4.5.0`; for an annotated tag the line ending in `^{}` is the commit), replace hash and comment in all workflows in one commit. Only the job `publish` of `release.yml` has write access to the repository; it checks nothing out and runs no script, it only attaches the artifact of the job `build`.
+
 ## Overview
 
 | Gate | Workflow / job | Blocking | What it proves |

@@ -33,8 +33,8 @@ jobs:
         include:
           - { php: "8.6", experimental: true }
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ matrix.php }}
           extensions: intl, mbstring, openssl, sodium
@@ -43,7 +43,7 @@ jobs:
       - name: Validate Composer metadata
         run: composer validate --no-check-publish
       # No composer.lock is committed (dev-only dependencies, PHP matrix), so the key is composer.json + PHP version.
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: vendor
           key: ${{ runner.os }}-vendor-php${{ matrix.php }}-${{ hashFiles('composer.json') }}
@@ -104,15 +104,15 @@ jobs:
       WPLC_EXPECT_WP_VERSION: ${{ matrix.wp }}
       WPLC_EXPECT_WC_VERSION: ${{ matrix.wc }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ matrix.php }}
           extensions: mysqli, intl, mbstring, openssl, sodium
           tools: composer:v2
           coverage: none
       - run: sudo apt-get update && sudo apt-get install -y default-mysql-client subversion unzip
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: vendor
           key: ${{ runner.os }}-vendor-php${{ matrix.php }}-${{ hashFiles('composer.json') }}

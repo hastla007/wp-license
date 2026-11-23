@@ -763,6 +763,17 @@ final class RenewalProcessor {
 			ManualRenewal::complete_locked( $order, $renewal, $license );
 			return;
 		}
+		// The same proof as for a payment that arrives through a hook (reconcile_paid_locked): the order
+		// is paid in full, so its pre-tax line must still be the stored net renewal price, in the
+		// currency of the license. Anything else is shown to the administrator, never booked.
+		if (
+			! RenewalOrder::net_matches( $order )
+			|| strtoupper( (string) $license['renewal_currency'] ) !== strtoupper( (string) $order->get_currency() )
+			|| 'yes' === $order->get_meta( RenewalOrder::META_AMOUNT_MISMATCH, true )
+		) {
+			RenewalOrder::flag_for_review( $order, (int) $renewal['id'], __( 'Paid customer recovery order did not match the stored renewal amount', 'wp-license' ), 'renewal_recovery_amount_mismatch' );
+			return;
+		}
 		self::finish_paid( $renewal, $license, $order, $audit_action, $reason );
 	}
 
@@ -1763,6 +1774,11 @@ final class RenewalProcessor {
 		global $wpdb;
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
 		if ( ! $order instanceof \WC_Order || ! $order->is_paid() ) {
+			return;
+		}
+		// Cash on delivery is "processing" before any money arrived: the term is extended when the
+		// order is completed, the same rule as for a first purchase.
+		if ( ! \WPLC\License\LicenseIssuer::money_has_arrived( $order ) ) {
 			return;
 		}
 		if ( RenewalOrder::is_combined( $order ) ) {

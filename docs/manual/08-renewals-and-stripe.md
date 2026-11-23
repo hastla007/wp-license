@@ -17,6 +17,7 @@ A license runs for one billing period (month or year) and is renewed either **ma
 - With taxes enabled, a renewal cannot start without a billing country.
 - A paid renewal that cannot be applied (for example a bank transfer after the window, a license suspended in the meantime) changes nothing and becomes a case under **WooCommerce → Renewals to review** (below).
 - An unpaid manual renewal order is cancelled once the window of its period has passed.
+- **Cash on delivery:** WooCommerce sets such an order to "processing" before any money arrived. A renewal (and a plan upgrade) paid that way counts when you set the order to "completed", like a first purchase. The filter `wplc_issue_after_completion_gateways` names the payment methods this applies to (default: `cod`).
 
 ## Automatic renewal
 

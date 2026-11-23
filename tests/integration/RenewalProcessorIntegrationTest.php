@@ -42,6 +42,60 @@ final class RenewalProcessorIntegrationTest extends WPLC_Renewal_TestCase {
 		$this->assertSame( $f['period_end'], $rows[1]['period_start'] );
 	}
 
+	/**
+	 * Security audit of 14 Nov 2026 (SA-08): an order that is found paid when the renewal runs, or
+	 * when a stuck renewal is looked at, is booked only when its line still is the stored net
+	 * renewal price in the currency of the license, like a payment that arrives through a hook.
+	 */
+	public function test_sa08_already_paid_order_with_another_amount_is_not_booked(): void {
+		global $wpdb;
+		foreach ( array( 'due', 'stuck' ) as $path ) {
+			$f = $this->renewing_license();
+			WPLC_Test_Recurring_Adapter::$mode = 'decline';
+			RenewalProcessor::process( $f['renewal_id'] );
+			WPLC_Test_Recurring_Adapter::$mode = 'success';
+			$before = (string) $this->license( $f['license_id'] )['paid_until'];
+			$order  = wc_get_order( (int) $this->renewal( $f['renewal_id'] )['renewal_order_id'] );
+			$this->assertTrue( RenewalOrder::net_matches( $order ) );
+
+			// The line was changed after the order was priced, then the order was paid.
+			foreach ( $order->get_items() as $item ) {
+				$item->set_subtotal( '1.00' );
+				$item->set_total( '1.00' );
+				$item->save();
+			}
+			$order->calculate_totals();
+			$order->set_payment_method( 'bacs' );
+			$order->set_date_paid( time() );
+			$order->set_transaction_id( 'tx_other_amount' );
+			$order->set_status( 'processing' );
+			remove_action( 'woocommerce_order_status_processing', array( RenewalProcessor::class, 'handle_paid_order' ) );
+			remove_action( 'woocommerce_payment_complete', array( RenewalProcessor::class, 'handle_paid_order' ) );
+			$order->save();
+			add_action( 'woocommerce_payment_complete', array( RenewalProcessor::class, 'handle_paid_order' ) );
+			add_action( 'woocommerce_order_status_processing', array( RenewalProcessor::class, 'handle_paid_order' ) );
+			$this->assertTrue( wc_get_order( $order->get_id() )->is_paid() );
+			$this->assertFalse( RenewalOrder::net_matches( wc_get_order( $order->get_id() ) ) );
+
+			$charges = $this->charges();
+			if ( 'due' === $path ) {
+				$wpdb->update( $this->tables()['renewals'], array( 'retry_at' => gmdate( 'Y-m-d H:i:s', time() - 60 ) ), array( 'id' => $f['renewal_id'] ) );
+				RenewalProcessor::process( $f['renewal_id'] );
+			} else {
+				$wpdb->update( $this->tables()['renewals'], array( 'status' => 'processing', 'updated_at' => gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ), array( 'id' => $f['renewal_id'] ) );
+				RenewalProcessor::reconcile_stuck_renewal( $f['renewal_id'] );
+			}
+
+			$this->assertSame( $charges, $this->charges(), $path . ': a paid order is never charged again.' );
+			$this->assertSame( $before, (string) $this->license( $f['license_id'] )['paid_until'], $path . ': the term is unchanged.' );
+			$this->assertNotSame( 'paid', $this->renewal( $f['renewal_id'] )['status'], $path );
+			$this->assertSame( 'yes', wc_get_order( $order->get_id() )->get_meta( RenewalOrder::META_REVIEW, true ), $path . ': the administrator is told.' );
+			$this->assertContains( 'renewal_recovery_amount_mismatch', $this->audit_actions( 'renewal', $f['renewal_id'] ), $path );
+			$this->assertNotContains( 'renewal_paid', $this->audit_actions( 'renewal', $f['renewal_id'] ), $path );
+			$this->assertNotContains( 'renewal_stuck_recovered', $this->audit_actions( 'renewal', $f['renewal_id'] ), $path );
+		}
+	}
+
 	/** B-02: a cancellation survives the payment of the open automatic renewal order. */
 	public function test_b02_cancellation_survives_payment_of_the_open_renewal_order(): void {
 		$f = $this->renewing_license();

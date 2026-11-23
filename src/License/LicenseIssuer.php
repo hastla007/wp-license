@@ -273,9 +273,11 @@ final class LicenseIssuer {
 	 * @param \WC_Order $order Order.
 	 * @return bool
 	 */
-	private static function money_has_arrived( $order ): bool {
+	public static function money_has_arrived( $order ): bool {
 		/**
 		 * Filters the payment methods whose orders only get their licenses once the order is completed.
+		 *
+		 * The same list decides when a manual renewal order and a plan upgrade order count as paid.
 		 *
 		 * @since 0.2.0
 		 *

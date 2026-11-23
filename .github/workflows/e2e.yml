@@ -45,8 +45,8 @@ jobs:
       WPLC_E2E_WP_VERSION: latest
       WPLC_E2E_WC_VERSION: 11.2.2
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: "8.5"
           extensions: mysqli, curl, zip, intl, mbstring, openssl, sodium
@@ -70,7 +70,7 @@ jobs:
           tests/e2e/bin/run-e2e.sh 2>&1 | tee "$WPLC_E2E_SITE/e2e-output.log"
       - name: Upload E2E logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: e2e-logs
           # The driver's own files start with a dot (.e2e-server.log, .e2e-results.tsv).

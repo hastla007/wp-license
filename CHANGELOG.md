@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Fixed (23 Nov 2026: security audit of 14 Nov 2026 checked point by point)
+
+- **Cash on delivery and existing licenses:** a manual renewal order or a plan upgrade order paid by cash on delivery is "processing" in WooCommerce before any money arrived. Both were booked at that moment: the term was extended, the higher plan applied. They now wait for "completed", like a first purchase (filter `wplc_issue_after_completion_gateways`, default `cod`).
+- **Paid renewal order found by the renewal run:** when the automatic renewal, or the check of a stuck renewal, found its order already paid, it booked the order without the proof the payment hook asks for. Now the pre-tax line must equal the stored net renewal price, in the currency of the license; otherwise the order is flagged for review (`renewal_recovery_amount_mismatch`) and nothing is booked or charged.
+- **Privacy eraser and retention:** the list of ended license states named `cancelled`, a state of renewals that no license can have; removed. Retention deletes the replay-protection rows of an installation after the installation itself, not before.
+- **Build and release:** every GitHub action is named by its commit hash (version as a comment); the release workflow checks that the tag is on `main`, builds with read access and publishes from a separate job that checks nothing out and runs no script; `bin/build-zip.sh` runs Composer with `--no-plugins --no-scripts`. One implementation of the host rule for package addresses.
+- No change of the REST API and none of the client library. `docs/TODO.md`, section 18, lists all 17 points of the audit with their evidence.
+
 ### Added (23 Nov 2026: origin of an exported client library, project products on the command line)
 
 - **`wp wplc project-product save`** creates or updates a project product (a license product that is not sold: private, virtual WooCommerce product with one plan) from the command line: product key, name, plan key (default `project`), live sites, entitlements from the product's catalog file, support level; `--format=json` prints the product ID and the plan ID. A second run updates the same product and keeps the plan ID; a product that is not private is refused. With `wp wplc catalog import`, `wp wplc license issue` and `wp wplc release create` a project product no longer needs the admin screens (PK-07; manual chapter 10, `docs/ENTITLEMENTS.md`).
