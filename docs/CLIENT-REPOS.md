@@ -56,10 +56,10 @@ Content and version number belong together: `packaging/client/checksums.json` ho
 
 ## Status
 
-Stand 16 Nov 2026:
+Stand 23 Nov 2026 (captain-pro `main` `4abdee4`):
 
-- The three add-ons exist in [hastla007/captain-pro](https://github.com/hastla007/captain-pro) (`addons/voucher-captain-pro`, `addons/pass-captain-pro`, `addons/affiliate-captain-pro`). Each carries a copy of this library (version 2.0.2, byte-identical to `src/Client/` of this repository at that time), a license screen, the updater and a build. Affiliate Captain Pro and Pass Captain Pro contain premium functions; Voucher Captain Pro is a skeleton without a sellable function.
+- Six add-ons exist in [hastla007/captain-pro](https://github.com/hastla007/captain-pro): `voucher-captain-pro`, `pass-captain-pro`, `affiliate-captain-pro`, `form-captain-pro`, `review-captain-pro` and `workflow-captain-pro`. Each is built with a copy of this library from `packages/license-client` there (version 2.2.0 from commit `ec9220d0` of this repository, recorded in its `SOURCE.md`; 2.3.0 has not been taken over yet), a license screen, the updater and a catalog file. Pass, Form and Review Captain Pro and four functions of Affiliate Captain Pro are released by the owner; Voucher Captain Pro, Workflow Captain Pro and five further Affiliate functions are built but held back (their catalog entries stay `planned`).
 - captain-pro runs its add-ons against the code of this server in its own test run. `tests/Api/ServerClientInteropTest.php` in this repository checks the signature contract with the copy of the library used there.
 - Not done: no add-on has talked to a **deployed** license server. The server address and the pinned public key in the add-ons are placeholders until the permanent host name is decided (B-15 in [TODO.md](TODO.md)); no add-on release has been built for sale.
-- Planned, not built: `workflow-captain-pro`, `form-captain-pro`, `review-captain-pro` (TODO sections 11 and 12).
+- Not built: `course-captain-pro`.
 - The library is covered by unit tests and by integration tests against the REST server of this plugin, including an update installed by the WordPress upgrader.
