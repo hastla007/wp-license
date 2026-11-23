@@ -137,6 +137,9 @@ final class LicenseIssuer {
 			return;
 		}
 
+		// A quantity above the shop's limit (order from the admin or the REST API) is noted, never blocked.
+		\WPLC\Catalog\QuantityLimit::note_order( $order );
+
 		$customer_id = null;
 		$problems    = array();
 

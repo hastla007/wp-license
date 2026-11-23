@@ -27,6 +27,7 @@ Dieses Dokument beschreibt, was dafür zu tun ist. Es ist ein Plan, keine Zusage
 6. **Eine saubere Grenze**, was Captain-spezifisch bleibt und wohin es wandert (PROD-11).
 7. **Eine Migration ohne Datenverlust** für die bestehende Installation (PROD-12).
 8. **Ein Release des Servers als Produkt** (PROD-13).
+9. **Regeln des Shops sind Einstellungen, keine festen Werte** (Entscheidung des Inhabers vom 23.11.2026). Was Geschäftspolitik des Betreibers ist (Fristen, Höchstmengen, Ankündigungs- und Kulanzfristen), bekommt eine Einstellung mit sicherem Standard und einen Filter; der Filter entscheidet zuletzt. Der Standard ändert das Verhalten einer bestehenden Installation nach einem Update nie zu Lasten von Daten (Beispiel: „Gesperrte Lizenzen gelten nach … Tagen als beendet“ steht auf 0 = nie). Technische Werte (Stapelgrößen, Zeitbudgets, Zwischenspeicher, Größenlimits von Uploads) bleiben Konstanten. Erste Fälle: UEB-10 und UEB-11; die Liste der übrigen Kandidaten steht in UEB-13 (`docs/TODO.md`, Abschnitt 18).
 
 ## 3. Arbeitspakete
 

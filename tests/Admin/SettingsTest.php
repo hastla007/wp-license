@@ -67,7 +67,7 @@ final class SettingsTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import', 'combined_renewals', 'sender_note' ), array_keys( $clean ) );
+		$this->assertSame( array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import', 'combined_renewals', 'suspended_ends_after_days', 'max_quantity_per_line', 'sender_note' ), array_keys( $clean ) );
 		// PROD-03: on by default, off only when the form says so.
 		$this->assertSame( 1, $clean['catalog_auto_import'] );
 		$this->assertSame( 0, Settings::sanitize( array( 'catalog_auto_import' => '0' ) )['catalog_auto_import'] );

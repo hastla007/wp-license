@@ -75,7 +75,7 @@ final class Settings {
 	 * Settings whose values are written to the audit log. Other keys are
 	 * recorded by name only (the sender note is free text shown to customers).
 	 */
-	private const AUDITED_VALUES = array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import', 'combined_renewals' );
+	private const AUDITED_VALUES = array( 'package_hosts', 'reminder_days', 'renewal_notice_days', 'price_change_notice_days', 'catalog_auto_import', 'combined_renewals', 'suspended_ends_after_days', 'max_quantity_per_line' );
 
 	/**
 	 * Audit the first save of the option.
@@ -176,6 +176,10 @@ final class Settings {
 			'price_change_notice_days' => \WPLC\Billing\PriceChange::DEFAULT_NOTICE_DAYS,
 			'catalog_auto_import' => 1,
 			'combined_renewals' => 0,
+			// 0 = a suspended license never counts as ended (License\EndedLicenses).
+			'suspended_ends_after_days' => 0,
+			// Largest quantity of a license product in one order line; 0 = unlimited (Catalog\QuantityLimit).
+			'max_quantity_per_line' => \WPLC\Catalog\QuantityLimit::DEFAULT_MAX,
 			'sender_note'   => '',
 		);
 	}
@@ -357,6 +361,24 @@ final class Settings {
 			'wplc_emails',
 			array( 'label_for' => 'wplc_sender_note' )
 		);
+
+		add_settings_section( 'wplc_rules', __( 'Rules of this shop', 'wp-license' ), '__return_false', self::PAGE );
+		add_settings_field(
+			'wplc_max_quantity_per_line',
+			__( 'Largest quantity per order line', 'wp-license' ),
+			array( self::class, 'render_max_quantity_per_line_field' ),
+			self::PAGE,
+			'wplc_rules',
+			array( 'label_for' => 'wplc_max_quantity_per_line' )
+		);
+		add_settings_field(
+			'wplc_suspended_ends_after_days',
+			__( 'Suspended licenses count as ended after', 'wp-license' ),
+			array( self::class, 'render_suspended_ends_after_days_field' ),
+			self::PAGE,
+			'wplc_rules',
+			array( 'label_for' => 'wplc_suspended_ends_after_days' )
+		);
 	}
 
 	/**
@@ -446,6 +468,15 @@ final class Settings {
 			$change_days = (int) trim( (string) $input['price_change_notice_days'] );
 		}
 
+		$whole_number = static function ( string $key, int $fallback, int $max ) use ( $current, $input ): int {
+			$value = isset( $current[ $key ] ) && is_numeric( $current[ $key ] ) ? (int) $current[ $key ] : $fallback;
+			if ( array_key_exists( $key, $input ) && is_scalar( $input[ $key ] ) && ctype_digit( trim( (string) $input[ $key ] ) ) ) {
+				$value = (int) trim( (string) $input[ $key ] );
+			}
+
+			return max( 0, min( $max, $value ) );
+		};
+
 		return array(
 			'package_hosts' => $hosts_out,
 			'reminder_days' => $days,
@@ -457,6 +488,9 @@ final class Settings {
 			'catalog_auto_import' => array_key_exists( 'catalog_auto_import', $input ) ? ( empty( $input['catalog_auto_import'] ) ? 0 : 1 ) : ( isset( $current['catalog_auto_import'] ) && ! $current['catalog_auto_import'] ? 0 : 1 ),
 			// B-191: off unless the form (or a stored value) says on.
 			'combined_renewals' => array_key_exists( 'combined_renewals', $input ) ? ( empty( $input['combined_renewals'] ) ? 0 : 1 ) : ( empty( $current['combined_renewals'] ) ? 0 : 1 ),
+			// Owner decision of 23 Nov 2026: rules of the shop are settings. 0 switches each of them off.
+			'suspended_ends_after_days' => $whole_number( 'suspended_ends_after_days', 0, \WPLC\License\EndedLicenses::MAX_DAYS ),
+			'max_quantity_per_line' => $whole_number( 'max_quantity_per_line', \WPLC\Catalog\QuantityLimit::DEFAULT_MAX, \WPLC\Catalog\QuantityLimit::MAX_SETTING ),
 			'sender_note'   => function_exists( 'mb_substr' ) ? mb_substr( $note, 0, 500 ) : substr( $note, 0, 500 ),
 		);
 	}
@@ -984,6 +1018,26 @@ final class Settings {
 	public static function render_renewal_notice_days_field(): void {
 		echo '<input type="number" id="wplc_renewal_notice_days" name="' . esc_attr( self::OPTION ) . '[renewal_notice_days]" value="' . esc_attr( (string) (int) self::get( 'renewal_notice_days' ) ) . '" class="small-text" min="1" max="60" step="1" aria-describedby="wplc_renewal_notice_days_help">';
 		echo '<p class="description" id="wplc_renewal_notice_days_help">' . esc_html__( 'Days before an automatic charge on which the customer is told the date and the amount. Default: 7. A license is only charged after this email was accepted for sending; otherwise the charge is postponed and reported under Diagnostics.', 'wp-license' ) . '</p>';
+	}
+
+	/**
+	 * Render the largest quantity of a license product in one order line.
+	 *
+	 * @return void
+	 */
+	public static function render_max_quantity_per_line_field(): void {
+		echo '<input type="number" id="wplc_max_quantity_per_line" name="' . esc_attr( self::OPTION ) . '[max_quantity_per_line]" value="' . esc_attr( (string) (int) self::get( 'max_quantity_per_line' ) ) . '" class="small-text" min="0" max="' . esc_attr( (string) \WPLC\Catalog\QuantityLimit::MAX_SETTING ) . '" step="1" aria-describedby="wplc_max_quantity_per_line_help">';
+		echo '<p class="description" id="wplc_max_quantity_per_line_help">' . esc_html__( 'Largest quantity of one license product a customer can put into the cart and order. Every unit becomes a license of its own with its own key. Default: 100. 0 = no limit. An order you create yourself in the admin or through the REST API is not blocked; a larger quantity there is noted on the order and in the audit log.', 'wp-license' ) . '</p>';
+	}
+
+	/**
+	 * Render the number of days after which a suspended license counts as ended.
+	 *
+	 * @return void
+	 */
+	public static function render_suspended_ends_after_days_field(): void {
+		echo '<input type="number" id="wplc_suspended_ends_after_days" name="' . esc_attr( self::OPTION ) . '[suspended_ends_after_days]" value="' . esc_attr( (string) (int) self::get( 'suspended_ends_after_days' ) ) . '" class="small-text" min="0" max="' . esc_attr( (string) \WPLC\License\EndedLicenses::MAX_DAYS ) . '" step="1" aria-describedby="wplc_suspended_ends_after_days_help"> ' . esc_html__( 'days', 'wp-license' );
+		echo '<p class="description" id="wplc_suspended_ends_after_days_help">' . esc_html__( 'Default: 0 = never; a suspended license then keeps its customer and its data until you revoke it or it is reactivated. With a number of days, a license that stayed suspended without interruption for that long is treated like an expired or revoked one: a personal data erasure request detaches it from the customer and releases its sites, and the retention rules delete its installations and consent records after their periods. This cannot be undone. A license that was reactivated is never affected; a new suspension counts from its own start. Agree the period with your legal counsel.', 'wp-license' ) . '</p>';
 	}
 
 	/**

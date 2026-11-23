@@ -313,15 +313,30 @@ final class SchemaMigrationStepsTest extends TestCase {
 	}
 
 	/**
+	 * UEB-10: schema 27 adds the time of the suspension; installs on 26 run only that step.
+	 */
+	public function test_schema_27_adds_the_time_of_the_suspension(): void {
+		$property = new ReflectionProperty( Schema::class, 'steps' );
+		$steps = $property->getValue();
+
+		$this->assertSame( '27', Schema::VERSION );
+		$this->assertSame( 'step_27_suspended_at', $steps['27'][1] );
+		$this->assertSame( array( '27' ), Schema::pending_step_versions( '26', Schema::VERSION, array_keys( $steps ) ) );
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
+		$this->assertStringContainsString( 'suspended_at datetime DEFAULT NULL', $source );
+		// Licenses that are suspended at the upgrade count from the upgrade, only rows without a time.
+		$this->assertStringContainsString( "'UPDATE %i SET suspended_at = %s WHERE status = %s AND suspended_at IS NULL'", $source );
+	}
+
+	/**
 	 * B-139: schema 26 adds the table of co-users and invitations; installs on 25 run only that step.
 	 */
 	public function test_schema_26_adds_the_license_members_table(): void {
 		$property = new ReflectionProperty( Schema::class, 'steps' );
 		$steps = $property->getValue();
 
-		$this->assertSame( '26', Schema::VERSION );
 		$this->assertSame( 'step_26_license_members', $steps['26'][1] );
-		$this->assertSame( array( '26' ), Schema::pending_step_versions( '25', Schema::VERSION, array_keys( $steps ) ) );
+		$this->assertSame( array( '26' ), Schema::pending_step_versions( '25', '26', array_keys( $steps ) ) );
 		$this->assertSame( 'wp_3_wplc_license_members', Schema::table_names_for_prefix( 'wp_3_' )['license_members'] );
 
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Infrastructure/Database/Schema.php' );
