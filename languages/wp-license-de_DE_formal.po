@@ -3,8 +3,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP License Captain 0.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-23T19:46:39+00:00\n"
-"PO-Revision-Date: 2026-11-23 19:48+0000\n"
+"POT-Creation-Date: 2026-11-23T19:50:41+00:00\n"
+"PO-Revision-Date: 2026-11-23 19:50+0000\n"
 "Last-Translator: \n"
 "Language-Team: German\n"
 "Language: de_DE_formal\n"
@@ -139,6 +139,8 @@ msgstr "Aktiviert"
 #: src/Admin/LicenseDetail.php:602
 #: src/Admin/ReleaseAdmin.php:130
 #: src/Admin/RenewalReviewAdmin.php:190
+#: src/Webhooks/Admin.php:161
+#: src/Webhooks/Admin.php:281
 #: templates/myaccount/wplc-license.php:141
 #: templates/myaccount/wplc-license.php:150
 msgid "Actions"
@@ -401,7 +403,7 @@ msgstr "WooCommerce"
 msgid "Unavailable"
 msgstr "Nicht verfügbar"
 
-#: src/Admin/AuditLogAdmin.php:203
+#: src/Admin/AuditLogAdmin.php:204
 #: src/Admin/Diagnostics.php:899
 #: src/Admin/Diagnostics.php:949
 #: src/Admin/Diagnostics.php:1027
@@ -448,7 +450,7 @@ msgid "Not loaded"
 msgstr "Nicht geladen"
 
 #: src/Admin/Diagnostics.php:1129
-#: src/Settings/Texts.php:375
+#: src/Settings/Texts.php:379
 msgid "Pending Stripe events"
 msgstr "Ausstehende Stripe-Ereignisse"
 
@@ -471,6 +473,7 @@ msgstr "Ausstehend"
 #: src/Admin/Format.php:27
 #: src/Admin/Format.php:52
 #: src/Client/Messages.php:228
+#: src/Webhooks/Admin.php:251
 msgid "Active"
 msgstr "Aktiv"
 
@@ -518,6 +521,7 @@ msgid "Paid"
 msgstr "Bezahlt"
 
 #: src/Admin/Format.php:78
+#: src/Webhooks/Admin.php:529
 msgid "Failed"
 msgstr "Fehlgeschlagen"
 
@@ -652,7 +656,7 @@ msgstr "Alle Lizenzen"
 msgid "None (added manually)"
 msgstr "Keine (manuell hinzugefügt)"
 
-#: src/Admin/AuditLogAdmin.php:186
+#: src/Admin/AuditLogAdmin.php:187
 #: src/Admin/LicenseDetail.php:199
 #: src/Admin/LicenseDetail.php:913
 #: src/Admin/LicenseListTable.php:99
@@ -742,6 +746,8 @@ msgstr "Tarif"
 #: src/Client/Messages.php:280
 #: src/Privacy/PersonalData.php:359
 #: src/Privacy/PersonalData.php:560
+#: src/Webhooks/Admin.php:161
+#: src/Webhooks/Admin.php:281
 #: templates/emails/plain/wplc-license-blocked.php:43
 #: templates/emails/wplc-license-blocked.php:43
 msgid "Status"
@@ -1042,7 +1048,7 @@ msgstr "Aktivierung"
 msgid "Date"
 msgstr "Datum"
 
-#: src/Admin/AuditLogAdmin.php:487
+#: src/Admin/AuditLogAdmin.php:488
 #: src/Admin/AuditLogTable.php:52
 #: src/Admin/LicenseDetail.php:748
 #: src/Admin/ReleaseAdmin.php:558
@@ -1054,7 +1060,7 @@ msgstr "Aktion"
 msgid "Object"
 msgstr "Objekt"
 
-#: src/Admin/AuditLogAdmin.php:489
+#: src/Admin/AuditLogAdmin.php:490
 #: src/Admin/AuditLogTable.php:54
 #: src/Admin/LicenseDetail.php:748
 msgid "By"
@@ -1065,7 +1071,7 @@ msgstr "Durch"
 msgid "Change"
 msgstr "Änderung"
 
-#: src/Admin/AuditLogAdmin.php:174
+#: src/Admin/AuditLogAdmin.php:175
 #: src/Admin/LicenseDetail.php:778
 msgid "System"
 msgstr "System"
@@ -1147,7 +1153,7 @@ msgstr "Nach Produkt filtern"
 msgid "All products"
 msgstr "Alle Produkte"
 
-#: src/Admin/AuditLogAdmin.php:506
+#: src/Admin/AuditLogAdmin.php:507
 #: src/Admin/LicenseListTable.php:963
 msgid "Filter"
 msgstr "Filtern"
@@ -1790,7 +1796,7 @@ msgstr "Ihre Lizenz für {product} verlängert sich am {charge_date}"
 msgid "Please activate WooCommerce before activating WP License Captain."
 msgstr "Bitte aktivieren Sie WooCommerce, bevor Sie WP License Captain aktivieren."
 
-#: src/Plugin.php:466
+#: src/Plugin.php:469
 msgid "WP License Captain requires WooCommerce to be installed and active."
 msgstr "WP License Captain setzt voraus, dass WooCommerce installiert und aktiviert ist."
 
@@ -2328,7 +2334,7 @@ msgid "Response signing key (Ed25519, public)"
 msgstr "Signaturschlüssel für Antworten (Ed25519, öffentlich)"
 
 #: src/Admin/Diagnostics.php:1131
-#: src/Settings/Texts.php:377
+#: src/Settings/Texts.php:381
 msgid "Stuck renewals (job not run, grace period over)"
 msgstr "Hängende Verlängerungen (Auftrag nicht gelaufen, Kulanzzeit vorbei)"
 
@@ -2661,7 +2667,7 @@ msgid "The renewal could not be booked. Check the license status and try again."
 msgstr "Die Verlängerung konnte nicht gebucht werden. Prüfen Sie den Lizenzstatus und versuchen Sie es erneut."
 
 #: src/Admin/Diagnostics.php:1133
-#: src/Settings/Texts.php:382
+#: src/Settings/Texts.php:386
 msgid "Renewals needing review (unknown payment result, payment not applied)"
 msgstr "Zu prüfende Verlängerungen (unklares Zahlungsergebnis, Zahlung nicht angewendet)"
 
@@ -2996,7 +3002,7 @@ msgstr "Es wurden zu viele Lizenzen ausgewählt. Wählen Sie höchstens 100 Lize
 #: src/Admin/AuditLogAdmin.php:89
 #: src/Admin/AuditLogAdmin.php:90
 #: src/Admin/AuditLogAdmin.php:95
-#: src/Admin/AuditLogAdmin.php:464
+#: src/Admin/AuditLogAdmin.php:465
 msgid "License audit log"
 msgstr "Lizenz-Audit-Protokoll"
 
@@ -3013,45 +3019,45 @@ msgstr "Einstellungen"
 msgid "Catalog"
 msgstr "Katalog"
 
-#: src/Admin/AuditLogAdmin.php:468
+#: src/Admin/AuditLogAdmin.php:469
 msgid "Every recorded action on licenses, activations, renewals, releases, settings and keys, newest first. Read-only. Sensitive values are redacted."
 msgstr "Alle erfassten Aktionen an Lizenzen, Aktivierungen, Verlängerungen, Releases, Einstellungen und Schlüsseln, neueste zuerst. Nur lesbar. Vertrauliche Werte sind geschwärzt."
 
-#: src/Admin/AuditLogAdmin.php:475
+#: src/Admin/AuditLogAdmin.php:476
 msgid "Object type"
 msgstr "Objekttyp"
 
-#: src/Admin/AuditLogAdmin.php:476
+#: src/Admin/AuditLogAdmin.php:477
 msgid "All types"
 msgstr "Alle Typen"
 
-#: src/Admin/AuditLogAdmin.php:485
+#: src/Admin/AuditLogAdmin.php:486
 msgid "Object ID"
 msgstr "Objekt-ID"
 
-#: src/Admin/AuditLogAdmin.php:490
+#: src/Admin/AuditLogAdmin.php:491
 msgid "User ID, email or \"system\""
 msgstr "Benutzer-ID, E-Mail oder „system“"
 
-#: src/Admin/AuditLogAdmin.php:502
+#: src/Admin/AuditLogAdmin.php:503
 msgid "From"
 msgstr "Von"
 
-#: src/Admin/AuditLogAdmin.php:504
+#: src/Admin/AuditLogAdmin.php:505
 msgid "To"
 msgstr "Bis"
 
-#: src/Admin/AuditLogAdmin.php:507
+#: src/Admin/AuditLogAdmin.php:508
 msgid "Reset"
 msgstr "Zurücksetzen"
 
 #. translators: %d: license ID.
-#: src/Admin/AuditLogAdmin.php:676
+#: src/Admin/AuditLogAdmin.php:677
 #, php-format
 msgid "License #%d"
 msgstr "Lizenz #%d"
 
-#: src/Admin/AuditLogAdmin.php:704
+#: src/Admin/AuditLogAdmin.php:705
 msgid "(unreadable)"
 msgstr "(nicht lesbar)"
 
@@ -3600,17 +3606,17 @@ msgstr "Wählen Sie mindestens eine Lizenz aus und geben Sie die Anzahl der Tage
 msgid "No licenses were issued. Enter the number of a paid order and a reason."
 msgstr "Es wurden keine Lizenzen ausgestellt. Geben Sie die Nummer einer bezahlten Bestellung und eine Begründung ein."
 
-#: src/Admin/AuditLogAdmin.php:454
-#: src/Admin/AuditLogAdmin.php:537
+#: src/Admin/AuditLogAdmin.php:455
+#: src/Admin/AuditLogAdmin.php:538
 msgid "You do not have permission to view the audit log."
 msgstr "Sie sind nicht berechtigt, das Audit-Protokoll anzuzeigen."
 
-#: src/Admin/AuditLogAdmin.php:465
+#: src/Admin/AuditLogAdmin.php:466
 #: src/Admin/LicenseAdmin.php:256
 msgid "Export as CSV"
 msgstr "Als CSV exportieren"
 
-#: src/Admin/AuditLogAdmin.php:473
+#: src/Admin/AuditLogAdmin.php:474
 msgid "License ID"
 msgstr "Lizenz-ID"
 
@@ -3883,7 +3889,7 @@ msgid "Scheduled work falls back to WP-Cron, which is less reliable."
 msgstr "Geplante Aufgaben greifen auf WP-Cron zurück, was weniger zuverlässig ist."
 
 #: src/Admin/Diagnostics.php:1092
-#: src/Settings/Texts.php:380
+#: src/Settings/Texts.php:384
 msgid "Failed scheduled actions (group wplc)"
 msgstr "Fehlgeschlagene geplante Aktionen (Gruppe wplc)"
 
@@ -3933,7 +3939,7 @@ msgid "Events that were received but not processed yet. They are retried by the 
 msgstr "Ereignisse, die empfangen, aber noch nicht verarbeitet wurden. Sie werden von der Hintergrundwarteschlange erneut versucht."
 
 #: src/Admin/Diagnostics.php:1130
-#: src/Settings/Texts.php:376
+#: src/Settings/Texts.php:380
 msgid "Stripe events needing review (24 hours)"
 msgstr "Stripe-Ereignisse, die geprüft werden müssen (24 Stunden)"
 
@@ -3946,7 +3952,7 @@ msgid "Renewals whose queued attempt or check should have run more than an hour 
 msgstr "Verlängerungen, deren eingeplanter Versuch oder Prüfung vor mehr als einer Stunde hätte laufen sollen oder deren Kulanzzeit endete, ohne dass die Lizenz abgelaufen ist. Verlängerungen, die auf ihre nächste Wiederholung warten, werden nicht gezählt."
 
 #: src/Admin/Diagnostics.php:1132
-#: src/Settings/Texts.php:378
+#: src/Settings/Texts.php:382
 msgid "Renewals stuck in processing (over 1 hour)"
 msgstr "In der Verarbeitung hängende Verlängerungen (über 1 Stunde)"
 
@@ -3967,7 +3973,7 @@ msgid "These licenses would not be charged at the end of their term. The daily r
 msgstr "Diese Lizenzen würden am Ende ihrer Laufzeit nicht belastet. Der tägliche Lauf plant fehlende Verlängerungen ein."
 
 #: src/Admin/Diagnostics.php:1135
-#: src/Settings/Texts.php:379
+#: src/Settings/Texts.php:383
 msgid "Paid renewals without extension"
 msgstr "Bezahlte Verlängerungen ohne Verlängerung der Laufzeit"
 
@@ -3976,7 +3982,7 @@ msgid "The latest renewal of these licenses is paid, but the license does not ru
 msgstr "Die letzte Verlängerung dieser Lizenzen ist bezahlt, aber die Lizenz läuft nicht bis zum Ende des bezahlten Zeitraums. Verlängern Sie die Laufzeit von Hand oder erstatten Sie die Bestellung."
 
 #: src/Admin/Diagnostics.php:1139
-#: src/Settings/Texts.php:381
+#: src/Settings/Texts.php:385
 msgid "License products without a plan"
 msgstr "Lizenzprodukte ohne Tarif"
 
@@ -3985,7 +3991,7 @@ msgid "These products are ticked as license product but have no product key and 
 msgstr "Diese Produkte sind als Lizenzprodukt markiert, haben aber keinen Produktschlüssel und keinen Tarif. Sie werden ohne Lizenz verkauft. Öffnen Sie das Produkt und füllen Sie die Lizenzfelder aus."
 
 #: src/Admin/Diagnostics.php:1141
-#: src/Settings/Texts.php:383
+#: src/Settings/Texts.php:387
 msgid "Paid orders without their licenses"
 msgstr "Bezahlte Bestellungen ohne ihre Lizenzen"
 
@@ -5006,13 +5012,13 @@ msgid "WP License Captain: future automatic renewals of this license use the car
 msgstr "WP License Captain: Künftige automatische Verlängerungen dieser Lizenz verwenden die Karte, mit der diese Bestellung bezahlt wurde."
 
 #. translators: 1: installed database schema version, 2: schema version this plugin version supports.
-#: src/Infrastructure/Database/Schema.php:501
+#: src/Infrastructure/Database/Schema.php:505
 #, php-format
 msgid "WP License Captain: the database was upgraded by a newer plugin version (schema %1$s, this version supports %2$s). Renewal charges and customer emails are paused. Install the newer plugin version again."
 msgstr "WP License Captain: Die Datenbank wurde von einer neueren Plugin-Version aktualisiert (Schema %1$s, diese Version unterstützt %2$s). Abbuchungen von Verlängerungen und E-Mails an Kunden sind pausiert. Installieren Sie die neuere Plugin-Version erneut."
 
 #. translators: %s: technical error details.
-#: src/Infrastructure/Database/Schema.php:525
+#: src/Infrastructure/Database/Schema.php:529
 #, php-format
 msgid "WP License Captain could not update its database tables. The plugin keeps working with the previous structure and retries automatically. Details: %s"
 msgstr "WP License Captain konnte seine Datenbanktabellen nicht aktualisieren. Das Plugin arbeitet mit der bisherigen Struktur weiter und versucht es automatisch erneut. Details: %s"
@@ -5388,6 +5394,7 @@ msgid "Date (UTC)"
 msgstr "Datum (UTC)"
 
 #: src/Privacy/PersonalData.php:585
+#: src/Webhooks/Admin.php:281
 msgid "Event"
 msgstr "Ereignis"
 
@@ -5851,7 +5858,7 @@ msgstr "Laufzeiten verlängert: %1$s. Übersprungen: %2$s (gesperrt, widerrufen,
 msgid "Licenses created for the order: %1$s. If this is 0, the order already has all its licenses or contains no license product."
 msgstr "Für die Bestellung angelegte Lizenzen: %1$s. Ist der Wert 0, hat die Bestellung bereits alle Lizenzen oder enthält kein Lizenzprodukt."
 
-#: src/Admin/AuditLogAdmin.php:509
+#: src/Admin/AuditLogAdmin.php:510
 msgid "Object ID 0 shows system-wide entries (settings, catalog import, key rotation, bulk actions). License ID shows the license with its site activations and renewals."
 msgstr "Objekt-ID 0 zeigt systemweite Einträge (Einstellungen, Katalogimport, Schlüsselrotation, Massenaktionen). Die Lizenz-ID zeigt die Lizenz mit ihren Website-Aktivierungen und Verlängerungen."
 
@@ -6589,7 +6596,7 @@ msgid "These emails are switched off under WooCommerce → Settings → Emails a
 msgstr "Diese E-Mails sind unter WooCommerce → Einstellungen → E-Mails ausgeschaltet und werden nicht an Kunden gesendet (jede übersprungene E-Mail wird unter der Quelle wp-license protokolliert)."
 
 #: src/Admin/Diagnostics.php:1128
-#: src/Settings/Texts.php:386
+#: src/Settings/Texts.php:390
 msgid "Minutes with rejected Stripe webhook requests (24 hours)"
 msgstr "Minuten mit abgelehnten Stripe-Webhook-Anfragen (24 Stunden)"
 
@@ -7130,41 +7137,41 @@ msgstr "Kaufen"
 msgid "Currently unavailable"
 msgstr "Derzeit nicht verfügbar"
 
-#: src/Admin/AuditLogAdmin.php:185
+#: src/Admin/AuditLogAdmin.php:186
 msgid "Admin"
 msgstr "Admin"
 
-#: src/Admin/AuditLogAdmin.php:187
+#: src/Admin/AuditLogAdmin.php:188
 msgid "License API"
 msgstr "Lizenz-API"
 
-#: src/Admin/AuditLogAdmin.php:188
+#: src/Admin/AuditLogAdmin.php:189
 msgid "Stripe webhook"
 msgstr "Stripe-Webhook"
 
-#: src/Admin/AuditLogAdmin.php:189
+#: src/Admin/AuditLogAdmin.php:190
 msgid "Scheduled task"
 msgstr "Geplante Aufgabe"
 
-#: src/Admin/AuditLogAdmin.php:190
+#: src/Admin/AuditLogAdmin.php:191
 msgid "WP-CLI"
 msgstr "WP-CLI"
 
-#: src/Admin/AuditLogAdmin.php:191
+#: src/Admin/AuditLogAdmin.php:192
 msgid "Internal"
 msgstr "Intern"
 
-#: src/Admin/AuditLogAdmin.php:491
+#: src/Admin/AuditLogAdmin.php:492
 #: src/Admin/AuditLogTable.php:55
 #: src/Admin/LicenseDetail.php:748
 msgid "Source"
 msgstr "Quelle"
 
-#: src/Admin/AuditLogAdmin.php:492
+#: src/Admin/AuditLogAdmin.php:493
 msgid "All sources"
 msgstr "Alle Quellen"
 
-#: src/Admin/AuditLogAdmin.php:494
+#: src/Admin/AuditLogAdmin.php:495
 msgid "Unknown (older entries)"
 msgstr "Unbekannt (ältere Einträge)"
 
@@ -7351,6 +7358,8 @@ msgid "No catalog file has been imported yet. The product editor offers no entit
 msgstr "Es wurde noch keine Katalogdatei importiert. Der Produkteditor bietet keine Berechtigungen an, bis eine importiert ist; Berechtigungen können weiterhin als JSON eingegeben werden."
 
 #: src/Admin/CatalogFileAdmin.php:80
+#: src/Webhooks/Admin.php:161
+#: src/Webhooks/Admin.php:238
 msgid "Name"
 msgstr "Name"
 
@@ -9706,49 +9715,49 @@ msgid "One host name per line, for example downloads.example.com. Update package
 msgstr "Ein Hostname pro Zeile, zum Beispiel downloads.example.com. Update-Pakete werden nur von HTTPS-Adressen auf diesen Hosts ausgeliefert. Diese Website gilt immer als vertrauenswürdig."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:460
+#: src/Settings/Texts.php:464
 #, php-format
 msgid "\"%s\" was not changed: enter a whole number."
 msgstr "„%s“ wurde nicht geändert: Geben Sie eine ganze Zahl ein."
 
 #. translators: 1: name of a setting, 2: smallest value, 3: largest value.
-#: src/Settings/Texts.php:463
+#: src/Settings/Texts.php:467
 #, php-format
 msgid "\"%1$s\" was not changed: enter whole numbers from %2$s to %3$s."
 msgstr "„%1$s“ wurde nicht geändert: Geben Sie ganze Zahlen von %2$s bis %3$s ein."
 
 #. translators: 1: name of a setting, 2: largest number of entries.
-#: src/Settings/Texts.php:466
+#: src/Settings/Texts.php:470
 #, php-format
 msgid "\"%1$s\" was not changed: at most %2$s entries are possible."
 msgstr "„%1$s“ wurde nicht geändert: Höchstens %2$s Einträge sind möglich."
 
 #. translators: 1: name of a setting, 2: largest number of characters.
-#: src/Settings/Texts.php:469
+#: src/Settings/Texts.php:473
 #, php-format
 msgid "\"%1$s\" was not changed: the text is longer than %2$s characters."
 msgstr "„%1$s“ wurde nicht geändert: Der Text ist länger als %2$s Zeichen."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:472
+#: src/Settings/Texts.php:476
 #, php-format
 msgid "\"%s\" was not changed: enter valid email addresses."
 msgstr "„%s“ wurde nicht geändert: Geben Sie gültige E-Mail-Adressen ein."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:475
+#: src/Settings/Texts.php:479
 #, php-format
 msgid "\"%s\" was not changed: enter an address that starts with https://."
 msgstr "„%s“ wurde nicht geändert: Geben Sie eine Adresse ein, die mit https:// beginnt."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:479
+#: src/Settings/Texts.php:483
 #, php-format
 msgid "\"%s\" was not changed: at least one entry is not valid. Enter one entry per line, lowercase letters, digits, dots and hyphens only."
 msgstr "„%s“ wurde nicht geändert: Mindestens ein Eintrag ist ungültig. Geben Sie einen Eintrag pro Zeile ein, nur Kleinbuchstaben, Ziffern, Punkte und Bindestriche."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:483
+#: src/Settings/Texts.php:487
 #, php-format
 msgid "\"%s\" was not changed: the value is not valid."
 msgstr "„%s“ wurde nicht geändert: Der Wert ist ungültig."
@@ -9883,15 +9892,15 @@ msgstr "Beendete Lizenzen vom Kunden lösen nach"
 msgid "Days after the end of a license at which the owner, the payment token reference and the installations are removed. Counted from the end of the calendar year in which the license ended. Default: 3650 (ten years, the technical default so far). 0 = never."
 msgstr "Tage nach dem Ende einer Lizenz, nach denen der Inhaber, der Verweis auf das Zahlungsmittel und die Installationen entfernt werden. Gezählt ab dem Ende des Kalenderjahres, in dem die Lizenz endete. Vorgabe: 3650 (zehn Jahre, die bisherige technische Vorgabe). 0 = nie."
 
-#: src/Settings/Texts.php:427
+#: src/Settings/Texts.php:431
 msgid "Automatic: ask, unless Germanized or German Market is active"
 msgstr "Automatisch: fragen, außer Germanized oder German Market ist aktiv"
 
-#: src/Settings/Texts.php:428
+#: src/Settings/Texts.php:432
 msgid "Always ask"
 msgstr "Immer fragen"
 
-#: src/Settings/Texts.php:429
+#: src/Settings/Texts.php:433
 msgid "Never ask"
 msgstr "Nie fragen"
 
@@ -10167,27 +10176,27 @@ msgstr "Europäische Union (allgemein)"
 msgid "Other country"
 msgstr "Anderes Land"
 
-#: src/Settings/Texts.php:349
+#: src/Settings/Texts.php:353
 msgid "Send health alerts to"
 msgstr "Meldungen zum Zustand senden an"
 
-#: src/Settings/Texts.php:350
+#: src/Settings/Texts.php:354
 msgid "Email addresses, separated by commas, that get a message when a figure of the diagnostics page reaches its alert threshold (for example failed background jobs or rejected webhooks). At most one collected email per day. Empty (default) = no email; the alerts are then only available to code (action wplc/health_alert)."
 msgstr "E-Mail-Adressen, durch Kommas getrennt, die eine Nachricht bekommen, wenn eine Kennzahl der Diagnoseseite ihre Meldeschwelle erreicht (zum Beispiel fehlgeschlagene Hintergrundaufgaben oder abgelehnte Webhooks). Höchstens eine Sammel-E-Mail pro Tag. Leer (Vorgabe) = keine E-Mail; die Meldungen stehen dann nur Code zur Verfügung (Action wplc/health_alert)."
 
-#: src/Settings/Texts.php:362
+#: src/Settings/Texts.php:366
 msgid "When the plugin is deleted"
 msgstr "Wenn das Plugin gelöscht wird"
 
-#: src/Settings/Texts.php:363
+#: src/Settings/Texts.php:367
 msgid "Keep (default): licenses, activations, renewals, the audit log and the settings stay in the database when the plugin is deleted, because they are business records. Delete: the tables and options of the plugin are removed for good when it is deleted; uploaded packages and order data are never removed. The constant WPLC_REMOVE_ALL_DATA in wp-config.php also deletes. Deleting cannot be undone; make a backup first."
 msgstr "Behalten (Vorgabe): Lizenzen, Aktivierungen, Verlängerungen, das Audit-Protokoll und die Einstellungen bleiben in der Datenbank, wenn das Plugin gelöscht wird, weil sie Geschäftsunterlagen sind. Löschen: Die Tabellen und Optionen des Plugins werden beim Löschen endgültig entfernt; hochgeladene Pakete und Bestelldaten werden nie entfernt. Auch die Konstante WPLC_REMOVE_ALL_DATA in der wp-config.php löscht. Das Löschen lässt sich nicht rückgängig machen; erstellen Sie vorher eine Sicherung."
 
-#: src/Settings/Texts.php:437
+#: src/Settings/Texts.php:441
 msgid "Keep all data"
 msgstr "Alle Daten behalten"
 
-#: src/Settings/Texts.php:438
+#: src/Settings/Texts.php:442
 msgid "Delete tables and options"
 msgstr "Tabellen und Optionen löschen"
 
@@ -10328,60 +10337,61 @@ msgstr "Neue Websites je Lizenz und Stunde"
 msgid "How many new installations one license may activate within an hour, at least twice its live-site limit, so that an agency can still set up all its sites. Activating a known installation again does not count. Default: 10. 0 = no limit."
 msgstr "Wie viele neue Installationen eine Lizenz innerhalb einer Stunde aktivieren darf, mindestens das Doppelte ihres Live-Limits, damit eine Agentur alle ihre Websites einrichten kann. Eine bekannte Installation erneut zu aktivieren zählt nicht. Vorgabe: 10. 0 = keine Grenze."
 
-#: src/Settings/Texts.php:341
+#: src/Settings/Texts.php:345
 msgid "Support email address"
 msgstr "E-Mail-Adresse des Supports"
 
-#: src/Settings/Texts.php:342
+#: src/Settings/Texts.php:346
 msgid "Address that license emails, the customer account and the cancellation page name for questions. Empty (default) = the sender address of the WooCommerce emails, else the address of the site administrator."
 msgstr "Adresse, die Lizenz-E-Mails, das Kundenkonto und die Kündigungsseite für Fragen nennen. Leer (Vorgabe) = die Absenderadresse der WooCommerce-E-Mails, sonst die Adresse des Website-Administrators."
 
-#: src/Settings/Texts.php:345
+#: src/Settings/Texts.php:349
 #: templates/wplc-cancel.php:61
 msgid "Support page"
 msgstr "Support-Seite"
 
-#: src/Settings/Texts.php:346
+#: src/Settings/Texts.php:350
 msgid "Optional address of your support or contact page (https://…). The customer account and the cancellation page link to it next to the support address. Empty (default) = no link."
 msgstr "Optionale Adresse Ihrer Support- oder Kontaktseite (https://…). Das Kundenkonto und die Kündigungsseite verlinken sie neben der Support-Adresse. Leer (Vorgabe) = kein Link."
 
-#: src/Settings/Texts.php:358
+#: src/Settings/Texts.php:362
 msgid "Verbose log"
 msgstr "Ausführliches Protokoll"
 
-#: src/Settings/Texts.php:359
+#: src/Settings/Texts.php:363
 msgid "Writes additional lines of the level debug to the WooCommerce log (source wp-license) to trace a problem. It switches itself off after the chosen time. Off (default). The constant WPLC_DEBUG in wp-config.php switches it on permanently."
 msgstr "Schreibt zusätzliche Zeilen der Stufe debug in das WooCommerce-Protokoll (Quelle wp-license), um einem Fehler nachzugehen. Es schaltet sich nach der gewählten Zeit selbst aus. Aus (Vorgabe). Die Konstante WPLC_DEBUG in wp-config.php schaltet es dauerhaft ein."
 
-#: src/Settings/Texts.php:384
+#: src/Settings/Texts.php:388
 msgid "Failed background jobs (24 hours)"
 msgstr "Fehlgeschlagene Hintergrundaufgaben (24 Stunden)"
 
-#: src/Settings/Texts.php:385
+#: src/Settings/Texts.php:389
 msgid "Problems with update packages"
 msgstr "Probleme mit Update-Paketen"
 
 #. translators: %s: name of a figure of the diagnostics page.
-#: src/Settings/Texts.php:401
+#: src/Settings/Texts.php:405
 #, php-format
 msgid "Alert from: %s"
 msgstr "Meldung ab: %s"
 
 #. translators: %s: default threshold.
-#: src/Settings/Texts.php:404
+#: src/Settings/Texts.php:408
 #, php-format
 msgid "A health alert is raised when this figure of the diagnostics page reaches this number: the action wplc/health_alert fires and, with recipients above, the collected email is sent. Default: %s. 0 = never alert for this figure."
 msgstr "Eine Meldung zum Zustand entsteht, wenn diese Kennzahl der Diagnoseseite diese Zahl erreicht: Die Aktion wplc/health_alert wird ausgelöst und, mit Empfängern oben, die gesammelte E-Mail versandt. Vorgabe: %s. 0 = für diese Kennzahl nie melden."
 
-#: src/Settings/Texts.php:432
+#: src/Settings/Texts.php:436
+#: src/Webhooks/Admin.php:175
 msgid "Off"
 msgstr "Aus"
 
-#: src/Settings/Texts.php:433
+#: src/Settings/Texts.php:437
 msgid "On for 24 hours"
 msgstr "Ein für 24 Stunden"
 
-#: src/Settings/Texts.php:434
+#: src/Settings/Texts.php:438
 msgid "On for 7 days"
 msgstr "Ein für 7 Tage"
 
@@ -10500,10 +10510,6 @@ msgstr "Vertrauenswürdige Paket-Hosts; was mit den Daten geschieht, wenn das Pl
 #: src/Admin/Capabilities.php:97
 msgid "Announce and withdraw a new renewal price"
 msgstr "Neuen Verlängerungspreis ankündigen und zurückziehen"
-
-#: src/Admin/Capabilities.php:98
-msgid "Manufacturer rules that act on every customer site: staging and development sites, offline period, downloads, co-users and transfer"
-msgstr "Hersteller-Regeln, die auf jede Kunden-Website wirken: Staging- und Entwicklungs-Websites, Offline-Frist, Downloads, Mitbenutzer und Übergabe"
 
 #: src/Admin/CatalogCsv.php:540
 msgid "The line does not have as many columns as the header line."
@@ -11065,15 +11071,15 @@ msgstr "Lizenz gilt als bald endend"
 msgid "Days before the end of the paid period from which the page \"Sites\" marks a license that does not renew automatically as ending soon. Default: 30."
 msgstr "Tage vor dem Ende der bezahlten Zeit, ab denen die Seite „Websites“ eine Lizenz ohne automatische Verlängerung als bald endend markiert. Vorgabe: 30."
 
-#: src/Settings/Texts.php:354
+#: src/Settings/Texts.php:358
 msgid "Remind to rotate keys after"
 msgstr "An Schlüsselwechsel erinnern nach"
 
-#: src/Settings/Texts.php:355
+#: src/Settings/Texts.php:359
 msgid "Months after which the license key secret, the installation secret encryption key and the response signing key should be replaced. A key that is older is shown on the diagnostics page, raises the health figure \"Keys due for rotation\" and a notice for administrators. Default: 0 = no reminder. The age counts from the day this server first saw the key (keys carry no date of their own; for keys that existed before, from the first day after the update that added this setting). Replacing a key stays a task for wp-config.php and WP-CLI."
 msgstr "Monate, nach denen das Geheimnis für Lizenzschlüssel, der Verschlüsselungsschlüssel für Installationsgeheimnisse und der Signaturschlüssel für Antworten ersetzt werden sollten. Ein älterer Schlüssel wird auf der Diagnoseseite gezeigt, erhöht die Kennzahl „Fällige Schlüsselwechsel“ und löst einen Hinweis für Administratoren aus. Vorgabe: 0 = keine Erinnerung. Das Alter zählt ab dem Tag, an dem dieser Server den Schlüssel zuerst gesehen hat (Schlüssel tragen kein eigenes Datum; bei schon vorhandenen Schlüsseln ab dem ersten Tag nach dem Update, das diese Einstellung gebracht hat). Der Wechsel selbst bleibt Aufgabe der wp-config.php und von WP-CLI."
 
-#: src/Settings/Texts.php:387
+#: src/Settings/Texts.php:391
 msgid "Keys due for rotation"
 msgstr "Fällige Schlüsselwechsel"
 
@@ -11096,3 +11102,385 @@ msgstr "Die Region (Einstellung oder WPLC_S3_REGION) ist kein gültiger Regionsn
 #: src/Update/S3Storage.php:453
 msgid "The endpoint (setting or WPLC_S3_ENDPOINT) must be an HTTPS address on the standard port without a path, for example https://s3.eu-central-1.amazonaws.com."
 msgstr "Der Endpunkt (Einstellung oder WPLC_S3_ENDPOINT) muss eine HTTPS-Adresse auf dem Standard-Port ohne Pfad sein, zum Beispiel https://s3.eu-central-1.amazonaws.com."
+
+#: src/Admin/AuditLogAdmin.php:174
+msgid "Webhook"
+msgstr "Webhook"
+
+#: src/Admin/Capabilities.php:98
+msgid "Manufacturer rules that act on every customer site: staging and development sites, offline period, downloads, co-users and transfer; outgoing webhooks"
+msgstr "Hersteller-Regeln, die auf jeder Kunden-Website wirken: Staging- und Entwicklungs-Websites, Offline-Frist, Downloads, Mitnutzer und Übertragung; ausgehende Webhooks"
+
+#: src/Settings/Texts.php:341
+msgid "Keep the webhook delivery log for"
+msgstr "Zustellprotokoll der Webhooks aufbewahren für"
+
+#: src/Settings/Texts.php:342
+msgid "Days after which entries of the delivery log of the outgoing webhooks (event, body with record IDs, status code, error) are deleted. Default: 30. 0 = never delete by age; in any case at most the newest 100 entries per endpoint are kept."
+msgstr "Tage, nach denen Einträge des Zustellprotokolls der ausgehenden Webhooks (Ereignis, Inhalt mit Datensatz-IDs, Statuscode, Fehler) gelöscht werden. Vorgabe: 30. 0 = nie nach Alter löschen; in jedem Fall bleiben höchstens die neuesten 100 Einträge je Endpunkt erhalten."
+
+#: src/Webhooks/Admin.php:62
+#: src/Webhooks/Admin.php:63
+#: src/Webhooks/Admin.php:68
+#: src/Webhooks/Admin.php:131
+msgid "License webhooks"
+msgstr "Lizenz-Webhooks"
+
+#. translators: %s: names of webhook endpoints, separated by commas.
+#: src/Webhooks/Admin.php:105
+#, php-format
+msgid "A license webhook was switched off because its deliveries failed repeatedly: %s. Check the receiver, then switch it on again."
+msgid_plural "License webhooks were switched off because their deliveries failed repeatedly: %s. Check the receivers, then switch them on again."
+msgstr[0] "Ein Lizenz-Webhook wurde abgeschaltet, weil seine Zustellungen wiederholt fehlgeschlagen sind: %s. Prüfen Sie den Empfänger und schalten Sie ihn dann wieder ein."
+msgstr[1] "Lizenz-Webhooks wurden abgeschaltet, weil ihre Zustellungen wiederholt fehlgeschlagen sind: %s. Prüfen Sie die Empfänger und schalten Sie sie dann wieder ein."
+
+#: src/Webhooks/Admin.php:114
+msgid "Open the webhooks"
+msgstr "Webhooks öffnen"
+
+#: src/Webhooks/Admin.php:124
+#: src/Webhooks/Admin.php:313
+msgid "You do not have permission to manage webhooks."
+msgstr "Sie dürfen keine Webhooks verwalten."
+
+#: src/Webhooks/Admin.php:133
+msgid "A webhook sends license events of this shop to another system as a signed HTTPS request: a new license, a status change, a new plan, a new or removed site, a reached site limit, a published or withdrawn release. The request carries record IDs and codes only, never a license key, a site address, an email address or payment data. Each request is signed with the secret of the endpoint; failed requests are tried again up to five times."
+msgstr "Ein Webhook sendet Lizenzereignisse dieses Shops als signierte HTTPS-Anfrage an ein anderes System: eine neue Lizenz, eine Statusänderung, einen neuen Tarif, eine neue oder entfernte Website, ein erreichtes Website-Limit, ein veröffentlichtes oder zurückgezogenes Release. Die Anfrage enthält nur Datensatz-IDs und Codes, nie einen Lizenzschlüssel, eine Website-Adresse, eine E-Mail-Adresse oder Zahlungsdaten. Jede Anfrage wird mit dem Geheimnis des Endpunkts signiert; fehlgeschlagene Anfragen werden bis zu fünfmal versucht."
+
+#: src/Webhooks/Admin.php:139
+msgid "No webhook endpoint yet. Nothing is sent until one is added."
+msgstr "Noch kein Webhook-Endpunkt. Bis einer angelegt ist, wird nichts gesendet."
+
+#: src/Webhooks/Admin.php:159
+msgid "Endpoints"
+msgstr "Endpunkte"
+
+#: src/Webhooks/Admin.php:161
+#: src/Webhooks/Admin.php:241
+msgid "Target URL"
+msgstr "Ziel-Adresse"
+
+#: src/Webhooks/Admin.php:161
+#: src/Webhooks/Admin.php:244
+msgid "Events"
+msgstr "Ereignisse"
+
+#: src/Webhooks/Admin.php:161
+msgid "Last delivery"
+msgstr "Letzte Zustellung"
+
+#: src/Webhooks/Admin.php:171
+msgid "On"
+msgstr "An"
+
+#: src/Webhooks/Admin.php:173
+msgid "Off after repeated failures"
+msgstr "Aus nach wiederholten Fehlern"
+
+#. translators: %d: number of failed deliveries in a row.
+#: src/Webhooks/Admin.php:179
+#, php-format
+msgid "%d failed delivery in a row"
+msgid_plural "%d failed deliveries in a row"
+msgstr[0] "%d fehlgeschlagene Zustellung in Folge"
+msgstr[1] "%d fehlgeschlagene Zustellungen in Folge"
+
+#. translators: %s: date and time.
+#: src/Webhooks/Admin.php:183
+#, php-format
+msgid "Success: %s"
+msgstr "Erfolg: %s"
+
+#. translators: %s: date and time.
+#: src/Webhooks/Admin.php:185
+#, php-format
+msgid "Failure: %s"
+msgstr "Fehler: %s"
+
+#: src/Webhooks/Admin.php:187
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: src/Webhooks/Admin.php:188
+msgid "Delivery log"
+msgstr "Zustellprotokoll"
+
+#: src/Webhooks/Admin.php:189
+msgid "Send test event"
+msgstr "Testereignis senden"
+
+#: src/Webhooks/Admin.php:190
+msgid "Switch off"
+msgstr "Ausschalten"
+
+#: src/Webhooks/Admin.php:190
+msgid "Switch on"
+msgstr "Einschalten"
+
+#: src/Webhooks/Admin.php:191
+msgid "Generate new secret"
+msgstr "Neues Geheimnis erzeugen"
+
+#: src/Webhooks/Admin.php:191
+msgid "The old secret stops working at once"
+msgstr "Das alte Geheimnis gilt sofort nicht mehr"
+
+#: src/Webhooks/Admin.php:192
+msgid "Delete"
+msgstr "Löschen"
+
+#: src/Webhooks/Admin.php:192
+msgid "Delete the endpoint and its delivery log"
+msgstr "Endpunkt und sein Zustellprotokoll löschen"
+
+#: src/Webhooks/Admin.php:229
+msgid "Change endpoint"
+msgstr "Endpunkt ändern"
+
+#: src/Webhooks/Admin.php:229
+#: src/Webhooks/Admin.php:256
+msgid "Add endpoint"
+msgstr "Endpunkt hinzufügen"
+
+#: src/Webhooks/Admin.php:240
+msgid "Optional label, e.g. the receiving system."
+msgstr "Optionale Bezeichnung, z. B. das empfangende System."
+
+#: src/Webhooks/Admin.php:243
+msgid "Only https:// on port 443. Addresses in a private or local network (localhost, 10.x, 192.168.x, link-local and the like) are refused, also when a host name points there; the address is checked again before every request. Redirects are not followed."
+msgstr "Nur https:// auf Port 443. Adressen in einem privaten oder lokalen Netz (localhost, 10.x, 192.168.x, Link-local und ähnliche) werden abgelehnt, auch wenn ein Hostname dorthin zeigt; die Adresse wird vor jeder Anfrage erneut geprüft. Weiterleitungen werden nicht verfolgt."
+
+#: src/Webhooks/Admin.php:250
+#: src/Webhooks/Admin.php:471
+msgid "Choose at least one event."
+msgstr "Wählen Sie mindestens ein Ereignis."
+
+#: src/Webhooks/Admin.php:251
+msgid "Send events to this endpoint"
+msgstr "Ereignisse an diesen Endpunkt senden"
+
+#: src/Webhooks/Admin.php:254
+msgid "A secret is generated when the endpoint is saved. It is shown once; copy it into the receiving system to check the signature."
+msgstr "Beim Speichern des Endpunkts wird ein Geheimnis erzeugt. Es wird einmal angezeigt; kopieren Sie es in das empfangende System, damit es die Signatur prüfen kann."
+
+#: src/Webhooks/Admin.php:256
+msgid "Save endpoint"
+msgstr "Endpunkt speichern"
+
+#: src/Webhooks/Admin.php:258
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#. translators: %s: name of the webhook endpoint.
+#: src/Webhooks/Admin.php:272
+#, php-format
+msgid "Delivery log: %s"
+msgstr "Zustellprotokoll: %s"
+
+#. translators: %d: number of deliveries kept.
+#: src/Webhooks/Admin.php:274
+#, php-format
+msgid "The newest %d deliveries are kept; older ones are removed by the retention period \"Keep the webhook delivery log for\" (License settings → Legal and privacy)."
+msgstr "Die neuesten %d Zustellungen bleiben erhalten; ältere entfernt die Aufbewahrungsfrist „Zustellprotokoll der Webhooks aufbewahren für“ (Lizenzeinstellungen → Recht und Datenschutz)."
+
+#: src/Webhooks/Admin.php:277
+msgid "No delivery yet."
+msgstr "Noch keine Zustellung."
+
+#: src/Webhooks/Admin.php:281
+msgid "Time"
+msgstr "Zeit"
+
+#: src/Webhooks/Admin.php:281
+msgid "Event ID"
+msgstr "Ereignis-ID"
+
+#: src/Webhooks/Admin.php:281
+msgid "Attempt"
+msgstr "Versuch"
+
+#: src/Webhooks/Admin.php:281
+msgid "HTTP status"
+msgstr "HTTP-Status"
+
+#: src/Webhooks/Admin.php:281
+msgid "Duration"
+msgstr "Dauer"
+
+#: src/Webhooks/Admin.php:281
+msgid "Error"
+msgstr "Fehler"
+
+#. translators: %s: date and time.
+#: src/Webhooks/Admin.php:292
+#, php-format
+msgid "next attempt %s"
+msgstr "nächster Versuch %s"
+
+#. translators: %d: milliseconds.
+#: src/Webhooks/Admin.php:297
+#, php-format
+msgid "%d ms"
+msgstr "%d ms"
+
+#: src/Webhooks/Admin.php:300
+msgid "Send again"
+msgstr "Erneut senden"
+
+#: src/Webhooks/Admin.php:428
+msgid "Secret of the endpoint – shown only now:"
+msgstr "Geheimnis des Endpunkts – wird nur jetzt angezeigt:"
+
+#: src/Webhooks/Admin.php:429
+msgid "Secret"
+msgstr "Geheimnis"
+
+#: src/Webhooks/Admin.php:430
+msgid "Copy it into the receiving system now. It is stored encrypted and cannot be shown again; if it is lost, generate a new one."
+msgstr "Kopieren Sie es jetzt in das empfangende System. Es wird verschlüsselt gespeichert und kann nicht noch einmal angezeigt werden; geht es verloren, erzeugen Sie ein neues."
+
+#: src/Webhooks/Admin.php:445
+msgid "The endpoint was added."
+msgstr "Der Endpunkt wurde hinzugefügt."
+
+#: src/Webhooks/Admin.php:447
+msgid "The endpoint was saved."
+msgstr "Der Endpunkt wurde gespeichert."
+
+#: src/Webhooks/Admin.php:449
+msgid "The endpoint was switched on. Its failure counter starts again."
+msgstr "Der Endpunkt wurde eingeschaltet. Sein Fehlerzähler beginnt von vorn."
+
+#: src/Webhooks/Admin.php:451
+msgid "The endpoint was switched off. Queued deliveries are not sent."
+msgstr "Der Endpunkt wurde ausgeschaltet. Wartende Zustellungen werden nicht gesendet."
+
+#: src/Webhooks/Admin.php:453
+msgid "A new secret was generated. The old one no longer works."
+msgstr "Ein neues Geheimnis wurde erzeugt. Das alte gilt nicht mehr."
+
+#: src/Webhooks/Admin.php:455
+msgid "The endpoint and its delivery log were deleted."
+msgstr "Der Endpunkt und sein Zustellprotokoll wurden gelöscht."
+
+#. translators: %s: HTTP status code.
+#: src/Webhooks/Admin.php:458
+#, php-format
+msgid "The test event was delivered (HTTP %s)."
+msgstr "Das Testereignis wurde zugestellt (HTTP %s)."
+
+#. translators: %s: short error.
+#: src/Webhooks/Admin.php:461
+#, php-format
+msgid "The test event could not be delivered: %s"
+msgstr "Das Testereignis konnte nicht zugestellt werden: %s"
+
+#: src/Webhooks/Admin.php:463
+msgid "The delivery was queued again with the same event ID."
+msgstr "Die Zustellung wurde mit derselben Ereignis-ID erneut eingereiht."
+
+#: src/Webhooks/Admin.php:465
+msgid "This delivery cannot be sent again now: it is still queued or being sent."
+msgstr "Diese Zustellung kann jetzt nicht erneut gesendet werden: Sie wartet noch oder wird gerade gesendet."
+
+#: src/Webhooks/Admin.php:467
+msgid "Tick the confirmation box first."
+msgstr "Setzen Sie zuerst das Häkchen zur Bestätigung."
+
+#: src/Webhooks/Admin.php:469
+msgid "The endpoint was not found."
+msgstr "Der Endpunkt wurde nicht gefunden."
+
+#. translators: %d: largest number of endpoints.
+#: src/Webhooks/Admin.php:474
+#, php-format
+msgid "At most %d endpoints are possible."
+msgstr "Höchstens %d Endpunkte sind möglich."
+
+#: src/Webhooks/Admin.php:476
+msgid "The secret could not be encrypted. Check the encryption key in wp-config.php (WPLC_INSTALLATION_ENCRYPTION_KEYS) and that the OpenSSL extension is available."
+msgstr "Das Geheimnis konnte nicht verschlüsselt werden. Prüfen Sie den Verschlüsselungsschlüssel in wp-config.php (WPLC_INSTALLATION_ENCRYPTION_KEYS) und ob die OpenSSL-Erweiterung verfügbar ist."
+
+#: src/Webhooks/Admin.php:478
+msgid "The target URL is not a valid address."
+msgstr "Die Ziel-Adresse ist keine gültige Adresse."
+
+#: src/Webhooks/Admin.php:480
+msgid "The target URL must start with https://."
+msgstr "Die Ziel-Adresse muss mit https:// beginnen."
+
+#: src/Webhooks/Admin.php:482
+msgid "The target URL must not contain a user name or password."
+msgstr "Die Ziel-Adresse darf keinen Benutzernamen und kein Passwort enthalten."
+
+#: src/Webhooks/Admin.php:484
+msgid "The target URL must use the standard port 443."
+msgstr "Die Ziel-Adresse muss den Standard-Port 443 verwenden."
+
+#: src/Webhooks/Admin.php:486
+msgid "The target URL names a local host. Use the public address of the receiving system."
+msgstr "Die Ziel-Adresse nennt einen lokalen Host. Verwenden Sie die öffentliche Adresse des empfangenden Systems."
+
+#: src/Webhooks/Admin.php:488
+msgid "The target URL points to a private, local or reserved network address. Only public addresses are allowed."
+msgstr "Die Ziel-Adresse zeigt auf eine private, lokale oder reservierte Netzadresse. Nur öffentliche Adressen sind erlaubt."
+
+#: src/Webhooks/Admin.php:490
+msgid "The host name of the target URL could not be resolved."
+msgstr "Der Hostname der Ziel-Adresse konnte nicht aufgelöst werden."
+
+#: src/Webhooks/Admin.php:492
+msgid "The action failed. Reload the page and try again."
+msgstr "Die Aktion ist fehlgeschlagen. Laden Sie die Seite neu und versuchen Sie es noch einmal."
+
+#: src/Webhooks/Admin.php:504
+msgid "a license was issued (order or by hand)"
+msgstr "eine Lizenz wurde ausgestellt (Bestellung oder von Hand)"
+
+#: src/Webhooks/Admin.php:505
+msgid "the status of a license changed or it was renewed"
+msgstr "der Status einer Lizenz hat sich geändert oder sie wurde verlängert"
+
+#: src/Webhooks/Admin.php:506
+msgid "the plan of a license changed"
+msgstr "der Tarif einer Lizenz hat sich geändert"
+
+#: src/Webhooks/Admin.php:507
+msgid "an activation was refused because a site limit was reached"
+msgstr "eine Aktivierung wurde abgelehnt, weil ein Website-Limit erreicht war"
+
+#: src/Webhooks/Admin.php:508
+msgid "a site was activated"
+msgstr "eine Website wurde aktiviert"
+
+#: src/Webhooks/Admin.php:509
+msgid "a site activation ended"
+msgstr "eine Website-Aktivierung wurde beendet"
+
+#: src/Webhooks/Admin.php:510
+msgid "a release was published"
+msgstr "ein Release wurde veröffentlicht"
+
+#: src/Webhooks/Admin.php:511
+msgid "a release was withdrawn"
+msgstr "ein Release wurde zurückgezogen"
+
+#: src/Webhooks/Admin.php:525
+msgid "Queued"
+msgstr "Wartet"
+
+#: src/Webhooks/Admin.php:526
+msgid "Sending"
+msgstr "Wird gesendet"
+
+#: src/Webhooks/Admin.php:527
+msgid "Failed, will retry"
+msgstr "Fehlgeschlagen, neuer Versuch folgt"
+
+#: src/Webhooks/Admin.php:528
+msgid "Delivered"
+msgstr "Zugestellt"
+
+#: src/Webhooks/Admin.php:530
+msgid "Not sent (endpoint off)"
+msgstr "Nicht gesendet (Endpunkt aus)"
