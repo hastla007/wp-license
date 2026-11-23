@@ -132,6 +132,26 @@ final class SecretCrypto {
 	}
 
 	/**
+	 * Fingerprint of the key new values are encrypted with, for the key age (SET-LIC-28).
+	 *
+	 * Key ID and the first 16 hex characters of an HMAC of a fixed text. '' while the WordPress salt stands in.
+	 *
+	 * @return string
+	 */
+	public static function fingerprint(): string {
+		if ( self::uses_fallback_key() ) {
+			return '';
+		}
+		$keys   = self::configured_keys();
+		$key_id = self::current_key_id( $keys );
+		if ( ! isset( $keys[ $key_id ] ) || '' === $keys[ $key_id ] ) {
+			return '';
+		}
+
+		return $key_id . ':' . substr( hash_hmac( 'sha256', 'wplc-key-age', $keys[ $key_id ] ), 0, 16 );
+	}
+
+	/**
 	 * Whether installation credentials are encrypted with the WordPress
 	 * secure_auth salt because no dedicated key is configured in wp-config.php.
 	 *

@@ -94,7 +94,7 @@ wp wplc signing-key --field=public_key
 | --- | --- |
 | `WPLC_PACKAGE_STORAGE_DIR` | Absolute directory outside the web root for uploaded release ZIPs (chapter 5). Recommended for production. |
 | `WPLC_S3_BUCKET`, `WPLC_S3_ACCESS_KEY_ID`, `WPLC_S3_SECRET_ACCESS_KEY` | Private S3-compatible bucket for release packages and a key that may read it (chapter 5). Optional; all three are required together. Never stored in the database or shown. |
-| `WPLC_S3_REGION`, `WPLC_S3_ENDPOINT`, `WPLC_S3_PATH_STYLE` | Region (default `us-east-1`, `auto` for Cloudflare R2), HTTPS endpoint (default: AWS for the region) and path-style addressing (default `false`) of that storage. |
+| `WPLC_S3_REGION`, `WPLC_S3_ENDPOINT`, `WPLC_S3_PATH_STYLE` | Region (default `us-east-1`, `auto` for Cloudflare R2), HTTPS endpoint (default: AWS for the region) and path-style addressing (default `false`) of that storage. Bucket, region, endpoint and path style can instead be entered under License settings → Updates; a defined constant wins over its field (chapter 13). |
 | `WPLC_TRUSTED_PROXY_HEADER`, `WPLC_TRUSTED_PROXIES` | Behind a CDN or reverse proxy: the header with the real client address (for example `HTTP_CF_CONNECTING_IP`) and the IPs or CIDR ranges of the proxies allowed to set it. Without both, all customers behind the proxy share one rate-limit bucket (chapter 9). |
 | `WPLC_RATE_LIMIT_KEY` | Key of the HMAC that hashes rate-limit buckets. Optional; derived from the WordPress auth salt otherwise. Changing it only resets the running buckets. |
 | `WPLC_PAUSE_BILLING` | `true` pauses all charges, expiries and reminder emails (staging copies, restores); `false` lets a non-production site bill test cards (chapter 9). |
@@ -120,6 +120,8 @@ wp wplc signing-key --field=public_key
 | Suspended licenses count as ended after | 0 | Days of uninterrupted suspension after which a license is treated like an expired one by the personal data eraser and by retention. `0` = never. Irreversible for the data concerned; agree the period with legal counsel (chapter 9). |
 
 Chapter 13 lists every setting, including the support contact, the offline period of customer sites, the health alerts and the verbose log.
+
+**License key prefix (decide before the first sale).** Every key and every license reference starts with four characters and a hyphen, `WPLC-` by default. Under License settings → Rules of this shop you can choose your own four characters (a letter, then letters or digits, for example `ACME`) **as long as no license exists**. Every key contains the prefix and the stored check value is made from the whole key, so after the first license the field is read-only and shows why; the form, an import, a reset and WP-CLI leave it unchanged. The length of keys (106 characters) and references (13) stays the same; a shorter key format is a separate question. Set the placeholder of the key field in the add-ons to match (client library 2.4.0, `brand['key_placeholder']`); the client does not check the prefix of a typed key.
 
 The same page shows the Stripe webhook URL with a copy button, whether the secrets are configured, how many recent license keys verify with the current secret, whether automatic renewal is available and why not, the checkout type, the grace period and the database schema version.
 

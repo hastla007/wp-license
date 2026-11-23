@@ -98,19 +98,21 @@ Only `X-Accel-Redirect`, `X-Sendfile` and `X-LiteSpeed-Location` are accepted. L
 
 Since T-31 the plugin signs links for one private bucket itself, in pure PHP (AWS Signature Version 4, query-string presigning; no SDK): `WPLC\Update\S3Presigner` (signing, pure) and `WPLC\Update\S3Storage` (configuration, resolver, check). It works with AWS S3, Cloudflare R2, MinIO, Backblaze B2 (S3 API) and Google Cloud Storage (XML API with HMAC keys).
 
-### Configuration (wp-config.php only)
+### Configuration
+
+The access key ID and the secret are constants in `wp-config.php` only. Bucket, region, endpoint and path style are also fields under **WooCommerce → License settings → Updates** (settings `s3_bucket`, `s3_region`, `s3_endpoint`, `s3_path_style`, SET-LIC-30; administrators only, not part of a settings export). A constant that is defined wins over its field; the field then shows the value of the constant read-only. Below the fields the page shows the state of the storage and a button **Test the connection**, which sends the same signed request as `wp wplc storage check` and shows its answer (never the secret or the signed URL).
 
 | Constant | Required | Default | Meaning |
 | --- | --- | --- | --- |
-| `WPLC_S3_BUCKET` | yes | | Bucket name. |
+| `WPLC_S3_BUCKET` | yes (or the field) | | Bucket name. |
 | `WPLC_S3_ACCESS_KEY_ID` | yes | | Access key ID. |
 | `WPLC_S3_SECRET_ACCESS_KEY` | yes | | Secret access key. |
-| `WPLC_S3_REGION` | no | `us-east-1` | Signing region; `auto` for R2 and GCS. |
-| `WPLC_S3_ENDPOINT` | no | `https://s3.{region}.amazonaws.com` | HTTPS endpoint, port 443, no path. A bare host is accepted. |
-| `WPLC_S3_PATH_STYLE` | no | `false` | `https://endpoint/bucket/key` instead of `https://bucket.endpoint/key`. Always on for bucket names that are not one lower-case DNS label (dots, capitals, underscores). |
+| `WPLC_S3_REGION` | no (or the field) | `us-east-1` | Signing region; `auto` for R2 and GCS. |
+| `WPLC_S3_ENDPOINT` | no (or the field) | `https://s3.{region}.amazonaws.com` | HTTPS endpoint, port 443, no path. A bare host is accepted. |
+| `WPLC_S3_PATH_STYLE` | no (or the field) | `false` | `https://endpoint/bucket/key` instead of `https://bucket.endpoint/key`. Always on for bucket names that are not one lower-case DNS label (dots, capitals, underscores). |
 
 - The credentials are read from the constants on each use and passed only to the signer. They are not stored in an option, not shown on any screen, not part of an audit entry, log line, REST answer or CLI output (`S3StorageIntegrationTest::assertSecretNowhere`). `S3Presigner::__debugInfo()` hides them from `var_dump`/`print_r`. There is deliberately no filter for them.
-- If only some of the three required constants are set, or a value is invalid, the storage counts as not configured; **License diagnostics** shows "Invalid configuration" with the reason. A configured storage shows "Bucket {bucket} on {endpoint host}" and nothing else.
+- If only some of the three required values are set, or a value is invalid, the storage counts as not configured; **License diagnostics** shows "Invalid configuration" with the reason. A configured storage shows "Bucket {bucket} on {endpoint host}" and nothing else.
 - The request host (`bucket.endpoint` or the endpoint) is added to `wplc_update_package_hosts` while the storage is configured.
 - Give the key read access to the release objects only (`s3:GetObject` on `bucket/*`). `wp wplc storage check` needs `s3:ListBucket` for the bucket check, or only `s3:GetObject` with `--key=<object>`.
 - Endpoints on another port (MinIO on `:9000`) are refused, like every package host that is not HTTPS on 443: put them behind a TLS reverse proxy.

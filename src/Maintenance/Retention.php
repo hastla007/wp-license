@@ -46,6 +46,8 @@ final class Retention {
 	 *                              its license has ended or no longer exists. Ten years by default, also
 	 *                              from the end of the year: the evidence belongs to charges that are
 	 *                              kept as long as invoices.
+	 * - webhook_deliveries:        delivery log of the outgoing webhooks (body, status code, error),
+	 *                              by creation date (SET-LIC-46).
 	 */
 	public const DEFAULT_DAYS = array(
 		'audit_log' => 730,
@@ -57,6 +59,7 @@ final class Retention {
 		'reminder_log' => 730,
 		'anonymize_licenses' => 3650,
 		'consents' => 3650,
+		'webhook_deliveries' => 30,
 	);
 
 	/**
@@ -479,6 +482,9 @@ final class Retention {
 					)
 				);
 				return self::affected( $result, $rule );
+
+			case 'webhook_deliveries':
+				return \WPLC\Webhooks\Deliveries::purge_before( $cutoff, self::BATCH_SIZE );
 		}
 		// phpcs:enable
 

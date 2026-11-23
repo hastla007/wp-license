@@ -336,7 +336,7 @@ final class AuditLog {
 	 */
 	private static function redact_text( string $value ): string {
 		$value = preg_replace( '/(license.?key|api.?key|secret|token|password|authorization)\\s*[:=]\\s*[^\\s,;]+/i', '$1=[REDACTED]', $value );
-		$value = preg_replace( '/\\bWPLC-[A-Za-z0-9-]{6,}\\b/i', '[REDACTED-LICENSE-KEY]', $value );
+		$value = preg_replace( '/\\b' . LicenseKey::prefix_alternatives() . '-[A-Za-z0-9-]{6,}\\b/i', '[REDACTED-LICENSE-KEY]', $value );
 		$value = preg_replace( '/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i', '[REDACTED-EMAIL]', $value );
 
 		return is_string( $value ) ? $value : '';

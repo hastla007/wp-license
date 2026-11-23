@@ -30,6 +30,7 @@ final class Texts {
 			'rules'      => __( 'Rules of this shop', 'wp-license' ),
 			'sites'      => __( 'Customer sites', 'wp-license' ),
 			'sharing'    => __( 'Co-users and transfer', 'wp-license' ),
+			'account'    => __( 'Customer account', 'wp-license' ),
 			'legal'      => __( 'Legal and privacy', 'wp-license' ),
 			'texts'      => __( 'Texts and support', 'wp-license' ),
 			'operations' => __( 'Operations', 'wp-license' ),
@@ -104,6 +105,27 @@ final class Texts {
 				__( 'Download link valid for', 'wp-license' ),
 				__( 'Seconds during which the download link that a customer site receives for an update can be used. Default: 300 (five minutes); 60 to 900. The site asks for a new link right before it downloads, so a short time is enough.', 'wp-license' ),
 			),
+			's3_bucket'                 => array(
+				__( 'Object storage: bucket', 'wp-license' ),
+				__( 'Name of the private bucket that update packages are delivered from (S3-compatible storage such as Amazon S3 or Cloudflare R2). Empty (default) = no object storage. The access key ID and the secret stay in wp-config.php (WPLC_S3_ACCESS_KEY_ID, WPLC_S3_SECRET_ACCESS_KEY); without them the bucket is not used. When WPLC_S3_BUCKET is defined in wp-config.php, the constant wins and the field is read-only.', 'wp-license' ),
+			),
+			's3_region'                 => array(
+				__( 'Object storage: region', 'wp-license' ),
+				__( 'Region of the bucket, for example eu-central-1; auto for Cloudflare R2. Empty (default) = us-east-1. When WPLC_S3_REGION is defined in wp-config.php, the constant wins and the field is read-only.', 'wp-license' ),
+			),
+			's3_endpoint'               => array(
+				__( 'Object storage: endpoint', 'wp-license' ),
+				__( 'HTTPS address of the storage service without a path, for example https://ACCOUNT-ID.r2.cloudflarestorage.com. Empty (default) = Amazon S3 in the region above. When WPLC_S3_ENDPOINT is defined in wp-config.php, the constant wins and the field is read-only.', 'wp-license' ),
+			),
+			's3_path_style'             => array(
+				__( 'Object storage: bucket in the path', 'wp-license' ),
+				__( 'On: the bucket is addressed in the path of the address (https://endpoint/bucket/…), which some providers such as MinIO need. Off (default): the bucket is a subdomain of the endpoint; bucket names with dots or capital letters always use the path. When WPLC_S3_PATH_STYLE is defined in wp-config.php, the constant wins and the field is read-only.', 'wp-license' ),
+			),
+			// Owner decisions of 23.11.2026 (settings part 6).
+			'beta_updates'              => array(
+				__( 'Beta versions for licenses', 'wp-license' ),
+				__( 'On (default, as before): licenses may receive beta versions when the customer site asks for them; with client library 2.4.0 the customer turns them on in the add-on. Off: only stable versions, unless a plan allows beta under "Rules of this plan" in the product editor. A plan can also forbid beta while this is on. A client without the right gets the newest stable version; the signed answer lists the channels of the license (update_channels).', 'wp-license' ),
+			),
 			'combined_renewals'         => array(
 				__( 'Combine automatic renewals', 'wp-license' ),
 				__( 'Only licenses with the same saved card, currency and billing interval are combined. Each license keeps its own renewal; a declined payment is retried per license. Manual renewals are never combined. Off by default.', 'wp-license' ),
@@ -176,6 +198,35 @@ final class Texts {
 				__( 'Payment methods paid on delivery', 'wp-license' ),
 				__( 'IDs of WooCommerce payment methods, one per line, whose orders count as paid only when they are completed, because the order is "processing" before the money arrived. Licenses, manual renewals and plan upgrades paid with them start when you complete the order. Default: cod (cash on delivery).', 'wp-license' ),
 			),
+			// Owner decisions of 23.11.2026 (settings part 6).
+			'suspend_on_order_cancelled' => array(
+				__( 'Cancelled or failed order suspends its licenses', 'wp-license' ),
+				__( 'On (default): when a paid order is cancelled or fails afterwards (for example a bounced direct debit), the licenses it issued or renewed are suspended until you reactivate them. Off: the licenses stay as they are; check the order yourself. A full refund always revokes the licenses, whatever is set here.', 'wp-license' ),
+			),
+			'suspend_on_order_item_change' => array(
+				__( 'Removed order line suspends its licenses', 'wp-license' ),
+				__( 'On (default): when a line of a paid order is removed or its quantity lowered after the licenses were issued, the licenses above the new quantity are suspended until you reactivate them. Off: they stay as they are.', 'wp-license' ),
+			),
+			'partial_refund_review'     => array(
+				__( 'Partial refund by amount: review notice', 'wp-license' ),
+				__( 'On (default): a refund of part of the amount without refunding whole licenses changes no license, but asks you to review it: it is written to the order notes and the audit log of each license of the order, and the health alert "license needs review" is sent to the alert recipients. Off: no notice, as before (a renewal or upgrade order still gets its own order note). Refunding licenses by quantity revokes them in both cases.', 'wp-license' ),
+			),
+			'restore_after_won_dispute' => array(
+				__( 'Won payment dispute reactivates the license', 'wp-license' ),
+				__( 'Off (default): a license suspended because of a payment dispute stays suspended when the dispute is decided for the shop, until you reactivate it. On: it is reactivated automatically (only when it is still suspended because of that dispute and its paid period has not ended).', 'wp-license' ),
+			),
+			'plan_upgrades_enabled'     => array(
+				__( 'Customers can upgrade their plan', 'wp-license' ),
+				__( 'On (default): the customer account offers a more expensive plan of the same product; the customer pays the price difference for the rest of the paid period, prorated by day. Off: the offer is not shown and a request is refused. Administrators can always change the plan.', 'wp-license' ),
+			),
+			'plan_downgrades_enabled'   => array(
+				__( 'Customers can switch to a cheaper plan', 'wp-license' ),
+				__( 'On (default): the customer account offers a cheaper plan of the same product, which starts with the next renewal (no credit for the current period). Off: the offer is not shown and a request is refused; a switch already scheduled stays. Administrators can always change the plan.', 'wp-license' ),
+			),
+			'license_key_prefix'        => array(
+				__( 'License key prefix', 'wp-license' ),
+				__( 'The first four characters of every license key and license reference, for example ACME for ACME-1A2B3C4D. A letter followed by three letters or digits. Default: WPLC. Can only be changed before the first license is issued, because every key contains it; the length of the keys stays the same.', 'wp-license' ),
+			),
 			'offline_cache_days'        => array(
 				__( 'Offline period of customer sites', 'wp-license' ),
 				__( 'Days a customer site may rely on the last signed answer of this server when it cannot reach it. Default: 14. The period never reaches beyond the end of access of the license: a license whose paid period or grace period ends earlier stops working offline at that end. A plan can set its own period in the product editor.', 'wp-license' ),
@@ -231,6 +282,38 @@ final class Texts {
 			'transfer_new_key'          => array(
 				__( 'New license key on transfer', 'wp-license' ),
 				__( 'Off (default): the license keeps its key and the activated sites keep working after a transfer accepted in the account. On: the transfer also issues a new key, so the previous owner can no longer use the old one; the new owner enters the new key on the sites.', 'wp-license' ),
+			),
+			'account_licenses_slug'     => array(
+				__( 'Address of the license page', 'wp-license' ),
+				__( 'Last part of the address of the license page in the customer account, for example licenses or lizenzen: lowercase letters, digits and hyphens. Default: wplc-licenses. The new address works at once; links in emails sent before lead to the old address and find no page. It must differ from the site page and from the other pages of the account.', 'wp-license' ),
+			),
+			'account_licenses_label'    => array(
+				__( 'Menu item of the license page', 'wp-license' ),
+				__( 'Name of the license page in the menu of the customer account and its heading. Empty (default) = "Licenses" in the language of the customer. Your own name is shown as it is in every language.', 'wp-license' ),
+			),
+			'account_licenses_per_page' => array(
+				__( 'Licenses per page', 'wp-license' ),
+				__( 'How many licenses the license page of the customer account shows at a time; further licenses are on the next pages. Default: 10.', 'wp-license' ),
+			),
+			'account_sites_slug'        => array(
+				__( 'Address of the site page', 'wp-license' ),
+				__( 'Last part of the address of the page "Sites" in the customer account, for example sites or websites: lowercase letters, digits and hyphens. Default: wplc-sites. It must differ from the license page and from the other pages of the account.', 'wp-license' ),
+			),
+			'account_sites_label'       => array(
+				__( 'Menu item of the site page', 'wp-license' ),
+				__( 'Name of the page "Sites" in the menu of the customer account. Empty (default) = "Sites" in the language of the customer. Your own name is shown as it is in every language.', 'wp-license' ),
+			),
+			'account_sites_per_page'    => array(
+				__( 'Sites per page', 'wp-license' ),
+				__( 'How many sites the page "Sites" of the customer account shows at a time. Default: 25.', 'wp-license' ),
+			),
+			'account_stale_days'        => array(
+				__( 'Site counts as not seen after', 'wp-license' ),
+				__( 'Days without contact after which the page "Sites" marks a site with "No contact for more than … days". Default: 14.', 'wp-license' ),
+			),
+			'account_expiry_days'       => array(
+				__( 'License counts as ending soon', 'wp-license' ),
+				__( 'Days before the end of the paid period from which the page "Sites" marks a license that does not renew automatically as ending soon. Default: 30.', 'wp-license' ),
 			),
 			'withdrawal_consent_mode'   => array(
 				__( 'Consent to the immediate start (right of withdrawal)', 'wp-license' ),
@@ -288,6 +371,10 @@ final class Texts {
 				__( 'Keep proof of renewal consent for', 'wp-license' ),
 				__( 'Days after which the proof of a consent to automatic renewal is deleted, once its license has ended. Counted from the end of the calendar year of the consent. Default: 3650 (ten years, the technical default so far). 0 = never delete.', 'wp-license' ),
 			),
+			'retention_webhook_deliveries' => array(
+				__( 'Keep the webhook delivery log for', 'wp-license' ),
+				__( 'Days after which entries of the delivery log of the outgoing webhooks (event, body with record IDs, status code, error) are deleted. Default: 30. 0 = never delete by age; in any case at most the newest 100 entries per endpoint are kept.', 'wp-license' ),
+			),
 			'support_email'             => array(
 				__( 'Support email address', 'wp-license' ),
 				__( 'Address that license emails, the customer account and the cancellation page name for questions. Empty (default) = the sender address of the WooCommerce emails, else the address of the site administrator.', 'wp-license' ),
@@ -301,6 +388,10 @@ final class Texts {
 				__( 'Email addresses, separated by commas, that get a message when a figure of the diagnostics page reaches its alert threshold (for example failed background jobs or rejected webhooks). At most one collected email per day. Empty (default) = no email; the alerts are then only available to code (action wplc/health_alert).', 'wp-license' ),
 			),
 		) + self::alert_threshold_texts() + array(
+			'key_rotation_reminder_months' => array(
+				__( 'Remind to rotate keys after', 'wp-license' ),
+				__( 'Months after which the license key secret, the installation secret encryption key and the response signing key should be replaced. A key that is older is shown on the diagnostics page, raises the health figure "Keys due for rotation" and a notice for administrators. Default: 0 = no reminder. The age counts from the day this server first saw the key (keys carry no date of their own; for keys that existed before, from the first day after the update that added this setting). Replacing a key stays a task for wp-config.php and WP-CLI.', 'wp-license' ),
+			),
 			'debug_log'                 => array(
 				__( 'Verbose log', 'wp-license' ),
 				__( 'Writes additional lines of the level debug to the WooCommerce log (source wp-license) to trace a problem. It switches itself off after the chosen time. Off (default). The constant WPLC_DEBUG in wp-config.php switches it on permanently.', 'wp-license' ),
@@ -331,6 +422,7 @@ final class Texts {
 			'failed_jobs'                  => __( 'Failed background jobs (24 hours)', 'wp-license' ),
 			'release_problems'             => __( 'Problems with update packages', 'wp-license' ),
 			'rejected_webhook_minutes'     => __( 'Minutes with rejected Stripe webhook requests (24 hours)', 'wp-license' ),
+			'keys_due_for_rotation'        => __( 'Keys due for rotation', 'wp-license' ),
 		);
 	}
 
@@ -419,6 +511,12 @@ final class Texts {
 			case 'not_a_url':
 				/* translators: %s: name of a setting. */
 				return sprintf( __( '"%s" was not changed: enter an address that starts with https://.', 'wp-license' ), $label );
+			case 'not_a_key_prefix':
+				/* translators: %s: name of a setting. */
+				return sprintf( __( '"%s" was not changed: enter four characters, a letter followed by letters or digits, for example ACME.', 'wp-license' ), $label );
+			case 'locked':
+				/* translators: %s: name of a setting. */
+				return sprintf( __( '"%s" was not changed: licenses were already issued with the current value, and their keys would stop working.', 'wp-license' ), $label );
 			case 'invalid_entries':
 			case 'invalid_hosts':
 				/* translators: %s: name of a setting. */

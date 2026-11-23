@@ -77,6 +77,8 @@ final class LicenseLifecycle {
 		add_action( 'wplc_retry_refund_revocation', array( self::class, 'retry_refund_revocation' ), 10, 2 );
 		add_action( 'woocommerce_order_fully_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
 		add_action( 'woocommerce_order_partially_refunded', array( self::class, 'handle_partial_renewal_refund' ), 20, 2 );
+		// SET-LIC-17 (E-07): a partial refund by amount asks the shop to review the licenses of the order.
+		add_action( 'woocommerce_order_partially_refunded', array( self::class, 'handle_partial_amount_refund' ), 30, 2 );
 		add_action( 'woocommerce_order_status_refunded', array( self::class, 'handle_full_refund' ), 20, 1 );
 		// B-36: a paid order that is cancelled or fails afterwards (bounced debit).
 		add_action( 'woocommerce_order_status_cancelled', array( self::class, 'handle_order_cancelled' ), 20, 1 );
@@ -246,6 +248,129 @@ final class LicenseLifecycle {
 		} elseif ( ! wp_next_scheduled( 'wplc_retry_refund_revocation', array( $order_id, $refund_id ) ) ) {
 			wp_schedule_single_event( $at, 'wplc_retry_refund_revocation', array( $order_id, $refund_id ) );
 		}
+	}
+
+	/**
+	 * Review notice for a partial refund by amount (SET-LIC-17, owner decision E-07 of 23.11.2026).
+	 *
+	 * A refund of part of the amount that refunds no whole unit (no line quantity) changes no
+	 * license, as before. With the setting "Partial refund by amount: review notice" (default on)
+	 * each license of the order that still runs gets an audit entry and the action
+	 * `wplc/license_needs_review` (a health alert to the alert recipients), and the order a note.
+	 * Unit refunds are handled by handle_refund(); a refund that brings the order to zero is a full
+	 * refund and never reaches this hook. Runs once per refund.
+	 *
+	 * @param mixed $order_id  Order ID.
+	 * @param mixed $refund_id Refund ID.
+	 * @return void
+	 */
+	public static function handle_partial_amount_refund( $order_id, $refund_id = 0 ): void {
+		$order_id = absint( $order_id );
+		$order    = $order_id && function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+		$refund   = $order && absint( $refund_id ) ? wc_get_order( absint( $refund_id ) ) : false;
+		if ( ! $order instanceof \WC_Order || ! $refund instanceof \WC_Order_Refund || (int) $refund->get_parent_id() !== $order_id ) {
+			return;
+		}
+		foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
+			if ( 0 !== (int) $refund_item->get_quantity() ) {
+				return;
+			}
+		}
+		if ( $refund->get_meta( '_wplc_partial_refund_review', true ) ) {
+			return;
+		}
+		/**
+		 * Filters whether a partial refund by amount asks the shop to review the licenses of the order.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param bool             $review Default: the setting "Partial refund by amount: review notice" (on).
+		 * @param \WC_Order        $order  Refunded order.
+		 * @param \WC_Order_Refund $refund The refund.
+		 */
+		if ( ! apply_filters( 'wplc_partial_refund_review', \WPLC\Settings\Registry::bool( 'partial_refund_review' ), $order, $refund ) ) {
+			return;
+		}
+		$license_ids = array();
+		foreach ( self::license_ids_for_order( $order_id ) as $license_id ) {
+			$license = self::get_license( $license_id );
+			if ( $license && in_array( (string) $license['status'], array( 'active', 'past_due', 'suspended' ), true ) ) {
+				$license_ids[] = (int) $license_id;
+			}
+		}
+		$license_ids = array_values( array_unique( $license_ids ) );
+		if ( ! $license_ids ) {
+			return;
+		}
+		$refund->update_meta_data( '_wplc_partial_refund_review', gmdate( 'Y-m-d H:i:s' ) );
+		$refund->save();
+		$amount   = (string) $refund->get_amount();
+		$currency = (string) $order->get_currency();
+		$reason   = AuditReason::encode( AuditReason::PARTIAL_REFUND_REVIEW, array( 'order' => $order_id, 'amount' => $amount, 'currency' => $currency ) );
+		foreach ( $license_ids as $license_id ) {
+			AuditLog::record( 'partial_refund_review', 'license', $license_id, $reason, null, array( 'refund_id' => (int) $refund->get_id(), 'amount' => $amount, 'currency' => $currency ) );
+			/** This action is documented in src/License/LicenseLifecycle.php */
+			do_action( 'wplc/license_needs_review', $license_id, AuditReason::label( $reason ) );
+		}
+		$order->add_order_note(
+			sprintf(
+				/* translators: 1: refunded amount, 2: currency code, 3: list of license IDs. */
+				__( 'WP License Captain: partial refund of %1$s %2$s without refunded licenses. The licenses (%3$s) were not changed; please review whether they should be shortened, suspended or revoked.', 'wp-license' ),
+				$amount,
+				$currency,
+				'#' . implode( ', #', $license_ids )
+			)
+		);
+	}
+
+	/**
+	 * Reactivate the licenses a won dispute concerned (SET-LIC-17, setting "Won payment dispute
+	 * reactivates the license", default off).
+	 *
+	 * Only licenses that are still suspended because of exactly this dispute (status reason
+	 * `stripe_dispute` with the same dispute ID) and whose paid period has not ended. The
+	 * reactivation is the one of support (admin_restore) without an acting user; the license
+	 * keeps its paid period.
+	 *
+	 * @param int[]  $license_ids Licenses paid by the disputed order.
+	 * @param int    $order_id    Disputed order.
+	 * @param string $dispute_id  Stripe dispute ID.
+	 * @return int[] Reactivated licenses.
+	 */
+	public static function restore_after_won_dispute( array $license_ids, int $order_id, string $dispute_id ): array {
+		/**
+		 * Filters whether a won dispute reactivates the licenses it suspended.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param bool   $restore    Default: the setting "Won payment dispute reactivates the license" (off).
+		 * @param int[]  $license_ids Licenses paid by the disputed order.
+		 * @param int    $order_id    Disputed order.
+		 * @param string $dispute_id  Stripe dispute ID.
+		 */
+		if ( '' === $dispute_id || ! apply_filters( 'wplc_restore_license_after_won_dispute', \WPLC\Settings\Registry::bool( 'restore_after_won_dispute' ), $license_ids, $order_id, $dispute_id ) ) {
+			return array();
+		}
+		$restored = array();
+		foreach ( array_unique( array_map( 'intval', $license_ids ) ) as $license_id ) {
+			$license = self::get_license( $license_id );
+			$parsed  = $license ? AuditReason::parse( (string) $license['status_reason'] ) : null;
+			if ( ! $license || 'suspended' !== (string) $license['status'] || null === $parsed || AuditReason::STRIPE_DISPUTE !== $parsed['code'] || (string) ( $parsed['params']['dispute'] ?? '' ) !== $dispute_id ) {
+				continue;
+			}
+			$reason = AuditReason::encode( AuditReason::DISPUTE_WON_RESTORED, array( 'dispute' => $dispute_id, 'order' => $order_id ) );
+			$done   = (bool) self::with_license_lock(
+				$license_id,
+				static function () use ( $license_id, $reason ) {
+					return self::admin_restore_locked( $license_id, $reason, 0, null, 'suspended', true );
+				}
+			);
+			if ( $done ) {
+				$restored[] = $license_id;
+			}
+		}
+
+		return $restored;
 	}
 
 	/**
@@ -721,14 +846,14 @@ final class LicenseLifecycle {
 		/**
 		 * Filters whether licenses are suspended when their paid order is cancelled or fails.
 		 *
-		 * @param bool      $suspend Default true.
+		 * @param bool      $suspend Default: the setting "Cancelled or failed order suspends its licenses" (on, SET-LIC-17).
 		 * @param \WC_Order $order Order.
 		 */
 		if ( 'cancelled' === $order->get_status() && class_exists( '\\WPLC\\Billing\\RenewalReview' ) ) {
 			// P-05: an open review of a cancelled renewal order ends; it is neither booked nor charged again.
 			\WPLC\Billing\RenewalReview::close_for_order( $order_id, AuditReason::REVIEW_ORDER_CANCELLED );
 		}
-		if ( ! apply_filters( 'wplc_suspend_license_on_order_status', true, $order ) ) {
+		if ( ! apply_filters( 'wplc_suspend_license_on_order_status', \WPLC\Settings\Registry::bool( 'suspend_on_order_cancelled' ), $order ) ) {
 			return;
 		}
 		if ( 'yes' === $order->get_meta( '_wplc_renewal_voided', true ) ) {
@@ -845,12 +970,12 @@ final class LicenseLifecycle {
 		/**
 		 * Filters whether licenses are suspended when their order line is removed or its quantity lowered.
 		 *
-		 * @param bool            $suspend Default true.
+		 * @param bool            $suspend Default: the setting "Removed order line suspends its licenses" (on, SET-LIC-17).
 		 * @param int[]           $license_ids Licenses above the new quantity.
 		 * @param \WC_Order|false $order Order the licenses were issued from.
 		 * @param int             $quantity New quantity of the line, zero when the line was deleted.
 		 */
-		if ( ! apply_filters( 'wplc_suspend_license_on_order_item_change', true, array_map( 'intval', wp_list_pluck( $rows, 'id' ) ), $order, $quantity ) ) {
+		if ( ! apply_filters( 'wplc_suspend_license_on_order_item_change', \WPLC\Settings\Registry::bool( 'suspend_on_order_item_change' ), array_map( 'intval', wp_list_pluck( $rows, 'id' ) ), $order, $quantity ) ) {
 			return;
 		}
 		$reason = 0 === $quantity
@@ -1555,12 +1680,13 @@ final class LicenseLifecycle {
 	 *
 	 * @see self::admin_restore()
 	 */
-	private static function admin_restore_locked( int $license_id, string $reason, int $actor_user_id, ?string $paid_until_utc = null, ?string $expected_status = null ): bool {
+	private static function admin_restore_locked( int $license_id, string $reason, int $actor_user_id, ?string $paid_until_utc = null, ?string $expected_status = null, bool $by_system = false ): bool {
 		global $wpdb;
 
 		self::$last_refusal = '';
 		$license = self::get_license( $license_id );
-		if ( '' === trim( $reason ) || $actor_user_id <= 0 || ( null !== $paid_until_utc && ! self::valid_utc_datetime( $paid_until_utc ) ) ) {
+		// Without an acting user only for a rule of the shop (restore_after_won_dispute()).
+		if ( '' === trim( $reason ) || ( $actor_user_id <= 0 && ! $by_system ) || ( null !== $paid_until_utc && ! self::valid_utc_datetime( $paid_until_utc ) ) ) {
 			self::$last_refusal = 'invalid_input';
 			return false;
 		}

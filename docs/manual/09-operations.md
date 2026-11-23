@@ -41,6 +41,8 @@ When the plugin did not run for a while (deactivated, cron stopped, billing paus
 
 The license-key ring and the encryption ring rotate independently.
 
+**Reminder.** The setting **Operations → Remind to rotate keys after** (default off, chapter 13) reminds you when a key is older than the chosen number of months: on the diagnostics page (rows "Age: …"), through the health figure "Keys due for rotation" and with a notice for administrators. Keys carry no date: the age counts from the day the server first saw the key, for keys that existed before from the first day after the update that added the reminder. Rotating stays the manual work described here.
+
 | Ring | What breaks without the old entry | When the old entry may go |
 | --- | --- | --- |
 | `WPLC_LICENSE_KEY_SECRETS` | Customers no longer see keys derived with it. Activation with a key the customer has keeps working (keys are looked up by hash). | Never while licenses with that key ID exist. A routine rotation does not move existing licenses to the new ID. |
@@ -114,7 +116,7 @@ Metrics: `pending_webhooks`, `manual_review_webhooks`, `rejected_webhook_minutes
 | --- | --- | --- |
 | `wplc_daily_lifecycle` | daily (WP-Cron) | Expiry, stuck renewals, reminders, catch-up, retention, cleanup, health alerts. With Action Scheduler each job runs as its own action `wplc_daily_job`. |
 | `wplc_cleanup_security_rows` | hourly (WP-Cron) | Deletes used nonces, old rate-limit rows and expired download grants. |
-| `wplc_process_renewal`, `wplc_process_stripe_webhook`, … | Action Scheduler group `wplc` | Charges, retries, webhook reconciliation (WooCommerce → Status → Scheduled Actions). |
+| `wplc_process_renewal`, `wplc_process_stripe_webhook`, `wplc_webhook_deliver`, … | Action Scheduler group `wplc` | Charges, retries, webhook reconciliation, attempts of the outgoing webhooks (chapter 14) (WooCommerce → Status → Scheduled Actions). |
 
 If WP-Cron does not run, licenses do not expire, reminders are not sent and the security tables grow without bound. Use a real system cron for `wp-cron.php`.
 
@@ -227,6 +229,7 @@ The server is meant to run on **one** site of a network: the site where WooComme
 | `activations` (deactivated installations of ended licenses) / `inactive_activations` | 365 / 365 days |
 | `ended_license_activations` (deactivate sites of ended licenses) | 30 days |
 | `reminder_log` | 730 days |
+| `webhook_deliveries` (delivery log of the outgoing webhooks, chapter 14) | 30 days |
 | `consents` (of ended licenses) | 3650 days, counted from the end of the year |
 | `anonymize_licenses` (detach owner of licenses ended longer ago) | 3650 days, counted from the end of the year in which the license ended |
 

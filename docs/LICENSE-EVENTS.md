@@ -4,7 +4,7 @@ The license server is a provider in the sense of the suite specification `docs/S
 
 ## What the server provides, and what it does not
 
-- **Plain PHP actions** in the same request (D5), with scalar arguments. Nothing is sent to customer sites: no webhook, no outbox, no signature (D2, R-11.1).
+- **Plain PHP actions** in the same request (D5), with scalar arguments. Nothing is sent to customer sites: no webhook, no outbox, no signature (D2, R-11.1). Separately, and only when the shop adds an endpoint, the same eight actions can be sent to the shop's own systems as signed HTTPS requests (outgoing webhooks, SET-LIC-46): that layer has its own event ID, retries and delivery log and is described in [WEBHOOKS.md](WEBHOOKS.md). The PHP actions below are unchanged by it.
 - **No envelope and no event ID.** The consumer builds the envelope, its `id`, `idempotency_key`, `occurred_at` and the rest (R-6.1, W-4). The server stores nothing and repeats nothing (D9).
 - **Subject:** the record ID `license_id` (`subject.id_kind` = `record`). The server has no public license reference of its own; the key prefix `WPLC-XXXXXXXX` that the customer account shows as "reference" is part of the license key and is **never** passed or accepted (§11, F-02).
 - **Never in an argument:** the license key or any part of it, its hash, a site address or other identifier of an activated site, an email address, a name, payment data, a reason text.

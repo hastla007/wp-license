@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class CustomerPortal {
 
 	/**
-	 * Licenses per account page.
+	 * Licenses per account page by default (setting "Licenses per page", SET-LIC-25).
 	 */
 	public const PER_PAGE = 10;
 
@@ -127,9 +127,10 @@ final class CustomerPortal {
 		 * Filter the URL slug of the license page in the customer account,
 		 * for example to translate it. Rewrite rules are refreshed automatically.
 		 *
-		 * @param string $slug Slug, default "wplc-licenses".
+		 * @param string $slug Slug: the setting "Address of the license page" (default "wplc-licenses").
 		 */
-		$slug = sanitize_title( (string) apply_filters( 'wplc_account_endpoint_slug', self::ENDPOINT ) );
+		$setting = \WPLC\Settings\Registry::string( 'account_licenses_slug' );
+		$slug    = sanitize_title( (string) apply_filters( 'wplc_account_endpoint_slug', '' !== $setting ? $setting : self::ENDPOINT ) );
 
 		return '' !== $slug ? $slug : self::ENDPOINT;
 	}
@@ -155,7 +156,27 @@ final class CustomerPortal {
 	 * @return string
 	 */
 	public static function endpoint_title(): string {
-		return __( 'Licenses', 'wp-license' );
+		return self::menu_label();
+	}
+
+	/**
+	 * Name of the page in the account menu: the setting "Menu item of the license page", else "Licenses" (SET-LIC-25).
+	 *
+	 * @return string
+	 */
+	public static function menu_label(): string {
+		$label = trim( \WPLC\Settings\Registry::string( 'account_licenses_label' ) );
+
+		return '' !== $label ? $label : __( 'Licenses', 'wp-license' );
+	}
+
+	/**
+	 * Licenses per page: the setting "Licenses per page" (SET-LIC-25).
+	 *
+	 * @return int
+	 */
+	public static function per_page(): int {
+		return \WPLC\Settings\Registry::int( 'account_licenses_per_page' );
 	}
 
 	/**
@@ -209,7 +230,7 @@ final class CustomerPortal {
 	public static function add_menu_item( array $items ): array {
 		$logout = $items['customer-logout'] ?? null;
 		unset( $items['customer-logout'] );
-		$items[ self::ENDPOINT ] = __( 'Licenses', 'wp-license' );
+		$items[ self::ENDPOINT ] = self::menu_label();
 		if ( null !== $logout ) {
 			$items['customer-logout'] = $logout;
 		}
@@ -309,10 +330,11 @@ final class CustomerPortal {
 	 * Number of pages for a result count.
 	 *
 	 * @param int $total    Number of licenses.
-	 * @param int $per_page Licenses per page.
+	 * @param int $per_page Licenses per page; -1 (default) = the setting "Licenses per page".
 	 * @return int At least 1.
 	 */
-	public static function page_count( int $total, int $per_page = self::PER_PAGE ): int {
+	public static function page_count( int $total, int $per_page = -1 ): int {
+		$per_page = $per_page < 0 ? self::per_page() : $per_page;
 		return max( 1, (int) ceil( max( 0, $total ) / max( 1, $per_page ) ) );
 	}
 
@@ -407,14 +429,15 @@ final class CustomerPortal {
 			$wpdb->prepare( "SELECT COUNT(*) FROM {$tables['licenses']} WHERE {$visible}", $visible_args )
 		);
 
-		$pages    = self::page_count( $total );
+		$per_page = self::per_page();
+		$pages    = self::page_count( $total, $per_page );
 		$page     = min( $pages, max( 1, $page ) );
 		$licenses = array();
 		if ( $total ) {
 			$licenses = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT * FROM {$tables['licenses']} WHERE {$visible} ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d",
-					array_merge( $visible_args, array( self::PER_PAGE, ( $page - 1 ) * self::PER_PAGE ) )
+					array_merge( $visible_args, array( $per_page, ( $page - 1 ) * $per_page ) )
 				),
 				ARRAY_A
 			);

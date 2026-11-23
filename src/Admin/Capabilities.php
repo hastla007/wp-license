@@ -95,7 +95,7 @@ final class Capabilities {
 			self::MANAGE_SETTINGS      => __( 'Open the license settings and change the rules of this shop', 'wp-license' ),
 			self::MANAGE_PACKAGE_HOSTS => __( 'Trusted package hosts; what happens to the data when the plugin is deleted', 'wp-license' ),
 			self::CHANGE_PRICES        => __( 'Announce and withdraw a new renewal price', 'wp-license' ),
-			self::MANAGE_POLICY        => __( 'Manufacturer rules that act on every customer site: staging and development sites, offline period, downloads, co-users and transfer', 'wp-license' ),
+			self::MANAGE_POLICY        => __( 'Manufacturer rules that act on every customer site: staging and development sites, offline period, downloads, co-users and transfer; outgoing webhooks', 'wp-license' ),
 		);
 	}
 

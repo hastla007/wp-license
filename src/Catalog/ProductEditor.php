@@ -333,6 +333,7 @@ final class ProductEditor {
 			'offline_cache_days'     => array( __( 'Offline period (days)', 'wp-license' ), __( 'Days a customer site of this plan may rely on the last signed answer (1 to 90). Never beyond the end of access.', 'wp-license' ) ),
 			'max_quantity_per_line'  => array( __( 'Largest quantity per order line', 'wp-license' ), __( 'Largest quantity of this plan in one cart line (0 to 100000; 0 = no limit).', 'wp-license' ) ),
 			'co_user_limit'          => array( __( 'Co-users per license', 'wp-license' ), __( 'Co-users the owner of a license of this plan can invite (0 to 100; 0 = none).', 'wp-license' ) ),
+			'beta_allowed'           => array( __( 'Beta versions', 'wp-license' ), __( 'Whether customer sites of this plan may receive beta versions when the customer turns them on in the add-on. Without the right they get stable versions only.', 'wp-license' ) ),
 		);
 	}
 
@@ -348,6 +349,26 @@ final class ProductEditor {
 		foreach ( self::override_texts() as $field => $text ) {
 			list( $min, $max, $setting ) = PlanOverrides::FIELDS[ $field ];
 			$own                         = PlanOverrides::of_plan( $plan, $field );
+			if ( in_array( $field, PlanOverrides::SWITCHES, true ) ) {
+				// SET-LIC-20: a yes/no rule of the plan; empty = the global setting.
+				$global = \WPLC\Settings\Registry::bool( $setting ) ? __( 'allowed', 'wp-license' ) : __( 'not allowed', 'wp-license' );
+				woocommerce_wp_select(
+					array(
+						'id'          => self::field_name( '_wplc_' . $field, $suffix ),
+						'label'       => $text[0],
+						'value'       => null === $own ? '' : (string) $own,
+						'options'     => array(
+							/* translators: %s: value of the global setting, "allowed" or "not allowed". */
+							''  => sprintf( __( 'Global setting (%s)', 'wp-license' ), $global ),
+							'1' => __( 'Allowed', 'wp-license' ),
+							'0' => __( 'Not allowed', 'wp-license' ),
+						),
+						'desc_tip'    => true,
+						'description' => $text[1],
+					)
+				);
+				continue;
+			}
 			woocommerce_wp_text_input(
 				array(
 					'id'                => self::field_name( '_wplc_' . $field, $suffix ),

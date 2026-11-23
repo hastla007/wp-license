@@ -23,6 +23,7 @@ Throughout the manual the examples use an invented vendor, **Acme Plugins**, tha
 | [11. Troubleshooting and FAQ](11-troubleshooting.md) | Symptoms, causes and fixes. |
 | [12. Upgrading](12-upgrading.md) | Updating the server plugin, migrations, rollback, uninstall. |
 | [13. Settings](13-settings.md) | Every setting with its default, limits and filter; how settings, tabs and the change log work. |
+| [14. Outgoing webhooks](14-webhooks.md) | Sending license events to other systems: endpoints, events, signature, retries, delivery log. |
 
 ## The first hour, in short
 
@@ -30,12 +31,12 @@ Throughout the manual the examples use an invented vendor, **Acme Plugins**, tha
 2. **Secrets:** put the secret constants into `wp-config.php` before the first license is issued.
 3. **Public key:** generate the response signing key with `wp wplc signing-key --generate`, put it into `wp-config.php` as `WPLC_RESPONSE_SIGNING_KEY`, print the public key with `wp wplc signing-key --field=public_key` and pin it in your add-on ([chapter 6](06-client-integration.md)).
 4. **Catalog file:** add `wplc-catalog.json` to your add-on and import it ([chapter 3](03-catalog-files.md)).
-5. **License product:** turn a WooCommerce product into a license product with a plan ([chapter 4](04-license-products.md)).
+5. **License product:** turn a WooCommerce product into a license product with a plan ([chapter 4](04-license-products.md)). Then **decide the rules of your shop**: country profile, staging copies and grace period, asked in the checklist itself ([chapter 13](13-settings.md#getting-started)).
 6. **First release:** upload the add-on ZIP as a release and publish it ([chapter 5](05-releases-and-updates.md)).
 7. **Test purchase:** buy the product as a test customer, activate the key on a test site and run the contract test.
 8. **Stripe webhook:** connect it if you offer automatic renewal ([chapter 8](08-renewals-and-stripe.md)).
 
-**WooCommerce → License settings** shows steps 2 to 8 as the seven-step "Getting started" checklist. It reads the state from the site on every visit (a key stored only in the database does not tick the public-key step; a draft release does not tick the release step), links each step to its screen and folds away when all seven are done.
+**WooCommerce → License settings** shows steps 2 to 8 and the rules of the shop as the eight-step "Getting started" checklist. It reads the state from the site on every visit (a key stored only in the database does not tick the public-key step; a draft release does not tick the release step), links each step to its screen and folds away when all eight are done.
 
 ## Conventions
 

@@ -392,7 +392,16 @@ final class Settings {
 			if ( self::is_form_submission() && ! Capabilities::can( (string) $definition['capability'] ) ) {
 				continue;
 			}
+			if ( '' !== Registry::locking_constant( $key ) ) {
+				// SET-LIC-30: a constant in wp-config.php wins; the stored value stays.
+				continue;
+			}
 			$result = Registry::validate( $key, $input[ $key ] );
+			if ( $result['ok'] && $result['value'] !== $out[ $key ] && Registry::is_locked( $key ) ) {
+				// E-04: the license key prefix is fixed once a license was issued; the stored value stays.
+				self::settings_error( 'wplc_locked_' . $key, Texts::problem( $key, 'locked' ) );
+				continue;
+			}
 			if ( $result['ok'] && 'uninstall_data' === $key && 'delete' === $result['value'] && 'delete' !== $out[ $key ] && self::is_form_submission() && empty( $input['uninstall_data_confirm'] ) ) {
 				// S10: deleting data is only chosen with an explicit confirmation.
 				self::settings_error( 'wplc_uninstall_not_confirmed', __( '"When the plugin is deleted" was not changed: tick the confirmation next to it to choose "Delete tables and options".', 'wp-license' ) );
@@ -423,11 +432,51 @@ final class Settings {
 			self::settings_error( 'wplc_invalid_' . $key, Texts::problem( $key, $result['code'] ) );
 		}
 
+		// SET-LIC-25: two pages of the customer account cannot share an address; the stored addresses stay.
+		$taken = self::account_slug_conflict( $out );
+		if ( '' !== $taken ) {
+			foreach ( array( 'account_licenses_slug', 'account_sites_slug' ) as $slug_key ) {
+				$kept             = Registry::validate( $slug_key, $current[ $slug_key ] );
+				$out[ $slug_key ] = $kept['ok'] ? $kept['value'] : Registry::definition( $slug_key )['default'];
+			}
+			/* translators: %s: address part of a page, e.g. "orders". */
+			self::settings_error( 'wplc_account_slug_taken', sprintf( __( 'The addresses of the customer account were not changed: "%s" is already the address of another page of the account. Choose an address of its own for each page.', 'wp-license' ), $taken ) );
+		}
+
 		foreach ( self::combination_warnings( $out ) as $code => $message ) {
 			self::settings_error( $code, $message, 'warning' );
 		}
 
 		return $out;
+	}
+
+	/**
+	 * An address of the customer account that two pages would share (SET-LIC-25).
+	 *
+	 * @param array<string,mixed> $values Settings in stored form.
+	 * @return string The address in conflict, or '' when every page has its own.
+	 */
+	public static function account_slug_conflict( array $values ): string {
+		$licenses = (string) ( $values['account_licenses_slug'] ?? '' );
+		$sites    = (string) ( $values['account_sites_slug'] ?? '' );
+		if ( '' !== $licenses && $licenses === $sites ) {
+			return $licenses;
+		}
+		$others = array();
+		if ( function_exists( 'WC' ) ) {
+			foreach ( (array) WC()->query->get_query_vars() as $key => $slug ) {
+				if ( \WPLC\Account\CustomerPortal::ENDPOINT !== $key && \WPLC\Account\SiteOverview::ENDPOINT !== $key && is_string( $slug ) && '' !== $slug ) {
+					$others[] = $slug;
+				}
+			}
+		}
+		foreach ( array( $licenses, $sites ) as $slug ) {
+			if ( '' !== $slug && in_array( $slug, $others, true ) ) {
+				return $slug;
+			}
+		}
+
+		return '';
 	}
 
 	/**
@@ -731,7 +780,12 @@ final class Settings {
 	/**
 	 * Keys of the setup steps, in the order a new vendor needs them (A-121, PROD-09).
 	 */
-	public const SETUP_STEPS = array( 'secrets', 'public_key', 'catalog', 'product', 'release', 'test', 'webhook' );
+	public const SETUP_STEPS = array( 'secrets', 'public_key', 'catalog', 'product', 'rules', 'release', 'test', 'webhook' );
+
+	/**
+	 * Option that records when the questions of the step "Decide the rules of your shop" were answered (SET-LIC-45).
+	 */
+	public const RULES_DECIDED_OPTION = 'wplc_setup_rules_decided';
 
 	/**
 	 * What the site already has, one flag per setup step (PROD-09). Reads only; creates no key.
@@ -742,6 +796,7 @@ final class Settings {
 	 * - catalog: at least one catalog file was imported (by upload, WP-CLI or a release package); the copies shipped
 	 *   in catalogs/ do not count.
 	 * - product: at least one active plan. release: at least one published release. test: at least one license.
+	 * - rules: the questions of the guided step (country profile, staging, grace period) were answered (SET-LIC-45).
 	 * - webhook: a Stripe webhook signing secret is configured.
 	 *
 	 * @return array<string,bool> Step key => done.
@@ -765,6 +820,7 @@ final class Settings {
 			'public_key' => \WPLC\Security\ResponseSigner::uses_constant() && 'ok' === \WPLC\Security\ResponseSigner::status()['state'],
 			'catalog'    => $catalog,
 			'product'    => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE active = 1 LIMIT 1', $tables['plans'] ) ) > 0,
+			'rules'      => '' !== (string) get_option( self::RULES_DECIDED_OPTION, '' ),
 			'release'    => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE status = %s LIMIT 1', $tables['releases'], 'published' ) ) > 0,
 			'test'       => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i LIMIT 1', $tables['licenses'] ) ) > 0,
 			'webhook'    => \WPLC\Api\V1\StripeWebhook::is_configured(),
@@ -812,6 +868,12 @@ final class Settings {
 				'text'      => __( 'Edit the WooCommerce product, tick "License product", enter the product key of your catalog file (for example acme-pro) and a plan key (for example single), and tick the entitlements of the plan. Keep both keys unchanged once the product is sold.', 'wp-license' ),
 				'link'      => 'edit.php?post_type=product',
 				'link_text' => __( 'Open products', 'wp-license' ),
+			),
+			'rules'      => array(
+				'title'     => __( 'Decide the rules of your shop', 'wp-license' ),
+				'text'      => __( 'Answer three questions before the first sale: which country profile fits your shop (retention, consent and notice periods), how many staging copies a customer may run next to each live site, and how long a customer keeps access when an automatic payment fails. Every answer can be changed later in the settings below.', 'wp-license' ),
+				'link'      => '',
+				'link_text' => '',
 			),
 			'release'    => array(
 				'title'     => __( 'Publish the first release', 'wp-license' ),
@@ -865,6 +927,10 @@ final class Settings {
 			echo '<br><span class="description">' . esc_html( $step['text'] ) . '</span>';
 			if ( '' !== $step['link'] ) {
 				echo ' <a href="' . esc_url( admin_url( $step['link'] ) ) . '">' . esc_html( $step['link_text'] ) . '</a>';
+			}
+			if ( 'rules' === $step['key'] ) {
+				// SET-LIC-45: the questions are part of the step; answered, they fold away and can be opened again.
+				SettingsTools::render_guided_questions( $step['done'] );
 			}
 			echo '</li>';
 		}
@@ -1038,7 +1104,14 @@ final class Settings {
 		$id       = 'wplc_' . $key;
 		$name     = self::OPTION . '[' . $key . ']';
 		$value    = Registry::get( $key );
-		$readonly = ! Capabilities::can( (string) $definition['capability'] );
+		$constant = Registry::locking_constant( $key );
+		$locked   = Registry::is_locked( $key );
+		$readonly = $locked || ! Capabilities::can( (string) $definition['capability'] ) || '' !== $constant;
+		if ( '' !== $constant ) {
+			// SET-LIC-30: the field shows the value of the constant, which wins (only settings that are no secret have one).
+			$value = constant( $constant );
+			$value = 'bool' === $definition['type'] ? ( empty( $value ) ? 0 : 1 ) : ( is_scalar( $value ) ? (string) $value : '' );
+		}
 		// A read-only field has no name: a missing key keeps the stored value.
 		$name_attr = $readonly ? '' : ' name="' . esc_attr( $name ) . '"';
 		$lock      = $readonly ? ' readonly' : '';
@@ -1052,7 +1125,7 @@ final class Settings {
 				echo '<input type="checkbox" id="' . esc_attr( $id ) . '"' . $name_attr . ' value="1"' . checked( ! empty( $value ), true, false ) . ( $readonly ? ' disabled' : '' ) . $help . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
 				break;
 			case 'int':
-				echo '<input type="number" id="' . esc_attr( $id ) . '"' . $name_attr . ' value="' . esc_attr( (string) Registry::int( $key ) ) . '" class="small-text" min="' . esc_attr( (string) (int) ( $definition['min'] ?? 0 ) ) . '" max="' . esc_attr( (string) (int) ( $definition['max'] ?? 0 ) ) . '" step="1"' . $lock . $help . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
+				echo '<input type="number" id="' . esc_attr( $id ) . '"' . $name_attr . ' value="' . esc_attr( '' !== $constant ? (string) (int) $value : (string) Registry::int( $key ) ) . '" class="small-text" min="' . esc_attr( (string) (int) ( $definition['min'] ?? 0 ) ) . '" max="' . esc_attr( (string) (int) ( $definition['max'] ?? 0 ) ) . '" step="1"' . $lock . $help . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
 				if ( 'days' === ( $definition['unit'] ?? '' ) ) {
 					echo ' ' . esc_html__( 'days', 'wp-license' );
 				}
@@ -1087,11 +1160,57 @@ final class Settings {
 			/* translators: %s: name of a PHP filter. */
 			echo ' ' . esc_html( sprintf( __( 'Code of the shop can change the value with the filter %s; the filter decides last.', 'wp-license' ), $definition['filter'] ) );
 		}
-		if ( $readonly ) {
+		if ( '' !== $constant ) {
+			/* translators: %s: name of a PHP constant. */
+			echo ' <strong>' . esc_html( sprintf( __( 'Set in wp-config.php with %s; the constant wins over this field.', 'wp-license' ), $constant ) ) . '</strong>';
+		}
+		if ( $locked ) {
+			// E-04: why the field cannot be changed any more.
+			echo ' ' . esc_html__( 'Fixed: licenses were already issued with this value, and their keys contain it. Changing it would make every issued key invalid.', 'wp-license' );
+		} elseif ( $readonly ) {
 			echo ' ' . esc_html( self::readonly_note( (string) $definition['capability'] ) );
 		}
 		echo '</p>';
-		self::render_effective_value( $key );
+		if ( '' === $constant ) {
+			self::render_effective_value( $key );
+		}
+	}
+
+	/**
+	 * The last field of the object storage, followed by its state and the connection test (SET-LIC-30).
+	 *
+	 * The button submits the form of the settings tools below the settings form (a form cannot be nested).
+	 *
+	 * @return void
+	 */
+	public static function render_s3_path_style_field(): void {
+		self::render_field( array( 'key' => 's3_path_style' ) );
+		$config = \WPLC\Update\S3Storage::config();
+		echo '<div id="wplc-object-storage" class="wplc-object-storage">';
+		if ( 'configured' === $config['state'] ) {
+			/* translators: 1: bucket name, 2: host name of the storage endpoint. */
+			$text  = sprintf( __( 'In use: bucket %1$s on %2$s.', 'wp-license' ), $config['bucket'], $config['endpoint_host'] );
+			$state = 'ok';
+		} elseif ( 'invalid' === $config['state'] ) {
+			$text  = \WPLC\Update\S3Storage::error_message( $config['error'] );
+			$state = 'warning';
+		} else {
+			$text  = __( 'Not in use. Update packages are delivered from this site or from the trusted package hosts.', 'wp-license' );
+			$state = '';
+		}
+		echo '<p data-wplc-object-storage="' . esc_attr( $config['state'] ) . '"><strong>' . esc_html__( 'State of the object storage:', 'wp-license' ) . '</strong> ';
+		if ( '' !== $state ) {
+			echo '<span class="screen-reader-text">' . esc_html( self::state_text( $state ) ) . '</span>';
+		}
+		echo esc_html( $text ) . '</p>';
+		$result = SettingsTools::object_storage_result();
+		if ( null !== $result ) {
+			echo '<div class="notice ' . ( $result['ok'] ? 'notice-success' : 'notice-warning' ) . ' inline" role="status"><p>' . esc_html( $result['message'] ) . '</p></div>';
+		}
+		if ( 'off' !== $config['state'] ) {
+			echo '<p><button type="submit" class="button" form="wplc-object-storage-check">' . esc_html__( 'Test the connection', 'wp-license' ) . '</button> <span class="description">' . esc_html__( 'Sends one signed request for the bucket. Save changed fields first.', 'wp-license' ) . '</span></p>';
+		}
+		echo '</div>';
 	}
 
 	/**

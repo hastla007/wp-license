@@ -590,6 +590,14 @@
           },
           "current_version": {
             "type": "string"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "stable",
+              "beta"
+            ],
+            "description": "Optional update channel, default stable. A license that may not use beta (update_channels of EntitlementData) is answered from the stable channel."
           }
         }
       },
@@ -604,7 +612,7 @@
         "properties": {
           "data": {
             "type": "object",
-            "description": "Kept for clients that predate payload; current clients must read the data member of the verified payload instead. Response-specific payload, see EntitlementData, DeactivationData, DeactivatedData and UpdateCheckData. Entitlement responses include activation_id, installation_id, activation_status, product_key, license_status, access, paid_until, access_until, grace_until, site_limit, site_count, environment, staging_parent_id, entitlements, server_time and cache_expires_at."
+            "description": "Kept for clients that predate payload; current clients must read the data member of the verified payload instead. Response-specific payload, see EntitlementData, DeactivationData, DeactivatedData and UpdateCheckData. Entitlement responses include activation_id, installation_id, activation_status, product_key, license_status, access, paid_until, access_until, grace_until, site_limit, site_count, environment, staging_parent_id, entitlements, server_time, cache_expires_at and update_channels."
           },
           "signature": {
             "type": "string",
@@ -841,6 +849,18 @@
             "type": "string",
             "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
             "description": "UTC. Until then the client may rely on this snapshot without reaching the server: server_time plus 14 days, but never later than access_until. After it the client must treat the license as without access until a new signed answer arrives."
+          },
+          "update_channels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "stable",
+                "beta"
+              ]
+            },
+            "minItems": 1,
+            "description": "Since 0.2.0 (SET-LIC-20): update channels the license may use, stable first: [\"stable\"] or [\"stable\",\"beta\"]. An update check that asks for a channel outside this list is answered from the stable channel. Optional for clients; servers before 0.2.0 do not send it, which means beta for every client that asks."
           }
         }
       },
@@ -912,6 +932,14 @@
         "properties": {
           "update_available": {
             "type": "boolean"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "stable",
+              "beta"
+            ],
+            "description": "Channel the answer was served from: the requested one, or stable when the license may not use beta (SET-LIC-20)."
           },
           "reason": {
             "type": "string",

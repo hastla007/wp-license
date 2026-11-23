@@ -50,6 +50,21 @@ final class CatalogFile {
 	 */
 	public const MAX_DESCRIPTION_LENGTH = 1000;
 
+	/**
+	 * Most installation steps of a product (SET-LIC-24).
+	 */
+	public const MAX_INSTALL_STEPS = 10;
+
+	/**
+	 * Longest installation step and longest documentation address in characters (SET-LIC-24).
+	 */
+	public const MAX_STEP_LENGTH = 500;
+
+	/**
+	 * Most plan names of a product (SET-LIC-24).
+	 */
+	public const MAX_PLANS = 50;
+
 	public const STATUS_AVAILABLE = 'available';
 	public const STATUS_PLANNED   = 'planned';
 
@@ -184,6 +199,9 @@ final class CatalogFile {
 			);
 		}
 
+		// Texts for customers (SET-LIC-24), all optional: documentation address, installation steps, plan names.
+		$customer_texts = self::customer_texts( $data, $errors );
+
 		if ( $errors ) {
 			return self::failure( $errors );
 		}
@@ -198,8 +216,71 @@ final class CatalogFile {
 				'name'         => $name,
 				'status'       => $status,
 				'entitlements' => $entitlements,
-			),
+			) + $customer_texts,
 		);
+	}
+
+	/**
+	 * The optional texts for customers of a file (SET-LIC-24). Only the fields the file has are returned,
+	 * so a product without them keeps the normalized form (and the fingerprint) it had before.
+	 *
+	 * - `docs_url`: text per locale, an http(s) address of the documentation;
+	 * - `install_steps`: list of 1 to 10 texts per locale (the steps in the account and the license email);
+	 * - `plans`: object plan key => { "name": text per locale } (the name of the plan shown to customers).
+	 *
+	 * @param array<mixed,mixed>                          $data   Decoded file.
+	 * @param array<int,array{code:string,path:string}> $errors Collected errors.
+	 * @return array<string,mixed>
+	 */
+	private static function customer_texts( array $data, array &$errors ): array {
+		$out = array();
+		if ( array_key_exists( 'docs_url', $data ) ) {
+			$urls = self::texts( $data['docs_url'], 'docs_url', self::MAX_STEP_LENGTH, $errors );
+			foreach ( $urls as $locale => $url ) {
+				if ( 1 !== preg_match( '#^https?://[^\s<>"\'`]+$#iD', $url ) ) {
+					$errors[] = self::error( 'url_invalid', 'docs_url.' . $locale );
+				}
+			}
+			$out['docs_url'] = $urls;
+		}
+		if ( array_key_exists( 'install_steps', $data ) ) {
+			$raw = $data['install_steps'];
+			if ( ! is_array( $raw ) || ! self::is_list( $raw ) || array() === $raw || count( $raw ) > self::MAX_INSTALL_STEPS ) {
+				$errors[] = self::error( 'install_steps_invalid', 'install_steps' );
+			} else {
+				$steps = array();
+				foreach ( $raw as $index => $step ) {
+					$steps[] = self::texts( $step, 'install_steps[' . $index . ']', self::MAX_STEP_LENGTH, $errors );
+				}
+				$out['install_steps'] = $steps;
+			}
+		}
+		if ( array_key_exists( 'plans', $data ) ) {
+			$raw = $data['plans'];
+			if ( ! is_array( $raw ) || ( self::is_list( $raw ) && array() !== $raw ) || count( $raw ) > self::MAX_PLANS ) {
+				$errors[] = self::error( 'plans_invalid', 'plans' );
+			} else {
+				$plans = array();
+				foreach ( $raw as $plan_key => $plan ) {
+					$path = 'plans.' . $plan_key;
+					if ( ! is_string( $plan_key ) || 1 !== preg_match( Catalog::PLAN_KEY_PATTERN, $plan_key ) ) {
+						$errors[] = self::error( 'plan_key_invalid', $path );
+						continue;
+					}
+					if ( ! is_array( $plan ) || self::is_list( $plan ) || ! array_key_exists( 'name', $plan ) ) {
+						$errors[] = self::error( 'text_missing', $path . '.name' );
+						continue;
+					}
+					$plans[ $plan_key ] = array( 'name' => self::texts( $plan['name'], $path . '.name', self::MAX_LABEL_LENGTH, $errors ) );
+				}
+				ksort( $plans );
+				if ( $plans ) {
+					$out['plans'] = $plans;
+				}
+			}
+		}
+
+		return $out;
 	}
 
 	/**
@@ -277,6 +358,12 @@ final class CatalogFile {
 			'status'       => (string) ( $catalog['status'] ?? self::STATUS_AVAILABLE ),
 			'entitlements' => $entitlements,
 		);
+		// SET-LIC-24: only when present, so the fingerprint of a product without them stays the same.
+		foreach ( array( 'docs_url', 'install_steps', 'plans' ) as $field ) {
+			if ( ! empty( $catalog[ $field ] ) && is_array( $catalog[ $field ] ) ) {
+				$file[ $field ] = $catalog[ $field ];
+			}
+		}
 
 		return (string) json_encode( $file, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . "\n";
 	}
@@ -315,8 +402,12 @@ final class CatalogFile {
 			'key_duplicate'             => 'The entitlement key is listed twice.',
 			'text_missing'              => 'A name or label needs at least the English text ("en").',
 			'text_invalid'              => 'A text is empty, not a string, or contains markup or control characters.',
-			'text_too_long'             => 'A text is too long (name and label: 190 characters, description: 1000).',
+			'text_too_long'             => 'A text is too long (name, label and plan name: 190 characters, installation step and documentation address: 500, description: 1000).',
 			'locale_invalid'            => 'A locale must be "en" or a WordPress locale such as "de_DE" or "de_DE_formal".',
+			'url_invalid'               => 'The documentation address must start with https:// or http:// and contain no spaces.',
+			'install_steps_invalid'     => 'The field "install_steps" must be a list of 1 to 10 texts.',
+			'plans_invalid'             => 'The field "plans" must be an object with at most 50 plan keys.',
+			'plan_key_invalid'          => 'A plan key must consist of lowercase letters, digits and hyphens (1 to 100 characters).',
 		);
 
 		return $messages[ $code ] ?? $code;

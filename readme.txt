@@ -98,7 +98,7 @@ Scheduled jobs and the plugin's working state are removed. The `wplc_` database 
 = 0.2.0 =
 * Engineering preview, second consolidation: client library with pinned server key and WordPress updater, signed "deactivated" answers, release registry with package checks, Stripe payment references and webhook secrets per mode and site, staging guard, retention and privacy tools, customer account forms on the front end, graded admin capabilities.
 * An automatic renewal is only charged after its advance notice was sent; when the saved card is gone no other card is charged and the customer is told by email.
-* Database schema 28. Not production-ready.
+* Database schema 31. Not production-ready.
 
 = 0.1.0 =
 * Engineering preview: catalog mapping, license issuance and lifecycle, customer account page, admin tools, signed REST API, update delivery, opt-in renewal contract with an unvalidated Stripe adapter, customer emails, privacy exporter and eraser, data retention job, PHP client.

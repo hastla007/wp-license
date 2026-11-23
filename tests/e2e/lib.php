@@ -332,6 +332,9 @@ function e2e_form( string $html, array $needles ): ?array {
 			foreach ( $inputs[0] as $input ) {
 				if ( preg_match( '/\bname=["\']([^"\']+)["\']/', $input, $name ) && ! preg_match( '/\btype=["\'](submit|file|checkbox|radio)["\']/', $input ) ) {
 					$fields[ $name[1] ] = preg_match( '/\bvalue=["\']([^"\']*)["\']/', $input, $value ) ? html_entity_decode( $value[1] ) : '';
+				} elseif ( isset( $name[1] ) && preg_match( '/\btype=["\'](checkbox|radio)["\']/', $input ) && preg_match( '/\schecked\b/', $input ) && ! preg_match( '/\sdisabled\b/', $input ) ) {
+					// Like a browser: a ticked box is sent (and wins over a hidden "0" of the same name before it).
+					$fields[ $name[1] ] = preg_match( '/\bvalue=["\']([^"\']*)["\']/', $input, $value ) ? html_entity_decode( $value[1] ) : 'on';
 				}
 			}
 		}

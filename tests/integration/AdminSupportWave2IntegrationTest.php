@@ -390,7 +390,7 @@ final class AdminSupportWave2IntegrationTest extends WPLC_Integration_TestCase {
 		wp_set_current_user( $admin );
 
 		$steps = Settings::setup_steps();
-		$this->assertSame( array( 'secrets', 'public_key', 'catalog', 'product', 'release', 'test', 'webhook' ), array_column( $steps, 'key' ) );
+		$this->assertSame( array( 'secrets', 'public_key', 'catalog', 'product', 'rules', 'release', 'test', 'webhook' ), array_column( $steps, 'key' ) );
 		$state = Settings::setup_state();
 		$this->assertSame( Settings::SETUP_STEPS, array_keys( $state ) );
 		$this->assertFalse( $state['product'], 'No license product exists yet.' );
@@ -425,7 +425,7 @@ final class AdminSupportWave2IntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertStringContainsString( 'data-wplc-step="webhook"', $html );
 		$this->assertStringContainsString( 'data-wplc-step="catalog" data-wplc-step-done="1"', $html );
 		$this->assertStringContainsString( 'page=wplc-catalog-files', $html );
-		$this->assertMatchesRegularExpression( '/\d of 7 steps done/', $html );
+		$this->assertMatchesRegularExpression( '/\d of 8 steps done/', $html );
 
 		$links = Settings::plugin_action_links( array( 'deactivate' => 'Deactivate' ) );
 		$this->assertStringContainsString( 'page=wplc-settings', (string) $links[0] );

@@ -16,8 +16,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * A plan can replace some manufacturer rules and shop rules for its own licenses and cart
  * lines (SET-LIC-21): staging and development sites, offline period, largest quantity per
- * order line and co-users. Each one is a column of the plan table; NULL (empty in the product
- * editor and the CSV) means "global setting".
+ * order line and co-users; since schema 30 also whether beta versions are allowed (SET-LIC-20).
+ * Each one is a column of the plan table; NULL (empty in the product editor and the CSV) means
+ * "global setting".
  *
  * Order of precedence for a license of such a plan: built-in default, setting, plan, filter.
  * The filters of the global values still decide last.
@@ -37,7 +38,14 @@ final class PlanOverrides {
 		'offline_cache_days'     => array( 1, 90, 'offline_cache_days' ),
 		'max_quantity_per_line'  => array( 0, 100000, 'max_quantity_per_line' ),
 		'co_user_limit'          => array( 0, 100, 'co_user_limit' ),
+		// SET-LIC-20 (schema 30): 1 = beta versions allowed, 0 = stable only.
+		'beta_allowed'           => array( 0, 1, 'beta_updates' ),
 	);
+
+	/**
+	 * Overrides that are a yes/no choice rather than a number (shown as a select).
+	 */
+	public const SWITCHES = array( 'beta_allowed' );
 
 	/**
 	 * Whether any active plan has an override; null before the first look in this request.
@@ -163,7 +171,7 @@ final class PlanOverrides {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- the column names are constants of this class.
 		$found = $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM %i WHERE active = 1 AND ({$conditions}) LIMIT 1", $tables['plans'] ) );
 		$wpdb->suppress_errors( $suppressed );
-		// Before schema 28 the columns do not exist: the query fails and nothing is overridden.
+		// Before schema 28 (30 for beta_allowed) the columns do not exist: the query fails and nothing is overridden.
 		self::$any = null !== $found;
 
 		return self::$any;

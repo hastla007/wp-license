@@ -303,7 +303,7 @@ Entries cannot be edited or deleted here. Old entries are removed by the data re
 
 ## Settings
 
-WooCommerce → License settings (also linked as "Getting started" in the plugin list). At the top, a "Getting started" checklist leads a new vendor from an empty installation to the first sale (A-121, PROD-09). The state of every step is read from the site on each visit; nothing is stored. Each step has a one-line hint and a link to the screen where it is done; the summary says how many of the seven steps are done, and the checklist folds away once all are done.
+WooCommerce → License settings (also linked as "Getting started" in the plugin list). At the top, a "Getting started" checklist leads a new vendor from an empty installation to the first sale (A-121, PROD-09). The state of every step is read from the site on each visit; only the step "Decide the rules of your shop" stores that its questions were answered (SET-LIC-45). Each step has a one-line hint and a link to the screen where it is done (the rules step has its questions in place); the summary says how many of the eight steps are done, and the checklist folds away once all are done.
 
 | Step | Done when | Link |
 | --- | --- | --- |
@@ -311,6 +311,7 @@ WooCommerce → License settings (also linked as "Getting started" in the plugin
 | Pin the public key in your add-on | `WPLC_RESPONSE_SIGNING_KEY` is set in `wp-config.php` and usable (`wp wplc signing-key --generate`). A key stored in the database does not count: a restored or copied database could change the public key the add-on pins. Reading the state never creates a stored key | Diagnostics (shows the public key) |
 | Import your catalog file | At least one catalog file was imported by upload, WP-CLI or a release package; the copies shipped in `catalogs/` do not count ([CATALOG-FILE.md](CATALOG-FILE.md)) | Catalog files |
 | Turn a product into a license product | At least one active plan exists | Products |
+| Decide the rules of your shop | The three questions in the step (country profile, staging sites per live site, grace period) were answered with valid values (option `wplc_setup_rules_decided`). The numbers are applied at once; a chosen country profile becomes the suggestion below the form, nothing ticked in advance (SET-LIC-45) | – (questions in place) |
 | Publish the first release | At least one release is published (a draft does not count) | License releases |
 | Make a test purchase | At least one license exists | Licenses |
 | Connect the Stripe webhook | `WPLC_STRIPE_WEBHOOK_SECRET` is set ([STRIPE-WEBHOOKS.md](STRIPE-WEBHOOKS.md)) | – |

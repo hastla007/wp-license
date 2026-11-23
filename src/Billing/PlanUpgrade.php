@@ -74,6 +74,40 @@ final class PlanUpgrade {
 	}
 
 	/**
+	 * Whether customers may upgrade to a more expensive plan (E-08, setting "Customers can upgrade
+	 * their plan", default on). The price stays prorated by day. Administrators are not limited.
+	 *
+	 * @return bool
+	 */
+	public static function upgrades_allowed(): bool {
+		/**
+		 * Filters whether customers may upgrade their plan in the account.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param bool $allowed Default: the setting "Customers can upgrade their plan" (on).
+		 */
+		return (bool) apply_filters( 'wplc_plan_upgrades_enabled', \WPLC\Settings\Registry::bool( 'plan_upgrades_enabled' ) );
+	}
+
+	/**
+	 * Whether customers may switch to a cheaper plan at the next renewal (E-08, setting "Customers
+	 * can switch to a cheaper plan", default on). Administrators are not limited.
+	 *
+	 * @return bool
+	 */
+	public static function downgrades_allowed(): bool {
+		/**
+		 * Filters whether customers may switch to a cheaper plan in the account.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param bool $allowed Default: the setting "Customers can switch to a cheaper plan" (on).
+		 */
+		return (bool) apply_filters( 'wplc_plan_downgrades_enabled', \WPLC\Settings\Registry::bool( 'plan_downgrades_enabled' ) );
+	}
+
+	/**
 	 * Notice codes of the customer forms (CustomerPortal::notice_messages()).
 	 */
 	private const NOTICE_CODES = array( 'upgrade_unavailable', 'upgrade_busy', 'upgrade_paid', 'upgrade_pending', 'upgrade_consent_required', 'plan_change_scheduled', 'plan_change_unavailable', 'plan_change_busy', 'plan_change_withdrawn', 'plan_change_not_withdrawn' );
@@ -219,6 +253,10 @@ final class PlanUpgrade {
 		if ( ! self::owned_by( $license_id, get_current_user_id() ) ) {
 			self::finish( 'license_not_found', 'license_not_found' );
 		}
+		if ( ! self::downgrades_allowed() ) {
+			// E-08: switched off in the settings; the form is not shown, a request is refused.
+			self::finish( 'plan_change_unavailable', 'plan_change_unavailable' );
+		}
 		$result = PlanChange::schedule_pending( $license_id, $product_id, get_current_user_id(), AuditReason::PLAN_DOWNGRADE_REQUESTED, false );
 		self::finish( $result, 'plan_change_unavailable' );
 	}
@@ -257,7 +295,7 @@ final class PlanUpgrade {
 	 */
 	public static function start( int $license_id, int $customer_id, int $product_id, bool $consent ) {
 		$unavailable = new \WP_Error( 'upgrade_unavailable', __( 'This license cannot be upgraded to the chosen plan at the moment.', 'wp-license' ) );
-		if ( ! function_exists( 'wc_create_order' ) || ! $customer_id || ! self::owned_by( $license_id, $customer_id ) ) {
+		if ( ! function_exists( 'wc_create_order' ) || ! $customer_id || ! self::upgrades_allowed() || ! self::owned_by( $license_id, $customer_id ) ) {
 			return $unavailable;
 		}
 		$result = LicenseLifecycle::run_locked(
@@ -813,7 +851,8 @@ final class PlanUpgrade {
 		if ( ! $targets ) {
 			return;
 		}
-		$can_upgrade = self::can_upgrade( $license );
+		$can_upgrade   = self::upgrades_allowed() && self::can_upgrade( $license );
+		$can_downgrade = self::downgrades_allowed();
 		$per_period  = 'month' === (string) $license['billing_interval'] ? __( 'per month', 'wp-license' ) : __( 'per year', 'wp-license' );
 		$rendered    = false;
 		foreach ( $targets as $product_id => $target ) {
@@ -850,6 +889,9 @@ final class PlanUpgrade {
 				}
 				/* translators: %s: plan name. */
 				echo '<p><button type="submit" class="button alt">' . esc_html( sprintf( __( 'Upgrade to %s', 'wp-license' ), $name ) ) . '</button></p></form>';
+				continue;
+			}
+			if ( ! $can_downgrade ) {
 				continue;
 			}
 			if ( ! $rendered ) {

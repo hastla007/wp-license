@@ -54,9 +54,12 @@ This page is the contract for whoever generates the file, for example the build 
 | `entitlements[].key` | yes | string | The key the add-on checks. Must start with the prefix and a dot. Characters: letters, digits, `.`, `_`, `-`; at most 120. Lowercase snake_case after the prefix is the convention. Each key once per file. |
 | `entitlements[].label` | yes | text | Short name shown next to the tick box and in the pricing table. At most 190 characters. |
 | `entitlements[].description` | no | text | Longer explanation, at most 1000 characters. Stored and exported; not shown in the product editor yet. |
+| `docs_url` | no | text | Address of the documentation of the product (`http://` or `https://`, at most 500 characters), per locale. The customer account and the license email link to it next to the installation steps (SET-LIC-24). The filter `wplc_product_docs_url` receives it and decides last. |
+| `install_steps` | no | list of texts | 1 to 10 installation steps of the product (each at most 500 characters), per locale. They replace the three built-in steps in the account and in the license email (SET-LIC-24); the filter `wplc_install_steps` receives them and decides last. |
+| `plans` | no | object | Names of the plans shown to customers: plan key (as on the license product, `^[a-z0-9][a-z0-9-]{0,99}$`) => `{ "name": text }`, at most 50 plans (SET-LIC-24). The name is shown in the account and as the plan row of the license emails instead of the name of the WooCommerce product; a plan without a name keeps the product name. The filter `wplc_plan_label` decides last. |
 | `entitlements[].status` | no | string | `available` (default): a released version of the add-on checks the key; the product editor offers it. `planned`: reserved, not offered, so that a shop does not sell what does not exist. |
 
-**Text** (`name`, `label`, `description`) is either a string, read as the English text, or an object with one text per locale:
+**Text** (`name`, `label`, `description`, `docs_url`, each entry of `install_steps`, `plans.*.name`) is either a string, read as the English text, or an object with one text per locale:
 
 - `en` is required. It is the fallback for every language without its own text.
 - Further keys are WordPress locales: `de_DE` (informal German, "du"), `de_DE_formal` (formal German, "Sie"), `fr_FR` and so on (`^[a-z]{2,3}_[A-Z]{2}(_[a-z0-9]+)?$`).
@@ -66,6 +69,23 @@ This page is the contract for whoever generates the file, for example the build 
 **Unknown fields are ignored**, at the top level and inside an entitlement. A build may add its own fields (for example `generator`, `addon` or `since`), with any JSON value; the server does not store them, does not export them and does not count them when it compares two files (`CatalogFileTest::test_unknown_fields_are_ignored_and_a_byte_order_mark_is_accepted`). The JSON schema allows additional properties for the same reason. Fields that change the meaning of the file will come with a new `format`.
 
 A file may be at most 256 KB. A UTF-8 byte order mark is accepted.
+
+**Texts for customers** (`docs_url`, `install_steps`, `plans`, SET-LIC-24) are optional and do not change what the file grants. A file with them still has format 1: a server without SET-LIC-24 ignores them like any unknown field. A product imported without them keeps its fingerprint, so importing the same file again stays a no-op. They are shown in the language of the customer: an email in the language of the purchase, the account in the language of the request; a multilingual plugin that switches the locale gets the text of that locale. Example:
+
+```json
+{
+  "docs_url": { "en": "https://acme.example/docs/reports", "de_DE": "https://acme.example/de/docs/reports" },
+  "install_steps": [
+    { "en": "Download the ZIP file in your account.", "de_DE": "Lade die ZIP-Datei in deinem Konto herunter." },
+    "Upload it under Plugins > Add New > Upload Plugin and activate it.",
+    "Enter your license key under Acme Reports > License."
+  ],
+  "plans": {
+    "single": { "name": { "en": "One site", "de_DE": "Eine Website" } },
+    "agency": { "name": "Agency" }
+  }
+}
+```
 
 ## What the server does with it
 

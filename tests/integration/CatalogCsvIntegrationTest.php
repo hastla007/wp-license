@@ -175,8 +175,8 @@ final class CatalogCsvIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( "it's", CatalogCsv::unescape_cell( "it's" ) );
 
 		$handle = fopen( 'php://memory', 'w+' );
-		// SET-LIC-21: the export has the five columns of the overrides per plan after the nine of before.
-		fputcsv( $handle, explode( ',', self::HEADER . ',staging_site_limit,development_site_limit,offline_cache_days,max_quantity_per_line,co_user_limit' ), ',', '"', '\\' );
+		// SET-LIC-21: the export has the five columns of the overrides per plan after the nine of before; SET-LIC-20: beta_allowed.
+		fputcsv( $handle, explode( ',', self::HEADER . ',staging_site_limit,development_site_limit,offline_cache_days,max_quantity_per_line,co_user_limit,beta_allowed' ), ',', '"', '\\' );
 		fputcsv( $handle, $rows[0], ',', '"', '\\' );
 		rewind( $handle );
 		$csv = stream_get_contents( $handle );

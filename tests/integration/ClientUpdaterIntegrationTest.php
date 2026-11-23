@@ -522,7 +522,7 @@ final class ClientUpdaterIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		// Same add-on, built with the choice switched on.
 		$manager = $this->manager( '1.0.0', array( 'allow_channel_choice' => true ) );
 		$updater = $manager->updater();
-		$this->assertTrue( $manager->offers_channel_choice(), 'The real server sends no update_channels: beta for every client that asks.' );
+		$this->assertTrue( $manager->offers_channel_choice(), 'SET-LIC-20: the real server lists stable and beta for a plan without a rule (default allowed).' );
 		$this->assertSame( '1.1.0', $updater->metadata( true )['version'], 'Default off: stable only.' );
 		$this->assertSame( 'stable', end( $this->http_log )['body']['channel'] );
 
@@ -537,6 +537,18 @@ final class ClientUpdaterIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		// Without allow_channel_choice the stored choice does not count.
 		$manager->choose_beta( true );
 		$this->assertSame( '1.1.0', $this->manager()->updater()->metadata( true )['version'] );
+
+		// SET-LIC-20: without the right the license gets stable releases even when it asks for beta,
+		// and the signed update_channels hide the checkbox after the next check.
+		update_option( \WPLC\Settings\Registry::OPTION, array( 'beta_updates' => 0 ) );
+		$this->http_log = array();
+		$this->assertSame( '1.1.0', $manager->updater()->metadata( true )['version'], 'Beta asked for, stable served.' );
+		$this->assertSame( 'beta', end( $this->http_log )['body']['channel'] );
+		$manager->choose_beta( false );
+		$fresh = $this->manager( '1.0.0', array( 'allow_channel_choice' => true ) );
+		$this->assertNotWPError( $fresh->refresh( true ) );
+		$this->assertFalse( $fresh->offers_channel_choice(), 'update_channels ["stable"]: no checkbox.' );
+		delete_option( \WPLC\Settings\Registry::OPTION );
 	}
 
 	public function test_updater_is_silent_without_activation_and_on_a_copy_of_the_site(): void {

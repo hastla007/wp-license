@@ -412,6 +412,7 @@ final class Plugin {
 		\WPLC\Admin\PriceChangeAdmin::register_hooks();
 		Diagnostics::register_hooks();
 		KeyConfigurationNotice::register_hooks();
+		\WPLC\Security\KeyAge::register_hooks();
 		Requirements::register_hooks();
 		RecurringConsent::register_hooks();
 		BlockCheckoutConsent::register_hooks();
@@ -425,6 +426,9 @@ final class Plugin {
 		PersonalData::register_hooks();
 		Notifications::register_hooks();
 		Retention::register_hooks();
+		// SET-LIC-46: outgoing webhooks (listeners of the contract actions, queue, admin screen).
+		\WPLC\Webhooks\Dispatcher::register_hooks();
+		\WPLC\Webhooks\Admin::register_hooks();
 		Orphans::register_hooks();
 		SiteGuard::register_hooks();
 		GapReconciler::register_hooks();

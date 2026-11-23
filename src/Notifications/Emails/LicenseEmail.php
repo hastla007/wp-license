@@ -179,7 +179,7 @@ abstract class LicenseEmail extends \WC_Email {
 	 */
 	public function set_preview_data(): void {
 		$this->wplc_view    = Notifications::sample_view( $this->preview_status() );
-		$this->wplc_context = array( 'license_key' => 'WPLC-00000000-0000-4000-8000-000000000000-SAMPLE' );
+		$this->wplc_context = array( 'license_key' => \WPLC\License\LicenseKey::key_prefix() . '-00000000-0000-4000-8000-000000000000-SAMPLE' );
 		$this->wplc_terms   = array(
 			__( 'Next renewal', 'wp-license' ) => $this->wplc_view['charge_date'],
 			__( 'Amount', 'wp-license' )       => $this->wplc_view['amount'],
@@ -187,6 +187,42 @@ abstract class LicenseEmail extends \WC_Email {
 		);
 		$this->placeholders = array_merge( $this->placeholders, Placeholders::map( $this->wplc_view ) );
 		$this->recipient    = (string) get_option( 'admin_email', '' );
+	}
+
+	/**
+	 * Send this email with the sample data of the preview to any address, in any language (SET-LIC-43).
+	 *
+	 * Also when the email is switched off for customers. The subject starts with "[Test]".
+	 * Nothing about a real license or customer is used.
+	 *
+	 * @param string $address Recipient.
+	 * @param string $locale  WordPress locale, '' for the language of the site.
+	 * @return bool True when the mailer accepted the message.
+	 */
+	public function send_test( string $address, string $locale = '' ): bool {
+		if ( ! is_email( $address ) ) {
+			return false;
+		}
+		$locale   = PurchaseLocale::sanitize( $locale );
+		$switched = '' !== $locale && function_exists( 'switch_to_locale' ) ? (bool) switch_to_locale( $locale ) : false;
+
+		try {
+			$this->set_preview_data();
+			$this->recipient = $address;
+			/* translators: %s: subject of the email. */
+			$subject = sprintf( __( '[Test] %s', 'wp-license' ), $this->get_subject() );
+
+			return (bool) $this->send( $address, $subject, $this->get_content(), $this->get_headers(), $this->get_attachments() );
+		} finally {
+			$this->wplc_context = array();
+			$this->wplc_view    = array();
+			$this->wplc_terms   = array();
+			$this->object       = false;
+			$this->wplc_license = array();
+			if ( $switched && function_exists( 'restore_previous_locale' ) ) {
+				restore_previous_locale();
+			}
+		}
 	}
 
 	/**

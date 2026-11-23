@@ -72,8 +72,12 @@ final class Schema {
 	 * 26: table `license_members`: co-users of a license and pending invitations (co-user invitations
 	 *     and transfers to another customer, B-139). Created by dbDelta; the step checks that the table
 	 *     and its indexes exist. No data changes.
+	 * 30: plans.beta_allowed, beta versions per plan (SET-LIC-20); NULL = the global setting.
+	 * 31: tables `webhook_endpoints` and `webhook_deliveries`: outgoing webhooks (target URL, encrypted
+	 *     secret, selected events) and their delivery log (SET-LIC-46). Created by dbDelta; the step checks
+	 *     that both tables and their indexes exist. No data changes.
 	 */
-	public const VERSION = '28';
+	public const VERSION = '31';
 
 	/**
 	 * Option that stores the installed schema version (autoloaded).
@@ -139,6 +143,8 @@ final class Schema {
 		'26' => array( self::class, 'step_26_license_members' ),
 		'27' => array( self::class, 'step_27_suspended_at' ),
 		'28' => array( self::class, 'step_28_plan_overrides' ),
+		'30' => array( self::class, 'step_30_beta_per_plan' ),
+		'31' => array( self::class, 'step_31_webhooks' ),
 	);
 
 	/**
@@ -872,6 +878,7 @@ final class Schema {
 				offline_cache_days smallint(5) unsigned DEFAULT NULL,
 				max_quantity_per_line int(10) unsigned DEFAULT NULL,
 				co_user_limit smallint(5) unsigned DEFAULT NULL,
+				beta_allowed tinyint(1) unsigned DEFAULT NULL,
 				active tinyint(1) NOT NULL DEFAULT 1,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
@@ -1154,6 +1161,48 @@ final class Schema {
 				KEY status_expires (status,expires_at),
 				KEY invited_by (invited_by)
 			) {$charset_collate};",
+			// SET-LIC-46: outgoing webhooks. The secret is stored encrypted (Security\SecretCrypto);
+			// events is a comma-separated list of webhook event names (Webhooks\EventCatalog).
+			"CREATE TABLE {$tables['webhook_endpoints']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				name varchar(190) NOT NULL DEFAULT '',
+				url varchar(2000) NOT NULL,
+				secret_encrypted text NOT NULL,
+				events text NOT NULL,
+				active tinyint(1) NOT NULL DEFAULT 1,
+				consecutive_failures int(10) unsigned NOT NULL DEFAULT 0,
+				disabled_reason varchar(20) NOT NULL DEFAULT '',
+				disabled_at datetime DEFAULT NULL,
+				last_success_at datetime DEFAULT NULL,
+				last_failure_at datetime DEFAULT NULL,
+				created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY active (active)
+			) {$charset_collate};",
+			// One row per event and endpoint (the event ID is the idempotency key); it holds the last attempt.
+			"CREATE TABLE {$tables['webhook_deliveries']} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				endpoint_id bigint(20) unsigned NOT NULL,
+				event_id char(36) NOT NULL,
+				event varchar(60) NOT NULL,
+				payload longtext NOT NULL,
+				status varchar(20) NOT NULL DEFAULT 'pending',
+				attempts smallint(5) unsigned NOT NULL DEFAULT 0,
+				response_code smallint(5) unsigned NOT NULL DEFAULT 0,
+				duration_ms int(10) unsigned NOT NULL DEFAULT 0,
+				error varchar(190) NOT NULL DEFAULT '',
+				next_attempt_at datetime DEFAULT NULL,
+				delivered_at datetime DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY endpoint_event (endpoint_id,event_id),
+				KEY endpoint_created (endpoint_id,created_at),
+				KEY status_updated (status,updated_at),
+				KEY created_at (created_at)
+			) {$charset_collate};",
 		);
 
 		return $sql;
@@ -1196,6 +1245,8 @@ final class Schema {
 			'consents'     => $prefix . 'consents',
 			'reminder_log' => $prefix . 'reminder_log',
 			'license_members' => $prefix . 'license_members',
+			'webhook_endpoints' => $prefix . 'webhook_endpoints',
+			'webhook_deliveries' => $prefix . 'webhook_deliveries',
 		);
 	}
 
@@ -1653,6 +1704,49 @@ final class Schema {
 		);
 
 		return 5 === $count;
+	}
+
+	/**
+	 * Schema 30: beta versions per plan (SET-LIC-20, owner decision E-05 of 23.11.2026).
+	 *
+	 * `plans.beta_allowed`: 1 = licenses of the plan may receive beta versions, 0 = only stable
+	 * releases, NULL (every existing plan) = the setting "Beta versions for licenses", whose
+	 * default allows beta as before. dbDelta adds the column; this step only checks it exists.
+	 * (Version 29 is left to a parallel line of work; the step runner skips missing numbers.)
+	 *
+	 * @return bool
+	 */
+	private static function step_30_beta_per_plan(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		global $wpdb;
+
+		$tables = self::table_names();
+		$count  = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s',
+				$tables['plans'],
+				'beta_allowed'
+			)
+		);
+
+		return 1 === $count;
+	}
+
+	/**
+	 * Schema 31: outgoing webhooks (SET-LIC-46).
+	 *
+	 * Tables `webhook_endpoints` and `webhook_deliveries`. dbDelta creates them and reports no errors,
+	 * so the step checks that both tables and their indexes exist. No data changes: no endpoint exists
+	 * before the upgrade, so nothing is sent until one is added. Steps 29 and 30 belong to other changes.
+	 *
+	 * @return bool
+	 */
+	private static function step_31_webhooks(): bool { // @phpstan-ignore method.unused (called through self::$steps)
+		return self::indexes_exist(
+			array(
+				'webhook_endpoints'  => array( 'PRIMARY', 'active' ),
+				'webhook_deliveries' => array( 'PRIMARY', 'endpoint_event', 'endpoint_created', 'status_updated', 'created_at' ),
+			)
+		);
 	}
 
 	/**

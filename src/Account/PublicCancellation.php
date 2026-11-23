@@ -219,7 +219,7 @@ final class PublicCancellation {
 		$limit   = max( 1, (int) apply_filters( 'wplc_public_cancel_hourly_limit', \WPLC\Settings\Registry::int( 'public_cancel_hourly_limit' ) ) );
 		$ip      = class_exists( ClientIp::class ) ? ClientIp::current() : '';
 		// "WPLC-1A2B3C4D" and "1A2B3C4D" are the same reference.
-		$buckets = array( 'public-cancel-ref' => (string) preg_replace( '/^WPLC-(?=[0-9A-F]{8}$)/', '', $reference ) );
+		$buckets = array( 'public-cancel-ref' => (string) preg_replace( '/^' . LicenseKey::key_prefix() . '-(?=[0-9A-F]{8}$)/', '', $reference ) );
 		if ( '' !== $ip ) {
 			$buckets['public-cancel-ip'] = $ip;
 		}
@@ -338,11 +338,13 @@ final class PublicCancellation {
 		$tables     = Schema::table_names();
 		$conditions = array();
 		$values     = array( $tables['licenses'] );
-		if ( preg_match( '/^(?:WPLC-)?([0-9A-F]{8})$/', $reference, $match ) ) {
+		// E-04: the key prefix of the shop (WPLC by default).
+		$prefix = LicenseKey::key_prefix();
+		if ( preg_match( '/^(?:' . $prefix . '-)?([0-9A-F]{8})$/', $reference, $match ) ) {
 			$conditions[] = 'key_prefix = %s';
-			$values[]     = 'WPLC-' . $match[1];
+			$values[]     = $prefix . '-' . $match[1];
 		}
-		if ( preg_match( '/^WPLC-[0-9A-F-]{36}-[0-9A-F]{64}$/', $reference ) ) {
+		if ( preg_match( '/^' . $prefix . '-[0-9A-F-]{36}-[0-9A-F]{64}$/', $reference ) ) {
 			$conditions[] = 'license_key_hash = %s';
 			$values[]     = LicenseKey::hash( $reference );
 		}

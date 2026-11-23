@@ -473,6 +473,8 @@ final class PlanChange {
 					! $target
 					|| ! in_array( (string) $license['status'], array( 'active', 'past_due' ), true )
 					|| ( ! $by_admin && self::KIND_DOWNGRADE !== $target['kind'] )
+					// E-08: the switch "Customers can switch to a cheaper plan" limits customers only.
+					|| ( ! $by_admin && ! \WPLC\Billing\PlanUpgrade::downgrades_allowed() )
 				) {
 					return 'plan_change_unavailable';
 				}

@@ -197,6 +197,30 @@ Sends a test message to the recipients of the health alerts (setting `health_ale
 
 Every change made with these commands is written to the audit log with the source `cli`.
 
+## Webhooks
+
+The outgoing webhooks of chapter 14. Same checks as the admin screen: `https://` on port 443, no private or local address, at least one event. Every change is written to the audit log.
+
+### `wp wplc webhook list [--format=<format>]`
+
+Lists the endpoints with ID, name, target URL, events, whether they are on (`no (failures)` when they were switched off after failed deliveries), failed deliveries in a row and the times of the last success and failure. Never prints a secret.
+
+### `wp wplc webhook add <url> --events=<events> [--name=<name>] [--inactive]`
+
+Adds an endpoint and prints its secret **once**. `--events` is a comma-separated list of event names, or `all`.
+
+```
+wp wplc webhook add https://hooks.example.com/licenses --events=license.issued,license.status_changed --name="CRM"
+```
+
+### `wp wplc webhook delete <id> [--yes]`
+
+Deletes an endpoint and its delivery log.
+
+### `wp wplc webhook test <id>`
+
+Sends the test event `webhook.test` now and prints the event ID, the HTTP status and the duration; exit code 1 when it was not delivered. Works on an endpoint that is switched off; it is not retried.
+
 ## Repair
 
 Thin wrappers around the steps the scheduler normally runs; all guards (locks, status checks, idempotency) apply unchanged.

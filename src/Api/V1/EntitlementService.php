@@ -124,6 +124,9 @@ final class EntitlementService {
 	 * - `cache_expires_at`: until when the client may rely on this snapshot
 	 *   without reaching the server: the offline window, but never longer
 	 *   than `access_until` (B-68).
+	 * - `update_channels`: update channels the license may use, `stable`
+	 *   first (`["stable"]` or `["stable","beta"]`, SET-LIC-20). A client
+	 *   that asks for a channel outside the list is served stable releases.
 	 *
 	 * @param array<string,mixed> $license    License row.
 	 * @param array<string,mixed> $activation Activation row.
@@ -191,6 +194,8 @@ final class EntitlementService {
 			'entitlements' => $entitlements,
 			'server_time' => gmdate( 'Y-m-d H:i:s', $now ),
 			'cache_expires_at' => $access_fields['cache_expires_at'],
+			// SET-LIC-20: channels the license may use; optional for clients (2.4.0 reads it for the beta checkbox).
+			'update_channels' => \WPLC\Update\UpdateChannels::for_license( $license ),
 		);
 	}
 

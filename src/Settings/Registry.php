@@ -36,7 +36,7 @@ final class Registry {
 	/**
 	 * Groups (tabs of the settings page), in display order.
 	 */
-	public const GROUPS = array( 'updates', 'renewals', 'emails', 'rules', 'sites', 'sharing', 'legal', 'texts', 'operations' );
+	public const GROUPS = array( 'updates', 'renewals', 'emails', 'rules', 'sites', 'sharing', 'account', 'legal', 'texts', 'operations' );
 
 	/**
 	 * Longest text a change log entry or a preview shows.
@@ -69,6 +69,12 @@ final class Registry {
 	 * - exportable: part of export and import files
 	 * - secret: never exported, never written to the change log with its value
 	 * - legal: the value has legal weight; the help text asks for a legal check
+	 * - constant: name of a constant in wp-config.php that wins over the stored value; while it is
+	 *   defined the field is read-only and a save keeps the stored value (SET-LIC-30)
+	 * - pattern (string): the text must match it; an empty text is always accepted
+	 * - format: for a string, `email`, `emails`, `url` or `key_prefix`
+	 * - locked: callable that returns true while the value may no longer change (the field is
+	 *   read-only, a save, import, reset or WP-CLI call keeps the stored value; see is_locked())
 	 *
 	 * @return array<string,array<string,mixed>>
 	 */
@@ -92,6 +98,7 @@ final class Registry {
 				'legal'         => false,
 				'clamp'         => false,
 				'empty_default' => false,
+				'constant'      => '',
 			);
 		}
 		self::$definitions = $out;
@@ -180,6 +187,35 @@ final class Registry {
 		$definition = self::definition( $key );
 
 		return null === $definition ? null : $definition['default'];
+	}
+
+	/**
+	 * The constant that wins over a setting, when it is defined (SET-LIC-30).
+	 *
+	 * @param string $key Setting key.
+	 * @return string Name of the defined constant, or '' when the setting decides.
+	 */
+	public static function locking_constant( string $key ): string {
+		$definition = self::definition( $key );
+		$constant   = null === $definition ? '' : (string) $definition['constant'];
+
+		return '' !== $constant && defined( $constant ) ? $constant : '';
+	}
+
+	/**
+	 * Whether a setting may no longer change (definition field `locked`), e.g. the license key
+	 * prefix once a license was issued (E-04).
+	 *
+	 * @param string $key Setting key.
+	 * @return bool
+	 */
+	public static function is_locked( string $key ): bool {
+		$definition = self::definition( $key );
+		if ( null === $definition || empty( $definition['locked'] ) || ! is_callable( $definition['locked'] ) ) {
+			return false;
+		}
+
+		return (bool) call_user_func( $definition['locked'] );
 	}
 
 	/**
@@ -315,6 +351,16 @@ final class Registry {
 				} else {
 					$text = function_exists( 'sanitize_text_field' ) ? sanitize_text_field( $text ) : trim( strip_tags( $text ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
 				}
+				$format = (string) ( $definition['format'] ?? '' );
+				if ( 'key_prefix' === $format ) {
+					// E-04: four characters, upper case; a trailing hyphen is the separator, not part of the prefix.
+					$text = strtoupper( rtrim( trim( $text ), '-' ) );
+					if ( 1 !== preg_match( '/^[A-Z][A-Z0-9]{3}$/D', $text ) ) {
+						return self::failure( 'not_a_key_prefix', 'Expected four characters: a letter, then letters or digits.' );
+					}
+
+					return self::success( $text );
+				}
 				$max    = (int) ( $definition['max_length'] ?? 500 );
 				$length = function_exists( 'mb_strlen' ) ? mb_strlen( $text ) : strlen( $text );
 				if ( $length > $max ) {
@@ -324,7 +370,6 @@ final class Registry {
 						return self::failure( 'too_long', sprintf( 'Expected at most %d characters.', $max ) );
 					}
 				}
-				$format = (string) ( $definition['format'] ?? '' );
 				if ( '' !== $text && 'email' === $format && ! self::is_email( $text ) ) {
 					return self::failure( 'not_an_email', 'Expected an email address.' );
 				}
@@ -344,6 +389,9 @@ final class Registry {
 						return self::failure( 'too_many', sprintf( 'Expected at most %d entries.', (int) ( $definition['max_items'] ?? 10 ) ) );
 					}
 					$text = implode( ', ', $addresses );
+				}
+				if ( '' !== $text && isset( $definition['pattern'] ) && 1 !== preg_match( (string) $definition['pattern'], $text ) ) {
+					return self::failure( 'invalid_format', 'The value does not have the expected form.' );
 				}
 				if ( '' !== $text && 'url' === $format && 1 !== preg_match( '#^https?://[^\s<>"\']+$#i', $text ) ) {
 					return self::failure( 'not_a_url', 'Expected an address that starts with https:// or http://.' );

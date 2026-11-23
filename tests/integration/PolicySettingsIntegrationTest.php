@@ -404,7 +404,7 @@ final class PolicySettingsIntegrationTest extends WPLC_Integration_TestCase {
 			}
 		}
 		$this->assertIsArray( $row );
-		$this->assertCount( 14, $row );
+		$this->assertCount( 15, $row );
 		$this->assertSame( '4', $row[9] );
 		$this->assertSame( '', $row[10] );
 

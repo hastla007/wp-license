@@ -85,6 +85,54 @@ final class Definitions {
 				'capability' => 'manage_policy',
 				'filter'     => 'wplc_download_grant_seconds',
 			),
+			// Object storage (SET-LIC-30). The access keys stay constants in wp-config.php; a constant
+			// of the same value wins over each field. Not exported: the bucket belongs to this server.
+			's3_bucket'                 => array(
+				'type'       => 'string',
+				'default'    => '',
+				'max_length' => 63,
+				'pattern'    => '/^[A-Za-z0-9][A-Za-z0-9._-]{1,61}[A-Za-z0-9]$/D',
+				'group'      => 'updates',
+				'capability' => 'manage_package_hosts',
+				'constant'   => 'WPLC_S3_BUCKET',
+				'exportable' => false,
+			),
+			's3_region'                 => array(
+				'type'       => 'string',
+				'default'    => '',
+				'max_length' => 32,
+				'pattern'    => '/^[A-Za-z0-9][A-Za-z0-9-]{0,31}$/D',
+				'group'      => 'updates',
+				'capability' => 'manage_package_hosts',
+				'constant'   => 'WPLC_S3_REGION',
+				'exportable' => false,
+			),
+			's3_endpoint'               => array(
+				'type'       => 'string',
+				'default'    => '',
+				'max_length' => 253,
+				'pattern'    => '#^https://[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(:443)?/?$#D',
+				'group'      => 'updates',
+				'capability' => 'manage_package_hosts',
+				'constant'   => 'WPLC_S3_ENDPOINT',
+				'exportable' => false,
+			),
+			's3_path_style'             => array(
+				'type'       => 'bool',
+				'default'    => 0,
+				'group'      => 'updates',
+				'capability' => 'manage_package_hosts',
+				'constant'   => 'WPLC_S3_PATH_STYLE',
+				'exportable' => false,
+			),
+			// Owner decisions of 23.11.2026 (settings part 6): beta only with the right of the plan (SET-LIC-20, E-05).
+			'beta_updates'              => array(
+				'type'       => 'bool',
+				'default'    => 1,
+				'group'      => 'updates',
+				'capability' => 'manage_policy',
+				'filter'     => 'wplc_license_update_channels',
+			),
 
 			// Renewals.
 			'combined_renewals'         => array(
@@ -239,6 +287,60 @@ final class Definitions {
 				'group'     => 'rules',
 				'filter'    => 'wplc_issue_after_completion_gateways',
 			),
+			// Owner decisions of 23.11.2026 (settings part 6): refunds, cancellations and disputes (SET-LIC-17, E-07).
+			'suspend_on_order_cancelled' => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_suspend_license_on_order_status',
+				'legal'   => true,
+			),
+			'suspend_on_order_item_change' => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_suspend_license_on_order_item_change',
+				'legal'   => true,
+			),
+			'partial_refund_review'     => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_partial_refund_review',
+				'legal'   => true,
+			),
+			'restore_after_won_dispute' => array(
+				'type'    => 'bool',
+				'default' => 0,
+				'group'   => 'rules',
+				'filter'  => 'wplc_restore_license_after_won_dispute',
+				'legal'   => true,
+			),
+			// Owner decisions of 23.11.2026 (settings part 6): plan changes stay prorated by day, two switches (E-08).
+			'plan_upgrades_enabled'     => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_plan_upgrades_enabled',
+				'legal'   => true,
+			),
+			'plan_downgrades_enabled'   => array(
+				'type'    => 'bool',
+				'default' => 1,
+				'group'   => 'rules',
+				'filter'  => 'wplc_plan_downgrades_enabled',
+				'legal'   => true,
+			),
+			// Owner decisions of 23.11.2026 (settings part 6): key prefix, only before the first license (E-04).
+			'license_key_prefix'        => array(
+				'type'       => 'string',
+				'default'    => 'WPLC',
+				'format'     => 'key_prefix',
+				'max_length' => 4,
+				'group'      => 'rules',
+				'capability' => 'manage_policy',
+				'locked'     => array( \WPLC\License\LicenseKey::class, 'prefix_locked' ),
+			),
 
 			// Customer sites.
 			'offline_cache_days'        => array(
@@ -344,6 +446,66 @@ final class Definitions {
 				'group'      => 'sharing',
 				'capability' => 'manage_policy',
 				'filter'     => 'wplc_license_transfer_new_key',
+			),
+
+			// Customer account (SET-LIC-25). A changed address rewrites the rules on the next request.
+			'account_licenses_slug'     => array(
+				'type'       => 'string',
+				'default'    => 'wplc-licenses',
+				'max_length' => 50,
+				'pattern'    => '/^[a-z0-9][a-z0-9-]{0,49}$/D',
+				'group'      => 'account',
+				'filter'     => 'wplc_account_endpoint_slug',
+			),
+			'account_licenses_label'    => array(
+				'type'       => 'string',
+				'default'    => '',
+				'max_length' => 60,
+				'group'      => 'account',
+			),
+			'account_licenses_per_page' => array(
+				'type'    => 'int',
+				'default' => 10,
+				'min'     => 1,
+				'max'     => 100,
+				'group'   => 'account',
+			),
+			'account_sites_slug'        => array(
+				'type'       => 'string',
+				'default'    => 'wplc-sites',
+				'max_length' => 50,
+				'pattern'    => '/^[a-z0-9][a-z0-9-]{0,49}$/D',
+				'group'      => 'account',
+				'filter'     => 'wplc_sites_endpoint_slug',
+			),
+			'account_sites_label'       => array(
+				'type'       => 'string',
+				'default'    => '',
+				'max_length' => 60,
+				'group'      => 'account',
+			),
+			'account_sites_per_page'    => array(
+				'type'    => 'int',
+				'default' => 25,
+				'min'     => 1,
+				'max'     => 200,
+				'group'   => 'account',
+			),
+			'account_stale_days'        => array(
+				'type'    => 'int',
+				'unit'    => 'days',
+				'default' => 14,
+				'min'     => 1,
+				'max'     => 365,
+				'group'   => 'account',
+			),
+			'account_expiry_days'       => array(
+				'type'    => 'int',
+				'unit'    => 'days',
+				'default' => 30,
+				'min'     => 1,
+				'max'     => 365,
+				'group'   => 'account',
 			),
 
 			// Legal and privacy.
@@ -477,6 +639,17 @@ final class Definitions {
 				'filter'  => 'wplc_retention_days',
 				'legal'   => true,
 			),
+			// SET-LIC-46: delivery log of the outgoing webhooks.
+			'retention_webhook_deliveries' => array(
+				'type'    => 'int',
+				'unit'    => 'days',
+				'default' => 30,
+				'min'     => 0,
+				'max'     => 36500,
+				'group'   => 'legal',
+				'filter'  => 'wplc_retention_days',
+				'legal'   => true,
+			),
 
 			// Texts and support.
 			'support_email'             => array(
@@ -507,6 +680,16 @@ final class Definitions {
 				'filter'     => 'wplc_health_alert_recipients',
 			),
 		) + self::alert_thresholds() + array(
+			// SET-LIC-28: a reminder, never an automatic rotation; the keys stay in wp-config.php.
+			'key_rotation_reminder_months' => array(
+				'type'       => 'int',
+				'default'    => 0,
+				'min'        => 0,
+				'max'        => 120,
+				'group'      => 'operations',
+				'capability' => 'manage_package_hosts',
+				'filter'     => 'wplc_key_rotation_reminder_months',
+			),
 			'debug_log'                 => array(
 				'type'       => 'choice',
 				'default'    => 'off',
@@ -585,6 +768,8 @@ final class Definitions {
 		'failed_jobs'                  => 1,
 		'release_problems'             => 1,
 		'rejected_webhook_minutes'     => 5,
+		// SET-LIC-28: 0 while the reminder to rotate keys is off, so no alert until it is switched on.
+		'keys_due_for_rotation'        => 1,
 	);
 
 	/**

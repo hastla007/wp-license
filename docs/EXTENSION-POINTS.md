@@ -37,6 +37,10 @@ For plugins that run in the same WordPress as the server (the workflow add-on is
 
 Lookups by `license_id` from an action, optionally narrowed by the owner's user ID: `get( $license_id, $customer_user_id = 0 )` (summary: license_id, product_key, plan_key, status, access, expires_at, access_until, customer_user_id), `status()`, `plan()`, `expires_at()`, `entitlements()` (granted now; empty without access), `is_entitled( $license_id, $key )` and `for_user( $user_id, $product_key = '' )`. Every method runs SELECT queries only and never returns a key, key prefix, key hash, email address, site address, payment data or secret. Changing a license stays behind the capabilities `wplc_*` and nonces of the plugin's own screens and APIs.
 
+## Outgoing webhooks (SET-LIC-46)
+
+For systems outside the shop's WordPress (CRM, accounting, automation platforms) the eight actions of the contract above can be sent as signed HTTPS requests: **WooCommerce → License webhooks** or `wp wplc webhook`. The format, the signature, the retries and the events are described in [WEBHOOKS.md](WEBHOOKS.md). Three filters and one action belong to it: `wplc_webhook_payload` (the body, once per event; add data, but never a key, a secret or personal data the receiver does not need), `wplc_webhook_retry_delays`, `wplc_webhook_disable_after_failures` and `wplc/webhook_endpoint_disabled`. A webhook is queued by a listener of the contract action (priority 50), so it inherits the "after commit" promise; it is sent later by Action Scheduler (hook `wplc_webhook_deliver`, internal).
+
 ## Co-users and transfers (B-139)
 
 The co-user and transfer hooks (`wplc/license_member_*`, `wplc/license_transfer_started`, `wplc/license_transferred`, `wplc_license_member_limit`, `wplc_license_invitation_days`, `wplc_license_transfer_enabled`, `wplc_license_transfer_new_key`; their defaults are the settings under License settings → Co-users and transfer, 5, 14, on and off unless changed) are described in [SUPPORT-ACTIONS.md](SUPPORT-ACTIONS.md#co-users-and-transfers-by-the-customer). An accepted transfer also fires `wplc/license_owner_changed` first, like the owner change in the admin. The account template `myaccount/wplc-license.php` prints the co-user and transfer forms through its template action `wplc_account_license_sharing` (license row, display values); a theme copy made before this version needs that line added.
@@ -49,7 +53,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 
 ## Package resolvers and built-in object storage
 
-`wplc_resolve_update_package_url` (arguments: stored package URL, license ID; `0` when the server verifies a release on publish) turns the stored location of a URL release into the URL a client is redirected to. Two resolvers are built in: `PackageStream::resolve` (priority 10, uploaded packages) and `S3Storage::resolve` (priority 20, T-31), which signs an unchanged object URL of the bucket configured with the `WPLC_S3_*` constants (see [UPDATE-STORAGE.md](UPDATE-STORAGE.md)). A custom resolver on priority 10 (or anything below 20) runs first; a URL it changed carries a query and is not signed again, so custom resolvers keep precedence. `wplc_s3_presign_expires` sets the validity of the signed links (default 300 s, clamped to 1 s … 7 days). The bucket's request host is added to `wplc_update_package_hosts` (priority 1000) while the storage is configured. There is no filter for the credentials: they come from wp-config.php only.
+`wplc_resolve_update_package_url` (arguments: stored package URL, license ID; `0` when the server verifies a release on publish) turns the stored location of a URL release into the URL a client is redirected to. Two resolvers are built in: `PackageStream::resolve` (priority 10, uploaded packages) and `S3Storage::resolve` (priority 20, T-31), which signs an unchanged object URL of the bucket configured with the `WPLC_S3_*` constants or the object storage fields of the settings page (SET-LIC-30; see [UPDATE-STORAGE.md](UPDATE-STORAGE.md)). A custom resolver on priority 10 (or anything below 20) runs first; a URL it changed carries a query and is not signed again, so custom resolvers keep precedence. `wplc_s3_presign_expires` sets the validity of the signed links (default 300 s, clamped to 1 s … 7 days). The bucket's request host is added to `wplc_update_package_hosts` (priority 1000) while the storage is configured. There is no filter for the credentials: they come from wp-config.php only.
 
 ## Actions
 
@@ -77,7 +81,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc/license_member_added` | `src/License/LicenseMembers.php` | 0.2.0 | – | Fires after a user accepted a co-user invitation. |
 | `wplc/license_member_invited` | `src/License/LicenseMembers.php` | 0.2.0 | – | Fires after the owner invited a co-user. |
 | `wplc/license_member_removed` | `src/License/LicenseMembers.php` | 0.2.0 | – | Fires after a co-user was removed or an open invitation withdrawn. |
-| `wplc/license_needs_review` | `src/License/LicenseLifecycle.php` | 0.1.0 | – | Fires when a license was suspended and needs a decision by the shop. |
+| `wplc/license_needs_review` | `src/License/LicenseLifecycle.php` | 0.1.0 | – | Fires when a license was suspended or otherwise needs a decision by the shop (since 0.2.0 also for a partial refund by amount, SET-LIC-17). |
 | `wplc/license_owner_changed` | `src/Admin/SupportActions.php` | 0.1.0 | – | Fires after a license was handed over to another user. |
 | `wplc/license_plan_changed` | `src/License/PlanChange.php` | 0.2.0 | yes | Fires after the plan of a license changed (upgrade, downgrade at renewal, administrator change, revert). |
 | `wplc/license_status_changed` | `src/License/LicenseLifecycle.php` | 0.1.0 | yes | Fires after every successful license status transition and renewal. |
@@ -102,6 +106,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc/site_limit_reached` | `src/Events/LicenseEvents.php` | 0.2.0 | yes | Fires when an activation was refused because a site limit was reached (suite event `license.license.site_limit_reached`). |
 | `wplc/stripe_early_fraud_warning` | `src/Gateway/StripeEventHandler.php` | 0.1.0 | – | Fires when Stripe reports an early fraud warning for a license payment. |
 | `wplc/stripe_webhook_received` | `src/Api/V1/StripeWebhook.php` | 0.1.0 | – |  |
+| `wplc/webhook_endpoint_disabled` | `src/Webhooks/Dispatcher.php` | 0.2.0 | – | Fires after a webhook endpoint was switched off because its deliveries failed repeatedly (arguments: endpoint ID, failed deliveries in a row). |
 | `wplc_daily_lifecycle` | `src/Maintenance/DailyRunner.php` | 0.1.0 | – |  |
 | `wplc_release_package_missing` | `src/Update/ReleaseRegistry.php` | 0.1.0 | – | Fires when a published release cannot be offered because its file is missing on this server (A-111). |
 | `wplc_settings_page_tools` | `src/Admin/Settings.php` | 0.2.0 | – | Fires below the settings form: tools that work on the settings (country profiles, export, import, reset). |
@@ -148,6 +153,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_is_staging_host` | `src/Api/V1/SiteUrl.php` | Filter whether a host is accepted as the staging copy of a live site. |
 | `wplc_issue_after_completion_gateways` | `src/License/LicenseIssuer.php` | Filters the payment methods whose orders only get their licenses once the order is completed. |
 | `wplc_job_runs_while_billing_paused` | `src/Maintenance/DailyRunner.php` | Filter whether a job runs although billing is paused. |
+| `wplc_key_rotation_reminder_months` | `src/Security/KeyAge.php` | Filters after how many months a key should be rotated. Wins over the setting "Remind to rotate keys after" (SET-LIC-28; 0 = no reminder). |
 | `wplc_known_product_keys` | `src/Catalog/EntitlementCatalog.php` | Filter the product keys suggested in the product editor. |
 | `wplc_license_email_locale` | `src/Notifications/PurchaseLocale.php` | Filter the locale used for the emails of one license. |
 | `wplc_license_email_recipient` | `src/Notifications/Emails/LicenseEmail.php` | Filter the recipient of the emails of one license. |
@@ -157,6 +163,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_license_owner_for_guest_order` | `src/License/LicenseIssuer.php` | Filters the owner of the licenses of an order without a customer account. |
 | `wplc_license_transfer_enabled` | `src/License/LicenseMembers.php` | Filters whether the owner can transfer a license to another customer from the account. |
 | `wplc_license_transfer_new_key` | `src/License/LicenseMembers.php` | Filters whether a transfer accepted in the account also issues a new license key. |
+| `wplc_license_update_channels` | `src/Update/UpdateChannels.php` | Filters the update channels a license may use (SET-LIC-20); default `stable`, plus `beta` when the plan (or the setting "Beta versions for licenses") allows it. Sent as `update_channels`; a request for another channel is served stable. Wins over the setting and the plan. |
 | `wplc_local_host_suffixes` | `src/Api/V1/SiteUrl.php` | Filters the endings of local addresses, without the leading dot (SET-LIC-09). Wins over the setting. |
 | `wplc_lock_self_test` | `src/Admin/Diagnostics.php` | Lets the package that owns the lock helper answer the self-test with its own implementation. |
 | `wplc_log_api_rejection` | `src/Api/V1/ApiLog.php` | Filter whether this rejection is written to the log. |
@@ -171,8 +178,11 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_package_offload_header` | `src/Update/PackageStream.php` | Filters a header that hands the file to the web server instead of PHP (B-25). |
 | `wplc_package_storage_dir` | `src/Update/LocalPackageStorage.php` | Filters the private package directory, e.g. to move it outside the web root. |
 | `wplc_package_storage_probe` | `src/Update/PackageStorageCheck.php` | Filters whether the package directory may be probed over HTTP. |
+| `wplc_partial_refund_review` | `src/License/LicenseLifecycle.php` | Filters whether a partial refund by amount asks the shop to review the licenses of the order (SET-LIC-17). Wins over the setting. |
 | `wplc_payment_token_id_for_order` | `src/License/LicenseIssuer.php` |  |
+| `wplc_plan_downgrades_enabled` | `src/Billing/PlanUpgrade.php` | Filters whether customers may switch to a cheaper plan in the account (E-08). Wins over the setting. |
 | `wplc_plan_label` | `src/Notifications/Notifications.php` | Filter the plan name shown to customers. |
+| `wplc_plan_upgrades_enabled` | `src/Billing/PlanUpgrade.php` | Filters whether customers may upgrade their plan in the account (E-08). Wins over the setting. |
 | `wplc_price_change_notice_days` | `src/Billing/PriceChange.php` | Filters the notice period of a renewal price change in days. |
 | `wplc_pricing_table_plans` | `src/Account/PricingTable.php` | Filters the plans of the pricing table (block `wplc/pricing`, shortcode `[wplc_pricing]`). |
 | `wplc_product_docs_url` | `src/Notifications/Notifications.php` | Filter the documentation URL shown with the installation steps. |
@@ -195,6 +205,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_renewal_retry_days` | `src/Billing/RenewalProcessor.php` | Filters the retry schedule of failed renewal charges (A-135). |
 | `wplc_require_package_resolver` | `src/Api/V1/UpdateService.php` | Filters whether packages may only be delivered through a resolver. |
 | `wplc_resolve_update_package_url` | `src/Update/ReleaseRegistry.php` |  |
+| `wplc_restore_license_after_won_dispute` | `src/License/LicenseLifecycle.php` | Filters whether a won dispute reactivates the licenses it suspended (SET-LIC-17). Wins over the setting. |
 | `wplc_retention_days` | `src/Maintenance/Retention.php` | Filter the retention periods in days. |
 | `wplc_retention_time_budget` | `src/Maintenance/Retention.php` | Filter the seconds one retention run may take. |
 | `wplc_review_payment_reference` | `src/Billing/RenewalReview.php` | Filters the transaction ID stored when a reviewed renewal order is booked as paid. |
@@ -205,6 +216,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_settings_country_profiles` | `src/Settings/Presets.php` | Filters the country profiles (suggestions for the settings with legal weight). |
 | `wplc_shop_base_currency` | `src/Catalog/Catalog.php` | Filters the currency product prices are entered in (B-189). |
 | `wplc_show_license_term` | `src/Catalog/TermDisplay.php` | Filters whether the license term is appended to the price of a license product. |
+| `wplc_sites_endpoint_slug` | `src/Account/SiteOverview.php` | Filter the URL slug of the page "Sites" in the customer account (default: the setting "Address of the site page", SET-LIC-25). Rewrite rules are refreshed automatically. |
 | `wplc_staging_host_suffixes` | `src/Api/V1/SiteUrl.php` | Filters the hosting provider domains whose subdomains are staging copies, without the leading dot (SET-LIC-09). Wins over the setting. |
 | `wplc_staging_labels` | `src/Api/V1/SiteUrl.php` | Filters the name parts that mark a staging copy (SET-LIC-09). Wins over the setting "Staging: name parts". |
 | `wplc_staging_site_limit` | `src/Api/V1/ActivationService.php` | Filter the number of staging activations per live site. Zero forbids them. |
@@ -215,8 +227,8 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_support_email` | `src/Notifications/Notifications.php` | Filter the support contact named in license emails. Wins over the setting. |
 | `wplc_support_url` | `src/Notifications/Notifications.php` | Filter the address of the support page that the customer account and the cancellation page link to. Wins over the setting. |
 | `wplc_suppress_renewal_order_email` | `src/Gateway/RenewalOrderEmails.php` | Filters whether a WooCommerce customer mail is suppressed for an automatic renewal order. |
-| `wplc_suspend_license_on_order_item_change` | `src/License/LicenseLifecycle.php` | Filters whether licenses are suspended when their order line is removed or its quantity lowered. |
-| `wplc_suspend_license_on_order_status` | `src/License/LicenseLifecycle.php` |  |
+| `wplc_suspend_license_on_order_item_change` | `src/License/LicenseLifecycle.php` | Filters whether licenses are suspended when their order line is removed or its quantity lowered. Wins over the setting "Removed order line suspends its licenses" (SET-LIC-17). |
+| `wplc_suspend_license_on_order_status` | `src/License/LicenseLifecycle.php` | Filters whether licenses are suspended when their paid order is cancelled or fails. Wins over the setting "Cancelled or failed order suspends its licenses" (SET-LIC-17). |
 | `wplc_suspended_license_ends_after_days` | `src/License/EndedLicenses.php` | Filters the days after which a suspended license counts as ended (0 = never). Wins over the setting. |
 | `wplc_translation_fallback_locale` | `src/Plugin.php` | Filters the shipped translation used for a locale without its own file (B-120). |
 | `wplc_update_check_issues_download` | `src/Api/V1/UpdateService.php` | Filters whether an update check without the `download` parameter creates a download grant. |
@@ -226,6 +238,9 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_update_product_icons` | `src/Update/ReleaseRegistry.php` | Filters the icons of a product, in the shape WordPress expects: array( '1x' => url, '2x' => url, 'svg' => url ). |
 | `wplc_vendor_license_config` | `src/Infrastructure/SelfLicense.php` | Filters where this plugin gets its own updates from (the license server of its vendor). |
 | `wplc_verify_url_release_on_publish` | `src/Update/ReleaseRegistry.php` | Filters whether a URL package is downloaded and verified when its release is published. |
+| `wplc_webhook_disable_after_failures` | `src/Webhooks/Dispatcher.php` | Filters after how many failed deliveries in a row an endpoint is switched off (default 5, 0 = never). See [WEBHOOKS.md](WEBHOOKS.md). |
+| `wplc_webhook_payload` | `src/Webhooks/Dispatcher.php` | Filters the body of an outgoing webhook before it is stored and sent (arguments: envelope, event name; `id`, `event` and `created_at` cannot be changed). See [WEBHOOKS.md](WEBHOOKS.md#filters-and-actions). |
+| `wplc_webhook_retry_delays` | `src/Webhooks/Dispatcher.php` | Filters the seconds between the attempts of a webhook delivery (default 60, 300, 1800, 7200: five attempts). |
 | `wplc_withdrawal_consent_enabled` | `src/Billing/WithdrawalConsent.php` | Filters whether the checkout asks for consent to the immediate start of the license. |
 | `wplc_withdrawal_consent_required` | `src/Billing/WithdrawalConsent.php` | Filters whether a license can only be bought with the consent to the immediate start. |
 | `wplc_withdrawal_consent_text` | `src/Billing/WithdrawalConsent.php` | Filters the wording of the withdrawal consent. Legal wording is the shop owner's decision. |

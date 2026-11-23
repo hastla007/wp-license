@@ -2,13 +2,13 @@
 
 ## The "Licenses" page in My Account
 
-WP License Captain adds a page **Licenses** to the WooCommerce customer account (endpoint `wplc-licenses`, for example `https://shop.example/my-account/wplc-licenses/`; filter `wplc_account_endpoint_slug` changes the slug). For each license the customer sees:
+WP License Captain adds a page **Licenses** to the WooCommerce customer account (endpoint `wplc-licenses`, for example `https://shop.example/my-account/wplc-licenses/`; the address, the name in the menu and the number of licenses per page are settings under **License settings → Customer account**, chapter 13, and the filter `wplc_account_endpoint_slug` decides last). For each license the customer sees:
 
 - the license key with a copy button, the status, the plan and the end date;
 - the sites in use, with a button to deactivate a site (its staging site goes with it);
 - "Renew now" inside the manual renewal window (chapter 8);
 - cancel or resume the automatic renewal;
-- upgrade to a more expensive plan (prorated) or switch to a cheaper one at the next renewal;
+- upgrade to a more expensive plan (prorated by day) or switch to a cheaper one at the next renewal; each of the two offers can be switched off under License settings → Rules of this shop ("Customers can upgrade their plan", "Customers can switch to a cheaper plan", both on by default; switched off, the offer is not shown and a request is refused; administrators can always change the plan);
 - "Move to …" for the sites of an ending license when the customer owns a newer license of the same product;
 - a download of the latest release (or one of up to nine older versions);
 - **Co-users** and **Transfer** (below).

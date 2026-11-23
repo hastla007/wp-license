@@ -62,8 +62,13 @@ When you upload that ZIP as a release, the server imports the file automatically
 | `entitlements[].label` | yes | Short name next to the tick box and in the pricing table, at most 190 characters. |
 | `entitlements[].description` | no | Longer explanation, at most 1000 characters. Stored and exported. |
 | `entitlements[].status` | no | `available` (default): a released version of the add-on checks the key, the product editor offers it. `planned`: reserved and not offered, so you do not sell what does not exist yet. |
+| `docs_url` | no | Address of your documentation (`https://…`), per locale. The account and the license email link to it next to the installation steps. |
+| `install_steps` | no | 1 to 10 installation steps, per locale, at most 500 characters each. They replace the three built-in steps in the account and the license email. |
+| `plans` | no | Names of your plans for customers: plan key => `{ "name": text }`, at most 50. Shown in the account and in the license emails instead of the name of the WooCommerce product. |
 
-**Texts** (`name`, `label`, `description`) are either a plain string (read as English) or an object with one text per WordPress locale. `en` is required and is the fallback for every other language; add `de_DE` (informal German) and `de_DE_formal` (formal German) and any other locale (`fr_FR`, …) you translate into. Plain text only: a text with HTML or line breaks is rejected, not cleaned.
+**Texts** (`name`, `label`, `description`, `docs_url`, the installation steps and the plan names) are either a plain string (read as English) or an object with one text per WordPress locale. `en` is required and is the fallback for every other language; add `de_DE` (informal German) and `de_DE_formal` (formal German) and any other locale (`fr_FR`, …) you translate into. Plain text only: a text with HTML or line breaks is rejected, not cleaned.
+
+The texts for customers (`docs_url`, `install_steps`, `plans`, SET-LIC-24) are the place to maintain them per product and per language: the customer sees the text of the language of the email (the language of the purchase) or of the page. Without them the built-in texts and the name of the WooCommerce product are used, as before. The filters `wplc_product_docs_url`, `wplc_install_steps` and `wplc_plan_label` receive them and decide last.
 
 Unknown fields are ignored, so your build may add its own (for example `generator` or `since`). A file may be at most 256 KB; a UTF-8 byte order mark is accepted. The JSON schema of the format ships with the plugin as [`docs/catalog-file.schema.json`](../catalog-file.schema.json); `wp wplc catalog validate` applies the same rules and names the first error with its field, for example `entitlements[3].key: The entitlement key is listed twice.`
 

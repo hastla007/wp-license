@@ -35,7 +35,7 @@ With `--publish`, a release that cannot be published is removed again, so the pi
 
 ## Which version a site gets
 
-- The highest **published** version in the requested channel whose requirements the site meets and whose file is present. A `beta` installation receives beta and stable releases, whichever is higher. Use the `beta` channel for pre-releases: a pre-release published as `stable` still beats a lower stable version.
+- The highest **published** version in the requested channel whose requirements the site meets and whose file is present. A `beta` installation receives beta and stable releases, whichever is higher, but only when its license may use beta: setting **Beta versions for licenses** (License settings → Updates, default allowed as before) and, per plan, **Beta versions** under "Rules of this plan" in the product editor (allowed, not allowed, or the global setting). A license without the right gets the stable channel; the signed answers tell the add-on, so client library 2.4.0 shows its checkbox "Receive beta versions" only to licenses that may use it. Use the `beta` channel for pre-releases: a pre-release published as `stable` still beats a lower stable version.
 - `requires_php`, `requires_wp` and `requires_core` are compared with the versions the site reported. A release that does not fit is skipped; the next lower fitting one is offered and the site is told which requirement blocks the newer one.
 - A license without access still sees that a version exists ("renew to get it"), but gets no package.
 - **Releases are immutable once published:** product, version, channel, package and SHA-256 can no longer change, also not after withdrawal. Release notes and requirements stay editable. To fix a package, withdraw the release and publish a higher version.
@@ -115,7 +115,7 @@ The package directory must be the same directory on every node (NFS, EFS, a shar
 
 Packages can live in a private bucket of any storage that speaks the S3 API with Signature Version 4: AWS S3, Cloudflare R2, MinIO, Backblaze B2 (S3 API), Google Cloud Storage (XML API with HMAC keys) and others. The plugin signs the download links itself; no SDK is needed.
 
-**1. Configure the bucket in `wp-config.php`** (above the line that loads `wp-settings.php`). The values are read from these constants only; they are never stored in the database, shown in the admin or written to a log.
+**1. Configure the bucket.** The access key ID and the secret go into `wp-config.php` (above the line that loads `wp-settings.php`); they are never stored in the database, shown in the admin or written to a log. Bucket, region, endpoint and path style can be constants as below or fields under **License settings → Updates** (SET-LIC-30, administrators only); a constant that is defined wins and its field is shown read-only. Below the fields the page shows the state of the storage and **Test the connection**.
 
 ```php
 define( 'WPLC_S3_BUCKET', 'acme-releases' );
