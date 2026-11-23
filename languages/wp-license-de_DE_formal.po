@@ -3,8 +3,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP License Captain 0.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-23T18:16:47+00:00\n"
-"PO-Revision-Date: 2026-11-23 18:16+0000\n"
+"POT-Creation-Date: 2026-11-23T18:43:45+00:00\n"
+"PO-Revision-Date: 2026-11-23 18:44+0000\n"
 "Last-Translator: \n"
 "Language-Team: German\n"
 "Language: de_DE_formal\n"
@@ -122,7 +122,7 @@ msgstr "Website"
 
 #: src/Account/SiteOverview.php:283
 #: src/Admin/LicenseDetail.php:547
-#: src/Client/Messages.php:278
+#: src/Client/Messages.php:284
 #: templates/myaccount/wplc-license.php:139
 #: templates/myaccount/wplc-license.php:148
 msgid "Environment"
@@ -471,7 +471,7 @@ msgstr "Ausstehend"
 
 #: src/Admin/Format.php:27
 #: src/Admin/Format.php:52
-#: src/Client/Messages.php:224
+#: src/Client/Messages.php:228
 msgid "Active"
 msgstr "Aktiv"
 
@@ -481,7 +481,7 @@ msgid "Payment overdue"
 msgstr "Zahlung überfällig"
 
 #: src/Admin/Format.php:29
-#: src/Client/Messages.php:227
+#: src/Client/Messages.php:231
 #: templates/emails/plain/wplc-license-blocked.php:43
 #: templates/emails/wplc-license-blocked.php:43
 msgid "Suspended"
@@ -489,7 +489,7 @@ msgstr "Gesperrt"
 
 #: src/Admin/Format.php:30
 #: src/Admin/LicenseDetail.php:215
-#: src/Client/Messages.php:228
+#: src/Client/Messages.php:232
 #: templates/emails/plain/wplc-license-blocked.php:43
 #: templates/emails/wplc-license-blocked.php:43
 msgid "Revoked"
@@ -497,7 +497,7 @@ msgstr "Widerrufen"
 
 #: src/Admin/Format.php:31
 #: src/Admin/Format.php:87
-#: src/Client/Messages.php:226
+#: src/Client/Messages.php:230
 msgid "Expired"
 msgstr "Abgelaufen"
 
@@ -627,7 +627,7 @@ msgstr "Sie sind nicht berechtigt, Lizenzen zu ändern."
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Billing/RenewalOrder.php:974
 #: src/Billing/RenewalOrder.php:1235
-#: src/Client/Messages.php:265
+#: src/Client/Messages.php:271
 #: src/License/LicenseIssuer.php:260
 msgid "License"
 msgstr "Lizenz"
@@ -740,7 +740,7 @@ msgstr "Tarif"
 #: src/Admin/LicenseListTable.php:101
 #: src/Admin/ReleaseAdmin.php:125
 #: src/Admin/Settings.php:588
-#: src/Client/Messages.php:274
+#: src/Client/Messages.php:280
 #: src/Privacy/PersonalData.php:359
 #: src/Privacy/PersonalData.php:560
 #: templates/emails/plain/wplc-license-blocked.php:43
@@ -772,7 +772,7 @@ msgstr "Beginn"
 #: src/Admin/LicenseDetail.php:205
 #: src/Admin/LicenseDetail.php:935
 #: src/Admin/LicenseListTable.php:102
-#: src/Client/Messages.php:275
+#: src/Client/Messages.php:281
 msgid "Paid until"
 msgstr "Bezahlt bis"
 
@@ -908,7 +908,7 @@ msgstr "Begründung: %s"
 #: src/Admin/ReleaseAdmin.php:559
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Admin/RenewalReviewAdmin.php:282
-#: src/Client/Messages.php:303
+#: src/Client/Messages.php:309
 msgid "Reason"
 msgstr "Begründung"
 
@@ -1343,6 +1343,7 @@ msgstr "Manifest importieren"
 msgid "License settings"
 msgstr "Lizenzeinstellungen"
 
+#: src/Client/Messages.php:320
 #: src/Settings/Texts.php:27
 msgid "Updates"
 msgstr "Updates"
@@ -1724,7 +1725,7 @@ msgid "Your license is ready"
 msgstr "Ihre Lizenz steht bereit"
 
 #: src/Admin/LicenseDetail.php:425
-#: src/Client/Messages.php:266
+#: src/Client/Messages.php:272
 #: src/Notifications/Emails/LicenseIssuedEmail.php:65
 #: templates/emails/plain/wplc-license-issued.php:43
 #: templates/emails/wplc-license-issued.php:43
@@ -2895,7 +2896,7 @@ msgid "Update: %s"
 msgstr "Update: %s"
 
 #: src/Account/SiteOverview.php:317
-#: src/Client/Messages.php:284
+#: src/Client/Messages.php:290
 msgid "never"
 msgstr "nie"
 
@@ -4227,7 +4228,7 @@ msgid "The secrets for license keys are not configured in wp-config.php, or issu
 msgstr "Die Geheimnisse für Lizenzschlüssel sind nicht in der wp-config.php konfiguriert, oder ausgestellte Lizenzschlüssel passen nicht mehr zum konfigurierten Geheimnis. Kunden können den Zugriff auf ihre Schlüssel verlieren. Ein Administrator findet die Details auf der Seite mit den Lizenzeinstellungen."
 
 #: src/Admin/KeyConfigurationNotice.php:220
-#: src/Client/Messages.php:263
+#: src/Client/Messages.php:267
 msgid "Open license settings"
 msgstr "Lizenzeinstellungen öffnen"
 
@@ -4895,7 +4896,7 @@ msgid "You already have a license for this product. This purchase adds another l
 msgstr "Sie haben bereits eine Lizenz für dieses Produkt. Mit diesem Kauf erhalten Sie eine weitere Lizenz mit einem neuen Schlüssel. Um die vorhandene Lizenz zu verlängern, verwenden Sie stattdessen „Verlängern“ in Ihrem Konto."
 
 #: src/Admin/Format.php:302
-#: src/Client/Messages.php:231
+#: src/Client/Messages.php:235
 msgid "Site address changed"
 msgstr "Website-Adresse geändert"
 
@@ -8364,7 +8365,7 @@ msgid "Invalid configuration"
 msgstr "Ungültige Konfiguration"
 
 #: src/Admin/Diagnostics.php:1040
-#: src/Client/Messages.php:233
+#: src/Client/Messages.php:237
 msgid "Not configured"
 msgstr "Nicht konfiguriert"
 
@@ -9002,544 +9003,544 @@ msgstr "Die Antwort des Lizenzservers ist älter als eine bereits erhaltene und 
 msgid "This web server cannot check the signature of the license server (the PHP sodium functions are missing). Premium features stay off until PHP provides them."
 msgstr "Dieser Webserver kann die Signatur des Lizenzservers nicht prüfen (die PHP-Funktionen von sodium fehlen). Die Premium-Funktionen bleiben ausgeschaltet, bis PHP sie bereitstellt."
 
-#: src/Client/Messages.php:195
+#: src/Client/Messages.php:199
 msgid "The activation request was rejected as incomplete. Check the license key."
 msgstr "Die Aktivierungsanfrage wurde als unvollständig abgelehnt. Prüfen Sie den Lizenzschlüssel."
 
-#: src/Client/Messages.php:196
+#: src/Client/Messages.php:200
 msgid "This license key is unknown. Please check it for typing errors."
 msgstr "Dieser Lizenzschlüssel ist unbekannt. Bitte prüfen Sie ihn auf Tippfehler."
 
-#: src/Client/Messages.php:197
+#: src/Client/Messages.php:201
 msgid "This license key belongs to another product."
 msgstr "Dieser Lizenzschlüssel gehört zu einem anderen Produkt."
 
-#: src/Client/Messages.php:198
+#: src/Client/Messages.php:202
 msgid "This license has expired. Renew it to activate this site."
 msgstr "Diese Lizenz ist abgelaufen. Verlängern Sie sie, um diese Website zu aktivieren."
 
-#: src/Client/Messages.php:199
+#: src/Client/Messages.php:203
 msgid "This license is suspended. Please contact support."
 msgstr "Diese Lizenz ist gesperrt. Bitte wenden Sie sich an den Support."
 
-#: src/Client/Messages.php:200
+#: src/Client/Messages.php:204
 msgid "This license has been revoked."
 msgstr "Diese Lizenz wurde widerrufen."
 
-#: src/Client/Messages.php:201
+#: src/Client/Messages.php:205
 msgid "This license is not active."
 msgstr "Diese Lizenz ist nicht aktiv."
 
-#: src/Client/Messages.php:202
+#: src/Client/Messages.php:206
 msgid "The license of this activation no longer exists on the license server."
 msgstr "Die Lizenz dieser Aktivierung existiert auf dem Lizenzserver nicht mehr."
 
-#: src/Client/Messages.php:203
+#: src/Client/Messages.php:207
 msgid "All sites of this license are in use. Release a site in your customer account or upgrade the license."
 msgstr "Alle Websites dieser Lizenz sind belegt. Geben Sie in Ihrem Kundenkonto eine Website frei oder erweitern Sie die Lizenz."
 
-#: src/Client/Messages.php:204
+#: src/Client/Messages.php:208
 msgid "The live site already has a staging site. Release it in your customer account first."
 msgstr "Die Live-Website hat bereits eine Staging-Website. Geben Sie diese zuerst in Ihrem Kundenkonto frei."
 
-#: src/Client/Messages.php:205
+#: src/Client/Messages.php:209
 msgid "Too many development sites are activated for this license. Release unused ones in your customer account."
 msgstr "Für diese Lizenz sind zu viele Entwicklungs-Websites aktiviert. Geben Sie nicht mehr benötigte in Ihrem Kundenkonto frei."
 
-#: src/Client/Messages.php:206
+#: src/Client/Messages.php:210
 msgid "A development activation is only possible on a local address (localhost, *.test, *.local)."
 msgstr "Eine Entwicklungsaktivierung ist nur unter einer lokalen Adresse möglich (localhost, *.test, *.local)."
 
-#: src/Client/Messages.php:207
+#: src/Client/Messages.php:211
 msgid "A staging site must be linked to an activated live site of the same license."
 msgstr "Eine Staging-Website muss mit einer aktivierten Live-Website derselben Lizenz verknüpft sein."
 
-#: src/Client/Messages.php:208
+#: src/Client/Messages.php:212
 msgid "The live site this staging site belongs to is not activated for this license."
 msgstr "Die Live-Website, zu der diese Staging-Website gehört, ist für diese Lizenz nicht aktiviert."
 
-#: src/Client/Messages.php:209
+#: src/Client/Messages.php:213
 msgid "A staging activation cannot move to an address that is unrelated to its live site."
 msgstr "Eine Staging-Aktivierung kann nicht auf eine Adresse umziehen, die nichts mit ihrer Live-Website zu tun hat."
 
-#: src/Client/Messages.php:210
+#: src/Client/Messages.php:214
 msgid "The activation data of this site does not match the license server. Please activate again."
 msgstr "Die Aktivierungsdaten dieser Website passen nicht zum Lizenzserver. Bitte aktivieren Sie erneut."
 
-#: src/Client/Messages.php:211
+#: src/Client/Messages.php:215
 msgid "The activation was interrupted by a parallel request. Please try again."
 msgstr "Die Aktivierung wurde durch eine gleichzeitige Anfrage unterbrochen. Bitte versuchen Sie es erneut."
 
-#: src/Client/Messages.php:212
+#: src/Client/Messages.php:216
 msgid "The activation of this site was released. Enter the license key to activate it again."
 msgstr "Die Aktivierung dieser Website wurde freigegeben. Geben Sie den Lizenzschlüssel ein, um sie erneut zu aktivieren."
 
-#: src/Client/Messages.php:213
+#: src/Client/Messages.php:217
 msgid "The license server does not know the activation of this site. Enter the license key to activate it again."
 msgstr "Der Lizenzserver kennt die Aktivierung dieser Website nicht. Geben Sie den Lizenzschlüssel ein, um sie erneut zu aktivieren."
 
-#: src/Client/Messages.php:214
+#: src/Client/Messages.php:218
 msgid "The license server cannot read the activation of this site. Enter the license key to activate it again."
 msgstr "Der Lizenzserver kann die Aktivierung dieser Website nicht lesen. Geben Sie den Lizenzschlüssel ein, um sie erneut zu aktivieren."
 
-#: src/Client/Messages.php:215
+#: src/Client/Messages.php:219
 msgid "The stored activation does not belong to this installation."
 msgstr "Die gespeicherte Aktivierung gehört nicht zu dieser Installation."
 
-#: src/Client/Messages.php:216
+#: src/Client/Messages.php:220
 msgid "This site is not the one the license was activated for."
 msgstr "Dies ist nicht die Website, für die die Lizenz aktiviert wurde."
 
-#: src/Client/Messages.php:217
+#: src/Client/Messages.php:221
 msgid "A live site activation cannot be moved to a staging, local or test address. Activate this copy as a staging site instead."
 msgstr "Eine Aktivierung für eine Live-Website kann nicht auf eine Staging-, lokale oder Testadresse übertragen werden. Aktivieren Sie diese Kopie stattdessen als Staging-Website."
 
-#: src/Client/Messages.php:218
+#: src/Client/Messages.php:222
 msgid "The license server rejected the signature of this site."
 msgstr "Der Lizenzserver hat die Signatur dieser Website abgelehnt."
 
-#: src/Client/Messages.php:219
+#: src/Client/Messages.php:223
 msgid "The clock of this server differs too much from the clock of the license server."
 msgstr "Die Uhr dieses Servers weicht zu stark von der Uhr des Lizenzservers ab."
 
-#: src/Client/Messages.php:220
+#: src/Client/Messages.php:224
 msgid "Too many requests. Please try again in a few minutes."
 msgstr "Zu viele Anfragen. Bitte versuchen Sie es in ein paar Minuten erneut."
 
-#: src/Client/Messages.php:221
+#: src/Client/Messages.php:225
 msgid "The license is being changed right now. Please try again in a moment."
 msgstr "Die Lizenz wird gerade geändert. Bitte versuchen Sie es gleich noch einmal."
 
-#: src/Client/Messages.php:223
+#: src/Client/Messages.php:227
 msgid "Not activated"
 msgstr "Nicht aktiviert"
 
-#: src/Client/Messages.php:225
+#: src/Client/Messages.php:229
 msgid "Payment overdue (grace period)"
 msgstr "Zahlung überfällig (Kulanzzeit)"
 
-#: src/Client/Messages.php:229
+#: src/Client/Messages.php:233
 msgid "Not active"
 msgstr "Nicht aktiv"
 
-#: src/Client/Messages.php:230
+#: src/Client/Messages.php:234
 msgid "Released on the license server"
 msgstr "Auf dem Lizenzserver freigegeben"
 
-#: src/Client/Messages.php:232
+#: src/Client/Messages.php:236
 msgid "Could not be verified for too long"
 msgstr "Zu lange nicht geprüft"
 
-#: src/Client/Messages.php:234
+#: src/Client/Messages.php:238
 msgid "The clock of this site is ahead, or the offline period has expired."
 msgstr "Die Uhr dieser Website geht vor, oder die Offline-Frist ist abgelaufen."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:236
+#: src/Client/Messages.php:240
 #, php-format
 msgid "%s: enter your license key to switch on the premium features and updates."
 msgstr "%s: Geben Sie Ihren Lizenzschlüssel ein, um die Premiumfunktionen und Updates einzuschalten."
 
 #. translators: 1: name of the add-on, 2: date.
-#: src/Client/Messages.php:238
+#: src/Client/Messages.php:242
 #, php-format
 msgid "%1$s: the renewal payment is overdue. The premium features stay available until %2$s."
 msgstr "%1$s: Die Zahlung für die Verlängerung ist überfällig. Die Premiumfunktionen bleiben bis %2$s verfügbar."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:240
+#: src/Client/Messages.php:244
 #, php-format
 msgid "%s: the license has expired. The premium features are switched off; your data is kept."
 msgstr "%s: Die Lizenz ist abgelaufen. Die Premiumfunktionen sind ausgeschaltet; Ihre Daten bleiben erhalten."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:242
+#: src/Client/Messages.php:246
 #, php-format
 msgid "%s: the license is suspended. Please contact support."
 msgstr "%s: Die Lizenz ist gesperrt. Bitte wenden Sie sich an den Support."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:244
+#: src/Client/Messages.php:248
 #, php-format
 msgid "%s: the license has been revoked. The premium features are switched off."
 msgstr "%s: Die Lizenz wurde widerrufen. Die Premiumfunktionen sind ausgeschaltet."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:246
+#: src/Client/Messages.php:250
 #, php-format
 msgid "%s: the license is not active. The premium features are switched off."
 msgstr "%s: Die Lizenz ist nicht aktiv. Die Premiumfunktionen sind ausgeschaltet."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:248
+#: src/Client/Messages.php:252
 #, php-format
 msgid "%s: the activation of this site was released. Enter the license key to activate it again."
 msgstr "%s: Die Aktivierung dieser Website wurde freigegeben. Geben Sie den Lizenzschlüssel ein, um sie erneut zu aktivieren."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:250
+#: src/Client/Messages.php:254
 #, php-format
 msgid "%s: this site runs under another address than the one the license was activated for. Activate the license for this address."
 msgstr "%s: Diese Website läuft unter einer anderen Adresse als der, für die die Lizenz aktiviert wurde. Aktivieren Sie die Lizenz für diese Adresse."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:252
+#: src/Client/Messages.php:256
 #, php-format
 msgid "%s: the license could not be verified for too long. The premium features are switched off until the license server can be reached again."
 msgstr "%s: Die Lizenz konnte zu lange nicht geprüft werden. Die Premiumfunktionen sind ausgeschaltet, bis der Lizenzserver wieder erreichbar ist."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:254
+#: src/Client/Messages.php:258
 #, php-format
 msgid "%s: the clock of this site is ahead, or the offline period has expired. The premium features are switched off until the license server confirms the license again. Please check the date and time of the web server."
 msgstr "%s: Die Uhr dieser Website geht vor, oder die Offline-Frist ist abgelaufen. Die Premiumfunktionen sind ausgeschaltet, bis der Lizenzserver die Lizenz wieder bestätigt. Bitte prüfen Sie Datum und Uhrzeit des Webservers."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:256
+#: src/Client/Messages.php:260
 #, php-format
 msgid "%s: the license settings of this plugin are incomplete."
 msgstr "%s: Die Lizenzeinstellungen dieses Plugins sind unvollständig."
 
 #. translators: 1: name of the add-on, 2: date.
-#: src/Client/Messages.php:258
+#: src/Client/Messages.php:262
 #, php-format
 msgid "%1$s: the license server cannot be reached. The premium features stay available until %2$s; the check is repeated automatically."
 msgstr "%1$s: Der Lizenzserver ist nicht erreichbar. Die Premiumfunktionen bleiben bis %2$s verfügbar; die Prüfung wird automatisch wiederholt."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:260
+#: src/Client/Messages.php:264
 #, php-format
 msgid "%s: the license server no longer knows the activation of this site. Enter the license key again."
 msgstr "%s: Der Lizenzserver kennt die Aktivierung dieser Website nicht mehr. Geben Sie den Lizenzschlüssel erneut ein."
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:262
+#: src/Client/Messages.php:266
 #, php-format
 msgid "%s: the plugin header \"Update URI\" is missing, so updates cannot be delivered. Please report this to the vendor."
 msgstr "%s: Der Plugin-Header „Update URI“ fehlt, daher können keine Updates ausgeliefert werden. Bitte melden Sie das dem Anbieter."
 
-#: src/Client/Messages.php:267
+#: src/Client/Messages.php:273
 msgid "Activate"
 msgstr "Aktivieren"
 
-#: src/Client/Messages.php:268
+#: src/Client/Messages.php:274
 msgid "Remove license from this site"
 msgstr "Lizenz von dieser Website entfernen"
 
-#: src/Client/Messages.php:269
+#: src/Client/Messages.php:275
 msgid "Check now"
 msgstr "Jetzt prüfen"
 
-#: src/Client/Messages.php:270
+#: src/Client/Messages.php:276
 msgid "Activate this address"
 msgstr "Diese Adresse aktivieren"
 
-#: src/Client/Messages.php:271
+#: src/Client/Messages.php:277
 msgid "The site moved here: transfer the activation"
 msgstr "Die Website ist hierher umgezogen: Aktivierung übertragen"
 
-#: src/Client/Messages.php:272
+#: src/Client/Messages.php:278
 msgid "Remove the copied activation data from this site"
 msgstr "Kopierte Aktivierungsdaten von dieser Website entfernen"
 
-#: src/Client/Messages.php:273
+#: src/Client/Messages.php:279
 msgid "Remove the license data from this site only"
 msgstr "Lizenzdaten nur von dieser Website entfernen"
 
-#: src/Client/Messages.php:276
+#: src/Client/Messages.php:282
 msgid "Premium features until"
 msgstr "Premiumfunktionen bis"
 
-#: src/Client/Messages.php:277
+#: src/Client/Messages.php:283
 msgid "Live sites in use"
 msgstr "Belegte Live-Websites"
 
-#: src/Client/Messages.php:279
+#: src/Client/Messages.php:285
 msgid "Live site"
 msgstr "Live-Website"
 
-#: src/Client/Messages.php:280
+#: src/Client/Messages.php:286
 msgid "Staging site"
 msgstr "Staging-Website"
 
-#: src/Client/Messages.php:281
+#: src/Client/Messages.php:287
 msgid "Development site"
 msgstr "Entwicklungs-Website"
 
-#: src/Client/Messages.php:282
+#: src/Client/Messages.php:288
 msgid "Last check"
 msgstr "Letzte Prüfung"
 
-#: src/Client/Messages.php:283
+#: src/Client/Messages.php:289
 msgid "Last check failed"
 msgstr "Letzte Prüfung fehlgeschlagen"
 
-#: src/Client/Messages.php:285
+#: src/Client/Messages.php:291
 msgid "no end date"
 msgstr "unbefristet"
 
-#: src/Client/Messages.php:286
+#: src/Client/Messages.php:292
 msgid "The license key is not stored on this site. Enter it again to change the license."
 msgstr "Der Lizenzschlüssel ist auf dieser Website nicht gespeichert. Geben Sie ihn erneut ein, um die Lizenz zu ändern."
 
-#: src/Client/Messages.php:287
+#: src/Client/Messages.php:293
 msgid "The license was activated for this site."
 msgstr "Die Lizenz wurde für diese Website aktiviert."
 
-#: src/Client/Messages.php:288
+#: src/Client/Messages.php:294
 msgid "The license was removed from this site."
 msgstr "Die Lizenz wurde von dieser Website entfernt."
 
-#: src/Client/Messages.php:289
+#: src/Client/Messages.php:295
 msgid "The activation data was removed from this site. The activation of the original site was not changed."
 msgstr "Die Aktivierungsdaten wurden von dieser Website entfernt. Die Aktivierung der ursprünglichen Website bleibt unverändert."
 
-#: src/Client/Messages.php:290
+#: src/Client/Messages.php:296
 msgid "The license data was removed from this site without asking the license server. If the server still lists this activation, release it in your customer account."
 msgstr "Die Lizenzdaten wurden von dieser Website entfernt, ohne den Lizenzserver zu fragen. Falls der Server diese Aktivierung noch führt, geben Sie sie in Ihrem Kundenkonto frei."
 
-#: src/Client/Messages.php:291
+#: src/Client/Messages.php:297
 msgid "The license was checked."
 msgstr "Die Lizenz wurde geprüft."
 
-#: src/Client/Messages.php:292
+#: src/Client/Messages.php:298
 msgid "The activation was transferred to this address."
 msgstr "Die Aktivierung wurde auf diese Adresse übertragen."
 
-#: src/Client/Messages.php:293
+#: src/Client/Messages.php:299
 msgid "Activated for"
 msgstr "Aktiviert für"
 
-#: src/Client/Messages.php:294
+#: src/Client/Messages.php:300
 msgid "Address of this site"
 msgstr "Adresse dieser Website"
 
 #. translators: 1: address the license was activated for, 2: address of this site.
-#: src/Client/Messages.php:296
+#: src/Client/Messages.php:302
 #, php-format
 msgid "Only if the site really moved: transferring moves the activation from %1$s to %2$s. The site at %1$s then loses the license. For a staging or test copy, activate this address instead."
 msgstr "Nur wenn die Website wirklich umgezogen ist: Die Übertragung verschiebt die Aktivierung von %1$s nach %2$s. Die Website unter %1$s verliert dann die Lizenz. Für eine Staging- oder Testkopie aktiviere stattdessen diese Adresse."
 
-#: src/Client/Messages.php:297
+#: src/Client/Messages.php:303
 msgid "This site reports itself as a staging or development site."
 msgstr "Diese Website meldet sich als Staging- oder Entwicklungswebsite."
 
 #. translators: %s: address the license was activated for.
-#: src/Client/Messages.php:299
+#: src/Client/Messages.php:305
 #, php-format
 msgid "I confirm that the site moved and no longer runs at %s."
 msgstr "Ich bestätige, dass die Website umgezogen ist und nicht mehr unter %s läuft."
 
-#: src/Client/Messages.php:300
+#: src/Client/Messages.php:306
 msgid "Nothing was transferred. Confirm that the site moved before you transfer the activation."
 msgstr "Es wurde nichts übertragen. Bestätigen Sie den Umzug der Website, bevor Sie die Aktivierung übertragen."
 
-#: src/Client/Messages.php:301
+#: src/Client/Messages.php:307
 msgid "I confirm that this site gives up its license. The premium features are switched off at once; to use them again, the license key must be entered again."
 msgstr "Ich bestätige, dass diese Website ihre Lizenz abgibt. Die Premiumfunktionen werden sofort ausgeschaltet; um sie wieder zu nutzen, muss der Lizenzschlüssel neu eingegeben werden."
 
-#: src/Client/Messages.php:302
+#: src/Client/Messages.php:308
 msgid "Nothing was removed. Confirm that this site gives up its license before you remove it."
 msgstr "Es wurde nichts entfernt. Bestätigen Sie, dass diese Website ihre Lizenz abgibt, bevor Sie sie entfernen."
 
-#: src/Client/Messages.php:304
+#: src/Client/Messages.php:310
 msgid "You are not allowed to manage the license of this plugin."
 msgstr "Sie dürfen die Lizenz dieses Plugins nicht verwalten."
 
-#: src/Client/Messages.php:305
+#: src/Client/Messages.php:311
 msgid "UTC"
 msgstr "UTC"
 
-#: src/Client/Messages.php:307
+#: src/Client/Messages.php:330
 msgid "Offline period ends"
 msgstr "Offline-Frist endet"
 
-#: src/Client/Messages.php:308
+#: src/Client/Messages.php:331
 msgid "Installation ID (shortened)"
 msgstr "Installations-ID (gekürzt)"
 
-#: src/Client/Messages.php:309
+#: src/Client/Messages.php:332
 msgid "License server"
 msgstr "Lizenzserver"
 
-#: src/Client/Messages.php:310
+#: src/Client/Messages.php:333
 msgid "Signature check"
 msgstr "Signaturprüfung"
 
-#: src/Client/Messages.php:311
+#: src/Client/Messages.php:334
 msgid "PHP sodium extension"
 msgstr "PHP-Erweiterung sodium"
 
-#: src/Client/Messages.php:312
+#: src/Client/Messages.php:335
 msgid "sodium_compat of WordPress (slower)"
 msgstr "sodium_compat von WordPress (langsamer)"
 
-#: src/Client/Messages.php:313
+#: src/Client/Messages.php:336
 msgid "not available: premium features stay off"
 msgstr "nicht verfügbar: Premiumfunktionen bleiben aus"
 
-#: src/Client/Messages.php:314
+#: src/Client/Messages.php:337
 msgid "Pinned server keys (fingerprints)"
 msgstr "Hinterlegte Serverschlüssel (Fingerabdrücke)"
 
-#: src/Client/Messages.php:315
+#: src/Client/Messages.php:338
 msgid "License client version"
 msgstr "Version des Lizenzclients"
 
-#: src/Client/Messages.php:316
+#: src/Client/Messages.php:339
 msgid "none"
 msgstr "keine"
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:319
+#: src/Client/Messages.php:342
 #, php-format
 msgid "%s: the license check works"
 msgstr "%s: Die Lizenzprüfung funktioniert"
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:321
+#: src/Client/Messages.php:344
 #, php-format
 msgid "%s: the last license check failed"
 msgstr "%s: Die letzte Lizenzprüfung ist fehlgeschlagen"
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:323
+#: src/Client/Messages.php:346
 #, php-format
 msgid "%s: the license check is overdue"
 msgstr "%s: Die Lizenzprüfung ist überfällig"
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:325
+#: src/Client/Messages.php:348
 #, php-format
 msgid "%s: the offline period of the license ends soon"
 msgstr "%s: Der Offline-Zeitraum der Lizenz endet bald"
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:327
+#: src/Client/Messages.php:350
 #, php-format
 msgid "%s: the license is not checked for this address"
 msgstr "%s: Die Lizenz wird für diese Adresse nicht geprüft"
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:329
+#: src/Client/Messages.php:352
 #, php-format
 msgid "%s: the license could not be verified"
 msgstr "%s: Die Lizenz konnte nicht geprüft werden"
 
 #. translators: %s: name of the add-on.
-#: src/Client/Messages.php:331
+#: src/Client/Messages.php:354
 #, php-format
 msgid "%s: the license of this site was released"
 msgstr "%s: Die Lizenz dieser Website wurde freigegeben"
 
 #. translators: 1: date and time of the last successful check, 2: date and time the offline period ends.
-#: src/Client/Messages.php:333
+#: src/Client/Messages.php:356
 #, php-format
 msgid "The license server confirmed the license on %1$s. The premium features stay available without a connection until %2$s; the check runs once a day."
 msgstr "Der Lizenzserver hat die Lizenz am %1$s bestätigt. Die Premiumfunktionen bleiben ohne Verbindung bis %2$s verfügbar; die Prüfung läuft einmal am Tag."
 
 #. translators: 1: error message, 2: date and time of the last successful check, 3: date and time the offline period ends, 4: host name of the license server.
-#: src/Client/Messages.php:335
+#: src/Client/Messages.php:358
 #, php-format
 msgid "The last check failed: %1$s Last successful check: %2$s. The premium features stay available until %3$s; the check is repeated automatically. If this persists, make sure that this site can reach %4$s."
 msgstr "Die letzte Prüfung ist fehlgeschlagen: %1$s Letzte erfolgreiche Prüfung: %2$s. Die Premiumfunktionen bleiben bis %3$s verfügbar; die Prüfung wird automatisch wiederholt. Wenn das so bleibt, prüfen Sie bitte, ob Ihre Website %4$s erreichen kann."
 
 #. translators: 1: date and time of the last successful check, 2: date and time the offline period ends, 3: host name of the license server.
-#: src/Client/Messages.php:337
+#: src/Client/Messages.php:360
 #, php-format
 msgid "Last successful check: %1$s. The premium features stay available until %2$s, unless the license server confirms the license before then. Make sure that WP-Cron runs and that this site can reach %3$s, or check the license now."
 msgstr "Letzte erfolgreiche Prüfung: %1$s. Die Premiumfunktionen bleiben bis %2$s verfügbar, sofern der Lizenzserver die Lizenz nicht vorher bestätigt. Stellen Sie sicher, dass WP-Cron läuft und diese Website %3$s erreichen kann, oder prüfen Sie die Lizenz jetzt."
 
-#: src/Client/Messages.php:339
+#: src/Client/Messages.php:362
 msgid "Your license has expired. Renew it to receive this update."
 msgstr "Ihre Lizenz ist abgelaufen. Verlängern Sie sie, um dieses Update zu erhalten."
 
-#: src/Client/Messages.php:340
+#: src/Client/Messages.php:363
 msgid "Your license is suspended; updates are not available. Please contact support."
 msgstr "Ihre Lizenz ist gesperrt; Updates sind nicht verfügbar. Bitte wenden Sie sich an den Support."
 
-#: src/Client/Messages.php:341
+#: src/Client/Messages.php:364
 msgid "Your license has been revoked; updates are not available."
 msgstr "Ihre Lizenz wurde widerrufen; Updates sind nicht verfügbar."
 
-#: src/Client/Messages.php:342
+#: src/Client/Messages.php:365
 msgid "Your license is not active yet; updates become available once it is."
 msgstr "Ihre Lizenz ist noch nicht aktiv; Updates sind verfügbar, sobald sie es ist."
 
-#: src/Client/Messages.php:343
+#: src/Client/Messages.php:366
 msgid "Your license is not active; updates are not available."
 msgstr "Ihre Lizenz ist nicht aktiv; Updates sind nicht verfügbar."
 
-#: src/Client/Messages.php:344
+#: src/Client/Messages.php:367
 msgid "Enter your license key to receive updates."
 msgstr "Geben Sie Ihren Lizenzschlüssel ein, um Updates zu erhalten."
 
 #. translators: 1: version that cannot be installed, 2: list of unmet requirements.
-#: src/Client/Messages.php:346
+#: src/Client/Messages.php:369
 #, php-format
 msgid "Version %1$s is available but cannot be installed on this site: %2$s."
 msgstr "Version %1$s ist verfügbar, kann auf dieser Website aber nicht installiert werden: %2$s."
 
 #. translators: %s: version number.
-#: src/Client/Messages.php:348
+#: src/Client/Messages.php:371
 #, php-format
 msgid "PHP %s or newer is required"
 msgstr "PHP %s oder neuer ist erforderlich"
 
 #. translators: %s: version number.
-#: src/Client/Messages.php:350
+#: src/Client/Messages.php:373
 #, php-format
 msgid "WordPress %s or newer is required"
 msgstr "WordPress %s oder neuer ist erforderlich"
 
 #. translators: %s: version number.
-#: src/Client/Messages.php:352
+#: src/Client/Messages.php:375
 #, php-format
 msgid "version %s or newer of the free base plugin is required"
 msgstr "Version %s oder neuer des kostenlosen Basis-Plugins ist erforderlich"
 
-#: src/Client/Messages.php:353
+#: src/Client/Messages.php:376
 msgid "The update is no longer offered by the license server. Please check for updates again."
 msgstr "Das Update wird vom Lizenzserver nicht mehr angeboten. Bitte suchen Sie erneut nach Updates."
 
 #. translators: %s: reason.
-#: src/Client/Messages.php:355
+#: src/Client/Messages.php:378
 #, php-format
 msgid "The update could not be prepared: %s"
 msgstr "Das Update konnte nicht vorbereitet werden: %s"
 
-#: src/Client/Messages.php:356
+#: src/Client/Messages.php:379
 msgid "The downloaded update does not match the checksum signed by the license server and was deleted."
 msgstr "Das heruntergeladene Update passt nicht zur vom Lizenzserver signierten Prüfsumme und wurde gelöscht."
 
-#: src/Client/Messages.php:357
+#: src/Client/Messages.php:380
 msgid "The license server offered a package for another product."
 msgstr "Der Lizenzserver hat ein Paket für ein anderes Produkt angeboten."
 
-#: src/Client/Messages.php:358
+#: src/Client/Messages.php:381
 msgid "The update package does not contain this plugin and was not installed."
 msgstr "Das Update-Paket enthält dieses Plugin nicht und wurde nicht installiert."
 
-#: src/Client/Messages.php:359
+#: src/Client/Messages.php:382
 msgid "The update was offered over an insecure connection (not HTTPS) and was not downloaded."
 msgstr "Das Update wurde über eine unsichere Verbindung (nicht HTTPS) angeboten und nicht heruntergeladen."
 
 #. translators: %s: size limit in megabytes.
-#: src/Client/Messages.php:361
+#: src/Client/Messages.php:384
 #, php-format
 msgid "The update package is larger than %s MB and was not downloaded."
 msgstr "Das Update-Paket ist größer als %s MB und wurde nicht heruntergeladen."
 
-#: src/Client/Messages.php:362
+#: src/Client/Messages.php:385
 msgid "The download of the update was redirected too often and was stopped."
 msgstr "Der Download des Updates wurde zu oft weitergeleitet und daher abgebrochen."
 
-#: src/Client/Messages.php:364
+#: src/Client/Messages.php:387
 msgid "License check and updates"
 msgstr "Lizenzprüfung und Updates"
 
 #. translators: 1: name of the add-on, 2: host name of the license server.
-#: src/Client/Messages.php:366
+#: src/Client/Messages.php:389
 #, php-format
 msgid "%1$s checks its license and looks for updates at %2$s. When the license is activated, once a day and when an update is checked or downloaded, this site sends: its address (URL), an installation ID created by this site, the product key of the plugin, the type of environment (live, staging or development site), the license key (once, on activation), for a staging site the installation ID of its live site, and the versions of the plugin, of the base plugin, of WordPress and of PHP. The license server sees the IP address of this web server. No data about visitors or customers of this site is sent. Legal basis: our legitimate interest in the use of licensed software and in security updates (Art. 6(1)(f) GDPR)."
 msgstr "%1$s prüft seine Lizenz und sucht nach Updates bei %2$s. Bei der Aktivierung der Lizenz, einmal täglich und beim Prüfen oder Herunterladen eines Updates sendet diese Website: ihre Adresse (URL), eine von dieser Website erzeugte Installations-ID, den Produktschlüssel des Plugins, die Art der Umgebung (Live-, Staging- oder Entwicklungswebsite), den Lizenzschlüssel (einmalig bei der Aktivierung), bei einer Staging-Website die Installations-ID ihrer Live-Website sowie die Versionen des Plugins, des Basis-Plugins, von WordPress und von PHP. Der Lizenzserver sieht die IP-Adresse dieses Webservers. Es werden keine Daten über Besucher oder Kunden dieser Website gesendet. Rechtsgrundlage: unser berechtigtes Interesse an der Nutzung lizenzierter Software und an Sicherheitsupdates (Art. 6 Abs. 1 lit. f DSGVO)."
@@ -10408,3 +10409,79 @@ msgstr "Ein für 24 Stunden"
 #: src/Settings/Texts.php:291
 msgid "On for 7 days"
 msgstr "Ein für 7 Tage"
+
+#: src/Client/Messages.php:195
+msgid "For a staging site, enter the installation ID of its live site. It is shown on the license screen of the live site, next to \"Environment\"."
+msgstr "Geben Sie für eine Staging-Website die Installations-ID ihrer Live-Website ein. Sie steht auf der Lizenzseite der Live-Website neben „Umgebung“."
+
+#: src/Client/Messages.php:196
+msgid "Beta versions are not available for this license."
+msgstr "Für diese Lizenz gibt es keine Beta-Versionen."
+
+#: src/Client/Messages.php:197
+msgid "The setting could not be stored in the database of this site. Check the database and try again."
+msgstr "Die Einstellung konnte nicht in der Datenbank dieser Website gespeichert werden. Prüfen Sie die Datenbank und versuchen Sie es erneut."
+
+#. translators: %s: e-mail address and/or web address of the vendor's support.
+#: src/Client/Messages.php:269
+#, php-format
+msgid "Support: %s"
+msgstr "Support: %s"
+
+#: src/Client/Messages.php:313
+msgid "Type of this site"
+msgstr "Art dieser Website"
+
+#. translators: %s: detected type of the site, e.g. "Live site".
+#: src/Client/Messages.php:315
+#, php-format
+msgid "Detected automatically: %s"
+msgstr "Automatisch erkannt: %s"
+
+#: src/Client/Messages.php:316
+msgid "Change this only if the detection is wrong. The license server decides by its own rules: a staging site counts as a live site unless its address belongs to its live site (the same domain, a local address or a staging domain of a host), and a development site needs a local address."
+msgstr "Ändern Sie das nur, wenn die Erkennung falsch ist. Der Lizenzserver entscheidet nach seinen eigenen Regeln: Eine Staging-Website zählt als Live-Website, wenn ihre Adresse nicht zu ihrer Live-Website gehört (dieselbe Domain, eine lokale Adresse oder eine Staging-Domain eines Hosters), und eine Entwicklungs-Website braucht eine lokale Adresse."
+
+#: src/Client/Messages.php:317
+msgid "Installation ID of the live site (staging site only)"
+msgstr "Installations-ID der Live-Website (nur für eine Staging-Website)"
+
+#: src/Client/Messages.php:318
+msgid "The license was activated for this site. The license server counts it as a live site, not as a staging site, because its address does not belong to the live site of this license (the same domain, a local address or a staging domain of a host)."
+msgstr "Die Lizenz wurde für diese Website aktiviert. Der Lizenzserver zählt sie als Live-Website, nicht als Staging-Website, weil ihre Adresse nicht zur Live-Website dieser Lizenz gehört (dieselbe Domain, eine lokale Adresse oder eine Staging-Domain eines Hosters)."
+
+#: src/Client/Messages.php:319
+msgid "This site was to be activated as a staging site, but its address does not belong to the live site of this license, so the license server counts it as a further live site."
+msgstr "Diese Website sollte als Staging-Website aktiviert werden, aber ihre Adresse gehört nicht zur Live-Website dieser Lizenz; deshalb zählt der Lizenzserver sie als weitere Live-Website."
+
+#: src/Client/Messages.php:321
+msgid "Stable versions"
+msgstr "Stabile Versionen"
+
+#: src/Client/Messages.php:322
+msgid "Beta and stable versions"
+msgstr "Beta- und stabile Versionen"
+
+#: src/Client/Messages.php:323
+msgid "Receive beta versions"
+msgstr "Beta-Versionen erhalten"
+
+#: src/Client/Messages.php:324
+msgid "Beta versions are test versions before a release and may contain errors; try them on a staging site first. Switching back installs no older version: the next stable version newer than the installed one is offered."
+msgstr "Beta-Versionen sind Testversionen vor einer Veröffentlichung und können Fehler enthalten; probieren Sie sie zuerst auf einer Staging-Website aus. Das Zurückschalten installiert keine ältere Version: Angeboten wird die nächste stabile Version, die neuer ist als die installierte."
+
+#: src/Client/Messages.php:325
+msgid "Save update setting"
+msgstr "Update-Einstellung speichern"
+
+#: src/Client/Messages.php:326
+msgid "This site now receives beta versions."
+msgstr "Diese Website erhält jetzt Beta-Versionen."
+
+#: src/Client/Messages.php:327
+msgid "This site now receives stable versions only."
+msgstr "Diese Website erhält jetzt nur stabile Versionen."
+
+#: src/Client/Messages.php:328
+msgid "Help with the license"
+msgstr "Hilfe zur Lizenz"
