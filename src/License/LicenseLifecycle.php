@@ -48,7 +48,8 @@ final class LicenseLifecycle {
 	/**
 	 * Default grace period after the paid period during which a renewing license keeps its rights.
 	 *
-	 * Read the effective value with grace_days(); the filter `wplc_renewal_grace_days` can change it.
+	 * Read the effective value with grace_days(): the setting "Grace period after the paid period",
+	 * then the filter `wplc_renewal_grace_days`.
 	 */
 	public const GRACE_DAYS = 14;
 
@@ -270,12 +271,12 @@ final class LicenseLifecycle {
 	 * @return int Days, between 1 and 90.
 	 */
 	public static function grace_days(): int {
-		$days = self::GRACE_DAYS;
+		$days = \WPLC\Settings\Registry::int( 'renewal_grace_days' );
 		if ( function_exists( 'apply_filters' ) ) {
 			/**
-			 * Filters the renewal grace period in days (A-135).
+			 * Filters the renewal grace period in days (A-135). Wins over the setting.
 			 *
-			 * @param int $days Default 14. Clamped to 1 to 90.
+			 * @param int $days Setting "Grace period after the paid period" (default 14). Clamped to 1 to 90.
 			 */
 			$days = (int) apply_filters( 'wplc_renewal_grace_days', $days );
 		}
@@ -1954,7 +1955,7 @@ final class LicenseLifecycle {
 		$deadline = microtime( true ) + (int) apply_filters( 'wplc_expiry_time_budget', self::EXPIRY_TIME_BUDGET );
 		$now = time();
 		$now_utc = gmdate( 'Y-m-d H:i:s', $now );
-		$unattempted_after = gmdate( 'Y-m-d H:i:s', $now - LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS * DAY_IN_SECONDS );
+		$unattempted_after = gmdate( 'Y-m-d H:i:s', $now - LicenseStateMachine::renewal_days_after() * DAY_IN_SECONDS );
 		$more = false;
 
 		$cursor = 0;

@@ -1011,7 +1011,7 @@ final class Notifications {
 		$product_name = self::product_name( (string) ( $license['product_key'] ?? '' ) );
 
 		// "Renew now" exists in the account from this moment on; earlier emails must not promise it.
-		$renew_from = false === $paid_until ? 0 : (int) $paid_until - LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS * 86400;
+		$renew_from = false === $paid_until ? 0 : (int) $paid_until - LicenseStateMachine::renewal_days_before() * 86400;
 
 		return array(
 			'product' => $product_name,

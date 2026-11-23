@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-23T14:46:08+00:00\n"
+"POT-Creation-Date: 2026-11-23T14:54:54+00:00\n"
 "PO-Revision-Date: 2026-11-17 06:24+0000\n"
 "Language: de_DE_formal\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -68,12 +68,12 @@ msgstr "Status:"
 msgid "License key:"
 msgstr "Lizenzschlüssel:"
 
-#: src/Admin/Settings.php:508
+#: src/Admin/Settings.php:535
 #: templates/myaccount/wplc-license.php:60
 msgid "Copied"
 msgstr "Kopiert"
 
-#: src/Admin/Settings.php:508
+#: src/Admin/Settings.php:535
 #: templates/myaccount/wplc-license.php:60
 msgid "Copy"
 msgstr "Kopieren"
@@ -434,12 +434,12 @@ msgstr "OpenSSL"
 #: src/Admin/Diagnostics.php:1015
 #: src/Admin/Diagnostics.php:1069
 #: src/Admin/Diagnostics.php:1081
-#: src/Admin/Settings.php:768
+#: src/Admin/Settings.php:795
 msgid "Available"
 msgstr "Verfügbar"
 
 #: src/Admin/Diagnostics.php:1068
-#: src/Admin/Settings.php:767
+#: src/Admin/Settings.php:794
 msgid "Action Scheduler"
 msgstr "Action Scheduler"
 
@@ -737,7 +737,7 @@ msgstr "Tarif"
 #: src/Admin/LicenseDetail.php:681
 #: src/Admin/LicenseListTable.php:101
 #: src/Admin/ReleaseAdmin.php:125
-#: src/Admin/Settings.php:501
+#: src/Admin/Settings.php:528
 #: src/Client/Messages.php:274
 #: src/Privacy/PersonalData.php:359
 #: src/Privacy/PersonalData.php:560
@@ -1334,10 +1334,10 @@ msgstr "oder Manifest-JSON einfügen"
 msgid "Import manifest"
 msgstr "Manifest importieren"
 
-#: src/Admin/Settings.php:262
 #: src/Admin/Settings.php:263
-#: src/Admin/Settings.php:268
-#: src/Admin/Settings.php:497
+#: src/Admin/Settings.php:264
+#: src/Admin/Settings.php:269
+#: src/Admin/Settings.php:524
 msgid "License settings"
 msgstr "Lizenzeinstellungen"
 
@@ -1353,88 +1353,88 @@ msgstr "Zusätzliche vertrauenswürdige Paket-Hosts"
 msgid "Customer emails"
 msgstr "E-Mails an Kunden"
 
-#: src/Settings/Texts.php:91
+#: src/Settings/Texts.php:107
 msgid "Reminder lead days"
 msgstr "Vorlauf der Erinnerungen in Tagen"
 
-#: src/Settings/Texts.php:103
+#: src/Settings/Texts.php:119
 msgid "Sender note"
 msgstr "Hinweis des Absenders"
 
 #. translators: %d: number of rejected lines.
-#: src/Admin/Settings.php:383
+#: src/Admin/Settings.php:410
 #, php-format
 msgid "%d package host line was not a valid host name and was ignored. Enter host names only, without https:// or a path."
 msgid_plural "%d package host lines were not valid host names and were ignored. Enter host names only, without https:// or a path."
 msgstr[0] "%d Zeile mit Paket-Hosts war kein gültiger Hostname und wurde ignoriert. Geben Sie nur Hostnamen ein, ohne https:// und ohne Pfad."
 msgstr[1] "%d Zeilen mit Paket-Hosts waren keine gültigen Hostnamen und wurden ignoriert. Geben Sie nur Hostnamen ein, ohne https:// und ohne Pfad."
 
-#: src/Admin/Settings.php:494
+#: src/Admin/Settings.php:521
 msgid "You do not have permission to change license settings."
 msgstr "Sie sind nicht berechtigt, die Lizenzeinstellungen zu ändern."
 
-#: src/Admin/Settings.php:525
+#: src/Admin/Settings.php:552
 msgid "Secrets are never stored in the database. Define them as constants in wp-config.php."
 msgstr "Geheimnisse werden niemals in der Datenbank gespeichert. Definieren Sie sie als Konstanten in der wp-config.php."
 
-#: src/Admin/Settings.php:698
+#: src/Admin/Settings.php:725
 msgid "Database schema version"
 msgstr "Version des Datenbankschemas"
 
 #. translators: 1: installed schema version, 2: schema version expected by the code.
-#: src/Admin/Settings.php:700
+#: src/Admin/Settings.php:727
 #, php-format
 msgid "%1$s (expected: %2$s)"
 msgstr "%1$s (erwartet: %2$s)"
 
 #: src/Admin/Diagnostics.php:1094
-#: src/Admin/Settings.php:707
+#: src/Admin/Settings.php:734
 msgid "Stripe webhook secret"
 msgstr "Stripe-Webhook-Geheimnis"
 
-#: src/Admin/Settings.php:712
+#: src/Admin/Settings.php:739
 msgid "Stripe webhook URL"
 msgstr "Stripe-Webhook-URL"
 
-#: src/Admin/Settings.php:714
+#: src/Admin/Settings.php:741
 msgid "Enter this URL as the endpoint in the Stripe dashboard."
 msgstr "Tragen Sie diese URL im Stripe-Dashboard als Endpunkt ein."
 
-#: src/Admin/Settings.php:723
+#: src/Admin/Settings.php:750
 msgid "License key secret"
 msgstr "Geheimnis für Lizenzschlüssel"
 
-#: src/Admin/Settings.php:725
+#: src/Admin/Settings.php:752
 msgid "Not configured. Keys are derived from the WordPress salts; rotating the salts invalidates every issued key. Define WPLC_LICENSE_KEY_SECRETS."
 msgstr "Nicht konfiguriert. Die Schlüssel werden aus den WordPress-Salts abgeleitet; ein Wechsel der Salts macht jeden ausgestellten Schlüssel ungültig. Definieren Sie WPLC_LICENSE_KEY_SECRETS."
 
-#: src/Admin/Settings.php:726
-#: src/Admin/Settings.php:739
+#: src/Admin/Settings.php:753
+#: src/Admin/Settings.php:766
 msgid "Configured through a constant."
 msgstr "Über eine Konstante konfiguriert."
 
-#: src/Admin/Settings.php:736
+#: src/Admin/Settings.php:763
 msgid "Installation secret encryption key"
 msgstr "Verschlüsselungsschlüssel für Installationsgeheimnisse"
 
-#: src/Admin/Settings.php:738
+#: src/Admin/Settings.php:765
 msgid "Not configured. The WordPress salts are used; define WPLC_INSTALLATION_ENCRYPTION_KEYS."
 msgstr "Nicht konfiguriert. Es werden die WordPress-Salts verwendet; definieren Sie WPLC_INSTALLATION_ENCRYPTION_KEYS."
 
-#: src/Admin/Settings.php:781
+#: src/Admin/Settings.php:808
 msgid "Checkout type"
 msgstr "Art der Kasse"
 
-#: src/Admin/Settings.php:774
+#: src/Admin/Settings.php:801
 msgid "Classic checkout"
 msgstr "Klassischer Checkout"
 
-#: src/Admin/Settings.php:787
+#: src/Admin/Settings.php:814
 msgid "Renewal grace period"
 msgstr "Kulanzzeit bei Verlängerungen"
 
 #. translators: %d: number of days.
-#: src/Admin/Settings.php:789
+#: src/Admin/Settings.php:816
 #, php-format
 msgid "%d day"
 msgid_plural "%d days"
@@ -1442,48 +1442,48 @@ msgstr[0] "%d Tag"
 msgstr[1] "%d Tage"
 
 #. translators: %s: host name of this site.
-#: src/Admin/Settings.php:1000
+#: src/Admin/Settings.php:1027
 #, php-format
 msgid "One host name per line, for example downloads.example.com. Update packages are only delivered from HTTPS URLs on these hosts. This site (%s) is always trusted."
 msgstr "Ein Hostname pro Zeile, zum Beispiel downloads.example.com. Update-Pakete werden nur von HTTPS-URLs auf diesen Hosts ausgeliefert. Diese Website (%s) ist immer vertrauenswürdig."
 
-#: src/Admin/Settings.php:1014
-#: src/Settings/Texts.php:92
+#: src/Admin/Settings.php:1041
+#: src/Settings/Texts.php:108
 msgid "Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7."
 msgstr "Tage vor dem Ende des bezahlten Zeitraums, an denen eine Erinnerung gesendet wird, durch Kommas getrennt. Standard: 30,7."
 
-#: src/Admin/Settings.php:1088
-#: src/Settings/Texts.php:104
+#: src/Admin/Settings.php:1115
+#: src/Settings/Texts.php:120
 msgid "Optional short text that license emails may show below their content, for example a support contact."
 msgstr "Optionaler kurzer Text, den Lizenz-E-Mails unter ihrem Inhalt anzeigen können, zum Beispiel ein Support-Kontakt."
 
 #: src/Account/CustomerPortal.php:895
-#: src/Billing/ManualRenewal.php:189
+#: src/Billing/ManualRenewal.php:190
 msgid "This license cannot be renewed at the moment."
 msgstr "Diese Lizenz kann derzeit nicht verlängert werden."
 
 #: src/Account/CustomerPortal.php:896
-#: src/Billing/ManualRenewal.php:203
-#: src/Billing/ManualRenewal.php:222
+#: src/Billing/ManualRenewal.php:204
+#: src/Billing/ManualRenewal.php:223
 msgid "A renewal for this license is being processed. Please try again in a few minutes."
 msgstr "Eine Verlängerung dieser Lizenz wird gerade verarbeitet. Bitte versuchen Sie es in einigen Minuten erneut."
 
-#: src/Billing/ManualRenewal.php:219
+#: src/Billing/ManualRenewal.php:220
 msgid "This renewal has already been paid."
 msgstr "Diese Verlängerung wurde bereits bezahlt."
 
 #: src/Account/CustomerPortal.php:897
-#: src/Billing/ManualRenewal.php:241
+#: src/Billing/ManualRenewal.php:242
 msgid "Your payment for this renewal has been received and is being processed."
 msgstr "Ihre Zahlung für diese Verlängerung ist eingegangen und wird verarbeitet."
 
 #: src/Account/CustomerPortal.php:898
-#: src/Billing/ManualRenewal.php:244
+#: src/Billing/ManualRenewal.php:245
 msgid "A renewal order for this license is already waiting for your payment to arrive."
 msgstr "Für diese Lizenz gibt es bereits eine Verlängerungsbestellung, die auf den Eingang Ihrer Zahlung wartet."
 
 #. translators: 1: license ID, 2: new paid-through date (UTC).
-#: src/Billing/ManualRenewal.php:351
+#: src/Billing/ManualRenewal.php:352
 #: src/Billing/RenewalProcessor.php:854
 #, php-format
 msgid "WP License Captain renewed license #%1$d until %2$s (UTC)."
@@ -1567,12 +1567,12 @@ msgstr "Die Verlängerungsbestellung wartet auf eine vom Kunden gestartete Zahlu
 msgid "The payment gateway did not confirm the renewal."
 msgstr "Das Zahlungs-Gateway hat die Verlängerung nicht bestätigt."
 
-#: src/Billing/RenewalProcessor.php:951
+#: src/Billing/RenewalProcessor.php:953
 msgid "This renewal requires customer authentication. Automatic retries have been stopped."
 msgstr "Diese Verlängerung erfordert eine Authentifizierung durch den Kunden. Automatische Wiederholungsversuche wurden gestoppt."
 
 #: src/Billing/CombinedRenewal.php:321
-#: src/Billing/RenewalProcessor.php:2299
+#: src/Billing/RenewalProcessor.php:2301
 msgid "The renewal attempt did not finish and its result is unknown."
 msgstr "Der Verlängerungsversuch wurde nicht abgeschlossen, sein Ergebnis ist unbekannt."
 
@@ -2212,15 +2212,15 @@ msgstr "Währung"
 msgid "Manage or cancel renewal"
 msgstr "Verlängerung verwalten oder kündigen"
 
-#: src/Admin/Settings.php:768
+#: src/Admin/Settings.php:795
 msgid "Unavailable. Scheduled work falls back to WP-Cron, which is less reliable."
 msgstr "Nicht verfügbar. Geplante Aufgaben laufen ersatzweise über WP-Cron, das weniger zuverlässig ist."
 
-#: src/Admin/Settings.php:777
+#: src/Admin/Settings.php:804
 msgid "Block checkout. The option for automatic renewal is offered as an additional checkout field."
 msgstr "Block-Checkout. Die Option für die automatische Verlängerung wird als zusätzliches Checkout-Feld angeboten."
 
-#: src/Admin/Settings.php:778
+#: src/Admin/Settings.php:805
 msgid "The checkout page uses the block checkout, but this WooCommerce version has no additional checkout fields. Licenses bought here never renew automatically."
 msgstr "Die Kassenseite verwendet den Block-Checkout, aber diese WooCommerce-Version kennt keine zusätzlichen Checkout-Felder. Hier gekaufte Lizenzen verlängern sich nie automatisch."
 
@@ -2361,19 +2361,19 @@ msgstr "Der Webserver hat eine Testdatei aus dem privaten Paketverzeichnis ausge
 msgid "Show the rule and check again"
 msgstr "Regel anzeigen und erneut prüfen"
 
-#: src/Billing/ManualRenewal.php:226
+#: src/Billing/ManualRenewal.php:227
 msgid "The automatic payment for this renewal is still being confirmed. Please check back later."
 msgstr "Die automatische Zahlung für diese Verlängerung wird noch bestätigt. Bitte schauen Sie später wieder vorbei."
 
-#: src/Billing/RenewalProcessor.php:1052
+#: src/Billing/RenewalProcessor.php:1054
 msgid "The payment gateway did not return a definite result for this renewal payment; the payment may have been taken. The renewal is checked again with the same idempotency key and is not charged a second time. The customer was not told that the payment failed."
 msgstr "Das Zahlungs-Gateway hat für diese Verlängerungszahlung kein eindeutiges Ergebnis geliefert; die Zahlung kann erfolgt sein. Die Verlängerung wird mit demselben Idempotenzschlüssel erneut geprüft und kein zweites Mal belastet. Der Kunde wurde nicht über eine fehlgeschlagene Zahlung informiert."
 
-#: src/Billing/RenewalProcessor.php:1192
+#: src/Billing/RenewalProcessor.php:1194
 msgid "The result of the automatic renewal payment is still unknown and automatic attempts have stopped. Check the payment in the payment gateway: if it was taken, set this order to Processing or Completed to book the renewal; if it was not, set it to Failed to resume the automatic retries."
 msgstr "Das Ergebnis der automatischen Verlängerungszahlung ist weiterhin unklar, und die automatischen Versuche wurden beendet. Prüfen Sie die Zahlung im Zahlungs-Gateway: Wurde sie eingezogen, setzen Sie diese Bestellung auf „In Bearbeitung“ oder „Abgeschlossen“, um die Verlängerung zu buchen. Wurde sie nicht eingezogen, setzen Sie sie auf „Fehlgeschlagen“, damit die automatischen Wiederholungen weiterlaufen."
 
-#: src/Billing/RenewalProcessor.php:1360
+#: src/Billing/RenewalProcessor.php:1362
 #: src/License/AuditReason.php:353
 msgid "The renewal order was set to failed after its payment result was checked."
 msgstr "Die Verlängerungsbestellung wurde nach Prüfung des Zahlungsergebnisses auf „Fehlgeschlagen“ gesetzt."
@@ -2569,8 +2569,8 @@ msgid "The payment result stayed unknown for too long."
 msgstr "Das Zahlungsergebnis blieb zu lange unklar."
 
 #. translators: %d: license ID
-#: src/License/LicenseLifecycle.php:428
-#: src/License/LicenseLifecycle.php:499
+#: src/License/LicenseLifecycle.php:429
+#: src/License/LicenseLifecycle.php:500
 #, php-format
 msgid "Partial refund: the renewed license #%d keeps its term. Use \"Change term\" on the license if the refund should shorten it."
 msgstr "Teilerstattung: Die verlängerte Lizenz #%d behält ihre Laufzeit. Verwenden Sie „Laufzeit ändern“ an der Lizenz, wenn die Erstattung sie verkürzen soll."
@@ -2778,7 +2778,7 @@ msgstr "Ohne Buchung abschließen"
 msgid "Close this review without extending the license?"
 msgstr "Diese Prüfung abschließen, ohne die Lizenz zu verlängern?"
 
-#: src/Billing/RenewalProcessor.php:1842
+#: src/Billing/RenewalProcessor.php:1844
 msgid "WP License Captain: this renewal order was paid after its review had been closed. The renewal was not booked; it is back in the review list."
 msgstr "WP License Captain: Diese Verlängerungsbestellung wurde bezahlt, nachdem ihre Prüfung abgeschlossen war. Die Verlängerung wurde nicht gebucht; sie steht wieder in der Prüfliste."
 
@@ -2838,7 +2838,7 @@ msgstr "Die Lizenz wurde geändert, während das Zahlungsergebnis noch unklar wa
 msgid "The renewal order was paid after its review had been closed without booking."
 msgstr "Die Verlängerungsbestellung wurde bezahlt, nachdem ihre Prüfung ohne Buchung abgeschlossen war."
 
-#: src/Billing/RenewalProcessor.php:1694
+#: src/Billing/RenewalProcessor.php:1696
 msgid "WP License Captain: Stripe reported that the renewal payment of this attempt failed; recorded as a decline."
 msgstr "WP License Captain: Stripe hat gemeldet, dass die Verlängerungszahlung dieses Versuchs fehlgeschlagen ist; als Ablehnung erfasst."
 
@@ -3709,7 +3709,7 @@ msgid "Until it runs again, licenses do not expire, failed payments are not retr
 msgstr "Bis er wieder läuft, laufen keine Lizenzen ab, fehlgeschlagene Zahlungen werden nicht wiederholt und Erinnerungen werden nicht gesendet. Prüfen Sie WP-Cron oder den Cronjob des Servers und das PHP-Fehlerprotokoll."
 
 #: src/Admin/Diagnostics.php:334
-#: src/Admin/Settings.php:610
+#: src/Admin/Settings.php:637
 msgid "Open diagnostics"
 msgstr "Diagnose öffnen"
 
@@ -3888,7 +3888,7 @@ msgid "Open WooCommerce → Status → Scheduled Actions, filter by \"Failed\" a
 msgstr "Öffnen Sie WooCommerce → Status → Geplante Aktionen, filtern Sie nach „Fehlgeschlagen“ und suchen Sie nach „wplc“, um den Fehler jeder Aktion zu sehen."
 
 #: src/Admin/Diagnostics.php:1080
-#: src/Admin/Settings.php:757
+#: src/Admin/Settings.php:784
 msgid "Automatic renewal (Stripe)"
 msgstr "Automatische Verlängerung (Stripe)"
 
@@ -3989,7 +3989,7 @@ msgid "Update packages"
 msgstr "Update-Pakete"
 
 #: src/Admin/Diagnostics.php:1134
-#: src/Admin/Settings.php:746
+#: src/Admin/Settings.php:773
 msgid "License keys verifiable with the current secret"
 msgstr "Mit dem aktuellen Geheimnis überprüfbare Lizenzschlüssel"
 
@@ -4535,54 +4535,54 @@ msgstr "Benutzer #%d"
 msgid "System / WP-CLI"
 msgstr "System / WP-CLI"
 
-#: src/Settings/Texts.php:95
+#: src/Settings/Texts.php:111
 msgid "Renewal notice lead days"
 msgstr "Vorlauf für Verlängerungshinweise (Tage)"
 
-#: src/Admin/Settings.php:405
+#: src/Admin/Settings.php:432
 msgid "The trusted package hosts were not changed: only an administrator may change them."
 msgstr "Die vertrauenswürdigen Paket-Hosts wurden nicht geändert: Nur ein Administrator darf sie ändern."
 
-#: src/Admin/Settings.php:407
+#: src/Admin/Settings.php:434
 msgid "The trusted package hosts were not changed: someone else changed them after you opened this page. Check the list below and save again."
 msgstr "Die vertrauenswürdigen Paket-Hosts wurden nicht geändert: Jemand anderes hat sie geändert, nachdem Sie diese Seite geöffnet haben. Prüfen Sie die Liste unten und speichern Sie erneut."
 
-#: src/Admin/Settings.php:508
+#: src/Admin/Settings.php:535
 msgid "Copying failed. Select the address and copy it by hand."
 msgstr "Kopieren fehlgeschlagen. Markieren Sie die Adresse und kopieren Sie sie von Hand."
 
-#: src/Admin/Settings.php:708
+#: src/Admin/Settings.php:735
 msgid "A webhook signing secret is configured in wp-config.php."
 msgstr "Ein Webhook-Signaturgeheimnis ist in der wp-config.php konfiguriert."
 
-#: src/Admin/Settings.php:708
+#: src/Admin/Settings.php:735
 msgid "No webhook signing secret is configured (WPLC_STRIPE_WEBHOOK_SECRET in wp-config.php). Stripe events are rejected."
 msgstr "Es ist kein Webhook-Signaturgeheimnis konfiguriert (WPLC_STRIPE_WEBHOOK_SECRET in der wp-config.php). Stripe-Ereignisse werden abgelehnt."
 
-#: src/Admin/Settings.php:750
+#: src/Admin/Settings.php:777
 msgid "Some customers see \"not available\" instead of their key. The secret or the salts were changed. Restore the previous secret as an additional entry in WPLC_LICENSE_KEY_SECRETS, or run \"wp wplc recover-license-key-ids\"."
 msgstr "Einige Kunden sehen „nicht verfügbar“ statt ihres Schlüssels. Das Geheimnis oder die Salts wurden geändert. Stellen Sie das vorherige Geheimnis als zusätzlichen Eintrag in WPLC_LICENSE_KEY_SECRETS wieder her, oder führen Sie „wp wplc recover-license-key-ids“ aus."
 
-#: src/Admin/Settings.php:759
+#: src/Admin/Settings.php:786
 msgid "Available. Customers can opt in at checkout."
 msgstr "Verfügbar. Kunden können sie an der Kasse auswählen."
 
 #. translators: %s: reason, a full sentence.
-#: src/Admin/Settings.php:761
+#: src/Admin/Settings.php:788
 #, php-format
 msgid "Switched off. %s Customers are not offered automatic renewal and renew manually in their account."
 msgstr "Ausgeschaltet. %s Kunden wird keine automatische Verlängerung angeboten; sie verlängern manuell in ihrem Konto."
 
-#: src/Admin/Settings.php:991
+#: src/Admin/Settings.php:1018
 msgid "Only an administrator may change the trusted package hosts, because update packages for all customer sites are delivered from them."
 msgstr "Nur ein Administrator darf die vertrauenswürdigen Paket-Hosts ändern, weil von ihnen Update-Pakete für alle Kunden-Websites ausgeliefert werden."
 
-#: src/Admin/Settings.php:1058
-#: src/Settings/Texts.php:96
+#: src/Admin/Settings.php:1085
+#: src/Settings/Texts.php:112
 msgid "Days before an automatic charge on which the customer is told the date and the amount. Default: 7. A license is only charged after this email was accepted for sending; otherwise the charge is postponed and reported under Diagnostics."
 msgstr "Tage vor einer automatischen Abbuchung, an denen der Kunde über Datum und Betrag informiert wird. Standard: 7. Eine Lizenz wird erst belastet, nachdem diese E-Mail zum Versand angenommen wurde; andernfalls wird die Abbuchung verschoben und unter Diagnose gemeldet."
 
-#: src/Billing/ManualRenewal.php:248
+#: src/Billing/ManualRenewal.php:249
 msgid "Please add your billing address before renewing, so that tax can be calculated correctly."
 msgstr "Bitte fügen Sie vor der Verlängerung Ihre Rechnungsadresse hinzu, damit die Steuer korrekt berechnet werden kann."
 
@@ -4740,26 +4740,26 @@ msgstr "Die Laufzeit der Lizenz wurde geändert, während die Verlängerung beza
 msgid "The license could not be extended because its status changed to \"%s\" while the payment was running; the payment was not applied. Refund the payment, or reactivate the license and extend its term by hand"
 msgstr "Die Lizenz konnte nicht verlängert werden, weil sich ihr Status während der Zahlung zu „%s“ geändert hat; die Zahlung wurde nicht angewendet. Erstatten Sie die Zahlung oder aktivieren Sie die Lizenz wieder und verlängern Sie ihre Laufzeit von Hand"
 
-#: src/Billing/RenewalProcessor.php:952
+#: src/Billing/RenewalProcessor.php:954
 msgid "The payment method was declined for good. Automatic retries have been stopped; the customer has to pay this order."
 msgstr "Die Zahlungsart wurde endgültig abgelehnt. Automatische Wiederholungen wurden beendet; der Kunde muss diese Bestellung selbst bezahlen."
 
-#: src/Billing/RenewalProcessor.php:1830
+#: src/Billing/RenewalProcessor.php:1832
 msgid "Paid renewal order metadata did not match its license"
 msgstr "Die Metadaten der bezahlten Verlängerungsbestellung passten nicht zu ihrer Lizenz"
 
 #. translators: %s: renewal status.
-#: src/Billing/RenewalProcessor.php:1860
+#: src/Billing/RenewalProcessor.php:1862
 #, php-format
 msgid "The renewal was already closed (%s) when the payment arrived"
 msgstr "Die Verlängerung war bereits abgeschlossen (%s), als die Zahlung einging"
 
 #: src/Billing/RenewalProcessor.php:774
-#: src/Billing/RenewalProcessor.php:1870
+#: src/Billing/RenewalProcessor.php:1872
 msgid "Paid customer recovery order did not match the stored renewal amount"
 msgstr "Die bezahlte Nachzahlungsbestellung des Kunden entsprach nicht dem gespeicherten Verlängerungsbetrag"
 
-#: src/Billing/RenewalProcessor.php:1977
+#: src/Billing/RenewalProcessor.php:1979
 msgid "The renewal of the next period was missing and has been scheduled"
 msgstr "Die Verlängerung für den nächsten Zeitraum fehlte und wurde eingeplant"
 
@@ -5101,41 +5101,41 @@ msgstr "eine Lizenz konnte nicht angelegt werden (prüfen Sie die Konfiguration 
 msgid "WP License Captain: this paid order has NOT received all its licenses: %s."
 msgstr "WP License Captain: Diese bezahlte Bestellung hat NICHT alle ihre Lizenzen erhalten: %s."
 
-#: src/License/LicenseLifecycle.php:672
+#: src/License/LicenseLifecycle.php:673
 msgid "WP License Captain: automatic renewal was switched off after a refund."
 msgstr "WP License Captain: Die automatische Verlängerung wurde nach einer Erstattung ausgeschaltet."
 
 #. translators: 1: license ID, 2: new paid-through date (UTC).
-#: src/License/LicenseLifecycle.php:679
+#: src/License/LicenseLifecycle.php:680
 #, php-format
 msgid "WP License Captain: the refunded renewal was taken back. License #%1$d is now paid until %2$s (UTC); automatic renewal is off."
 msgstr "WP License Captain: Die erstattete Verlängerung wurde rückgängig gemacht. Lizenz #%1$d ist jetzt bis %2$s (UTC) bezahlt; die automatische Verlängerung ist ausgeschaltet."
 
 #. translators: %d: license ID.
-#: src/License/LicenseLifecycle.php:685
+#: src/License/LicenseLifecycle.php:686
 #, php-format
 msgid "WP License Captain: the term of license #%d was NOT rolled back for this refund, because the term was changed in the meantime. Automatic renewal is off; adjust the term manually if needed."
 msgstr "WP License Captain: Die Laufzeit der Lizenz #%d wurde für diese Erstattung NICHT zurückgesetzt, weil die Laufzeit zwischenzeitlich geändert wurde. Die automatische Verlängerung ist ausgeschaltet; passen Sie die Laufzeit bei Bedarf von Hand an."
 
 #. translators: 1: order ID, 2: order status.
-#: src/License/LicenseLifecycle.php:767
+#: src/License/LicenseLifecycle.php:768
 #, php-format
 msgid "Order #%1$d was set to \"%2$s\" after the license was paid; review before reactivating"
 msgstr "Bestellung #%1$d wurde nach der Bezahlung der Lizenz auf „%2$s“ gesetzt; vor der Reaktivierung prüfen"
 
-#: src/License/LicenseLifecycle.php:1053
+#: src/License/LicenseLifecycle.php:1054
 msgid "WP License Captain: an administrator changed the term of the license; this renewal order is no longer needed."
 msgstr "WP License Captain: Ein Administrator hat die Laufzeit der Lizenz geändert; diese Verlängerungsbestellung wird nicht mehr benötigt."
 
-#: src/License/LicenseLifecycle.php:1123
+#: src/License/LicenseLifecycle.php:1124
 msgid "WP License Captain: an administrator booked the renewal after review; this renewal order is no longer needed."
 msgstr "WP License Captain: Ein Administrator hat die Verlängerung nach Prüfung verbucht; diese Verlängerungsbestellung wird nicht mehr benötigt."
 
-#: src/License/LicenseLifecycle.php:1614
+#: src/License/LicenseLifecycle.php:1615
 msgid "WP License Captain: an administrator restored the license with a new term; this renewal order is no longer needed."
 msgstr "WP License Captain: Ein Administrator hat die Lizenz mit einer neuen Laufzeit wiederhergestellt; diese Verlängerungsbestellung wird nicht mehr benötigt."
 
-#: src/License/LicenseLifecycle.php:2175
+#: src/License/LicenseLifecycle.php:2176
 msgid "WP License Captain: the license ended; this renewal order is closed."
 msgstr "WP License Captain: Die Lizenz ist beendet; diese Verlängerungsbestellung ist geschlossen."
 
@@ -5881,7 +5881,7 @@ msgstr[1] "Ihr letzter Lizenzexport endete nach %s Lizenzen. Schränken Sie die 
 
 #. translators: 1: number of verifiable keys, 2: number of checked keys.
 #: src/Admin/Diagnostics.php:1136
-#: src/Admin/Settings.php:748
+#: src/Admin/Settings.php:775
 #, php-format
 msgid "%1$s of the %2$s most recent key"
 msgid_plural "%1$s of the %2$s most recent keys"
@@ -6022,7 +6022,7 @@ msgid "The automatic charge %1$s succeeded although the order was already paid (
 msgstr "Die automatische Abbuchung %1$s war erfolgreich, obwohl die Bestellung bereits bezahlt war (%2$s). Eine der beiden Zahlungen muss erstattet werden. Erstatten Sie die zweite Zahlung %1$s im Zahlungs-Gateway; eine Erstattung dieser Bestellung in WooCommerce erstattet %2$s und behält die Verlängerung bei, weil die andere Zahlung den Zeitraum weiterhin bezahlt."
 
 #. translators: 1: PaymentIntent of this event, 2: PaymentIntent that paid the order.
-#: src/Billing/RenewalProcessor.php:1602
+#: src/Billing/RenewalProcessor.php:1604
 #, php-format
 msgid "Stripe reports a second successful payment %1$s for a renewal order that was paid by %2$s. One of the two payments must be refunded. Refund the second payment %1$s in the payment gateway; a refund of this order in WooCommerce refunds %2$s and keeps the renewal, because the other payment still pays the period."
 msgstr "Stripe meldet eine zweite erfolgreiche Zahlung %1$s für eine Verlängerungsbestellung, die mit %2$s bezahlt wurde. Eine der beiden Zahlungen muss erstattet werden. Erstatten Sie die zweite Zahlung %1$s im Zahlungs-Gateway; eine Erstattung dieser Bestellung in WooCommerce erstattet %2$s und behält die Verlängerung bei, weil die andere Zahlung den Zeitraum weiterhin bezahlt."
@@ -6402,7 +6402,7 @@ msgstr "Tarif-Upgrade-Bestellung #%1$d wurde nach der Bezahlung auf „%2$s“ g
 msgid "The upgrade price was calculated too long ago; start the upgrade again for a new price."
 msgstr "Der Upgrade-Preis wurde vor zu langer Zeit berechnet; starten Sie das Upgrade erneut, um einen neuen Preis zu erhalten."
 
-#: src/License/LicenseLifecycle.php:580
+#: src/License/LicenseLifecycle.php:581
 msgid "If both payments were refunded, shorten the term with \"Change term\" on the license."
 msgstr "Wenn beide Zahlungen erstattet wurden, verkürzen Sie die Laufzeit mit „Laufzeit ändern“ an der Lizenz."
 
@@ -6826,67 +6826,67 @@ msgid "Releases with a package URL are not delivered: without a resolver that re
 msgstr "Releases mit einer Paket-URL werden nicht ausgeliefert: Ohne einen Resolver, der eine kurzlebige signierte URL zurückgibt, würde jeder lizenzierte Kunde die dauerhafte Adresse erfahren und könnte sie auch nach Ende der Lizenz weiter nutzen. Laden Sie stattdessen die ZIP-Datei hoch, oder fügen Sie einen Resolver hinzu (siehe docs/manual/05-releases-and-updates.md)."
 
 #: src/Admin/Settings.php:74
-#: src/Admin/Settings.php:668
+#: src/Admin/Settings.php:695
 msgid "Getting started"
 msgstr "Erste Schritte"
 
-#: src/Admin/Settings.php:607
+#: src/Admin/Settings.php:634
 msgid "Define the secrets in wp-config.php"
 msgstr "Geheimnisse in der wp-config.php definieren"
 
-#: src/Admin/Settings.php:608
+#: src/Admin/Settings.php:635
 msgid "Set WPLC_LICENSE_KEY_SECRETS (with WPLC_LICENSE_KEY_ID) and WPLC_INSTALLATION_ENCRYPTION_KEYS before the first license is sold. Keys issued without them depend on the WordPress salts and stop working when the salts change."
 msgstr "Setzen Sie WPLC_LICENSE_KEY_SECRETS (mit WPLC_LICENSE_KEY_ID) und WPLC_INSTALLATION_ENCRYPTION_KEYS, bevor die erste Lizenz verkauft wird. Ohne sie ausgestellte Schlüssel hängen von den WordPress-Salts ab und funktionieren nicht mehr, wenn sich die Salts ändern."
 
-#: src/Admin/Settings.php:625
+#: src/Admin/Settings.php:652
 msgid "Turn a product into a license product"
 msgstr "Ein Produkt zu einem Lizenzprodukt machen"
 
-#: src/Admin/Settings.php:628
+#: src/Admin/Settings.php:655
 msgid "Open products"
 msgstr "Produkte öffnen"
 
-#: src/Admin/Settings.php:643
+#: src/Admin/Settings.php:670
 msgid "Connect the Stripe webhook"
 msgstr "Stripe-Webhook verbinden"
 
-#: src/Admin/Settings.php:644
+#: src/Admin/Settings.php:671
 msgid "In the Stripe dashboard, add an endpoint with the webhook URL shown under \"Status\" below and the events listed in the documentation (docs/manual/08-renewals-and-stripe.md), then put its signing secret into WPLC_STRIPE_WEBHOOK_SECRET. Without it, renewals, refunds and disputes reported by Stripe are rejected."
 msgstr "Fügen Sie im Stripe-Dashboard einen Endpunkt mit der unten unter „Status“ angezeigten Webhook-URL und den in der Dokumentation (docs/manual/08-renewals-and-stripe.md) aufgeführten Ereignissen hinzu, und tragen Sie dessen Signaturgeheimnis in WPLC_STRIPE_WEBHOOK_SECRET ein. Ohne dieses werden von Stripe gemeldete Verlängerungen, Erstattungen und Zahlungsanfechtungen abgewiesen."
 
-#: src/Admin/Settings.php:631
+#: src/Admin/Settings.php:658
 msgid "Publish the first release"
 msgstr "Erstes Release veröffentlichen"
 
-#: src/Admin/Settings.php:632
+#: src/Admin/Settings.php:659
 msgid "Upload the add-on package and publish it, so that licensed sites can download it and receive updates."
 msgstr "Laden Sie das Add-on-Paket hoch und veröffentlichen Sie es, damit lizenzierte Websites es herunterladen und Updates erhalten können."
 
-#: src/Admin/Settings.php:634
+#: src/Admin/Settings.php:661
 msgid "Open license releases"
 msgstr "Lizenz-Releases öffnen"
 
-#: src/Admin/Settings.php:637
+#: src/Admin/Settings.php:664
 msgid "Make a test purchase"
 msgstr "Testkauf durchführen"
 
-#: src/Admin/Settings.php:638
+#: src/Admin/Settings.php:665
 msgid "Buy the product with a test customer, check the license under Licenses and activate it in the add-on on a test site. The diagnostics page shows whether the daily background run works."
 msgstr "Kaufen Sie das Produkt mit einem Testkunden, prüfen Sie die Lizenz unter „Lizenzen“ und aktivieren Sie sie im Add-on auf einer Test-Website. Die Diagnoseseite zeigt, ob der tägliche Hintergrundlauf funktioniert."
 
-#: src/Admin/Settings.php:675
+#: src/Admin/Settings.php:702
 msgid "Done"
 msgstr "Erledigt"
 
-#: src/Admin/Settings.php:677
+#: src/Admin/Settings.php:704
 msgid "To do"
 msgstr "Offen"
 
-#: src/Admin/Settings.php:795
+#: src/Admin/Settings.php:822
 msgid "Anonymisation of ended licenses"
 msgstr "Anonymisierung beendeter Lizenzen"
 
-#: src/Admin/Settings.php:799
+#: src/Admin/Settings.php:826
 msgid "Off. Ended licenses stay linked to the customer account until an erasure request or the deletion of the account. Set a period that matches your privacy notice with the filter wplc_retention_days (key anonymize_licenses)."
 msgstr "Aus. Beendete Lizenzen bleiben mit dem Kundenkonto verknüpft, bis eine Löschanfrage gestellt oder das Konto gelöscht wird. Legen Sie mit dem Filter wplc_retention_days (Schlüssel anonymize_licenses) einen Zeitraum fest, der zu Ihrer Datenschutzerklärung passt."
 
@@ -6896,11 +6896,11 @@ msgstr "Aus. Beendete Lizenzen bleiben mit dem Kundenkonto verknüpft, bis eine 
 msgid "%1$s: you agreed on %2$s (UTC) that the renewal price shown for each license is charged to your saved payment method at the end of every term until you cancel. You can switch automatic renewal off in your account under \"Licenses\" at any time."
 msgstr "%1$s: Sie haben am %2$s (UTC) zugestimmt, dass der für jede Lizenz angezeigte Verlängerungspreis am Ende jeder Laufzeit von Ihrer gespeicherten Zahlungsart abgebucht wird, bis Sie kündigen. Sie können die automatische Verlängerung jederzeit in Ihrem Konto unter „Lizenzen“ ausschalten."
 
-#: src/Billing/RenewalProcessor.php:2202
+#: src/Billing/RenewalProcessor.php:2204
 msgid "WP License Captain: no license renewal can accept this order any more (the renewal was closed, paid with another order or no longer exists). Do not accept a payment for it without checking the license."
 msgstr "WP License Captain: Keine Lizenzverlängerung kann diese Bestellung mehr annehmen (die Verlängerung wurde geschlossen, mit einer anderen Bestellung bezahlt oder existiert nicht mehr). Nehmen Sie dafür keine Zahlung an, ohne die Lizenz zu prüfen."
 
-#: src/Billing/RenewalProcessor.php:2206
+#: src/Billing/RenewalProcessor.php:2208
 msgid "WP License Captain: no license renewal can accept this order any more (the renewal was closed, paid with another order or no longer exists); the order is closed."
 msgstr "WP License Captain: Keine Lizenzverlängerung kann diese Bestellung mehr annehmen (die Verlängerung wurde geschlossen, mit einer anderen Bestellung bezahlt oder existiert nicht mehr); die Bestellung wurde geschlossen."
 
@@ -7012,19 +7012,19 @@ msgid "Entitlements updated to the current settings of the plan."
 msgstr "Berechtigungen auf die aktuellen Einstellungen des Tarifs aktualisiert."
 
 #. translators: %d: order ID.
-#: src/License/LicenseLifecycle.php:858
+#: src/License/LicenseLifecycle.php:859
 #, php-format
 msgid "The order line of this license was removed from order #%d after the license was paid; review before reactivating"
 msgstr "Die Bestellposition dieser Lizenz wurde nach der Bezahlung der Lizenz aus Bestellung #%d entfernt; vor der Reaktivierung prüfen"
 
 #. translators: 1: order ID, 2: new quantity of the order line.
-#: src/License/LicenseLifecycle.php:863
+#: src/License/LicenseLifecycle.php:864
 #, php-format
 msgid "The quantity of the order line of this license in order #%1$d was lowered to %2$d after the license was paid; review before reactivating"
 msgstr "Die Menge der Bestellposition dieser Lizenz in Bestellung #%1$d wurde nach der Bezahlung der Lizenz auf %2$d gesenkt; vor der Reaktivierung prüfen"
 
 #. translators: %s: comma-separated license IDs.
-#: src/License/LicenseLifecycle.php:880
+#: src/License/LicenseLifecycle.php:881
 #, php-format
 msgid "WP License Captain suspended license(s) #%s because the order line was removed or its quantity lowered. Reactivate them in the license admin if this was intended."
 msgstr "WP License Captain hat Lizenz(en) #%s gesperrt, weil die Bestellposition entfernt oder ihre Menge gesenkt wurde. Reaktivieren Sie sie in der Lizenzverwaltung, falls dies beabsichtigt war."
@@ -7735,12 +7735,12 @@ msgstr "Die Ankündigung jetzt per E-Mail an jeden Kunden dieser Lizenzen senden
 msgid "Up to 500 licenses are handled per submission. When more remain, submit the form again: licenses that already have the announcement are skipped."
 msgstr "Je Absenden werden bis zu 500 Lizenzen bearbeitet. Bleiben weitere übrig, senden Sie das Formular erneut ab: Lizenzen, die die Ankündigung bereits haben, werden übersprungen."
 
-#: src/Settings/Texts.php:99
+#: src/Settings/Texts.php:115
 msgid "Price change notice period"
 msgstr "Ankündigungsfrist für Preisänderungen"
 
-#: src/Admin/Settings.php:1048
-#: src/Settings/Texts.php:100
+#: src/Admin/Settings.php:1075
+#: src/Settings/Texts.php:116
 msgid "Days between the email that announces a higher renewal price for an existing license and the first renewal at that price. Default: 60, at least 30. Have the period and the wording of the email checked by a lawyer."
 msgstr "Tage zwischen der E-Mail, die einen höheren Verlängerungspreis für eine bestehende Lizenz ankündigt, und der ersten Verlängerung zu diesem Preis. Vorgabe: 60, mindestens 30. Lassen Sie die Frist und den Wortlaut der E-Mail anwaltlich prüfen."
 
@@ -7914,11 +7914,11 @@ msgstr "Katalogimport hat Berechtigungen entfernt, die Tarife noch vergeben"
 msgid "Catalog file of release packages"
 msgstr "Katalogdatei aus Release-Paketen"
 
-#: src/Admin/Settings.php:1025
+#: src/Admin/Settings.php:1052
 msgid "Import the catalog file from release packages"
 msgstr "Die Katalogdatei aus Release-Paketen importieren"
 
-#: src/Admin/Settings.php:1026
+#: src/Admin/Settings.php:1053
 #: src/Settings/Texts.php:84
 msgid "When a release is created from a ZIP, the file wplc-catalog.json in the plugin folder of the package is checked and imported into the license catalog. The release is created in any case; a file that is invalid or describes another product is not imported and reported. Plans and licenses are never changed."
 msgstr "Wird ein Release aus einer ZIP-Datei angelegt, wird die Datei wplc-catalog.json im Plugin-Ordner des Pakets geprüft und in den Lizenzkatalog importiert. Das Release wird in jedem Fall angelegt; eine Datei, die ungültig ist oder ein anderes Produkt beschreibt, wird nicht importiert und gemeldet. Tarife und Lizenzen werden nie geändert."
@@ -8012,40 +8012,40 @@ msgstr "Die Lizenz konnte nicht ausgestellt werden."
 msgid "It does not renew automatically. Please contact us before that date if you want to keep using it."
 msgstr "Sie verlängert sich nicht automatisch. Bitte melden Sie sich vor diesem Datum bei uns, wenn Sie sie weiter nutzen möchten."
 
-#: src/Admin/Settings.php:613
+#: src/Admin/Settings.php:640
 msgid "Pin the public key in your add-on"
 msgstr "Öffentlichen Schlüssel im Add-on hinterlegen"
 
-#: src/Admin/Settings.php:614
+#: src/Admin/Settings.php:641
 msgid "Put the response signing key into wp-config.php as WPLC_RESPONSE_SIGNING_KEY (\"wp wplc signing-key --generate\") and give its public key to the license client of your add-on (option public_keys)."
 msgstr "Tragen Sie den Signaturschlüssel für Antworten als WPLC_RESPONSE_SIGNING_KEY in die wp-config.php ein („wp wplc signing-key --generate“) und geben Sie seinen öffentlichen Schlüssel an den Lizenz-Client Ihres Add-ons weiter (Option public_keys)."
 
-#: src/Admin/Settings.php:616
+#: src/Admin/Settings.php:643
 msgid "Show the public key"
 msgstr "Öffentlichen Schlüssel anzeigen"
 
-#: src/Admin/Settings.php:619
+#: src/Admin/Settings.php:646
 msgid "Import your catalog file"
 msgstr "Katalogdatei importieren"
 
-#: src/Admin/Settings.php:620
+#: src/Admin/Settings.php:647
 msgid "Describe your product and its entitlements in a wplc-catalog.json file (docs/manual/03-catalog-files.md) and import it here, or ship it in the plugin folder of your release package."
 msgstr "Beschreiben Sie Ihr Produkt und seine Berechtigungen in einer Datei wplc-catalog.json (docs/manual/03-catalog-files.md) und importieren Sie sie hier oder legen Sie sie in den Plugin-Ordner Ihres Release-Pakets."
 
-#: src/Admin/Settings.php:622
+#: src/Admin/Settings.php:649
 msgid "Open catalog files"
 msgstr "Katalogdateien öffnen"
 
-#: src/Admin/Settings.php:626
+#: src/Admin/Settings.php:653
 msgid "Edit the WooCommerce product, tick \"License product\", enter the product key of your catalog file (for example acme-pro) and a plan key (for example single), and tick the entitlements of the plan. Keep both keys unchanged once the product is sold."
 msgstr "Bearbeiten Sie das WooCommerce-Produkt, setzen Sie den Haken bei „Lizenzprodukt“, tragen Sie den Produktschlüssel aus Ihrer Katalogdatei (zum Beispiel acme-pro) und einen Tarifschlüssel (zum Beispiel single) ein und haken Sie die Berechtigungen des Tarifs an. Ändern Sie beide Schlüssel nicht mehr, sobald das Produkt verkauft wird."
 
-#: src/Admin/Settings.php:640
+#: src/Admin/Settings.php:667
 msgid "Open licenses"
 msgstr "Lizenzen öffnen"
 
 #. translators: 1: number of finished setup steps, 2: number of all setup steps.
-#: src/Admin/Settings.php:670
+#: src/Admin/Settings.php:697
 #, php-format
 msgid "%1$s of %2$s steps done"
 msgstr "%1$s von %2$s Schritten erledigt"
@@ -8067,7 +8067,7 @@ msgid "The license could not be issued: it could not be saved in the database. C
 msgstr "Die Lizenz konnte nicht ausgestellt werden: Sie ließ sich nicht in der Datenbank speichern. Prüfen Sie das Fehlerprotokoll der Datenbank."
 
 #. translators: %s: number of days.
-#: src/Admin/Settings.php:798
+#: src/Admin/Settings.php:825
 #, php-format
 msgid "%s day after the end of the year in which the license ended"
 msgid_plural "%s days after the end of the year in which the license ended"
@@ -8412,11 +8412,11 @@ msgstr "Der Objektspeicher ist konfiguriert: Geben Sie s3://%s/path/to/package.z
 msgid "Combine automatic renewals"
 msgstr "Automatische Verlängerungen zusammenfassen"
 
-#: src/Admin/Settings.php:1037
+#: src/Admin/Settings.php:1064
 msgid "Charge the licenses of one customer that renew automatically on the same day with one order and one payment"
 msgstr "Lizenzen eines Kunden, die am selben Tag automatisch verlängern, mit einer Bestellung und einer Zahlung abbuchen"
 
-#: src/Admin/Settings.php:1038
+#: src/Admin/Settings.php:1065
 #: src/Settings/Texts.php:88
 msgid "Only licenses with the same saved card, currency and billing interval are combined. Each license keeps its own renewal; a declined payment is retried per license. Manual renewals are never combined. Off by default."
 msgstr "Zusammengefasst werden nur Lizenzen mit derselben gespeicherten Karte, Währung und Laufzeit. Jede Lizenz behält ihre eigene Verlängerung; eine abgelehnte Zahlung wird je Lizenz wiederholt. Manuelle Verlängerungen werden nie zusammengefasst. In der Vorgabe aus."
@@ -9622,25 +9622,25 @@ msgstr "Letzte erfolgreiche Prüfung: %1$s. Updates bleiben bis %2$s verfügbar,
 msgid "Rules of this shop"
 msgstr "Regeln dieses Shops"
 
-#: src/Settings/Texts.php:107
+#: src/Settings/Texts.php:123
 msgid "Largest quantity per order line"
 msgstr "Höchstmenge je Bestellposition"
 
-#: src/Settings/Texts.php:111
+#: src/Settings/Texts.php:127
 msgid "Suspended licenses count as ended after"
 msgstr "Gesperrte Lizenzen gelten als beendet nach"
 
-#: src/Admin/Settings.php:1068
-#: src/Settings/Texts.php:108
+#: src/Admin/Settings.php:1095
+#: src/Settings/Texts.php:124
 msgid "Largest quantity of one license product a customer can put into the cart and order. Every unit becomes a license of its own with its own key. Default: 100. 0 = no limit. An order you create yourself in the admin or through the REST API is not blocked; a larger quantity there is noted on the order and in the audit log."
 msgstr "Größte Menge eines Lizenzprodukts, die ein Kunde in den Warenkorb legen und bestellen kann. Jedes Stück wird eine eigene Lizenz mit eigenem Schlüssel. Standard: 100. 0 = keine Grenze. Eine Bestellung, die Sie selbst im Admin oder über die REST-API anlegen, wird nicht blockiert; eine größere Menge wird dort an der Bestellung und im Audit-Protokoll vermerkt."
 
-#: src/Admin/Settings.php:1077
+#: src/Admin/Settings.php:1104
 msgid "days"
 msgstr "Tagen"
 
-#: src/Admin/Settings.php:1078
-#: src/Settings/Texts.php:112
+#: src/Admin/Settings.php:1105
+#: src/Settings/Texts.php:128
 msgid "Default: 0 = never; a suspended license then keeps its customer and its data until you revoke it or it is reactivated. With a number of days, a license that stayed suspended without interruption for that long is treated like an expired or revoked one: a personal data erasure request detaches it from the customer and releases its sites, and the retention rules delete its installations and consent records after their periods. This cannot be undone. A license that was reactivated is never affected; a new suspension counts from its own start. Agree the period with your legal counsel."
 msgstr "Standard: 0 = nie; eine gesperrte Lizenz behält dann ihren Kunden und ihre Daten, bis Sie sie widerrufen oder sie wieder aktiviert wird. Mit einer Zahl von Tagen wird eine Lizenz, die so lange ohne Unterbrechung gesperrt war, wie eine abgelaufene oder widerrufene behandelt: Eine Anfrage zur Löschung personenbezogener Daten löst sie vom Kunden und gibt ihre Websites frei, und die Aufbewahrungsregeln löschen ihre Installationen und Einwilligungsnachweise nach deren Fristen. Das lässt sich nicht rückgängig machen. Eine wieder aktivierte Lizenz ist nie betroffen; eine neue Sperre zählt ab ihrem eigenen Beginn. Stimmen Sie die Frist mit Ihrer Rechtsberatung ab."
 
@@ -9659,31 +9659,31 @@ msgid "WP License Captain: \"%1$s\" was ordered %2$d times; customers can order 
 msgstr "WP License Captain: „%1$s“ wurde %2$d-mal bestellt; Kunden können höchstens %3$d in einer Bestellung bestellen (Lizenzeinstellungen). Die Bestellung wurde nicht über die Kasse angelegt, deshalb wurde nichts blockiert und jedes Stück bekommt seine Lizenz."
 
 #. translators: %s: name of a PHP filter.
-#: src/Admin/Settings.php:896
+#: src/Admin/Settings.php:923
 #, php-format
 msgid "Code of the shop can change the value with the filter %s; the filter decides last."
 msgstr "Code des Shops kann den Wert mit dem Filter %s ändern; der Filter entscheidet zuletzt."
 
-#: src/Admin/Settings.php:899
+#: src/Admin/Settings.php:926
 msgid "Only an administrator may change this value."
 msgstr "Nur ein Administrator darf diesen Wert ändern."
 
 #. translators: %s: the value that is in effect.
-#: src/Admin/Settings.php:922
+#: src/Admin/Settings.php:949
 #, php-format
 msgid "In effect: %s (set by code of the shop, not by this field)."
 msgstr "Wirksam: %s (gesetzt durch Code des Shops, nicht durch dieses Feld)."
 
 #. translators: %s: the value that is in effect.
-#: src/Admin/Settings.php:922
+#: src/Admin/Settings.php:949
 msgid "empty"
 msgstr "leer"
 
-#: src/Admin/Settings.php:946
+#: src/Admin/Settings.php:973
 msgid "Groups of settings"
 msgstr "Gruppen der Einstellungen"
 
-#: src/Admin/Settings.php:947
+#: src/Admin/Settings.php:974
 msgid "All settings"
 msgstr "Alle Einstellungen"
 
@@ -9712,49 +9712,87 @@ msgid "One host name per line, for example downloads.example.com. Update package
 msgstr "Ein Hostname pro Zeile, zum Beispiel downloads.example.com. Update-Pakete werden nur von HTTPS-Adressen auf diesen Hosts ausgeliefert. Diese Website gilt immer als vertrauenswürdig."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:144
+#: src/Settings/Texts.php:165
 #, php-format
 msgid "\"%s\" was not changed: enter a whole number."
 msgstr "„%s“ wurde nicht geändert: Geben Sie eine ganze Zahl ein."
 
 #. translators: 1: name of a setting, 2: smallest value, 3: largest value.
-#: src/Settings/Texts.php:147
+#: src/Settings/Texts.php:168
 #, php-format
 msgid "\"%1$s\" was not changed: enter whole numbers from %2$s to %3$s."
 msgstr "„%1$s“ wurde nicht geändert: Geben Sie ganze Zahlen von %2$s bis %3$s ein."
 
 #. translators: 1: name of a setting, 2: largest number of entries.
-#: src/Settings/Texts.php:150
+#: src/Settings/Texts.php:171
 #, php-format
 msgid "\"%1$s\" was not changed: at most %2$s entries are possible."
 msgstr "„%1$s“ wurde nicht geändert: Höchstens %2$s Einträge sind möglich."
 
 #. translators: 1: name of a setting, 2: largest number of characters.
-#: src/Settings/Texts.php:153
+#: src/Settings/Texts.php:174
 #, php-format
 msgid "\"%1$s\" was not changed: the text is longer than %2$s characters."
 msgstr "„%1$s“ wurde nicht geändert: Der Text ist länger als %2$s Zeichen."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:156
+#: src/Settings/Texts.php:177
 #, php-format
 msgid "\"%s\" was not changed: enter valid email addresses."
 msgstr "„%s“ wurde nicht geändert: Geben Sie gültige E-Mail-Adressen ein."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:159
+#: src/Settings/Texts.php:180
 #, php-format
 msgid "\"%s\" was not changed: enter an address that starts with https://."
 msgstr "„%s“ wurde nicht geändert: Geben Sie eine Adresse ein, die mit https:// beginnt."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:163
+#: src/Settings/Texts.php:184
 #, php-format
 msgid "\"%s\" was not changed: at least one entry is not valid. Enter one entry per line, lowercase letters, digits, dots and hyphens only."
 msgstr "„%s“ wurde nicht geändert: Mindestens ein Eintrag ist ungültig. Geben Sie einen Eintrag pro Zeile ein, nur Kleinbuchstaben, Ziffern, Punkte und Bindestriche."
 
 #. translators: %s: name of a setting.
-#: src/Settings/Texts.php:167
+#: src/Settings/Texts.php:188
 #, php-format
 msgid "\"%s\" was not changed: the value is not valid."
 msgstr "„%s“ wurde nicht geändert: Der Wert ist ungültig."
+
+#. translators: 1: grace period in days, 2: last retry day.
+#: src/Admin/Settings.php:379
+#, php-format
+msgid "The grace period (%1$s days) is not longer than the last retry day (%2$s). The last charge attempts would come after the customer has lost access. Make the grace period longer or remove the late retry days."
+msgstr "Die Kulanzfrist (%1$s Tage) ist nicht länger als der letzte Wiederholungstag (%2$s). Die letzten Abbuchungsversuche kämen erst, nachdem der Kunde den Zugang verloren hat. Verlängern Sie die Kulanzfrist oder entfernen Sie die späten Wiederholungstage."
+
+#: src/Settings/Texts.php:91
+msgid "Grace period after the paid period"
+msgstr "Kulanzfrist nach der bezahlten Zeit"
+
+#: src/Settings/Texts.php:92
+msgid "Days after the end of the paid period during which a license with a pending or failed automatic charge keeps its access. Default: 14. Keep it longer than the last retry day below, or the last attempts fall after access has ended. A changed value applies to renewals scheduled afterwards; renewals already scheduled keep their date."
+msgstr "Tage nach dem Ende der bezahlten Zeit, in denen eine Lizenz mit offener oder fehlgeschlagener automatischer Abbuchung ihren Zugang behält. Vorgabe: 14. Halten Sie sie länger als den letzten Wiederholungstag unten, sonst fallen die letzten Versuche in die Zeit nach dem Ende des Zugangs. Ein geänderter Wert gilt für Verlängerungen, die danach eingeplant werden; schon eingeplante behalten ihr Datum."
+
+#: src/Settings/Texts.php:95
+msgid "Retry days of a failed charge"
+msgstr "Wiederholungstage einer fehlgeschlagenen Abbuchung"
+
+#: src/Settings/Texts.php:96
+msgid "Days after the start of the new period on which a failed automatic charge is tried again, separated by commas. The number of entries is the number of retries. Default: 1,3,7. Empty = no retry: the first failed charge is final."
+msgstr "Tage nach Beginn der neuen Periode, an denen eine fehlgeschlagene automatische Abbuchung erneut versucht wird, durch Kommas getrennt. Die Zahl der Einträge ist die Zahl der Wiederholungen. Vorgabe: 1,3,7. Leer = keine Wiederholung: Die erste fehlgeschlagene Abbuchung ist endgültig."
+
+#: src/Settings/Texts.php:99
+msgid "Manual renewal: days before the end"
+msgstr "Manuelle Verlängerung: Tage vor dem Ende"
+
+#: src/Settings/Texts.php:100
+msgid "From this many days before the end of the paid period a customer can renew by hand in the account, and the emails offer it. Default: 30. 0 = only from the day the period ends."
+msgstr "Ab so vielen Tagen vor dem Ende der bezahlten Zeit kann ein Kunde im Konto von Hand verlängern, und die E-Mails bieten es an. Vorgabe: 30. 0 = erst ab dem Tag, an dem die Zeit endet."
+
+#: src/Settings/Texts.php:103
+msgid "Manual renewal: days after the end"
+msgstr "Manuelle Verlängerung: Tage nach dem Ende"
+
+#: src/Settings/Texts.php:104
+msgid "Until this many days after the end of the paid period an expired license can still be renewed and continues with the same key and the same sites. Default: 30. 0 = an expired license cannot be reactivated by the customer."
+msgstr "Bis so viele Tage nach dem Ende der bezahlten Zeit kann eine abgelaufene Lizenz noch verlängert werden und läuft mit demselben Schlüssel und denselben Websites weiter. Vorgabe: 30. 0 = Der Kunde kann eine abgelaufene Lizenz nicht wieder aktivieren."

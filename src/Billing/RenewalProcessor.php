@@ -295,7 +295,7 @@ final class RenewalProcessor {
 			// still renew manually.
 			$late_attempt = 0 === (int) $renewal['attempt_count']
 				&& $start
-				&& $now < $start + LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS * DAY_IN_SECONDS;
+				&& $now < $start + LicenseStateMachine::renewal_days_after() * DAY_IN_SECONDS;
 			if ( ! $late_attempt ) {
 				self::close_renewal( $renewal, 'expired', 'grace_ended' );
 				self::expire_license( (int) $license['id'] );
@@ -869,12 +869,14 @@ final class RenewalProcessor {
 	 * @return int[]
 	 */
 	public static function retry_days(): array {
+		// The setting "Retry days of a failed charge"; an empty list means no retry.
+		$setting = \WPLC\Settings\Registry::list( 'renewal_retry_days' );
 		/**
-		 * Filters the retry schedule of failed renewal charges (A-135).
+		 * Filters the retry schedule of failed renewal charges (A-135). Wins over the setting.
 		 *
-		 * @param int[] $days Days after the period start, ascending. Default 1, 3 and 7.
+		 * @param int[] $days Days after the period start, ascending. Default 1, 3 and 7; empty for no retry.
 		 */
-		$days = (array) apply_filters( 'wplc_renewal_retry_days', self::DEFAULT_RETRY_DAYS );
+		$days = (array) apply_filters( 'wplc_renewal_retry_days', $setting );
 		$days = array_values( array_filter( array_map( 'absint', $days ) ) );
 		sort( $days );
 
@@ -2084,7 +2086,7 @@ final class RenewalProcessor {
 				global $wpdb;
 
 				$tables = Schema::table_names();
-				$window_end = gmdate( 'Y-m-d H:i:s', time() - LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS * DAY_IN_SECONDS );
+				$window_end = gmdate( 'Y-m-d H:i:s', time() - LicenseStateMachine::renewal_days_after() * DAY_IN_SECONDS );
 				$rows = (array) $wpdb->get_results(
 					$wpdb->prepare(
 						"SELECT r.* FROM {$tables['renewals']} r LEFT JOIN {$tables['licenses']} l ON l.id = r.license_id

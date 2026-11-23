@@ -87,6 +87,22 @@ final class Texts {
 				__( 'Combine automatic renewals', 'wp-license' ),
 				__( 'Only licenses with the same saved card, currency and billing interval are combined. Each license keeps its own renewal; a declined payment is retried per license. Manual renewals are never combined. Off by default.', 'wp-license' ),
 			),
+			'renewal_grace_days'        => array(
+				__( 'Grace period after the paid period', 'wp-license' ),
+				__( 'Days after the end of the paid period during which a license with a pending or failed automatic charge keeps its access. Default: 14. Keep it longer than the last retry day below, or the last attempts fall after access has ended. A changed value applies to renewals scheduled afterwards; renewals already scheduled keep their date.', 'wp-license' ),
+			),
+			'renewal_retry_days'        => array(
+				__( 'Retry days of a failed charge', 'wp-license' ),
+				__( 'Days after the start of the new period on which a failed automatic charge is tried again, separated by commas. The number of entries is the number of retries. Default: 1,3,7. Empty = no retry: the first failed charge is final.', 'wp-license' ),
+			),
+			'manual_renewal_days_before' => array(
+				__( 'Manual renewal: days before the end', 'wp-license' ),
+				__( 'From this many days before the end of the paid period a customer can renew by hand in the account, and the emails offer it. Default: 30. 0 = only from the day the period ends.', 'wp-license' ),
+			),
+			'manual_renewal_days_after' => array(
+				__( 'Manual renewal: days after the end', 'wp-license' ),
+				__( 'Until this many days after the end of the paid period an expired license can still be renewed and continues with the same key and the same sites. Default: 30. 0 = an expired license cannot be reactivated by the customer.', 'wp-license' ),
+			),
 			'reminder_days'             => array(
 				__( 'Reminder lead days', 'wp-license' ),
 				__( 'Days before the end of the paid period on which a reminder is sent, separated by commas. Default: 30,7.', 'wp-license' ),

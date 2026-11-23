@@ -94,7 +94,8 @@ final class ManualRenewal {
 
 	/**
 	 * Pure window rule: status active, past_due or expired, and now between
-	 * 30 days before paid_until and 30 days after it.
+	 * the configured days before paid_until and after it (LicenseStateMachine::manual_renewal_window(),
+	 * 30 and 30 by default).
 	 *
 	 * @param array<string,mixed> $license License row.
 	 * @param int                 $now Unix timestamp.
@@ -108,9 +109,9 @@ final class ManualRenewal {
 		if ( ! $paid_until ) {
 			return false;
 		}
-		$window = LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS * 86400;
+		$window = LicenseStateMachine::manual_renewal_window();
 
-		return $now >= $paid_until - $window && $now <= $paid_until + $window;
+		return $now >= $paid_until - $window['before'] * 86400 && $now <= $paid_until + $window['after'] * 86400;
 	}
 
 	/**

@@ -158,6 +158,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_log_api_rejection` | `src/Api/V1/ApiLog.php` | Filter whether this rejection is written to the log. |
 | `wplc_log_debug` | `src/Infrastructure/Log.php` | Filters whether the plugin writes debug lines to the WooCommerce log (A-133). |
 | `wplc_manual_renewal_for_unsold_products` | `src/Billing/ManualRenewal.php` | Filters whether customers may renew a license in their account when its product is not for sale (private, draft, not purchasable). Default false: such licenses are extended only by the shop owner with "Change term"; return true to allow the customer renewal at the plan price. |
+| `wplc_manual_renewal_window_days` | `src/License/LicenseStateMachine.php` | Filters the window of manual renewal. Wins over the two settings. |
 | `wplc_max_license_quantity_per_line` | `src/Catalog/QuantityLimit.php` | Filters the largest quantity of a license product in one order line. Wins over the setting. |
 | `wplc_new_activations_per_hour` | `src/Api/V1/ActivationService.php` | Filter how many new installations one license may activate per hour. |
 | `wplc_offer_planned_entitlements` | `src/Catalog/EntitlementCatalog.php` | Filters whether entitlements that are planned but not shipped by any add-on yet are offered in the product editor (default: no). |

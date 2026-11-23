@@ -49,6 +49,39 @@ final class Definitions {
 				'group'   => 'renewals',
 				'filter'  => 'wplc_combined_renewals',
 			),
+			'renewal_grace_days'        => array(
+				'type'    => 'int',
+				'default' => 14,
+				'min'     => 1,
+				'max'     => 90,
+				'group'   => 'renewals',
+				'filter'  => 'wplc_renewal_grace_days',
+			),
+			'renewal_retry_days'        => array(
+				'type'      => 'int_list',
+				'default'   => '1,3,7',
+				'min'       => 1,
+				'max'       => 60,
+				'max_items' => 6,
+				'group'     => 'renewals',
+				'filter'    => 'wplc_renewal_retry_days',
+			),
+			'manual_renewal_days_before' => array(
+				'type'    => 'int',
+				'default' => 30,
+				'min'     => 0,
+				'max'     => 365,
+				'group'   => 'renewals',
+				'filter'  => 'wplc_manual_renewal_window_days',
+			),
+			'manual_renewal_days_after' => array(
+				'type'    => 'int',
+				'default' => 30,
+				'min'     => 0,
+				'max'     => 365,
+				'group'   => 'renewals',
+				'filter'  => 'wplc_manual_renewal_window_days',
+			),
 
 			// Customer emails.
 			'reminder_days'             => array(

@@ -28,6 +28,10 @@ final class Effective {
 		return array(
 			'catalog_auto_import'       => array( '\\WPLC\\Catalog\\ReleaseCatalog', 'enabled' ),
 			'combined_renewals'         => array( '\\WPLC\\Billing\\CombinedRenewal', 'enabled' ),
+			'renewal_grace_days'        => array( '\\WPLC\\License\\LicenseLifecycle', 'grace_days' ),
+			'renewal_retry_days'        => array( '\\WPLC\\Billing\\RenewalProcessor', 'retry_days' ),
+			'manual_renewal_days_before' => array( '\\WPLC\\License\\LicenseStateMachine', 'renewal_days_before' ),
+			'manual_renewal_days_after' => array( '\\WPLC\\License\\LicenseStateMachine', 'renewal_days_after' ),
 			'reminder_days'             => array( '\\WPLC\\Notifications\\Notifications', 'lead_days' ),
 			'renewal_notice_days'       => array( '\\WPLC\\Notifications\\Notifications', 'notice_days' ),
 			'price_change_notice_days'  => array( '\\WPLC\\Billing\\PriceChange', 'notice_days' ),

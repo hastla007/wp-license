@@ -184,4 +184,37 @@ final class RegistryTest extends TestCase {
 			$this->assertStringContainsString( '| `' . $key . '` |', $chapter );
 		}
 	}
+
+	/** SET-LIC-02, -03, -16: the renewal policy. */
+	public function test_renewal_policy_settings_have_today_s_values_as_defaults(): void {
+		$this->assertSame( \WPLC\License\LicenseLifecycle::GRACE_DAYS, Registry::defaults()['renewal_grace_days'] );
+		$this->assertSame( implode( ',', \WPLC\Billing\RenewalProcessor::DEFAULT_RETRY_DAYS ), Registry::defaults()['renewal_retry_days'] );
+		$this->assertSame( \WPLC\License\LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS, Registry::defaults()['manual_renewal_days_before'] );
+		$this->assertSame( \WPLC\License\LicenseStateMachine::MANUAL_RENEWAL_WINDOW_DAYS, Registry::defaults()['manual_renewal_days_after'] );
+
+		$this->assertSame( 'out_of_range', Registry::validate( 'renewal_grace_days', '0' )['code'] );
+		$this->assertSame( 'out_of_range', Registry::validate( 'renewal_grace_days', '91' )['code'] );
+		$this->assertSame( '', Registry::validate( 'renewal_retry_days', '' )['value'], 'Empty = no retry.' );
+		$this->assertSame( '2,5,9', Registry::validate( 'renewal_retry_days', '9, 2;5' )['value'] );
+		$this->assertSame( 'out_of_range', Registry::validate( 'renewal_retry_days', '1,61' )['code'] );
+		$this->assertSame( 'too_many', Registry::validate( 'renewal_retry_days', '1,2,3,4,5,6,7' )['code'] );
+
+		$this->assertSame( array(), Settings::combination_warnings( Registry::defaults() ) );
+		$this->assertArrayHasKey( 'wplc_grace_before_last_retry', Settings::combination_warnings( array( 'renewal_grace_days' => 7, 'renewal_retry_days' => '1,3,7' ) ) );
+		$this->assertSame( array(), Settings::combination_warnings( array( 'renewal_grace_days' => 7, 'renewal_retry_days' => '' ) ) );
+	}
+
+	public function test_manual_renewal_window_filter_wins_and_is_kept_in_range(): void {
+		$this->assertSame( array( 'before' => 30, 'after' => 30 ), \WPLC\License\LicenseStateMachine::manual_renewal_window() );
+		$GLOBALS['wplc_test_filters']['wplc_manual_renewal_window_days'] = array(
+			static function ( $window ) {
+				return array( 'before' => 7, 'after' => -5, 'other' => 1 );
+			},
+		);
+		try {
+			$this->assertSame( array( 'before' => 7, 'after' => 0 ), \WPLC\License\LicenseStateMachine::manual_renewal_window() );
+		} finally {
+			unset( $GLOBALS['wplc_test_filters']['wplc_manual_renewal_window_days'] );
+		}
+	}
 }

@@ -243,11 +243,12 @@ final class Settings {
 	 *
 	 * @param string $code    Error code.
 	 * @param string $message Translated message.
+	 * @param string $type    error or warning.
 	 * @return void
 	 */
-	private static function settings_error( string $code, string $message ): void {
+	private static function settings_error( string $code, string $message, string $type = 'error' ): void {
 		if ( function_exists( 'add_settings_error' ) ) {
-			add_settings_error( self::OPTION, $code, $message, 'error' );
+			add_settings_error( self::OPTION, $code, $message, $type );
 		}
 	}
 
@@ -355,7 +356,33 @@ final class Settings {
 			self::settings_error( 'wplc_invalid_' . $key, Texts::problem( $key, $result['code'] ) );
 		}
 
+		foreach ( self::combination_warnings( $out ) as $code => $message ) {
+			self::settings_error( $code, $message, 'warning' );
+		}
+
 		return $out;
+	}
+
+	/**
+	 * Warnings about values that are each valid but do not fit together. The values are saved all the same.
+	 *
+	 * @param array<string,mixed> $values Settings in stored form.
+	 * @return array<string,string> Code => translated message.
+	 */
+	public static function combination_warnings( array $values ): array {
+		$warnings = array();
+		$retries  = array_filter( array_map( 'intval', explode( ',', (string) ( $values['renewal_retry_days'] ?? '' ) ) ) );
+		$grace    = (int) ( $values['renewal_grace_days'] ?? 0 );
+		if ( $retries && $grace > 0 && $grace <= max( $retries ) ) {
+			$warnings['wplc_grace_before_last_retry'] = sprintf(
+				/* translators: 1: grace period in days, 2: last retry day. */
+				__( 'The grace period (%1$s days) is not longer than the last retry day (%2$s). The last charge attempts would come after the customer has lost access. Make the grace period longer or remove the late retry days.', 'wp-license' ),
+				number_format_i18n( $grace ),
+				number_format_i18n( max( $retries ) )
+			);
+		}
+
+		return $warnings;
 	}
 
 	/**

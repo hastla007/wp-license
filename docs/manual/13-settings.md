@@ -32,6 +32,10 @@ The tables are generated from the register (`php bin/settings-doc.php --write`).
 | Setting | Key | Value | Default | Filter (wins) | What it does |
 | --- | --- | --- | --- | --- | --- |
 | Combine automatic renewals | `combined_renewals` | on or off | `off` | `wplc_combined_renewals` | Only licenses with the same saved card, currency and billing interval are combined. Each license keeps its own renewal; a declined payment is retried per license. Manual renewals are never combined. Off by default. |
+| Grace period after the paid period | `renewal_grace_days` | whole number, 1 to 90 | `14` | `wplc_renewal_grace_days` | Days after the end of the paid period during which a license with a pending or failed automatic charge keeps its access. Default: 14. Keep it longer than the last retry day below, or the last attempts fall after access has ended. A changed value applies to renewals scheduled afterwards; renewals already scheduled keep their date. |
+| Retry days of a failed charge | `renewal_retry_days` | up to 6 whole numbers, each 1 to 60 | `1,3,7` | `wplc_renewal_retry_days` | Days after the start of the new period on which a failed automatic charge is tried again, separated by commas. The number of entries is the number of retries. Default: 1,3,7. Empty = no retry: the first failed charge is final. |
+| Manual renewal: days before the end | `manual_renewal_days_before` | whole number, 0 to 365 | `30` | `wplc_manual_renewal_window_days` | From this many days before the end of the paid period a customer can renew by hand in the account, and the emails offer it. Default: 30. 0 = only from the day the period ends. |
+| Manual renewal: days after the end | `manual_renewal_days_after` | whole number, 0 to 365 | `30` | `wplc_manual_renewal_window_days` | Until this many days after the end of the paid period an expired license can still be renewed and continues with the same key and the same sites. Default: 30. 0 = an expired license cannot be reactivated by the customer. |
 
 ### Customer emails
 
