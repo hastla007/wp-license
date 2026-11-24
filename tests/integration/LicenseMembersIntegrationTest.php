@@ -549,7 +549,7 @@ final class LicenseMembersIntegrationTest extends WPLC_Portal_TestCase {
 		update_option( \WPLC\Settings\Registry::OPTION, array( 'co_user_limit' => 1 ) );
 		$this->assertSame( LicenseMembers::RESULT_ACCEPTED_MEMBER, LicenseMembers::accept( $links['invitee@example.test'][0], $links['invitee@example.test'][1], $this->invitee ) );
 		$this->assertSame( LicenseMembers::RESULT_LIMIT, LicenseMembers::accept( $links['second@example.test'][0], $links['second@example.test'][1], $second ) );
-		$this->assertRedirectWithNotice( 'member_limit', $this->accept( $third, $links['third@example.test'][0], $links['third@example.test'][1] ) );
+		$this->assertRedirectWithNotice( 'invitation_member_limit', $this->accept( $third, $links['third@example.test'][0], $links['third@example.test'][1] ) );
 		$this->assertTrue( LicenseMembers::is_member( $license['id'], $this->invitee ) );
 		$this->assertFalse( LicenseMembers::is_member( $license['id'], $second ) );
 		$this->assertFalse( LicenseMembers::is_member( $license['id'], $third ) );

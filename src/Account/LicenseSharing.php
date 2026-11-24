@@ -79,6 +79,7 @@ final class LicenseSharing {
 			'invitation_wrong_email'   => array( 'error', __( 'This invitation was sent to another email address. Sign in with the account that uses that address, or create one with it.', 'wp-license' ) ),
 			'invitation_already_member' => array( 'notice', __( 'You are already a co-user of this license.', 'wp-license' ) ),
 			'invitation_own_license'   => array( 'notice', __( 'This license already belongs to your account.', 'wp-license' ) ),
+			'invitation_member_limit'  => array( 'error', __( 'This license has no free co-user place at the moment. Ask the license owner to free one; your invitation stays valid until it expires.', 'wp-license' ) ),
 			'invitation_busy'          => array( 'notice', __( 'A renewal of this license is being processed. Please try again in a few minutes.', 'wp-license' ) ),
 		);
 	}
@@ -118,7 +119,9 @@ final class LicenseSharing {
 
 			case 'wplc_accept_invitation':
 				$token = isset( $post['token'] ) && is_string( $post['token'] ) ? strtolower( trim( $post['token'] ) ) : '';
-				return self::code( LicenseMembers::accept( $target, $token, $user_id ), '' );
+				$result = LicenseMembers::accept( $target, $token, $user_id );
+				// The invitee cannot remove co-users: tell them to ask the owner instead of the owner's notice.
+				return LicenseMembers::RESULT_LIMIT === $result ? 'invitation_member_limit' : self::code( $result, '' );
 		}
 
 		return 'action_unavailable';
