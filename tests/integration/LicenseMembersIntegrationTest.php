@@ -535,6 +535,34 @@ final class LicenseMembersIntegrationTest extends WPLC_Portal_TestCase {
 	}
 
 	/** SET-LIC-18: number of co-users, validity of invitations, transfer on/off and a new key come from the settings. */
+	// P2-M4: invitations sent before the limit was lowered cannot add co-users beyond the new limit.
+	public function test_accepting_is_bound_to_the_limit_in_force(): void {
+		$license = $this->seed_license( array( 'customer_id' => $this->owner ) );
+		$second  = self::factory()->user->create( array( 'role' => 'customer', 'user_email' => 'second@example.test' ) );
+		$third   = self::factory()->user->create( array( 'role' => 'customer', 'user_email' => 'third@example.test' ) );
+		$links   = array();
+		foreach ( array( 'invitee@example.test', 'second@example.test', 'third@example.test' ) as $email ) {
+			$this->assertRedirectWithNotice( 'member_invited', $this->invite( $email ) );
+			$links[ $email ] = $this->last_link();
+		}
+
+		update_option( \WPLC\Settings\Registry::OPTION, array( 'co_user_limit' => 1 ) );
+		$this->assertSame( LicenseMembers::RESULT_ACCEPTED_MEMBER, LicenseMembers::accept( $links['invitee@example.test'][0], $links['invitee@example.test'][1], $this->invitee ) );
+		$this->assertSame( LicenseMembers::RESULT_LIMIT, LicenseMembers::accept( $links['second@example.test'][0], $links['second@example.test'][1], $second ) );
+		$this->assertRedirectWithNotice( 'member_limit', $this->accept( $third, $links['third@example.test'][0], $links['third@example.test'][1] ) );
+		$this->assertTrue( LicenseMembers::is_member( $license['id'], $this->invitee ) );
+		$this->assertFalse( LicenseMembers::is_member( $license['id'], $second ) );
+		$this->assertFalse( LicenseMembers::is_member( $license['id'], $third ) );
+		$statuses = array_column( $this->member_rows( $license['id'] ), 'status' );
+		sort( $statuses );
+		$this->assertSame( array( 'active', 'pending', 'pending' ), $statuses, 'The refused invitations stay open.' );
+
+		// Once there is room again, an open invitation can be accepted.
+		update_option( \WPLC\Settings\Registry::OPTION, array( 'co_user_limit' => 2 ) );
+		$this->assertSame( LicenseMembers::RESULT_ACCEPTED_MEMBER, LicenseMembers::accept( $links['second@example.test'][0], $links['second@example.test'][1], $second ) );
+		$this->assertSame( LicenseMembers::RESULT_LIMIT, LicenseMembers::accept( $links['third@example.test'][0], $links['third@example.test'][1], $third ) );
+	}
+
 	public function test_co_users_and_transfer_follow_the_settings(): void {
 		global $wpdb;
 		$recipient = self::factory()->user->create( array( 'role' => 'customer', 'user_email' => 'recipient@example.test' ) );
