@@ -229,7 +229,7 @@ Beta versions (since 2.4.0): with `allow_channel_choice => true` the customer ti
 - **License screen:** status, paid until, sites in use, environment and installation ID, last check and last error, key field, "Check now", "Remove license from this site". The key and the installation secret are never printed.
 - **Site Health:** a section "{name} – License" under Tools → Site Health → Info and a test "License check" under Status.
 - **Notices** for grace, expired, suspended, revoked, deactivated, copied site, stale snapshot, misconfiguration and a server unreachable for more than three days.
-- **Daily check:** cron event `{prefix}_license_check`; if WP-Cron does not run, the next admin page view of a user who may manage the license catches up after 36 hours.
+- **Daily check:** cron event `{prefix}_license_check`; if WP-Cron does not run, the next admin page view of a user who may manage the license catches up after 36 hours. Since client 2.4.1 it schedules the check as a WP-Cron event and starts WP-Cron in the background instead of waiting for the server (once per request for all add-ons); only the add-on's own license screen still checks at once.
 
 | Hook | Kind | Purpose |
 | --- | --- | --- |

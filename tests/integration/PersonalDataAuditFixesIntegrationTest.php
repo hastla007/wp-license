@@ -248,6 +248,56 @@ final class PersonalDataAuditFixesIntegrationTest extends WPLC_Integration_TestC
 		$this->assertStringContainsString( 'Stripe', $text );
 		$this->assertStringContainsString( 'order key', $text );
 		$this->assertStringContainsString( 'external package host', $text );
-		$this->assertStringContainsString( 'billing e-mail address', $text );
+		$this->assertStringContainsString( 'billing email address', $text );
+	}
+
+	// P3-A5: the suggested text names every flow with personal data added since.
+	public function test_privacy_policy_text_names_webhooks_cancellation_page_and_the_evidence_records(): void {
+		$text = PersonalData::privacy_policy_text();
+		$this->assertStringContainsString( 'outgoing webhooks', $text );
+		$this->assertStringContainsString( 'right of withdrawal', $text );
+		$this->assertStringContainsString( 'cancellation page', $text );
+		$this->assertStringContainsString( 'raise the renewal price', $text );
+		$this->assertStringContainsString( 'upgrade a license', $text );
+		$this->assertStringContainsString( 'ten years after the end of the year', $text );
+	}
+
+	// P3-A4: a price-change notice record is exported with its own labels.
+	public function test_price_change_notice_records_are_exported_as_notices(): void {
+		global $wpdb;
+		$customer = self::factory()->user->create( array( 'role' => 'customer', 'user_email' => 'notice-a4@example.test' ) );
+		$license  = $this->seed_license( array( 'customer_id' => $customer ) );
+		$this->assertTrue(
+			\WPLC\Billing\ConsentRecord::store(
+				array(
+					'license_id' => $license['id'],
+					'customer_id' => $customer,
+					'consent_at' => '2026-05-01 10:00:00',
+					'source' => \WPLC\Billing\ConsentRecord::SOURCE_PRICE_NOTICE,
+					'text' => 'Price change notice sent by email: from 49.00 EUR to 59.00 EUR',
+					'amount_minor' => 5900,
+					'currency' => 'EUR',
+				)
+			)
+		);
+		$this->assertTrue( \WPLC\Billing\ConsentRecord::store( array( 'license_id' => $license['id'], 'customer_id' => $customer, 'consent_at' => '2026-05-01 10:00:00', 'source' => 'price_notice', 'text' => 'Price change notice sent by email: from 49.00 EUR to 59.00 EUR' ) ), 'Repeated: nothing new.' );
+		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE license_id = %d', $this->tables()['consents'], $license['id'] ) ) );
+
+		$found = array();
+		for ( $page = 1; $page <= 20; ++$page ) {
+			$result = PersonalData::export_personal_data( 'notice-a4@example.test', $page );
+			foreach ( $result['data'] as $group ) {
+				if ( 'wp-license-captain-consents' === $group['group_id'] ) {
+					foreach ( $group['data'] as $pair ) {
+						$found[ $pair['name'] ] = $pair['value'];
+					}
+				}
+			}
+			if ( $result['done'] ) {
+				break;
+			}
+		}
+		$this->assertSame( '2026-05-01 10:00:00', $found['Price change notice sent at (UTC)'] ?? null );
+		$this->assertStringContainsString( 'to 59.00 EUR', (string) ( $found['Content of the notice'] ?? '' ) );
 	}
 }

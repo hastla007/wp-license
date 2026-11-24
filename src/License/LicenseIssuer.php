@@ -37,7 +37,6 @@ final class LicenseIssuer {
 
 	/** @var string */
 	private static $last_failure = '';
-
 	/**
 	 * Why the last call of issue_manual() returned zero, so a caller can say more than "not issued".
 	 *
@@ -51,6 +50,21 @@ final class LicenseIssuer {
 	 * Order meta with the reason why licenses are still missing. Deleted once all are issued.
 	 */
 	const META_PROBLEM = '_wplc_issuance_problem';
+
+	/**
+	 * Order meta: more units are waiting for the next background batch (P2-M6). Deleted when all are issued.
+	 */
+	const META_BATCHED = '_wplc_issuance_batched';
+
+	/**
+	 * New licenses one call issues at most (P2-M6); filter `wplc_license_issue_batch_size`.
+	 */
+	const DEFAULT_BATCH_SIZE = 50;
+
+	/**
+	 * New licenses one background batch issues at most (P2-M6).
+	 */
+	const BACKGROUND_BATCH_SIZE = 500;
 
 	/**
 	 * Action Scheduler hook: finish what the checkout request started for one license (key email).
@@ -88,7 +102,7 @@ final class LicenseIssuer {
 		add_filter( 'woocommerce_order_item_display_meta_key', array( self::class, 'display_meta_key' ), 10, 2 );
 		add_action( 'woocommerce_order_status_processing', array( self::class, 'maybe_issue_order' ), 20 );
 		add_action( 'woocommerce_order_status_completed', array( self::class, 'maybe_issue_order' ), 20 );
-		add_action( self::RETRY_HOOK, array( self::class, 'maybe_issue_order' ) );
+		add_action( self::RETRY_HOOK, array( self::class, 'maybe_issue_order' ), 10, 2 );
 		add_action( self::FOLLOWUP_HOOK, array( self::class, 'run_followup' ) );
 		// Before the expiry run (priority 10) and the reminders (20).
 		add_action( 'wplc_daily_lifecycle', array( self::class, 'recover_unfinished' ), 5 );
@@ -97,10 +111,11 @@ final class LicenseIssuer {
 	/**
 	 * Issue licenses for configured items on a paid order.
 	 *
-	 * @param int $order_id WooCommerce order ID.
+	 * @param int   $order_id WooCommerce order ID.
+	 * @param mixed $context  'batch' for a background batch of a large order (P2-M6), else empty.
 	 * @return void
 	 */
-	public static function maybe_issue_order( $order_id ): void {
+	public static function maybe_issue_order( $order_id, $context = '' ): void {
 		if ( ! function_exists( 'wc_get_order' ) ) {
 			return;
 		}
@@ -142,6 +157,9 @@ final class LicenseIssuer {
 
 		$customer_id = null;
 		$problems    = array();
+		// P2-M6: at most this many new licenses per call (a paying request runs at most the payment hook and
+		// two status hooks); the rest follows in background batches.
+		$budget = self::batch_size( 'batch' === $context );
 
 		foreach ( $order->get_items( 'line_item' ) as $item_id => $item ) {
 			// Catalog::find_mapping() is the one rule for "license product", including the
@@ -162,8 +180,18 @@ final class LicenseIssuer {
 
 			$quantity = max( 0, (int) $item->get_quantity() );
 			$issued   = array();
+			// Finished units in one query instead of one query per unit.
+			$finished = $quantity > 1 ? self::finished_units( (int) $item_id ) : array();
 
 			for ( $unit_index = 0; $unit_index < $quantity; $unit_index++ ) {
+				if ( isset( $finished[ $unit_index ] ) ) {
+					$issued[] = $finished[ $unit_index ];
+					continue;
+				}
+				if ( $budget < 1 ) {
+					$problems['batched'] = true;
+					break;
+				}
 				$existing_id = self::find_existing( (int) $item_id, $unit_index );
 				if ( $existing_id > 0 ) {
 					$issued[] = $existing_id;
@@ -174,6 +202,7 @@ final class LicenseIssuer {
 					continue;
 				}
 
+				--$budget;
 				$license_id = self::create_license( $order, $item, $mapping, $unit_index, $customer_id );
 				if ( $license_id ) {
 					$issued[] = $license_id;
@@ -330,6 +359,21 @@ final class LicenseIssuer {
 	 * @return void
 	 */
 	private static function record_outcome( $order, array $problems ): void {
+		// P2-M6: units beyond the batch size of this request are not a problem; the next batch runs in the background.
+		$batched  = in_array( 'batched', $problems, true );
+		$problems = array_values( array_diff( $problems, array( 'batched' ) ) );
+		if ( $batched ) {
+			if ( '1' !== (string) $order->get_meta( self::META_BATCHED, true ) ) {
+				$order->update_meta_data( self::META_BATCHED, '1' );
+				$order->save_meta_data();
+				$order->add_order_note( __( 'WP License Captain: this order contains many licenses. They are issued in batches in the background; the order notes list each license as it is issued.', 'wp-license' ) );
+			}
+			// Own arguments, so a pending retry of another kind (in_progress, later) does not swallow it.
+			Requirements::schedule_single_action( time(), self::RETRY_HOOK, array( (int) $order->get_id(), 'batch' ) );
+		} elseif ( '' !== (string) $order->get_meta( self::META_BATCHED, true ) ) {
+			$order->delete_meta_data( self::META_BATCHED );
+			$order->save_meta_data();
+		}
 		$previous = (string) $order->get_meta( self::META_PROBLEM, true );
 
 		if ( ! $problems ) {
@@ -411,6 +455,49 @@ final class LicenseIssuer {
 		$ids = array_map( 'intval', is_array( $ids ) ? $ids : array() );
 
 		return $ids ? $ids : array_values( array_unique( $fallback ) );
+	}
+
+	/**
+	 * New licenses one call of maybe_issue_order() issues at most (P2-M6).
+	 *
+	 * Issuing takes some milliseconds per license (key, entitlements, notes, email job). An order
+	 * with a very large quantity is therefore issued in batches: the paying request issues the
+	 * first batch, Action Scheduler the rest, each batch in its own request. Background batches
+	 * are larger (BACKGROUND_BATCH_SIZE), because no customer waits for them.
+	 *
+	 * @param bool $background True for a background batch.
+	 * @return int Between 1 and 1000.
+	 */
+	public static function batch_size( bool $background = false ): int {
+		/**
+		 * Filters how many licenses one call of the issuer issues at most; the rest follows in background batches.
+		 *
+		 * @param int  $size       Default 50 in the paying request, 500 in a background batch.
+		 * @param bool $background Whether the request is a background batch.
+		 */
+		return max( 1, min( 1000, (int) apply_filters( 'wplc_license_issue_batch_size', $background ? self::BACKGROUND_BATCH_SIZE : self::DEFAULT_BATCH_SIZE, $background ) ) );
+	}
+
+	/**
+	 * Units of an order item whose license is finished (not `pending`).
+	 *
+	 * @param int $order_item_id Order item ID.
+	 * @return array<int,int> Unit index => license ID.
+	 */
+	private static function finished_units( int $order_item_id ): array {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$rows   = $wpdb->get_results(
+			$wpdb->prepare( 'SELECT id, unit_index FROM %i WHERE source_order_item_id = %d AND status <> %s', $tables['licenses'], $order_item_id, 'pending' ),
+			ARRAY_A
+		);
+		$units  = array();
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$units[ (int) $row['unit_index'] ] = (int) $row['id'];
+		}
+
+		return $units;
 	}
 
 	/**
@@ -1020,7 +1107,11 @@ final class LicenseIssuer {
 			}
 		}
 
-		if ( function_exists( 'wc_get_orders' ) ) {
+		// Orders with a problem, and orders whose background batches stopped (P2-M6).
+		foreach ( array( self::META_PROBLEM, self::META_BATCHED ) as $meta_key ) {
+			if ( ! function_exists( 'wc_get_orders' ) ) {
+				break;
+			}
 			$query = array(
 				'limit' => 50,
 				'return' => 'ids',
@@ -1032,14 +1123,14 @@ final class LicenseIssuer {
 				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- daily, limited, only flagged orders carry the key.
 				$query['meta_query'] = array(
 					array(
-						'key' => self::META_PROBLEM,
+						'key' => $meta_key,
 						'compare' => 'EXISTS',
 					),
 				);
 			} else {
 				// The legacy order storage does not accept meta_query; these two arguments reach WP_Query.
 				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- daily, limited, only flagged orders carry the key.
-				$query['meta_key']     = self::META_PROBLEM;
+				$query['meta_key']     = $meta_key;
 				$query['meta_compare'] = 'EXISTS';
 			}
 			$flagged = wc_get_orders( $query );

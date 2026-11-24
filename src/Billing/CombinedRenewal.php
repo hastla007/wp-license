@@ -51,9 +51,6 @@ final class CombinedRenewal {
 	/** Default of the most licenses in one combined order (setting combined_renewal_max_lines, SET-LIC-41). */
 	public const MAX_LINES = 20;
 
-	/** Option of the settings checkbox. */
-	public const OPTION = 'wplc_combined_renewals';
-
 	/**
 	 * Most licenses in one combined order: the setting "Combined renewal: most licenses per order".
 	 *

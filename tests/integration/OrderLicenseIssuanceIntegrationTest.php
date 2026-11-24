@@ -130,6 +130,49 @@ final class OrderLicenseIssuanceIntegrationTest extends WPLC_Integration_TestCas
 		);
 	}
 
+	// P2-M6: a very large quantity is issued in bounded batches; the rest follows through Action Scheduler.
+	public function test_large_quantity_is_issued_in_background_batches(): void {
+		add_filter(
+			'wplc_license_issue_batch_size',
+			static function ( $size, $background = false ) {
+				return $background ? 3 : 2;
+			},
+			10,
+			2
+		);
+		$product = $this->create_license_product();
+		$order   = $this->create_paid_order( array( array( $product, 9 ) ), self::factory()->user->create() );
+		$id      = $order->get_id();
+
+		// The paying request: payment and status hook, at most two new licenses each.
+		$count = count( $this->licenses_for_order( $id ) );
+		$this->assertGreaterThanOrEqual( 2, $count );
+		$this->assertLessThanOrEqual( 4, $count );
+		$order = wc_get_order( $id );
+		$this->assertSame( '1', (string) $order->get_meta( \WPLC\License\LicenseIssuer::META_BATCHED ) );
+		$this->assertSame( '', (string) $order->get_meta( \WPLC\License\LicenseIssuer::META_PROBLEM ), 'Batching is not a problem of the order.' );
+		$this->assertNotFalse( as_next_scheduled_action( \WPLC\License\LicenseIssuer::RETRY_HOOK, array( $id, 'batch' ), 'wplc' ), 'The next batch is queued.' );
+
+		// Background batches of three until all units are there; repeating changes nothing.
+		$runs = 0;
+		while ( count( $this->licenses_for_order( $id ) ) < 9 && $runs < 10 ) {
+			$before = count( $this->licenses_for_order( $id ) );
+			do_action( \WPLC\License\LicenseIssuer::RETRY_HOOK, $id, 'batch' );
+			$this->assertLessThanOrEqual( $before + 3, count( $this->licenses_for_order( $id ) ) );
+			++$runs;
+		}
+		$licenses = $this->licenses_for_order( $id );
+		$this->assertSame( range( 0, 8 ), array_map( 'intval', wp_list_pluck( $licenses, 'unit_index' ) ) );
+		$this->assertCount( 9, array_unique( wp_list_pluck( $licenses, 'license_key_hash' ) ) );
+		$order = wc_get_order( $id );
+		$this->assertSame( '', (string) $order->get_meta( \WPLC\License\LicenseIssuer::META_BATCHED ), 'Done: the flag is removed.' );
+		$this->assertCount( 9, (array) $this->first_item( $order )->get_meta( '_wplc_license_ids', true ) );
+		do_action( \WPLC\License\LicenseIssuer::RETRY_HOOK, $id, 'batch' );
+		do_action( 'woocommerce_order_status_completed', $id );
+		$this->assertCount( 9, $this->licenses_for_order( $id ) );
+		$this->assertSame( 50, \WPLC\License\LicenseIssuer::DEFAULT_BATCH_SIZE );
+	}
+
 	public function test_duplicate_payment_and_status_hooks_do_not_duplicate_licenses(): void {
 		$product = $this->create_license_product();
 		$order   = $this->create_paid_order( array( array( $product, 2 ) ), self::factory()->user->create() );

@@ -321,18 +321,29 @@ final class PublicCancellationIntegrationTest extends WPLC_Portal_TestCase {
 		$this->assertSame( 0, $this->run_confirmations() );
 		$this->assertSame( array(), $this->mails() );
 
-		// Many clients trying one reference with different addresses (P-08).
-		for ( $attempt = 1; $attempt <= $limit; ++$attempt ) {
+		// P3-A6: many clients trying the owner's license reference with wrong addresses get the usual answer
+		// and do not block the owner: misses are counted after the lookup and never refuse a request.
+		for ( $attempt = 1; $attempt <= $limit + 3; ++$attempt ) {
 			$_SERVER['REMOTE_ADDR'] = '192.0.2.' . ( 100 + $attempt );
-			$this->assertSame( 'done', $this->cancel_through_the_page( 'other' . $attempt . '@example.test', 'WPLC-33333333' )['done']['view'] );
+			$this->assertSame( 'done', $this->cancel_through_the_page( 'other' . $attempt . '@example.test', $license['prefix'] )['done']['view'] );
 		}
-		$_SERVER['REMOTE_ADDR'] = '192.0.2.150';
-		$this->assertSame( 'limited', $this->cancel_through_the_page( 'other9@example.test', 'WPLC-33333333' )['done']['view'] );
+		$this->assertSame( 0, (int) $this->license( $license['id'] )['cancel_at_period_end'] );
 
-		// Another client and reference are not affected.
+		// The owner, from another client, still cancels.
 		$_SERVER['REMOTE_ADDR'] = '192.0.2.201';
 		$this->assertSame( 'done', $this->cancel_through_the_page( $email, $license['prefix'] )['done']['view'] );
 		$this->assertSame( 1, (int) $this->license( $license['id'] )['cancel_at_period_end'] );
+	}
+
+	// P3-A6: order numbers, which are easy to guess, stay limited per order number before the lookup.
+	public function test_order_numbers_stay_limited_per_reference(): void {
+		$limit = PublicCancellation::DEFAULT_HOURLY_LIMIT;
+		for ( $attempt = 1; $attempt <= $limit; ++$attempt ) {
+			$_SERVER['REMOTE_ADDR'] = '192.0.2.' . ( 160 + $attempt );
+			$this->assertSame( 'done', $this->cancel_through_the_page( 'order' . $attempt . '@example.test', '987654' )['done']['view'] );
+		}
+		$_SERVER['REMOTE_ADDR'] = '192.0.2.190';
+		$this->assertSame( 'limited', $this->cancel_through_the_page( 'order9@example.test', '987654' )['done']['view'] );
 	}
 
 	/**

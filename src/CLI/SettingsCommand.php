@@ -31,7 +31,7 @@ final class SettingsCommand {
 	 * ## OPTIONS
 	 *
 	 * [--group=<group>]
-	 * : Only the settings of one group (updates, renewals, emails, rules, sites, legal, texts, operations).
+	 * : Only the settings of one group (updates, renewals, emails, rules, sites, sharing, account, legal, texts, operations).
 	 *
 	 * [--format=<format>]
 	 * : table, json or csv. Default: table.
@@ -104,6 +104,9 @@ final class SettingsCommand {
 		foreach ( $result['lines'] as $line ) {
 			\WP_CLI::line( $line );
 		}
+		foreach ( $result['warnings'] as $warning ) {
+			\WP_CLI::warning( $warning );
+		}
 		if ( ! $result['ok'] ) {
 			\WP_CLI::error( $result['message'] );
 		}
@@ -171,7 +174,7 @@ final class SettingsCommand {
 	 * ## OPTIONS
 	 *
 	 * [--group=<group>]
-	 * : Group to reset. Without it all settings are reset.
+	 * : Group to reset (updates, renewals, emails, rules, sites, sharing, account, legal, texts, operations). Without it all settings are reset.
 	 *
 	 * [--apply]
 	 * : Change the settings. Without it nothing is changed.
@@ -250,6 +253,9 @@ final class SettingsCommand {
 			return;
 		}
 		$result = self::change( $values, $action, $reason, ! empty( $assoc_args['yes'] ) );
+		foreach ( $result['warnings'] as $warning ) {
+			\WP_CLI::warning( $warning );
+		}
 		if ( ! $result['ok'] ) {
 			\WP_CLI::error( $result['message'] );
 		}
@@ -286,44 +292,72 @@ final class SettingsCommand {
 	/**
 	 * Change settings. Kept free of WP_CLI calls so it can be tested.
 	 *
-	 * All values must be valid, or nothing is changed.
+	 * All values must be valid, or nothing is changed. A value that may not change (fixed, set by
+	 * a constant, in conflict with another setting, or refused when stored) is reported with its
+	 * reason; when no value changed because of that, the result is a failure (P1-M5).
 	 *
 	 * @param array<string,mixed> $values    Key => value.
 	 * @param string              $action    Audit action.
 	 * @param string              $reason    Audit reason.
 	 * @param bool                $confirmed Whether --yes was given.
-	 * @return array{ok:bool,message:string,lines:string[],applied:string[]}
+	 * @return array{ok:bool,message:string,lines:string[],applied:string[],warnings:string[]}
 	 */
 	public static function change( array $values, string $action, string $reason, bool $confirmed = false ): array {
-		$lines = array();
+		$lines   = array();
+		$refused = array();
+		$fail    = static function ( string $message ): array {
+			return array(
+				'ok'       => false,
+				'message'  => $message . ' Nothing was changed.',
+				'lines'    => array(),
+				'applied'  => array(),
+				'warnings' => array(),
+			);
+		};
 		foreach ( Changes::preview( $values, false ) as $row ) {
 			if ( in_array( $row['state'], array( 'invalid', 'unknown' ), true ) ) {
-				return array(
-					'ok'      => false,
-					'message' => $row['key'] . ': ' . $row['error'] . ' Nothing was changed.',
-					'lines'   => array(),
-					'applied' => array(),
-				);
+				return $fail( $row['key'] . ': ' . $row['error'] );
 			}
 			if ( 'change' === $row['state'] && 'uninstall_data' === $row['key'] && 'delete' === $row['value'] && ! $confirmed ) {
-				return array(
-					'ok'      => false,
-					'message' => 'uninstall_data: deleting all license data with the plugin needs --yes. Nothing was changed.',
-					'lines'   => array(),
-					'applied' => array(),
-				);
+				return $fail( 'uninstall_data: deleting all license data with the plugin needs --yes.' );
 			}
 			if ( 'change' === $row['state'] ) {
 				$lines[] = $row['key'] . ': ' . $row['before'] . ' -> ' . $row['after'];
+			} elseif ( ! in_array( $row['state'], array( 'same', 'undecided' ), true ) ) {
+				$refused[ $row['key'] ] = $row['error'];
 			}
 		}
 		$result = Changes::apply( $values, $action, $reason, false );
+		foreach ( $result['skipped'] as $key => $state ) {
+			if ( ! isset( $refused[ $key ] ) ) {
+				$refused[ $key ] = 'refused' === $state ? 'The value was refused when it was stored.' : 'Not changed (' . $state . ').';
+			}
+		}
+		$lines = array_values(
+			array_filter(
+				$lines,
+				static function ( string $line ) use ( $refused ): bool {
+					return ! isset( $refused[ strstr( $line, ':', true ) ] );
+				}
+			)
+		);
+		$reasons = array();
+		foreach ( $refused as $key => $why ) {
+			$reasons[] = $key . ': ' . $why;
+		}
+		if ( ! $result['applied'] && $reasons ) {
+			return $fail( implode( ' ', $reasons ) );
+		}
+		foreach ( $reasons as $line ) {
+			$lines[] = 'Not changed: ' . $line;
+		}
 
 		return array(
-			'ok'      => true,
-			'message' => $result['applied'] ? count( $result['applied'] ) . ' setting(s) changed.' : 'Nothing to change.',
-			'lines'   => $lines,
-			'applied' => $result['applied'],
+			'ok'       => true,
+			'message'  => $result['applied'] ? count( $result['applied'] ) . ' setting(s) changed.' : 'Nothing to change.',
+			'lines'    => $lines,
+			'applied'  => $result['applied'],
+			'warnings' => array_values( $result['warnings'] ),
 		);
 	}
 }

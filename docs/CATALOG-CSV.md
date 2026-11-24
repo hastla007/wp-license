@@ -8,6 +8,8 @@ Users who may manage the license catalog can export the current plans and import
 
 The screen, the export and the import need the catalog capability: `manage_woocommerce` by default, changeable with the filter `wplc_capability` (second argument `manage_catalog`). The same capability is needed to see and save the license fields in the product editor. Being allowed to edit products is neither needed nor enough.
 
+The rules of a plan that replace manufacturer rules of the license settings (`staging_site_limit`, `development_site_limit`, `offline_cache_days`, `co_user_limit`, `beta_allowed`) can only be changed by users who also have the capability of those settings, `wplc_manage_policy` (`manage_options` by default). For a user without it, the import keeps the stored values of these columns, imports the rest of the row and lists the lines and rules it kept on the result screen; the product editor shows them read-only with the reason. `max_quantity_per_line` stays with the catalog capability. WP-CLI and cron runs are not limited.
+
 ## File format
 
 Columns, in this order:
@@ -29,7 +31,7 @@ A file with only the first nine columns (exported before the overrides per plan 
 | `entitlements_json` | JSON object with simple values, at most 4096 characters, or empty. |
 | `staging_site_limit` | Staging sites per live site of this plan, 0 to 10, or empty for the global setting. |
 | `development_site_limit` | Development sites of a license of this plan, exactly this number, 0 to 100, or empty. |
-| `offline_cache_days` | Offline period of the customer sites of this plan in days, 1 to 90, or empty. |
+| `offline_cache_days` | Offline period of the customer sites of this plan in days, 2 to 90, or empty. A stored 1 of an older version counts as 2. |
 | `max_quantity_per_line` | Largest quantity of this plan in one order line, 0 to 100000 (0 = no limit), or empty. |
 | `co_user_limit` | Co-users per license of this plan, 0 to 100, or empty. |
 | `beta_allowed` | `1` = customer sites of this plan may receive beta versions, `0` = stable versions only, empty = the setting "Beta versions for licenses" (SET-LIC-20). |

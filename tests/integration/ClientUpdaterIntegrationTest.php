@@ -380,7 +380,11 @@ final class ClientUpdaterIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$outcome = $this->upgrade();
 
 		$this->assertWPError( $outcome['result'] );
-		$this->assertSame( 'wplc_update_checksum', $outcome['result']->get_error_code(), 'The client compares the bytes it received with the sum the server signed at publish time.' );
+		// UEB-12 (3): the server checks the file against its registered checksum before streaming and refuses it,
+		// so the client gets a failed download (its own SHA-256 check is covered by the next test).
+		$this->assertSame( 'wplc_update_failed', $outcome['result']->get_error_code() );
+		global $wpdb;
+		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE action = %s AND object_id = %d', \WPLC\Infrastructure\Database\Schema::table_names()['audit_log'], 'package_checksum_mismatch', $id ) ) );
 		$this->assertSame( '1.0.0', $this->installed_version(), 'Nothing was installed.' );
 		$this->assertStringNotContainsString( 'Evil twin', (string) file_get_contents( WP_PLUGIN_DIR . '/' . self::PLUGIN ) );
 	}

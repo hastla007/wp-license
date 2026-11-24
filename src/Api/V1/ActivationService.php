@@ -318,7 +318,7 @@ final class ActivationService {
 			}
 		}
 
-		$encrypted_secret = SecretCrypto::encrypt( $secret );
+		$encrypted_secret = SecretCrypto::encrypt( $secret, SecretCrypto::PURPOSE_INSTALLATION, $installation_uuid );
 		if ( false === $encrypted_secret ) {
 			return new \WP_Error( 'server_configuration', 'The license server could not securely store the installation credential.', array( 'status' => 500 ) );
 		}
@@ -754,8 +754,10 @@ final class ActivationService {
 
 		// A-03: product key and plan key do not identify one plan (a yearly and a monthly product
 		// may share them, and the highest ID is not the last saved plan). The plan is found
-		// through the product the license was bought with.
-		$plan = \WPLC\Billing\RenewalOrder::plan_for_license( $license );
+		// through the product the license was bought with. A sold license keeps the limit it was
+		// bought with when its product is moved to the trash (inactive plan), like the other rules
+		// of its plan (P2-I1).
+		$plan = \WPLC\Billing\RenewalOrder::plan_for_license( $license, true );
 
 		return max( 1, is_array( $plan ) ? absint( $plan['live_site_limit'] ?? 0 ) : 0 );
 	}

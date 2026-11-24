@@ -618,6 +618,16 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$this->assertStringContainsString( $manager->client()->installation_id(), $html );
 		$this->assertStringContainsString( 'value="deactivate"', $html );
 		$this->assertStringContainsString( 'value="check"', $html );
+		// CP-P5-08 (2.4.1): the key field has its own form, so that Enter in it sends Activate.
+		$this->assertSame( 2, substr_count( $html, '<form method="post"' ) );
+		$this->assertSame( 2, substr_count( $html, 'name="_wpnonce"' ) );
+		$this->assertSame( 2, substr_count( $html, 'name="_wp_http_referer"' ) );
+		$this->assertSame( 1, substr_count( $html, 'id="_wpnonce"' ), 'No duplicate id.' );
+		$key_form = substr( $html, (int) strrpos( $html, '<form method="post"' ) );
+		$this->assertStringContainsString( 'name="test_product_license_key"', $key_form );
+		$this->assertSame( 1, preg_match_all( '/<button type="submit"[^>]* value="([a-z]+)"/', $key_form, $buttons ) );
+		$this->assertSame( array( 'activate' ), $buttons[1] );
+		$this->assertTrue( wp_verify_nonce( (string) preg_replace( '/.*name="_wpnonce" value="([^"]+)".*/s', '$1', $key_form ), 'test_product_license' ) > 0 );
 		$this->assertStringNotContainsString( $license['key'], $html, 'The key is never printed.' );
 		$this->assertStringNotContainsString( get_option( 'test_product_license' )['installation_secret'], $html );
 		ob_start();
@@ -636,14 +646,76 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		do_action( 'test_product_license_check' );
 		$this->assertSame( array( 'POST /wplc/v1/entitlements/check 200' ), $this->http_routes() );
 
-		// Catch-up: WP-Cron did not run for two days; the next admin page view of an administrator checks.
+		// Catch-up: WP-Cron did not run for two days; the next admin page view of an administrator
+		// schedules the check in the background (2.4.1, CP-P6-09: the page view does not wait for the server).
+		$spawned = array();
+		$spy     = static function ( $pre, $args, $url ) use ( &$spawned ) {
+			if ( false !== strpos( (string) $url, 'wp-cron.php' ) ) {
+				$spawned[] = (string) $url;
+				return array( 'headers' => array(), 'body' => '', 'response' => array( 'code' => 200, 'message' => '' ), 'cookies' => array(), 'filename' => null );
+			}
+			return $pre;
+		};
+		add_filter( 'pre_http_request', $spy, -1, 3 );
+		unset( $GLOBALS[ LicenseManager::CRON_SPAWNED_GLOBAL ] );
+		delete_transient( 'doing_cron' );
+		$single = static function (): array {
+			$events = array();
+			foreach ( (array) _get_cron_array() as $timestamp => $hooks ) {
+				foreach ( (array) ( $hooks['test_product_license_check'] ?? array() ) as $event ) {
+					if ( false === $event['schedule'] ) {
+						$events[] = (int) $timestamp;
+					}
+				}
+			}
+			return $events;
+		};
 		$this->http_log = array();
 		$manager->catch_up();
 		$this->assertSame( array(), $this->http_log, 'Nothing to catch up right after a check.' );
+		$this->assertSame( array(), $single() );
 		$state                  = get_option( 'test_product_license_state' );
 		$state['last_attempt'] -= 2 * DAY_IN_SECONDS;
 		update_option( 'test_product_license_state', $state, false );
 		$manager->catch_up();
+		$this->assertSame( array(), $this->http_log, 'The admin page view itself does not ask the server.' );
+		$events = $single();
+		$this->assertCount( 1, $events, 'One one-off WP-Cron event of this add-on is scheduled.' );
+		$this->assertLessThanOrEqual( time(), $events[0], 'Due at once.' );
+		// The test configuration switches WP-Cron off (DISABLE_WP_CRON): then the system cron runs the event
+		// and nothing is started. ClientRuntimeTest covers the start with WP-Cron switched on.
+		$starts = defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ? 0 : 1;
+		$this->assertCount( $starts, $spawned, 'WP-Cron is started in the background unless it is switched off.' );
+		$this->assertTrue( $GLOBALS[ LicenseManager::CRON_SPAWNED_GLOBAL ] );
+
+		// Further page views within RECHECK_LOCK schedule nothing more.
+		$manager->catch_up();
+		$this->assertCount( 1, $single() );
+		$this->assertCount( $starts, $spawned );
+		// Another due check in the same request (as from a second add-on) is scheduled, but WP-Cron is
+		// not started a second time: the flag in $GLOBALS has a fixed name for every copy of the library.
+		wp_unschedule_event( $events[0], 'test_product_license_check' );
+		delete_transient( 'test_product_license_recheck' );
+		$manager->catch_up();
+		$this->assertCount( 1, $single() );
+		$this->assertCount( $starts, $spawned, 'At most one start of WP-Cron per request, for every add-on.' );
+		remove_filter( 'pre_http_request', $spy, -1 );
+
+		// The event runs (WP-Cron) and checks.
+		do_action( 'test_product_license_check' );
+		$this->assertSame( array( 'POST /wplc/v1/entitlements/check 200' ), $this->http_routes() );
+		$this->assertSame( $this->clock, (int) get_option( 'test_product_license_state' )['last_attempt'] );
+		$this->http_log = array();
+		$manager->catch_up();
+		$this->assertSame( array(), $this->http_log );
+
+		// On the license screen of the add-on itself the check is still made at once.
+		$state                  = get_option( 'test_product_license_state' );
+		$state['last_attempt'] -= 2 * DAY_IN_SECONDS;
+		update_option( 'test_product_license_state', $state, false );
+		$_GET['page'] = 'test-product-license';
+		$manager->catch_up();
+		unset( $_GET['page'] );
 		$this->assertSame( array( 'POST /wplc/v1/entitlements/check 200' ), $this->http_routes() );
 
 		// Privacy guide entry.

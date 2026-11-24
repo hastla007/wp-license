@@ -62,6 +62,21 @@ final class Catalog {
 	private static $last_error = '';
 
 	/**
+	 * Override column the last `invalid_override` failure is about.
+	 *
+	 * @var string
+	 */
+	private static $error_field = '';
+
+	/**
+	 * Overrides the last save_mapping() kept at their stored value because the current user
+	 * may not change them (P4-M1).
+	 *
+	 * @var string[]
+	 */
+	private static $kept_overrides = array();
+
+	/**
 	 * Trim and lowercase a key typed by a person. Nothing else is rewritten:
 	 * a key that does not match the pattern afterwards is rejected, not "cleaned".
 	 *
@@ -103,19 +118,39 @@ final class Catalog {
 	}
 
 	/**
-	 * Human-readable reason for a save_mapping() failure code.
+	 * Override column of the last `invalid_override` failure, '' otherwise.
 	 *
-	 * @param string $code Failure code.
 	 * @return string
 	 */
-	public static function error_message( string $code ): string {
+	public static function last_error_field(): string {
+		return 'invalid_override' === self::$last_error ? self::$error_field : '';
+	}
+
+	/**
+	 * Overrides the last save_mapping() kept unchanged because the current user lacks the
+	 * capability of the setting they replace (P4-M1); only those whose submitted value differed.
+	 *
+	 * @return string[] Column names.
+	 */
+	public static function kept_overrides(): array {
+		return self::$kept_overrides;
+	}
+
+	/**
+	 * Human-readable reason for a save_mapping() failure code.
+	 *
+	 * @param string $code  Failure code.
+	 * @param string $field For `invalid_override`: the override column, to name only that field and its limits.
+	 * @return string
+	 */
+	public static function error_message( string $code, string $field = '' ): string {
 		switch ( $code ) {
 			case 'invalid_product_key':
 				return __( 'The license product key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and needs 2 to 100 characters (for example acme-pro).', 'wp-license' );
 			case 'invalid_plan_key':
 				return __( 'The license plan key may only contain lowercase letters, digits and hyphens, must start with a letter or digit and may have up to 100 characters (for example business).', 'wp-license' );
 			case 'invalid_interval':
-				return __( 'The billing interval must be "month" or "year".', 'wp-license' );
+				return __( 'Choose "Monthly" or "Yearly" as the license billing interval.', 'wp-license' );
 			case 'invalid_entitlements':
 				return __( 'The entitlements contain a value that cannot be stored (for example a number that is too large).', 'wp-license' );
 			case 'product_not_found':
@@ -124,7 +159,21 @@ final class Catalog {
 			case 'invalid_price':
 				return __( 'The product needs a valid regular price before it can become a license product.', 'wp-license' );
 			case 'invalid_override':
-				return __( 'A value for this plan is outside its limits: staging sites 0 to 10, development sites 0 to 100, offline period 1 to 90 days, largest quantity 0 to 100000, co-users 0 to 100. Leave a field empty to use the global setting.', 'wp-license' );
+				if ( isset( PlanOverrides::FIELDS[ $field ] ) ) {
+					list( $min, $max ) = PlanOverrides::FIELDS[ $field ];
+					if ( in_array( $field, PlanOverrides::SWITCHES, true ) ) {
+						/* translators: %s: name of the field, for example "Beta versions". */
+						return sprintf( __( '"%s" must be allowed, not allowed or the global setting.', 'wp-license' ), PlanOverrides::label( $field ) );
+					}
+					return sprintf(
+						/* translators: 1: name of the field, for example "Staging sites per live site", 2: smallest value, 3: largest value. */
+						__( '"%1$s" must be a whole number from %2$s to %3$s. Leave the field empty to use the global setting.', 'wp-license' ),
+						PlanOverrides::label( $field ),
+						number_format_i18n( $min ),
+						number_format_i18n( $max )
+					);
+				}
+				return __( 'A value for this plan is outside its limits: staging sites 0 to 10, development sites 0 to 100, offline period 2 to 90 days, largest quantity 0 to 100000, co-users 0 to 100, beta versions 0 or 1. Leave a field empty to use the global setting.', 'wp-license' );
 			case 'subscription_product':
 				return __( 'WooCommerce Subscriptions products cannot be license products: Subscriptions bills its own renewals and WP License Captain renews licenses itself, so the customer would be charged twice. Use a simple or variable product.', 'wp-license' );
 			default:
@@ -162,7 +211,9 @@ final class Catalog {
 	public static function save_mapping( int $product_id, int $variation_id, array $data ): bool {
 		global $wpdb;
 
-		self::$last_error = '';
+		self::$last_error     = '';
+		self::$error_field    = '';
+		self::$kept_overrides = array();
 
 		$product_key = self::normalize_key( $data['product_key'] ?? '' );
 		$plan_key    = self::normalize_key( $data['plan_key'] ?? '' );
@@ -211,13 +262,25 @@ final class Catalog {
 		$currency = self::base_currency();
 
 		// SET-LIC-21: overrides per plan; only the ones passed are changed.
+		// P4-M1: an override that replaces a setting the current user may not change keeps its
+		// stored value (every path: product editor, CSV, WP-CLI with a user, REST product saves).
+		$before    = self::find_exact_mapping( $product_id, $variation_id, true );
 		$overrides = array();
+		$kept      = array();
 		foreach ( isset( $data['overrides'] ) && is_array( $data['overrides'] ) ? $data['overrides'] : array() as $field => $raw ) {
-			$checked = PlanOverrides::normalize( (string) $field, $raw );
+			$field   = (string) $field;
+			$checked = PlanOverrides::normalize( $field, $raw );
+			if ( isset( PlanOverrides::FIELDS[ $field ] ) && ! PlanOverrides::may_change( $field ) ) {
+				if ( ! $checked['ok'] || $checked['value'] !== PlanOverrides::of_plan( $before, $field ) ) {
+					$kept[] = $field;
+				}
+				continue;
+			}
 			if ( ! $checked['ok'] ) {
+				self::$error_field = $field;
 				return self::fail( 'invalid_override' );
 			}
-			$overrides[ (string) $field ] = $checked['value'];
+			$overrides[ $field ] = $checked['value'];
 		}
 
 		$entitlements = $data['entitlements'] ?? array();
@@ -248,7 +311,6 @@ final class Catalog {
 
 		$now    = current_time( 'mysql', true );
 		$tables = Schema::table_names();
-		$before = self::find_exact_mapping( $product_id, $variation_id, true );
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names come from Schema::table_names().
 		if ( $rename ) {
@@ -331,6 +393,7 @@ final class Catalog {
 
 		self::flush_product_ids();
 		self::audit_change( $before, self::find_exact_mapping( $product_id, $variation_id, true ) );
+		self::$kept_overrides = $kept;
 
 		return true;
 	}

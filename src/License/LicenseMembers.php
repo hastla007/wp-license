@@ -722,23 +722,33 @@ final class LicenseMembers {
 
 		// SET-LIC-18: with co-users switched off (0), an open invitation can no longer be accepted.
 		$license = self::license( (int) $row['license_id'] );
-		if ( $license && 0 === self::member_limit( $license ) ) {
+		$limit   = $license ? self::member_limit( $license ) : 0;
+		if ( $license && 0 === $limit ) {
 			return self::RESULT_NOT_ALLOWED;
 		}
+		$license_id = (int) $row['license_id'];
 
 		$tables     = Schema::table_names();
 		$suppressed = $wpdb->suppress_errors( true );
-		// Compare-and-set on the hash: a second request with the same link changes nothing.
+		// Compare-and-set on the hash: a second request with the same link changes nothing. P2-M4: and only
+		// while the accepted co-users are fewer than the limit in force; invitations sent before the limit
+		// was lowered stay open but cannot add co-users beyond it. The count runs through a derived table,
+		// which MySQL allows on the table being updated.
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				'UPDATE %i SET status = %s, user_id = %d, token_hash = NULL, expires_at = NULL, accepted_at = %s WHERE id = %d AND status = %s AND token_hash = %s',
+				'UPDATE %i SET status = %s, user_id = %d, token_hash = NULL, expires_at = NULL, accepted_at = %s WHERE id = %d AND status = %s AND token_hash = %s AND ( SELECT counted.places FROM ( SELECT COUNT(*) AS places FROM %i WHERE license_id = %d AND kind = %s AND status = %s ) counted ) < %d',
 				$tables['license_members'],
 				self::STATUS_ACTIVE,
 				$user_id,
 				gmdate( 'Y-m-d H:i:s' ),
 				(int) $row['id'],
 				self::STATUS_PENDING,
-				(string) $row['token_hash']
+				(string) $row['token_hash'],
+				$tables['license_members'],
+				$license_id,
+				self::KIND_MEMBER,
+				self::STATUS_ACTIVE,
+				$limit
 			)
 		);
 		$wpdb->suppress_errors( $suppressed );
@@ -748,9 +758,29 @@ final class LicenseMembers {
 			return self::RESULT_ALREADY_MEMBER;
 		}
 		if ( 1 !== (int) $updated ) {
-			return self::RESULT_INVALID;
+			// Still open with this token: the limit is reached. The invitation stays usable until it expires.
+			$open = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE id = %d AND status = %s AND token_hash = %s', $tables['license_members'], (int) $row['id'], self::STATUS_PENDING, (string) $row['token_hash'] ) );
+			return 1 === $open ? self::RESULT_LIMIT : self::RESULT_INVALID;
 		}
-		$license_id = (int) $row['license_id'];
+		// Two acceptances at the same moment may both have counted the other one out: counted again
+		// afterwards, an acceptance beyond the limit is undone and its invitation reopened (the link
+		// can be used again once there is room).
+		$active = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE license_id = %d AND kind = %s AND status = %s', $tables['license_members'], $license_id, self::KIND_MEMBER, self::STATUS_ACTIVE ) );
+		if ( $active > $limit ) {
+			$wpdb->query(
+				$wpdb->prepare(
+					'UPDATE %i SET status = %s, user_id = %d, token_hash = %s, expires_at = %s, accepted_at = NULL WHERE id = %d AND status = %s',
+					$tables['license_members'],
+					self::STATUS_PENDING,
+					(int) ( $row['user_id'] ?? 0 ),
+					(string) $row['token_hash'],
+					(string) $row['expires_at'],
+					(int) $row['id'],
+					self::STATUS_ACTIVE
+				)
+			);
+			return self::RESULT_LIMIT;
+		}
 		AuditLog::record(
 			'license_member_added',
 			'license',

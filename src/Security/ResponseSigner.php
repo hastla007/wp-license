@@ -220,7 +220,7 @@ final class ResponseSigner {
 			}
 			$secret = sodium_crypto_sign_secretkey( sodium_crypto_sign_keypair() );
 		}
-		$encrypted = SecretCrypto::encrypt( base64_encode( $secret ) );
+		$encrypted = SecretCrypto::encrypt( base64_encode( $secret ), SecretCrypto::PURPOSE_SIGNING_KEY, self::OPTION );
 		if ( false === $encrypted ) {
 			// Never store the private key in plaintext (B-156).
 			self::reset();
@@ -245,13 +245,15 @@ final class ResponseSigner {
 	 * Binary secret key from a stored option value (an encrypted envelope or plain base64).
 	 *
 	 * @param string $stored Option value.
+	 * @param string $option Option the value is stored in (self::OPTION or self::NEXT_OPTION): the context of its
+	 *                       encryption (UEB-12).
 	 * @return string|null Null when the value cannot be decrypted, e.g. its encryption key left the key ring.
 	 */
-	public static function stored_secret_key( string $stored ): ?string {
+	public static function stored_secret_key( string $stored, string $option = self::OPTION ): ?string {
 		if ( '' === $stored ) {
 			return null;
 		}
-		$plain = 0 === strpos( $stored, 'v1:' ) ? SecretCrypto::decrypt( $stored ) : $stored;
+		$plain = SecretCrypto::is_envelope( $stored ) ? SecretCrypto::decrypt( $stored, SecretCrypto::PURPOSE_SIGNING_KEY, $option ) : $stored;
 		return is_string( $plain ) ? self::secret_key_from( $plain ) : null;
 	}
 
@@ -259,27 +261,28 @@ final class ResponseSigner {
 	 * Re-encryption of a stored key value with the current installation encryption key.
 	 *
 	 * Statuses: 'empty' (nothing stored), 'current' (already encrypted with the current key), 'rotate' (value holds the
-	 * re-encrypted envelope; the stored value was encrypted with a previous key or stored unencrypted) and
-	 * 'undecryptable' (the stored value cannot be decrypted with the configured key ring).
+	 * re-encrypted envelope; the stored value was encrypted with a previous key, in a legacy envelope format or stored
+	 * unencrypted) and 'undecryptable' (the stored value cannot be decrypted with the configured key ring).
 	 *
 	 * @param string $stored Option value.
+	 * @param string $option Option the value is stored in (self::OPTION or self::NEXT_OPTION).
 	 * @return array{status:string,value:string}
 	 */
-	public static function reencrypted( string $stored ): array {
+	public static function reencrypted( string $stored, string $option = self::OPTION ): array {
 		if ( '' === $stored ) {
 			return array( 'status' => 'empty', 'value' => '' );
 		}
-		if ( 0 === strpos( $stored, 'v1:' ) && ! SecretCrypto::needs_rotation( $stored ) ) {
+		if ( SecretCrypto::is_envelope( $stored ) && ! SecretCrypto::needs_rotation( $stored ) ) {
 			return array( 'status' => 'current', 'value' => $stored );
 		}
-		$secret = self::stored_secret_key( $stored );
+		$secret = self::stored_secret_key( $stored, $option );
 		if ( null === $secret ) {
 			return array( 'status' => 'undecryptable', 'value' => $stored );
 		}
-		$encrypted = SecretCrypto::encrypt( base64_encode( $secret ) );
+		$encrypted = SecretCrypto::encrypt( base64_encode( $secret ), SecretCrypto::PURPOSE_SIGNING_KEY, $option );
 		if ( false === $encrypted ) {
 			// No usable encryption key: keep the stored value rather than lose the key.
-			return array( 'status' => 0 === strpos( $stored, 'v1:' ) ? 'undecryptable' : 'current', 'value' => $stored );
+			return array( 'status' => SecretCrypto::is_envelope( $stored ) ? 'undecryptable' : 'current', 'value' => $stored );
 		}
 		return array( 'status' => 'rotate', 'value' => $encrypted );
 	}
@@ -300,7 +303,7 @@ final class ResponseSigner {
 			return 'empty';
 		}
 		$stored = (string) get_option( $option, '' );
-		$result = self::reencrypted( $stored );
+		$result = self::reencrypted( $stored, $option );
 		if ( 'rotate' !== $result['status'] || ! $apply ) {
 			return $result['status'];
 		}
@@ -329,7 +332,7 @@ final class ResponseSigner {
 			return null; // A prepared key exists but cannot be decrypted: do not silently replace a key clients may pin.
 		}
 		$secret    = sodium_crypto_sign_secretkey( sodium_crypto_sign_keypair() );
-		$encrypted = SecretCrypto::encrypt( base64_encode( $secret ) );
+		$encrypted = SecretCrypto::encrypt( base64_encode( $secret ), SecretCrypto::PURPOSE_SIGNING_KEY, self::NEXT_OPTION );
 		if ( false === $encrypted ) {
 			return null;
 		}
@@ -349,7 +352,7 @@ final class ResponseSigner {
 		if ( ! self::available() || ! function_exists( 'get_option' ) ) {
 			return null;
 		}
-		return self::stored_secret_key( (string) get_option( self::NEXT_OPTION, '' ) );
+		return self::stored_secret_key( (string) get_option( self::NEXT_OPTION, '' ), self::NEXT_OPTION );
 	}
 
 	/**
@@ -366,18 +369,18 @@ final class ResponseSigner {
 		if ( '' === $stored ) {
 			return 'none';
 		}
-		$encrypted = 0 === strpos( $stored, 'v1:' );
+		$encrypted = SecretCrypto::is_envelope( $stored );
 		if ( $encrypted && ! SecretCrypto::needs_rotation( $stored ) ) {
 			return 'current';
 		}
-		$plain = $encrypted ? SecretCrypto::decrypt( $stored ) : $stored;
+		$plain = $encrypted ? SecretCrypto::decrypt( $stored, SecretCrypto::PURPOSE_SIGNING_KEY, self::OPTION ) : $stored;
 		if ( ! is_string( $plain ) || null === self::secret_key_from( $plain ) ) {
 			return 'failed';
 		}
 		if ( ! $apply ) {
 			return 'pending';
 		}
-		$fresh = SecretCrypto::encrypt( $plain );
+		$fresh = SecretCrypto::encrypt( $plain, SecretCrypto::PURPOSE_SIGNING_KEY, self::OPTION );
 		if ( false === $fresh ) {
 			return 'failed';
 		}
@@ -459,8 +462,8 @@ final class ResponseSigner {
 	 * @return string|null
 	 */
 	private static function load_stored_key( string $stored ): ?string {
-		$encrypted = 0 === strpos( $stored, 'v1:' );
-		$plain     = $encrypted ? SecretCrypto::decrypt( $stored ) : $stored;
+		$encrypted = SecretCrypto::is_envelope( $stored );
+		$plain     = $encrypted ? SecretCrypto::decrypt( $stored, SecretCrypto::PURPOSE_SIGNING_KEY, self::OPTION ) : $stored;
 		if ( ! is_string( $plain ) ) {
 			return self::fail( 'undecryptable' );
 		}
@@ -469,7 +472,7 @@ final class ResponseSigner {
 			return self::fail( 'corrupt' );
 		}
 		if ( ! $encrypted && function_exists( 'update_option' ) ) {
-			$fresh = SecretCrypto::encrypt( $plain );
+			$fresh = SecretCrypto::encrypt( $plain, SecretCrypto::PURPOSE_SIGNING_KEY, self::OPTION );
 			if ( false !== $fresh ) {
 				update_option( self::OPTION, $fresh, false );
 			}
@@ -523,7 +526,7 @@ final class ResponseSigner {
 			}
 
 			$secret    = sodium_crypto_sign_secretkey( sodium_crypto_sign_keypair() );
-			$encrypted = SecretCrypto::encrypt( base64_encode( $secret ) );
+			$encrypted = SecretCrypto::encrypt( base64_encode( $secret ), SecretCrypto::PURPOSE_SIGNING_KEY, self::OPTION );
 			if ( false === $encrypted ) {
 				// Never store the private key in plaintext (B-156).
 				return self::fail( 'encryption_unavailable' );

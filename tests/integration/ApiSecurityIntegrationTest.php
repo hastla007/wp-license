@@ -152,7 +152,7 @@ final class ApiSecurityIntegrationTest extends WP_UnitTestCase {
 				'status' => 'active',
 			)
 		);
-		$encrypted = SecretCrypto::encrypt( self::INSTALLATION_SECRET );
+		$encrypted = SecretCrypto::encrypt( self::INSTALLATION_SECRET, SecretCrypto::PURPOSE_INSTALLATION, self::INSTALLATION_UUID );
 		$this->assertIsString( $encrypted );
 		$wpdb->insert(
 			$tables['activations'],

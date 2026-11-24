@@ -116,9 +116,19 @@ final class ResponseSignerTest extends TestCase {
 		$this->assertSame( $secret, ResponseSigner::stored_secret_key( $stored ) );
 		$result = ResponseSigner::reencrypted( $stored );
 		$this->assertSame( 'rotate', $result['status'] );
-		$this->assertStringStartsWith( 'v1:test-2026:', $result['value'] );
+		$this->assertStringStartsWith( 'v2:test-2026:', $result['value'] );
 		$this->assertSame( $secret, ResponseSigner::stored_secret_key( $result['value'] ), 'same signing key after re-encryption' );
 		$this->assertSame( 'current', ResponseSigner::reencrypted( $result['value'] )['status'] );
+	}
+
+	/** UEB-12: the stored key is bound to its option; the current key cannot be passed off as the prepared one. */
+	public function test_a_stored_key_only_decrypts_for_its_own_option(): void {
+		list( $secret ) = $this->keys();
+		$result = ResponseSigner::reencrypted( base64_encode( $secret ), ResponseSigner::NEXT_OPTION );
+		$this->assertSame( 'rotate', $result['status'] );
+
+		$this->assertSame( $secret, ResponseSigner::stored_secret_key( $result['value'], ResponseSigner::NEXT_OPTION ) );
+		$this->assertNull( ResponseSigner::stored_secret_key( $result['value'], ResponseSigner::OPTION ) );
 	}
 
 	public function test_a_plain_stored_key_is_encrypted_and_an_undecryptable_one_is_kept(): void {

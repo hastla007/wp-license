@@ -172,7 +172,7 @@ final class Texts {
 			),
 			'max_quantity_per_line'     => array(
 				__( 'Largest quantity per order line', 'wp-license' ),
-				__( 'Largest quantity of one license product a customer can put into the cart and order. Every unit becomes a license of its own with its own key. Default: 100. 0 = no limit. An order you create yourself in the admin or through the REST API is not blocked; a larger quantity there is noted on the order and in the audit log. A plan can set its own largest quantity in the product editor.', 'wp-license' ),
+				__( 'Largest quantity of one license product a customer can put into the cart and order. Every unit becomes a license of its own with its own key. Default: 100. 0 = no limit. An order you create yourself in the admin or through the REST API is not blocked; a larger quantity there is noted on the order and in the audit log. A plan can set its own largest quantity in the product editor. Large quantities are issued in background batches after payment (filter wplc_license_issue_batch_size).', 'wp-license' ),
 			),
 			'suspended_ends_after_days' => array(
 				__( 'Suspended licenses count as ended after', 'wp-license' ),
@@ -217,7 +217,7 @@ final class Texts {
 			),
 			'plan_upgrades_enabled'     => array(
 				__( 'Customers can upgrade their plan', 'wp-license' ),
-				__( 'On (default): the customer account offers a more expensive plan of the same product; the customer pays the price difference for the rest of the paid period, prorated by day. Off: the offer is not shown and a request is refused. Administrators can always change the plan.', 'wp-license' ),
+				__( 'On (default): the customer account offers a more expensive plan of the same product; the customer pays the price difference for the rest of the paid period, prorated by day. Off: the offer is not shown and a request is refused. Administrators can always change the plan. An upgrade order the customer started before stays payable while its offer is valid.', 'wp-license' ),
 			),
 			'plan_downgrades_enabled'   => array(
 				__( 'Customers can switch to a cheaper plan', 'wp-license' ),

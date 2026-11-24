@@ -735,7 +735,7 @@ final class CustomerPortal {
 					? sprintf(
 						/* translators: %s: date. */
 						__( 'We could not collect the renewal payment. The license keeps working until %s; without a payment it expires then.', 'wp-license' ),
-						Notifications::format_date( $paid_until + LicenseLifecycle::grace_days() * 86400 )
+						Notifications::format_date( LicenseLifecycle::grace_end( $license ) )
 					)
 					: __( 'We could not collect the renewal payment.', 'wp-license' );
 				if ( $has_pay_link ) {

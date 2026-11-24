@@ -18,9 +18,9 @@ A **plan** is a WooCommerce product (or a variation) that issues a license when 
    | License support level | Community, Standard or Priority. Sent to the client as `support.level`. |
    | Entitlements | Tick boxes with the available entitlements of the product's catalog group. |
    | Advanced: additional entitlements (JSON) | Optional JSON object for numeric limits and keys that are not in the list, for example `{"acme_reports.max_dashboards": 10}`. |
-   | Rules of this plan | Optional: staging sites per live site (0 to 10), development sites (0 to 100, exactly this number), offline period in days (1 to 90), largest quantity per order line (0 to 100000), co-users per license (0 to 100). **Empty = the global setting** (chapter 13); the field shows it as a placeholder. A value applies to the existing licenses of the plan at once. The filters of the global values still decide last. Beta access per plan is not available yet. |
+   | Rules of this plan | Optional: staging sites per live site (0 to 10), development sites (0 to 100, exactly this number), offline period in days (2 to 90), largest quantity per order line (0 to 100000), co-users per license (0 to 100). **Empty = the global setting** (chapter 13); the field shows it as a placeholder. A value applies to the existing licenses of the plan at once. The filters of the global values still decide last. The rules that replace manufacturer rules (staging and development sites, offline period, co-users, beta versions) can only be changed by users with `wplc_manage_policy` (by default administrators); other users see them read-only with the reason. |
 
-4. Save. The plan is active as long as the product exists (also while it is private); moving the product to the trash deactivates it.
+4. Save. The plan is active as long as the product exists (also while it is private); moving the product to the trash deactivates it. Licenses already sold keep the rules and the live site limit of their plan.
 
 Only users with `wplc_manage_catalog` see and save these fields; being allowed to edit products is not enough. The block-based product editor is not supported; use the classic product editor.
 

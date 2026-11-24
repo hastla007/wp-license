@@ -49,6 +49,9 @@ final class UrlGuardTest extends TestCase {
 			'no host'                  => array( 'https:///path', UrlGuard::INVALID ),
 			'whitespace'               => array( "https://hooks.example.com/a b", UrlGuard::INVALID ),
 			'too long'                 => array( 'https://hooks.example.com/' . str_repeat( 'a', 2000 ), UrlGuard::INVALID ),
+			'trailing dot'             => array( 'https://hooks.example.com./in', UrlGuard::TRAILING_DOT ),
+			'trailing dot with port'   => array( 'https://hooks.example.com.:443/in', UrlGuard::TRAILING_DOT ),
+			'trailing dot local'       => array( 'https://localhost./', UrlGuard::TRAILING_DOT ),
 		);
 	}
 
@@ -79,6 +82,15 @@ final class UrlGuardTest extends TestCase {
 		$this->assertSame( UrlGuard::UNRESOLVED, UrlGuard::check( 'https://nowhere.example.com/in' )['error'] );
 		$this->assertSame( UrlGuard::NOT_HTTPS, UrlGuard::check( 'http://public.example.com/in' )['error'], 'The form is checked first.' );
 		$this->assertSame( array( 'error' => UrlGuard::OK, 'ip' => '93.184.215.14' ), UrlGuard::check( 'https://93.184.215.14/in' ), 'A literal address needs no lookup.' );
+		$this->assertSame( array( 'error' => UrlGuard::TRAILING_DOT, 'ip' => '' ), UrlGuard::check( 'https://public.example.com./in' ), 'cURL would resolve "host." itself, past the pinned address.' );
+	}
+
+	public function test_same_ip_compares_addresses_in_any_notation(): void {
+		$this->assertTrue( UrlGuard::same_ip( '93.184.215.14', '93.184.215.14' ) );
+		$this->assertTrue( UrlGuard::same_ip( '2606:4700:0:0:0:0:6810:84e5', '[2606:4700::6810:84E5]' ) );
+		$this->assertFalse( UrlGuard::same_ip( '93.184.215.14', '10.0.0.5' ) );
+		$this->assertFalse( UrlGuard::same_ip( '', '' ) );
+		$this->assertFalse( UrlGuard::same_ip( 'example.com', 'example.com' ) );
 	}
 
 	public function test_public_and_blocked_addresses(): void {

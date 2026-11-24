@@ -201,6 +201,8 @@ final class ClientRuntimeTest extends TestCase {
 			function esc_url( $url ) { return (string) $url; }
 			function admin_url( $path = "" ) { return "https://shop.example/wp-admin/" . $path; }
 			function wp_nonce_field( $action ) { echo "<input type=\"hidden\" name=\"_wpnonce\" value=\"n\">"; }
+			function wp_create_nonce( $action ) { return "n"; }
+			function wp_referer_field() { echo "<input type=\"hidden\" name=\"_wp_http_referer\" value=\"/wp-admin/\">"; }
 			function wp_kses( $html, $allowed ) { return $html; }'
 		);
 		// phpcs:enable
@@ -240,6 +242,8 @@ final class ClientRuntimeTest extends TestCase {
 			function esc_url( $url ) { return (string) $url; }
 			function admin_url( $path = "" ) { return "https://shop.example/wp-admin/" . $path; }
 			function wp_nonce_field( $action ) { echo "<input type=\"hidden\" name=\"_wpnonce\" value=\"n\">"; }
+			function wp_create_nonce( $action ) { return "n"; }
+			function wp_referer_field() { echo "<input type=\"hidden\" name=\"_wp_http_referer\" value=\"/wp-admin/\">"; }
 			function wp_kses( $html, $allowed ) { return $html; }
 			function wp_get_environment_type() { return $GLOBALS["wplc_test_environment"] ?? "production"; }'
 		);
@@ -295,6 +299,181 @@ final class ClientRuntimeTest extends TestCase {
 		$this->assertStringContainsString( 'name="wplc_environment"', $html );
 		$this->assertStringNotContainsString( 'name="wplc_staging_parent"', $html );
 		$this->assertStringNotContainsString( 'wplc_beta', $html );
+	}
+
+	/**
+	 * Forms of a rendered license screen: per form the names of its hidden fields, the values of its
+	 * submit buttons in order, and whether it holds the key field.
+	 *
+	 * @param string $html  Output of render_settings().
+	 * @param string $field Name of the key field.
+	 * @return array<int,array{hidden:string[],buttons:string[],key:bool}>
+	 */
+	private static function forms( string $html, string $field ): array {
+		$dom = new DOMDocument();
+		libxml_use_internal_errors( true );
+		$dom->loadHTML( '<?xml encoding="UTF-8"><body>' . $html . '</body>' );
+		libxml_clear_errors();
+		$forms = array();
+		foreach ( $dom->getElementsByTagName( 'form' ) as $form ) {
+			$entry = array(
+				'hidden'  => array(),
+				'buttons' => array(),
+				'key'     => false,
+			);
+			foreach ( $form->getElementsByTagName( 'input' ) as $input ) {
+				if ( 'hidden' === $input->getAttribute( 'type' ) ) {
+					$entry['hidden'][] = $input->getAttribute( 'name' );
+				}
+				$entry['key'] = $entry['key'] || $field === $input->getAttribute( 'name' );
+			}
+			foreach ( $form->getElementsByTagName( 'button' ) as $button ) {
+				if ( 'submit' === $button->getAttribute( 'type' ) ) {
+					$entry['buttons'][] = $button->getAttribute( 'value' );
+				}
+			}
+			$forms[] = $entry;
+		}
+
+		return $forms;
+	}
+
+	/**
+	 * CP-P5-08 (2.4.1, captain-pro): Enter in the key field activates, in every state of the screen.
+	 *
+	 * A browser sends the first submit button of the form on Enter in a text field (implicit
+	 * submission). On an activated site the key field therefore has its own form; "Save", "Check now"
+	 * and "Remove license" stay in the first one and work by keyboard as before.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_cp_p5_08_enter_in_the_key_field_sends_activate(): void {
+		// phpcs:disable
+		eval(
+			'function current_user_can( $capability ) { return true; }
+			function delete_transient( $name ) { return true; }
+			function get_current_user_id() { return 1; }
+			function esc_html( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES ); }
+			function esc_attr( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES ); }
+			function esc_url( $url ) { return (string) $url; }
+			function admin_url( $path = "" ) { return "https://shop.example/wp-admin/" . $path; }
+			function wp_nonce_field( $action ) { echo "<input type=\"hidden\" id=\"_wpnonce\" name=\"_wpnonce\" value=\"n\"><input type=\"hidden\" name=\"_wp_http_referer\" value=\"/wp-admin/\">"; }
+			function wp_create_nonce( $action ) { return "n"; }
+			function wp_referer_field() { echo "<input type=\"hidden\" name=\"_wp_http_referer\" value=\"/wp-admin/\">"; }
+			function wp_kses( $html, $allowed ) { return $html; }'
+		);
+		// phpcs:enable
+		$kit    = self::kit();
+		$field  = 'test_addon_license_key';
+		$hidden = array( '_wpnonce', '_wp_http_referer', 'action' );
+		$render = static function ( LicenseManager $manager ): string {
+			ob_start();
+			$manager->render_settings();
+			return (string) ob_get_clean();
+		};
+		$config = array(
+			'settings_parent'      => false,
+			'allow_channel_choice' => true,
+		);
+
+		// Not activated: one form, Activate is its only button.
+		$forms = self::forms( $render( $kit->manager( $config ) ), $field );
+		$this->assertCount( 1, $forms );
+		$this->assertTrue( $forms[0]['key'] );
+		$this->assertSame( array( 'activate' ), $forms[0]['buttons'] );
+
+		// Activated, with the beta box: the buttons above the key field are in a form of their own.
+		$manager = $kit->manager( $config );
+		$manager->activate( self::KEY );
+		$html  = $render( $manager );
+		$forms = self::forms( $html, $field );
+		$this->assertCount( 2, $forms );
+		$this->assertFalse( $forms[0]['key'] );
+		$this->assertSame( array( 'channel', 'check', 'deactivate' ), $forms[0]['buttons'], 'Save, Check now and Remove license work as before.' );
+		$this->assertTrue( $forms[1]['key'] );
+		$this->assertSame( array( 'activate' ), $forms[1]['buttons'], 'Enter in the key field sends Activate.' );
+		foreach ( $forms as $form ) {
+			$this->assertSame( $hidden, $form['hidden'], 'Each form carries the nonce, the referer and the action.' );
+		}
+		$this->assertSame( 1, substr_count( $html, 'id="_wpnonce"' ), 'No duplicate id.' );
+		$this->assertLessThan( strpos( $html, 'name="wplc_environment"' ), strrpos( $html, '<form' ), 'The type of the site goes with the activation.' );
+		$this->assertLessThan( strrpos( $html, '<form' ), strpos( $html, 'name="wplc_confirm_deactivate"' ), 'The confirmation goes with Remove license.' );
+
+		// A copy of the site: the key field comes first, "Activate for this address" is the first button.
+		$kit->store->site = 'https://staging.shop.example';
+		$forms            = self::forms( $render( $kit->manager( $config ) ), $field );
+		$this->assertCount( 1, $forms );
+		$this->assertTrue( $forms[0]['key'] );
+		$this->assertSame( array( 'activate', 'deactivate', 'move' ), $forms[0]['buttons'] );
+	}
+
+	/**
+	 * CP-P6-09 (2.4.1, captain-pro): the catch-up in the admin does not wait for the server.
+	 *
+	 * A due check is scheduled as a one-off WP-Cron event of the add-on and WP-Cron is started once
+	 * per request for all add-ons; the event runs the check. Six add-ons and an unreachable server
+	 * cost up to 30 seconds per admin page view before.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_cp_p6_09_catch_up_schedules_the_check_and_starts_wp_cron_once(): void {
+		// phpcs:disable
+		eval(
+			'function current_user_can( $capability ) { return true; }
+			function wp_doing_ajax() { return false; }
+			function wp_doing_cron() { return false; }
+			function sanitize_key( $key ) { return strtolower( (string) $key ); }
+			function wp_unslash( $value ) { return $value; }
+			function spawn_cron( $gmt_time = 0 ) { $GLOBALS["wplc_test_spawned"] = ( $GLOBALS["wplc_test_spawned"] ?? 0 ) + 1; return true; }'
+		);
+		// phpcs:enable
+		// Two add-ons, each with its own store and server (in the real case: its own copy of the library).
+		$kit   = self::kit();
+		$other = new WPLC_Client_Test_Kit();
+		$first = $kit->manager();
+		// The second add-on has its own prefix and license screen.
+		$second = $other->manager( array( 'option_prefix' => 'second_addon' ) );
+		$this->assertInstanceOf( LicenseStatus::class, $first->activate( self::KEY ) );
+		$this->assertInstanceOf( LicenseStatus::class, $second->activate( self::KEY ) );
+		$requests = count( $kit->server->requests ) + count( $other->server->requests );
+		$asked    = static function () use ( $kit, $other ): int {
+			return count( $kit->server->requests ) + count( $other->server->requests );
+		};
+
+		// Right after the activation nothing is due.
+		$first->catch_up();
+		$second->catch_up();
+		$this->assertArrayNotHasKey( 'wplc_test_single_events', $GLOBALS );
+		$this->assertArrayNotHasKey( 'wplc_test_spawned', $GLOBALS );
+
+		// WP-Cron did not run for two days: both add-ons schedule their check, nobody asks the server.
+		$kit->advance( 2 * DAY_IN_SECONDS );
+		$other->advance( 2 * DAY_IN_SECONDS );
+		$first->catch_up();
+		$second->catch_up();
+		$this->assertSame( $requests, $asked(), 'No request in the admin page view.' );
+		$this->assertSame( array( 'test_addon_license_check', 'second_addon_license_check' ), array_column( $GLOBALS['wplc_test_single_events'], 0 ) );
+		$this->assertSame( 1, $GLOBALS['wplc_test_spawned'], 'WP-Cron is started once for all add-ons.' );
+		$this->assertTrue( $GLOBALS[ LicenseManager::CRON_SPAWNED_GLOBAL ] );
+
+		// The next page views within RECHECK_LOCK schedule nothing more.
+		$first->catch_up();
+		$this->assertCount( 2, $GLOBALS['wplc_test_single_events'] );
+
+		// The event runs and checks; afterwards nothing is due.
+		$first->run_scheduled_check();
+		$this->assertSame( $requests + 1, $asked() );
+		$this->assertSame( $kit->now, $first->status()->last_checked );
+
+		// On the add-on's own license screen the check is still made at once.
+		$_GET['page'] = 'second-addon-license';
+		$second->catch_up();
+		unset( $_GET['page'] );
+		$this->assertSame( $requests + 2, $asked() );
+		$this->assertCount( 2, $GLOBALS['wplc_test_single_events'] );
+		$this->assertSame( 1, $GLOBALS['wplc_test_spawned'] );
 	}
 
 	/**

@@ -24,7 +24,7 @@ jobs:
   unit:
     name: unit (${{ matrix.php }}${{ matrix.experimental && ', experimental' || '' }})
     runs-on: ubuntu-latest
-    # PHP 8.6 is a nightly build of setup-php until its release on 19 Nov 2026: shown, never fails the run.
+    # PHP 8.6 (released 19 Nov 2026) stays an experimental cell until the owner decides to make it regular (UEB-07): shown, never fails the run.
     continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
@@ -79,7 +79,7 @@ jobs:
           - { wp: "latest", wc: "11.3.0", php: "8.5", db: "mariadb", hpos: "1" }
           # Multisite network (docs/MULTISITE.md); the WordPress test library reads WP_MULTISITE.
           - { wp: "latest", wc: "11.3.0", php: "8.5", db: "mariadb", hpos: "1", multisite: "1" }
-          # PHP 8.6: a nightly build of setup-php until its release on 19 Nov 2026, experimental.
+          # PHP 8.6: released 19 Nov 2026; experimental until the owner decides to make it regular (UEB-07).
           - { wp: "latest", wc: "11.3.0", php: "8.6", db: "mysql", hpos: "1", experimental: true }
     services:
       mysql:

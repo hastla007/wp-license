@@ -83,7 +83,7 @@ All emails are sent through WooCommerce's mailer to the account email of the lic
 - **Support contact:** the address the emails, the customer account and the cancellation page name for questions is the setting **Support email address** (empty = the sender address of the WooCommerce emails); **Support page** adds a link in the customer account and on the cancellation page (chapter 13).
 - **Templates** live in `templates/emails/` (plain-text variants in `templates/emails/plain/`). Copy a template to `wp-license/emails/` (or `wp-license/emails/plain/`) in your theme to change its layout.
 - Every reminder and status email is recorded before sending and sent once per license and period. Sending is best effort: a mail failure never blocks checkout, renewal or cron. Watch the WooCommerce log (source `wp-license`) for "was not accepted by the mailer".
-- Disabling the "Upcoming automatic renewal" email holds back every automatic charge (unless you switch that rule off, chapter 8), and may conflict with consumer-protection rules.
+- Disabling the "Upcoming automatic renewal" email holds back every automatic charge (unless you switch that rule off, chapter 8), and may conflict with consumer-protection rules. While licenses renew automatically, license managers then see an error notice in the admin, the diagnostics page shows "Automatic renewals blocked" and the health alert `renewal_notice_disabled` fires.
 
 **Before launch:** send every email once on staging, in HTML and plain text, in every language you sell in; check links, dates and amounts; use an authenticated mail transport (SPF, DKIM, DMARC) – a reminder that lands in spam is a lost renewal.
 

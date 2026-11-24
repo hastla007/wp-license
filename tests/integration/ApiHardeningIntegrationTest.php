@@ -923,7 +923,7 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'ok', $status['state'] );
 		$this->assertSame( 'option', $status['source'] );
 		$stored = (string) get_option( ResponseSigner::OPTION );
-		$this->assertStringStartsWith( 'v1:', $stored, 'B-156: the private key must only be stored encrypted.' );
+		$this->assertStringStartsWith( 'v2:', $stored, 'B-156: the private key must only be stored encrypted.' );
 		$this->assertSame( $status['key_id'], get_option( ResponseSigner::KEY_ID_OPTION ) );
 		$this->assertSame( array( $status['key_id'] ), $created );
 		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['audit_log']} WHERE action = %s", 'response_signing_key_created' ) ) );
@@ -947,7 +947,7 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( '', (string) get_option( ResponseSigner::OPTION, '' ) );
 		// Meanwhile another request stores its key directly in the database.
 		$winner    = ResponseSigner::secret_key_from( base64_encode( str_repeat( "\x05", 32 ) ) );
-		$encrypted = SecretCrypto::encrypt( base64_encode( $winner ) );
+		$encrypted = SecretCrypto::encrypt( base64_encode( $winner ), SecretCrypto::PURPOSE_SIGNING_KEY, ResponseSigner::OPTION );
 		$wpdb->insert( $wpdb->options, array( 'option_name' => ResponseSigner::OPTION, 'option_value' => $encrypted, 'autoload' => 'off' ) );
 
 		$this->assertSame( ResponseSigner::public_key_of( $winner ), ResponseSigner::public_key(), 'Two parallel first requests would sign with different keys.' );
@@ -990,7 +990,7 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertFalse( get_option( ResponseSigner::OPTION, false ), 'A new key was generated silently; pinned clients would be locked out.' );
 
 		// Damaged content.
-		update_option( ResponseSigner::OPTION, SecretCrypto::encrypt( base64_encode( str_repeat( "\x07", 64 ) ) ), false );
+		update_option( ResponseSigner::OPTION, SecretCrypto::encrypt( base64_encode( str_repeat( "\x07", 64 ) ), SecretCrypto::PURPOSE_SIGNING_KEY, ResponseSigner::OPTION ), false );
 		ResponseSigner::reset();
 		$this->assertSame( 'corrupt', ResponseSigner::status()['state'] );
 
@@ -1002,7 +1002,7 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 		$status = ResponseSigner::status();
 		$this->assertSame( 'ok', $status['state'] );
 		$this->assertNotSame( $old_public, $status['public_key'] );
-		$this->assertStringStartsWith( 'v1:', (string) get_option( ResponseSigner::OPTION ) );
+		$this->assertStringStartsWith( 'v2:', (string) get_option( ResponseSigner::OPTION ) );
 		$this->assertSame( $status['key_id'], get_option( ResponseSigner::KEY_ID_OPTION ) );
 	}
 
@@ -1015,9 +1015,9 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 
 		$this->assertSame( ResponseSigner::public_key_of( $secret ), ResponseSigner::public_key() );
 		$stored = (string) get_option( ResponseSigner::OPTION );
-		$this->assertStringStartsWith( 'v1:', $stored );
+		$this->assertStringStartsWith( 'v2:', $stored );
 		$this->assertStringNotContainsString( base64_encode( $secret ), $stored );
-		$this->assertSame( base64_encode( $secret ), SecretCrypto::decrypt( $stored ) );
+		$this->assertSame( base64_encode( $secret ), SecretCrypto::decrypt( $stored, SecretCrypto::PURPOSE_SIGNING_KEY, ResponseSigner::OPTION ) );
 		$this->assertSame( 'current', ResponseSigner::reencrypt_stored_key( true ) );
 	}
 
@@ -1076,7 +1076,7 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 1, RotateInstallationSecretsCommand::pending_count() );
 		foreach ( $ids as $id ) {
 			$this->assertFalse( SecretCrypto::needs_rotation( $this->activation( $id )['installation_secret_encrypted'] ) );
-			$this->assertSame( $this->activation( $id )['installation_secret_hash'], hash( 'sha256', (string) SecretCrypto::decrypt( $this->activation( $id )['installation_secret_encrypted'] ) ) );
+			$this->assertSame( $this->activation( $id )['installation_secret_hash'], hash( 'sha256', (string) SecretCrypto::decrypt( $this->activation( $id )['installation_secret_encrypted'], SecretCrypto::PURPOSE_INSTALLATION, $this->activation( $id )['installation_uuid'] ) ) );
 		}
 		$this->assertSame( 7, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['audit_log']} WHERE action = %s", 'installation_secret_rotated' ) ) );
 
@@ -1105,7 +1105,7 @@ final class ApiHardeningIntegrationTest extends WPLC_Integration_TestCase {
 		$applied = RotateInstallationSecretsCommand::run( array( 'apply' => true ) );
 		$this->assertSame( 'rotated', $applied['signing_key'] );
 		$this->assertSame( 0, $applied['remaining'] );
-		$this->assertStringStartsWith( 'v1:' . SecretCrypto::active_key_id() . ':', (string) get_option( ResponseSigner::OPTION ) );
+		$this->assertStringStartsWith( SecretCrypto::current_prefix(), (string) get_option( ResponseSigner::OPTION ) );
 		ResponseSigner::reset();
 		$this->assertSame( ResponseSigner::public_key_of( $secret ), ResponseSigner::public_key() );
 	}

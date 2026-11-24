@@ -119,7 +119,7 @@ The same object is returned by `POST /activations` and `POST /entitlements/check
 | `access` | `true` when the license grants its rights right now. This is the field to decide by; it already includes the grace period. |
 | `paid_until` | End of the paid period; `null` for a license without an end. |
 | `access_until` | Time at which `access` ends if nothing changes: `paid_until`, or `grace_until` when a grace period applies. `null` without access and for a license without an end. |
-| `grace_until` | End of the renewal grace period (14 days after `paid_until`) when one applies to this license: automatic renewal is on, or the license is `past_due`. Otherwise `null`. The license is *inside* its grace period when `server_time >= paid_until` and `access` is `true`. |
+| `grace_until` | End of the renewal grace period after `paid_until` when one applies to this license: automatic renewal is on, or the license is `past_due`. Otherwise `null`. The length is the setting "Grace period after the paid period" (default 14 days, 1 to 90) or the filter `wplc_renewal_grace_days` (clamped to 1 to 90); a client must take the end from this field, never assume 14 days. The license is *inside* its grace period when `server_time >= paid_until` and `access` is `true`. |
 | `site_limit`, `site_count` | Live-site limit and number of active live activations. |
 | `environment` | `production`, `staging` or `development` as stored by the server (see above for staging requests that count as live). |
 | `staging_parent_id` | `activation_id` of the live site of a staging activation, else `null`. |
@@ -127,7 +127,7 @@ The same object is returned by `POST /activations` and `POST /entitlements/check
 | `site_match` | Only when the request carried `site_url` (`/entitlements/check`): `false` when the client runs on another address than the activated one. |
 | `deactivated_at` | Only for a released installation. |
 | `server_time` | Server clock when the answer was signed. |
-| `cache_expires_at` | Until then the client may rely on this snapshot without reaching the server: `server_time` + 14 days, **but never later than `access_until`**. See [Offline use](#offline-use-and-cache_expires_at). |
+| `cache_expires_at` | Until then the client may rely on this snapshot without reaching the server: `server_time` + the offline period of the license (default 14 days; setting, plan rule and filter, 2 to 90 days), **but never later than `access_until`**. See [Offline use](#offline-use-and-cache_expires_at). |
 | `update_channels` | Since 0.2.0 (SET-LIC-20, optional field): update channels the license may use, `stable` first: `["stable"]` or `["stable", "beta"]`. Decided by the setting "Beta versions for licenses" (default: beta allowed), the rule of the plan ("Rules of this plan") and the filter `wplc_license_update_channels`. Client library 2.4.0 shows the checkbox "Receive beta versions" only when the list contains `beta`; a server that does not send the field gives beta to every client that asks. |
 
 ### Status values
@@ -146,7 +146,7 @@ The same object is returned by `POST /activations` and `POST /entitlements/check
 
 ### Offline use and `cache_expires_at`
 
-A client may keep the last verified snapshot (the `payload` string with its signatures) and use it while the server cannot be reached. The snapshot is valid until `cache_expires_at`; after that the client must treat the license as without access until it receives a new signed answer. Because `cache_expires_at` never exceeds `access_until`, a site that blocks the license server cannot outlast the paid time, and an honest site in the grace period is not locked out early. The client must take the deadline from the signed `cache_expires_at` of the snapshot it stores; it must not restart a local timer on every successful request, and it must not cap the time at `paid_until` on its own. The maximum offline window is 14 days by default (setting "Offline period of customer sites", 1 to 90 days, and filter `wplc_offline_cache_days` on the server).
+A client may keep the last verified snapshot (the `payload` string with its signatures) and use it while the server cannot be reached. The snapshot is valid until `cache_expires_at`; after that the client must treat the license as without access until it receives a new signed answer. Because `cache_expires_at` never exceeds `access_until`, a site that blocks the license server cannot outlast the paid time, and an honest site in the grace period is not locked out early. The client must take the deadline from the signed `cache_expires_at` of the snapshot it stores; it must not restart a local timer on every successful request, and it must not cap the time at `paid_until` on its own. The offline period is decided on the server: the rule "Offline period (days)" of the license's plan in the product editor, else the setting "Offline period of customer sites" (default 14 days, 2 to 90); the filter `wplc_offline_cache_days` receives that value and wins (clamped to 2 to 90 days). Whatever the value, `cache_expires_at` never reaches beyond `access_until`; a client must take the deadline from the signed field and never assume a fixed number of days.
 
 ### Response signatures
 
@@ -412,7 +412,7 @@ define( 'WPLC_TRUSTED_PROXIES', array( '173.245.48.0/20', '2400:cb00::/32' ) ); 
 | `wplc_development_site_limit` | filter | Development activations per license (0 forbids them). |
 | `wplc_is_staging_host` | filter | Accept or refuse a host as staging copy of a live site. |
 | `wplc_registrable_domain` | filter | Replace the built-in registrable-domain heuristic (for example with a public-suffix list). |
-| `wplc_offline_cache_days` | filter | Offline window of signed snapshots (default: the setting "Offline period of customer sites", 14). |
+| `wplc_offline_cache_days` | filter | Offline window of signed snapshots in days (default: the plan rule, else the setting "Offline period of customer sites", 14; clamped to 2 to 90; never beyond `access_until`). |
 | `wplc_client_ip` | filter | Client address used for the activation limit. |
 | `wplc_log_api_rejection` | filter | Whether a rejected request is written to the log. |
 | `wplc_download_reuse_seconds` | filter | Reuse window of download tokens (default 0: strict single use). |

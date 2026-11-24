@@ -122,7 +122,7 @@ final class LicenseKey {
 	 *
 	 * Typographic dashes become "-", letters become upper case and everything
 	 * outside `[A-Z0-9-]` is removed: line breaks, (non-breaking and
-	 * zero-width) spaces, quotes or a trailing dot from an e-mail.
+	 * zero-width) spaces, quotes or a trailing dot from an email.
 	 *
 	 * @param string $key License key as entered.
 	 * @return string

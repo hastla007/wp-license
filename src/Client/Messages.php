@@ -30,7 +30,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.4.0';
+		const VERSION = '2.4.1';
 
 		/**
 		 * Text domain literal used in this file.

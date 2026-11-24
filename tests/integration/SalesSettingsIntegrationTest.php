@@ -173,7 +173,7 @@ final class SalesSettingsIntegrationTest extends WPLC_Integration_TestCase {
 
 	/** SET-LIC-22: thresholds per figure are settings; 0 silences a figure; the filter wins. */
 	public function test_alert_thresholds_are_settings_and_the_filter_wins(): void {
-		$this->assertSame( \WPLC\Settings\Definitions::ALERT_THRESHOLDS, Diagnostics::thresholds() );
+		$this->assertSame( \WPLC\Settings\Definitions::ALERT_THRESHOLDS + array( 'renewal_notice_disabled' => 1 ), Diagnostics::thresholds() );
 		update_option( Settings::OPTION, array( 'alert_failed_jobs' => '0', 'alert_pending_webhooks' => '3' ) );
 		$thresholds = Diagnostics::thresholds();
 		$this->assertArrayNotHasKey( 'failed_jobs', $thresholds, '0 = never alert.' );

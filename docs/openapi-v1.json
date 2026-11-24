@@ -807,7 +807,7 @@
             "type": "string",
             "nullable": true,
             "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
-            "description": "End of the renewal grace period, UTC, when one applies to this license (automatic renewal or past_due); else null. The license is inside its grace period when server_time is not before paid_until and access is true."
+            "description": "End of the renewal grace period, UTC, when one applies to this license (automatic renewal or past_due); else null. Its length is a server setting (default 14 days, 1 to 90); take the end from this field. The license is inside its grace period when server_time is not before paid_until and access is true."
           },
           "site_limit": {
             "type": "integer",
@@ -848,7 +848,7 @@
           "cache_expires_at": {
             "type": "string",
             "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
-            "description": "UTC. Until then the client may rely on this snapshot without reaching the server: server_time plus 14 days, but never later than access_until. After it the client must treat the license as without access until a new signed answer arrives."
+            "description": "UTC. Until then the client may rely on this snapshot without reaching the server: server_time plus the offline period of the license (default 14 days; set by the setting, the plan rule or the filter wplc_offline_cache_days, 2 to 90 days), but never later than access_until. After it the client must treat the license as without access until a new signed answer arrives."
           },
           "update_channels": {
             "type": "array",

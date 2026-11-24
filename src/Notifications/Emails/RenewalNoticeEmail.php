@@ -28,8 +28,24 @@ final class RenewalNoticeEmail extends LicenseEmail {
 			'wplc_renewal_notice',
 			'wplc-renewal-notice.php',
 			__( 'Upcoming automatic renewal', 'wp-license' ),
-			__( 'Sent 7 days before a license with automatic renewal is charged.', 'wp-license' )
+			self::description_text( \WPLC\Notifications\Notifications::notice_days() )
 		);
+	}
+
+	/**
+	 * Description in the email list, with the lead time in force (P2-M8).
+	 *
+	 * @param int $days Setting "Renewal notice lead days" after its filter.
+	 * @return string
+	 */
+	public static function description_text( int $days ): string {
+		$text = sprintf(
+			/* translators: %d: number of days before the charge. */
+			_n( 'Sent %d day before a license with automatic renewal is charged.', 'Sent %d days before a license with automatic renewal is charged.', $days, 'wp-license' ),
+			$days
+		);
+
+		return $text . ' ' . __( 'Required: without this email no automatic charge is made.', 'wp-license' );
 	}
 
 	/**

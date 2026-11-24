@@ -24,26 +24,27 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Shortcode [wplc_cancel]: cancel the automatic renewal of a license without
  * signing in.
  *
- * Flow: the customer enters the e-mail address and a license reference (or
+ * Flow: the customer enters the email address and a license reference (or
  * the order number), checks the details on a confirmation page and presses
  * the cancellation button. A matching license is cancelled at the end of the
- * paid period and the cancellation is confirmed by e-mail with the time it
+ * paid period and the cancellation is confirmed by email with the time it
  * was received and the end date.
  *
  * The page answers identically whether or not the details match a license,
  * so it cannot be used to find out who owns a license. The confirmation
- * e-mail is sent by a background job, so the response time does not tell a
+ * email is sent by a background job, so the response time does not tell a
  * match either (P-37).
  *
- * Only the e-mail address of the current owner matches: the account address,
+ * Only the email address of the current owner matches: the account address,
  * the billing address of the source order while that order belongs to the
- * owner, and the license e-mail recipient (P-08).
+ * owner, and the license email recipient (P-08).
  *
  * Requests are rate limited with atomic counters in the request_limits table
- * per client address and per reference. An e-mail address alone is never a
- * limit for every reference: the per-address counter only applies to order
- * numbers (which are easy to guess), so flooding a customer's address cannot
- * block the license reference and key printed in their e-mails.
+ * per client address, and for order numbers (which are easy to guess) also per
+ * order number and per email address. A license reference or key is never a
+ * limit before the lookup (P3-A6): whoever knows it could otherwise block its
+ * owner's cancellation. Flooding a customer's address or order number cannot
+ * block the license reference and key printed in their emails either.
  *
  * Whether this page satisfies a legal cancellation-button requirement in a
  * given country is for the shop owner to check; the wording can be changed
@@ -58,12 +59,12 @@ final class PublicCancellation {
 
 	/**
 	 * Cancellation requests per hour and client address, per reference, and per
-	 * e-mail address for order-number references.
+	 * email address for order-number references.
 	 */
 	public const DEFAULT_HOURLY_LIMIT = 5;
 
 	/**
-	 * Action Scheduler hook that sends the confirmation e-mail (P-37).
+	 * Action Scheduler hook that sends the confirmation email (P-37).
 	 */
 	public const CONFIRMATION_HOOK = 'wplc_public_cancel_confirmation';
 
@@ -101,7 +102,7 @@ final class PublicCancellation {
 	/**
 	 * Signature that ties the confirmation step to the reviewed details.
 	 *
-	 * @param string $email     E-mail address.
+	 * @param string $email     Email address.
 	 * @param string $reference Normalized reference.
 	 * @param int    $expires   Unix timestamp until which the confirmation page is valid.
 	 * @return string
@@ -138,7 +139,7 @@ final class PublicCancellation {
 	 * Decide what the page shows for a submitted step.
 	 *
 	 * @param string $step      "review" (first form) or "confirm" (confirmation page).
-	 * @param string $email     Sanitized e-mail address.
+	 * @param string $email     Sanitized email address.
 	 * @param string $reference Normalized reference.
 	 * @param string $honeypot  Value of the hidden field of the first form that people leave empty.
 	 * @param int    $expires   Expiry of the confirmation page.
@@ -157,7 +158,7 @@ final class PublicCancellation {
 		);
 
 		if ( ! is_email( $email ) || '' === $reference ) {
-			$state['error'] = __( 'Please enter the e-mail address of your purchase and the license reference or order number.', 'wp-license' );
+			$state['error'] = __( 'Please enter the email address of your purchase and the license reference or order number.', 'wp-license' );
 			return $state;
 		}
 
@@ -182,7 +183,10 @@ final class PublicCancellation {
 
 		$state['view']        = 'done';
 		$state['received_at'] = time();
-		self::cancel_matching( $email, $reference, $state['received_at'] );
+		if ( 0 === self::cancel_matching( $email, $reference, $state['received_at'] ) && ! self::is_order_number( $reference ) ) {
+			// P3-A6: misses on a license reference are counted after the lookup, never before it.
+			self::count_miss( $reference );
+		}
 
 		return $state;
 	}
@@ -200,30 +204,33 @@ final class PublicCancellation {
 	/**
 	 * Count this request and tell whether it is over a limit.
 	 *
-	 * Counters (atomic, hourly, keyed hashes only): the client address, the
-	 * reference, and for order-number references the e-mail address. A database
+	 * Counters (atomic, hourly, keyed hashes only): the client address, and for
+	 * order-number references the order number and the email address. A database
 	 * failure counts as over the limit.
 	 *
-	 * @param string $email     E-mail address.
+	 * @param string $email     Email address.
 	 * @param string $reference Normalized reference.
 	 * @return bool
 	 */
 	private static function limited( string $email, string $reference ): bool {
 		/**
 		 * Filter how many public cancellation requests are accepted per hour,
-		 * counted per client address, per reference and (for order numbers) per
-		 * e-mail address.
+		 * counted per client address and, for order numbers, per order number and
+		 * per email address.
 		 *
 		 * @param int $limit Requests per hour. Default: the setting "Cancellation page: requests per hour" (5).
 		 */
 		$limit   = max( 1, (int) apply_filters( 'wplc_public_cancel_hourly_limit', \WPLC\Settings\Registry::int( 'public_cancel_hourly_limit' ) ) );
 		$ip      = class_exists( ClientIp::class ) ? ClientIp::current() : '';
-		// "WPLC-1A2B3C4D" and "1A2B3C4D" are the same reference.
-		$buckets = array( 'public-cancel-ref' => (string) preg_replace( '/^' . LicenseKey::key_prefix() . '-(?=[0-9A-F]{8}$)/', '', $reference ) );
+		$buckets = array();
 		if ( '' !== $ip ) {
 			$buckets['public-cancel-ip'] = $ip;
 		}
+		// P3-A6: only order numbers, which are easy to guess, are counted per reference before the
+		// lookup. A license reference or key is not: anyone who knew it could otherwise block its
+		// owner's cancellation for the hour. Its misses are counted afterwards (count_miss()).
 		if ( self::is_order_number( $reference ) ) {
+			$buckets['public-cancel-ref']         = $reference;
 			$buckets['public-cancel-order-email'] = strtolower( $email );
 		}
 
@@ -240,14 +247,36 @@ final class PublicCancellation {
 	}
 
 	/**
-	 * Cancel every automatically renewing license that matches the details and
-	 * queue the confirmation e-mail.
+	 * Count an attempt on a license reference or key that matched no license (P3-A6).
 	 *
-	 * The e-mail is sent by a background job (CONFIRMATION_HOOK) instead of the
+	 * The answer stays the page every request gets, so the counter neither blocks the owner
+	 * nor tells whether an address belongs to the reference; guessing is limited per client
+	 * address, and a reference with more misses per hour than the limit is logged once per
+	 * hour as a warning (without the reference).
+	 *
+	 * @param string $reference Normalized reference.
+	 * @return void
+	 */
+	private static function count_miss( string $reference ): void {
+		/** This filter is documented in PublicCancellation::limited(). */
+		$limit = max( 1, (int) apply_filters( 'wplc_public_cancel_hourly_limit', \WPLC\Settings\Registry::int( 'public_cancel_hourly_limit' ) ) );
+		// "WPLC-1A2B3C4D" and "1A2B3C4D" are the same reference.
+		$value = (string) preg_replace( '/^' . LicenseKey::key_prefix() . '-(?=[0-9A-F]{8}$)/', '', $reference );
+		$hits  = Authenticator::increment_bucket( Authenticator::limiter_hash( 'public-cancel-ref-miss', $value ), gmdate( 'Y-m-d H:00:00' ) );
+		if ( false !== $hits && $hits === $limit + 1 ) {
+			\WPLC\Infrastructure\Log::write( 'warning', 'Public cancellation page: more attempts with one license reference that matched no license than the hourly limit.', array( 'component' => 'public-cancellation' ) );
+		}
+	}
+
+	/**
+	 * Cancel every automatically renewing license that matches the details and
+	 * queue the confirmation email.
+	 *
+	 * The email is sent by a background job (CONFIRMATION_HOOK) instead of the
 	 * synchronous listener of `wplc/cancellation_scheduled`, so a match does not
 	 * make the response slower than a miss.
 	 *
-	 * @param string $email       E-mail address the customer entered.
+	 * @param string $email       Email address the customer entered.
 	 * @param string $reference   Normalized reference.
 	 * @param int    $received_at Unix timestamp of the request.
 	 * @return int Number of cancelled licenses.
@@ -291,7 +320,7 @@ final class PublicCancellation {
 	}
 
 	/**
-	 * Queue the confirmation e-mail of one cancellation.
+	 * Queue the confirmation email of one cancellation.
 	 *
 	 * @param int $license_id  License ID.
 	 * @param int $received_at Unix timestamp of the request.
@@ -307,7 +336,7 @@ final class PublicCancellation {
 	}
 
 	/**
-	 * Background job: send the confirmation e-mail (retried by Notifications on failure).
+	 * Background job: send the confirmation email (retried by Notifications on failure).
 	 *
 	 * @param mixed $license_id  License ID.
 	 * @param mixed $received_at Unix timestamp of the request.
@@ -318,13 +347,13 @@ final class PublicCancellation {
 	}
 
 	/**
-	 * Licenses with automatic renewal that match an e-mail address and a reference.
+	 * Licenses with automatic renewal that match an email address and a reference.
 	 *
 	 * The reference is the license reference shown in the account and in every
-	 * license e-mail (WPLC-1A2B3C4D, with or without the prefix), the full
+	 * license email (WPLC-1A2B3C4D, with or without the prefix), the full
 	 * license key, or the number of the order the license was bought with.
 	 *
-	 * @param string $email     E-mail address.
+	 * @param string $email     Email address.
 	 * @param string $reference Normalized reference.
 	 * @return array<int,array<string,mixed>> License rows.
 	 */
@@ -387,13 +416,13 @@ final class PublicCancellation {
 	}
 
 	/**
-	 * Whether an e-mail address belongs to the current owner of a license.
+	 * Whether an email address belongs to the current owner of a license.
 	 *
 	 * The billing address of the source order only counts while the order
 	 * belongs to the current owner: after an owner change the previous owner's
 	 * order still points at the license, but must not cancel it (P-08).
 	 *
-	 * @param string              $email   E-mail address.
+	 * @param string              $email   Email address.
 	 * @param array<string,mixed> $license License row.
 	 * @return bool
 	 */

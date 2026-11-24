@@ -364,8 +364,8 @@ abstract class WPLC_Integration_TestCase extends WP_UnitTestCase {
 		global $wpdb;
 		$tables    = $this->tables();
 		$secret    = 'seeded-secret-' . wp_generate_password( 32, false );
-		$uuid      = wp_generate_uuid4();
-		$encrypted = SecretCrypto::encrypt( $secret );
+		$uuid      = isset( $overrides['installation_uuid'] ) ? (string) $overrides['installation_uuid'] : wp_generate_uuid4();
+		$encrypted = SecretCrypto::encrypt( $secret, SecretCrypto::PURPOSE_INSTALLATION, $uuid );
 		$this->assertIsString( $encrypted );
 		$now = gmdate( 'Y-m-d H:i:s' );
 		$row = array_merge(

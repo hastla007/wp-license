@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/LicenseClient.php
- * (source sha256 a0e353dcf2c071b2bee8fa8c55e4e37479bb050c3f9f63fb1a4008e384db6277). Do not edit: change the server copy and re-vendor.
+ * (source sha256 ce574ee2b52974174be31896422b5878dc27931c885908ac47946a8b00fb6770). Do not edit: change the server copy and re-vendor.
  *
  * Transport of the license client: activation, signed requests, verified answers.
  *
@@ -35,7 +35,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.4.0';
+		const VERSION = '2.4.1';
 
 		/**
 		 * Context of the Ed25519 signature over the payload text.

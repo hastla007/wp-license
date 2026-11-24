@@ -25,6 +25,16 @@ final class EntitlementService {
 	public const OFFLINE_DAYS = 14;
 
 	/**
+	 * Shortest offline window in days, also for the filter `wplc_offline_cache_days` (P6-M3).
+	 */
+	public const MIN_OFFLINE_DAYS = 2;
+
+	/**
+	 * Longest offline window in days, also for the filter `wplc_offline_cache_days` (P6-M3).
+	 */
+	public const MAX_OFFLINE_DAYS = 90;
+
+	/**
 	 * Length of the version columns of an activation.
 	 */
 	private const VERSION_LENGTH = 30;
@@ -304,7 +314,8 @@ final class EntitlementService {
 		if ( false !== $paid_until ) {
 			// has_access() at the end of the paid period is true exactly when a grace period applies.
 			if ( LicenseLifecycle::has_access( $license, $paid_until ) ) {
-				$grace_end = $paid_until + LicenseLifecycle::grace_days() * DAY_IN_SECONDS;
+				// P2-I3: the grace end of the open renewal, else the setting in force.
+				$grace_end = LicenseLifecycle::grace_end( $license );
 			}
 			if ( $access ) {
 				$access_end = null === $grace_end ? $paid_until : $grace_end;
@@ -317,11 +328,16 @@ final class EntitlementService {
 			/**
 			 * Filter the number of days a client may rely on a signed snapshot offline.
 			 *
+			 * Clamped to 2 to 90 days, the range of the setting.
+			 *
 			 * @param int                 $days    Default: the period of the plan, else the setting "Offline period of customer sites" (14).
 			 * @param array<string,mixed> $license License row.
 			 */
-			$offline_days = max( 1, (int) apply_filters( 'wplc_offline_cache_days', $offline_days, $license ) );
+			$offline_days = (int) apply_filters( 'wplc_offline_cache_days', $offline_days, $license );
 		}
+		// P6-M3: clients check once a day and catch up after 36 hours; a window below two days would lock
+		// out sites after one missed check, and no value may grow without bound.
+		$offline_days  = max( self::MIN_OFFLINE_DAYS, min( self::MAX_OFFLINE_DAYS, (int) $offline_days ) );
 		$cache_expires = $now + $offline_days * DAY_IN_SECONDS;
 		if ( null !== $access_end ) {
 			$cache_expires = min( $cache_expires, $access_end );

@@ -6,6 +6,81 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Fixed (24 Nov 2026: expert reviews SET-LIC-P1 to P6)
+
+Six reviewers read the state of `deb16fc` (settings and data, flows, law, security, usability and language, contracts and operations); seven workers fixed the findings on separate files. Details and evidence per finding in `docs/TODO.md` (section 20, "Funde der Prüfphase"); legal questions went to T-93.
+
+- Rules of a plan that replace manufacturer rules (staging and development sites, offline period, co-users, beta versions) can only be changed by users with the capability of that setting (`wplc_manage_policy`). Without it, the product editor shows them read-only with the reason, the catalog CSV import keeps the stored values and lists the rules it kept, and every other save keeps them too. The largest quantity per order line stays with the catalog capability; WP-CLI and cron runs are unchanged (P4-M1).
+- Licenses already sold keep the rules of their plan (staging and development sites, co-users, offline period, beta versions) when the product is moved to the trash. Renewal prices still use active plans only (P2-I1).
+- Rules per plan are cheap again: the plan of a license is found from the order line in one query instead of loading the order, and the customer account looks up the plans of all listed licenses at once (P6-I1).
+- The plan cache follows a changed product or plan key of a license and expires after 60 seconds in long WP-CLI and Action Scheduler runs (P6-M5).
+- Product editor: the help texts are visible and linked to their fields; "Live site limit" and "License billing interval" have help; the global value of a plan rule is shown as text. After a validation error the form keeps the submitted values and the message names only the wrong field and its limits. A live-site limit outside 1 to 1000 is reported instead of being changed silently. The billing interval message names the choices "Monthly" and "Yearly" (P5-I3, P5-I2, P5-M17, P5-M10).
+- The offline period of customer sites is at least 2 days, for the setting and per plan, longer than the daily check of the add-on. A stored 1 day counts as 2 (P2-M5).
+- Settings changed with WP-CLI (and every other path outside the settings form: import, reset, country profiles) now pass the same cross checks as the form: the two customer account addresses cannot be equal or the address of a WooCommerce page such as `orders`, a value set by a constant in `wp-config.php` (object storage) stays, and the warning about a grace period not longer than the last retry day is reported (`Settings\Changes`, new row states `constant` and `conflict`).
+- `wp wplc settings set` no longer reports success for a setting that was not changed (fixed key prefix, constant, address conflict, refused by the page); it fails with the reason. Imports with `--apply` list such rows as "Not changed".
+- The help of `wp wplc settings list|reset --group` names every group, including `sharing` and `account`.
+- The choice "When the plugin is deleted" is no longer part of exports and imports and can never be applied from an import, a reset or a country profile; "Delete" needs its own field and confirmation.
+- The first save of the settings (option not stored yet) no longer reverts a confirmed "Delete tables and options" and no longer shows every message twice.
+- Fields with a renderer of their own (catalog import, combined renewals, renewal notice, price change notice, suspended licenses, largest quantity, reminder days, package hosts) now name their filter and show "In effect: …" when code of the shop changes the value.
+- More than 50 trusted package hosts are rejected with a message instead of being cut silently.
+- Test health alerts from the settings page are limited to 10 per user and hour, like test emails.
+- The settings page shows "Settings saved." after a save without any message, once.
+- A rejected value is shown at its field: the field is marked `aria-invalid` with the message linked through `aria-describedby`, each message at the top links to its field, and the field shows the submitted value again (kept for five minutes for the current user only). Messages on the settings page are escaped.
+- Read-only switches and choices are shown as read-only text fields instead of disabled controls, so they stay reachable with the keyboard together with the reason.
+- Settings tools: unique ids for every button (no more repeated `id="submit"`), no `<label for>` without a box in the preview, the forms return to the tab they were sent from, the help of the guided questions is linked with `aria-describedby`, and the test email language list shows language names.
+- Status table of the settings page without `role="presentation"`; the heading "Getting started" stands before its box instead of inside `<summary>`.
+- Applying a prepared import, reset or country profile no longer overwrites a value that was changed after the preview was prepared; such rows are refused and named.
+- In previews of an import or reset, rows with legal weight are never ticked in advance and are marked "unchecked"; an empty consent wording is explained as the built-in wording.
+- The status row of the grace period uses the name of its setting, "Grace period after the paid period" (German "Kulanzfrist nach der bezahlten Zeit").
+- Fixed: the retention rule `consents` counts from the end of the license (revocation, end of the last paid period or last change), like `anonymize_licenses`, instead of from the consent date, so the evidence of recent charges is kept (P3-A1).
+- Fixed: the year-end retention rules (`anonymize_licenses`, `consents`) count whole calendar years; 3650 days no longer end up to three days early around the turn of the year (P3-A2).
+- Added: the consent to a new automatic amount given with a plan upgrade is stored like the checkout consent (wording, hash, language, source `upgrade`, time) on the order and as a row in the consents table (P3-A3).
+- Added: a sent price-change notice leaves a durable record in the consents table (source `price_notice`) that follows the retention of the consent evidence and is exported (P3-A4).
+- Changed: the suggested privacy policy text names outgoing webhooks, the record of the consent to the immediate start, the public cancellation page, price-change notices and the upgrade consent; the privacy export contains the wording and language of the consent to the immediate start (P3-A5).
+- Fixed: on the public cancellation page a license reference or key is no longer a rate limit before the lookup, so a third party who knows it can no longer block the owner's cancellation; order numbers stay limited (P3-A6).
+- Added: while the email "Upcoming automatic renewal" is switched off and licenses renew automatically, license managers see an admin notice, the diagnostics page shows "Automatic renewals blocked" and the health alert `renewal_notice_disabled` fires; the notice is still never sent behind the shop's back (P2-I2).
+- Fixed: access, the signed `grace_until` and the email texts use the grace period stored on the open renewal, so shortening the setting no longer cuts off a license that is still being retried (P2-I3).
+- Fixed: accepting a co-user invitation respects the co-user limit in force; invitations sent before the limit was lowered stay open (P2-M4).
+- Changed: very large quantities are issued in batches (50 licenses per call of the paying request, 500 per background batch through Action Scheduler; filter `wplc_license_issue_batch_size`) (P2-M6).
+- Documented: an upgrade order started before upgrades were switched off stays payable while its quote applies (P2-M7).
+- Fixed: the description of the email "Upcoming automatic renewal" names the configured lead time instead of a fixed 7 days (P2-M8).
+- Fixed: the filter `wplc_offline_cache_days` is clamped to 2 to 90 days (P6-M3).
+- Webhooks: a target URL whose host name ends with a dot (`hooks.example.com.`) is refused when saved and before every request; cURL resolved that spelling itself, past the pinned address. After the request the address cURL actually connected to must be the checked one, otherwise the attempt counts as failed (`address_mismatch`) even with a 2xx answer (P4-L2).
+- Webhooks: the index of subscribed events and the list of switched-off endpoints stay as autoloaded empty arrays instead of being deleted, so license actions and admin screens no longer query a missing option on every request; a missing index is built once. The notice about switched-off endpoints checks the capability before reading the option (P6-M4).
+- Webhooks screen: the admin stylesheet is loaded on it, and the endpoint and delivery log tables scroll inside themselves below 782 px; the browser check visits the screen at 1280 and 375 px (P5-I5).
+- Webhooks screen: every row button and confirmation box names its endpoint (name, else host) for screen readers; "Send again" names the event (P5-I6).
+- Webhooks screen: after a failed add or change, the form keeps the typed name, URL, events and switch; the error is shown at the field (`aria-invalid`, `aria-describedby`) and the notice links to it (P5-I2, webhooks part).
+- Webhook delivery log: errors are stored as a code with a technical detail (`http_status:503`, `address_refused:blocked_address`, `transport_error:…`, `address_mismatch:…`, `secret_unreadable`, `endpoint_off`, `endpoint_deleted`) and translated when shown; rows from before keep their English text (P5-M9).
+- Customer account: the empty copy live region stays rendered (visually hidden) so screen readers announce "Copied" (P5-M7).
+- Templates: "email" instead of "e-mail", "for example" instead of "e.g." (public cancellation page, webhook form) (P5-M11, part).
+- `bin/list-hooks.php` reads whole files token by token (a call with the hook name on the next line is found) and also `templates/`; docs/EXTENSION-POINTS.md now lists `wplc/activation_site_mismatch`, `wplc_renewal_order_copied_meta_keys`, `wplc_renewal_unavailable_customer_hint` and the account template actions `wplc_before_account_licenses`, `wplc_after_account_licenses`, `wplc_before_account_license`, `wplc_account_license_renewal`, `wplc_account_license_actions`, `wplc_account_license_sharing`, `wplc_after_account_license` (P6-I2).
+- API-V1.md and openapi-v1.json: the grace period is the setting "Grace period after the paid period" (default 14, 1 to 90) or the filter; the offline period is the plan rule, else the setting (default 14, 2 to 90), and the filter `wplc_offline_cache_days` wins (clamped to 2 to 90); `cache_expires_at` never reaches beyond `access_until` (P6-M3, docs part).
+- phpunit.yml and COMPATIBILITY.md: PHP 8.6 was released on 19 Nov 2026; its cells stay experimental until the owner decides (UEB-07) (P6-M6).
+- Stored secrets are bound to what they are and where they are stored (UEB-12): `SecretCrypto` writes `v2:<key ID>:…` envelopes whose authenticated data holds key ID, purpose and context (installation secrets: installation ID; webhook secrets: endpoint ID; response signing keys: option name; the one-time display of a new webhook secret: user and endpoint). A value copied into another row, option or purpose no longer decrypts. `encrypt()`/`decrypt()` now require purpose and context.
+- Values of earlier versions (`v1:` and unversioned) keep working through a marked legacy fallback and move to v2 on use, by an hourly background batch on `wplc_cleanup_security_rows` (per site, resumable, idempotent, no schema step; state in option `wplc_secret_format_migration`, removed on uninstall with data) and by `wp wplc rotate-installation-secrets --apply`. Values that cannot be decrypted are left untouched; `SecretMigration::legacy_count()` reports what is left.
+- `wp wplc rotate-installation-secrets` also re-encrypts webhook secrets that use an old key or format (they count as remaining in a dry run); `pending_count()` now also counts v1 rows.
+- Uploaded packages are checked against the SHA-256 registered at publish time before every delivery, on the update stream (GET and HEAD) and on the download from the customer account (UEB-12). A changed file is not sent (account: HTTP 503 page, no download allowance used; stream: `503 package_integrity_failed`), is audited as `package_checksum_mismatch`, logged as an error and raised as the health alert `package_checksum_mismatch`.
+- `wp wplc webhook test` prints why a test event was not delivered in the same words as the webhook screen (for example "The receiver answered with HTTP 503.") instead of the stored error code `http_status:503`.
+- A sold license whose live-site limit is not stored as an entitlement keeps the live-site limit of its plan when the product is moved to the trash, like the other rules of its plan (P2-I1). Before, the limit fell back to 1.
+- The quality gates describe PHP 8.6 as released (19 Nov 2026) and experimental until the owner decides (UEB-07), like COMPATIBILITY.md.
+- Catalog CSV, entitlements and the manual name the offline period of 2 to 90 days (a stored 1 counts as 2) and the rule that plan overrides replacing manufacturer rules need `wplc_manage_policy` (kept and listed for other users).
+- WP-CLI chapter: `wp wplc settings set` fails with the reason for a setting that cannot change (locked, constant, conflict, refused), `import --apply` lists such rows as "Not changed", `uninstall_data` is never exported or imported; the output of `wp wplc webhook test`.
+- Translator comments write "for example" instead of "e.g." (P5-M11).
+- The unused constant `CombinedRenewal::OPTION` (A-136, part).
+- The customer account shows the same end of the grace period for a past-due license as access checks and emails (the grace period the open renewal was scheduled with), not one computed from the current setting.
+- A customer who accepts a co-user invitation while the license has no free place gets a notice meant for them ("Ask the license owner to free one; your invitation stays valid until it expires.") instead of the owner's notice to remove a co-user.
+- Settings help and manual: an upgrade order the customer started before upgrades were switched off stays payable while its offer is valid; large quantities per order line are issued in background batches after payment (filter `wplc_license_issue_batch_size`).
+- Privacy policy text, erasure message and public cancellation page write "email" instead of "e-mail".
+- German: "grace period" is translated as "Kulanzfrist" everywhere (was partly "Kulanzzeit").
+
+### Fixed (24 Nov 2026: client library 2.4.1)
+
+Two faults reported by captain-pro, which embeds the library in six add-ons (CP-P5-08, CP-P6-09). Details: `packaging/client/CHANGELOG-CLIENT.md`.
+
+- **Enter in the key field activates.** On an activated site the key field shared one form with "Save" (beta box), "Check now" and "Remove license from this site"; Enter sent the first of them. The key field with "Activate" is now a form of its own.
+- **No waiting for the license server in the admin.** The catch-up of an overdue check asked the server during the admin page view, up to the HTTP timeout per add-on when the server could not be reached. It now schedules a one-off WP-Cron event and starts WP-Cron in the background, once per request for all add-ons; only the add-on's own license screen still checks at once.
+- Starter re-vendored, `packaging/client/checksums.json` has 2.4.1. No new texts.
+
 ### Added (23 Nov 2026: outgoing webhooks)
 
 License events can be sent to other systems (CRM, accounting, automation platforms) as signed HTTPS requests, for every customer (SET-LIC-46). Nothing changes until an endpoint is added. Full description: [docs/WEBHOOKS.md](docs/WEBHOOKS.md), manual chapter 14.

@@ -38,7 +38,9 @@ final class PlanUpgrade {
 	public const META_PAID_UNTIL      = '_wplc_upgrade_paid_until';
 	public const META_RENEWAL_MINOR   = '_wplc_upgrade_renewal_minor';
 	public const META_CONSENT         = '_wplc_upgrade_recurring_consent_at';
-	public const META_STATE           = '_wplc_upgrade_state';
+	/** Evidence of the consent to the new automatic amount: text, hash, locale, source, at (P3-A3). */
+	public const META_CONSENT_EVIDENCE = '_wplc_upgrade_recurring_consent_evidence';
+	public const META_STATE          = '_wplc_upgrade_state';
 	public const META_REVIEW_REASON   = '_wplc_upgrade_review_reason';
 	/** How META_FROM_AMOUNT is to be read: '1' gross, '0' net, '-' unknown (P-04). */
 	public const META_FROM_INCLUDES_TAX = '_wplc_upgrade_from_includes_tax';
@@ -379,9 +381,13 @@ final class PlanUpgrade {
 					$order->update_meta_data( $key, $value );
 				}
 				if ( ! empty( $license['renewal_enabled'] ) ) {
-					$order->update_meta_data( self::META_CONSENT, gmdate( 'Y-m-d H:i:s' ) );
+					// P3-A3: the wording the customer ticked, with hash, language and source, like the checkout consent.
+					$evidence = ConsentRecord::evidence( self::consent_text( $license, $target ), ConsentRecord::SOURCE_UPGRADE, time() );
+					$order->update_meta_data( self::META_CONSENT, $evidence['at'] );
+					$order->update_meta_data( self::META_CONSENT_EVIDENCE, $evidence );
 				} else {
 					$order->delete_meta_data( self::META_CONSENT );
+					$order->delete_meta_data( self::META_CONSENT_EVIDENCE );
 				}
 				$order->save();
 
@@ -499,6 +505,9 @@ final class PlanUpgrade {
 		}
 		self::set_state( $order, self::STATE_APPLIED );
 		$consent = (string) $order->get_meta( self::META_CONSENT, true );
+		if ( '' !== $consent ) {
+			self::store_consent( $order, $changed ? $changed : $license, $consent );
+		}
 		$order->add_order_note(
 			sprintf(
 				/* translators: 1: license ID, 2: new plan key. */
@@ -514,6 +523,37 @@ final class PlanUpgrade {
 		);
 
 		return true;
+	}
+
+	/**
+	 * Keep the consent to the new automatic amount in the consents table once the upgrade applied (P3-A3).
+	 *
+	 * Orders started before the evidence was stored on the order keep only the time; their row
+	 * holds the amount and an empty wording.
+	 *
+	 * @param \WC_Order           $order   Applied upgrade order.
+	 * @param array<string,mixed> $license License row after the switch.
+	 * @param string              $consent UTC time of the consent.
+	 * @return void
+	 */
+	private static function store_consent( $order, array $license, string $consent ): void {
+		$evidence = $order->get_meta( self::META_CONSENT_EVIDENCE, true );
+		$evidence = is_array( $evidence ) ? $evidence : array();
+		ConsentRecord::store(
+			array(
+				'license_id' => (int) $license['id'],
+				'order_id' => (int) $order->get_id(),
+				'customer_id' => (int) ( $license['customer_id'] ?? 0 ),
+				'consent_at' => $consent,
+				'source' => ConsentRecord::SOURCE_UPGRADE,
+				'locale' => (string) ( $evidence['locale'] ?? '' ),
+				'text' => isset( $evidence['text'] ) && is_string( $evidence['text'] ) ? $evidence['text'] : '',
+				'amount_minor' => absint( $order->get_meta( self::META_RENEWAL_MINOR, true ) ),
+				'currency_decimals' => (int) $license['renewal_currency_decimals'],
+				'currency' => (string) $license['renewal_currency'],
+				'billing_interval' => (string) $license['billing_interval'],
+			)
+		);
 	}
 
 	/**
@@ -883,8 +923,7 @@ final class PlanUpgrade {
 				if ( ! empty( $license['renewal_enabled'] ) ) {
 					$field = 'wplc-upgrade-consent-' . $license_id . '-' . $product_id;
 					echo '<p><label for="' . esc_attr( $field ) . '"><input type="checkbox" id="' . esc_attr( $field ) . '" name="wplc_upgrade_consent" value="1" required> ';
-					/* translators: 1: new renewal amount, 2: "per year" or "per month", 3: date of the next automatic charge. */
-					echo esc_html( sprintf( __( 'I agree that my saved payment method is charged %1$s %2$s automatically from the next renewal on %3$s, until I cancel.', 'wp-license' ), $price, $per_period, self::date_label( (string) $license['paid_until'] ) ) );
+					echo esc_html( self::consent_text( $license, $target ) );
 					echo '</label></p>';
 				}
 				/* translators: %s: plan name. */
@@ -1183,6 +1222,21 @@ final class PlanUpgrade {
 	 */
 	private static function product_name( $product ): string {
 		return trim( wp_strip_all_tags( (string) $product->get_name() ) );
+	}
+
+	/**
+	 * Wording of the consent to the new automatic amount, as shown next to the checkbox and kept as evidence.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @param array<string,mixed> $target  Upgrade target (PlanChange::targets()).
+	 * @return string
+	 */
+	public static function consent_text( array $license, array $target ): string {
+		$price      = self::money( (int) $target['price']['amount_minor'], (int) $target['price']['decimals'], (string) $target['price']['currency'] );
+		$per_period = 'month' === (string) $license['billing_interval'] ? __( 'per month', 'wp-license' ) : __( 'per year', 'wp-license' );
+
+		/* translators: 1: new renewal amount, 2: "per year" or "per month", 3: date of the next automatic charge. */
+		return sprintf( __( 'I agree that my saved payment method is charged %1$s %2$s automatically from the next renewal on %3$s, until I cancel.', 'wp-license' ), $price, $per_period, self::date_label( (string) $license['paid_until'] ) );
 	}
 
 	/**

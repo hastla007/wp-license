@@ -249,7 +249,12 @@ final class CustomerDownload {
 		$local = ReleaseRegistry::STORAGE_LOCAL === $release['storage'];
 		if ( $local ) {
 			// T-108: the file is sent in the response to this POST request; no download token ever appears in a URL.
-			$target = null === LocalPackageStorage::path_for_key( (string) $release['package_url'] ) ? '' : 'local';
+			$path   = LocalPackageStorage::path_for_key( (string) $release['package_url'] );
+			$target = null === $path ? '' : 'local';
+			// UEB-12: a file that changed after publishing is never sent. Checked before the download is recorded.
+			if ( null !== $path && ! PackageStream::checksum_matches( $release, $path, PackageStream::SOURCE_CUSTOMER ) ) {
+				self::fail( __( 'This download failed its integrity check and was stopped. The shop has been notified; please try again later.', 'wp-license' ), 503 );
+			}
 		} else {
 			$target = apply_filters( 'wplc_resolve_update_package_url', (string) $release['package_url'], $license_id );
 			$target = is_string( $target ) && PackageStream::is_trusted_url( $target ) && \WPLC\Api\V1\UpdateService::may_redirect_to( $target, (string) $release['package_url'] ) ? $target : '';

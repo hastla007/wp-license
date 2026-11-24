@@ -26,11 +26,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  * - One event ID per event, the same for every endpoint, every attempt and a redelivery: the
  *   receiver uses it as its idempotency key.
  * - Each attempt is a POST with wp_safe_remote_post() to the address checked by UrlGuard (also
- *   right before the request, pinned to the checked IP), no redirects, 10 seconds timeout.
+ *   right before the request, pinned to the checked IP; an answer from another address than the
+ *   checked one never counts as delivered), no redirects, 10 seconds timeout.
  *   A 2xx answer is a success; anything else (3xx included) is retried after 1, 5, 30 and
  *   120 minutes, five attempts in all (filter `wplc_webhook_retry_delays`).
  * - An endpoint whose deliveries failed after their last attempt five times in a row is switched
  *   off (filter `wplc_webhook_disable_after_failures`, 0 = never); administrators see a notice.
+ * - The delivery log stores an error code with a technical detail ("code:detail", ERROR_*);
+ *   Admin::delivery_error() translates it when it is shown.
  */
 final class Dispatcher {
 
@@ -45,6 +48,18 @@ final class Dispatcher {
 
 	/** Failed deliveries in a row after which an endpoint is switched off. */
 	public const DEFAULT_DISABLE_AFTER = 5;
+
+	/** Error codes stored in the delivery log (with ":detail" where noted). */
+	public const ERROR_ADDRESS_REFUSED = 'address_refused';  // Detail: UrlGuard code.
+	public const ERROR_SECRET          = 'secret_unreadable';
+	public const ERROR_TRANSPORT       = 'transport_error';  // Detail: error of the HTTP API (technical).
+	public const ERROR_HTTP_STATUS     = 'http_status';      // Detail: HTTP status.
+	public const ERROR_ADDRESS_CHANGED = 'address_mismatch'; // Detail: address cURL connected to.
+	public const ERROR_ENDPOINT_GONE   = 'endpoint_deleted';
+	public const ERROR_ENDPOINT_OFF    = 'endpoint_off';
+
+	/** All stored error codes. */
+	public const ERROR_CODES = array( self::ERROR_ADDRESS_REFUSED, self::ERROR_SECRET, self::ERROR_TRANSPORT, self::ERROR_HTTP_STATUS, self::ERROR_ADDRESS_CHANGED, self::ERROR_ENDPOINT_GONE, self::ERROR_ENDPOINT_OFF );
 
 	/**
 	 * Register the listeners and the queue hook.
@@ -73,8 +88,13 @@ final class Dispatcher {
 			return;
 		}
 		try {
-			// Cheap check first: no query at all when no active endpoint wants the event.
-			$index = get_option( Endpoints::INDEX_OPTION, array() );
+			// Cheap check first: no query at all when no active endpoint wants the event. The index is
+			// an autoloaded option (an empty array without endpoints); a missing one is built once.
+			$index = get_option( Endpoints::INDEX_OPTION, null );
+			if ( null === $index ) {
+				Endpoints::refresh_index();
+				$index = get_option( Endpoints::INDEX_OPTION, array() );
+			}
 			if ( ! is_array( $index ) || ! in_array( $event, $index, true ) ) {
 				return;
 			}
@@ -158,7 +178,7 @@ final class Dispatcher {
 		 * @since 0.2.0
 		 *
 		 * @param array<string,mixed> $envelope Body: id, event, hook, contract_version, webhook_version, created_at, source, data.
-		 * @param string              $event    Event name, e.g. license.status_changed.
+		 * @param string              $event    Event name, for example license.status_changed.
 		 */
 		return self::keep_identity( $envelope, apply_filters( 'wplc_webhook_payload', $envelope, $event ) );
 	}
@@ -240,12 +260,12 @@ final class Dispatcher {
 		$is_test  = EventCatalog::TEST_EVENT === $delivery['event'];
 		$endpoint = Endpoints::get( (int) $delivery['endpoint_id'] );
 		if ( null === $endpoint ) {
-			Deliveries::cancel( $delivery_id, 'Endpoint deleted.' );
+			Deliveries::cancel( $delivery_id, self::ERROR_ENDPOINT_GONE );
 			return;
 		}
 		if ( ! $endpoint['active'] && ! $is_test ) {
 			if ( in_array( $delivery['status'], array( Deliveries::PENDING, Deliveries::RETRYING ), true ) ) {
-				Deliveries::cancel( $delivery_id, 'Endpoint switched off.' );
+				Deliveries::cancel( $delivery_id, self::ERROR_ENDPOINT_OFF );
 			}
 			return;
 		}
@@ -299,19 +319,22 @@ final class Dispatcher {
 	private static function send( array $endpoint, array $delivery, int $attempt ): array {
 		$checked = UrlGuard::check( (string) $endpoint['url'] );
 		if ( UrlGuard::OK !== $checked['error'] ) {
-			return self::failure( 0, 0, 'Address refused: ' . $checked['error'] );
+			return self::failure( 0, 0, self::error_code( self::ERROR_ADDRESS_REFUSED, $checked['error'] ) );
 		}
 		$secret = Endpoints::secret( (int) $endpoint['id'] );
 		if ( '' === $secret ) {
-			return self::failure( 0, 0, 'Secret cannot be decrypted; generate a new secret.' );
+			return self::failure( 0, 0, self::ERROR_SECRET );
 		}
 		$body    = (string) ( $delivery['payload'] ?? '' );
 		$version = defined( 'WPLC_VERSION' ) ? (string) WPLC_VERSION : '0';
 		$headers = Payload::headers( $secret, (string) $delivery['event_id'], (string) $delivery['event'], time(), $attempt, $body, 'WP-License-Captain-Webhooks/' . $version );
 		$url     = (string) $endpoint['url'];
 		$pin     = self::pin( $url, $checked['ip'] );
+		$seen    = array();
+		$watch   = self::watch_address( $seen );
 
 		add_action( 'http_api_curl', $pin, 10, 3 );
+		add_action( 'requests-curl.after_request', $watch, 10, 2 );
 		$start = microtime( true );
 		try {
 			$response = wp_safe_remote_post(
@@ -328,13 +351,19 @@ final class Dispatcher {
 			);
 		} finally {
 			remove_action( 'http_api_curl', $pin, 10 );
+			remove_action( 'requests-curl.after_request', $watch, 10 );
 		}
 		$duration = (int) round( ( microtime( true ) - $start ) * 1000 );
 
 		if ( is_wp_error( $response ) ) {
-			return self::failure( 0, $duration, $response->get_error_message() );
+			return self::failure( 0, $duration, self::error_code( self::ERROR_TRANSPORT, $response->get_error_message() ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
+		// Second line of defence behind the pin: the connection must have gone to the checked address.
+		$connected = isset( $seen[0] ) ? (string) $seen[0] : '';
+		if ( '' !== $connected && '' !== $checked['ip'] && ! UrlGuard::same_ip( $connected, $checked['ip'] ) ) {
+			return self::failure( $code, $duration, self::error_code( self::ERROR_ADDRESS_CHANGED, $connected ) );
+		}
 		if ( $code >= 200 && $code < 300 ) {
 			return array(
 				'ok'          => true,
@@ -344,7 +373,54 @@ final class Dispatcher {
 			);
 		}
 
-		return self::failure( $code, $duration, 'HTTP ' . $code . ( $code >= 300 && $code < 400 ? ' (redirects are not followed)' : '' ) );
+		return self::failure( $code, $duration, self::error_code( self::ERROR_HTTP_STATUS, (string) $code ) );
+	}
+
+	/**
+	 * Stored form of an error: code, or code and technical detail ("code:detail").
+	 *
+	 * @param string $code   One of the ERROR_* codes.
+	 * @param string $detail Technical detail, '' for none.
+	 * @return string
+	 */
+	public static function error_code( string $code, string $detail = '' ): string {
+		return '' === $detail ? $code : $code . ':' . $detail;
+	}
+
+	/**
+	 * Split a stored error into code and detail; code '' for an old row with a free text.
+	 *
+	 * @param string $stored Stored error.
+	 * @return array{code:string,detail:string}
+	 */
+	public static function parse_error( string $stored ): array {
+		if ( preg_match( '/^([a-z_]+)(?::(.*))?$/s', $stored, $match ) && in_array( $match[1], self::ERROR_CODES, true ) ) {
+			return array(
+				'code'   => $match[1],
+				'detail' => isset( $match[2] ) ? (string) $match[2] : '',
+			);
+		}
+
+		return array(
+			'code'   => '',
+			'detail' => $stored,
+		);
+	}
+
+	/**
+	 * Requests hook that notes the address cURL connected to (curl_getinfo "primary_ip").
+	 *
+	 * Hooked only around the one request of an attempt (no redirects), so every call belongs to it.
+	 *
+	 * @param array<int,string> $seen Receives the address.
+	 * @return callable
+	 */
+	private static function watch_address( array &$seen ): callable {
+		return static function ( $headers = '', $info = array() ) use ( &$seen ): void {
+			if ( is_array( $info ) && isset( $info['primary_ip'] ) && '' !== (string) $info['primary_ip'] ) {
+				$seen[0] = (string) $info['primary_ip'];
+			}
+		};
 	}
 
 	/**

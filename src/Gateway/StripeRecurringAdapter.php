@@ -1256,7 +1256,7 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 		$type = sanitize_key( (string) $order->get_meta( '_stripe_upe_payment_type', true ) );
 		$order->add_order_note(
 			sprintf(
-				/* translators: %s: Stripe payment method type, e.g. link. */
+				/* translators: %s: Stripe payment method type, for example link. */
 				__( 'WP License Captain: automatic renewal was requested, but the payment method of this order (%s) is not a saved card. The license will not renew automatically.', 'wp-license' ),
 				'' !== $type ? $type : __( 'unknown', 'wp-license' )
 			)

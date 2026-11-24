@@ -38,6 +38,17 @@ final class CatalogCsv {
 	const MAX_REPORTED_ERRORS = 100;
 
 	/**
+	 * Override columns of the row imported last that were kept because the user lacks the
+	 * capability (P4-M1), or the column of an `invalid_override` failure.
+	 *
+	 * @var array{kept:string[],field:string}
+	 */
+	private static $row_notes = array(
+		'kept'  => array(),
+		'field' => '',
+	);
+
+	/**
 	 * Register admin hooks.
 	 *
 	 * @return void
@@ -135,7 +146,7 @@ final class CatalogCsv {
 		if ( $errors ) {
 			echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th scope="col">' . esc_html__( 'Line', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'Reason', 'wp-license' ) . '</th></tr></thead><tbody>';
 			foreach ( $errors as $error ) {
-				echo '<tr><td>' . esc_html( (string) (int) ( $error['line'] ?? 0 ) ) . '</td><td>' . esc_html( self::reason_message( (string) ( $error['reason'] ?? '' ) ) ) . '</td></tr>';
+				echo '<tr><td>' . esc_html( (string) (int) ( $error['line'] ?? 0 ) ) . '</td><td>' . esc_html( self::reason_message( (string) ( $error['reason'] ?? '' ), (string) ( $error['field'] ?? '' ) ) ) . '</td></tr>';
 			}
 			echo '</tbody></table>';
 			if ( $failed > count( $errors ) ) {
@@ -143,6 +154,22 @@ final class CatalogCsv {
 				/* translators: %s: number of further rejected rows. */
 				echo '<p>' . esc_html( sprintf( _n( '… and %s more rejected row.', '… and %s more rejected rows.', $more, 'wp-license' ), number_format_i18n( $more ) ) ) . '</p>';
 			}
+		}
+		$kept = isset( $result['kept'] ) && is_array( $result['kept'] ) ? $result['kept'] : array();
+		if ( $kept ) {
+			echo '<p>' . esc_html(
+				sprintf(
+					/* translators: %s: capability name, for example wplc_manage_policy. */
+					__( 'Rules of these plans were not changed: they replace manufacturer rules of the license settings, and only users with the capability %s may change them. The stored values were kept.', 'wp-license' ),
+					Capabilities::cap( 'manage_policy' )
+				)
+			) . '</p>';
+			echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th scope="col">' . esc_html__( 'Line', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'Rules kept', 'wp-license' ) . '</th></tr></thead><tbody>';
+			foreach ( $kept as $entry ) {
+				$labels = array_map( array( PlanOverrides::class, 'label' ), array_map( 'strval', (array) ( $entry['fields'] ?? array() ) ) );
+				echo '<tr><td>' . esc_html( (string) (int) ( $entry['line'] ?? 0 ) ) . '</td><td>' . esc_html( implode( ', ', $labels ) ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
 		}
 		echo '</div>';
 	}
@@ -254,7 +281,7 @@ final class CatalogCsv {
 	 * file can simply be imported again.
 	 *
 	 * @param string $path Readable file.
-	 * @return array{imported:int,failed:int,errors:array<int,array{line:int,reason:string}>,error:string,stopped_at:int}
+	 * @return array{imported:int,failed:int,errors:array<int,array{line:int,reason:string,field?:string}>,error:string,stopped_at:int,kept:array<int,array{line:int,fields:string[]}>}
 	 */
 	public static function import_file( string $path ): array {
 		$result = self::empty_result( '' );
@@ -327,10 +354,16 @@ final class CatalogCsv {
 			$row    = (array) array_combine( $headers, $values );
 			$reason = self::import_row( $row );
 			if ( '' !== $reason ) {
-				self::add_error( $result, $line, $reason );
+				self::add_error( $result, $line, $reason, self::$row_notes['field'] );
 				continue;
 			}
 			++$result['imported'];
+			if ( self::$row_notes['kept'] && count( $result['kept'] ) < self::MAX_REPORTED_ERRORS ) {
+				$result['kept'][] = array(
+					'line'   => $line,
+					'fields' => self::$row_notes['kept'],
+				);
+			}
 			$targets[] = absint( $row['variation_id'] ?? 0 ) ? absint( $row['variation_id'] ) : absint( $row['product_id'] ?? 0 );
 		}
 		fclose( $handle );
@@ -387,7 +420,7 @@ final class CatalogCsv {
 	 * Result skeleton.
 	 *
 	 * @param string $error File-level error code, or empty.
-	 * @return array{imported:int,failed:int,errors:array<int,array{line:int,reason:string}>,error:string,stopped_at:int}
+	 * @return array{imported:int,failed:int,errors:array<int,array{line:int,reason:string,field?:string}>,error:string,stopped_at:int,kept:array<int,array{line:int,fields:string[]}>}
 	 */
 	private static function empty_result( string $error ): array {
 		return array(
@@ -396,6 +429,8 @@ final class CatalogCsv {
 			'errors' => array(),
 			'error' => $error,
 			'stopped_at' => 0,
+			// P4-M1: rows whose rules of the plan were kept because the user may not change them.
+			'kept' => array(),
 		);
 	}
 
@@ -405,15 +440,20 @@ final class CatalogCsv {
 	 * @param array<string,mixed> $result Result, changed in place.
 	 * @param int                 $line   Line in the file.
 	 * @param string              $reason Reason code.
+	 * @param string              $field  Override column of an `invalid_override` failure.
 	 * @return void
 	 */
-	private static function add_error( array &$result, int $line, string $reason ): void {
+	private static function add_error( array &$result, int $line, string $reason, string $field = '' ): void {
 		++$result['failed'];
 		if ( count( $result['errors'] ) < self::MAX_REPORTED_ERRORS ) {
-			$result['errors'][] = array(
+			$error = array(
 				'line' => $line,
 				'reason' => $reason,
 			);
+			if ( 'invalid_override' === $reason && '' !== $field ) {
+				$error['field'] = $field;
+			}
+			$result['errors'][] = $error;
 		}
 	}
 
@@ -424,6 +464,10 @@ final class CatalogCsv {
 	 * @return string Empty on success, otherwise a reason code (see reason_message()).
 	 */
 	private static function import_row( array $row ): string {
+		self::$row_notes = array(
+			'kept'  => array(),
+			'field' => '',
+		);
 		$product_id   = absint( $row['product_id'] ?? 0 );
 		$variation_id = absint( $row['variation_id'] ?? 0 );
 		$target_id    = $variation_id ? $variation_id : $product_id;
@@ -479,13 +523,21 @@ final class CatalogCsv {
 		}
 
 		// SET-LIC-21: overrides per plan, empty = global setting; a file without these columns keeps them.
+		// P4-M1: a rule the user may not change is passed on unchecked; Catalog::save_mapping() keeps
+		// the stored value and reports it, so the row still imports.
 		$overrides = array();
 		foreach ( array_keys( PlanOverrides::FIELDS ) as $field ) {
 			if ( ! array_key_exists( $field, $row ) ) {
 				continue;
 			}
-			$checked = PlanOverrides::normalize( $field, self::unescape_cell( (string) $row[ $field ] ) );
+			$cell = self::unescape_cell( (string) $row[ $field ] );
+			if ( ! PlanOverrides::may_change( $field ) ) {
+				$overrides[ $field ] = $cell;
+				continue;
+			}
+			$checked = PlanOverrides::normalize( $field, $cell );
 			if ( ! $checked['ok'] ) {
+				self::$row_notes['field'] = $field;
 				return 'invalid_override';
 			}
 			$overrides[ $field ] = $checked['value'];
@@ -505,8 +557,10 @@ final class CatalogCsv {
 			)
 		);
 		if ( ! $saved ) {
+			self::$row_notes['field'] = Catalog::last_error_field();
 			return Catalog::last_error();
 		}
+		self::$row_notes['kept'] = Catalog::kept_overrides();
 
 		// The product meta mirrors the plan for the product editor form.
 		$product->update_meta_data( '_wplc_is_license_product', 'yes' );
@@ -525,9 +579,10 @@ final class CatalogCsv {
 	 * Explain a reason code.
 	 *
 	 * @param string $reason Reason code.
+	 * @param string $field  Override column of an `invalid_override` failure, to name only that field.
 	 * @return string
 	 */
-	public static function reason_message( string $reason ): string {
+	public static function reason_message( string $reason, string $field = '' ): string {
 		switch ( $reason ) {
 			case 'upload_failed':
 				return __( 'The file could not be uploaded or read.', 'wp-license' );
@@ -548,7 +603,10 @@ final class CatalogCsv {
 			case 'invalid_support_level':
 				return __( 'The support level must be community, standard or priority.', 'wp-license' );
 			case 'invalid_override':
-				return Catalog::error_message( 'invalid_override' );
+				return Catalog::error_message( 'invalid_override', $field );
+			case 'invalid_interval':
+				// The file holds the stored values, not the labels of the product editor.
+				return __( 'The billing interval must be "month" or "year".', 'wp-license' );
 			case 'invalid_site_limit':
 				return __( 'The live site limit must be a whole number from 1 to 1000.', 'wp-license' );
 			case 'invalid_entitlements':

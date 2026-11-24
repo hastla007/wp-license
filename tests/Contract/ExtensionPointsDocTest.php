@@ -1,6 +1,6 @@
 <?php
 /**
- * A-134: every action and filter of the plugin is listed in docs/EXTENSION-POINTS.md.
+ * A-134: every action and filter of the plugin (src/ and templates/) is listed in docs/EXTENSION-POINTS.md.
  *
  * @package WPLC
  */
@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ExtensionPointsDocTest extends TestCase {
 
-	public function test_every_hook_in_src_is_documented(): void {
+	public function test_every_hook_in_src_and_templates_is_documented(): void {
 		$root   = dirname( __DIR__, 2 );
 		$output = array();
 		exec( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( $root . '/bin/list-hooks.php' ) . ' --names', $output, $code );
@@ -25,6 +25,20 @@ final class ExtensionPointsDocTest extends TestCase {
 		}
 
 		$this->assertSame( array(), $missing, 'Run php bin/list-hooks.php and add these hooks to docs/EXTENSION-POINTS.md.' );
+	}
+
+	/** P6-I2: the list reads whole files (hook name on the line after the call) and the templates too. */
+	public function test_the_hook_list_finds_multi_line_calls_and_template_actions(): void {
+		$root   = dirname( __DIR__, 2 );
+		$output = array();
+		exec( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( $root . '/bin/list-hooks.php' ) . ' --names', $output, $code );
+		$this->assertSame( 0, $code );
+		foreach ( array( 'wplc/activation_site_mismatch', 'wplc_renewal_order_copied_meta_keys', 'wplc_renewal_unavailable_customer_hint', 'wplc_before_account_license', 'wplc_account_license_renewal', 'wplc_account_license_actions', 'wplc_account_license_sharing', 'wplc_after_account_license', 'wplc_before_account_licenses', 'wplc_after_account_licenses', 'wplc_daily_lifecycle' ) as $hook ) {
+			$this->assertContains( $hook, $output, $hook );
+		}
+		$table = array();
+		exec( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( $root . '/bin/list-hooks.php' ), $table );
+		$this->assertContains( '| `wplc_after_account_licenses` | `templates/myaccount/wplc-licenses.php` | Fires after the license list in the customer account. |', $table );
 	}
 
 	public function test_the_doc_names_no_hook_that_does_not_exist(): void {

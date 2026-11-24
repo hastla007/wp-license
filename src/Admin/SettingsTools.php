@@ -28,7 +28,7 @@ final class SettingsTools {
 	public const ACTION = 'wplc_settings_tool';
 
 	/**
-	 * Test emails one user may send per hour (SET-LIC-43).
+	 * Test emails one user may send per hour (SET-LIC-43); the same limit counts for test health alerts (P4-L4).
 	 */
 	public const TEST_EMAILS_PER_HOUR = 10;
 
@@ -100,7 +100,9 @@ final class SettingsTools {
 	/**
 	 * The prepared change of the current user.
 	 *
-	 * @return array{source:string,name:string,values:array<string,mixed>,ignored:string[]}|null
+	 * `before` holds the stored value of each setting when the preview was prepared (P3-A7).
+	 *
+	 * @return array{source:string,name:string,values:array<string,mixed>,ignored:string[],before:array<string,mixed>}|null
 	 */
 	public static function pending(): ?array {
 		$pending = get_transient( self::pending_key() );
@@ -113,7 +115,83 @@ final class SettingsTools {
 			'name'    => (string) ( $pending['name'] ?? '' ),
 			'values'  => $pending['values'],
 			'ignored' => isset( $pending['ignored'] ) && is_array( $pending['ignored'] ) ? array_map( 'strval', $pending['ignored'] ) : array(),
+			'before'  => isset( $pending['before'] ) && is_array( $pending['before'] ) ? $pending['before'] : array(),
 		);
+	}
+
+	/**
+	 * A setting in the form it is compared in: the stored value, brought into the valid form.
+	 *
+	 * @param string $key Setting key.
+	 * @return mixed
+	 */
+	private static function comparable( string $key ) {
+		$value = Registry::get( $key );
+		$kept  = Registry::validate( $key, $value );
+
+		return $kept['ok'] ? $kept['value'] : $value;
+	}
+
+	/**
+	 * Settings of a prepared change whose stored value changed after the preview was prepared (P3-A7).
+	 *
+	 * @param array{values:array<string,mixed>,before:array<string,mixed>} $pending Prepared change.
+	 * @return string[] Keys.
+	 */
+	public static function changed_since_preview( array $pending ): array {
+		$changed = array();
+		foreach ( array_keys( $pending['values'] ) as $key ) {
+			$key = (string) $key;
+			if ( array_key_exists( $key, $pending['before'] ) && null !== Registry::definition( $key ) && self::comparable( $key ) !== $pending['before'][ $key ] ) {
+				$changed[] = $key;
+			}
+		}
+
+		return $changed;
+	}
+
+	/**
+	 * Take one of the actions a user may start per hour (test emails, test health alerts).
+	 *
+	 * The hour starts with the first action; later ones do not extend it.
+	 *
+	 * @param string $kind `emails` or `alerts`.
+	 * @return bool False when the limit of this hour is reached.
+	 */
+	private static function take_hourly_slot( string $kind ): bool {
+		$key    = 'wplc_test_' . $kind . '_' . (int) get_current_user_id();
+		$window = get_transient( $key );
+		$now    = time();
+		$window = is_array( $window ) && isset( $window['count'], $window['until'] ) && (int) $window['until'] > $now
+			? array( 'count' => (int) $window['count'], 'until' => (int) $window['until'] )
+			: array( 'count' => 0, 'until' => $now + HOUR_IN_SECONDS );
+		if ( $window['count'] >= self::TEST_EMAILS_PER_HOUR ) {
+			return false;
+		}
+		++$window['count'];
+		set_transient( $key, $window, max( 1, $window['until'] - $now ) );
+
+		return true;
+	}
+
+	/**
+	 * Send a test health alert from the settings page, at most TEST_EMAILS_PER_HOUR per user and hour (P4-L4).
+	 *
+	 * @return string Message for the screen.
+	 */
+	public static function send_test_alert(): string {
+		if ( ! HealthAlertMail::recipients() ) {
+			return self::test_alert_message( 'no_recipient' );
+		}
+		if ( ! self::take_hourly_slot( 'alerts' ) ) {
+			return sprintf(
+				/* translators: %s: number of messages. */
+				__( 'No test message was sent: you sent %s test messages within the last hour. Try again later.', 'wp-license' ),
+				number_format_i18n( self::TEST_EMAILS_PER_HOUR )
+			);
+		}
+
+		return self::test_alert_message( HealthAlertMail::send_test() );
 	}
 
 	/**
@@ -150,7 +228,7 @@ final class SettingsTools {
 				self::finish( self::prepare_import( $json ) );
 				return;
 			case 'test_alert':
-				self::finish( self::test_alert_message( HealthAlertMail::send_test() ) );
+				self::finish( self::send_test_alert() );
 				return;
 			case 'test_email':
 				$email   = isset( $_POST['email'] ) ? sanitize_key( wp_unslash( $_POST['email'] ) ) : '';
@@ -277,11 +355,11 @@ final class SettingsTools {
 
 		// 1. Country profile.
 		echo '<fieldset><legend><strong>' . esc_html__( '1. Which country profile fits your shop?', 'wp-license' ) . '</strong></legend>';
-		echo '<label for="wplc-guided-profile" class="screen-reader-text">' . esc_html__( 'Country profile', 'wp-license' ) . '</label><select id="wplc-guided-profile" name="profile"><option value="">' . esc_html__( 'None: keep the current values', 'wp-license' ) . '</option>';
+		echo '<label for="wplc-guided-profile" class="screen-reader-text">' . esc_html__( 'Country profile', 'wp-license' ) . '</label><select id="wplc-guided-profile" name="profile" aria-describedby="wplc-guided-profile-help"><option value="">' . esc_html__( 'None: keep the current values', 'wp-license' ) . '</option>';
 		foreach ( Presets::labels() as $code => $label ) {
 			echo '<option value="' . esc_attr( $code ) . '">' . esc_html( $label ) . '</option>';
 		}
-		echo '</select><p class="description">' . esc_html__( 'Suggests retention, consent and notice periods. You see every value before anything changes; no value of a profile has been through a legal review yet.', 'wp-license' ) . '</p></fieldset>';
+		echo '</select><p class="description" id="wplc-guided-profile-help">' . esc_html__( 'Suggests retention, consent and notice periods. You see every value before anything changes; no value of a profile has been through a legal review yet.', 'wp-license' ) . '</p></fieldset>';
 
 		// 2. Staging and 3. grace period: the settings themselves, with their limits and capability.
 		$questions = array(
@@ -297,14 +375,14 @@ final class SettingsTools {
 			$id      = 'wplc-guided-' . $key;
 			echo '<fieldset><legend><strong>' . esc_html( $question ) . '</strong></legend>';
 			echo '<label for="' . esc_attr( $id ) . '">' . esc_html( Texts::label( $key ) ) . '</label> ';
-			echo '<input type="number" id="' . esc_attr( $id ) . '"' . ( $allowed ? ' name="' . esc_attr( $key ) . '"' : ' readonly' ) . ' value="' . esc_attr( (string) Registry::int( $key ) ) . '" min="' . esc_attr( (string) (int) $definition['min'] ) . '" max="' . esc_attr( (string) (int) $definition['max'] ) . '" step="1" class="small-text">';
-			echo '<p class="description">' . esc_html( Texts::help( $key ) );
+			echo '<input type="number" id="' . esc_attr( $id ) . '"' . ( $allowed ? ' name="' . esc_attr( $key ) . '"' : ' readonly' ) . ' value="' . esc_attr( (string) Registry::int( $key ) ) . '" min="' . esc_attr( (string) (int) $definition['min'] ) . '" max="' . esc_attr( (string) (int) $definition['max'] ) . '" step="1" class="small-text" aria-describedby="' . esc_attr( $id . '-help' ) . '">';
+			echo '<p class="description" id="' . esc_attr( $id . '-help' ) . '">' . esc_html( Texts::help( $key ) );
 			if ( ! $allowed ) {
 				echo ' ' . esc_html( Settings::readonly_note( (string) $definition['capability'] ) );
 			}
 			echo '</p></fieldset>';
 		}
-		submit_button( __( 'Save the answers', 'wp-license' ), 'primary', 'submit', false );
+		submit_button( __( 'Save the answers', 'wp-license' ), 'primary', 'submit', false, array( 'id' => 'wplc-guided-submit' ) );
 		echo '</form></details>';
 	}
 
@@ -340,22 +418,13 @@ final class SettingsTools {
 		if ( ! in_array( $locale, self::test_email_locales(), true ) ) {
 			return __( 'No test email was sent: choose one of the installed languages.', 'wp-license' );
 		}
-		$key    = 'wplc_test_emails_' . (int) get_current_user_id();
-		$window = get_transient( $key );
-		$now    = time();
-		$window = is_array( $window ) && isset( $window['count'], $window['until'] ) && (int) $window['until'] > $now
-			? array( 'count' => (int) $window['count'], 'until' => (int) $window['until'] )
-			: array( 'count' => 0, 'until' => $now + HOUR_IN_SECONDS );
-		if ( $window['count'] >= self::TEST_EMAILS_PER_HOUR ) {
+		if ( ! self::take_hourly_slot( 'emails' ) ) {
 			return sprintf(
 				/* translators: %s: number of emails. */
 				__( 'No test email was sent: you sent %s test emails within the last hour. Try again later.', 'wp-license' ),
 				number_format_i18n( self::TEST_EMAILS_PER_HOUR )
 			);
 		}
-		// The hour starts with the first test email; later ones do not extend it.
-		++$window['count'];
-		set_transient( $key, $window, max( 1, $window['until'] - $now ) );
 		$result = \WPLC\Notifications\Notifications::send_test_email( $email_key, $address, $locale );
 		if ( 'sent' !== $result ) {
 			return __( 'WordPress could not hand the test email over for sending. Check the email setup of this site.', 'wp-license' );
@@ -363,12 +432,42 @@ final class SettingsTools {
 		\WPLC\License\AuditLog::record( 'test_email_sent', 'settings', 0, 'Test email "' . $email_key . '" sent in ' . $locale . '.', null, null, (int) get_current_user_id() );
 
 		return sprintf(
-			/* translators: 1: title of the email, 2: email address, 3: language code. */
+			/* translators: 1: title of the email, 2: email address, 3: name and code of the language. */
 			__( 'The test email "%1$s" was handed over for sending to %2$s (language: %3$s). It contains sample data only.', 'wp-license' ),
 			$titles[ $email_key ],
 			$address,
-			$locale
+			self::locale_name( $locale )
 		);
+	}
+
+	/**
+	 * The name of a language for the choice of the test email (P5-M16), e.g. "Deutsch (Sie) (de_DE_formal)".
+	 *
+	 * Uses the list of WordPress translations when it is cached (never a request to
+	 * WordPress.org), else the language names of PHP (intl), else the code alone.
+	 *
+	 * @param string $locale WordPress locale.
+	 * @return string
+	 */
+	public static function locale_name( string $locale ): string {
+		$name = '';
+		if ( 'en_US' === $locale ) {
+			$name = 'English (United States)';
+		} else {
+			$cached = function_exists( 'get_site_transient' ) ? get_site_transient( 'available_translations' ) : false;
+			if ( is_array( $cached ) && isset( $cached[ $locale ]['native_name'] ) && is_string( $cached[ $locale ]['native_name'] ) ) {
+				$name = $cached[ $locale ]['native_name'];
+			} elseif ( class_exists( '\Locale' ) ) {
+				$parts = explode( '_', $locale );
+				$base  = implode( '_', array_slice( $parts, 0, 2 ) );
+				$name  = (string) \Locale::getDisplayName( $base, $base );
+				if ( count( $parts ) > 2 && '' !== $name ) {
+					$name .= ' (' . implode( ', ', array_slice( $parts, 2 ) ) . ')';
+				}
+			}
+		}
+
+		return '' === $name || $name === $locale ? $locale : $name . ' (' . $locale . ')';
 	}
 
 	/**
@@ -382,7 +481,7 @@ final class SettingsTools {
 		if ( ! isset( $profiles[ $code ] ) ) {
 			return __( 'Choose a country profile.', 'wp-license' );
 		}
-		self::store_pending( 'preset', $code, $profiles[ $code ]['values'] );
+		self::store_pending( 'preset', $code, array_diff_key( $profiles[ $code ]['values'], array( 'uninstall_data' => true ) ) );
 
 		return '';
 	}
@@ -453,16 +552,27 @@ final class SettingsTools {
 				return null !== $value;
 			}
 		);
+		if ( isset( $values['uninstall_data'] ) && 'keep' !== $values['uninstall_data'] ) {
+			// S10 / P4-L3: deleting all data is only chosen in its own field, with its own confirmation.
+			unset( $values['uninstall_data'] );
+		}
 		if ( ! $values ) {
 			return __( 'Nothing was changed: no row was ticked.', 'wp-license' );
 		}
+		// P3-A7: a value that changed after the preview was prepared is not overwritten.
+		$changed = array_values( array_intersect( self::changed_since_preview( $pending ), array_keys( $values ) ) );
+		$values  = array_diff_key( $values, array_flip( $changed ) );
 		$actions = array(
 			'preset' => array( 'settings_preset_applied', 'Country profile ' . $pending['name'] . ' applied as chosen.' ),
 			'reset'  => array( 'settings_reset', 'Reset to defaults (' . $pending['name'] . ').' ),
 			'import' => array( 'settings_imported', 'Settings imported from a file.' ),
 		);
-		$action  = $actions[ $pending['source'] ] ?? array( 'settings_changed', 'Settings changed.' );
-		$result  = Changes::apply( $values, $action[0], $action[1] );
+		$action = $actions[ $pending['source'] ] ?? array( 'settings_changed', 'Settings changed.' );
+		$result = $values ? Changes::apply( $values, $action[0], $action[1] ) : array(
+			'applied'  => array(),
+			'skipped'  => array(),
+			'warnings' => array(),
+		);
 		delete_transient( self::pending_key() );
 
 		$message = sprintf(
@@ -476,6 +586,16 @@ final class SettingsTools {
 				__( 'Not changed: %s.', 'wp-license' ),
 				implode( ', ', array_map( array( Texts::class, 'label' ), array_keys( $result['skipped'] ) ) )
 			);
+		}
+		if ( $changed ) {
+			$message .= ' ' . sprintf(
+				/* translators: %s: list of setting names. */
+				__( 'Not changed, because the value was changed after the preview was prepared: %s. Prepare the preview again to see the current values.', 'wp-license' ),
+				implode( ', ', array_map( array( Texts::class, 'label' ), $changed ) )
+			);
+		}
+		foreach ( $result['warnings'] as $warning ) {
+			$message .= ' ' . $warning;
 		}
 
 		return $message;
@@ -491,6 +611,12 @@ final class SettingsTools {
 	 * @return void
 	 */
 	private static function store_pending( string $source, string $name, array $values, array $ignored = array() ): void {
+		$before = array();
+		foreach ( array_keys( $values ) as $key ) {
+			if ( null !== Registry::definition( (string) $key ) ) {
+				$before[ (string) $key ] = self::comparable( (string) $key );
+			}
+		}
 		set_transient(
 			self::pending_key(),
 			array(
@@ -498,6 +624,7 @@ final class SettingsTools {
 				'name'    => $name,
 				'values'  => $values,
 				'ignored' => $ignored,
+				'before'  => $before,
 			),
 			self::PENDING_TTL
 		);
@@ -529,8 +656,24 @@ final class SettingsTools {
 		if ( '' !== $message ) {
 			set_transient( self::result_key(), $message, 10 * MINUTE_IN_SECONDS );
 		}
-		wp_safe_redirect( admin_url( 'admin.php?page=' . Settings::PAGE . '#wplc-settings-tools' ) );
+		wp_safe_redirect( self::return_url() );
 		exit;
+	}
+
+	/**
+	 * The settings page to return to, on the tab the form was sent from (P5-M15).
+	 *
+	 * @return string
+	 */
+	public static function return_url(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- handle() checked the nonce; the tab only picks the page to return to.
+		$tab = isset( $_POST['tab'] ) ? sanitize_key( wp_unslash( $_POST['tab'] ) ) : '';
+		$url = 'admin.php?page=' . Settings::PAGE;
+		if ( in_array( $tab, Registry::GROUPS, true ) && Registry::keys_of_group( $tab ) ) {
+			$url .= '&tab=' . $tab;
+		}
+
+		return admin_url( $url . '#wplc-settings-tools' );
 	}
 
 	/**
@@ -571,7 +714,7 @@ final class SettingsTools {
 			echo '<option value="' . esc_attr( $code ) . '">' . esc_html( $label ) . '</option>';
 		}
 		echo '</select> ';
-		submit_button( __( 'Show suggestion', 'wp-license' ), 'secondary', 'submit', false );
+		submit_button( __( 'Show suggestion', 'wp-license' ), 'secondary', 'submit', false, array( 'id' => 'wplc-preset-submit' ) );
 		echo '</form>';
 
 		// Export and import.
@@ -579,20 +722,21 @@ final class SettingsTools {
 		echo '<p class="description">' . esc_html__( 'The export is a JSON file with all settings of this page. It contains no secret: keys and passwords are not settings and stay in wp-config.php. An import shows every difference before anything is changed.', 'wp-license' ) . '</p>';
 		self::open_form();
 		echo '<input type="hidden" name="tool" value="export">';
-		submit_button( __( 'Export settings', 'wp-license' ), 'secondary', 'submit', false );
+		submit_button( __( 'Export settings', 'wp-license' ), 'secondary', 'submit', false, array( 'id' => 'wplc-export-submit' ) );
 		echo '</form>';
 		self::open_form( true );
 		echo '<input type="hidden" name="tool" value="import"><p><label for="wplc-import-file">' . esc_html__( 'Export file', 'wp-license' ) . '</label><br><input type="file" id="wplc-import-file" name="file" accept=".json,application/json"></p>';
 		echo '<p><label for="wplc-import-json">' . esc_html__( 'Or paste the content of the file', 'wp-license' ) . '</label><br><textarea id="wplc-import-json" name="json" rows="3" cols="50" class="large-text code"></textarea></p>';
-		submit_button( __( 'Preview import', 'wp-license' ), 'secondary', 'submit', false );
+		submit_button( __( 'Preview import', 'wp-license' ), 'secondary', 'submit', false, array( 'id' => 'wplc-import-submit' ) );
 		echo '</form>';
 
 		// Health alerts (SET-LIC-22).
 		echo '<h3>' . esc_html__( 'Test the health alerts', 'wp-license' ) . '</h3>';
-		echo '<p class="description">' . esc_html__( 'Sends a test message to the addresses under "Send health alerts to", also when an alert email already left today.', 'wp-license' ) . '</p>';
+		/* translators: %s: number of messages. */
+		echo '<p class="description">' . esc_html( sprintf( __( 'Sends a test message to the addresses under "Send health alerts to", also when an alert email already left today. At most %s test messages per hour.', 'wp-license' ), number_format_i18n( self::TEST_EMAILS_PER_HOUR ) ) ) . '</p>';
 		self::open_form();
 		echo '<input type="hidden" name="tool" value="test_alert">';
-		submit_button( __( 'Send test message', 'wp-license' ), 'secondary', 'submit', false );
+		submit_button( __( 'Send test message', 'wp-license' ), 'secondary', 'submit', false, array( 'id' => 'wplc-test-alert-submit' ) );
 		echo '</form>';
 
 		// Test email (SET-LIC-43).
@@ -613,10 +757,10 @@ final class SettingsTools {
 			echo '<p><label for="wplc-test-locale">' . esc_html__( 'Language', 'wp-license' ) . '</label><br><select id="wplc-test-locale" name="locale">';
 			$site_locale = function_exists( 'get_locale' ) ? (string) get_locale() : 'en_US';
 			foreach ( self::test_email_locales() as $locale ) {
-				echo '<option value="' . esc_attr( $locale ) . '"' . selected( $locale, $site_locale, false ) . '>' . esc_html( $locale ) . '</option>';
+				echo '<option value="' . esc_attr( $locale ) . '"' . selected( $locale, $site_locale, false ) . '>' . esc_html( self::locale_name( $locale ) ) . '</option>';
 			}
 			echo '</select></p>';
-			submit_button( __( 'Send test email', 'wp-license' ), 'secondary', 'submit', false );
+			submit_button( __( 'Send test email', 'wp-license' ), 'secondary', 'submit', false, array( 'id' => 'wplc-test-email-submit' ) );
 			echo '</form>';
 		}
 
@@ -634,7 +778,7 @@ final class SettingsTools {
 			}
 		}
 		echo '<option value="all">' . esc_html__( 'All settings', 'wp-license' ) . '</option></select> ';
-		submit_button( __( 'Preview reset', 'wp-license' ), 'secondary', 'submit', false );
+		submit_button( __( 'Preview reset', 'wp-license' ), 'secondary', 'submit', false, array( 'id' => 'wplc-reset-submit' ) );
 		echo '</form></div>';
 	}
 
@@ -646,17 +790,20 @@ final class SettingsTools {
 	 */
 	private static function open_form( bool $upload = false ): void {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"' . ( $upload ? ' enctype="multipart/form-data"' : '' ) . '><input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '">';
+		// P5-M15: back to the tab the form was sent from.
+		echo '<input type="hidden" name="tab" value="' . esc_attr( Settings::current_tab() ) . '">';
 		wp_nonce_field( self::NONCE_ACTION );
 	}
 
 	/**
 	 * Render the preview of a prepared change with its apply form.
 	 *
-	 * @param array{source:string,name:string,values:array<string,mixed>,ignored:string[]} $pending Prepared change.
+	 * @param array{source:string,name:string,values:array<string,mixed>,ignored:string[],before:array<string,mixed>} $pending Prepared change.
 	 * @return void
 	 */
 	private static function render_preview( array $pending ): void {
 		$rows     = Changes::preview( $pending['values'] );
+		$changed  = self::changed_since_preview( $pending );
 		$preset   = 'preset' === $pending['source'];
 		$profiles = $preset ? Presets::all() : array();
 		$reviewed = $preset && isset( $profiles[ $pending['name'] ] ) ? (string) $profiles[ $pending['name'] ]['reviewed'] : '';
@@ -681,6 +828,8 @@ final class SettingsTools {
 			'invalid'   => __( 'not valid, is left out', 'wp-license' ),
 			'forbidden' => __( 'only an administrator may change this', 'wp-license' ),
 			'locked'    => __( 'fixed: licenses were already issued with this value', 'wp-license' ),
+			'constant'  => __( 'set by a constant in wp-config.php, which wins', 'wp-license' ),
+			'conflict'  => __( 'not possible: another page of the customer account already has this address', 'wp-license' ),
 			'unknown'   => __( 'unknown setting, is left out', 'wp-license' ),
 			'undecided' => __( 'please decide: no value is suggested for this country', 'wp-license' ),
 		);
@@ -688,30 +837,54 @@ final class SettingsTools {
 		echo '<input type="hidden" name="tool" value="apply"><table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Apply', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'Setting', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'Now', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'Afterwards', 'wp-license' ) . '</th><th scope="col">' . esc_html__( 'Note', 'wp-license' ) . '</th></tr></thead><tbody>';
 		$changes = 0;
 		foreach ( $rows as $row ) {
-			$id   = 'wplc-apply-' . $row['key'];
-			$note = $states[ $row['state'] ] ?? $row['state'];
-			if ( $preset && $row['legal'] && '' === $reviewed ) {
+			$id    = 'wplc-apply-' . $row['key'];
+			$state = 'change' === $row['state'] && in_array( $row['key'], $changed, true ) ? 'changed_since' : $row['state'];
+			$note  = 'changed_since' === $state ? __( 'changed after this preview was prepared: prepare it again', 'wp-license' ) : ( $states[ $state ] ?? $state );
+			if ( $row['legal'] && ( $preset ? '' === $reviewed : 'change' === $state ) ) {
+				// P3-A8: a row with legal weight is never ticked in advance and always says so.
 				$note .= ' · ' . __( 'unchecked', 'wp-license' );
 			}
-			echo '<tr data-wplc-state="' . esc_attr( $row['state'] ) . '"><td>';
-			if ( 'change' === $row['state'] ) {
+			echo '<tr data-wplc-state="' . esc_attr( $state ) . '"><td>';
+			if ( 'change' === $state ) {
 				++$changes;
-				echo '<input type="checkbox" id="' . esc_attr( $id ) . '" name="keys[]" value="' . esc_attr( $row['key'] ) . '"' . checked( ! $preset, true, false ) . '>';
+				echo '<input type="checkbox" id="' . esc_attr( $id ) . '" name="keys[]" value="' . esc_attr( $row['key'] ) . '"' . checked( ! $preset && ! $row['legal'], true, false ) . '>';
+				// P5-M13: a label only where there is a box to label.
+				echo '</td><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $row['label'] ) . '</label></th>';
+			} else {
+				echo '</td><th scope="row">' . esc_html( $row['label'] ) . '</th>';
 			}
-			echo '</td><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $row['label'] ) . '</label></th>';
-			echo '<td>' . esc_html( '' === $row['before'] ? '–' : $row['before'] ) . '</td><td>' . esc_html( 'undecided' === $row['state'] ? '?' : ( '' === $row['after'] ? '–' : $row['after'] ) ) . '</td><td>' . esc_html( $note ) . '</td></tr>';
+			echo '<td>' . esc_html( self::preview_value( $row['key'], $row['before'] ) ) . '</td><td>' . esc_html( 'undecided' === $row['state'] ? '?' : self::preview_value( $row['key'], $row['after'] ) ) . '</td><td>' . esc_html( $note ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 		if ( $changes > 0 ) {
 			echo '<p><label for="wplc-apply-confirm"><input type="checkbox" id="wplc-apply-confirm" name="confirm" value="1" required> ' . esc_html__( 'I have checked the values and want to apply the ticked rows.', 'wp-license' ) . '</label></p>';
-			submit_button( __( 'Apply ticked rows', 'wp-license' ), 'primary', 'submit', false );
+			submit_button( __( 'Apply ticked rows', 'wp-license' ), 'primary', 'submit', false, array( 'id' => 'wplc-apply-submit' ) );
 		} else {
 			echo '<p>' . esc_html__( 'There is nothing to apply.', 'wp-license' ) . '</p>';
 		}
 		echo '</form>';
 		self::open_form();
 		echo '<input type="hidden" name="tool" value="discard">';
-		submit_button( __( 'Discard the preview', 'wp-license' ), 'secondary', 'submit', false );
+		submit_button( __( 'Discard the preview', 'wp-license' ), 'secondary', 'submit', false, array( 'id' => 'wplc-discard-submit' ) );
 		echo '</form>';
+	}
+
+	/**
+	 * A value in a preview row: "–" for an empty one, with what empty means where it means more (P3-A8).
+	 *
+	 * @param string $key   Setting key.
+	 * @param string $shown Value as Registry::display() shows it.
+	 * @return string
+	 */
+	public static function preview_value( string $key, string $shown ): string {
+		if ( '' !== $shown ) {
+			return $shown;
+		}
+		$definition = Registry::definition( $key );
+		if ( null !== $definition && 'builtin_text' === ( $definition['empty_note'] ?? '' ) ) {
+			return __( '– (empty: the built-in wording in the language of the customer)', 'wp-license' );
+		}
+
+		return '–';
 	}
 }

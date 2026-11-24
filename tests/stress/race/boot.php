@@ -63,7 +63,7 @@ function qa_seed_license( array $over = array(), array $ent = array( 'sites.live
 function qa_seed_activation( int $license_id, array $over = array() ) {
 	global $wpdb; $t = \WPLC\Infrastructure\Database\Schema::table_names();
 	$secret = 'seeded-secret-' . bin2hex( random_bytes( 16 ) ); $uuid = wp_generate_uuid4(); $now = gmdate( 'Y-m-d H:i:s' );
-	$row = array_merge( array( 'license_id' => $license_id, 'installation_uuid' => $uuid, 'installation_secret_hash' => hash( 'sha256', $secret ), 'installation_secret_encrypted' => \WPLC\Security\SecretCrypto::encrypt( $secret ), 'site_url' => 'https://site-' . bin2hex( random_bytes( 4 ) ) . '.example.test', 'environment' => 'production', 'status' => 'active', 'activated_at' => $now, 'last_seen_at' => $now ), $over );
+	$row = array_merge( array( 'license_id' => $license_id, 'installation_uuid' => $uuid, 'installation_secret_hash' => hash( 'sha256', $secret ), 'installation_secret_encrypted' => \WPLC\Security\SecretCrypto::encrypt( $secret, \WPLC\Security\SecretCrypto::PURPOSE_INSTALLATION, $uuid ), 'site_url' => 'https://site-' . bin2hex( random_bytes( 4 ) ) . '.example.test', 'environment' => 'production', 'status' => 'active', 'activated_at' => $now, 'last_seen_at' => $now ), $over );
 	$wpdb->insert( $t['activations'], $row );
 	return array( 'id' => (int) $wpdb->insert_id, 'uuid' => $row['installation_uuid'], 'secret' => $secret );
 }

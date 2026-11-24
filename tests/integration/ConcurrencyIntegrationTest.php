@@ -354,6 +354,78 @@ final class ConcurrencyIntegrationTest extends WPLC_Integration_TestCase {
 		\WPLC\Update\LocalPackageStorage::delete( (string) $release['package_url'] );
 	}
 
+	/**
+	 * Replace the stored file of a release with other bytes and collect what the refusal reports.
+	 *
+	 * @param array<string,mixed> $release Release row.
+	 * @return \ArrayObject<string,int> Count of the health alert.
+	 */
+	private function tamper_with( array $release ): \ArrayObject {
+		$path = \WPLC\Update\LocalPackageStorage::path_for_key( (string) $release['package_url'] );
+		$this->assertIsString( $path );
+		file_put_contents( $path, 'PK-changed-package' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		\WPLC\Update\PackageStream::reset_verified();
+		$seen = new \ArrayObject( array( 'alert' => 0 ) );
+		add_action(
+			'wplc/health_alert',
+			static function ( $metric ) use ( $seen ): void {
+				if ( \WPLC\Update\PackageStream::CHECKSUM_ALERT === $metric ) {
+					++$seen['alert'];
+				}
+			}
+		);
+
+		return $seen;
+	}
+
+	/** UEB-12 (3): the account download re-checks the file against its checksum and refuses a changed one. */
+	public function test_customer_download_refuses_a_package_that_no_longer_matches_its_checksum(): void {
+		global $wpdb;
+		$tables   = $this->tables();
+		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
+		$license  = $this->seed_license( array( 'customer_id' => $customer ) );
+		$release  = $this->seed_local_release();
+		$seen     = $this->tamper_with( $release );
+		wp_set_current_user( $customer );
+		$_SERVER['REQUEST_METHOD'] = 'POST';
+
+		$refused = $this->run_admin_post(
+			\WPLC\Update\CustomerDownload::ACTION,
+			array(
+				'license_id' => $license['id'],
+				'_wpnonce'   => wp_create_nonce( \WPLC\Update\CustomerDownload::nonce_action( $license['id'] ) ),
+			)
+		);
+		$this->assertSame( array( 'die', 503 ), array( $refused['outcome'], $refused['status'] ) );
+		$this->assertStringContainsString( 'integrity check', $refused['message'] );
+		$this->assertSame( 0, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['package_streams']} WHERE license_id = %d", $license['id'] ) ), 'A refused download uses no allowance.' );
+		$this->assertSame( 0, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['audit_log']} WHERE action = %s AND object_id = %d", 'package_downloaded', $license['id'] ) ) );
+		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['audit_log']} WHERE action = %s AND object_type = %s AND object_id = %d", 'package_checksum_mismatch', 'release', $release['id'] ) ) );
+		$this->assertSame( array( 'alert' => 1 ), $seen->getArrayCopy(), 'Reported once per request.' );
+		$this->assertFalse( \WPLC\Update\PackageStream::deliver( $release ), 'The shared helper refuses the file on every path.' );
+		\WPLC\Update\LocalPackageStorage::delete( (string) $release['package_url'] );
+	}
+
+	/** UEB-12 (3): the update stream uses the same check. */
+	public function test_update_stream_refuses_a_package_that_no_longer_matches_its_checksum(): void {
+		global $wpdb;
+		$tables  = $this->tables();
+		$license = $this->seed_license();
+		$release = $this->seed_local_release();
+		$token   = \WPLC\Update\PackageStream::issue( $release, (int) $license['id'], \WPLC\Update\PackageStream::SOURCE_UPDATE );
+		$seen    = $this->tamper_with( $release );
+
+		$head = $this->dispatch( new WP_REST_Request( 'HEAD', '/wplc/v1/packages/' . $token ) );
+		$this->assertSame( 503, $head->get_status() );
+		$this->assertSame( 'package_integrity_failed', $head->get_data()['code'] );
+		$refused = $this->dispatch( new WP_REST_Request( 'GET', '/wplc/v1/packages/' . $token ) );
+		$this->assertSame( 503, $refused->get_status() );
+		$this->assertSame( 'package_integrity_failed', $refused->get_data()['code'] );
+		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tables['audit_log']} WHERE action = %s AND object_id = %d", 'package_checksum_mismatch', $release['id'] ) ) );
+		$this->assertSame( 1, $seen['alert'] );
+		\WPLC\Update\LocalPackageStorage::delete( (string) $release['package_url'] );
+	}
+
 	public function test_stream_token_is_used_up_by_its_first_presentation(): void {
 		global $wpdb;
 		$tables  = $this->tables();

@@ -76,7 +76,7 @@ final class SalesSettingsTest extends TestCase {
 			$this->assertStringContainsString( $name, Texts::label( 'alert_' . $metric ) );
 			$this->assertStringContainsString( '0 = never alert', Texts::help( 'alert_' . $metric ) );
 		}
-		$this->assertSame( Definitions::ALERT_THRESHOLDS, \WPLC\Admin\Diagnostics::thresholds(), 'Without a stored value: the thresholds so far.' );
+		$this->assertSame( Definitions::ALERT_THRESHOLDS + array( 'renewal_notice_disabled' => 1 ), \WPLC\Admin\Diagnostics::thresholds(), 'Without a stored value: the thresholds so far, plus P2-I2 (no setting of its own).' );
 
 		$GLOBALS['wplc_test_filters']['wplc_health_alert_thresholds'][] = static function ( $thresholds ) {
 			$thresholds['failed_jobs'] = 9;
@@ -106,6 +106,17 @@ final class SalesSettingsTest extends TestCase {
 		};
 		$fields = \WPLC\Api\V1\EntitlementService::access_fields( array( 'status' => 'active', 'paid_until' => null ), $now );
 		$this->assertSame( gmdate( 'Y-m-d H:i:s', $now + 3 * 86400 ), $fields['cache_expires_at'] );
+		// P6-M3: the filter is clamped to 2 to 90 days like the setting.
+		$GLOBALS['wplc_test_filters']['wplc_offline_cache_days'][] = static function () {
+			return 1;
+		};
+		$fields = \WPLC\Api\V1\EntitlementService::access_fields( array( 'status' => 'active', 'paid_until' => null ), $now );
+		$this->assertSame( gmdate( 'Y-m-d H:i:s', $now + 2 * 86400 ), $fields['cache_expires_at'] );
+		$GLOBALS['wplc_test_filters']['wplc_offline_cache_days'][] = static function () {
+			return 100000;
+		};
+		$fields = \WPLC\Api\V1\EntitlementService::access_fields( array( 'status' => 'active', 'paid_until' => null ), $now );
+		$this->assertSame( gmdate( 'Y-m-d H:i:s', $now + 90 * 86400 ), $fields['cache_expires_at'] );
 
 		$this->assertSame( 20, \WPLC\Billing\CombinedRenewal::max_lines() );
 		$this->assertSame( 30, \WPLC\License\LicenseLifecycle::review_deferral_days() );

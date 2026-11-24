@@ -62,6 +62,8 @@ A typo in the current key ID stops license issuance (the WooCommerce log says `L
 
 **Removed encryption key:** put the entry back (keep the new one current), run `wp wplc rotate-installation-secrets --apply`, check `Response signing key: current`, then retire it again.
 
+**Envelope format (UEB-12):** stored secrets (installation secrets, signing keys, webhook secrets) are bound to what they are and to the row or option they belong to, so a value copied elsewhere does not decrypt. Values written by versions before this change still work; an hourly background job rewrites them in the new format on every site until none is left, and the rotation command does the same. Nothing needs to be done by hand.
+
 ### A leaked license-key secret
 
 A rotation alone does not invalidate keys derived from a leaked secret. Re-key the affected licenses:
@@ -108,7 +110,7 @@ add_action( 'wplc/health_alert', function ( $metric, $value, $threshold, $url = 
 }, 10, 4 );
 ```
 
-Metrics: `pending_webhooks`, `manual_review_webhooks`, `rejected_webhook_minutes`, `overdue_renewals`, `review_required_renewals`, `stuck_processing_renewals`, `renewing_without_renewal`, `paid_without_extension`, `failed_scheduled_actions`, `unmapped_license_products`, `orders_with_issuance_problem`, `failed_jobs`, `release_problems`, `expired_download_grants`. Thresholds: settings "Alert from: …" (chapter 13), then the filter `wplc_health_alert_thresholds`. Events that need a person are passed on at once: `renewal_blocked`, `renewal_needs_review`, `license_needs_review`, `renewal_lock_unavailable`, `response_signing_key_unavailable`, `price_change_not_applied`.
+Metrics: `pending_webhooks`, `manual_review_webhooks`, `rejected_webhook_minutes`, `overdue_renewals`, `review_required_renewals`, `stuck_processing_renewals`, `renewing_without_renewal`, `paid_without_extension`, `failed_scheduled_actions`, `unmapped_license_products`, `orders_with_issuance_problem`, `failed_jobs`, `release_problems`, `expired_download_grants`, `renewal_notice_disabled` (licenses with automatic renewal while the email "Upcoming automatic renewal" is switched off; no charge is made without it, threshold 1, no setting of its own). Thresholds: settings "Alert from: …" (chapter 13), then the filter `wplc_health_alert_thresholds`. Events that need a person are passed on at once: `renewal_blocked`, `renewal_needs_review`, `license_needs_review`, `renewal_lock_unavailable`, `response_signing_key_unavailable`, `price_change_not_applied`.
 
 ### Scheduled jobs
 

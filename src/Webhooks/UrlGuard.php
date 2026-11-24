@@ -19,7 +19,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * names (`localhost`, `.local`, `.internal`, `.lan`, `.home.arpa`, `.localdomain`), and every host
  * that resolves to a loopback, private, link-local, shared (CGNAT), documentation, multicast or
  * reserved address, IPv4 and IPv6 (also IPv4 inside IPv6). Every address of the host must be public.
- * The request is then pinned to the checked address, so a second DNS answer cannot change it.
+ * A host name that ends with a dot ("example.com.") is refused: cURL would resolve it itself and
+ * bypass the pinned address. The request is then pinned to the checked address, so a second DNS
+ * answer cannot change it, and the address cURL actually connected to is compared afterwards.
  */
 final class UrlGuard {
 
@@ -31,6 +33,7 @@ final class UrlGuard {
 	public const LOCAL_HOST       = 'local_host';
 	public const BLOCKED_ADDRESS  = 'blocked_address';
 	public const UNRESOLVED       = 'unresolved_host';
+	public const TRAILING_DOT     = 'trailing_dot';
 
 	/** Longest accepted URL. */
 	public const MAX_LENGTH = 2000;
@@ -111,6 +114,10 @@ final class UrlGuard {
 		if ( isset( $parts['port'] ) && 443 !== (int) $parts['port'] ) {
 			return self::PORT;
 		}
+		if ( '.' === substr( (string) $parts['host'], -1 ) ) {
+			// "host." is the same name for DNS, but not for the pin (CURLOPT_RESOLVE matches the exact name).
+			return self::TRAILING_DOT;
+		}
 		$host = self::host( $url );
 		if ( '' === $host ) {
 			return self::INVALID;
@@ -180,6 +187,23 @@ final class UrlGuard {
 		}
 
 		return rtrim( strtolower( trim( $host, '[]' ) ), '.' );
+	}
+
+	/**
+	 * Whether two strings are the same IP address (any notation), false when one is no address.
+	 *
+	 * @param string $first  Address.
+	 * @param string $second Address.
+	 * @return bool
+	 */
+	public static function same_ip( string $first, string $second ): bool {
+		$first  = trim( $first, '[] ' );
+		$second = trim( $second, '[] ' );
+		if ( ! self::is_ip( $first ) || ! self::is_ip( $second ) ) {
+			return false;
+		}
+
+		return inet_pton( $first ) === inet_pton( $second );
 	}
 
 	/**

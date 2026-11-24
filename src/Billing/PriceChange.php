@@ -335,6 +335,7 @@ final class PriceChange {
 		if ( 1 !== (int) $updated ) {
 			return false;
 		}
+		self::store_notice_record( $license, $pending, $now );
 		AuditLog::record(
 			'renewal_price_change_notified',
 			'license',
@@ -349,6 +350,57 @@ final class PriceChange {
 		);
 
 		return true;
+	}
+
+	/**
+	 * Keep durable proof of a sent price-change notice (P3-A4).
+	 *
+	 * The columns on the license are cleared when the new amount takes effect, and the audit
+	 * entry and the email log are deleted after their own periods (730 days by default), while
+	 * charges at the new amount are made for years. A row in the consents table (source
+	 * `price_notice`) keeps the notice for as long as the consent evidence of the license.
+	 *
+	 * @param array<string,mixed>                                                                                    $license License row.
+	 * @param array{amount_minor:int,effective_at:int,announced_at:string,notified_at:int,notice_days:int,applies_at:int} $pending Announcement.
+	 * @param string                                                                                                 $sent_at UTC time the mailer accepted the notice.
+	 * @return void
+	 */
+	private static function store_notice_record( array $license, array $pending, string $sent_at ): void {
+		$decimals   = (int) ( $license['renewal_currency_decimals'] ?? 2 );
+		$currency   = (string) ( $license['renewal_currency'] ?? '' );
+		$applies_at = gmdate( 'Y-m-d H:i:s', max( $pending['effective_at'], (int) strtotime( $sent_at . ' UTC' ) + $pending['notice_days'] * 86400 ) );
+		// Fixed English record of what the email announced; the email itself was written in the customer's language.
+		$text = sprintf(
+			'Price change notice sent by email: the automatic renewal amount changes from %1$s %3$s to %2$s %3$s per %4$s for renewals from %5$s UTC (announced %6$s UTC, notice period %7$d days). The customer may cancel before then.',
+			Money::to_decimal( (int) ( $license['renewal_amount_minor'] ?? 0 ), $decimals ),
+			Money::to_decimal( $pending['amount_minor'], $decimals ),
+			$currency,
+			(string) ( $license['billing_interval'] ?? 'year' ),
+			$applies_at,
+			$pending['announced_at'],
+			$pending['notice_days']
+		);
+		try {
+			$locale = \WPLC\Notifications\PurchaseLocale::for_license( $license );
+		} catch ( \Throwable $error ) {
+			unset( $error );
+			$locale = '';
+		}
+		ConsentRecord::store(
+			array(
+				'license_id' => (int) $license['id'],
+				'order_id' => (int) ( $license['source_order_id'] ?? 0 ),
+				'customer_id' => (int) ( $license['customer_id'] ?? 0 ),
+				'consent_at' => $sent_at,
+				'source' => ConsentRecord::SOURCE_PRICE_NOTICE,
+				'locale' => $locale,
+				'text' => $text,
+				'amount_minor' => $pending['amount_minor'],
+				'currency_decimals' => $decimals,
+				'currency' => $currency,
+				'billing_interval' => (string) ( $license['billing_interval'] ?? 'year' ),
+			)
+		);
 	}
 
 	/**

@@ -355,6 +355,9 @@ async function copyButton( page, width ) {
 	const region = await page.$( regionSel );
 	const live = region ? await region.evaluate( ( el ) => ( { role: el.getAttribute( 'role' ), live: el.getAttribute( 'aria-live' ) } ) ) : null;
 	check( !! live && 'status' === live.role && 'polite' === live.live, label + ': live region (role=status, aria-live=polite) next to the button', live );
+	// P5-M7: an empty live region stays rendered (visually hidden), otherwise screen readers miss the first announcement.
+	const display = region ? await region.evaluate( ( el ) => getComputedStyle( el ).display ) : 'none';
+	check( 'none' !== display, label + ': empty live region is rendered (not display:none)', { display } );
 
 	await button.click();
 	await page.waitForFunction( ( [ sel, text ] ) => {
@@ -536,6 +539,7 @@ async function productEditor( page, issues, width, rtl, shimCss ) {
 			[ 'admin audit log', '/wp-admin/admin.php?page=wplc-audit-log', '#wpbody-content .wrap' ],
 			[ 'admin diagnostics', '/wp-admin/admin.php?page=wplc-diagnostics', '#wpbody-content .wrap' ],
 			[ 'admin catalog CSV', '/wp-admin/admin.php?page=wplc-catalog-csv', '#wpbody-content .wrap' ],
+			[ 'admin webhooks', '/wp-admin/admin.php?page=wplc-webhooks', '.wrap.wplc-webhooks' ],
 		];
 		const variants = [ [ 1280, false ], [ 375, false ], [ 1280, true ], [ 375, true ] ];
 		for ( const [ width, rtl ] of variants ) {

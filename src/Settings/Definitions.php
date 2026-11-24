@@ -31,6 +31,7 @@ final class Definitions {
 			'package_hosts'             => array(
 				'type'       => 'hosts',
 				'default'    => array(),
+				'max_items'  => 50,
 				'group'      => 'updates',
 				'capability' => 'manage_package_hosts',
 				'filter'     => 'wplc_update_package_hosts',
@@ -343,11 +344,13 @@ final class Definitions {
 			),
 
 			// Customer sites.
+			// P2-M5: at least 2 days, longer than the client's check cadence (daily, catch-up after 36 hours).
+			// A stored 1 of an older version is read as 2 (Registry::int() clamps to min).
 			'offline_cache_days'        => array(
 				'type'       => 'int',
 				'unit'       => 'days',
 				'default'    => 14,
-				'min'        => 1,
+				'min'        => 2,
 				'max'        => 90,
 				'group'      => 'sites',
 				'capability' => 'manage_policy',
@@ -531,6 +534,7 @@ final class Definitions {
 				'group'      => 'legal',
 				'filter'     => 'wplc_withdrawal_consent_text',
 				'legal'      => true,
+				'empty_note' => 'builtin_text',
 			),
 			'public_cancel_hourly_limit' => array(
 				'type'    => 'int',
@@ -548,6 +552,7 @@ final class Definitions {
 				'group'      => 'legal',
 				'filter'     => 'wplc_recurring_consent_text',
 				'legal'      => true,
+				'empty_note' => 'builtin_text',
 			),
 			'retention_audit_log' => array(
 				'type'    => 'int',
@@ -705,6 +710,9 @@ final class Definitions {
 				'choices'    => array( 'keep', 'delete' ),
 				'group'      => 'operations',
 				'capability' => 'manage_package_hosts',
+				// S10: deleting all data is chosen on this server only, with its own confirmation;
+				// an import must not switch it on (P4-L3).
+				'exportable' => false,
 			),
 		);
 	}

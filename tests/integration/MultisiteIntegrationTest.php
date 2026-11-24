@@ -227,6 +227,45 @@ final class MultisiteIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertNotSame( get_rest_url( $site_id, 'wplc/v1/activations' ), get_rest_url( get_main_site_id(), 'wplc/v1/activations' ) );
 	}
 
+	/** UEB-12 (2): the move to the v2 envelope runs per site, on that site's tables and with its own state. */
+	public function test_the_secret_format_migration_runs_per_site(): void {
+		$legacy = static function ( string $plaintext ): string {
+			$nonce      = random_bytes( 12 );
+			$tag        = '';
+			$ciphertext = openssl_encrypt( $plaintext, 'aes-256-gcm', hash( 'sha256', 'integration-only-encryption-secret', true ), OPENSSL_RAW_DATA, $nonce, $tag, 'wplc-secret-v1:integration-2026', 16 );
+
+			return 'v1:integration-2026:' . base64_encode( $nonce . $tag . $ciphertext );
+		};
+		$seed = function () use ( $legacy ): array {
+			$secret = 'legacy-' . wp_generate_password( 24, false );
+			$row    = $this->seed_activation( $this->seed_license()['id'], array( 'installation_secret_hash' => hash( 'sha256', $secret ), 'installation_secret_encrypted' => $legacy( $secret ) ) );
+			$row['secret'] = $secret;
+
+			return $row;
+		};
+		delete_option( \WPLC\Security\SecretMigration::STATE_OPTION );
+
+		// Creating the site's tables commits the open transaction (DDL), so the main site's row is
+		// seeded afterwards; otherwise it would survive this test and leak into later ones.
+		$site_id = $this->create_site();
+		switch_to_blog( $site_id );
+		$this->assertTrue( Schema::maybe_upgrade() );
+		$sub = $seed();
+		$this->assertSame( 'finished', \WPLC\Security\SecretMigration::run( 100 )['status'] );
+		$stored = $this->activation( $sub['id'] )['installation_secret_encrypted'];
+		$this->assertStringStartsWith( \WPLC\Security\SecretCrypto::current_prefix(), $stored );
+		$this->assertSame( $sub['secret'], \WPLC\Security\SecretCrypto::decrypt( $stored, \WPLC\Security\SecretCrypto::PURPOSE_INSTALLATION, $sub['uuid'] ) );
+		$this->assertSame( 200, $this->dispatch( $this->api_request( 'POST', '/wplc/v1/entitlements/check', array(), $sub ) )->get_status() );
+		restore_current_blog();
+		$main = $seed();
+
+		// The main site is untouched and has its own state.
+		$this->assertStringStartsWith( 'v1:', $this->activation( $main['id'] )['installation_secret_encrypted'] );
+		$this->assertFalse( \WPLC\Security\SecretMigration::state()['done'] );
+		$this->assertSame( 'finished', \WPLC\Security\SecretMigration::run( 100 )['status'] );
+		$this->assertStringStartsWith( \WPLC\Security\SecretCrypto::current_prefix(), $this->activation( $main['id'] )['installation_secret_encrypted'] );
+	}
+
 	public function test_deleting_a_site_drops_its_tables_and_keeps_the_others(): void {
 		global $wpdb;
 
