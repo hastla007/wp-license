@@ -166,6 +166,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_license_email_locale` | `src/Notifications/PurchaseLocale.php` | Filter the locale used for the emails of one license. |
 | `wplc_license_email_recipient` | `src/Notifications/Emails/LicenseEmail.php` | Filter the recipient of the emails of one license. |
 | `wplc_license_invitation_days` | `src/License/LicenseMembers.php` | Filters how many days an invitation link can be used. |
+| `wplc_license_issue_batch_size` | `src/License/LicenseIssuer.php` | Filters how many licenses one call of the issuer issues at most; the rest follows in background batches. Default 50 in the paying request, 500 per background batch (second argument `$background`); clamped to 1 to 1000 (P2-M6). |
 | `wplc_license_lock_timeout` | `src/License/LicenseLifecycle.php` | Seconds a lifecycle change waits for another request that changes the same license. |
 | `wplc_license_member_limit` | `src/License/LicenseMembers.php` | Filters how many co-users a license can have (accepted plus open invitations). |
 | `wplc_license_owner_for_guest_order` | `src/License/LicenseIssuer.php` | Filters the owner of the licenses of an order without a customer account. |
