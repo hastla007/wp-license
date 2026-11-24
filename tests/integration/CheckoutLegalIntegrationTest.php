@@ -123,6 +123,10 @@ final class CheckoutLegalIntegrationTest extends WPLC_Integration_TestCase {
 			}
 		}
 		$this->assertSame( $at, $exported['Consent to the immediate start (withdrawal right) given at (UTC)'] ?? null );
+		// P3-A5: also the wording and the language, not only the time.
+		$this->assertSame( $evidence['text'], $exported['Text of the consent to the immediate start'] ?? null );
+		$this->assertStringContainsString( 'lose my right of withdrawal', (string) ( $exported['Text of the consent to the immediate start'] ?? '' ) );
+		$this->assertSame( $evidence['locale'], $exported['Language of the consent to the immediate start'] ?? null );
 
 		// A cart without a license is not asked.
 		$this->cart_with( $this->create_simple_product( '5.00' ) );

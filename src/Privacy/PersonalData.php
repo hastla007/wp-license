@@ -128,9 +128,13 @@ final class PersonalData {
 			__( 'Suggested text (adapt it to your shop and have it checked): When you buy a software license in this shop, we store the license with your customer account: product and plan, status, start and end of the paid period, the order it belongs to and a reference to the license key (the key itself is stored in a form that cannot be read back).', 'wp-license' ),
 			__( 'When you activate the license on a website, the licensed plugin sends the address of that website, an installation identifier, the plugin version and the WordPress and PHP version to our license server. We use this to check the number of websites your license covers, to deliver updates that fit your system and to help you in support cases. Each later license check and update check sends the same technical data; the IP address of the website is processed briefly to limit abuse and is not stored with the license.', 'wp-license' ),
 			__( 'If you agreed to automatic renewal at checkout, we store that agreement with its date, the renewal amount, the billing interval, the next payment date and a reference to the payment method saved with our payment provider. We never store card numbers. You can switch automatic renewal off in your account at any time; the license then runs until the end of the paid period.', 'wp-license' ),
+			__( 'If you upgrade a license that renews automatically, we store your agreement to the new renewal amount in the same way: the time, the wording you agreed to and its language. If we raise the renewal price of your license, we tell you by e-mail in advance and keep a record of that notice (when it was sent, the old and the new amount and the date from which the new amount applies). We keep these agreements and notices as evidence of the charges for as long as invoices have to be kept, by default ten years after the end of the year in which the license ended.', 'wp-license' ),
+			__( 'If you agreed at checkout that we start providing the license immediately and that your right of withdrawal ends with it, we store that agreement with your order: the time, the wording you agreed to and its language.', 'wp-license' ),
+			__( 'You can cancel the automatic renewal without signing in on our cancellation page. We use the e-mail address and the license reference or order number you enter there only to find the license and to send you the confirmation. To prevent abuse, attempts are counted per IP address in pseudonymised form (a keyed hash), and these counters are deleted after two days.', 'wp-license' ),
 			__( 'Automatic renewals are charged through our payment provider (for card payments: Stripe). With each charge we send the provider the order number and order key, the address of this shop, internal license, renewal and period identifiers and the amount; the provider stores the customer and payment method references we keep with your license. The provider processes this data under its own privacy policy.', 'wp-license' ),
 			__( 'Updates are downloaded from our server. If a release is stored with an external package host, your website downloads the update file directly from that host; the host then receives the IP address of your website and the WordPress user agent, which contains the address of your website.', 'wp-license' ),
 			__( 'We keep a history of changes to your license (for example renewals, cancellations, activations and deactivations of websites), a record of which license emails were sent and when, and a record of update downloads. This history is deleted automatically after the retention period; websites you deactivated are deleted after the retention period as well.', 'wp-license' ),
+			__( 'If we connect our license server to other systems (outgoing webhooks), events about your license are sent to those systems: internal license and order numbers, product and plan, status, dates and the number of websites allowed, but not your name, e-mail address, website addresses or payment data. A log of these deliveries is deleted after 30 days.', 'wp-license' ),
 			__( 'If you invite someone to use your license, or transfer it to someone, we store the e-mail address you entered and send that person one e-mail with a link to accept. A person who accepts is shown the license, its key and its websites in their account; the owner sees the names and e-mail addresses of the co-users. Open invitations are deleted when they expire; co-users are removed when the license gets a new owner or their account is deleted.', 'wp-license' ),
 			__( 'You can request an export or the erasure of this data, with the e-mail address of your customer account or the billing e-mail address of your order. Licenses whose paid period is still running are kept so that your websites keep working; their automatic renewal is switched off when you request erasure. On erasure, website addresses and your customer number are also removed from the history of the erased licenses and websites. Orders and invoices are kept as long as the law requires.', 'wp-license' ),
 		);
@@ -400,6 +404,12 @@ final class PersonalData {
 					$withdrawal_at = (string) $order->get_meta( \WPLC\Billing\WithdrawalConsent::META_CONSENT_AT, true );
 					if ( '' !== $withdrawal_at ) {
 						$license_data[] = array( 'name' => __( 'Consent to the immediate start (withdrawal right) given at (UTC)', 'wp-license' ), 'value' => $withdrawal_at );
+						// P3-A5: the wording and language the customer agreed to, not only the time.
+						$withdrawal = $order->get_meta( \WPLC\Billing\WithdrawalConsent::META_EVIDENCE, true );
+						if ( is_array( $withdrawal ) && isset( $withdrawal['text'] ) && is_string( $withdrawal['text'] ) && '' !== $withdrawal['text'] ) {
+							$license_data[] = array( 'name' => __( 'Text of the consent to the immediate start', 'wp-license' ), 'value' => $withdrawal['text'] );
+							$license_data[] = array( 'name' => __( 'Language of the consent to the immediate start', 'wp-license' ), 'value' => isset( $withdrawal['locale'] ) && is_string( $withdrawal['locale'] ) ? $withdrawal['locale'] : '' );
+						}
 					}
 				}
 			}
@@ -593,6 +603,8 @@ final class PersonalData {
 					break;
 
 				case 'consents':
+					// P3-A4: the table also keeps the record of a sent price-change notice.
+					$notice  = \WPLC\Billing\ConsentRecord::SOURCE_PRICE_NOTICE === (string) $row['source'];
 					$items[] = array(
 						'group_id' => 'wp-license-captain-consents',
 						'group_label' => __( 'WP License Captain consents to automatic renewal', 'wp-license' ),
@@ -600,10 +612,10 @@ final class PersonalData {
 						'data' => array(
 							array( 'name' => __( 'License reference', 'wp-license' ), 'value' => (string) $row['key_prefix'] ),
 							array( 'name' => __( 'Order', 'wp-license' ), 'value' => (int) $row['order_id'] > 0 ? (string) (int) $row['order_id'] : '' ),
-							array( 'name' => __( 'Consent given at (UTC)', 'wp-license' ), 'value' => (string) $row['consent_at'] ),
+							array( 'name' => $notice ? __( 'Price change notice sent at (UTC)', 'wp-license' ) : __( 'Consent given at (UTC)', 'wp-license' ), 'value' => (string) $row['consent_at'] ),
 							array( 'name' => __( 'Given through', 'wp-license' ), 'value' => (string) $row['source'] ),
 							array( 'name' => __( 'Language', 'wp-license' ), 'value' => (string) $row['locale'] ),
-							array( 'name' => __( 'Text you agreed to', 'wp-license' ), 'value' => (string) $row['consent_text'] ),
+							array( 'name' => $notice ? __( 'Content of the notice', 'wp-license' ) : __( 'Text you agreed to', 'wp-license' ), 'value' => (string) $row['consent_text'] ),
 							array(
 								'name'  => __( 'Renewal amount', 'wp-license' ),
 								'value' => \WPLC\Billing\Money::to_decimal( (int) $row['amount_minor'], max( 0, min( 6, (int) $row['currency_decimals'] ) ) ) . ' ' . (string) $row['currency'],

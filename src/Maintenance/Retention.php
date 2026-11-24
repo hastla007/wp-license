@@ -42,10 +42,13 @@ final class Retention {
 	 *                              default, counted from the end of the year in which the license ended,
 	 *                              like the business records of the other plugins of the suite
 	 *                              (section 147 AO / section 257 HGB; Austria: 7 years, section 132 BAO).
-	 * - consents:                  evidence of the consent to automatic renewal, by consent date, once
-	 *                              its license has ended or no longer exists. Ten years by default, also
-	 *                              from the end of the year: the evidence belongs to charges that are
-	 *                              kept as long as invoices.
+	 * - consents:                  evidence of the consent to automatic renewal (checkout and upgrade
+	 *                              consents, price-change notices) once its license has ended, counted
+	 *                              like `anonymize_licenses` from the end of the license (revocation, end
+	 *                              of the last paid period or last change), or from the consent date when
+	 *                              the license no longer exists. Ten years by default, also from the end
+	 *                              of the year: the evidence belongs to charges that are kept as long as
+	 *                              invoices. Year-end rules count every 365 days as one calendar year.
 	 * - webhook_deliveries:        delivery log of the outgoing webhooks (body, status code, error),
 	 *                              by creation date (SET-LIC-46).
 	 */
@@ -163,12 +166,34 @@ final class Retention {
 			if ( $value > 0 ) {
 				// Year-end rules: only rows of years that ended before the start of the year the period reaches.
 				$cutoffs[ $rule ] = in_array( $rule, self::YEAR_END_RULES, true )
-					? gmdate( 'Y-01-01 00:00:00', $now - $value * 86400 )
+					? self::year_end_cutoff( $value, $now )
 					: gmdate( 'Y-m-d H:i:s', $now - $value * 86400 );
 			}
 		}
 
 		return $cutoffs;
+	}
+
+	/**
+	 * Cutoff of a rule that counts from the end of the calendar year (P3-A2).
+	 *
+	 * Pure. Every full 365 days of the period count as one calendar year, so ten years
+	 * (3650 days) are ten whole years and not 3650 days, which ended up to three days
+	 * early around the turn of the year because of leap days. Remaining days are
+	 * subtracted as days. A row that ended in year Y is processed once Y + years has
+	 * fully passed.
+	 *
+	 * @param int $days Period in days (> 0).
+	 * @param int $now  Unix timestamp.
+	 * @return string 'Y-01-01 00:00:00' in UTC; rows that ended before it are processed.
+	 */
+	public static function year_end_cutoff( int $days, int $now ): string {
+		$years = intdiv( $days, 365 );
+		$rest  = $days % 365;
+		// The same day and time $years calendar years earlier (29 Feb becomes 1 Mar), then the remaining days.
+		$then = gmmktime( (int) gmdate( 'G', $now ), (int) gmdate( 'i', $now ), (int) gmdate( 's', $now ), (int) gmdate( 'n', $now ), (int) gmdate( 'j', $now ), (int) gmdate( 'Y', $now ) - $years ) - $rest * 86400;
+
+		return gmdate( 'Y-01-01 00:00:00', $then );
 	}
 
 	/**
@@ -464,9 +489,15 @@ final class Retention {
 				return self::anonymize_licenses( $tables, $cutoff );
 
 			case 'consents':
+				// P3-A1: the period runs from the end of the license (revocation, end of the last paid
+				// period or last change), like `anonymize_licenses`, not from the consent date: the
+				// evidence belongs to every charge made under the consent, the last one included.
+				// Evidence of a license that no longer exists runs from the consent date.
 				$result = $wpdb->query(
 					$wpdb->prepare(
-						"DELETE FROM {$tables['consents']} WHERE id IN ( SELECT id FROM ( SELECT c.id FROM {$tables['consents']} c LEFT JOIN {$tables['licenses']} l ON l.id = c.license_id WHERE c.consent_at < %s AND ( l.id IS NULL OR {$ended_l_sql} ) ORDER BY c.id ASC LIMIT %d ) batch )",
+						"DELETE FROM {$tables['consents']} WHERE id IN ( SELECT id FROM ( SELECT c.id FROM {$tables['consents']} c LEFT JOIN {$tables['licenses']} l ON l.id = c.license_id WHERE c.consent_at < %s AND ( l.id IS NULL OR ( {$ended_l_sql} AND COALESCE( l.revoked_at, l.paid_until, l.updated_at ) < %s AND l.updated_at < %s ) ) ORDER BY c.id ASC LIMIT %d ) batch )",
+						$cutoff,
+						$cutoff,
 						$cutoff,
 						self::BATCH_SIZE
 					)

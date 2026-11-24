@@ -388,18 +388,20 @@ final class RetentionIntegrationTest extends WPLC_Integration_TestCase {
 		global $wpdb;
 		$tables   = $this->tables();
 		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
-		$ended    = $this->seed_license( array( 'status' => 'expired', 'customer_id' => $customer ) );
-		$running  = $this->seed_license( array( 'status' => 'active', 'customer_id' => $customer ) );
 		$old      = gmdate( 'Y-m-d H:i:s', time() - 4100 * DAY_IN_SECONDS ); // Ten years from the end of an older year.
 		$recent   = gmdate( 'Y-m-d H:i:s', time() - 100 * DAY_IN_SECONDS );
-		$insert   = static function ( int $license_id, string $consent_at ) use ( $wpdb, $tables, $customer ): int {
+		$ended    = $this->seed_license( array( 'status' => 'expired', 'customer_id' => $customer, 'starts_at' => $old, 'paid_until' => $old, 'next_payment_at' => null, 'updated_at' => $old ) );
+		// P3-A1: consented eleven years ago, charged every year since, ended 100 days ago.
+		$recently_ended = $this->seed_license( array( 'status' => 'expired', 'customer_id' => $customer, 'starts_at' => $old, 'paid_until' => $recent, 'next_payment_at' => null, 'updated_at' => $recent ) );
+		$running        = $this->seed_license( array( 'status' => 'active', 'customer_id' => $customer ) );
+		$insert         = static function ( int $license_id, string $consent_at ) use ( $wpdb, $tables, $customer ): int {
 			$wpdb->insert( $tables['consents'], array( 'license_id' => $license_id, 'customer_id' => $customer, 'consent_at' => $consent_at, 'consent_text' => 'I agree', 'created_at' => $consent_at ) );
 			return (int) $wpdb->insert_id;
 		};
-		$ended_old      = $insert( $ended['id'], $old );
-		$ended_recent   = $insert( $ended['id'], $recent );
-		$running_old    = $insert( $running['id'], $old );
-		$orphan_old     = $insert( 99999999, $old );
+		$ended_old    = $insert( $ended['id'], $old );
+		$ended_recent = $insert( $recently_ended['id'], $old );
+		$running_old  = $insert( $running['id'], $old );
+		$orphan_old   = $insert( 99999999, $old );
 
 		$processed = Retention::run();
 

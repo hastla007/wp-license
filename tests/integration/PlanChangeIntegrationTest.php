@@ -171,6 +171,29 @@ final class PlanChangeIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'business', $license['plan_key'] );
 		$this->assertSame( 14900, (int) $license['renewal_amount_minor'], 'The consented amount is charged from the next period.' );
 		$this->assertSame( 1, (int) $license['renewal_enabled'] );
+
+		// P3-A3: the evidence holds the wording, its hash, the language and the source, as for the checkout consent,
+		// and a row in the consents table keeps it with the retention of the consents.
+		$evidence = wc_get_order( $order->get_id() )->get_meta( PlanUpgrade::META_CONSENT_EVIDENCE );
+		$this->assertIsArray( $evidence );
+		$this->assertStringContainsString( 'I agree that my saved payment method is charged', $evidence['text'] );
+		$this->assertStringContainsString( '149', $evidence['text'] );
+		$this->assertSame( hash( 'sha256', $evidence['text'] ), $evidence['hash'] );
+		$this->assertSame( 'upgrade', $evidence['source'] );
+		$this->assertNotSame( '', $evidence['locale'] );
+		$this->assertSame( (string) $order->get_meta( PlanUpgrade::META_CONSENT ), $evidence['at'] );
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE license_id = %d AND source = %s', $this->tables()['consents'], $license_id, 'upgrade' ), ARRAY_A );
+		$this->assertCount( 1, $rows );
+		$this->assertSame( $evidence['text'], $rows[0]['consent_text'] );
+		$this->assertSame( $evidence['hash'], $rows[0]['text_hash'] );
+		$this->assertSame( $evidence['at'], $rows[0]['consent_at'] );
+		$this->assertSame( 14900, (int) $rows[0]['amount_minor'] );
+		$this->assertSame( $order->get_id(), (int) $rows[0]['order_id'] );
+		$this->assertSame( $this->customer, (int) $rows[0]['customer_id'] );
+		// A repeated paid hook adds no second row.
+		PlanUpgrade::handle_paid_order( $order->get_id() );
+		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE license_id = %d AND source = %s', $this->tables()['consents'], $license_id, 'upgrade' ) ) );
 	}
 
 	public function test_foreign_customer_and_downgrade_target_cannot_start_an_upgrade(): void {

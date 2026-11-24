@@ -40,10 +40,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * owner, and the license e-mail recipient (P-08).
  *
  * Requests are rate limited with atomic counters in the request_limits table
- * per client address and per reference. An e-mail address alone is never a
- * limit for every reference: the per-address counter only applies to order
- * numbers (which are easy to guess), so flooding a customer's address cannot
- * block the license reference and key printed in their e-mails.
+ * per client address, and for order numbers (which are easy to guess) also per
+ * order number and per e-mail address. A license reference or key is never a
+ * limit before the lookup (P3-A6): whoever knows it could otherwise block its
+ * owner's cancellation. Flooding a customer's address or order number cannot
+ * block the license reference and key printed in their e-mails either.
  *
  * Whether this page satisfies a legal cancellation-button requirement in a
  * given country is for the shop owner to check; the wording can be changed
@@ -182,7 +183,10 @@ final class PublicCancellation {
 
 		$state['view']        = 'done';
 		$state['received_at'] = time();
-		self::cancel_matching( $email, $reference, $state['received_at'] );
+		if ( 0 === self::cancel_matching( $email, $reference, $state['received_at'] ) && ! self::is_order_number( $reference ) ) {
+			// P3-A6: misses on a license reference are counted after the lookup, never before it.
+			self::count_miss( $reference );
+		}
 
 		return $state;
 	}
@@ -200,8 +204,8 @@ final class PublicCancellation {
 	/**
 	 * Count this request and tell whether it is over a limit.
 	 *
-	 * Counters (atomic, hourly, keyed hashes only): the client address, the
-	 * reference, and for order-number references the e-mail address. A database
+	 * Counters (atomic, hourly, keyed hashes only): the client address, and for
+	 * order-number references the order number and the e-mail address. A database
 	 * failure counts as over the limit.
 	 *
 	 * @param string $email     E-mail address.
@@ -211,19 +215,22 @@ final class PublicCancellation {
 	private static function limited( string $email, string $reference ): bool {
 		/**
 		 * Filter how many public cancellation requests are accepted per hour,
-		 * counted per client address, per reference and (for order numbers) per
-		 * e-mail address.
+		 * counted per client address and, for order numbers, per order number and
+		 * per e-mail address.
 		 *
 		 * @param int $limit Requests per hour. Default: the setting "Cancellation page: requests per hour" (5).
 		 */
 		$limit   = max( 1, (int) apply_filters( 'wplc_public_cancel_hourly_limit', \WPLC\Settings\Registry::int( 'public_cancel_hourly_limit' ) ) );
 		$ip      = class_exists( ClientIp::class ) ? ClientIp::current() : '';
-		// "WPLC-1A2B3C4D" and "1A2B3C4D" are the same reference.
-		$buckets = array( 'public-cancel-ref' => (string) preg_replace( '/^' . LicenseKey::key_prefix() . '-(?=[0-9A-F]{8}$)/', '', $reference ) );
+		$buckets = array();
 		if ( '' !== $ip ) {
 			$buckets['public-cancel-ip'] = $ip;
 		}
+		// P3-A6: only order numbers, which are easy to guess, are counted per reference before the
+		// lookup. A license reference or key is not: anyone who knew it could otherwise block its
+		// owner's cancellation for the hour. Its misses are counted afterwards (count_miss()).
 		if ( self::is_order_number( $reference ) ) {
+			$buckets['public-cancel-ref']         = $reference;
 			$buckets['public-cancel-order-email'] = strtolower( $email );
 		}
 
@@ -237,6 +244,28 @@ final class PublicCancellation {
 		}
 
 		return $over;
+	}
+
+	/**
+	 * Count an attempt on a license reference or key that matched no license (P3-A6).
+	 *
+	 * The answer stays the page every request gets, so the counter neither blocks the owner
+	 * nor tells whether an address belongs to the reference; guessing is limited per client
+	 * address, and a reference with more misses per hour than the limit is logged once per
+	 * hour as a warning (without the reference).
+	 *
+	 * @param string $reference Normalized reference.
+	 * @return void
+	 */
+	private static function count_miss( string $reference ): void {
+		/** This filter is documented in PublicCancellation::limited(). */
+		$limit = max( 1, (int) apply_filters( 'wplc_public_cancel_hourly_limit', \WPLC\Settings\Registry::int( 'public_cancel_hourly_limit' ) ) );
+		// "WPLC-1A2B3C4D" and "1A2B3C4D" are the same reference.
+		$value = (string) preg_replace( '/^' . LicenseKey::key_prefix() . '-(?=[0-9A-F]{8}$)/', '', $reference );
+		$hits  = Authenticator::increment_bucket( Authenticator::limiter_hash( 'public-cancel-ref-miss', $value ), gmdate( 'Y-m-d H:00:00' ) );
+		if ( false !== $hits && $hits === $limit + 1 ) {
+			\WPLC\Infrastructure\Log::write( 'warning', 'Public cancellation page: more attempts with one license reference that matched no license than the hourly limit.', array( 'component' => 'public-cancellation' ) );
+		}
 	}
 
 	/**

@@ -70,6 +70,24 @@ final class RetentionCutoffTest extends TestCase {
 		$this->assertSame( gmdate( 'Y-m-d H:i:s', self::NOW - 730 * 86400 ), Retention::cutoffs( array(), self::NOW )['audit_log'] );
 	}
 
+	// P3-A2: ten years are ten calendar years, not 3650 days (leap days made the rule run up to three days early).
+	public function test_year_end_rules_count_whole_calendar_years(): void {
+		$dec_30 = gmmktime( 12, 0, 0, 12, 30, 2025 );
+		// A license that ended in 2015 is kept until the end of 2025: ten years after the end of 2015.
+		$this->assertSame( '2015-01-01 00:00:00', Retention::cutoffs( array(), $dec_30 )['anonymize_licenses'] );
+		$this->assertSame( '2015-01-01 00:00:00', Retention::cutoffs( array(), $dec_30 )['consents'] );
+		$this->assertSame( '2015-01-01 00:00:00', Retention::cutoffs( array(), gmmktime( 23, 59, 59, 12, 31, 2025 ) )['consents'] );
+		// From 1 January 2026 the rows of 2015 qualify.
+		$this->assertSame( '2016-01-01 00:00:00', Retention::cutoffs( array(), gmmktime( 0, 0, 0, 1, 1, 2026 ) )['consents'] );
+		// Seven years (Austria) and a leap day as start.
+		$this->assertSame( '2021-01-01 00:00:00', Retention::year_end_cutoff( 2555, gmmktime( 12, 0, 0, 2, 29, 2028 ) ) );
+		// Remaining days count as days: 3650 + 60 days back from 10 Mar 2027 reaches 9 Jan 2017.
+		$this->assertSame( '2017-01-01 00:00:00', Retention::year_end_cutoff( 3710, self::NOW ) );
+		$this->assertSame( '2016-01-01 00:00:00', Retention::year_end_cutoff( 3720, self::NOW ) );
+		// Short periods below a year stay day-based.
+		$this->assertSame( '2026-01-01 00:00:00', Retention::year_end_cutoff( 100, self::NOW ) );
+	}
+
 	public function test_zero_disables_a_rule_and_missing_keys_use_defaults(): void {
 		$cutoffs = Retention::cutoffs( array( 'audit_log' => 0, 'event_inbox' => 30 ), self::NOW );
 

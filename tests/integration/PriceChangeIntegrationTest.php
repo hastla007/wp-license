@@ -180,6 +180,18 @@ final class PriceChangeIntegrationTest extends WPLC_Renewal_TestCase {
 		$this->assertSame( 1, count( array_keys( $this->audit_actions( 'license', $id ), 'renewal_price_change_applied', true ) ) );
 		PriceChange::daily();
 		$this->assertSame( 1, count( array_keys( $this->audit_actions( 'license', $id ), 'renewal_price_change_applied', true ) ) );
+		// P3-A4: the proof of the notice outlives the cleared columns and the audit/email log (deleted after 730 days):
+		// one row in the consents table, which follows the retention of the consent evidence.
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE object_type = %s AND object_id = %d', $this->tables()['audit_log'], 'license', $id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE license_id = %d', $this->tables()['reminder_log'], $id ) );
+		$notices = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE license_id = %d AND source = %s', $this->tables()['consents'], $id, 'price_notice' ), ARRAY_A );
+		$this->assertCount( 1, $notices );
+		$this->assertSame( 5900, (int) $notices[0]['amount_minor'] );
+		$this->assertStringContainsString( 'from 49.00', $notices[0]['consent_text'] );
+		$this->assertStringContainsString( 'to 59.00', $notices[0]['consent_text'] );
+		$this->assertSame( hash( 'sha256', $notices[0]['consent_text'] ), $notices[0]['text_hash'] );
+		$this->assertSame( $f['customer'], (int) $notices[0]['customer_id'] );
 		// The card on file is the one the customer saved; nothing about the payment method was touched.
 		$this->assertSame( (string) $this->license( $id )['payment_token_id'], (string) $license['payment_token_id'] );
 	}
