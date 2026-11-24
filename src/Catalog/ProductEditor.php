@@ -60,7 +60,8 @@ final class ProductEditor {
 		add_action( 'wp_trash_post', array( self::class, 'on_trash' ) );
 		add_action( 'untrashed_post', array( self::class, 'on_untrash' ) );
 		add_action( 'before_delete_post', array( self::class, 'on_delete' ) );
-
+		// The customer account looks up the plans of its license list at once (P6-I1).
+		PlanOverrides::register_hooks();
 	}
 
 	/**
@@ -143,6 +144,92 @@ final class ProductEditor {
 	}
 
 	/**
+	 * Visible help text of a field, linked to the field with aria-describedby (P5-I3).
+	 *
+	 * @param string $id   Field ID.
+	 * @param string $text Plain help text.
+	 * @return array{desc_tip:bool,description:string,custom_attributes:array<string,string>}
+	 */
+	private static function help( string $id, string $text ): array {
+		$help_id = self::help_id( $id );
+
+		return array(
+			'desc_tip'          => false,
+			'description'       => '<span id="' . esc_attr( $help_id ) . '">' . esc_html( $text ) . '</span>',
+			'custom_attributes' => array( 'aria-describedby' => $help_id ),
+		);
+	}
+
+	/**
+	 * ID of the help text of a field.
+	 *
+	 * @param string $id Field ID (may contain the variation index in brackets).
+	 * @return string
+	 */
+	private static function help_id( string $id ): string {
+		return 'wplc-help-' . trim( (string) preg_replace( '/[^A-Za-z0-9_-]+/', '-', $id ), '-_' );
+	}
+
+	/**
+	 * A field definition with its visible help merged in.
+	 *
+	 * @param array<string,mixed> $field Field arguments for woocommerce_wp_*().
+	 * @param string              $text  Plain help text.
+	 * @return array<string,mixed>
+	 */
+	private static function with_help( array $field, string $text ): array {
+		$help                       = self::help( (string) $field['id'], $text );
+		$field['desc_tip']          = $help['desc_tip'];
+		$field['description']       = $help['description'];
+		$field['custom_attributes'] = array_merge( isset( $field['custom_attributes'] ) && is_array( $field['custom_attributes'] ) ? $field['custom_attributes'] : array(), $help['custom_attributes'] );
+
+		return $field;
+	}
+
+	/**
+	 * Transient that keeps the submitted values of a form that failed validation (P5-I2).
+	 *
+	 * @param int $product_id   Parent product ID.
+	 * @param int $variation_id Variation ID, or zero.
+	 * @return string
+	 */
+	private static function draft_key( int $product_id, int $variation_id ): string {
+		return 'wplc_plan_form_' . (int) get_current_user_id() . '_' . $product_id . '_' . $variation_id;
+	}
+
+	/**
+	 * Keep the submitted values for the next render of the form, for this user only, ten minutes.
+	 *
+	 * @param int                 $product_id   Parent product ID.
+	 * @param int                 $variation_id Variation ID, or zero.
+	 * @param array<string,mixed> $data         Submitted values (read_posted_fields()).
+	 * @param string              $field        Override column that failed, or ''.
+	 * @return void
+	 */
+	private static function keep_draft( int $product_id, int $variation_id, array $data, string $field = '' ): void {
+		$data['error_field'] = $field;
+		set_transient( self::draft_key( $product_id, $variation_id ), $data, 10 * MINUTE_IN_SECONDS );
+	}
+
+	/**
+	 * The kept values of a failed save, once.
+	 *
+	 * @param int $product_id   Parent product ID.
+	 * @param int $variation_id Variation ID, or zero.
+	 * @return array<string,mixed>|null
+	 */
+	private static function take_draft( int $product_id, int $variation_id ): ?array {
+		$key   = self::draft_key( $product_id, $variation_id );
+		$draft = get_transient( $key );
+		if ( ! is_array( $draft ) ) {
+			return null;
+		}
+		delete_transient( $key );
+
+		return $draft;
+	}
+
+	/**
 	 * Product and variation ID of a product object, as the catalog stores them.
 	 *
 	 * @param \WC_Product $product Product or variation.
@@ -194,6 +281,22 @@ final class ProductEditor {
 			'entitlements' => $plan ? $plan['entitlements_json'] : $product->get_meta( '_wplc_entitlements_json', true ),
 		);
 
+		// P5-I2: after a failed save the form shows what was submitted, not the stored plan.
+		$draft = self::take_draft( $product_id, $variation_id );
+		if ( null !== $draft ) {
+			$enabled = ! empty( $draft['enabled'] );
+			$flagged = false;
+			$encoded = wp_json_encode( is_array( $draft['entitlements'] ?? null ) ? $draft['entitlements'] : array() );
+			$values  = array(
+				'product_key' => (string) ( $draft['product_key'] ?? '' ),
+				'plan_key' => (string) ( $draft['plan_key'] ?? '' ),
+				'billing_interval' => (string) ( $draft['billing_interval'] ?? 'year' ),
+				'live_site_limit' => (string) ( $draft['live_site_limit_raw'] ?? ( $draft['live_site_limit'] ?? 1 ) ),
+				'support_level' => (string) ( $draft['support_level'] ?? 'standard' ),
+				'entitlements' => false === $encoded ? '' : $encoded,
+			);
+		}
+
 		$name = static function ( string $base ) use ( $suffix ): string {
 			return self::field_name( $base, $suffix );
 		};
@@ -205,28 +308,30 @@ final class ProductEditor {
 		}
 
 		woocommerce_wp_checkbox(
-			array(
-				'id' => $name( '_wplc_is_license_product' ),
-				'label' => __( 'License product', 'wp-license' ),
-				'value' => $enabled ? 'yes' : 'no',
-				'cbvalue' => 'yes',
-				'desc_tip' => true,
-				'description' => __( 'Issue or renew a WP License Captain license when this product is paid.', 'wp-license' ),
+			self::with_help(
+				array(
+					'id' => $name( '_wplc_is_license_product' ),
+					'label' => __( 'License product', 'wp-license' ),
+					'value' => $enabled ? 'yes' : 'no',
+					'cbvalue' => 'yes',
+				),
+				__( 'Issue or renew a WP License Captain license when this product is paid.', 'wp-license' )
 			)
 		);
 		woocommerce_wp_text_input(
-			array(
-				'id' => $name( '_wplc_product_key' ),
-				'label' => __( 'License product key', 'wp-license' ),
-				'value' => $values['product_key'],
-				'placeholder' => 'acme-pro',
-				'desc_tip' => true,
-				'description' => __( 'Stable product identifier. Must match the product key the premium add-on sends, for example acme-pro; the suggestions come from the imported catalog files. Lowercase letters, digits and hyphens only.', 'wp-license' ),
-				'custom_attributes' => array(
-					'list' => 'wplc-known-product-keys',
-					'pattern' => '[a-z0-9][a-z0-9\-]{1,99}',
-					'maxlength' => '100',
+			self::with_help(
+				array(
+					'id' => $name( '_wplc_product_key' ),
+					'label' => __( 'License product key', 'wp-license' ),
+					'value' => $values['product_key'],
+					'placeholder' => 'acme-pro',
+					'custom_attributes' => array(
+						'list' => 'wplc-known-product-keys',
+						'pattern' => '[a-z0-9][a-z0-9\-]{1,99}',
+						'maxlength' => '100',
+					),
 				),
+				__( 'Stable product identifier. Must match the product key the premium add-on sends, for example acme-pro; the suggestions come from the imported catalog files. Lowercase letters, digits and hyphens only.', 'wp-license' )
 			)
 		);
 		static $datalist_printed = false;
@@ -239,55 +344,63 @@ final class ProductEditor {
 			echo '</datalist>';
 		}
 		if ( '' === $suffix ) {
-			$stored_name = Catalog::product_display_name( (string) $values['product_key'] );
+			$stored_name = null !== $draft && '' !== (string) ( $draft['display_name'] ?? '' ) ? (string) $draft['display_name'] : Catalog::product_display_name( (string) $values['product_key'] );
 			woocommerce_wp_text_input(
-				array(
-					'id' => '_wplc_product_display_name',
-					'label' => __( 'License product name', 'wp-license' ),
-					'value' => $stored_name,
-					'placeholder' => $product->get_name(),
-					'desc_tip' => true,
-					'description' => __( 'Name of the license product as customers see it in their account and in emails. It is shared by all plans with the same license product key. Leave empty to keep the current name.', 'wp-license' ),
-					'custom_attributes' => array( 'maxlength' => '190' ),
+				self::with_help(
+					array(
+						'id' => '_wplc_product_display_name',
+						'label' => __( 'License product name', 'wp-license' ),
+						'value' => $stored_name,
+						'placeholder' => $product->get_name(),
+						'custom_attributes' => array( 'maxlength' => '190' ),
+					),
+					__( 'Name of the license product as customers see it in their account and in emails. It is shared by all plans with the same license product key. Leave empty to keep the current name.', 'wp-license' )
 				)
 			);
 		}
 		woocommerce_wp_text_input(
-			array(
-				'id' => $name( '_wplc_plan_key' ),
-				'label' => __( 'License plan key', 'wp-license' ),
-				'value' => $values['plan_key'],
-				'placeholder' => 'business',
-				'desc_tip' => true,
-				'description' => __( 'Identifier of this plan within the license product, for example single or agency; each plan (product or variation) of one license product needs its own. Licenses store it, so keep it unchanged once the plan is sold. Lowercase letters, digits and hyphens only.', 'wp-license' ),
-				'custom_attributes' => array(
-					'pattern' => '[a-z0-9][a-z0-9\-]{0,99}',
-					'maxlength' => '100',
+			self::with_help(
+				array(
+					'id' => $name( '_wplc_plan_key' ),
+					'label' => __( 'License plan key', 'wp-license' ),
+					'value' => $values['plan_key'],
+					'placeholder' => 'business',
+					'custom_attributes' => array(
+						'pattern' => '[a-z0-9][a-z0-9\-]{0,99}',
+						'maxlength' => '100',
+					),
 				),
+				__( 'Identifier of this plan within the license product, for example single or agency; each plan (product or variation) of one license product needs its own. Licenses store it, so keep it unchanged once the plan is sold. Lowercase letters, digits and hyphens only.', 'wp-license' )
 			)
 		);
 		woocommerce_wp_select(
-			array(
-				'id' => $name( '_wplc_billing_interval' ),
-				'label' => __( 'License billing interval', 'wp-license' ),
-				'value' => $values['billing_interval'],
-				'options' => array(
-					'month' => __( 'Monthly', 'wp-license' ),
-					'year' => __( 'Yearly', 'wp-license' ),
+			self::with_help(
+				array(
+					'id' => $name( '_wplc_billing_interval' ),
+					'label' => __( 'License billing interval', 'wp-license' ),
+					'value' => $values['billing_interval'],
+					'options' => array(
+						'month' => __( 'Monthly', 'wp-license' ),
+						'year' => __( 'Yearly', 'wp-license' ),
+					),
 				),
+				__( 'How often a license of this plan is renewed and billed: every month or every year.', 'wp-license' )
 			)
 		);
 		woocommerce_wp_text_input(
-			array(
-				'id' => $name( '_wplc_live_site_limit' ),
-				'label' => __( 'Live site limit', 'wp-license' ),
-				'type' => 'number',
-				'value' => $values['live_site_limit'],
-				'custom_attributes' => array(
-					'min' => '1',
-					'max' => '1000',
-					'step' => '1',
+			self::with_help(
+				array(
+					'id' => $name( '_wplc_live_site_limit' ),
+					'label' => __( 'Live site limit', 'wp-license' ),
+					'type' => 'number',
+					'value' => $values['live_site_limit'],
+					'custom_attributes' => array(
+						'min' => '1',
+						'max' => '1000',
+						'step' => '1',
+					),
 				),
+				__( 'Live (production) sites one license of this plan may activate at the same time, 1 to 1000. Staging and development sites have their own limits below.', 'wp-license' )
 			)
 		);
 		woocommerce_wp_select(
@@ -302,21 +415,26 @@ final class ProductEditor {
 				),
 			)
 		);
-		self::render_override_fields( $plan, $suffix );
+		self::render_override_fields( $plan, $suffix, $draft );
 
 		$stored = json_decode( (string) $values['entitlements'], true );
 		$split  = EntitlementCatalog::split( is_array( $stored ) ? $stored : array() );
 		self::render_entitlement_checklist( $split['checked'], (string) $values['product_key'], $suffix );
 
 		$advanced_json = $split['advanced'] ? wp_json_encode( $split['advanced'] ) : '';
+		if ( null !== $draft && isset( $draft['entitlements_raw'] ) && is_string( $draft['entitlements_raw'] ) ) {
+			// The text as typed, also when it was not valid JSON.
+			$advanced_json = $draft['entitlements_raw'];
+		}
 		woocommerce_wp_textarea_input(
-			array(
-				'id' => $name( '_wplc_entitlements_json' ),
-				'label' => __( 'Advanced: additional entitlements (JSON)', 'wp-license' ),
-				'value' => false === $advanced_json ? '' : $advanced_json,
-				'placeholder' => '{"acme.project_limit":3}',
-				'desc_tip' => true,
-				'description' => __( 'Optional JSON object for numeric limits and entitlement keys that are not in the list above. The live-site limit and support level are added automatically.', 'wp-license' ),
+			self::with_help(
+				array(
+					'id' => $name( '_wplc_entitlements_json' ),
+					'label' => __( 'Advanced: additional entitlements (JSON)', 'wp-license' ),
+					'value' => false === $advanced_json ? '' : $advanced_json,
+					'placeholder' => '{"acme.project_limit":3}',
+				),
+				__( 'Optional JSON object for numeric limits and entitlement keys that are not in the list above. The live-site limit and support level are added automatically.', 'wp-license' )
 			)
 		);
 	}
@@ -330,7 +448,7 @@ final class ProductEditor {
 		return array(
 			'staging_site_limit'     => array( __( 'Staging sites per live site', 'wp-license' ), __( 'Staging copies each live site of this plan may activate (0 to 10; 0 = none).', 'wp-license' ) ),
 			'development_site_limit' => array( __( 'Development sites', 'wp-license' ), __( 'Development installations on local addresses a license of this plan may hold at the same time, exactly this number (0 to 100; 0 = none).', 'wp-license' ) ),
-			'offline_cache_days'     => array( __( 'Offline period (days)', 'wp-license' ), __( 'Days a customer site of this plan may rely on the last signed answer (1 to 90). Never beyond the end of access.', 'wp-license' ) ),
+			'offline_cache_days'     => array( __( 'Offline period (days)', 'wp-license' ), __( 'Days a customer site of this plan may rely on the last signed answer (2 to 90). Never beyond the end of access.', 'wp-license' ) ),
 			'max_quantity_per_line'  => array( __( 'Largest quantity per order line', 'wp-license' ), __( 'Largest quantity of this plan in one cart line (0 to 100000; 0 = no limit).', 'wp-license' ) ),
 			'co_user_limit'          => array( __( 'Co-users per license', 'wp-license' ), __( 'Co-users the owner of a license of this plan can invite (0 to 100; 0 = none).', 'wp-license' ) ),
 			'beta_allowed'           => array( __( 'Beta versions', 'wp-license' ), __( 'Whether customer sites of this plan may receive beta versions when the customer turns them on in the add-on. Without the right they get stable versions only.', 'wp-license' ) ),
@@ -340,53 +458,114 @@ final class ProductEditor {
 	/**
 	 * Render the overrides per plan: empty = the global setting (SET-LIC-21).
 	 *
+	 * A rule the current user may not change (it replaces a manufacturer rule that needs
+	 * `wplc_manage_policy`, P4-M1) is shown read-only with the reason and is not part of the form.
+	 *
 	 * @param array<string,mixed>|null $plan   Stored plan, null for a product without one.
 	 * @param string                   $suffix Variation array suffix.
+	 * @param array<string,mixed>|null $draft  Values submitted with a failed save (P5-I2).
 	 * @return void
 	 */
-	private static function render_override_fields( ?array $plan, string $suffix ): void {
+	private static function render_override_fields( ?array $plan, string $suffix, ?array $draft = null ): void {
 		echo '<p class="form-field wplc-plan-overrides-intro"><strong>' . esc_html__( 'Rules of this plan', 'wp-license' ) . '</strong> ' . esc_html__( 'Leave a field empty to use the global setting (License settings). The filters of the global values still decide last.', 'wp-license' ) . '</p>';
+		$submitted = null !== $draft && is_array( $draft['overrides'] ?? null ) ? $draft['overrides'] : array();
+		$failed    = null !== $draft ? (string) ( $draft['error_field'] ?? '' ) : '';
 		foreach ( self::override_texts() as $field => $text ) {
 			list( $min, $max, $setting ) = PlanOverrides::FIELDS[ $field ];
 			$own                         = PlanOverrides::of_plan( $plan, $field );
-			if ( in_array( $field, PlanOverrides::SWITCHES, true ) ) {
+			$switch                      = in_array( $field, PlanOverrides::SWITCHES, true );
+			$global                      = $switch
+				? ( \WPLC\Settings\Registry::bool( $setting ) ? __( 'allowed', 'wp-license' ) : __( 'not allowed', 'wp-license' ) )
+				: number_format_i18n( \WPLC\Settings\Registry::int( $setting ) );
+			$id                          = self::field_name( '_wplc_' . $field, $suffix );
+
+			if ( ! PlanOverrides::may_change( $field ) ) {
+				self::render_locked_override( $id, $text, $own, $switch, $global, PlanOverrides::capability( $field ) );
+				continue;
+			}
+
+			$value = null === $own ? '' : (string) $own;
+			if ( array_key_exists( $field, $submitted ) && is_scalar( $submitted[ $field ] ) ) {
+				$value = (string) $submitted[ $field ];
+			}
+			$invalid = $failed === $field ? array( 'aria-invalid' => 'true' ) : array();
+
+			if ( $switch ) {
 				// SET-LIC-20: a yes/no rule of the plan; empty = the global setting.
-				$global = \WPLC\Settings\Registry::bool( $setting ) ? __( 'allowed', 'wp-license' ) : __( 'not allowed', 'wp-license' );
 				woocommerce_wp_select(
-					array(
-						'id'          => self::field_name( '_wplc_' . $field, $suffix ),
-						'label'       => $text[0],
-						'value'       => null === $own ? '' : (string) $own,
-						'options'     => array(
-							/* translators: %s: value of the global setting, "allowed" or "not allowed". */
-							''  => sprintf( __( 'Global setting (%s)', 'wp-license' ), $global ),
-							'1' => __( 'Allowed', 'wp-license' ),
-							'0' => __( 'Not allowed', 'wp-license' ),
+					self::with_help(
+						array(
+							'id'                => $id,
+							'label'             => $text[0],
+							'value'             => $value,
+							'options'           => array(
+								/* translators: %s: value of the global setting, "allowed" or "not allowed". */
+								''  => sprintf( __( 'Global setting (%s)', 'wp-license' ), $global ),
+								'1' => __( 'Allowed', 'wp-license' ),
+								'0' => __( 'Not allowed', 'wp-license' ),
+							),
+							'custom_attributes' => $invalid,
 						),
-						'desc_tip'    => true,
-						'description' => $text[1],
+						$text[1]
 					)
 				);
 				continue;
 			}
+			/* translators: %s: value of the global setting. */
+			$global_text = sprintf( __( 'Global: %s', 'wp-license' ), $global );
 			woocommerce_wp_text_input(
-				array(
-					'id'                => self::field_name( '_wplc_' . $field, $suffix ),
-					'label'             => $text[0],
-					'type'              => 'number',
-					'value'             => null === $own ? '' : (string) $own,
-					/* translators: %s: value of the global setting. */
-					'placeholder'       => sprintf( __( 'Global: %s', 'wp-license' ), (string) \WPLC\Settings\Registry::int( $setting ) ),
-					'desc_tip'          => true,
-					'description'       => $text[1],
-					'custom_attributes' => array(
-						'min'  => (string) $min,
-						'max'  => (string) $max,
-						'step' => '1',
+				self::with_help(
+					array(
+						'id'                => $id,
+						'label'             => $text[0],
+						'type'              => 'number',
+						'value'             => $value,
+						'placeholder'       => $global_text,
+						'custom_attributes' => array(
+							'min'  => (string) $min,
+							'max'  => (string) $max,
+							'step' => '1',
+						) + $invalid,
 					),
+					// P5-I3: the global value is visible text, not only the placeholder.
+					$text[1] . ' ' . $global_text
 				)
 			);
 		}
+	}
+
+	/**
+	 * Render one override the current user may not change: value, help and reason, without a
+	 * form field name (P4-M1).
+	 *
+	 * @param string                   $id         Field ID of the editable field.
+	 * @param array{0:string,1:string} $text       Label and help.
+	 * @param int|null                 $own        Stored value, null for the global setting.
+	 * @param bool                     $switch     Whether the rule is a yes/no choice.
+	 * @param string                   $global     Value of the global setting, for display.
+	 * @param string                   $capability Capability slug needed.
+	 * @return void
+	 */
+	private static function render_locked_override( string $id, array $text, ?int $own, bool $switch, string $global, string $capability ): void {
+		if ( null === $own ) {
+			/* translators: %s: value of the global setting. */
+			$shown = sprintf( __( 'Global setting (%s)', 'wp-license' ), $global );
+		} elseif ( $switch ) {
+			$shown = 1 === $own ? __( 'Allowed', 'wp-license' ) : __( 'Not allowed', 'wp-license' );
+		} else {
+			$shown = number_format_i18n( $own );
+		}
+		$locked_id = 'wplc-locked-' . trim( (string) preg_replace( '/[^A-Za-z0-9_-]+/', '-', $id ), '-_' );
+		$help_id   = self::help_id( $locked_id );
+		$reason    = sprintf(
+			/* translators: %s: capability name, for example wplc_manage_policy. */
+			__( 'Read only: this rule replaces a manufacturer rule of the license settings, so only users with the capability %s can change it.', 'wp-license' ),
+			\WPLC\Admin\Capabilities::cap( $capability )
+		);
+
+		echo '<p class="form-field wplc-plan-override-locked"><label for="' . esc_attr( $locked_id ) . '">' . esc_html( $text[0] ) . '</label>';
+		echo '<input type="text" class="short" id="' . esc_attr( $locked_id ) . '" value="' . esc_attr( $shown ) . '" readonly aria-describedby="' . esc_attr( $help_id ) . '"> ';
+		echo '<span class="description" id="' . esc_attr( $help_id ) . '">' . esc_html( $text[1] . ' ' . $reason ) . '</span></p>';
 	}
 
 	/**
@@ -649,6 +828,8 @@ final class ProductEditor {
 
 		return array(
 			'overrides' => $overrides,
+			'live_site_limit_raw' => $get( '_wplc_live_site_limit' ),
+			'entitlements_raw' => $raw_entitlements,
 			'enabled' => 'yes' === $get( '_wplc_is_license_product' ),
 			'product_key' => Catalog::normalize_key( $get( '_wplc_product_key' ) ),
 			'plan_key' => Catalog::normalize_key( $get( '_wplc_plan_key' ) ),
@@ -680,6 +861,7 @@ final class ProductEditor {
 			: $product->get_name();
 
 		if ( empty( $data['entitlements_valid'] ) ) {
+			self::keep_draft( $product_id, $variation_id, $data );
 			self::add_admin_error( $label, __( 'The advanced entitlements field must contain a valid JSON object. The license settings were not saved.', 'wp-license' ) );
 			return;
 		}
@@ -690,7 +872,8 @@ final class ProductEditor {
 			return;
 		}
 
-		$error = '';
+		$error       = '';
+		$error_field = '';
 		if ( ! Catalog::is_valid_product_key( (string) $data['product_key'] ) ) {
 			$error = 'invalid_product_key';
 		} elseif ( ! Catalog::is_valid_plan_key( (string) $data['plan_key'] ) ) {
@@ -712,16 +895,45 @@ final class ProductEditor {
 				unset( $mapping['display_name'] );
 			}
 			if ( ! Catalog::save_mapping( $product_id, $variation_id, $mapping ) ) {
-				$error = Catalog::last_error();
+				$error       = Catalog::last_error();
+				$error_field = Catalog::last_error_field();
 			}
 		}
 
 		if ( '' !== $error ) {
+			// P5-I2: the form shows the submitted values again; the message names the wrong field only.
+			self::keep_draft( $product_id, $variation_id, $data, $error_field );
 			self::add_admin_error(
 				$label,
-				Catalog::error_message( $error ) . ' ' . __( 'The license settings were not saved.', 'wp-license' )
+				Catalog::error_message( $error, $error_field ) . ' ' . __( 'The license settings were not saved.', 'wp-license' )
 			);
 			return;
+		}
+
+		// P5-M17: the live-site limit is kept within 1 to 1000; say so instead of changing it silently.
+		$saved_limit = max( 1, min( 1000, (int) $data['live_site_limit'] ) );
+		if ( (string) ( $data['live_site_limit_raw'] ?? $saved_limit ) !== (string) $saved_limit ) {
+			self::add_admin_error(
+				$label,
+				sprintf(
+					/* translators: %s: the number that was saved. */
+					__( 'The live site limit must be a whole number from 1 to 1000; %s was saved.', 'wp-license' ),
+					number_format_i18n( $saved_limit )
+				)
+			);
+		}
+		// P4-M1: rules the user may not change were sent anyway (an old form, another tool): say they stayed.
+		$kept = Catalog::kept_overrides();
+		if ( $kept ) {
+			self::add_admin_error(
+				$label,
+				sprintf(
+					/* translators: 1: capability name, 2: list of rule names. */
+					__( 'These rules of the plan were not changed, because only users with the capability %1$s may change them: %2$s.', 'wp-license' ),
+					\WPLC\Admin\Capabilities::cap( 'manage_policy' ),
+					implode( ', ', array_map( array( PlanOverrides::class, 'label' ), $kept ) )
+				)
+			);
 		}
 
 		self::write_meta( $product, $data, true );

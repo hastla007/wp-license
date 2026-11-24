@@ -343,11 +343,13 @@ final class Definitions {
 			),
 
 			// Customer sites.
+			// P2-M5: at least 2 days, longer than the client's check cadence (daily, catch-up after 36 hours).
+			// A stored 1 of an older version is read as 2 (Registry::int() clamps to min).
 			'offline_cache_days'        => array(
 				'type'       => 'int',
 				'unit'       => 'days',
 				'default'    => 14,
-				'min'        => 1,
+				'min'        => 2,
 				'max'        => 90,
 				'group'      => 'sites',
 				'capability' => 'manage_policy',

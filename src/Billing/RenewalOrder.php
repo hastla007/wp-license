@@ -608,45 +608,104 @@ final class RenewalOrder {
 	 * The returned row carries `_ambiguous => true` when several active plans
 	 * with different prices match and none could be preferred.
 	 *
-	 * @param array<string,mixed> $license License row.
+	 * `$include_inactive` (P2-I1): also a plan whose product is in the trash
+	 * (active = 0). The rules of a sold license (overrides per plan) keep
+	 * applying; an active plan is still preferred. Prices and everything that
+	 * sells something (renewal price, live-site fallback) keep asking for
+	 * active plans only, as before.
+	 *
+	 * The product of the source order line is read from the order item meta
+	 * (one query), without loading the order (P6-I1).
+	 *
+	 * @param array<string,mixed> $license          License row.
+	 * @param bool                $include_inactive Also plans that are no longer for sale.
 	 * @return array<string,mixed>|null
 	 */
-	public static function plan_for_license( array $license ): ?array {
+	public static function plan_for_license( array $license, bool $include_inactive = false ): ?array {
+		$plans = self::plans_for_licenses( array( $license ), $include_inactive );
+
+		return $plans[0] ?? null;
+	}
+
+	/**
+	 * The catalog plans of many licenses, with a fixed number of queries for all
+	 * licenses that have a source order line (P6-I1): one for the order lines,
+	 * one per 200 products for the plans. Licenses without a source order (or
+	 * whose product has no plan) use the key pair, see plan_for_license().
+	 *
+	 * @param array<int|string,array<string,mixed>> $licenses         License rows.
+	 * @param bool                                  $include_inactive Also plans that are no longer for sale (P2-I1).
+	 * @return array<int|string,array<string,mixed>|null> Plan per license, under the keys of `$licenses`.
+	 */
+	public static function plans_for_licenses( array $licenses, bool $include_inactive = false ): array {
 		global $wpdb;
 
+		$sources     = self::source_product_ids_of( $licenses );
+		$product_ids = array();
+		foreach ( $sources as $ids ) {
+			if ( $ids['product_id'] > 0 ) {
+				$product_ids[ $ids['product_id'] ] = true;
+			}
+		}
+		$mapped = array();
 		$tables = Schema::table_names();
-		$product_key = (string) ( $license['product_key'] ?? '' );
-		$plan_key = (string) ( $license['plan_key'] ?? '' );
-
-		$ids = self::source_product_ids( $license );
-		if ( $ids['product_id'] ) {
-			$variations = $ids['variation_id'] ? array( $ids['variation_id'], 0 ) : array( 0 );
-			foreach ( $variations as $variation_id ) {
-				$plan = $wpdb->get_row(
-					$wpdb->prepare(
-						"SELECT * FROM %i WHERE active = 1 AND woocommerce_product_id = %d AND woocommerce_variation_id = %d AND product_key = %s LIMIT 1",
-						$tables['plans'],
-						$ids['product_id'],
-						$variation_id,
-						$product_key
-					),
-					ARRAY_A
-				);
-				if ( is_array( $plan ) ) {
-					return $plan;
-				}
+		foreach ( array_chunk( array_keys( $product_ids ), 200 ) as $chunk ) {
+			$placeholders = implode( ',', array_fill( 0, count( $chunk ), '%d' ) );
+			$active       = $include_inactive ? '' : 'active = 1 AND ';
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- fixed fragment, one %d per ID.
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE {$active}woocommerce_product_id IN ({$placeholders})", array_merge( array( $tables['plans'] ), $chunk ) ), ARRAY_A );
+			foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+				$mapped[ (int) $row['woocommerce_product_id'] . '|' . (int) $row['woocommerce_variation_id'] ] = $row;
 			}
 		}
 
-		$plans = (array) $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM %i WHERE active = 1 AND product_key = %s AND plan_key = %s ORDER BY id DESC",
-				$tables['plans'],
-				$product_key,
-				$plan_key
-			),
-			ARRAY_A
-		);
+		$out = array();
+		foreach ( $licenses as $index => $license ) {
+			$plan = null;
+			$ids  = $sources[ $index ] ?? array( 'product_id' => 0, 'variation_id' => 0 );
+			if ( $ids['product_id'] ) {
+				$variations = $ids['variation_id'] ? array( $ids['variation_id'], 0 ) : array( 0 );
+				foreach ( $variations as $variation_id ) {
+					$row = $mapped[ $ids['product_id'] . '|' . $variation_id ] ?? null;
+					if ( is_array( $row ) && (string) $row['product_key'] === (string) ( $license['product_key'] ?? '' ) ) {
+						$plan = $row;
+						break;
+					}
+				}
+			}
+			$out[ $index ] = null !== $plan ? $plan : self::plan_by_keys( $license, $include_inactive );
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Plan of a license found by product key and plan key, narrowed by the billing interval.
+	 *
+	 * @param array<string,mixed> $license          License row.
+	 * @param bool                $include_inactive Fall back to inactive plans when no active one matches.
+	 * @return array<string,mixed>|null
+	 */
+	private static function plan_by_keys( array $license, bool $include_inactive ): ?array {
+		global $wpdb;
+
+		$tables = Schema::table_names();
+		$plans  = array();
+		foreach ( $include_inactive ? array( 1, 0 ) : array( 1 ) as $active ) {
+			$plans = (array) $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT * FROM %i WHERE active = %d AND product_key = %s AND plan_key = %s ORDER BY id DESC',
+					$tables['plans'],
+					$active,
+					(string) ( $license['product_key'] ?? '' ),
+					(string) ( $license['plan_key'] ?? '' )
+				),
+				ARRAY_A
+			);
+			if ( $plans ) {
+				break;
+			}
+		}
 		if ( ! $plans ) {
 			return null;
 		}
@@ -670,24 +729,57 @@ final class RenewalOrder {
 	}
 
 	/**
-	 * Product and variation the license was bought with.
+	 * Product and variation each license was bought with, read from the order
+	 * item meta in one query (the order is not loaded, P6-I1). The line must
+	 * belong to the license's source order, as WC_Order::get_item() demanded.
 	 *
-	 * @param array<string,mixed> $license License row.
-	 * @return array{product_id:int,variation_id:int}
+	 * @param array<int|string,array<string,mixed>> $licenses License rows.
+	 * @return array<int|string,array{product_id:int,variation_id:int}> Under the keys of `$licenses`.
 	 */
-	private static function source_product_ids( array $license ): array {
-		$ids = array( 'product_id' => 0, 'variation_id' => 0 );
-		if ( empty( $license['source_order_id'] ) || empty( $license['source_order_item_id'] ) || ! function_exists( 'wc_get_order' ) ) {
-			return $ids;
+	private static function source_product_ids_of( array $licenses ): array {
+		global $wpdb;
+
+		$out   = array();
+		$items = array();
+		foreach ( $licenses as $index => $license ) {
+			$out[ $index ] = array( 'product_id' => 0, 'variation_id' => 0 );
+			if ( ! empty( $license['source_order_id'] ) && ! empty( $license['source_order_item_id'] ) ) {
+				$items[ (int) $license['source_order_item_id'] ] = true;
+			}
 		}
-		$source_order = wc_get_order( (int) $license['source_order_id'] );
-		$item = $source_order ? $source_order->get_item( (int) $license['source_order_item_id'] ) : false;
-		if ( $item && is_callable( array( $item, 'get_product_id' ) ) ) {
-			$ids['product_id'] = (int) $item->get_product_id();
-			$ids['variation_id'] = is_callable( array( $item, 'get_variation_id' ) ) ? (int) $item->get_variation_id() : 0;
+		if ( ! $items || ! function_exists( 'wc_get_order' ) ) {
+			return $out;
 		}
 
-		return $ids;
+		$found = array();
+		foreach ( array_chunk( array_keys( $items ), 500 ) as $chunk ) {
+			$placeholders = implode( ',', array_fill( 0, count( $chunk ), '%d' ) );
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- two table names and one %d per ID, passed as one array.
+			$rows         = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT i.order_item_id, i.order_id, m.meta_key, m.meta_value FROM %i i INNER JOIN %i m ON m.order_item_id = i.order_item_id AND m.meta_key IN ('_product_id','_variation_id') WHERE i.order_item_id IN ({$placeholders})",
+					array_merge( array( $wpdb->prefix . 'woocommerce_order_items', $wpdb->prefix . 'woocommerce_order_itemmeta' ), $chunk )
+				),
+				ARRAY_A
+			);
+			// phpcs:enable
+			foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+				$item = (int) $row['order_item_id'];
+				$found[ $item ]['order_id'] = (int) $row['order_id'];
+				$found[ $item ][ '_product_id' === $row['meta_key'] ? 'product_id' : 'variation_id' ] = absint( $row['meta_value'] );
+			}
+		}
+		foreach ( $licenses as $index => $license ) {
+			$item = (int) ( $license['source_order_item_id'] ?? 0 );
+			if ( isset( $found[ $item ] ) && ! empty( $license['source_order_id'] ) && (int) $found[ $item ]['order_id'] === (int) $license['source_order_id'] ) {
+				$out[ $index ] = array(
+					'product_id'   => (int) ( $found[ $item ]['product_id'] ?? 0 ),
+					'variation_id' => (int) ( $found[ $item ]['variation_id'] ?? 0 ),
+				);
+			}
+		}
+
+		return $out;
 	}
 
 	/**
