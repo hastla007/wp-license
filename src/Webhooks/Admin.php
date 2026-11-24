@@ -204,8 +204,8 @@ final class Admin {
 			/* translators: %s: date and time. */
 			echo esc_html( sprintf( __( 'Failure: %s', 'wp-license' ), '' !== $endpoint['last_failure_at'] ? Format::date( (string) $endpoint['last_failure_at'], true ) : '—' ) );
 			echo '</td><td>';
-			echo '<a class="button button-secondary" href="' . esc_url( self::url( array( 'edit' => $id ) ) ) . '">' . esc_html__( 'Edit', 'wp-license' ) . self::context_suffix( $context ) . '</a> ';
-			echo '<a class="button button-secondary" href="' . esc_url( self::url( array( 'log' => $id ) ) ) . '">' . esc_html__( 'Delivery log', 'wp-license' ) . self::context_suffix( $context ) . '</a> ';
+			echo '<a class="button button-secondary" href="' . esc_url( self::url( array( 'edit' => $id ) ) ) . '">' . esc_html__( 'Edit', 'wp-license' ) . self::context_suffix( $context ) . '</a> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- context_suffix() returns escaped HTML.
+			echo '<a class="button button-secondary" href="' . esc_url( self::url( array( 'log' => $id ) ) ) . '">' . esc_html__( 'Delivery log', 'wp-license' ) . self::context_suffix( $context ) . '</a> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- context_suffix() returns escaped HTML.
 			self::action_button( 'test', $id, __( 'Send test event', 'wp-license' ), '', 'endpoint_id', $context );
 			self::action_button( $endpoint['active'] ? 'disable' : 'enable', $id, $endpoint['active'] ? __( 'Switch off', 'wp-license' ) : __( 'Switch on', 'wp-license' ), '', 'endpoint_id', $context );
 			self::action_button( 'rotate', $id, __( 'Generate new secret', 'wp-license' ), __( 'The old secret stops working at once', 'wp-license' ), 'endpoint_id', $context );
@@ -234,9 +234,9 @@ final class Admin {
 		wp_nonce_field( self::NONCE_ACTION );
 		if ( '' !== $confirm ) {
 			$box = 'wplc-webhook-' . $operation . '-' . $id;
-			echo '<label for="' . esc_attr( $box ) . '"><input type="checkbox" id="' . esc_attr( $box ) . '" name="confirm" value="1" required> ' . esc_html( $confirm ) . self::context_suffix( $context ) . '</label> ';
+			echo '<label for="' . esc_attr( $box ) . '"><input type="checkbox" id="' . esc_attr( $box ) . '" name="confirm" value="1" required> ' . esc_html( $confirm ) . self::context_suffix( $context ) . '</label> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- context_suffix() returns escaped HTML.
 		}
-		echo '<button class="button ' . ( 'delete' === $operation ? 'button-link-delete' : 'button-secondary' ) . '" type="submit">' . esc_html( $label ) . self::context_suffix( $context ) . '</button></form> ';
+		echo '<button class="button ' . ( 'delete' === $operation ? 'button-link-delete' : 'button-secondary' ) . '" type="submit">' . esc_html( $label ) . self::context_suffix( $context ) . '</button></form> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- context_suffix() returns escaped HTML.
 	}
 
 	/**
