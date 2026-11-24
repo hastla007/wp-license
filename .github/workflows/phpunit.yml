@@ -22,18 +22,15 @@ permissions:
 
 jobs:
   unit:
-    name: unit (${{ matrix.php }}${{ matrix.experimental && ', experimental' || '' }})
+    name: unit (${{ matrix.php }})
     runs-on: ubuntu-latest
-    # PHP 8.6 (released 19 Nov 2026) stays an experimental cell until the owner decides to make it regular (UEB-07): shown, never fails the run.
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
         # Only supported versions: the declared minimum (`Requires PHP: 8.5`, MINVER-1) and newer.
-        php: ["8.5"]
-        experimental: [false]
-        include:
-          - { php: "8.6", experimental: true }
+        # PHP 8.6 (released 19 Nov 2026) is a regular cell since the owner decision of 24 Nov 2026 (UEB-07):
+        # a failure on 8.6 fails the run.
+        php: ["8.5", "8.6"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
@@ -58,15 +55,14 @@ jobs:
         run: php -d disable_functions=idn_to_ascii vendor/bin/phpunit --filter SiteUrl
 
   integration:
-    name: integration (WP ${{ matrix.wp }}, WC ${{ matrix.wc }}, PHP ${{ matrix.php }}, ${{ matrix.db == 'mariadb' && 'MariaDB 12.3' || 'MySQL 9.7' }}, ${{ matrix.hpos == '1' && 'HPOS' || 'legacy orders' }}${{ matrix.multisite == '1' && ', multisite' || '' }}${{ matrix.experimental && ', experimental' || '' }})
+    name: integration (WP ${{ matrix.wp }}, WC ${{ matrix.wc }}, PHP ${{ matrix.php }}, ${{ matrix.db == 'mariadb' && 'MariaDB 12.3' || 'MySQL 9.7' }}, ${{ matrix.hpos == '1' && 'HPOS' || 'legacy orders' }}${{ matrix.multisite == '1' && ', multisite' || '' }})
     runs-on: ubuntu-latest
-    # Only the PHP 8.6 cell is experimental: shown, but it never fails the run or wordpress-integration.
-    continue-on-error: ${{ matrix.experimental || false }}
     strategy:
       fail-fast: false
       matrix:
-        # Every cell runs the PHP minimum (`Requires PHP: 8.5`) on one of the minimum database servers,
-        # MySQL 9.7 LTS or MariaDB 12.3 LTS (MINVER-1); older servers only get a warning in the plugin.
+        # Every cell but the PHP 8.6 one runs the PHP minimum (`Requires PHP: 8.5`); every cell runs on one
+        # of the minimum database servers, MySQL 9.7 LTS or MariaDB 12.3 LTS (MINVER-1); older servers only
+        # get a warning in the plugin.
         include:
           # Declared minimums (owner decision of 17 Nov 2026, uniform for all Captain plugins):
           # `Requires at least: 7.0` (Requirements::MIN_WP; "7.0" installs the newest 7.0.x release)
@@ -79,8 +75,8 @@ jobs:
           - { wp: "latest", wc: "11.3.0", php: "8.5", db: "mariadb", hpos: "1" }
           # Multisite network (docs/MULTISITE.md); the WordPress test library reads WP_MULTISITE.
           - { wp: "latest", wc: "11.3.0", php: "8.5", db: "mariadb", hpos: "1", multisite: "1" }
-          # PHP 8.6: released 19 Nov 2026; experimental until the owner decides to make it regular (UEB-07).
-          - { wp: "latest", wc: "11.3.0", php: "8.6", db: "mysql", hpos: "1", experimental: true }
+          # PHP 8.6: released 19 Nov 2026; a regular cell since the owner decision of 24 Nov 2026 (UEB-07).
+          - { wp: "latest", wc: "11.3.0", php: "8.6", db: "mysql", hpos: "1" }
     services:
       mysql:
         # Docker Hub tags mysql:9.7 and mariadb:12.3 (both present on 16 Nov 2026).

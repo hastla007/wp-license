@@ -88,7 +88,7 @@ final class WorkflowHardeningTest extends TestCase {
 		$phpunit = self::workflows()['phpunit.yml'];
 		$this->assertStringContainsString( "  wordpress-integration:\n    if: \${{ !cancelled() }}\n    needs: integration\n", $phpunit, 'The summary reports failures, not cancelled runs.' );
 		$this->assertStringContainsString( 'if [ "${{ needs.integration.result }}" != "success" ]; then', $phpunit, 'Anything but success of the cells still fails the summary.' );
-		$this->assertSame( 0, substr_count( $phpunit, 'continue-on-error: true' ), 'No job hides its failure (only the experimental PHP cells, by expression).' );
+		$this->assertSame( 0, substr_count( $phpunit, 'continue-on-error' ), 'No job hides its failure; the PHP 8.6 cells are regular (UEB-07).' );
 	}
 
 	public function test_dependabot_bundles_updates_per_ecosystem(): void {

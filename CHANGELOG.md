@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Changed (24 Nov 2026: owner decisions UEB-07 and UEB-08)
+
+- CI: the PHP 8.6 cells (`unit (8.6)` and the integration cell on PHP 8.6) are regular cells; a failure on PHP 8.6 fails the run and `wordpress-integration`. The minimum stays PHP 8.5 (UEB-07).
+- docs/MULTISITE.md: the client mode `network => true` stays, for buyers of the license server who count differently; the Captain add-ons do not use it (B2). A staging activation on a subsite of a staging network follows the single-site rule: one per live activation, no seat of its own (UEB-08).
+
 ### Fixed (24 Nov 2026: expert reviews SET-LIC-P1 to P6)
 
 Six reviewers read the state of `deb16fc` (settings and data, flows, law, security, usability and language, contracts and operations); seven workers fixed the findings on separate files. Details and evidence per finding in `docs/TODO.md` (section 20, "Funde der Prüfphase"); legal questions went to T-93.
