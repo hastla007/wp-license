@@ -196,6 +196,23 @@ final class PlanChangeIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE license_id = %d AND source = %s', $this->tables()['consents'], $license_id, 'upgrade' ) ) );
 	}
 
+	// P2-M7 (decision): switching upgrades off stops new upgrade orders; one started before stays payable
+	// while its quote applies and is applied when paid, like a downgrade that was already scheduled.
+	public function test_upgrade_order_started_before_upgrades_were_switched_off_stays_payable(): void {
+		$license_id = $this->buy( 'solo' );
+		$order      = $this->start_upgrade( $license_id );
+		add_filter( 'wplc_plan_upgrades_enabled', '__return_false' );
+		$this->assertFalse( PlanUpgrade::upgrades_allowed() );
+		$this->assertWPError( PlanUpgrade::start( $license_id, $this->customer, $this->product_id( 'business' ), false ), 'No new upgrade order.' );
+
+		$order = wc_get_order( $order->get_id() );
+		$this->assertSame( '', PlanUpgrade::open_order_problem( $order, time() ) );
+		$this->assertTrue( $order->needs_payment(), 'The open order can still be paid.' );
+		$this->assertTrue( $order->payment_complete( 'txn_after_switch_off' ) );
+		$this->assertSame( 'business', $this->license( $license_id )['plan_key'] );
+		remove_filter( 'wplc_plan_upgrades_enabled', '__return_false' );
+	}
+
 	public function test_foreign_customer_and_downgrade_target_cannot_start_an_upgrade(): void {
 		$license_id = $this->buy( 'solo' );
 		$this->assertWPError( PlanUpgrade::start( $license_id, self::factory()->user->create(), $this->product_id( 'business' ), false ) );
