@@ -9,6 +9,7 @@
  * @package WPLC
  */
 
+use WPLC\Account\CustomerPortal;
 use WPLC\Api\V1\EntitlementService;
 use WPLC\License\LicenseLifecycle;
 use WPLC\Notifications\Notifications;
@@ -68,6 +69,8 @@ final class GraceFromRenewalIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertFalse( LicenseLifecycle::has_access( $license, strtotime( $grace_end . ' UTC' ) ), 'Access ends with the stored grace period.' );
 		$view = Notifications::view( $license );
 		$this->assertSame( Notifications::format_date( strtotime( $grace_end . ' UTC' ) ), $view['grace_until'] );
+		$help = CustomerPortal::status_help( $license, false, false );
+		$this->assertStringContainsString( 'keeps working until ' . Notifications::format_date( strtotime( $grace_end . ' UTC' ) ), $help, 'The account shows the same grace end as access and emails.' );
 
 		// A longer setting does not extend a renewal that was scheduled with a shorter grace period either.
 		update_option( Registry::OPTION, array( 'renewal_grace_days' => '30' ) );
