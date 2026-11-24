@@ -698,9 +698,7 @@ final class Diagnostics {
 			}
 		}
 		// P2-I2: not a setting of its own; one license that cannot be charged is already an alert. The filter can remove it.
-		if ( ! isset( \WPLC\Settings\Definitions::ALERT_THRESHOLDS['renewal_notice_disabled'] ) ) {
-			$configured['renewal_notice_disabled'] = 1;
-		}
+		$configured += array( 'renewal_notice_disabled' => 1 );
 		/**
 		 * Filters the alert thresholds per figure of the diagnostics page. Wins over the settings.
 		 *
