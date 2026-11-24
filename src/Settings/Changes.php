@@ -37,8 +37,11 @@ final class Changes {
 	 * Row states: `change` (valid and different), `same` (valid, nothing to do), `invalid`
 	 * (rejected by the register, `error` says why), `forbidden` (the current user may not
 	 * change this setting), `locked` (the setting may no longer change, e.g. the license key
-	 * prefix once a license was issued), `unknown` (no such setting), `undecided` (a suggestion
-	 * without a value: the shop has to decide).
+	 * prefix once a license was issued), `constant` (a constant in wp-config.php wins over the
+	 * setting, SET-LIC-30), `conflict` (the value does not fit the other settings, e.g. two pages
+	 * of the customer account with one address, SET-LIC-25), `unknown` (no such setting),
+	 * `undecided` (a suggestion without a value: the shop has to decide). `error` says why in
+	 * English (for WP-CLI and logs).
 	 *
 	 * @param array<string,mixed> $candidate  Key => value (null = no value suggested).
 	 * @param bool                $check_caps Whether the capability of the current user counts (false for WP-CLI).
@@ -85,15 +88,108 @@ final class Changes {
 			$row['state'] = ( $kept['ok'] ? $kept['value'] : $current[ $key ] ) === $result['value'] ? 'same' : 'change';
 			if ( 'change' === $row['state'] && $check_caps && ! Capabilities::can( (string) $definition['capability'] ) ) {
 				$row['state'] = 'forbidden';
+				$row['error'] = 'The current user may not change this setting.';
+			}
+			if ( 'change' === $row['state'] && '' !== Registry::locking_constant( $key ) ) {
+				// SET-LIC-30: a constant in wp-config.php wins; the stored value stays.
+				$row['state'] = 'constant';
+				$row['error'] = sprintf( 'Set in wp-config.php with %s; the constant wins over the setting.', Registry::locking_constant( $key ) );
 			}
 			if ( 'change' === $row['state'] && Registry::is_locked( $key ) ) {
 				// E-04: e.g. the license key prefix once a license was issued.
 				$row['state'] = 'locked';
+				$row['error'] = 'Fixed: licenses were already issued with this value, and their keys contain it.';
 			}
 			$rows[] = $row;
 		}
 
+		return self::check_combination( $rows, $current );
+	}
+
+	/**
+	 * Checks across settings, the same for every way a value is stored (form, import, reset,
+	 * country profile, WP-CLI): rows that would break the combination get the state `conflict`.
+	 *
+	 * @param array<int,array{key:string,label:string,before:string,after:string,value:mixed,state:string,error:string,legal:bool}> $rows    Rows of preview().
+	 * @param array<string,mixed>                                                                                                  $current Stored settings.
+	 * @return array<int,array{key:string,label:string,before:string,after:string,value:mixed,state:string,error:string,legal:bool}>
+	 */
+	private static function check_combination( array $rows, array $current ): array {
+		$new = $current;
+		foreach ( $rows as $row ) {
+			if ( 'change' === $row['state'] ) {
+				$new[ $row['key'] ] = $row['value'];
+			}
+		}
+		// SET-LIC-25: two pages of the customer account (or a page of WooCommerce, e.g. "orders") cannot share an address.
+		$taken = self::account_slug_conflict( $new );
+		if ( '' !== $taken ) {
+			foreach ( $rows as $index => $row ) {
+				if ( 'change' === $row['state'] && in_array( $row['key'], self::ACCOUNT_SLUGS, true ) ) {
+					$rows[ $index ]['state'] = 'conflict';
+					$rows[ $index ]['error'] = sprintf( '"%s" is already the address of another page of the customer account. Choose an address of its own for each page.', $taken );
+				}
+			}
+		}
+
 		return $rows;
+	}
+
+	/**
+	 * Settings that hold an address of a page of the customer account.
+	 */
+	public const ACCOUNT_SLUGS = array( 'account_licenses_slug', 'account_sites_slug' );
+
+	/**
+	 * An address of the customer account that two pages would share (SET-LIC-25): the two
+	 * pages of this plugin, or one of them and a page of WooCommerce (e.g. "orders").
+	 *
+	 * @param array<string,mixed> $values Settings in stored form.
+	 * @return string The address in conflict, or '' when every page has its own.
+	 */
+	public static function account_slug_conflict( array $values ): string {
+		$licenses = (string) ( $values['account_licenses_slug'] ?? '' );
+		$sites    = (string) ( $values['account_sites_slug'] ?? '' );
+		if ( '' !== $licenses && $licenses === $sites ) {
+			return $licenses;
+		}
+		$others = array();
+		if ( function_exists( 'WC' ) ) {
+			foreach ( (array) WC()->query->get_query_vars() as $key => $slug ) {
+				if ( \WPLC\Account\CustomerPortal::ENDPOINT !== $key && \WPLC\Account\SiteOverview::ENDPOINT !== $key && is_string( $slug ) && '' !== $slug ) {
+					$others[] = $slug;
+				}
+			}
+		}
+		foreach ( array( $licenses, $sites ) as $slug ) {
+			if ( '' !== $slug && in_array( $slug, $others, true ) ) {
+				return $slug;
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Warnings about values that are each valid but do not fit together. The values are saved all the same.
+	 *
+	 * @param array<string,mixed> $values Settings in stored form.
+	 * @return array<string,string> Code => translated message.
+	 */
+	public static function combination_warnings( array $values ): array {
+		$warnings = array();
+		$retries  = array_filter( array_map( 'intval', explode( ',', (string) ( $values['renewal_retry_days'] ?? '' ) ) ) );
+		$grace    = (int) ( $values['renewal_grace_days'] ?? 0 );
+		if ( $retries && $grace > 0 && $grace <= max( $retries ) ) {
+			$warnings['wplc_grace_before_last_retry'] = sprintf(
+				/* translators: 1: grace period in days, 2: last retry day. */
+				__( 'The grace period (%1$s days) is not longer than the last retry day (%2$s). The last charge attempts would come after the customer has lost access. Make the grace period longer or remove the late retry days.', 'wp-license' ),
+				number_format_i18n( $grace ),
+				number_format_i18n( max( $retries ) )
+			);
+		}
+
+		return $warnings;
 	}
 
 	/**
@@ -103,7 +199,7 @@ final class Changes {
 	 * @param string              $action     Audit action: settings_imported, settings_reset, settings_preset_applied or settings_changed.
 	 * @param string              $reason     What was done, for the audit log (English).
 	 * @param bool                $check_caps Whether the capability of the current user counts (false for WP-CLI).
-	 * @return array{applied:string[],skipped:array<string,string>}
+	 * @return array{applied:string[],skipped:array<string,string>,warnings:array<string,string>}
 	 */
 	public static function apply( array $values, string $action, string $reason, bool $check_caps = true ): array {
 		$applied = array();
@@ -138,8 +234,10 @@ final class Changes {
 		}
 
 		return array(
-			'applied' => $applied,
-			'skipped' => $skipped,
+			'applied'  => $applied,
+			'skipped'  => $skipped,
+			// Values that are each valid but do not fit together are stored and reported, as on the settings page.
+			'warnings' => $applied ? self::combination_warnings( Registry::all() ) : array(),
 		);
 	}
 

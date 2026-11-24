@@ -191,7 +191,8 @@ final class ShopSetupSettingsIntegrationTest extends WPLC_Integration_TestCase {
 			}
 		);
 		$this->assertStringNotContainsString( 'name="wplc_settings[s3_path_style]"', $field );
-		$this->assertStringContainsString( 'checked', $field, 'The field shows the value of the constant.' );
+		$this->assertStringContainsString( 'value="On"', $field, 'The field shows the value of the constant.' );
+		$this->assertStringNotContainsString( 'disabled', $field, 'P5-M12: read-only, but reachable with the keyboard.' );
 		$this->assertStringContainsString( 'WPLC_S3_PATH_STYLE', $field );
 		$this->submit( array( 's3_path_style' => '1' ) );
 		$this->assertSame( 0, (int) Registry::get( 's3_path_style' ), 'The stored value stays.' );

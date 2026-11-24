@@ -31,6 +31,7 @@ final class Definitions {
 			'package_hosts'             => array(
 				'type'       => 'hosts',
 				'default'    => array(),
+				'max_items'  => 50,
 				'group'      => 'updates',
 				'capability' => 'manage_package_hosts',
 				'filter'     => 'wplc_update_package_hosts',
@@ -533,6 +534,7 @@ final class Definitions {
 				'group'      => 'legal',
 				'filter'     => 'wplc_withdrawal_consent_text',
 				'legal'      => true,
+				'empty_note' => 'builtin_text',
 			),
 			'public_cancel_hourly_limit' => array(
 				'type'    => 'int',
@@ -550,6 +552,7 @@ final class Definitions {
 				'group'      => 'legal',
 				'filter'     => 'wplc_recurring_consent_text',
 				'legal'      => true,
+				'empty_note' => 'builtin_text',
 			),
 			'retention_audit_log' => array(
 				'type'    => 'int',
@@ -707,6 +710,9 @@ final class Definitions {
 				'choices'    => array( 'keep', 'delete' ),
 				'group'      => 'operations',
 				'capability' => 'manage_package_hosts',
+				// S10: deleting all data is chosen on this server only, with its own confirmation;
+				// an import must not switch it on (P4-L3).
+				'exportable' => false,
 			),
 		);
 	}

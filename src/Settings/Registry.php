@@ -75,6 +75,8 @@ final class Registry {
 	 * - format: for a string, `email`, `emails`, `url` or `key_prefix`
 	 * - locked: callable that returns true while the value may no longer change (the field is
 	 *   read-only, a save, import, reset or WP-CLI call keeps the stored value; see is_locked())
+	 * - empty_note: what an empty value means, for previews that show "–"; `builtin_text` = the
+	 *   built-in wording in the language of the customer is used
 	 *
 	 * @return array<string,array<string,mixed>>
 	 */
@@ -411,6 +413,11 @@ final class Registry {
 				if ( $hosts['invalid'] ) {
 					return self::failure( 'invalid_hosts', 'Not a host name: ' . implode( ', ', array_slice( $hosts['invalid'], 0, 5 ) ) . '.' );
 				}
+				$limit = (int) ( $definition['max_items'] ?? 50 );
+				if ( count( $hosts['valid'] ) > $limit ) {
+					// P1-M7: never cut the list silently.
+					return self::failure( 'too_many', sprintf( 'Expected at most %d entries.', $limit ) );
+				}
 
 				return self::success( $hosts['valid'] );
 		}
@@ -561,7 +568,8 @@ final class Registry {
 	}
 
 	/**
-	 * Split text into valid and rejected host names.
+	 * Split text into valid and rejected host names. Every valid host is returned; the largest
+	 * number of hosts is checked by validate() (and the settings form), which reports it.
 	 *
 	 * @param string $raw One host per line.
 	 * @return array{valid:string[],invalid:string[]}
@@ -583,7 +591,7 @@ final class Registry {
 		}
 
 		return array(
-			'valid'   => array_slice( array_values( $valid ), 0, 50 ),
+			'valid'   => array_values( $valid ),
 			'invalid' => $invalid,
 		);
 	}
