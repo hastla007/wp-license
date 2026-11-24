@@ -11,7 +11,7 @@ Consolidation of all earlier development branches into one code base. Preview: c
 - New license keys have 34 instead of 106 characters: the key prefix and 25 Crockford Base32 characters in five groups (`WPLC-ABCDE-FGHJK-MNPQR-STVWX-YZ012`), 125 bits of an HMAC-SHA-256 of the license UUID with the license-key secret. Like before the key is derived and never stored; only its hash is. Owner decision of 24 Nov 2026 ("shorter, about 40 characters").
 - Keys are accepted in lower case, with spaces, without or with misplaced hyphens, and with `O` for `0` and `I`/`L` for `1` (after the prefix).
 - Keys issued before keep their 106 characters and stay valid everywhere: REST activation, customer account, public cancellation page, admin search, `wp wplc license show`, key emails and the audit-log redaction accept both formats. Nothing in the database is rewritten; the stored hash tells which format a license has (`LicenseKey::stored_format()`). Re-issuing a key (support action, key rotation) gives a short key.
-- The license reference (13 characters) is unchanged; it is no longer the start of a new key. A fragment of a short key pasted into the admin search is kept only as a hash, never as text.
+- The license reference (13 characters) is unchanged; it is no longer the start of a new key, so the customer account now shows it in its own line ("License reference:", template `myaccount/wplc-license.php`). A fragment of a short key pasted into the admin search is kept only as a hash, never as text.
 - The client library accepts any key string and needs no new version (still 2.4.2).
 - Format, reasoning and normalization: `docs/API-V1.md`, "License key format".
 

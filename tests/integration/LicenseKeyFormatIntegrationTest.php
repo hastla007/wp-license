@@ -124,6 +124,8 @@ final class LicenseKeyFormatIntegrationTest extends WPLC_Portal_TestCase {
 		// Customer account: shows exactly this key.
 		$html = $this->render_portal( $this->customer );
 		$this->assertStringContainsString( esc_html( $key ), $html );
+		// The reference of the emails and the cancellation page is shown on its own (not the start of a short key).
+		$this->assertStringContainsString( 'License reference:</strong> <code>' . $row['key_prefix'] . '</code>', $html );
 
 		// Admin search: a pasted key is kept only as the stored hash.
 		$criteria = LicenseSearch::criteria( $typed( $key ) );
