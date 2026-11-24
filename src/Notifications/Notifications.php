@@ -1134,7 +1134,7 @@ final class Notifications {
 			'currency' => (string) $gross['currency'],
 			'interval' => RenewalTerms::interval_label( (string) ( $license['billing_interval'] ?? 'year' ) ),
 			'charge_date' => $due_at > 0 ? self::format_date( $due_at ) : '',
-			'grace_until' => false === $paid_until ? '' : self::format_date( (int) $paid_until + LicenseLifecycle::grace_days() * 86400 ),
+			'grace_until' => false === $paid_until ? '' : self::format_date( LicenseLifecycle::grace_end( $license ) ), // P2-I3: as the access check.
 			'account_url' => $account_url,
 			'pay_url' => self::pay_url( $license ),
 			'can_renew_now' => $renew_from > 0 && time() >= $renew_from ? '1' : '',

@@ -437,7 +437,85 @@ final class LicenseLifecycle {
 		}
 		$renewing = 'past_due' === $status
 			|| ( ! empty( $license['renewal_enabled'] ) && empty( $license['cancel_at_period_end'] ) );
-		return $renewing && $now < $paid_until + self::grace_days() * 86400;
+		return $renewing && $now < self::grace_end( $license );
+	}
+
+	/**
+	 * End of the grace period after the current paid period (P2-I3), Unix time; 0 without a paid period.
+	 *
+	 * An open renewal of the period that starts at `paid_until` keeps the grace period it was
+	 * scheduled with (`renewals.grace_ends_at`): its retries and the expiry run until then, so
+	 * access, the signed `grace_until` and the emails end at the same moment. Without such a
+	 * renewal the setting in force (grace_days()) applies.
+	 *
+	 * @param array<string,mixed> $license License row.
+	 * @return int
+	 */
+	public static function grace_end( array $license ): int {
+		$paid_until = empty( $license['paid_until'] ) ? false : strtotime( (string) $license['paid_until'] . ' UTC' );
+		if ( false === $paid_until ) {
+			return 0;
+		}
+		$stored = self::stored_grace_end( (int) ( $license['id'] ?? 0 ), gmdate( 'Y-m-d H:i:s', $paid_until ) );
+
+		return $stored > 0 ? $stored : $paid_until + self::grace_days() * 86400;
+	}
+
+	/**
+	 * Stored grace end per license and period start, for the current request.
+	 *
+	 * @var array<string,int>
+	 */
+	private static $grace_ends = array();
+
+	/**
+	 * Forget the stored grace ends read in this request (tests, long-running CLI commands).
+	 *
+	 * @return void
+	 */
+	public static function reset_grace_cache(): void {
+		self::$grace_ends = array();
+	}
+
+	/**
+	 * `grace_ends_at` of the open renewal of a license for the period that starts at a given time.
+	 *
+	 * @param int    $license_id   License ID.
+	 * @param string $period_start UTC datetime (the license's paid_until).
+	 * @return int Unix time, 0 when there is none (or no database).
+	 */
+	private static function stored_grace_end( int $license_id, string $period_start ): int {
+		global $wpdb;
+
+		if ( $license_id < 1 || ! isset( $wpdb ) || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_var' ) ) {
+			return 0;
+		}
+		$key = (string) $wpdb->prefix . '|' . $license_id . '|' . $period_start;
+		if ( isset( self::$grace_ends[ $key ] ) ) {
+			return self::$grace_ends[ $key ];
+		}
+		$tables = Schema::table_names();
+		$value  = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT grace_ends_at FROM %i WHERE license_id = %d AND period_start = %s AND grace_ends_at IS NOT NULL AND status NOT IN (%s,%s) ORDER BY id DESC LIMIT 1',
+				$tables['renewals'],
+				$license_id,
+				$period_start,
+				'paid',
+				'cancelled'
+			)
+		);
+		$end = is_string( $value ) ? strtotime( $value . ' UTC' ) : false;
+		$end = false === $end ? 0 : (int) $end;
+		if ( $end > 0 ) {
+			// Only found values are kept: a renewal scheduled later in the same request is still seen.
+			if ( count( self::$grace_ends ) >= 500 ) {
+				self::$grace_ends = array();
+			}
+			self::$grace_ends[ $key ] = $end;
+		}
+
+		return $end;
 	}
 
 	/**
