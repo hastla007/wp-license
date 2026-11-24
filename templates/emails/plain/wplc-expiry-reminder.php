@@ -26,7 +26,7 @@ $view = array_merge(
 
 // Days are calendar days in the site timezone, like the date next to them: 0 means "today".
 $days_left  = (int) $view['days_left'];
-// PK-05: a product that is not for sale (e.g. a project product licensed by hand) is extended by the shop, not bought again.
+// PK-05: a product that is not for sale (for example a project product licensed by hand) is extended by the shop, not bought again.
 // An overridden caller without the key keeps the old wording.
 $for_sale   = ! isset( $view['sold_in_shop'] ) || '' !== $view['sold_in_shop'];
 $can_renew  = $for_sale && ( '' !== $view['can_renew_now'] || '' === $view['renew_from'] );

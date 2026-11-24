@@ -13,7 +13,7 @@
  * @var array<string,mixed> $state       view (form|review|done|limited), email, reference, error, expires, signature.
  * @var string              $form_url    URL of the page with the shortcode.
  * @var string              $received_at Formatted date and time the cancellation was received, for the result view.
- * @var string              $support     Support e-mail address, may be empty.
+ * @var string              $support     Support email address, may be empty.
  * @var string              $support_url Address of the support page, may be empty.
  * @var string              $account_url URL of the license page in the customer account.
  */
@@ -49,10 +49,10 @@ $account_url = isset( $account_url ) ? (string) $account_url : '';
 				echo esc_html( sprintf( __( 'Your cancellation was received on %s.', 'wp-license' ), $received_at ) );
 				?>
 			</p>
-			<p><?php esc_html_e( 'If the details match a license with automatic renewal, the renewal is now cancelled: the license stays valid until the end of the paid period and is not charged again. We have sent a confirmation with the end date to the e-mail address of the license.', 'wp-license' ); ?></p>
+			<p><?php esc_html_e( 'If the details match a license with automatic renewal, the renewal is now cancelled: the license stays valid until the end of the paid period and is not charged again. We have sent a confirmation with the end date to the email address of the license.', 'wp-license' ); ?></p>
 			<p>
 				<?php
-				esc_html_e( 'No e-mail after a few minutes? Then the details did not match. Please check the e-mail address and the reference and try again.', 'wp-license' );
+				esc_html_e( 'No email after a few minutes? Then the details did not match. Please check the email address and the reference and try again.', 'wp-license' );
 				if ( '' !== $support ) {
 					/* translators: %s: email address. */
 					echo ' ' . esc_html( sprintf( __( 'You can also contact our support: %s', 'wp-license' ), $support ) );
@@ -67,19 +67,19 @@ $account_url = isset( $account_url ) ? (string) $account_url : '';
 	<?php elseif ( 'limited' === $state['view'] ) : ?>
 
 		<p class="wplc-cancel-limited" role="alert"><?php esc_html_e( 'Too many cancellation requests were sent in a short time. Please try again in an hour.', 'wp-license' ); ?></p>
-		<p><?php /* translators: %s: first characters of every license reference, e.g. WPLC-. */ echo esc_html( sprintf( __( 'If you entered an order number, you can also use the license reference from your license e-mail (it starts with %s) or cancel in your customer account.', 'wp-license' ), \WPLC\License\LicenseKey::key_prefix() . '-' ) ); ?></p>
+		<p><?php /* translators: %s: first characters of every license reference, for example WPLC-. */ echo esc_html( sprintf( __( 'If you entered an order number, you can also use the license reference from your license email (it starts with %s) or cancel in your customer account.', 'wp-license' ), \WPLC\License\LicenseKey::key_prefix() . '-' ) ); ?></p>
 
 	<?php elseif ( 'review' === $state['view'] ) : ?>
 
 		<h2><?php esc_html_e( 'Please confirm your cancellation', 'wp-license' ); ?></h2>
 		<p><?php esc_html_e( 'You are about to cancel the automatic renewal for:', 'wp-license' ); ?></p>
 		<dl class="wplc-cancel-details">
-			<dt><?php esc_html_e( 'E-mail address', 'wp-license' ); ?></dt>
+			<dt><?php esc_html_e( 'Email address', 'wp-license' ); ?></dt>
 			<dd><?php echo esc_html( (string) $state['email'] ); ?></dd>
 			<dt><?php esc_html_e( 'License reference or order number', 'wp-license' ); ?></dt>
 			<dd><?php echo esc_html( (string) $state['reference'] ); ?></dd>
 		</dl>
-		<p><?php esc_html_e( 'The license stays valid until the end of the paid period and ends then. You will receive a confirmation by e-mail.', 'wp-license' ); ?></p>
+		<p><?php esc_html_e( 'The license stays valid until the end of the paid period and ends then. You will receive a confirmation by email.', 'wp-license' ); ?></p>
 		<form method="post" action="<?php echo esc_url( $form_url ); ?>" class="wplc-cancel-form">
 			<input type="hidden" name="wplc_cancel_step" value="confirm">
 			<input type="hidden" name="wplc_cancel_email" value="<?php echo esc_attr( (string) $state['email'] ); ?>">
@@ -93,14 +93,14 @@ $account_url = isset( $account_url ) ? (string) $account_url : '';
 	<?php else : ?>
 
 		<h2><?php esc_html_e( 'Cancel automatic renewal', 'wp-license' ); ?></h2>
-		<p><?php /* translators: %s: example of a license reference, e.g. WPLC-1A2B3C4D. */ echo esc_html( sprintf( __( 'Here you can cancel the automatic renewal of a license without signing in. You find the license reference (for example %s) in every e-mail about your license; the order number is in your order confirmation.', 'wp-license' ), \WPLC\License\LicenseKey::key_prefix() . '-1A2B3C4D' ) ); ?></p>
+		<p><?php /* translators: %s: example of a license reference, for example WPLC-1A2B3C4D. */ echo esc_html( sprintf( __( 'Here you can cancel the automatic renewal of a license without signing in. You find the license reference (for example %s) in every email about your license; the order number is in your order confirmation.', 'wp-license' ), \WPLC\License\LicenseKey::key_prefix() . '-1A2B3C4D' ) ); ?></p>
 		<?php if ( '' !== (string) $state['error'] ) : ?>
 			<p class="wplc-cancel-error woocommerce-error" role="alert"><?php echo esc_html( (string) $state['error'] ); ?></p>
 		<?php endif; ?>
 		<form method="post" action="<?php echo esc_url( $form_url ); ?>" class="wplc-cancel-form">
 			<input type="hidden" name="wplc_cancel_step" value="review">
 			<p class="form-row">
-				<label for="wplc-cancel-email"><?php esc_html_e( 'E-mail address of your purchase', 'wp-license' ); ?></label>
+				<label for="wplc-cancel-email"><?php esc_html_e( 'Email address of your purchase', 'wp-license' ); ?></label>
 				<input type="email" class="input-text" id="wplc-cancel-email" name="wplc_cancel_email" value="<?php echo esc_attr( (string) $state['email'] ); ?>" autocomplete="email" required>
 			</p>
 			<p class="form-row">
