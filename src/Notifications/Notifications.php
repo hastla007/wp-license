@@ -111,7 +111,68 @@ final class Notifications {
 		add_action( 'wplc/license_key_resend_requested', array( self::class, 'on_key_resend' ), 20, 3 );
 		add_action( 'woocommerce_email_after_order_table', array( self::class, 'render_order_renewal_terms' ), 20, 3 );
 		add_filter( 'woocommerce_prepare_email_for_preview', array( self::class, 'prepare_preview' ) );
+		// P2-I2: the advance notice is switched off, so no automatic charge can happen.
+		add_action( 'admin_notices', array( self::class, 'render_renewal_notice_warning' ) );
 		PurchaseLocale::register_hooks();
+	}
+
+	/**
+	 * Licenses whose automatic charge is blocked because the email "Upcoming automatic renewal" is switched off (P2-I2).
+	 *
+	 * The advance notice is a precondition of every automatic charge (B-41) and is not sent
+	 * behind the shop's back. While the email is off, every license with automatic renewal
+	 * runs into its grace period and expires instead of being charged.
+	 *
+	 * @return int Number of licenses in force with automatic renewal; 0 while the email is on
+	 *             or the mailer is not available.
+	 */
+	public static function licenses_blocked_by_disabled_renewal_notice(): int {
+		global $wpdb;
+
+		$email = self::email( 'renewal_notice' );
+		if ( null === $email || $email->is_enabled() ) {
+			return 0;
+		}
+		$tables = Schema::table_names();
+
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE renewal_enabled = 1 AND cancel_at_period_end = 0 AND status IN (%s,%s)', $tables['licenses'], 'active', 'past_due' ) );
+	}
+
+	/**
+	 * Admin notice for license managers while the advance notice is off and licenses renew automatically (P2-I2).
+	 *
+	 * @return void
+	 */
+	public static function render_renewal_notice_warning(): void {
+		if ( ! \WPLC\Admin\Capabilities::can( 'manage_licenses' ) || ! \WPLC\Admin\Diagnostics::is_plugin_or_shop_screen() ) {
+			return;
+		}
+		$count = self::licenses_blocked_by_disabled_renewal_notice();
+		if ( $count < 1 ) {
+			return;
+		}
+		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'WP License Captain: automatic renewals are not charged.', 'wp-license' ) . '</strong> ';
+		echo esc_html( self::renewal_notice_warning_text( $count ) );
+		echo ' <a href="' . esc_url( admin_url( 'admin.php?page=wc-settings&tab=email&section=' . strtolower( self::registry_key( 'renewal_notice' ) ) ) ) . '">' . esc_html__( 'Open the email settings', 'wp-license' ) . '</a></p></div>';
+	}
+
+	/**
+	 * Explanation of the blocked automatic renewals, shared by the admin notice and the diagnostics page.
+	 *
+	 * @param int $count Licenses with automatic renewal.
+	 * @return string
+	 */
+	public static function renewal_notice_warning_text( int $count ): string {
+		return sprintf(
+			/* translators: %d: number of licenses with automatic renewal. */
+			_n(
+				'The email "Upcoming automatic renewal" is switched off under WooCommerce → Settings → Emails. An automatic charge needs this advance notice, so %d license with automatic renewal will not be charged and will expire at the end of its grace period. Switch the email on again.',
+				'The email "Upcoming automatic renewal" is switched off under WooCommerce → Settings → Emails. An automatic charge needs this advance notice, so %d licenses with automatic renewal will not be charged and will expire at the end of their grace period. Switch the email on again.',
+				$count,
+				'wp-license'
+			),
+			$count
+		);
 	}
 
 	/**

@@ -407,6 +407,8 @@ final class Diagnostics {
 			'rejected_webhook_minutes'   => self::rejected_webhook_minutes(),
 			// SET-LIC-28: keys older than the setting "Remind to rotate keys after"; always 0 while it is off.
 			'keys_due_for_rotation'      => count( \WPLC\Security\KeyAge::due() ),
+			// P2-I2: licenses with automatic renewal that are not charged because the advance notice email is off.
+			'renewal_notice_disabled'    => \WPLC\Notifications\Notifications::licenses_blocked_by_disabled_renewal_notice(),
 		);
 	}
 
@@ -653,6 +655,9 @@ final class Diagnostics {
 		if ( 'review_required_renewals' === $metric ) {
 			return RenewalReviewAdmin::list_url();
 		}
+		if ( 'renewal_notice_disabled' === $metric ) {
+			return admin_url( 'admin.php?page=wc-settings&tab=email&section=' . strtolower( \WPLC\Notifications\Notifications::registry_key( 'renewal_notice' ) ) );
+		}
 
 		return admin_url( 'admin.php?page=wplc-diagnostics' );
 	}
@@ -691,6 +696,10 @@ final class Diagnostics {
 			if ( $value > 0 ) {
 				$configured[ $metric ] = $value;
 			}
+		}
+		// P2-I2: not a setting of its own; one license that cannot be charged is already an alert. The filter can remove it.
+		if ( ! isset( \WPLC\Settings\Definitions::ALERT_THRESHOLDS['renewal_notice_disabled'] ) ) {
+			$configured['renewal_notice_disabled'] = 1;
 		}
 		/**
 		 * Filters the alert thresholds per figure of the diagnostics page. Wins over the settings.
@@ -1107,6 +1116,15 @@ final class Diagnostics {
 			$disabled ? 'warning' : 'ok',
 			$disabled ? __( 'These emails are switched off under WooCommerce → Settings → Emails and are not sent to customers (each skipped email is logged under the source wp-license).', 'wp-license' ) : ''
 		);
+		// P2-I2: without the advance notice no automatic charge is made.
+		if ( $metrics['renewal_notice_disabled'] > 0 ) {
+			$add(
+				__( 'Automatic renewals blocked', 'wp-license' ),
+				(string) $metrics['renewal_notice_disabled'],
+				'error',
+				\WPLC\Notifications\Notifications::renewal_notice_warning_text( $metrics['renewal_notice_disabled'] )
+			);
+		}
 		$add( __( 'Stripe gateway version', 'wp-license' ), defined( 'WC_STRIPE_VERSION' ) ? (string) WC_STRIPE_VERSION : __( 'Not loaded', 'wp-license' ) );
 		$secret = \WPLC\Api\V1\StripeWebhook::is_configured();
 		$add( __( 'Stripe webhook secret', 'wp-license' ), $secret ? __( 'Set', 'wp-license' ) : __( 'Not set. Stripe events are rejected.', 'wp-license' ), $secret ? 'ok' : 'warning' );

@@ -76,7 +76,7 @@ final class SalesSettingsTest extends TestCase {
 			$this->assertStringContainsString( $name, Texts::label( 'alert_' . $metric ) );
 			$this->assertStringContainsString( '0 = never alert', Texts::help( 'alert_' . $metric ) );
 		}
-		$this->assertSame( Definitions::ALERT_THRESHOLDS, \WPLC\Admin\Diagnostics::thresholds(), 'Without a stored value: the thresholds so far.' );
+		$this->assertSame( Definitions::ALERT_THRESHOLDS + array( 'renewal_notice_disabled' => 1 ), \WPLC\Admin\Diagnostics::thresholds(), 'Without a stored value: the thresholds so far, plus P2-I2 (no setting of its own).' );
 
 		$GLOBALS['wplc_test_filters']['wplc_health_alert_thresholds'][] = static function ( $thresholds ) {
 			$thresholds['failed_jobs'] = 9;

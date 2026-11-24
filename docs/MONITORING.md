@@ -51,6 +51,7 @@ Counters (`Diagnostics::metrics()`):
 | `failed_jobs` | Background jobs that threw in the last 24 hours (option `wplc_job_failures`) | 1 |
 | `release_problems` | Published releases that cannot be delivered (missing package, untrusted host, exposed directory) | 1 |
 | `expired_download_grants` | Unused update download grants past their expiry | none |
+| `renewal_notice_disabled` | Licenses in force with automatic renewal (not cancelled) while the email "Upcoming automatic renewal" is switched off: an automatic charge needs that advance notice (B-41), so none of them is charged and each expires after its grace period. The plugin does not send the notice anyway; license managers see an admin notice on the plugin's and the shop's screens and the diagnostics page shows the row "Automatic renewals blocked" (P2-I2). The alert URL opens the email settings. No setting of its own; remove it with `wplc_health_alert_thresholds` | 1 |
 
 `paid_without_extension` also counts a license whose term an administrator shortened after a paid renewal; check the audit log of the license before acting.
 
