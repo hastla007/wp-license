@@ -2,7 +2,7 @@
 /**
  * P5-M11: English wording of the source texts ("email", "for example").
  *
- * Covers the templates and the webhook screens; extend $paths when other folders are cleaned up.
+ * Covers the templates, the webhook screens, the privacy texts and the public cancellation page; extend $paths when other folders are cleaned up.
  *
  * @package WPLC
  */
@@ -13,10 +13,12 @@ final class EnglishWordingTest extends TestCase {
 
 	public function test_templates_and_webhooks_write_email_and_for_example(): void {
 		$root  = dirname( __DIR__, 2 );
-		$paths = array( 'templates', 'src/Webhooks' );
+		$paths = array( 'templates', 'src/Webhooks', 'src/Privacy/PersonalData.php', 'src/Account/PublicCancellation.php' );
 		$found = array();
 		foreach ( $paths as $path ) {
-			$files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/' . $path, FilesystemIterator::SKIP_DOTS ) );
+			$files = is_file( $root . '/' . $path )
+				? array( new SplFileInfo( $root . '/' . $path ) )
+				: new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/' . $path, FilesystemIterator::SKIP_DOTS ) );
 			foreach ( $files as $file ) {
 				if ( 'php' !== $file->getExtension() ) {
 					continue;

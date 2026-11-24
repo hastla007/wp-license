@@ -248,7 +248,7 @@ final class PersonalDataAuditFixesIntegrationTest extends WPLC_Integration_TestC
 		$this->assertStringContainsString( 'Stripe', $text );
 		$this->assertStringContainsString( 'order key', $text );
 		$this->assertStringContainsString( 'external package host', $text );
-		$this->assertStringContainsString( 'billing e-mail address', $text );
+		$this->assertStringContainsString( 'billing email address', $text );
 	}
 
 	// P3-A5: the suggested text names every flow with personal data added since.
