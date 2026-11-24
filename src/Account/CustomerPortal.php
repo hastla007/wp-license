@@ -627,9 +627,8 @@ final class CustomerPortal {
 		// Only a key that reproduces the stored verifier is shown. After a changed salt or a wrong
 		// secret the derived value would be a different, invalid key.
 		$key_id = (string) ( $license['license_key_secret_id'] ?? 'legacy' );
-		$key    = LicenseKey::matches_hash( (string) $license['license_uuid'], $key_id, (string) ( $license['license_key_hash'] ?? '' ) )
-			? LicenseKey::for_uuid( (string) $license['license_uuid'], $key_id )
-			: '';
+		// T-106: in the format the license was issued with (34 or, before 24.11.2026, 106 characters).
+		$key    = LicenseKey::verified_for_license( (string) $license['license_uuid'], $key_id, (string) ( $license['license_key_hash'] ?? '' ) );
 
 		// B-139: a co-user sees status, plan, term, key, sites and downloads; money matters stay with the owner.
 		$owner       = (int) ( $license['customer_id'] ?? 0 ) === get_current_user_id();

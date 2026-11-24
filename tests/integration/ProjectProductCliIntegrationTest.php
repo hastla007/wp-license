@@ -221,6 +221,8 @@ final class ProjectProductCliIntegrationTest extends WPLC_Integration_TestCase {
 
 		// The client's site activates with the key from the account, gets the entitlement of the plan and the update.
 		$key  = LicenseKey::for_uuid( (string) $license['license_uuid'], (string) $license['license_key_secret_id'] );
+		$this->assertSame( 34, strlen( $key ), 'T-106: wp wplc license issue gives a short key.' );
+		$this->assertSame( $key, LicenseKey::verified_for_license( (string) $license['license_uuid'], (string) $license['license_key_secret_id'], (string) $license['license_key_hash'] ) );
 		$site = $this->activate_via_api( $key, array( 'product_key' => 'harbour-connector' ) );
 		$this->assertSame( 200, $site['response']->get_status(), (string) wp_json_encode( $site['response']->get_data() ) );
 		$data = $site['response']->get_data()['data'];

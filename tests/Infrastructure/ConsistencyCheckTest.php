@@ -119,7 +119,7 @@ final class ConsistencyCheckTest extends TestCase {
 		$this->assertStringContainsString( 'integration cells (table)', $problems );
 
 		$copy = $this->copy();
-		self::replace( $copy . '/.github/workflows/phpunit.yml', 'php: ["8.5"]', 'php: ["8.4", "8.5"]' );
+		self::replace( $copy . '/.github/workflows/phpunit.yml', 'php: ["8.5", "8.6"]', 'php: ["8.4", "8.5", "8.6"]' );
 		$problems = implode( "\n", wplc_consistency_check_ci( $copy ) );
 		$this->assertStringContainsString( 'unit jobs; the workflows define ' . ( $jobs['unit'] + 1 ), $problems );
 

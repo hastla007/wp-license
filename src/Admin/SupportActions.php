@@ -170,10 +170,11 @@ final class SupportActions {
 		if ( '' === $reason || ! $license || empty( $license['customer_id'] ) || in_array( (string) $license['status'], array( 'revoked', 'pending' ), true ) ) {
 			return false;
 		}
-		if ( ! LicenseKey::matches_hash( (string) $license['license_uuid'], (string) $license['license_key_secret_id'], (string) $license['license_key_hash'] ) ) {
+		// T-106: the key in the format it was issued with (34 or, before 24.11.2026, 106 characters).
+		$key = LicenseKey::verified_for_license( (string) $license['license_uuid'], (string) $license['license_key_secret_id'], (string) $license['license_key_hash'] );
+		if ( '' === $key ) {
 			return false;
 		}
-		$key = LicenseKey::for_uuid( (string) $license['license_uuid'], (string) $license['license_key_secret_id'] );
 
 		AuditLog::record( 'license_key_resend_requested', 'license', $license_id, $reason, null, array( 'customer_id' => (int) $license['customer_id'] ), $actor_user_id );
 

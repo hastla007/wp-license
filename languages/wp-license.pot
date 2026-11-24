@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-24T07:47:05+00:00\n"
+"POT-Creation-Date: 2026-11-24T08:35:31+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -104,10 +104,10 @@ msgstr ""
 
 #. translators: %s: date.
 #: src/Account/CustomerPortal.php:618
-#: src/Account/CustomerPortal.php:659
+#: src/Account/CustomerPortal.php:658
 #: src/Account/SiteOverview.php:412
 #: src/Billing/RenewInsteadNotice.php:202
-#: src/Notifications/Notifications.php:1129
+#: src/Notifications/Notifications.php:1128
 msgid "No expiry"
 msgstr ""
 
@@ -118,339 +118,339 @@ msgid "%1$d of %2$d"
 msgstr ""
 
 #. translators: 1: date, 2: amount.
-#: src/Account/CustomerPortal.php:646
+#: src/Account/CustomerPortal.php:645
 #, php-format
 msgid "From %1$s a renewal costs %2$s."
 msgstr ""
 
 #. translators: %s: email address or address of the support page.
-#: src/Account/CustomerPortal.php:729
+#: src/Account/CustomerPortal.php:728
 #, php-format
 msgid "Please contact our support: %s"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:730
+#: src/Account/CustomerPortal.php:729
 msgid "Please contact our support."
 msgstr ""
 
 #. translators: %s: date.
-#: src/Account/CustomerPortal.php:737
+#: src/Account/CustomerPortal.php:736
 #, php-format
 msgid "We could not collect the renewal payment. The license keeps working until %s; without a payment it expires then."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:740
+#: src/Account/CustomerPortal.php:739
 msgid "We could not collect the renewal payment."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:742
+#: src/Account/CustomerPortal.php:741
 msgid "Use \"Complete renewal payment\" to pay now."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:744
+#: src/Account/CustomerPortal.php:743
 msgid "Use \"Renew now\" to pay with any payment method."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:744
+#: src/Account/CustomerPortal.php:743
 msgid "Please check your payment method."
 msgstr ""
 
 #. translators: %s: date.
-#: src/Account/CustomerPortal.php:750
+#: src/Account/CustomerPortal.php:749
 #, php-format
 msgid "This license has expired: updates, downloads and new site activations are not available. You can still renew it until %s with \"Renew now\"; it then continues with the same key and the same sites."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:754
+#: src/Account/CustomerPortal.php:753
 msgid "This license has expired and can no longer be renewed. Updates, downloads and site activations are not available. To use the product again, please buy a new license."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:757
+#: src/Account/CustomerPortal.php:756
 msgid "This license is suspended. Updates, downloads and premium features are not available until the suspension is lifted."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:760
+#: src/Account/CustomerPortal.php:759
 msgid "This license was revoked, for example because its order was refunded. It can no longer be used."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:775
+#: src/Account/CustomerPortal.php:774
 msgid "Cancelled. The license ends at the end of the paid period."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:778
+#: src/Account/CustomerPortal.php:777
 msgid "Renews automatically at the end of the paid period."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:780
+#: src/Account/CustomerPortal.php:779
 msgid "Does not renew automatically. Renew it yourself before it ends to keep updates and premium features."
 msgstr ""
 
 #. translators: 1: product name, 2: license reference such as WPLC-1A2B3C4D.
-#: src/Account/CustomerPortal.php:850
+#: src/Account/CustomerPortal.php:849
 #: src/Account/PaymentMethods.php:116
 #, php-format
 msgid "%1$s, license %2$s"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:891
+#: src/Account/CustomerPortal.php:890
 msgid "The site was deactivated. Its place is free again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:892
+#: src/Account/CustomerPortal.php:891
 msgid "The site activation was not found for this account."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:893
+#: src/Account/CustomerPortal.php:892
 msgid "This site was already deactivated."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:894
+#: src/Account/CustomerPortal.php:893
 msgid "The site could not be deactivated. Please try again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:896
+#: src/Account/CustomerPortal.php:895
 msgid "The site was moved to your other license. The installed plugin keeps working without entering the new key."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:897
+#: src/Account/CustomerPortal.php:896
 msgid "The site cannot be moved to this license. Sites can only be moved from a license that has ended or is ending to a newer license of the same product."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:898
+#: src/Account/CustomerPortal.php:897
 msgid "A staging site moves together with its live site. Move the live site instead."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:899
+#: src/Account/CustomerPortal.php:898
 msgid "This site is already activated on the other license. Deactivate it here to free the place."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:900
+#: src/Account/CustomerPortal.php:899
 msgid "The other license has no free place for this site. Deactivate a site there first."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:901
+#: src/Account/CustomerPortal.php:900
 msgid "One of the licenses is being changed right now. Please try again in a few minutes."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:902
+#: src/Account/CustomerPortal.php:901
 msgid "The site could not be moved. Please try again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:903
+#: src/Account/CustomerPortal.php:902
 msgid "Your cancellation is recorded. The license stays valid until the end of the paid period."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:904
+#: src/Account/CustomerPortal.php:903
 msgid "The license could not be cancelled. It may already be cancelled or no longer be active."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:905
+#: src/Account/CustomerPortal.php:904
 msgid "Your cancellation was withdrawn. The license continues as before."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:906
+#: src/Account/CustomerPortal.php:905
 msgid "The cancellation could not be withdrawn. The license may already have ended."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:907
+#: src/Account/CustomerPortal.php:906
 msgid "The license was not found for this account."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:909
+#: src/Account/CustomerPortal.php:908
 msgid "Your session has expired, so nothing was changed. Please try again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:910
+#: src/Account/CustomerPortal.php:909
 msgid "Please sign in to manage your licenses."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:911
+#: src/Account/CustomerPortal.php:910
 msgid "This action is not available at the moment."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:913
+#: src/Account/CustomerPortal.php:912
 msgid "The payment method for the automatic renewal was changed."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:914
+#: src/Account/CustomerPortal.php:913
 msgid "The payment method could not be used for the automatic renewal. Please choose another one."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:915
+#: src/Account/CustomerPortal.php:914
 msgid "Automatic renewal is now switched on for this license."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:916
+#: src/Account/CustomerPortal.php:915
 msgid "Automatic renewal could not be switched on. Please check the payment method and try again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:917
+#: src/Account/CustomerPortal.php:916
 msgid "Please confirm the renewal terms to switch on automatic renewal."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:919
+#: src/Account/CustomerPortal.php:918
 #: src/Billing/ManualRenewal.php:190
 msgid "This license cannot be renewed at the moment."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:920
+#: src/Account/CustomerPortal.php:919
 #: src/Billing/ManualRenewal.php:204
 #: src/Billing/ManualRenewal.php:223
 msgid "A renewal for this license is being processed. Please try again in a few minutes."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:921
+#: src/Account/CustomerPortal.php:920
 #: src/Billing/ManualRenewal.php:242
 msgid "Your payment for this renewal has been received and is being processed."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:922
+#: src/Account/CustomerPortal.php:921
 #: src/Billing/ManualRenewal.php:245
 msgid "A renewal order for this license is already waiting for your payment to arrive."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:924
+#: src/Account/CustomerPortal.php:923
 #: src/Billing/PlanUpgrade.php:299
 msgid "This license cannot be upgraded to the chosen plan at the moment."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:925
-#: src/Account/CustomerPortal.php:931
+#: src/Account/CustomerPortal.php:924
+#: src/Account/CustomerPortal.php:930
 #: src/Billing/PlanUpgrade.php:418
 msgid "This license is being changed right now. Please try again in a few minutes."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:926
+#: src/Account/CustomerPortal.php:925
 #: src/Billing/PlanUpgrade.php:333
 msgid "Your upgrade payment has been received and is being processed."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:927
+#: src/Account/CustomerPortal.php:926
 #: src/Billing/PlanUpgrade.php:336
 msgid "An upgrade order for this license is already waiting for your payment to arrive."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:928
+#: src/Account/CustomerPortal.php:927
 #: src/Billing/PlanUpgrade.php:316
 msgid "Please agree to the new amount of the automatic renewal to upgrade."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:929
+#: src/Account/CustomerPortal.php:928
 msgid "The plan change is recorded. It takes effect with the next renewal."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:930
+#: src/Account/CustomerPortal.php:929
 msgid "This plan change is not available for the license."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:932
+#: src/Account/CustomerPortal.php:931
 msgid "The scheduled plan change was withdrawn. The license keeps its current plan."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:933
+#: src/Account/CustomerPortal.php:932
 #: src/Admin/AdminNotices.php:85
 msgid "There is no scheduled plan change to withdraw."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1261
+#: src/Account/CustomerPortal.php:1260
 msgid "You are not allowed to deactivate this site."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1276
+#: src/Account/CustomerPortal.php:1275
 msgid "You are not allowed to cancel this license."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1291
+#: src/Account/CustomerPortal.php:1290
 #: src/Billing/PlanUpgrade.php:251
 #: src/Billing/PlanUpgrade.php:274
 msgid "You are not allowed to change this license."
 msgstr ""
 
 #. translators: %s: site URL.
-#: src/Account/CustomerPortal.php:1377
+#: src/Account/CustomerPortal.php:1376
 #, php-format
 msgid "Deactivate %s? The site loses updates and premium features until it is activated again."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1387
+#: src/Account/CustomerPortal.php:1386
 msgid "Deactivate"
 msgstr ""
 
 #. translators: %s: site URL.
-#: src/Account/CustomerPortal.php:1389
+#: src/Account/CustomerPortal.php:1388
 #, php-format
 msgid "site %s"
 msgstr ""
 
 #. translators: 1: site URL, 2: license reference such as WPLC-1A2B3C4D, 3: date.
-#: src/Account/CustomerPortal.php:1414
+#: src/Account/CustomerPortal.php:1413
 #, php-format
 msgid "Move %1$s to license %2$s (valid through %3$s)? The site then counts towards that license, and the installed plugin keeps working without entering the new key."
 msgstr ""
 
 #. translators: %s: license reference such as WPLC-1A2B3C4D.
-#: src/Account/CustomerPortal.php:1430
+#: src/Account/CustomerPortal.php:1429
 #, php-format
 msgid "Move to %s"
 msgstr ""
 
 #. translators: 1: button label, 2: site URL.
-#: src/Account/CustomerPortal.php:1432
+#: src/Account/CustomerPortal.php:1431
 #, php-format
 msgid "%1$s: site %2$s"
 msgstr ""
 
 #. translators: %s: date.
-#: src/Account/CustomerPortal.php:1461
+#: src/Account/CustomerPortal.php:1460
 #, php-format
 msgid "Cancel the automatic renewal? The license stays valid until %s and ends then. You will receive a confirmation by email."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1462
+#: src/Account/CustomerPortal.php:1461
 msgid "the end of the paid period"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1465
+#: src/Account/CustomerPortal.php:1464
 msgid "Cancel at period end"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1481
+#: src/Account/CustomerPortal.php:1480
 msgid "Undo the cancellation? The license then continues after the paid period."
 msgstr ""
 
 #. translators: 1: formatted amount, 2: date, 3: interval such as "every year".
-#: src/Account/CustomerPortal.php:1489
+#: src/Account/CustomerPortal.php:1488
 #, php-format
 msgid "Undo the cancellation? The license then renews automatically again: %1$s will be charged to your saved payment method on %2$s and then %3$s, until you cancel."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1495
+#: src/Account/CustomerPortal.php:1494
 msgid "Undo the cancellation? The license then renews automatically again and your saved payment method is charged on the renewal date."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1499
+#: src/Account/CustomerPortal.php:1498
 msgid "Undo cancellation"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1512
+#: src/Account/CustomerPortal.php:1511
 #: templates/emails/plain/wplc-expiry-reminder.php:61
 #: templates/emails/wplc-expiry-reminder.php:61
 msgid "Renew now"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1551
+#: src/Account/CustomerPortal.php:1550
 msgid "Your license is ready. You will find the license key, the download and the installation steps in your account under \"Licenses\"."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1552
+#: src/Account/CustomerPortal.php:1551
 msgid "Your license is created as soon as your payment has been confirmed. You will then receive an email, and the license appears in your account under \"Licenses\"."
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1555
+#: src/Account/CustomerPortal.php:1554
 msgid "Your license"
 msgstr ""
 
-#: src/Account/CustomerPortal.php:1557
+#: src/Account/CustomerPortal.php:1556
 msgid "Go to your licenses"
 msgstr ""
 
@@ -796,7 +796,7 @@ msgid "The confirmation page has expired. Please check your details and try agai
 msgstr ""
 
 #: src/Account/SiteOverview.php:172
-#: templates/myaccount/wplc-license.php:131
+#: templates/myaccount/wplc-license.php:136
 msgid "Sites"
 msgstr ""
 
@@ -831,8 +831,8 @@ msgstr ""
 
 #: src/Account/SiteOverview.php:373
 #: src/Admin/LicenseDetail.php:547
-#: templates/myaccount/wplc-license.php:138
-#: templates/myaccount/wplc-license.php:147
+#: templates/myaccount/wplc-license.php:143
+#: templates/myaccount/wplc-license.php:152
 msgid "Site"
 msgstr ""
 
@@ -875,8 +875,8 @@ msgstr ""
 #: src/Account/SiteOverview.php:375
 #: src/Admin/LicenseDetail.php:547
 #: src/Client/Messages.php:284
-#: templates/myaccount/wplc-license.php:139
-#: templates/myaccount/wplc-license.php:148
+#: templates/myaccount/wplc-license.php:144
+#: templates/myaccount/wplc-license.php:153
 msgid "Environment"
 msgstr ""
 
@@ -918,8 +918,8 @@ msgstr ""
 #: src/Admin/RenewalReviewAdmin.php:190
 #: src/Webhooks/Admin.php:180
 #: src/Webhooks/Admin.php:363
-#: templates/myaccount/wplc-license.php:141
-#: templates/myaccount/wplc-license.php:150
+#: templates/myaccount/wplc-license.php:146
+#: templates/myaccount/wplc-license.php:155
 msgid "Actions"
 msgstr ""
 
@@ -3440,7 +3440,7 @@ msgid "Search licenses"
 msgstr ""
 
 #: src/Admin/LicenseAdmin.php:295
-msgid "Search by key prefix, product, plan, customer ID, order number, customer email, #license ID, site address or installation ID, or paste a complete license key."
+msgid "Search by license reference, product, plan, customer ID, order number, customer email, #license ID, site address or installation ID, or paste a complete license key."
 msgstr ""
 
 #: src/Admin/LicenseAdmin.php:382
@@ -3970,8 +3970,8 @@ msgid "Versions"
 msgstr ""
 
 #: src/Admin/LicenseDetail.php:547
-#: templates/myaccount/wplc-license.php:140
-#: templates/myaccount/wplc-license.php:149
+#: templates/myaccount/wplc-license.php:145
+#: templates/myaccount/wplc-license.php:154
 msgid "Activated"
 msgstr ""
 
@@ -6678,7 +6678,7 @@ msgstr ""
 msgid "Issue a license for %1$s (plan %2$s) to %3$s, valid until %4$s?"
 msgstr ""
 
-#. translators: 1: license ID, 2: start of the license key (reference, not the key).
+#. translators: 1: license ID, 2: license reference (not the key).
 #: src/CLI/LicenseCommand.php:138
 #, php-format
 msgid "License %1$d issued (reference %2$s)."
@@ -9018,7 +9018,7 @@ msgid "Include the full license key in this email"
 msgstr ""
 
 #: src/Notifications/Emails/LicenseIssuedEmail.php:68
-msgid "Off by default: email is not a secure channel. Without this option the email shows the key prefix and links to the customer account, where the key is displayed."
+msgid "Off by default: email is not a secure channel. Without this option the email shows the license reference and links to the customer account, where the key is displayed."
 msgstr ""
 
 #: src/Notifications/Emails/LicenseRenewedEmail.php:30
@@ -9219,27 +9219,27 @@ msgid_plural "The email \"Upcoming automatic renewal\" is switched off under Woo
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Notifications/Notifications.php:1197
+#: src/Notifications/Notifications.php:1196
 msgid "Sample product"
 msgstr ""
 
-#: src/Notifications/Notifications.php:1198
+#: src/Notifications/Notifications.php:1197
 msgid "Sample plan"
 msgstr ""
 
-#: src/Notifications/Notifications.php:1278
+#: src/Notifications/Notifications.php:1277
 msgid "You chose automatic renewal for your license. The email with your license lists the renewal date, the amount including tax and the interval."
 msgstr ""
 
-#: src/Notifications/Notifications.php:1297
+#: src/Notifications/Notifications.php:1296
 msgid "Download the plugin ZIP file in your account under \"Licenses\"."
 msgstr ""
 
-#: src/Notifications/Notifications.php:1298
+#: src/Notifications/Notifications.php:1297
 msgid "In the WordPress dashboard of your site, go to Plugins > Add New > Upload Plugin, choose the ZIP file, then install and activate it."
 msgstr ""
 
-#: src/Notifications/Notifications.php:1299
+#: src/Notifications/Notifications.php:1298
 msgid "Open the license settings of the plugin, enter your license key and activate the license for the site."
 msgstr ""
 
@@ -11344,7 +11344,7 @@ msgstr ""
 
 #: templates/emails/plain/wplc-install-steps.php:30
 #: templates/emails/wplc-install-steps.php:28
-#: templates/myaccount/wplc-license.php:126
+#: templates/myaccount/wplc-license.php:131
 msgid "Read the documentation"
 msgstr ""
 
@@ -11714,31 +11714,35 @@ msgstr ""
 msgid "Currently unavailable. Please contact support."
 msgstr ""
 
-#: templates/myaccount/wplc-license.php:68
+#: templates/myaccount/wplc-license.php:70
+msgid "License reference:"
+msgstr ""
+
+#: templates/myaccount/wplc-license.php:73
 msgid "Valid through:"
 msgstr ""
 
-#: templates/myaccount/wplc-license.php:69
+#: templates/myaccount/wplc-license.php:74
 msgid "Live sites:"
 msgstr ""
 
-#: templates/myaccount/wplc-license.php:72
+#: templates/myaccount/wplc-license.php:77
 msgid "Renewal:"
 msgstr ""
 
-#: templates/myaccount/wplc-license.php:97
+#: templates/myaccount/wplc-license.php:102
 msgid "Complete renewal payment"
 msgstr ""
 
-#: templates/myaccount/wplc-license.php:98
+#: templates/myaccount/wplc-license.php:103
 msgid "Your payment provider may ask you to authenticate the payment before the renewal can be completed."
 msgstr ""
 
-#: templates/myaccount/wplc-license.php:119
+#: templates/myaccount/wplc-license.php:124
 msgid "How to install and activate"
 msgstr ""
 
-#: templates/myaccount/wplc-license.php:133
+#: templates/myaccount/wplc-license.php:138
 msgid "No sites are activated."
 msgstr ""
 

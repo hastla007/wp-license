@@ -429,12 +429,14 @@ final class OwnerDecisionsIntegrationTest extends WPLC_Integration_TestCase {
 		$license = $this->seed_license( array( 'renewal_enabled' => 1, 'customer_id' => self::factory()->user->create( array( 'user_email' => 'prefix@example.test' ) ) ) );
 		$row     = $this->license( $license['id'] );
 		$this->assertStringStartsWith( 'ACME-', $license['key'] );
-		$this->assertSame( 106, strlen( $license['key'] ), 'The length of the key stays.' );
+		$this->assertSame( 34, strlen( $license['key'] ), 'The length of the key stays (T-106: 34 characters).' );
 		$this->assertSame( 13, strlen( (string) $row['key_prefix'] ) );
 		$this->assertStringStartsWith( 'ACME-', (string) $row['key_prefix'] );
 		$this->assertTrue( LicenseKey::matches_hash( (string) $row['license_uuid'], (string) $row['license_key_secret_id'], (string) $row['license_key_hash'] ) );
 		$this->assertTrue( LicenseSearch::is_full_license_key( $license['key'] ) );
-		$this->assertSame( (string) $row['key_prefix'], LicenseSearch::criteria( $license['key'] . 'X' )['value'] );
+		// T-106: a fragment of a short key is kept only as a hash (its start is not the reference).
+		$this->assertSame( LicenseSearch::TYPE_LICENSE_KEY_HASH, LicenseSearch::criteria( $license['key'] . 'X' )['type'] );
+		$this->assertCount( 1, PublicCancellation::find_licenses( 'prefix@example.test', strtolower( str_replace( '-', '', $license['key'] ) ) ) );
 		$site = $this->activate_via_api( $license['key'] );
 		$this->assertSame( 200, $site['response']->get_status(), 'A key with the own prefix activates.' );
 		$this->assertCount( 1, PublicCancellation::find_licenses( 'prefix@example.test', (string) $row['key_prefix'] ) );

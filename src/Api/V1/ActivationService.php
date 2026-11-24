@@ -46,7 +46,7 @@ final class ActivationService {
 	/** @var int Default minimum of new installations a license may activate per hour (P-10). */
 	public const NEW_ACTIVATIONS_PER_HOUR = 10;
 
-	/** @var int Length of the normalized key prefix (`WPLC-`, or the four characters the shop chose before its first license (E-04), plus eight characters). */
+	/** @var int Length of the normalized key prefix (`WPLC-`, or the four characters the shop chose before its first license (E-04), plus eight characters: for a legacy key its public reference, for a short key (T-106) the prefix and the first characters of the key). */
 	private const KEY_PREFIX_LENGTH = 13;
 
 	/** @var int Development activations every license may hold, whatever its live-site limit. */

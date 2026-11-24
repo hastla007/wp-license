@@ -173,12 +173,13 @@ final class RequirementsTest extends TestCase {
 		list( $major, $minor ) = array_map( 'intval', explode( '.', $min ) );
 		$this->assertStringContainsString( 'phpVersion: ' . ( $major * 10000 + $minor * 100 ), $read( 'phpstan.neon.dist' ) );
 
-		// CI: unit tests start at the minimum; every non-experimental integration cell runs it.
+		// CI: unit tests start at the minimum; every integration cell runs it, except the regular
+		// cell on the newer PHP 8.6 (UEB-07, owner decision of 24 Nov 2026).
 		$ci = $read( '.github/workflows/phpunit.yml' );
-		$this->assertStringContainsString( "php: [\"{$min}\"]", $ci );
+		$this->assertStringContainsString( "php: [\"{$min}\", \"8.6\"]", $ci );
 		$this->assertGreaterThan( 0, (int) preg_match_all( '/^          - \{ wp: [^\n]*\}$/m', $ci, $cells ) );
 		foreach ( $cells[0] as $cell ) {
-			if ( false === strpos( $cell, 'experimental: true' ) ) {
+			if ( false === strpos( $cell, 'php: "8.6"' ) ) {
 				$this->assertStringContainsString( "php: \"{$min}\"", $cell );
 			}
 		}

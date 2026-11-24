@@ -65,6 +65,11 @@ do_action( 'wplc_before_account_license', $wplc_license, $view );
 		<p><strong><?php esc_html_e( 'License key:', 'wp-license' ); ?></strong> <?php esc_html_e( 'Currently unavailable. Please contact support.', 'wp-license' ); ?></p>
 	<?php endif; ?>
 
+	<?php // T-106: the reference of the emails and the cancellation page is not the start of a short key, so it is shown on its own. ?>
+	<?php if ( '' !== (string) $view['reference'] ) : ?>
+		<p class="wplc-license-reference"><strong><?php esc_html_e( 'License reference:', 'wp-license' ); ?></strong> <code><?php echo esc_html( (string) $view['reference'] ); ?></code></p>
+	<?php endif; ?>
+
 	<p><strong><?php esc_html_e( 'Valid through:', 'wp-license' ); ?></strong> <?php echo esc_html( (string) $view['valid_until'] ); ?></p>
 	<p><strong><?php esc_html_e( 'Live sites:', 'wp-license' ); ?></strong> <?php echo esc_html( (string) $view['sites_text'] ); ?></p>
 

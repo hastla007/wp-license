@@ -18,7 +18,8 @@ final class LicenseKey {
 	/**
 	 * Default first part of every key (`WPLC-…`). Four characters; a shop may choose its own
 	 * before the first license is issued (setting "License key prefix", E-04). The length of
-	 * the prefix, and so of the key (106 characters) and of the reference (13), never changes.
+	 * the prefix, and so of the key (34 characters, legacy keys 106) and of the reference (13),
+	 * never changes.
 	 */
 	public const DEFAULT_PREFIX = 'WPLC';
 
@@ -26,22 +27,78 @@ final class LicenseKey {
 	public const PREFIX_PATTERN = '[A-Z][A-Z0-9]{3}';
 
 	/**
+	 * Key format of every key issued since T-106 (24.11.2026):
+	 * `<PREFIX>-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`, 25 Crockford Base32 characters (125 bits of an
+	 * HMAC-SHA-256 of the license UUID with the license-key secret), 34 characters in all.
+	 */
+	public const FORMAT_SHORT = 'short';
+
+	/**
+	 * Key format before T-106: `<PREFIX>-<UUID>-<64 hex HMAC>`, 106 characters. Keys of this
+	 * format stay valid forever; nothing stored is rewritten.
+	 */
+	public const FORMAT_LONG = 'long';
+
+	/** Character class of the Crockford Base32 alphabet (no I, L, O, U), for regular expressions. */
+	public const BASE32_CLASS = '[0-9A-HJKMNP-TV-Z]';
+
+	/** Crockford Base32 alphabet. */
+	private const BASE32_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+	/** Number of Base32 characters after the prefix of a short key (5 groups of 5). */
+	private const SHORT_BODY_LENGTH = 25;
+
+	/** Separates the short-key HMAC from the legacy one (HMAC of the bare UUID). */
+	private const SHORT_CONTEXT = 'wplc-license-key-v2|';
+
+	/**
 	 * Build a displayable key for a license UUID and secret key ID.
 	 *
-	 * @param string $uuid License UUID.
+	 * For a new license. For a stored license use verified_for_license(), which finds the
+	 * format of its key from the stored verifier.
+	 *
+	 * @param string      $uuid   License UUID.
 	 * @param string|null $key_id Key ID; defaults to the configured current key.
+	 * @param string      $format FORMAT_SHORT (default, every new key) or FORMAT_LONG (keys issued before T-106).
 	 * @return string Empty string when the requested key is unavailable.
 	 */
-	public static function for_uuid( string $uuid, ?string $key_id = null ): string {
+	public static function for_uuid( string $uuid, ?string $key_id = null, string $format = self::FORMAT_SHORT ): string {
 		$keys = self::configured_keys();
 		$key_id = null === $key_id ? self::resolve_current_key_id( $keys ) : $key_id;
 		if ( ! isset( $keys[ $key_id ] ) || '' === $keys[ $key_id ] ) {
 			return '';
 		}
 		$uuid = strtolower( $uuid );
-		$digest = hash_hmac( 'sha256', $uuid, $keys[ $key_id ] );
+		if ( self::FORMAT_LONG === $format ) {
+			$digest = hash_hmac( 'sha256', $uuid, $keys[ $key_id ] );
 
-		return self::key_prefix() . '-' . strtoupper( $uuid ) . '-' . strtoupper( $digest );
+			return self::key_prefix() . '-' . strtoupper( $uuid ) . '-' . strtoupper( $digest );
+		}
+
+		$body = self::base32( hash_hmac( 'sha256', self::SHORT_CONTEXT . $uuid, $keys[ $key_id ], true ), self::SHORT_BODY_LENGTH );
+
+		return self::key_prefix() . '-' . implode( '-', str_split( $body, 5 ) );
+	}
+
+	/**
+	 * Crockford Base32 of the leading bits of a binary string (5 bits per character).
+	 *
+	 * @param string $bytes  Binary input of at least ceil( $length * 5 / 8 ) bytes.
+	 * @param int    $length Number of characters.
+	 * @return string
+	 */
+	private static function base32( string $bytes, int $length ): string {
+		$bits = '';
+		$need = (int) ceil( $length * 5 / 8 );
+		for ( $i = 0; $i < $need; $i++ ) {
+			$bits .= str_pad( decbin( ord( $bytes[ $i ] ) ), 8, '0', STR_PAD_LEFT );
+		}
+		$out = '';
+		for ( $i = 0; $i < $length; $i++ ) {
+			$out .= self::BASE32_ALPHABET[ (int) bindec( substr( $bits, $i * 5, 5 ) ) ];
+		}
+
+		return $out;
 	}
 
 	/**
@@ -83,12 +140,29 @@ final class LicenseKey {
 	 * @return bool
 	 */
 	public static function matches_hash( string $uuid, string $key_id, string $stored_hash ): bool {
-		$key = self::for_uuid( $uuid, $key_id );
-		if ( '' === $key || ! preg_match( '/^[a-f0-9]{64}$/i', $stored_hash ) ) {
-			return false;
+		return '' !== self::stored_format( $uuid, $key_id, $stored_hash );
+	}
+
+	/**
+	 * Format of a stored license's key: the one whose derived key reproduces the verifier.
+	 *
+	 * @param string $uuid        License UUID.
+	 * @param string $key_id      Persisted secret key ID.
+	 * @param string $stored_hash Stored SHA-256 verifier.
+	 * @return string FORMAT_SHORT, FORMAT_LONG, or '' when neither reproduces it.
+	 */
+	public static function stored_format( string $uuid, string $key_id, string $stored_hash ): string {
+		if ( ! preg_match( '/^[a-f0-9]{64}$/i', $stored_hash ) ) {
+			return '';
+		}
+		foreach ( array( self::FORMAT_SHORT, self::FORMAT_LONG ) as $format ) {
+			$key = self::for_uuid( $uuid, $key_id, $format );
+			if ( '' !== $key && hash_equals( strtolower( $stored_hash ), self::hash( $key ) ) ) {
+				return $format;
+			}
 		}
 
-		return hash_equals( strtolower( $stored_hash ), self::hash( $key ) );
+		return '';
 	}
 
 	/**
@@ -97,13 +171,18 @@ final class LicenseKey {
 	 * A wrong license_key_secret_id (an operator mistake, a manual SQL change) or a renamed key-ring entry would
 	 * otherwise derive a different, invalid key and show it to the customer as theirs.
 	 *
+	 * Licenses issued before T-106 carry a 106-character key, later ones a 34-character key; the
+	 * stored verifier tells which (stored_format()), so no column records the format.
+	 *
 	 * @param string $uuid License UUID.
 	 * @param string $key_id Persisted secret key ID.
 	 * @param string $stored_hash Stored SHA-256 verifier.
 	 * @return string Empty string when the key cannot be reproduced (see `wp wplc recover-license-key-ids`).
 	 */
 	public static function verified_for_license( string $uuid, string $key_id, string $stored_hash ): string {
-		return self::matches_hash( $uuid, $key_id, $stored_hash ) ? self::for_uuid( $uuid, $key_id ) : '';
+		$format = self::stored_format( $uuid, $key_id, $stored_hash );
+
+		return '' === $format ? '' : self::for_uuid( $uuid, $key_id, $format );
 	}
 
 	/**
@@ -123,6 +202,10 @@ final class LicenseKey {
 	 * Typographic dashes become "-", letters become upper case and everything
 	 * outside `[A-Z0-9-]` is removed: line breaks, (non-breaking and
 	 * zero-width) spaces, quotes or a trailing dot from an email.
+	 *
+	 * A key of the short format (T-106) is then brought into its canonical form: hyphens may be
+	 * missing or misplaced, and in the 25 characters after the prefix O counts as 0 and I and L
+	 * as 1 (Crockford Base32). Legacy 106-character keys keep exactly the rule above.
 	 *
 	 * @param string $key License key as entered.
 	 * @return string
@@ -144,7 +227,45 @@ final class LicenseKey {
 			)
 		);
 
-		return (string) preg_replace( '/[^A-Z0-9-]/', '', strtoupper( $key ) );
+		$key = (string) preg_replace( '/[^A-Z0-9-]/', '', strtoupper( $key ) );
+
+		return self::canonical_short( $key ) ?? $key;
+	}
+
+	/**
+	 * Canonical short key for a cleaned input of exactly a prefix plus 25 key characters.
+	 *
+	 * @param string $key Upper-case input with only `[A-Z0-9-]`.
+	 * @return string|null Null when the input is not a short key.
+	 */
+	private static function canonical_short( string $key ): ?string {
+		$compact = str_replace( '-', '', $key );
+		if ( 4 + self::SHORT_BODY_LENGTH !== strlen( $compact ) ) {
+			return null;
+		}
+		$prefix = substr( $compact, 0, 4 );
+		$body   = strtr( substr( $compact, 4 ), 'OIL', '011' );
+		if ( 1 !== preg_match( '/^' . self::PREFIX_PATTERN . '$/D', $prefix ) || 1 !== preg_match( '/^' . self::BASE32_CLASS . '{25}$/D', $body ) ) {
+			return null;
+		}
+
+		return $prefix . '-' . implode( '-', str_split( $body, 5 ) );
+	}
+
+	/**
+	 * Whether a normalized string has the shape of a complete key, in either format:
+	 * `<prefix>-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX` or the legacy `<prefix>-<uuid>-<64 hex>`.
+	 * The prefix may be the shop's or the default one (prefix_alternatives()).
+	 *
+	 * @param string $key Output of normalize().
+	 * @return bool
+	 */
+	public static function is_well_formed( string $key ): bool {
+		$prefix = self::prefix_alternatives();
+		$group  = self::BASE32_CLASS . '{5}';
+
+		return 1 === preg_match( '/^' . $prefix . '-(?:' . $group . '-){4}' . $group . '$/D', $key )
+			|| 1 === preg_match( '/^' . $prefix . '-[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}-[0-9A-F]{64}$/D', $key );
 	}
 
 	/**

@@ -147,6 +147,45 @@ e2e_ok( is_wp_error( $result ) && 'product_mismatch' === $result->get_error_code
 $result = $other->activate( 'WPLC-' . strtoupper( substr( hash( 'sha256', 'nope' ), 0, 40 ) ) );
 e2e_ok( is_wp_error( $result ) && 'invalid_key' === $result->get_error_code(), 'an unknown key is refused (invalid_key)', $error_of( $result ) );
 
+// --- T-106: the key of the order has the short format; a legacy 106-character key still works over real HTTP. ---
+e2e_ok( 34 === strlen( $key ) && 1 === preg_match( '/^WPLC-(?:[0-9A-HJKMNP-TV-Z]{5}-){4}[0-9A-HJKMNP-TV-Z]{5}$/D', $key ), 'T-106: the purchased license has a 34-character key', $key );
+$legacy_uuid = wp_generate_uuid4();
+$legacy_key  = \WPLC\License\LicenseKey::for_uuid( $legacy_uuid, (string) $license['license_key_secret_id'], \WPLC\License\LicenseKey::FORMAT_LONG );
+$legacy_row  = array_diff_key( $license, array_flip( array( 'id', 'source_order_item_id', 'unit_index' ) ) );
+$legacy_row  = array_merge(
+	$legacy_row,
+	array(
+		'license_uuid'     => $legacy_uuid,
+		'license_key_hash' => \WPLC\License\LicenseKey::hash( $legacy_key ),
+		'key_prefix'       => \WPLC\License\LicenseKey::prefix( $legacy_uuid ),
+		'source_order_id'  => 0,
+	)
+);
+$wpdb->insert( $t['licenses'], $legacy_row );
+$legacy_id = (int) $wpdb->insert_id;
+foreach ( e2e_rows( 'entitlements', 'license_id = ' . (int) $license['id'] ) as $entitlement ) {
+	unset( $entitlement['id'] );
+	$entitlement['license_id'] = $legacy_id;
+	$wpdb->insert( $t['entitlements'], $entitlement );
+}
+$as_site( 'https://legacy.example' );
+delete_option( 'wplc_e2e_client_legacy' );
+$client_legacy = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_legacy' );
+$result        = $client_legacy->activate( strtolower( $legacy_key ) );
+e2e_ok( 106 === strlen( $legacy_key ) && $legacy_id > 0 && is_array( $result ) && 'active' === ( $result['license_status'] ?? null ), 'T-106: a legacy 106-character key activates through the client', $error_of( $result ) );
+$check = $client_legacy->check_entitlements();
+e2e_ok( is_array( $check ) && 'active' === ( $check['license_status'] ?? null ), 'T-106: the legacy key\'s site passes the signed entitlements check', $error_of( $check ) );
+$update = $client_legacy->check_update();
+e2e_ok( is_array( $update ) && true === ( $update['license_active'] ?? null ), 'T-106: the legacy key\'s site gets an update answer for an active license', $error_of( $update ) );
+$client_legacy->deactivate();
+delete_option( 'wplc_e2e_client_legacy' );
+foreach ( e2e_rows( 'activations', 'license_id = ' . $legacy_id ) as $legacy_activation ) {
+	$wpdb->delete( $t['request_nonces'], array( 'activation_id' => (int) $legacy_activation['id'] ) );
+}
+$wpdb->delete( $t['activations'], array( 'license_id' => $legacy_id ) );
+$wpdb->delete( $t['entitlements'], array( 'license_id' => $legacy_id ) );
+$wpdb->delete( $t['licenses'], array( 'id' => $legacy_id ) );
+
 // --- Second live site: site limit. ---
 $as_site( 'https://site-b.example' );
 $client_b = e2e_client( $server, 'voucher-captain-pro', '1.0.0', 'wplc_e2e_client_site_b' );

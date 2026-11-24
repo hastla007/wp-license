@@ -179,7 +179,7 @@ abstract class LicenseEmail extends \WC_Email {
 	 */
 	public function set_preview_data(): void {
 		$this->wplc_view    = Notifications::sample_view( $this->preview_status() );
-		$this->wplc_context = array( 'license_key' => \WPLC\License\LicenseKey::key_prefix() . '-00000000-0000-4000-8000-000000000000-SAMPLE' );
+		$this->wplc_context = array( 'license_key' => \WPLC\License\LicenseKey::key_prefix() . '-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX' );
 		$this->wplc_terms   = array(
 			__( 'Next renewal', 'wp-license' ) => $this->wplc_view['charge_date'],
 			__( 'Amount', 'wp-license' )       => $this->wplc_view['amount'],

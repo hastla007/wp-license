@@ -73,6 +73,10 @@ The vendor manual ships in the plugin folder under `docs/manual/`; start with `d
 
 No. It is an engineering preview. See "Status" above.
 
+= How long is a license key? =
+
+34 characters, for example `WPLC-ABCDE-FGHJK-MNPQR-STVWX-YZ012`. Case, spaces and missing hyphens do not matter. Keys issued before 24 November 2026 have 106 characters and stay valid.
+
 = Does the license email contain the license key? =
 
 Not by default. Email is not a secure channel, so the email shows a short license reference and links to the customer account, where the key is displayed. A shop owner can enable the full key under WooCommerce → Settings → Emails → License issued.

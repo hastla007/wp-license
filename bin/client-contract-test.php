@@ -5,7 +5,7 @@
  *
  * Usage:
  *   php bin/client-contract-test.php --server=https://shop.example --product=my-addon \
- *       --key=WPLC-XXXX-XXXX-XXXX-XXXX --public-key=BASE64 [--public-key=BASE64 ...] \
+ *       --key=WPLC-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX --public-key=BASE64 [--public-key=BASE64 ...] \
  *       [--site=https://contract-test.local] [--environment=development] \
  *       [--version=0.0.1] [--rest-base=https://shop.example/index.php?rest_route=] \
  *       [--timeout=20] [--allow-insecure]
