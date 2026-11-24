@@ -743,4 +743,20 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertFalse( $refused['ok'] );
 		$this->assertSame( 'The target URL must start with https://.', $refused['message'] );
 	}
+
+	public function test_wp_cli_test_prints_the_delivery_error_in_words(): void {
+		$endpoint     = $this->endpoint();
+		$this->status = 503;
+		$failed       = WebhookCommand::run_test( $endpoint['id'] );
+		$this->assertFalse( $failed['ok'] );
+		$this->assertStringContainsString( 'HTTP status 503', $failed['line'] );
+		$this->assertSame( 'The test event could not be delivered: The receiver answered with HTTP 503.', $failed['message'] );
+		$this->assertStringNotContainsString( 'http_status:', $failed['message'], 'Not the stored error code.' );
+
+		$this->status = 200;
+		$delivered    = WebhookCommand::run_test( $endpoint['id'] );
+		$this->assertTrue( $delivered['ok'] );
+		$this->assertSame( 'The test event was delivered.', $delivered['message'] );
+		$this->assertSame( array( 'ok' => false, 'line' => '', 'message' => 'The endpoint was not found.' ), WebhookCommand::run_test( 999999 ) );
+	}
 }

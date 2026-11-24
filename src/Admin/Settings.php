@@ -581,7 +581,7 @@ final class Settings {
 		// The same check guards import, reset and WP-CLI (Settings\Changes).
 		$taken = self::account_slug_conflict( $out );
 		if ( '' !== $taken ) {
-			/* translators: %s: address part of a page, e.g. "orders". */
+			/* translators: %s: address part of a page, for example "orders". */
 			$message = sprintf( __( 'The addresses of the customer account were not changed: "%s" is already the address of another page of the account. Choose an address of its own for each page.', 'wp-license' ), $taken );
 			$first   = '';
 			foreach ( \WPLC\Settings\Changes::ACCOUNT_SLUGS as $slug_key ) {

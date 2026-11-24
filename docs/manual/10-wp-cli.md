@@ -175,11 +175,11 @@ Lists every setting of **WooCommerce → License settings** with its stored valu
 
 ### `wp wplc settings get <key>` / `wp wplc settings set <key> <value> [--yes]`
 
-Reads or changes one setting. `set` uses the same check as the settings page and refuses a value that is not valid; lists are separated by commas, switches are `1` or `0`. Setting `uninstall_data` to `delete` needs `--yes`.
+Reads or changes one setting. `set` uses the same check as the settings page and refuses a value that is not valid; lists are separated by commas, switches are `1` or `0`. Setting `uninstall_data` to `delete` needs `--yes`. The cross checks of the settings page apply as well: a setting that cannot change is reported with its reason and the command fails (exit code 1) instead of reporting success. That is the case for a locked setting (for example the license key prefix once licenses exist), a value set by a constant in `wp-config.php` (object storage), a value in conflict with another setting (the two customer account addresses must differ and must not be the address of a WooCommerce page such as `orders`) and a value refused when it was stored. A combination that works but is risky (a grace period not longer than the last retry day) is changed and printed as a warning.
 
 ### `wp wplc settings export` / `wp wplc settings import <file> [--apply] [--yes]`
 
-`export` prints all settings as JSON, the same format as the export of the settings page. It contains no secret. `import` shows the differences between the file and the stored settings and changes nothing; with `--apply` it changes them. One value that is not valid stops the whole import.
+`export` prints all settings as JSON, the same format as the export of the settings page. It contains no secret. `import` shows the differences between the file and the stored settings and changes nothing; with `--apply` it changes them. One value that is not valid stops the whole import. Rows that cannot change (locked, set by a constant, in conflict, refused; see `set`) are listed as "Not changed: <key>: <reason>" while the other rows are applied; when no row could change, the command fails. The choice "When the plugin is deleted" (`uninstall_data`) is never part of an export and is never applied from an import, a reset or a country profile; change it with `wp wplc settings set uninstall_data delete --yes` or on the settings page.
 
 ```
 wp wplc settings export > wplc-settings.json
@@ -219,7 +219,7 @@ Deletes an endpoint and its delivery log.
 
 ### `wp wplc webhook test <id>`
 
-Sends the test event `webhook.test` now and prints the event ID, the HTTP status and the duration; exit code 1 when it was not delivered. Works on an endpoint that is switched off; it is not retried.
+Sends the test event `webhook.test` now and prints the event ID, the HTTP status and the duration; exit code 1 when it was not delivered. The reason is printed in the same words as on the webhook screen, for example "The test event could not be delivered: The receiver answered with HTTP 503." (not the stored error code `http_status:503`). Works on an endpoint that is switched off; it is not retried.
 
 ## Repair
 

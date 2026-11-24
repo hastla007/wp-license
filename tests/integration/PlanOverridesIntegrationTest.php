@@ -187,11 +187,32 @@ final class PlanOverridesIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 9, LicenseMembers::member_limit( $license ) );
 		$now = time();
 		$this->assertEqualsWithDelta( $now + 30 * DAY_IN_SECONDS, strtotime( EntitlementService::access_fields( $license, $now )['cache_expires_at'] . ' UTC' ), 2 );
-		$this->assertNull( RenewalOrder::plan_for_license( $license ), 'Renewal price and live-site fallback keep asking for active plans.' );
+		$this->assertNull( RenewalOrder::plan_for_license( $license ), 'Renewal price keeps asking for active plans.' );
 		$this->assertSame( $product->get_id(), (int) RenewalOrder::plan_for_license( $license, true )['woocommerce_product_id'] );
 
 		wp_untrash_post( $product->get_id() );
 		$this->assertSame( $product->get_id(), (int) RenewalOrder::plan_for_license( $license )['woocommerce_product_id'] );
+	}
+
+	/** P2-I1: a sold license without a live-site entitlement row keeps the live-site limit of its plan after the product is trashed. */
+	public function test_sold_licenses_keep_the_live_site_limit_of_a_trashed_product(): void {
+		global $wpdb;
+
+		$product  = $this->create_license_product( array( 'live_site_limit' => 4 ) );
+		$customer = self::factory()->user->create( array( 'role' => 'customer' ) );
+		$license  = $this->licenses_for_order( $this->create_paid_order( array( array( $product, 1 ) ), $customer )->get_id() )[0];
+		$tables   = \WPLC\Infrastructure\Database\Schema::table_names();
+		$wpdb->delete( $tables['entitlements'], array( 'license_id' => (int) $license['id'], 'entitlement_key' => 'sites.live_limit' ) );
+		$this->assertSame( 4, ActivationService::site_limit( (int) $license['id'], $license ), 'Fallback: the plan of the order line.' );
+
+		wp_trash_post( $product->get_id() );
+		$this->assertSame( '0', (string) $this->plan( $product->get_id() )['active'] );
+		$this->assertSame( 4, ActivationService::site_limit( (int) $license['id'], $license ), 'The limit the customer bought stays.' );
+
+		// Without a plan at all the limit is still 1.
+		$orphan = $this->license( $this->seed_license( array( 'product_key' => 'no-such-product', 'plan_key' => 'none' ) )['id'] );
+		$wpdb->delete( $tables['entitlements'], array( 'license_id' => (int) $orphan['id'], 'entitlement_key' => 'sites.live_limit' ) );
+		$this->assertSame( 1, ActivationService::site_limit( (int) $orphan['id'], $orphan ) );
 	}
 
 	/** P6-I1: finding the plan of a license does not load the order; a list costs the same few queries as one license. */

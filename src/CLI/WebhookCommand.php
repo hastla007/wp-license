@@ -125,15 +125,49 @@ final class WebhookCommand {
 	 * @return void
 	 */
 	public function test( array $args, array $assoc_args ): void {
-		$delivery = Dispatcher::send_test( absint( $args[0] ?? 0 ) );
+		$result = self::run_test( absint( $args[0] ?? 0 ) );
+		if ( '' !== $result['line'] ) {
+			\WP_CLI::line( $result['line'] );
+		}
+		if ( ! $result['ok'] ) {
+			\WP_CLI::error( $result['message'] );
+		}
+		\WP_CLI::success( $result['message'] );
+	}
+
+	/**
+	 * Send a test event. Kept free of WP_CLI calls so it can be tested.
+	 *
+	 * The stored delivery error is a code with a detail (for example
+	 * `http_status:503`); the message uses the same wording as the webhook
+	 * screen (Admin::delivery_error()).
+	 *
+	 * @param int $id Endpoint ID.
+	 * @return array{ok:bool,line:string,message:string}
+	 */
+	public static function run_test( int $id ): array {
+		$delivery = Dispatcher::send_test( $id );
 		if ( null === $delivery ) {
-			\WP_CLI::error( 'The endpoint was not found.' );
+			return array(
+				'ok'      => false,
+				'line'    => '',
+				'message' => 'The endpoint was not found.',
+			);
 		}
-		\WP_CLI::line( sprintf( 'Event ID %s, HTTP status %d, %d ms.', (string) $delivery['event_id'], (int) $delivery['response_code'], (int) $delivery['duration_ms'] ) );
+		$line = sprintf( 'Event ID %s, HTTP status %d, %d ms.', (string) $delivery['event_id'], (int) $delivery['response_code'], (int) $delivery['duration_ms'] );
 		if ( 'delivered' !== $delivery['status'] ) {
-			\WP_CLI::error( 'The test event could not be delivered: ' . (string) $delivery['error'] );
+			return array(
+				'ok'      => false,
+				'line'    => $line,
+				'message' => 'The test event could not be delivered: ' . Admin::delivery_error( (string) $delivery['error'] ),
+			);
 		}
-		\WP_CLI::success( 'The test event was delivered.' );
+
+		return array(
+			'ok'      => true,
+			'line'    => $line,
+			'message' => 'The test event was delivered.',
+		);
 	}
 
 	/**

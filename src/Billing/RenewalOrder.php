@@ -610,9 +610,10 @@ final class RenewalOrder {
 	 *
 	 * `$include_inactive` (P2-I1): also a plan whose product is in the trash
 	 * (active = 0). The rules of a sold license (overrides per plan) keep
-	 * applying; an active plan is still preferred. Prices and everything that
-	 * sells something (renewal price, live-site fallback) keep asking for
-	 * active plans only, as before.
+	 * applying, and so does the live-site limit the license was bought with
+	 * (fallback of ActivationService::site_limit()); an active plan is still
+	 * preferred. Prices and everything that sells something (renewal price)
+	 * keep asking for active plans only, as before.
 	 *
 	 * The product of the source order line is read from the order item meta
 	 * (one query), without loading the order (P6-I1).

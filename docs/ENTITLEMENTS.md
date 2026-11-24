@@ -39,7 +39,7 @@ A client may keep the last signed answer and use it while the server cannot be r
 - After the deadline the client treats the license as without access until it receives a new signed answer.
 - Only a signed answer may take rights away before the deadline.
 
-The shop can change the 14 days with the setting "Offline period of customer sites" (1 to 90 days) or the filter `wplc_offline_cache_days`, which decides last.
+The shop can change the 14 days with the setting "Offline period of customer sites" (2 to 90 days; a stored 1 counts as 2) or the filter `wplc_offline_cache_days`, which decides last.
 
 **The clock of the customer site** (client library 2.1.0, decision of 16 Nov 2026). The client measures the window from the signed `server_time` plus the local time that passed since the answer was stored, so a wrong time zone or a clock that is behind does not shorten it. On top of that there is an absolute limit that does not depend on anything stored next to the snapshot: the snapshot is void (state `stale`, reason `clock_ahead`) as soon as the local UTC time (`time()`) is later than the signed `cache_expires_at` plus a **tolerance of one day**. The tolerance is the constant `LicenseManager::OFFLINE_TOLERANCE`; an add-on can change it with the filter `{prefix}_license_offline_tolerance` (seconds), but never beyond seven days (`LicenseManager::MAX_OFFLINE_TOLERANCE`) or below zero. Consequences:
 

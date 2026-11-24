@@ -851,7 +851,7 @@ final class SiteOverview {
 	public static function warning_label( string $code, array $row, string $latest = '' ): string {
 		switch ( $code ) {
 			case 'license_inactive':
-				/* translators: %s: license status, e.g. "Expired". */
+				/* translators: %s: license status, for example "Expired". */
 				return sprintf( __( 'License is not active (%s): no updates, premium features off.', 'wp-license' ), Format::license_status_label( (string) ( $row['license_status'] ?? '' ) ) );
 			case 'payment_due':
 				return __( 'Renewal payment is overdue.', 'wp-license' );

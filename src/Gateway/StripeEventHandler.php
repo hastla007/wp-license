@@ -168,7 +168,7 @@ final class StripeEventHandler {
 
 		$order->add_order_note(
 			sprintf(
-				/* translators: 1: Stripe dispute ID, 2: dispute status, e.g. lost. */
+				/* translators: 1: Stripe dispute ID, 2: dispute status, for example lost. */
 				__( 'WP License Captain: dispute %1$s was closed with status "%2$s".', 'wp-license' ),
 				$dispute_id,
 				'' !== $status ? $status : '-'
