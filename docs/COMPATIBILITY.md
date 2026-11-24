@@ -11,7 +11,7 @@ These are the combinations the integration suite runs against in CI (`.github/wo
 | latest stable | 11.3.0 | 8.5 | MySQL 9.7 | legacy posts | single site |
 | latest stable | 11.3.0 | 8.5 | MariaDB 12.3 | HPOS | single site |
 | latest stable | 11.3.0 | 8.5 | MariaDB 12.3 | HPOS | multisite (subdirectory network) |
-| latest stable | 11.3.0 | 8.6 (nightly until 19 Nov 2026) | MySQL 9.7 | HPOS | single site, experimental (`continue-on-error`) |
+| latest stable | 11.3.0 | 8.6 (released 19 Nov 2026; experimental until the owner decides, UEB-07) | MySQL 9.7 | HPOS | single site, experimental (`continue-on-error`) |
 
 - WordPress 7.0, PHP 8.5 and WooCommerce 11.2.2 are the minimums declared in `wp-license.php` (`Requires at least: 7.0`, `Requires PHP: 8.5`, `WC requires at least: 11.2.2`; `Requirements::MIN_WP`, `Requirements::MIN_PHP`, `Requirements::MIN_WC`). Below PHP 8.5 the plugin shows an admin notice and loads nothing else. WordPress refuses to activate it below 7.0; an already active copy shows an admin notice. Below WooCommerce 11.2.2 activation is refused; an already active copy shows an admin notice, licenses keep working and the block checkout offers no renewal opt-in.
 - The WordPress and WooCommerce minimums follow the owner decision of 17 Nov 2026, uniform for all Captain plugins, add-ons and connectors (on top of MINVER-1). The cells with WordPress 7.0 and WooCommerce 11.2.2 run the minimums together; the two cells with the latest WordPress and WooCommerce 11.3.0 the newest pair. "7.0" installs the newest 7.0.x release the wordpress.org version API lists (with the test library of the 7.0 branch).
