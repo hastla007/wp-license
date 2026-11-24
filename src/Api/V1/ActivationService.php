@@ -318,7 +318,7 @@ final class ActivationService {
 			}
 		}
 
-		$encrypted_secret = SecretCrypto::encrypt( $secret );
+		$encrypted_secret = SecretCrypto::encrypt( $secret, SecretCrypto::PURPOSE_INSTALLATION, $installation_uuid );
 		if ( false === $encrypted_secret ) {
 			return new \WP_Error( 'server_configuration', 'The license server could not securely store the installation credential.', array( 'status' => 500 ) );
 		}

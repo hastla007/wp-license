@@ -120,7 +120,7 @@ final class Authenticator {
 			return self::authentication_failed( $failure_limiter );
 		}
 
-		$secret = SecretCrypto::decrypt( (string) $activation['installation_secret_encrypted'] );
+		$secret = SecretCrypto::decrypt( (string) $activation['installation_secret_encrypted'], SecretCrypto::PURPOSE_INSTALLATION, (string) $activation['installation_uuid'] );
 		if ( false === $secret || ! hash_equals( (string) $activation['installation_secret_hash'], hash( 'sha256', $secret ) ) ) {
 			// A server-side key problem (encryption key missing on this node), not something a caller can cause.
 			return new \WP_Error( 'installation_secret_invalid', 'The installation credential is invalid.', array( 'status' => 401 ) );
@@ -177,7 +177,7 @@ final class Authenticator {
 		}
 
 		if ( SecretCrypto::needs_rotation( (string) $activation['installation_secret_encrypted'] ) ) {
-			$rotated = SecretCrypto::encrypt( $secret );
+			$rotated = SecretCrypto::encrypt( $secret, SecretCrypto::PURPOSE_INSTALLATION, (string) $activation['installation_uuid'] );
 			if ( false !== $rotated ) {
 				$wpdb->query(
 					$wpdb->prepare(

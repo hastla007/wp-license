@@ -150,14 +150,14 @@ C( 'Placeholders', 4 ); $GLOBALS['pl'] = $pl;
 
 // ---- SecretCrypto
 $sc = array();
-foreach ( array( '', 'a', "\0\0\0", random_bytes( 64 ), str_repeat( 'x', 100000 ), "üñí😀", '0' ) as $pt ) { $enc = SecretCrypto::encrypt( $pt ); C( 'SecretCrypto roundtrip' ); if ( false === $enc ) { $sc[] = 'encrypt false for len ' . strlen( $pt ); continue; } $dec = SecretCrypto::decrypt( $enc ); if ( $dec !== $pt ) { $sc[] = 'ROUNDTRIP MISMATCH len ' . strlen( $pt ) . ' => ' . json_encode( $dec ); } }
-$enc = SecretCrypto::encrypt( 'the-secret-value-0123456789abcdef' ); $wrong = 0; $thr = 0;
+foreach ( array( '', 'a', "\0\0\0", random_bytes( 64 ), str_repeat( 'x', 100000 ), "üñí😀", '0' ) as $pt ) { $enc = SecretCrypto::encrypt( $pt, SecretCrypto::PURPOSE_INSTALLATION, 'fuzz' ); C( 'SecretCrypto roundtrip' ); if ( false === $enc ) { $sc[] = 'encrypt false for len ' . strlen( $pt ); continue; } $dec = SecretCrypto::decrypt( $enc, SecretCrypto::PURPOSE_INSTALLATION, 'fuzz' ); if ( $dec !== $pt ) { $sc[] = 'ROUNDTRIP MISMATCH len ' . strlen( $pt ) . ' => ' . json_encode( $dec ); } }
+$enc = SecretCrypto::encrypt( 'the-secret-value-0123456789abcdef', SecretCrypto::PURPOSE_INSTALLATION, 'fuzz' ); $wrong = 0; $thr = 0;
 for ( $i = 0; $i < 20000; $i++ ) { $m = $enc; $mode = $i % 6;
 	if ( 0 === $mode ) { $m = substr( $enc, 0, mt_rand( 0, strlen( $enc ) - 1 ) ); } elseif ( 1 === $mode ) { $p = mt_rand( 0, strlen( $enc ) - 1 ); $m[ $p ] = chr( mt_rand( 0, 255 ) ); } elseif ( 2 === $mode ) { $m = random_bytes( mt_rand( 1, 120 ) ); } elseif ( 3 === $mode ) { $m = 'v2:test-2026:' . substr( $enc, 13 ); } elseif ( 4 === $mode ) { $m = 'v1:test-2025:' . substr( $enc, 13 ); } else { $m = base64_encode( random_bytes( mt_rand( 1, 90 ) ) ); }
-	try { $d = SecretCrypto::decrypt( $m ); C( 'SecretCrypto mutated decrypt' ); if ( false !== $d && $m !== $enc ) { $wrong++; if ( $wrong < 4 ) { $sc[] = 'decrypt accepted mutated envelope mode ' . $mode . ': ' . json_encode( substr( $m, 0, 30 ) ) . ' => ' . json_encode( $d ) . ' same_plain=' . json_encode( 'the-secret-value-0123456789abcdef' === $d ); } } } catch ( Throwable $e ) { $thr++; if ( $thr < 4 ) { $sc[] = 'decrypt THREW mode ' . $mode . ' ' . get_class( $e ) . ': ' . $e->getMessage(); } } }
+	try { $d = SecretCrypto::decrypt( $m, SecretCrypto::PURPOSE_INSTALLATION, 'fuzz' ); C( 'SecretCrypto mutated decrypt' ); if ( false !== $d && $m !== $enc ) { $wrong++; if ( $wrong < 4 ) { $sc[] = 'decrypt accepted mutated envelope mode ' . $mode . ': ' . json_encode( substr( $m, 0, 30 ) ) . ' => ' . json_encode( $d ) . ' same_plain=' . json_encode( 'the-secret-value-0123456789abcdef' === $d ); } } } catch ( Throwable $e ) { $thr++; if ( $thr < 4 ) { $sc[] = 'decrypt THREW mode ' . $mode . ' ' . get_class( $e ) . ': ' . $e->getMessage(); } } }
 $sc[] = "mutations accepted: $wrong, thrown: $thr";
 $sc[] = 'needs_rotation: current=' . json_encode( SecretCrypto::needs_rotation( $enc ) ) . ' other=' . json_encode( SecretCrypto::needs_rotation( 'v1:test-2025:abc' ) ) . ' garbage=' . json_encode( SecretCrypto::needs_rotation( 'zzz' ) ) . ' newline=' . json_encode( SecretCrypto::needs_rotation( $enc . "\n" ) );
-$sc[] = 'decrypt with trailing newline: ' . json_encode( SecretCrypto::decrypt( $enc . "\n" ) ) . ' ; leading space: ' . json_encode( SecretCrypto::decrypt( ' ' . $enc ) );
+$sc[] = 'decrypt with trailing newline: ' . json_encode( SecretCrypto::decrypt( $enc . "\n", SecretCrypto::PURPOSE_INSTALLATION, 'fuzz' ) ) . ' ; leading space: ' . json_encode( SecretCrypto::decrypt( ' ' . $enc, SecretCrypto::PURPOSE_INSTALLATION, 'fuzz' ) );
 $GLOBALS['sc'] = $sc;
 
 // ---- ResponseSigner

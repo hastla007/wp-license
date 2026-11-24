@@ -32,6 +32,8 @@ final class Routes {
 		add_action( 'wplc_daily_lifecycle', array( UpdateService::class, 'purge_expired_grants' ) );
 		// Unused grants expire after minutes; the hourly run removes them without waiting for the day (P-11).
 		add_action( 'wplc_cleanup_security_rows', array( UpdateService::class, 'purge_expired_grants' ) );
+		// UEB-12: stored secrets of the legacy envelope formats move to v2 in small batches until none is left.
+		add_action( 'wplc_cleanup_security_rows', array( \WPLC\Security\SecretMigration::class, 'run_scheduled' ) );
 		// Errors are WP_Error objects until here; every answer of the API leaves through these two filters.
 		add_filter( 'rest_request_after_callbacks', array( self::class, 'finish_response' ), 999, 3 );
 		add_filter( 'rest_post_dispatch', array( self::class, 'finish_unrouted_response' ), 999, 3 );

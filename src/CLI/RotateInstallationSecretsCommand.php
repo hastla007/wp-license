@@ -107,6 +107,10 @@ final class RotateInstallationSecretsCommand {
 			/* translators: %s: status of the prepared next response signing key, for example "rotated". */
 			\WP_CLI::log( sprintf( __( 'Prepared next signing key: %s', 'wp-license' ), $result['next_signing_key'] ) );
 		}
+		if ( $result['webhooks'] > 0 ) {
+			/* translators: %d: number of webhook secrets re-encrypted (in a dry run: that would be re-encrypted). */
+			\WP_CLI::log( sprintf( __( 'Webhook secrets with an old key or format: %d', 'wp-license' ), $result['webhooks'] ) );
+		}
 		if ( 'undecryptable' === $result['next_signing_key'] || 'failed' === $result['signing_key'] ) {
 			\WP_CLI::warning( __( 'A stored response signing key cannot be decrypted with the configured key ring. Put the previous encryption key back into WPLC_INSTALLATION_ENCRYPTION_KEYS; until then responses carry no Ed25519 signature and clients that pin the public key reject them.', 'wp-license' ) );
 		}
@@ -134,7 +138,7 @@ final class RotateInstallationSecretsCommand {
 	 *
 	 * @param array<string,mixed> $options Keys: apply (bool), batch_size, after_id, max_rows (0 = all rows).
 	 * @return array<string,mixed> Counters: inspected, rotated, already_current, stale, failed, failed_ids, last_id,
-	 *                             not_inspected, remaining, signing_key, next_signing_key, apply.
+	 *                             not_inspected, remaining, signing_key, next_signing_key, webhooks, apply.
 	 */
 	public static function run( array $options = array() ): array {
 		global $wpdb;
@@ -155,7 +159,7 @@ final class RotateInstallationSecretsCommand {
 			$limit = 0 === $max_rows ? $batch_size : min( $batch_size, $max_rows - $inspected );
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					'SELECT id,installation_secret_hash,installation_secret_encrypted FROM %i WHERE id > %d ORDER BY id ASC LIMIT %d',
+					'SELECT id,installation_uuid,installation_secret_hash,installation_secret_encrypted FROM %i WHERE id > %d ORDER BY id ASC LIMIT %d',
 					$tables['activations'],
 					$last_id,
 					$limit
@@ -175,8 +179,8 @@ final class RotateInstallationSecretsCommand {
 					continue;
 				}
 
-				$secret = SecretCrypto::decrypt( $old_envelope );
-				$new_envelope = false === $secret || ! hash_equals( (string) $row['installation_secret_hash'], hash( 'sha256', $secret ) ) ? false : SecretCrypto::encrypt( $secret );
+				$secret = SecretCrypto::decrypt( $old_envelope, SecretCrypto::PURPOSE_INSTALLATION, (string) $row['installation_uuid'] );
+				$new_envelope = false === $secret || ! hash_equals( (string) $row['installation_secret_hash'], hash( 'sha256', $secret ) ) ? false : SecretCrypto::encrypt( $secret, SecretCrypto::PURPOSE_INSTALLATION, (string) $row['installation_uuid'] );
 				if ( false === $new_envelope ) {
 					$failed_ids[] = $last_id;
 					continue;
@@ -208,7 +212,7 @@ final class RotateInstallationSecretsCommand {
 					$last_id,
 					'Installation secret encrypted with the configured current key',
 					array( 'envelope_version' => 'legacy_or_previous' ),
-					array( 'envelope_version' => 'v1_current' )
+					array( 'envelope_version' => SecretCrypto::FORMAT . '_current' )
 				);
 			}
 		}
@@ -230,11 +234,14 @@ final class RotateInstallationSecretsCommand {
 				0,
 				\WPLC\License\AuditReason::INSTALLATION_SECRET_ROTATED,
 				array( 'option' => ResponseSigner::NEXT_OPTION, 'envelope_version' => 'legacy_or_previous' ),
-				array( 'option' => ResponseSigner::NEXT_OPTION, 'envelope_version' => 'v1_current' )
+				array( 'option' => ResponseSigner::NEXT_OPTION, 'envelope_version' => SecretCrypto::FORMAT . '_current' )
 			);
 		}
 
-		$remaining = $not_inspected + $failed + $stale_rows + ( $apply ? 0 : $rotated ) + ( in_array( $signing_key, array( 'pending', 'failed' ), true ) ? 1 : 0 ) + ( in_array( $next_signing_key, array( 'rotate', 'undecryptable' ), true ) ? 1 : 0 );
+		// Webhook secrets use the same key ring (UEB-12); a dry run only counts them.
+		$webhooks = \WPLC\Security\SecretMigration::migrate_webhooks( $apply );
+
+		$remaining = ( $apply ? 0 : $webhooks ) + $not_inspected + $failed + $stale_rows + ( $apply ? 0 : $rotated ) + ( in_array( $signing_key, array( 'pending', 'failed' ), true ) ? 1 : 0 ) + ( in_array( $next_signing_key, array( 'rotate', 'undecryptable' ), true ) ? 1 : 0 );
 
 		return array(
 			'apply' => $apply,
@@ -248,12 +255,13 @@ final class RotateInstallationSecretsCommand {
 			'not_inspected' => $not_inspected,
 			'signing_key' => $signing_key,
 			'next_signing_key' => $next_signing_key,
+			'webhooks' => $webhooks,
 			'remaining' => $remaining,
 		);
 	}
 
 	/**
-	 * Number of activation rows whose secret is not encrypted with the current key.
+	 * Number of activation rows whose secret is not encrypted with the current key in the current format (UEB-12: v1 rows count too).
 	 *
 	 * One COUNT over the activations table without decrypting anything; meant
 	 * for the diagnostics page ("rows with an old key").
@@ -264,7 +272,7 @@ final class RotateInstallationSecretsCommand {
 		global $wpdb;
 
 		$tables = Schema::table_names();
-		$current = 'v1:' . SecretCrypto::active_key_id() . ':';
+		$current = SecretCrypto::current_prefix();
 
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(

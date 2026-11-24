@@ -60,20 +60,18 @@ final class Endpoints {
 		if ( count( self::all() ) >= self::MAX_ENDPOINTS ) {
 			return self::result( false, 'too_many' );
 		}
-		$secret    = Payload::generate_secret();
-		$encrypted = SecretCrypto::encrypt( $secret );
-		if ( false === $encrypted ) {
-			return self::result( false, 'encryption_failed' );
-		}
-		$now = gmdate( 'Y-m-d H:i:s' );
-		$ok  = $wpdb->insert(
+		$secret = Payload::generate_secret();
+		$now    = gmdate( 'Y-m-d H:i:s' );
+		// The secret is bound to the row ID (UEB-12), which exists only after the insert: the row starts switched
+		// off and without a secret, so no delivery can pick it up before it is complete.
+		$ok = $wpdb->insert(
 			self::table(),
 			array(
 				'name'             => self::clean_name( $name ),
 				'url'              => trim( $url ),
-				'secret_encrypted' => $encrypted,
+				'secret_encrypted' => '',
 				'events'           => implode( ',', $checked['events'] ),
-				'active'           => $active ? 1 : 0,
+				'active'           => 0,
 				'created_by'       => max( 0, $user_id ),
 				'created_at'       => $now,
 				'updated_at'       => $now,
@@ -83,7 +81,13 @@ final class Endpoints {
 		if ( false === $ok ) {
 			return self::result( false, 'database' );
 		}
-		$id = (int) $wpdb->insert_id;
+		$id        = (int) $wpdb->insert_id;
+		$encrypted = SecretCrypto::encrypt( $secret, SecretCrypto::PURPOSE_WEBHOOK, self::secret_context( $id ) );
+		if ( false === $encrypted || false === $wpdb->update( self::table(), array( 'secret_encrypted' => $encrypted, 'active' => $active ? 1 : 0 ), array( 'id' => $id ), array( '%s', '%d' ), array( '%d' ) ) ) {
+			$wpdb->delete( self::table(), array( 'id' => $id ), array( '%d' ) );
+
+			return self::result( false, false === $encrypted ? 'encryption_failed' : 'database' );
+		}
 		self::refresh_index();
 		AuditLog::record( 'webhook_endpoint_created', 'webhook', $id, 'Webhook endpoint added.', null, self::summary( (int) $id ), $user_id );
 
@@ -172,7 +176,7 @@ final class Endpoints {
 			return self::result( false, 'not_found' );
 		}
 		$secret    = Payload::generate_secret();
-		$encrypted = SecretCrypto::encrypt( $secret );
+		$encrypted = SecretCrypto::encrypt( $secret, SecretCrypto::PURPOSE_WEBHOOK, self::secret_context( $id ) );
 		if ( false === $encrypted ) {
 			return self::result( false, 'encryption_failed', $id );
 		}
@@ -275,9 +279,29 @@ final class Endpoints {
 		if ( ! is_string( $stored ) || '' === $stored ) {
 			return '';
 		}
-		$plain = SecretCrypto::decrypt( $stored );
+		$plain = SecretCrypto::decrypt( $stored, SecretCrypto::PURPOSE_WEBHOOK, self::secret_context( $id ) );
+		if ( ! is_string( $plain ) ) {
+			return '';
+		}
+		if ( SecretCrypto::needs_rotation( $stored ) ) {
+			// Lazy re-encryption (UEB-12): legacy format or previous key. Only the value that was read is replaced.
+			$fresh = SecretCrypto::encrypt( $plain, SecretCrypto::PURPOSE_WEBHOOK, self::secret_context( $id ) );
+			if ( false !== $fresh ) {
+				$wpdb->query( $wpdb->prepare( 'UPDATE %i SET secret_encrypted = %s WHERE id = %d AND secret_encrypted = %s', self::table(), $fresh, $id, $stored ) );
+			}
+		}
 
-		return is_string( $plain ) ? $plain : '';
+		return $plain;
+	}
+
+	/**
+	 * Context of an endpoint's encrypted secret: binds the stored value to its row (UEB-12).
+	 *
+	 * @param int $id Endpoint ID.
+	 * @return string
+	 */
+	public static function secret_context( int $id ): string {
+		return 'webhook_endpoints:' . $id;
 	}
 
 	/**

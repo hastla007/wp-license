@@ -492,7 +492,7 @@ final class Admin {
 	 * @return void
 	 */
 	private static function keep_secret( string $secret, int $endpoint_id ): void {
-		$encrypted = SecretCrypto::encrypt( $secret );
+		$encrypted = SecretCrypto::encrypt( $secret, SecretCrypto::PURPOSE_WEBHOOK_DISPLAY, self::secret_key() . ':' . $endpoint_id );
 		if ( false !== $encrypted ) {
 			set_transient(
 				self::secret_key(),
@@ -527,7 +527,7 @@ final class Admin {
 		$kept = get_transient( self::secret_key() );
 		if ( is_array( $kept ) && isset( $kept['secret'] ) ) {
 			delete_transient( self::secret_key() );
-			$secret = SecretCrypto::decrypt( (string) $kept['secret'] );
+			$secret = SecretCrypto::decrypt( (string) $kept['secret'], SecretCrypto::PURPOSE_WEBHOOK_DISPLAY, self::secret_key() . ':' . (int) ( $kept['endpoint_id'] ?? 0 ) );
 			if ( is_string( $secret ) && '' !== $secret ) {
 				echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Secret of the endpoint – shown only now:', 'wp-license' ) . '</strong></p>';
 				echo '<p><label for="wplc-webhook-secret" class="screen-reader-text">' . esc_html__( 'Secret', 'wp-license' ) . '</label><input type="text" id="wplc-webhook-secret" class="large-text code" readonly value="' . esc_attr( $secret ) . '" onfocus="this.select()"></p>';

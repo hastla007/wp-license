@@ -544,7 +544,7 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 		$endpoint = $this->endpoint();
 		$tables   = Schema::table_names();
 		$stored   = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT secret_encrypted FROM %i WHERE id = %d', $tables['webhook_endpoints'], $endpoint['id'] ) );
-		$this->assertStringStartsWith( 'v1:integration-2026:', $stored );
+		$this->assertStringStartsWith( 'v2:integration-2026:', $stored );
 		$this->assertStringNotContainsString( $endpoint['secret'], $stored );
 		$this->assertSame( $endpoint['secret'], Endpoints::secret( $endpoint['id'] ) );
 
