@@ -1,6 +1,6 @@
 # Extension points
 
-Actions and filters of the license server plugin (A-134). The tables are generated from `src/` with `php bin/list-hooks.php` (summary: the docblock above the call); `tests/Contract/ExtensionPointsDocTest.php` fails when a hook in the code is missing here, and when an action has no "Since" version or no "After commit" entry (the two columns are maintained by hand). The bundled client library has its own hooks with the add-on's prefix, see [CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md).
+Actions and filters of the license server plugin (A-134). The tables are generated from `src/` and `templates/` with `php bin/list-hooks.php` (whole files, so a call whose hook name stands on the next line is found too) (summary: the docblock above the call); `tests/Contract/ExtensionPointsDocTest.php` fails when a hook in the code is missing here, and when an action has no "Since" version or no "After commit" entry (the two columns are maintained by hand). The bundled client library has its own hooks with the add-on's prefix, see [CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md).
 
 ## Conventions
 
@@ -61,6 +61,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | --- | --- | --- | --- | --- |
 | `wplc/activation_created` | `src/Events/LicenseEvents.php` | 0.2.0 | yes | Fires after a new site activation was stored (suite event `license.activation.created`). |
 | `wplc/activation_removed` | `src/Events/LicenseEvents.php` | 0.2.0 | yes | Fires after a site activation ended (suite event `license.activation.removed`). |
+| `wplc/activation_site_mismatch` | `src/Api/V1/EntitlementService.php` | 0.1.0 | – | Fires when an installation reports another site address than the one it was activated for (arguments: activation row without secrets and nonce, reported address). The check request is not refused. |
 | `wplc/activation_transferred` | `src/License/ActivationTransfer.php` | 0.2.0 | – | Fires after a customer moved a site activation to another of their licenses (A-22). |
 | `wplc/api_request_rejected` | `src/Api/V1/ApiLog.php` | 0.1.0 | – | Fires for every error answer of the license API. |
 | `wplc/auto_renewal_disabled` | `src/Maintenance/RenewalSwitch.php` | 0.1.0 | – | Fires after automatic renewal was switched off because its basis is gone. |
@@ -107,6 +108,13 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc/stripe_early_fraud_warning` | `src/Gateway/StripeEventHandler.php` | 0.1.0 | – | Fires when Stripe reports an early fraud warning for a license payment. |
 | `wplc/stripe_webhook_received` | `src/Api/V1/StripeWebhook.php` | 0.1.0 | – |  |
 | `wplc/webhook_endpoint_disabled` | `src/Webhooks/Dispatcher.php` | 0.2.0 | – | Fires after a webhook endpoint was switched off because its deliveries failed repeatedly (arguments: endpoint ID, failed deliveries in a row). |
+| `wplc_account_license_actions` | `templates/myaccount/wplc-license.php` | 0.1.0 | – | Template action: prints the action forms of one license in the customer account (renew, download, cancel, undo cancellation; arguments: license row, display values). |
+| `wplc_account_license_renewal` | `templates/myaccount/wplc-license.php` | 0.1.0 | – | Template action below the renewal information of one license: payment method of the automatic renewal and the form to switch it on (arguments: license row, display values). |
+| `wplc_account_license_sharing` | `templates/myaccount/wplc-license.php` | 0.2.0 | – | Template action: prints the co-users and the transfer of one license (B-139; arguments: license row, display values). |
+| `wplc_after_account_license` | `templates/myaccount/wplc-license.php` | 0.1.0 | – | Template action after one license in the customer account (arguments: license row, display values). |
+| `wplc_after_account_licenses` | `templates/myaccount/wplc-licenses.php` | 0.1.0 | – | Template action after the license list in the customer account (argument: display values per license). |
+| `wplc_before_account_license` | `templates/myaccount/wplc-license.php` | 0.1.0 | – | Template action before one license in the customer account (arguments: license row, display values). |
+| `wplc_before_account_licenses` | `templates/myaccount/wplc-licenses.php` | 0.1.0 | – | Template action before the license list in the customer account (argument: display values per license). |
 | `wplc_daily_lifecycle` | `src/Maintenance/DailyRunner.php` | 0.1.0 | – |  |
 | `wplc_release_package_missing` | `src/Update/ReleaseRegistry.php` | 0.1.0 | – | Fires when a published release cannot be offered because its file is missing on this server (A-111). |
 | `wplc_settings_page_tools` | `src/Admin/Settings.php` | 0.2.0 | – | Fires below the settings form: tools that work on the settings (country profiles, export, import, reset). |
@@ -200,9 +208,11 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_renewal_display_amount` | `src/Notifications/RenewalTerms.php` | Filter the displayed amount of the next renewal. |
 | `wplc_renewal_grace_days` | `src/License/LicenseLifecycle.php` | Filters the renewal grace period in days (A-135). |
 | `wplc_renewal_notice_lead_days` | `src/Notifications/Notifications.php` | Filter the lead time of the automatic renewal notice. Zero disables the |
+| `wplc_renewal_order_copied_meta_keys` | `src/Billing/RenewalOrder.php` | Filters the order meta keys copied from the first order to a renewal order (argument: list of keys; default the VAT exemption and VAT ID fields of common plugins). |
 | `wplc_renewal_price_in_order_currency` | `src/License/LicenseIssuer.php` | Filters the renewal price of a license bought in a currency other than the shop currency (B-189). |
 | `wplc_renewal_requires_advance_notice` | `src/Notifications/Notifications.php` | Filter whether an automatic charge needs the logged advance notice. |
 | `wplc_renewal_retry_days` | `src/Billing/RenewalProcessor.php` | Filters the retry schedule of failed renewal charges (A-135). |
+| `wplc_renewal_unavailable_customer_hint` | `src/Gateway/StripeRecurringAdapter.php` | Filters the hint the customer gets when a purchase with consent cannot renew automatically (arguments: text, order; an empty string sends no hint). |
 | `wplc_require_package_resolver` | `src/Api/V1/UpdateService.php` | Filters whether packages may only be delivered through a resolver. |
 | `wplc_resolve_update_package_url` | `src/Update/ReleaseRegistry.php` |  |
 | `wplc_restore_license_after_won_dispute` | `src/License/LicenseLifecycle.php` | Filters whether a won dispute reactivates the licenses it suspended (SET-LIC-17). Wins over the setting. |
