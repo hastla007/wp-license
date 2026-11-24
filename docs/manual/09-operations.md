@@ -62,6 +62,8 @@ A typo in the current key ID stops license issuance (the WooCommerce log says `L
 
 **Removed encryption key:** put the entry back (keep the new one current), run `wp wplc rotate-installation-secrets --apply`, check `Response signing key: current`, then retire it again.
 
+**Envelope format (UEB-12):** stored secrets (installation secrets, signing keys, webhook secrets) are bound to what they are and to the row or option they belong to, so a value copied elsewhere does not decrypt. Values written by versions before this change still work; an hourly background job rewrites them in the new format on every site until none is left, and the rotation command does the same. Nothing needs to be done by hand.
+
 ### A leaked license-key secret
 
 A rotation alone does not invalidate keys derived from a leaked secret. Re-key the affected licenses:

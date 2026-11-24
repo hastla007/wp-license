@@ -53,6 +53,8 @@ A cache, link scanner or security proxy that fetches a download link first uses 
 
 **The first download** comes from the customer account: a license with access can download the latest or one of up to nine older published versions there (setting **Versions to choose from in the account**, default 10). An expired license keeps the versions published while it was paid (setting **Downloads after the paid period**, filter `wplc_expired_license_download`). Downloads are limited to 10 per license and hour (setting **Downloads per license and hour**) and audited as `package_downloaded`. All five download settings are under **License settings → Updates** (chapter 13) and are manufacturer rules.
 
+**Checksum on every delivery.** An uploaded package is hashed again before it is sent, from the customer account and on the update stream, and compared with the SHA-256 registered when the release was published. A file that changed since is not sent: the customer sees "This download failed its integrity check…", the update stream answers `503 package_integrity_failed`, and the server records `package_checksum_mismatch` in the audit log and raises the health alert of the same name (chapter 11).
+
 ## Package storage
 
 | | Uploaded ZIP (`local`) | Package URL (`url`) |

@@ -8,6 +8,7 @@
 namespace WPLC\Update;
 
 use WPLC\Infrastructure\Database\Schema;
+use WPLC\License\AuditLog;
 use WPLC\License\LicenseLifecycle;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -40,6 +41,16 @@ final class PackageStream {
 	const SOURCE_UPDATE = 'update';
 	const SOURCE_CUSTOMER = 'customer';
 	const REST_NAMESPACE = 'wplc/v1';
+
+	/** Health figure raised when a stored package no longer matches its registered checksum (UEB-12). */
+	const CHECKSUM_ALERT = 'package_checksum_mismatch';
+
+	/**
+	 * Results of checksum_matches() in this request: "path|sha256" => bool.
+	 *
+	 * @var array<string,bool>
+	 */
+	private static $verified = array();
 
 	/**
 	 * Register route, resolver and cleanup.
@@ -328,6 +339,9 @@ final class PackageStream {
 		if ( null === $path || false === $size ) {
 			return $not_found;
 		}
+		if ( ! self::checksum_matches( $release, $path, self::SOURCE_CUSTOMER === $grant['source'] ? self::SOURCE_CUSTOMER : self::SOURCE_UPDATE ) ) {
+			return self::integrity_error();
+		}
 
 		if ( ! $is_head && null === $grant['consumed_at'] ) {
 			// Atomic first use: only one concurrent request can flip consumed_at.
@@ -361,7 +375,8 @@ final class PackageStream {
 	 * Send a published local release to the current request.
 	 *
 	 * Callers check access and record the download first. Returns only when the release is not a published local
-	 * package or its file is missing; otherwise it has sent the file and the caller must exit.
+	 * package, its file is missing or it no longer matches its registered checksum (checksum_matches()); otherwise
+	 * it has sent the file and the caller must exit.
 	 *
 	 * @param array<string,mixed> $release Release row.
 	 * @return bool False when nothing was sent.
@@ -374,12 +389,93 @@ final class PackageStream {
 		}
 		$path = LocalPackageStorage::path_for_key( (string) ( $release['package_url'] ?? '' ) );
 		$size = null === $path ? false : filesize( $path );
-		if ( null === $path || false === $size ) {
+		if ( null === $path || false === $size || ! self::checksum_matches( $release, $path, self::SOURCE_CUSTOMER ) ) {
 			return false;
 		}
 		self::send_file( $path, (int) $size, self::download_name( $release ), LocalPackageStorage::content_md5( (string) $release['package_url'] ), null, false, $release );
 
 		return true;
+	}
+
+	/**
+	 * Whether a stored package still matches the SHA-256 registered with its release (UEB-12).
+	 *
+	 * Checked before every delivery, on the update stream and on the download from the customer account, because
+	 * the file on disk can change after publishing (disk fault, restored backup, somebody with file access). A
+	 * mismatch is reported once per request: audit log entry `package_checksum_mismatch`, an error in the plugin
+	 * log and the health alert `package_checksum_mismatch` (action `wplc/health_alert`). The result is kept for the rest of the request, so a caller that checks
+	 * before recording the download does not hash the file twice.
+	 *
+	 * @param array<string,mixed> $release Release row (sha256, id, product_key, version).
+	 * @param string              $path    Absolute path of the package.
+	 * @param string              $source  SOURCE_UPDATE or SOURCE_CUSTOMER, for the report.
+	 * @return bool
+	 */
+	public static function checksum_matches( array $release, string $path, string $source ): bool {
+		$expected = strtolower( (string) ( $release['sha256'] ?? '' ) );
+		$memo     = $path . '|' . $expected;
+		if ( isset( self::$verified[ $memo ] ) ) {
+			return self::$verified[ $memo ];
+		}
+		$actual = preg_match( '/^[a-f0-9]{64}$/D', $expected ) && is_readable( $path ) ? hash_file( 'sha256', $path ) : false;
+		$ok     = is_string( $actual ) && hash_equals( $expected, $actual );
+		self::$verified[ $memo ] = $ok;
+		if ( ! $ok ) {
+			self::report_checksum_mismatch( $release, $source );
+		}
+
+		return $ok;
+	}
+
+	/**
+	 * Forget the checksum results of this request (tests).
+	 *
+	 * @return void
+	 */
+	public static function reset_verified(): void {
+		self::$verified = array();
+	}
+
+	/**
+	 * Error of a package that failed its checksum check.
+	 *
+	 * @return \WP_Error
+	 */
+	public static function integrity_error(): \WP_Error {
+		return new \WP_Error(
+			'package_integrity_failed',
+			__( 'The package failed its integrity check and was not sent. The shop has been notified; please try again later.', 'wp-license' ),
+			array( 'status' => 503 )
+		);
+	}
+
+	/**
+	 * Record, log and alert a package that does not match its checksum.
+	 *
+	 * @param array<string,mixed> $release Release row.
+	 * @param string              $source  SOURCE_UPDATE or SOURCE_CUSTOMER.
+	 * @return void
+	 */
+	private static function report_checksum_mismatch( array $release, string $source ): void {
+		$release_id = (int) ( $release['id'] ?? 0 );
+		$summary    = array(
+			'product_key' => (string) ( $release['product_key'] ?? '' ),
+			'version'     => (string) ( $release['version'] ?? '' ),
+			'source'      => $source,
+		);
+		try {
+			AuditLog::record( 'package_checksum_mismatch', 'release', $release_id, 'The stored package does not match its registered checksum; the download was refused.', null, $summary );
+			\WPLC\Infrastructure\Log::write( 'error', 'Package download refused: the stored file does not match the registered SHA-256.', array( 'release_id' => $release_id ) + $summary );
+			/** This action is documented in src/Admin/Diagnostics.php */
+			do_action( 'wplc/health_alert', self::CHECKSUM_ALERT, 1, 1, admin_url( 'admin.php?page=wplc-releases' ) );
+		} catch ( \Throwable $error ) {
+			// A receiver that fails must not turn the refusal into a fatal error.
+			global $wp_current_filter;
+			if ( is_array( $wp_current_filter ) && 'wplc/health_alert' === end( $wp_current_filter ) ) {
+				array_pop( $wp_current_filter );
+			}
+			unset( $error );
+		}
 	}
 
 	/**
