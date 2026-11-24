@@ -134,7 +134,7 @@ final class LicenseCommand {
 		$details = self::details( (string) $license_id );
 		\WP_CLI::success(
 			sprintf(
-				/* translators: 1: license ID, 2: start of the license key (reference, not the key). */
+				/* translators: 1: license ID, 2: license reference (not the key). */
 				__( 'License %1$d issued (reference %2$s).', 'wp-license' ),
 				$license_id,
 				null === $details ? '' : (string) $details['license']['key_prefix']

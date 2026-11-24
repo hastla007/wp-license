@@ -292,7 +292,7 @@ final class LicenseAdmin {
 		echo '<input type="search" id="wplc-license-search-input" name="s" value="' . esc_attr( $value ) . '" autocomplete="off">';
 		submit_button( $label, '', '', false, array( 'id' => 'search-submit' ) );
 		echo '</p>';
-		echo '<p class="description">' . esc_html__( 'Search by key prefix, product, plan, customer ID, order number, customer email, #license ID, site address or installation ID, or paste a complete license key.', 'wp-license' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Search by license reference, product, plan, customer ID, order number, customer email, #license ID, site address or installation ID, or paste a complete license key.', 'wp-license' ) . '</p>';
 		echo '</form>';
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only: the result is stored per user.

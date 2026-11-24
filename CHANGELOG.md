@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Changed (24 Nov 2026: shorter license keys, T-106)
+
+- New license keys have 34 instead of 106 characters: the key prefix and 25 Crockford Base32 characters in five groups (`WPLC-ABCDE-FGHJK-MNPQR-STVWX-YZ012`), 125 bits of an HMAC-SHA-256 of the license UUID with the license-key secret. Like before the key is derived and never stored; only its hash is. Owner decision of 24 Nov 2026 ("shorter, about 40 characters").
+- Keys are accepted in lower case, with spaces, without or with misplaced hyphens, and with `O` for `0` and `I`/`L` for `1` (after the prefix).
+- Keys issued before keep their 106 characters and stay valid everywhere: REST activation, customer account, public cancellation page, admin search, `wp wplc license show`, key emails and the audit-log redaction accept both formats. Nothing in the database is rewritten; the stored hash tells which format a license has (`LicenseKey::stored_format()`). Re-issuing a key (support action, key rotation) gives a short key.
+- The license reference (13 characters) is unchanged; it is no longer the start of a new key. A fragment of a short key pasted into the admin search is kept only as a hash, never as text.
+- The client library accepts any key string and needs no new version (still 2.4.2).
+- Format, reasoning and normalization: `docs/API-V1.md`, "License key format".
+
 ### Changed (24 Nov 2026: owner decisions UEB-07 and UEB-08)
 
 - CI: the PHP 8.6 cells (`unit (8.6)` and the integration cell on PHP 8.6) are regular cells; a failure on PHP 8.6 fails the run and `wordpress-integration`. The minimum stays PHP 8.5 (UEB-07).

@@ -298,16 +298,19 @@ abstract class WPLC_Integration_TestCase extends WP_UnitTestCase {
 	/**
 	 * Insert a license with a real, verifiable key and its entitlement snapshot.
 	 *
-	 * @param array<string,mixed> $overrides    License column overrides.
+	 * @param array<string,mixed> $overrides    License column overrides; `key_format` (no column) picks
+	 *                                          LicenseKey::FORMAT_LONG for a key issued before T-106.
 	 * @param array<string,mixed> $entitlements Entitlement key => value.
 	 * @return array{id:int,key:string,uuid:string}
 	 */
 	protected function seed_license( array $overrides = array(), array $entitlements = array( 'sites.live_limit' => 1, 'feature.export' => true ) ): array {
 		global $wpdb;
+		$format     = (string) ( $overrides['key_format'] ?? LicenseKey::FORMAT_SHORT );
+		unset( $overrides['key_format'] );
 		$tables     = $this->tables();
 		$uuid       = wp_generate_uuid4();
 		$key_id     = LicenseKey::current_key_id();
-		$key        = LicenseKey::for_uuid( $uuid, $key_id );
+		$key        = LicenseKey::for_uuid( $uuid, $key_id, $format );
 		$now        = gmdate( 'Y-m-d H:i:s' );
 		$paid_until = gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS );
 		$row        = array_merge(

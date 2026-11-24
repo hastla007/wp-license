@@ -227,6 +227,7 @@ Beta versions (since 2.4.0): with `allow_channel_choice => true` the customer ti
 ## Screen, notices, daily check, hooks
 
 - **License screen:** status, paid until, sites in use, environment and installation ID, last check and last error, key field, "Check now", "Remove license from this site". The key and the installation secret are never printed.
+- **License keys:** since 24 Nov 2026 new keys have 34 characters, older ones 106; both work with every 2.x library, which never checks the shape of a key. An add-on's own key form must not limit the length or pattern of the key; set `key_placeholder` to the short form (for example `ACME-…`).
 - **Site Health:** a section "{name} – License" under Tools → Site Health → Info and a test "License check" under Status.
 - **Notices** for grace, expired, suspended, revoked, deactivated, copied site, stale snapshot, misconfiguration and a server unreachable for more than three days.
 - **Daily check:** cron event `{prefix}_license_check`; if WP-Cron does not run, the next admin page view of a user who may manage the license catches up after 36 hours. Since client 2.4.1 it schedules the check as a WP-Cron event and starts WP-Cron in the background instead of waiting for the server (once per request for all add-ons); only the add-on's own license screen still checks at once (since 2.4.2 also when the add-on registers that screen itself with `settings_parent => false` and the slug `{prefix-with-dashes}-license`).
@@ -256,7 +257,7 @@ Before you ship an add-on, run the contract test of the package against your own
 
 ```sh
 php bin/client-contract-test.php --server=https://licenses.example.com --product=acme-reports-pro \
-    --key=WPLC-XXXX-XXXX-XXXX-XXXX --public-key=BASE64-PUBLIC-KEY
+    --key=WPLC-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX --public-key=BASE64-PUBLIC-KEY
 ```
 
 It runs the unchanged library without WordPress over real HTTPS: activate (as a development site `https://contract-test.local` by default, so no live site slot is used; the license must allow a development site), check the entitlements, check for an update (metadata only), verify the signatures (a changed payload and another key must be refused), and deactivate again, also after a failed step. Each step prints `PASS` or `FAIL`; exit code 0 when all passed, 1 otherwise, 2 for wrong arguments. Options: `--site`, `--environment`, `--version`, `--rest-base`, `--timeout`, `--allow-insecure` (http, local servers only); repeat `--public-key` during a key rotation. It needs the PHP sodium extension and never prints the key.

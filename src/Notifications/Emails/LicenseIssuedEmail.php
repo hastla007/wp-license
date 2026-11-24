@@ -65,7 +65,7 @@ final class LicenseIssuedEmail extends LicenseEmail {
 			'title' => __( 'License key', 'wp-license' ),
 			'type' => 'checkbox',
 			'label' => __( 'Include the full license key in this email', 'wp-license' ),
-			'description' => __( 'Off by default: email is not a secure channel. Without this option the email shows the key prefix and links to the customer account, where the key is displayed.', 'wp-license' ),
+			'description' => __( 'Off by default: email is not a secure channel. Without this option the email shows the license reference and links to the customer account, where the key is displayed.', 'wp-license' ),
 			'default' => 'no',
 		);
 	}

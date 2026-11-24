@@ -955,8 +955,7 @@ final class Notifications {
 
 			if ( 'issued' === $email_key ) {
 				$key_id                 = (string) ( $license['license_key_secret_id'] ?? 'legacy' );
-				$verified               = LicenseKey::matches_hash( (string) $license['license_uuid'], $key_id, (string) $license['license_key_hash'] );
-				$context['license_key'] = $verified ? LicenseKey::for_uuid( (string) $license['license_uuid'], $key_id ) : '';
+				$context['license_key'] = LicenseKey::verified_for_license( (string) $license['license_uuid'], $key_id, (string) $license['license_key_hash'] );
 				$context['order_id']    = (int) ( $license['source_order_id'] ?? 0 );
 			}
 

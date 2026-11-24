@@ -113,10 +113,19 @@ final class LicenseSearch {
 			$compact = is_string( $compact ) ? $compact : $search['value'];
 			if ( 0 === stripos( $compact, LicenseKey::key_prefix() . '-' ) && strlen( $compact ) > self::KEY_PREFIX_LENGTH ) {
 				$prefix = strtoupper( substr( $compact, 0, self::KEY_PREFIX_LENGTH ) );
+				if ( 1 === preg_match( '/^' . LicenseKey::key_prefix() . '-[0-9A-F]{8}$/D', $prefix ) && '-' === $compact[ self::KEY_PREFIX_LENGTH ] ) {
+					return array(
+						'type'  => self::TYPE_TEXT,
+						'value' => $prefix,
+						'label' => $prefix,
+					);
+				}
+				// T-106: a fragment of a short key has no public part (the reference is not its
+				// beginning). Keep only its hash: it is never stored or shown and matches nothing.
 				return array(
-					'type'  => self::TYPE_TEXT,
-					'value' => $prefix,
-					'label' => $prefix,
+					'type'  => self::TYPE_LICENSE_KEY_HASH,
+					'value' => LicenseKey::hash( $compact ),
+					'label' => '',
 				);
 			}
 		}
@@ -169,12 +178,13 @@ final class LicenseSearch {
 	}
 
 	/**
-	 * Whether a string has the shape of a complete license key (<prefix>-<uuid>-<64 hex>, E-04).
+	 * Whether a string has the shape of a complete license key, in either format (T-106):
+	 * `<prefix>-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX` or the legacy `<prefix>-<uuid>-<64 hex>` (E-04).
 	 *
-	 * @param string $value Candidate without whitespace.
+	 * @param string $value Candidate, as returned by compact_key().
 	 * @return bool
 	 */
 	public static function is_full_license_key( string $value ): bool {
-		return 1 === preg_match( '/^' . \WPLC\License\LicenseKey::prefix_alternatives() . '-[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}-[0-9A-F]{64}$/i', $value );
+		return LicenseKey::is_well_formed( LicenseKey::normalize( $value ) );
 	}
 }

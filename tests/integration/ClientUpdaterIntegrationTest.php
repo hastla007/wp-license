@@ -362,6 +362,55 @@ final class ClientUpdaterIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		$this->assertSame( '', $transient->no_update[ self::PLUGIN ]->package );
 	}
 
+	/**
+	 * T-106: both key formats, as typed by a customer.
+	 *
+	 * @return array<string,array{0:string,1:int,2:callable(string):string}>
+	 */
+	public function data_t106_key_formats(): array {
+		return array(
+			'short key, lower case with spaces' => array( \WPLC\License\LicenseKey::FORMAT_SHORT, 34, static fn ( string $k ): string => strtolower( str_replace( '-', ' ', $k ) ) ),
+			'short key without hyphens'         => array( \WPLC\License\LicenseKey::FORMAT_SHORT, 34, static fn ( string $k ): string => str_replace( '-', '', $k ) ),
+			'legacy 106-character key'          => array( \WPLC\License\LicenseKey::FORMAT_LONG, 106, static fn ( string $k ): string => $k ),
+		);
+	}
+
+	/**
+	 * T-106: the unchanged client library activates, checks and updates with a new short key and
+	 * with a legacy 106-character key.
+	 *
+	 * @dataProvider data_t106_key_formats
+	 *
+	 * @param string                  $format Key format of the license.
+	 * @param int                     $length Expected key length.
+	 * @param callable(string):string $typed  How the customer types the key.
+	 */
+	public function test_t106_client_activates_checks_and_updates_with_either_key_format( string $format, int $length, callable $typed ): void {
+		$this->install_plugin( '1.0.0' );
+		$license = $this->seed_license( array( 'product_key' => self::PRODUCT, 'key_format' => $format ) );
+		$this->assertSame( $length, strlen( $license['key'] ) );
+		$manager = $this->manager();
+		$manager->register();
+
+		$status = $manager->activate( $typed( $license['key'] ) );
+		$this->assertInstanceOf( LicenseStatus::class, $status, is_wp_error( $status ) ? $status->get_error_code() : '' );
+		$this->assertSame( LicenseStatus::STATE_ACTIVE, $status->state );
+		$this->assertSame( LicenseStatus::STATE_ACTIVE, $manager->refresh()->state );
+
+		$this->publish( '1.1.0' );
+		$update = $manager->client()->check_update();
+		$this->assertIsArray( $update );
+		$this->assertTrue( $update['update_available'] );
+		$this->assertTrue( $update['license_active'] );
+
+		delete_site_transient( 'update_plugins' );
+		wp_update_plugins();
+		$this->http_log = array();
+		$outcome        = $this->upgrade();
+		$this->assertTrue( $outcome['result'], is_wp_error( $outcome['result'] ) ? $outcome['result']->get_error_code() : wp_json_encode( $outcome ) );
+		$this->assertSame( '1.1.0', $this->installed_version() );
+	}
+
 	public function test_a41_package_replaced_on_the_server_is_not_installed(): void {
 		$addon   = $this->addon();
 		$updater = $addon['manager']->updater();

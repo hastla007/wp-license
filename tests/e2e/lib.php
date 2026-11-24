@@ -303,7 +303,7 @@ function e2e_order_licenses( int $order_id ): array {
  * @return string
  */
 function e2e_key( array $license ): string {
-	return \WPLC\License\LicenseKey::for_uuid( (string) $license['license_uuid'], (string) $license['license_key_secret_id'] );
+	return \WPLC\License\LicenseKey::verified_for_license( (string) $license['license_uuid'], (string) $license['license_key_secret_id'], (string) $license['license_key_hash'] );
 }
 
 /**

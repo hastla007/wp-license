@@ -503,7 +503,8 @@
           "license_key": {
             "type": "string",
             "minLength": 1,
-            "description": "Case-insensitive. Everything outside A-Z, 0-9 and \"-\" is ignored and typographic dashes count as \"-\", so a key pasted with line breaks or spaces is accepted."
+            "description": "Case-insensitive. Everything outside A-Z, 0-9 and \"-\" is ignored and typographic dashes count as \"-\", so a key pasted with line breaks or spaces is accepted. Two formats are valid: since 24 Nov 2026 34 characters (PREFIX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX, Crockford Base32; hyphens optional, O counts as 0, I and L as 1), before that 106 characters (PREFIX-UUID-64 hex). No pattern is enforced: an unknown key is answered 401.",
+            "example": "WPLC-ABCDE-FGHJK-MNPQR-STVWX-YZ012"
           },
           "product_key": {
             "type": "string",

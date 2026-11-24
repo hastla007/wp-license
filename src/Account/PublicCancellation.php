@@ -373,9 +373,11 @@ final class PublicCancellation {
 			$conditions[] = 'key_prefix = %s';
 			$values[]     = $prefix . '-' . $match[1];
 		}
-		if ( preg_match( '/^' . $prefix . '-[0-9A-F-]{36}-[0-9A-F]{64}$/', $reference ) ) {
+		// The full key in either format (T-106): 34 characters or, issued before 24.11.2026, 106.
+		$key = LicenseKey::normalize( $reference );
+		if ( 0 === strpos( $key, $prefix . '-' ) && LicenseKey::is_well_formed( $key ) ) {
 			$conditions[] = 'license_key_hash = %s';
-			$values[]     = LicenseKey::hash( $reference );
+			$values[]     = LicenseKey::hash( $key );
 		}
 		if ( preg_match( '/^[0-9]{1,18}$/', $reference ) ) {
 			/**
