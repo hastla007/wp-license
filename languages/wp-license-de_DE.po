@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP License Captain 0.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24T07:03:56+00:00\n"
+"POT-Creation-Date: 2026-11-24T07:47:05+00:00\n"
 "PO-Revision-Date: 2026-11-24 07:04+0000\n"
 "Last-Translator: \n"
 "Language-Team: German\n"
@@ -9716,7 +9716,7 @@ msgstr "Für diese Lizenz gibt es keine Beta-Versionen."
 msgid "The setting could not be stored in the database of this site. Check the database and try again."
 msgstr "Die Einstellung konnte nicht in der Datenbank dieser Website gespeichert werden. Prüfe die Datenbank und versuche es erneut."
 
-#. translators: %s: e-mail address and/or web address of the vendor's support.
+#. translators: %s: email address and/or web address of the vendor's support.
 #: src/Client/Messages.php:269
 #, php-format
 msgid "Support: %s"
@@ -9726,7 +9726,7 @@ msgstr "Support: %s"
 msgid "Type of this site"
 msgstr "Art dieser Website"
 
-#. translators: %s: detected type of the site, e.g. "Live site".
+#. translators: %s: detected type of the site, for example "Live site".
 #: src/Client/Messages.php:315
 #, php-format
 msgid "Detected automatically: %s"

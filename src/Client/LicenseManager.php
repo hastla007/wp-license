@@ -28,7 +28,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.4.1';
+		const VERSION = '2.4.2';
 
 		/**
 		 * A signed answer ended the activation: rights and credentials are dropped.
@@ -896,12 +896,14 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Whether the current admin request shows the license screen of this add-on (since 2.4.1).
 		 *
+		 * The screen is recognised by its page slug alone (since 2.4.2, CP-P6-09b of captain-pro): an
+		 * add-on with `settings_parent => false` may register the screen itself under the same slug
+		 * (`{prefix}-license`) and calls render_settings() there. Before, such a screen only scheduled
+		 * the check. catch_up() runs in the admin (admin_init) and checks the capability first.
+		 *
 		 * @return bool
 		 */
 		private function on_license_screen(): bool {
-			if ( false === $this->config['settings_parent'] || '' === $this->config['settings_parent'] ) {
-				return false;
-			}
 			// Only compares the page parameter of the screen being shown; nothing is changed.
 			$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 

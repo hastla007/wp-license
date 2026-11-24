@@ -4,6 +4,11 @@ Changes of the library in `src/Client` (namespace `WPLC\Client`), by library ver
 
 Every version works with every server that answers API v1 (see "Compatibility" in `README.md`). A line marked **Action** needs a change in the add-on.
 
+## 2.4.2
+
+- Fixed: the license screen of the add-on is recognised also with `settings_parent => false` (CP-P6-09b, reported by captain-pro). Since 2.4.1 `catch_up()` checks at once only on the add-on's own license screen; it recognised that screen only when the library adds it to a menu itself (`settings_parent` set). An add-on that registers the screen itself under the same slug `{prefix-with-dashes}-license` (captain-pro's kernel, `settings_parent => false`) only scheduled the check there, so the screen showed the old status. Now the screen is recognised by the sanitized `page` parameter alone, whatever `settings_parent` is. `catch_up()` still runs on `admin_init` and checks the capability first.
+- Translator comments in `Messages.php` write "email" and "for example". No changed texts, no **Action** needed. Works with every server that answers API v1, as before.
+
 ## 2.4.1
 
 - Fixed: Enter in the key field of the license screen activates (CP-P5-08, reported by captain-pro). On an activated site the key field was in one form with "Save" (beta box), "Check now" and "Remove license from this site", and a browser sends the first submit button of a form on Enter, so Enter saved the channel or checked instead of activating the new key. The key field, "Activate" and "Type of this site" are now a form of their own (same `admin-post.php` action and nonce; `handle_settings_form()` and `run_form_action()` unchanged). The other buttons work by keyboard as before. The screens before the activation and of a copy of the site already had "Activate" as their first button.

@@ -73,6 +73,11 @@ Six reviewers read the state of `deb16fc` (settings and data, flows, law, securi
 - Privacy policy text, erasure message and public cancellation page write "email" instead of "e-mail".
 - German: "grace period" is translated as "Kulanzfrist" everywhere (was partly "Kulanzzeit").
 
+### Fixed (24 Nov 2026: client library 2.4.2)
+
+- **The add-on's own license screen checks at once also when the add-on registers it itself.** Since 2.4.1 the catch-up of an overdue check only schedules a WP-Cron event, except on the add-on's license screen. That screen was recognised only with `settings_parent` set; captain-pro registers it itself with the same slug and `settings_parent => false`, so it showed the old status (CP-P6-09b). It is now recognised by its page slug. Details: `packaging/client/CHANGELOG-CLIENT.md`.
+- Translator comments of the library write "email" and "for example"; the wording test now covers `src/Client`. Starter re-vendored, `packaging/client/checksums.json` has 2.4.2. No new texts.
+
 ### Fixed (24 Nov 2026: client library 2.4.1)
 
 Two faults reported by captain-pro, which embeds the library in six add-ons (CP-P5-08, CP-P6-09). Details: `packaging/client/CHANGELOG-CLIENT.md`.

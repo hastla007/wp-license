@@ -30,7 +30,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.4.1';
+		const VERSION = '2.4.2';
 
 		/**
 		 * Text domain literal used in this file.
@@ -265,7 +265,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				/* translators: %s: name of the add-on. */
 				'notice.update_uri_missing'           => __( '%s: the plugin header "Update URI" is missing, so updates cannot be delivered. Please report this to the vendor.', 'wp-license' ),
 				'notice.open_settings'                => __( 'Open license settings', 'wp-license' ),
-				/* translators: %s: e-mail address and/or web address of the vendor's support. */
+				/* translators: %s: email address and/or web address of the vendor's support. */
 				'notice.support'                      => __( 'Support: %s', 'wp-license' ),
 				// Settings screen.
 				'ui.title'                            => __( 'License', 'wp-license' ),
@@ -311,7 +311,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'ui.utc'                              => __( 'UTC', 'wp-license' ),
 				// Since 2.4.0: environment of the activation, update channel, support contact.
 				'ui.site_type'                        => __( 'Type of this site', 'wp-license' ),
-				/* translators: %s: detected type of the site, e.g. "Live site". */
+				/* translators: %s: detected type of the site, for example "Live site". */
 				'ui.site_type.detected'               => __( 'Detected automatically: %s', 'wp-license' ),
 				'ui.site_type_help'                   => __( 'Change this only if the detection is wrong. The license server decides by its own rules: a staging site counts as a live site unless its address belongs to its live site (the same domain, a local address or a staging domain of a host), and a development site needs a local address.', 'wp-license' ),
 				'ui.staging_parent'                   => __( 'Installation ID of the live site (staging site only)', 'wp-license' ),

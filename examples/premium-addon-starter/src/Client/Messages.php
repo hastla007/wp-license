@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendored by bin/vendor-client.php from WP License Captain src/Client/Messages.php
- * (source sha256 0ca58fee57418906da2df7ddaa67a334ff11bea8bef806302d694e124523f2e2). Do not edit: change the server copy and re-vendor.
+ * (source sha256 247807f607a579e24a6357631b74cfebaa60ef88e1086e10f3b301f7f142c546). Do not edit: change the server copy and re-vendor.
  *
  * Texts of the license client, by code.
  *
@@ -33,7 +33,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.4.1';
+		const VERSION = '2.4.2';
 
 		/**
 		 * Text domain literal used in this file.
@@ -268,7 +268,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				/* translators: %s: name of the add-on. */
 				'notice.update_uri_missing'           => __( '%s: the plugin header "Update URI" is missing, so updates cannot be delivered. Please report this to the vendor.', 'premium-addon-starter' ),
 				'notice.open_settings'                => __( 'Open license settings', 'premium-addon-starter' ),
-				/* translators: %s: e-mail address and/or web address of the vendor's support. */
+				/* translators: %s: email address and/or web address of the vendor's support. */
 				'notice.support'                      => __( 'Support: %s', 'premium-addon-starter' ),
 				// Settings screen.
 				'ui.title'                            => __( 'License', 'premium-addon-starter' ),
@@ -314,7 +314,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\Messages', false ) ) {
 				'ui.utc'                              => __( 'UTC', 'premium-addon-starter' ),
 				// Since 2.4.0: environment of the activation, update channel, support contact.
 				'ui.site_type'                        => __( 'Type of this site', 'premium-addon-starter' ),
-				/* translators: %s: detected type of the site, e.g. "Live site". */
+				/* translators: %s: detected type of the site, for example "Live site". */
 				'ui.site_type.detected'               => __( 'Detected automatically: %s', 'premium-addon-starter' ),
 				'ui.site_type_help'                   => __( 'Change this only if the detection is wrong. The license server decides by its own rules: a staging site counts as a live site unless its address belongs to its live site (the same domain, a local address or a staging domain of a host), and a development site needs a local address.', 'premium-addon-starter' ),
 				'ui.staging_parent'                   => __( 'Installation ID of the live site (staging site only)', 'premium-addon-starter' ),

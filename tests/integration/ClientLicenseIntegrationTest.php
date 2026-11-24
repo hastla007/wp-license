@@ -718,6 +718,22 @@ final class ClientLicenseIntegrationTest extends WPLC_Client_Bridge_TestCase {
 		unset( $_GET['page'] );
 		$this->assertSame( array( 'POST /wplc/v1/entitlements/check 200' ), $this->http_routes() );
 
+		// CP-P6-09b (2.4.2): also when the add-on registers the screen itself (settings_parent false, same slug).
+		$own                    = $this->manager(
+			array(
+				'settings_parent' => false,
+				'settings_url'    => admin_url( 'admin.php?page=test-product-license' ),
+			)
+		);
+		$this->http_log         = array();
+		$state                  = get_option( 'test_product_license_state' );
+		$state['last_attempt'] -= 2 * DAY_IN_SECONDS;
+		update_option( 'test_product_license_state', $state, false );
+		$_GET['page'] = 'test-product-license';
+		$own->catch_up();
+		unset( $_GET['page'] );
+		$this->assertSame( array( 'POST /wplc/v1/entitlements/check 200' ), $this->http_routes() );
+
 		// Privacy guide entry.
 		$this->assertStringContainsString( 'license.test', $manager->privacy_text() );
 

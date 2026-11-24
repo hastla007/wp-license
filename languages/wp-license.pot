@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-24T07:03:56+00:00\n"
+"POT-Creation-Date: 2026-11-24T07:47:05+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -7577,7 +7577,7 @@ msgstr ""
 msgid "%s: the plugin header \"Update URI\" is missing, so updates cannot be delivered. Please report this to the vendor."
 msgstr ""
 
-#. translators: %s: e-mail address and/or web address of the vendor's support.
+#. translators: %s: email address and/or web address of the vendor's support.
 #: src/Client/Messages.php:269
 #, php-format
 msgid "Support: %s"
@@ -7719,7 +7719,7 @@ msgstr ""
 msgid "Type of this site"
 msgstr ""
 
-#. translators: %s: detected type of the site, e.g. "Live site".
+#. translators: %s: detected type of the site, for example "Live site".
 #: src/Client/Messages.php:315
 #, php-format
 msgid "Detected automatically: %s"
