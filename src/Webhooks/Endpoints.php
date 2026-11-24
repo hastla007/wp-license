@@ -24,10 +24,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 final class Endpoints {
 
-	/** Autoloaded option: event names with at least one active endpoint, so an action without one costs no query. */
+	/**
+	 * Autoloaded option: event names with at least one active endpoint, so an action without one
+	 * costs no query. Kept as an empty array when no endpoint is left (a missing option would cost
+	 * a query on every request).
+	 */
 	public const INDEX_OPTION = 'wplc_webhook_events';
 
-	/** Option: IDs of endpoints that were switched off after failures and still need the administrator's attention. */
+	/** Autoloaded option: IDs of endpoints that were switched off after failures and still need the administrator's attention (empty array: none). */
 	public const DISABLED_OPTION = 'wplc_webhook_auto_disabled';
 
 	/** Reason stored when an endpoint was switched off after failed deliveries. */
@@ -321,7 +325,7 @@ final class Endpoints {
 		$disabled   = get_option( self::DISABLED_OPTION, array() );
 		$disabled   = is_array( $disabled ) ? array_map( 'intval', $disabled ) : array();
 		$disabled[] = $id;
-		update_option( self::DISABLED_OPTION, array_values( array_unique( $disabled ) ), false );
+		update_option( self::DISABLED_OPTION, array_values( array_unique( $disabled ) ), true );
 		self::refresh_index();
 		AuditLog::record( 'webhook_endpoint_disabled', 'webhook', $id, sprintf( 'Webhook endpoint switched off after %d failed deliveries in a row.', $threshold ), null, self::summary( $id ), 0 );
 
@@ -334,7 +338,12 @@ final class Endpoints {
 	 * @return array<int,int>
 	 */
 	public static function auto_disabled_ids(): array {
-		$ids = get_option( self::DISABLED_OPTION, array() );
+		$ids = get_option( self::DISABLED_OPTION, null );
+		if ( null === $ids ) {
+			// Store the empty list once, autoloaded, so later admin screens need no query for it.
+			add_option( self::DISABLED_OPTION, array(), '', true );
+			return array();
+		}
 
 		return is_array( $ids ) ? array_values( array_map( 'intval', $ids ) ) : array();
 	}
@@ -350,12 +359,7 @@ final class Endpoints {
 		if ( ! in_array( $id, $ids, true ) ) {
 			return;
 		}
-		$ids = array_values( array_diff( $ids, array( $id ) ) );
-		if ( $ids ) {
-			update_option( self::DISABLED_OPTION, $ids, false );
-		} else {
-			delete_option( self::DISABLED_OPTION );
-		}
+		update_option( self::DISABLED_OPTION, array_values( array_diff( $ids, array( $id ) ) ), true );
 	}
 
 	/**
@@ -371,11 +375,7 @@ final class Endpoints {
 			}
 		}
 		$events = array_values( array_intersect( EventCatalog::names(), $events ) );
-		if ( $events ) {
-			update_option( self::INDEX_OPTION, $events, true );
-		} else {
-			delete_option( self::INDEX_OPTION );
-		}
+		update_option( self::INDEX_OPTION, $events, true );
 	}
 
 	/**

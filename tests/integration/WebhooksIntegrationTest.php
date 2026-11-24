@@ -36,12 +36,16 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 	/** @var array<string,string> Host => address the mocked DNS returns. */
 	private $dns = array();
 
+	/** @var string Address the mocked cURL reports as connected to ("primary_ip"), '' for none. */
+	private $primary_ip = '';
+
 	public function set_up(): void {
 		parent::set_up();
 		AfterCommit::reset();
 		$this->requests = array();
-		$this->status   = 200;
-		$this->dns      = array( 'hooks.example.com' => '93.184.215.14' );
+		$this->status     = 200;
+		$this->primary_ip = '';
+		$this->dns        = array( 'hooks.example.com' => '93.184.215.14' );
 		UrlGuard::set_resolver(
 			function ( string $host ): array {
 				return isset( $this->dns[ $host ] ) ? array( $this->dns[ $host ] ) : array();
@@ -56,6 +60,12 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 				);
 				if ( 0 === $this->status ) {
 					return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
+				}
+				if ( '' !== $this->primary_ip ) {
+					// What the cURL transport of Requests reports after the request (WP_HTTP_Requests_Hooks).
+					$headers = '';
+					$info    = array( 'primary_ip' => $this->primary_ip );
+					do_action_ref_array( 'requests-curl.after_request', array( &$headers, &$info ) );
 				}
 				return array(
 					'headers'  => array(),
@@ -144,6 +154,19 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 	 */
 	private function deliveries( int $endpoint_id ): array {
 		return Deliveries::for_endpoint( $endpoint_id, 100 );
+	}
+
+	/**
+	 * Whether an option is autoloaded (any notation of WordPress versions).
+	 *
+	 * @param string $name Option name.
+	 * @return bool
+	 */
+	private function autoloaded( string $name ): bool {
+		global $wpdb;
+		$value = (string) $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+
+		return in_array( $value, array( 'yes', 'on', 'auto-on', 'auto' ), true );
 	}
 
 	public function test_schema_has_both_tables(): void {
@@ -240,6 +263,10 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 		global $wpdb;
 		$seeded = $this->seed_license();
 		$this->assertFalse( get_option( Endpoints::INDEX_OPTION ) );
+		// A missing index (fresh install) is built once, autoloaded, as an empty array.
+		LicenseLifecycle::admin_set_status( $seeded['id'], 'suspended', 'Builds the index', $this->admin );
+		$this->assertSame( array(), get_option( Endpoints::INDEX_OPTION ) );
+		$this->assertTrue( $this->autoloaded( Endpoints::INDEX_OPTION ) );
 		$tables  = Schema::table_names();
 		$queries = array();
 		$watch   = static function ( $query ) use ( &$queries, $tables ) {
@@ -249,7 +276,7 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 			return $query;
 		};
 		add_filter( 'query', $watch );
-		LicenseLifecycle::admin_set_status( $seeded['id'], 'suspended', 'No webhook', $this->admin );
+		LicenseLifecycle::admin_set_status( $seeded['id'], 'active', 'No webhook', $this->admin );
 		remove_filter( 'query', $watch );
 		$this->assertSame( array(), $queries );
 		unset( $wpdb );
@@ -266,7 +293,8 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 		$row = Deliveries::get( $id );
 		$this->assertSame( Deliveries::RETRYING, $row['status'] );
 		$this->assertSame( 503, $row['response_code'] );
-		$this->assertSame( 'HTTP 503', $row['error'] );
+		$this->assertSame( 'http_status:503', $row['error'], 'A code is stored and translated when shown.' );
+		$this->assertSame( 'The receiver answered with HTTP 503.', Admin::delivery_error( $row['error'] ) );
 		$next = $this->scheduled_times( $id );
 		$this->assertCount( 1, $next );
 		$this->assertEqualsWithDelta( time() + 60, $next[0], 5, 'The second attempt follows after one minute.' );
@@ -283,7 +311,8 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 		$row = Deliveries::get( $id );
 		$this->assertSame( Deliveries::FAILED, $row['status'], 'No attempt left after the fifth.' );
 		$this->assertSame( 5, $row['attempts'] );
-		$this->assertStringContainsString( 'timed out', $row['error'] );
+		$this->assertStringStartsWith( 'transport_error:', $row['error'] );
+		$this->assertStringContainsString( 'timed out', Admin::delivery_error( $row['error'] ) );
 		$this->assertCount( 5, $this->requests );
 		$this->assertSame( array( '1', '2', '3', '4', '5' ), array_map( static fn( $r ) => $r['args']['headers']['X-WPLC-Attempt'], $this->requests ) );
 		$this->assertCount( 1, array_unique( array_map( static fn( $r ) => $r['args']['headers']['X-WPLC-Event-Id'], $this->requests ) ), 'The event ID stays the same for every attempt.' );
@@ -329,12 +358,15 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( Endpoints::REASON_FAILURES, $stored['disabled_reason'] );
 		$this->assertSame( array( array( $endpoint['id'], 5 ) ), $fired );
 		$this->assertSame( array( $endpoint['id'] ), Endpoints::auto_disabled_ids() );
-		$this->assertFalse( get_option( Endpoints::INDEX_OPTION ), 'No active endpoint left: actions cost no query.' );
+		$this->assertSame( array(), get_option( Endpoints::INDEX_OPTION ), 'No active endpoint left: actions cost no query (autoloaded empty list).' );
+		$this->assertTrue( $this->autoloaded( Endpoints::INDEX_OPTION ) );
+		$this->assertTrue( $this->autoloaded( Endpoints::DISABLED_OPTION ) );
 
 		// The sixth queued delivery is not sent.
 		$this->run_queued( $pending[5] );
 		$this->assertCount( 5, $this->requests );
 		$this->assertSame( Deliveries::CANCELLED, Deliveries::get( $pending[5] )['status'] );
+		$this->assertSame( Dispatcher::ERROR_ENDPOINT_OFF, Deliveries::get( $pending[5] )['error'] );
 
 		// Administrators see the notice; a shop manager does not.
 		ob_start();
@@ -364,8 +396,131 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( array(), $this->requests, 'No request to an internal address.' );
 		$row = Deliveries::get( $ids[0] );
 		$this->assertSame( Deliveries::RETRYING, $row['status'] );
-		$this->assertSame( 'Address refused: blocked_address', $row['error'] );
+		$this->assertSame( 'address_refused:blocked_address', $row['error'] );
+		$this->assertSame( 'Not sent; the address was refused before the request: The target URL points to a private, local or reserved network address. Only public addresses are allowed.', Admin::delivery_error( $row['error'] ) );
 		unset( $endpoint );
+	}
+
+	public function test_a_host_with_a_trailing_dot_is_refused_on_save_and_before_sending(): void {
+		global $wpdb;
+		$this->dns['hooks.example.com.'] = '93.184.215.14';
+		$this->assertSame( UrlGuard::TRAILING_DOT, Endpoints::create( 'x', 'https://hooks.example.com./in', array( 'license.issued' ), true, $this->admin )['error'] );
+
+		// An endpoint stored before the check (or written directly) is refused before the request.
+		$endpoint = $this->endpoint();
+		$wpdb->update( Schema::table_names()['webhook_endpoints'], array( 'url' => 'https://hooks.example.com./in' ), array( 'id' => $endpoint['id'] ) );
+		$ids = Dispatcher::emit( 'license.status_changed', array( 'license_id' => 1 ) );
+		$this->run_queued( $ids[0] );
+		$this->assertSame( array(), $this->requests, 'cURL would resolve "host." itself, past the pinned address.' );
+		$this->assertSame( 'address_refused:trailing_dot', Deliveries::get( $ids[0] )['error'] );
+	}
+
+	public function test_an_answer_from_another_address_than_the_checked_one_is_not_delivered(): void {
+		$endpoint         = $this->endpoint();
+		$this->primary_ip = '10.0.0.9';
+		$ids              = Dispatcher::emit( 'license.status_changed', array( 'license_id' => 1 ) );
+		$this->run_queued( $ids[0] );
+		$row = Deliveries::get( $ids[0] );
+		$this->assertSame( Deliveries::RETRYING, $row['status'], 'A 200 from an unchecked address is no success.' );
+		$this->assertSame( 'address_mismatch:10.0.0.9', $row['error'] );
+		$this->assertStringContainsString( '10.0.0.9', Admin::delivery_error( $row['error'] ) );
+		$this->assertSame( '', Endpoints::get( $endpoint['id'] )['last_success_at'] );
+
+		$this->primary_ip = '93.184.215.14';
+		$this->run_queued( $ids[0] );
+		$this->assertSame( Deliveries::DELIVERED, Deliveries::get( $ids[0] )['status'], 'The checked address passes.' );
+	}
+
+	public function test_old_free_text_errors_in_the_log_stay_readable(): void {
+		$this->assertSame( 'HTTP 500 (redirects are not followed)', Admin::delivery_error( 'HTTP 500 (redirects are not followed)' ) );
+		$this->assertSame( 'Address refused: blocked_address', Admin::delivery_error( 'Address refused: blocked_address' ) );
+		$this->assertSame( 'unknown_code:x', Admin::delivery_error( 'unknown_code:x' ) );
+		$this->assertSame( 'The receiver answered with HTTP 301; redirects are not followed.', Admin::delivery_error( 'http_status:301' ) );
+		$this->assertSame( 'Not sent; the endpoint was deleted.', Admin::delivery_error( Dispatcher::ERROR_ENDPOINT_GONE ) );
+	}
+
+	public function test_the_disabled_notice_checks_the_capability_before_reading_the_option(): void {
+		delete_option( Endpoints::DISABLED_OPTION );
+		$reads = 0;
+		$count = static function ( $pre ) use ( &$reads ) {
+			++$reads;
+			return $pre;
+		};
+		add_filter( 'pre_option_' . Endpoints::DISABLED_OPTION, $count );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'shop_manager' ) ) );
+		ob_start();
+		Admin::render_disabled_notice();
+		$this->assertSame( '', (string) ob_get_clean() );
+		$this->assertSame( 0, $reads, 'Users without the capability never read the option.' );
+
+		wp_set_current_user( $this->admin );
+		ob_start();
+		Admin::render_disabled_notice();
+		$this->assertSame( '', (string) ob_get_clean() );
+		remove_filter( 'pre_option_' . Endpoints::DISABLED_OPTION, $count );
+		$this->assertSame( array(), get_option( Endpoints::DISABLED_OPTION ), 'Stored once as an empty list ...' );
+		$this->assertTrue( $this->autoloaded( Endpoints::DISABLED_OPTION ), '... autoloaded, so later screens cost no query.' );
+	}
+
+	public function test_deleting_the_last_endpoint_keeps_an_autoloaded_empty_index(): void {
+		$endpoint = $this->endpoint();
+		$this->assertSame( array( 'license.status_changed' ), get_option( Endpoints::INDEX_OPTION ) );
+		$this->assertTrue( Endpoints::delete( $endpoint['id'], $this->admin ) );
+		$this->assertSame( array(), get_option( Endpoints::INDEX_OPTION ) );
+		$this->assertTrue( $this->autoloaded( Endpoints::INDEX_OPTION ) );
+	}
+
+	public function test_a_failed_save_keeps_the_input_and_ties_the_error_to_the_field(): void {
+		$nonce = wp_create_nonce( Admin::NONCE_ACTION );
+		$this->run_admin_post(
+			Admin::ACTION,
+			array(
+				'operation' => 'save',
+				'name'      => 'Billing system',
+				'url'       => 'http://hooks.example.com/in',
+				'events'    => array( 'license.issued', 'activation.created' ),
+				'_wpnonce'  => $nonce,
+			)
+		);
+		$this->assertSame( array(), Endpoints::all() );
+		ob_start();
+		Admin::render();
+		$html = (string) ob_get_clean();
+		$this->assertStringContainsString( 'value="Billing system"', $html );
+		$this->assertStringContainsString( 'value="http://hooks.example.com/in" aria-invalid="true" aria-describedby="wplc-webhook-url-error wplc-webhook-url-help"', $html );
+		$this->assertStringContainsString( 'id="wplc-webhook-url-error"><strong>The target URL must start with https://.</strong>', $html );
+		$this->assertStringContainsString( '<a href="#wplc-webhook-url">The target URL must start with https://.</a>', $html, 'The notice leads to the field.' );
+		$this->assertMatchesRegularExpression( '/value="license\.issued" checked/', $html );
+		$this->assertMatchesRegularExpression( '/value="activation\.created" checked/', $html );
+		$this->assertDoesNotMatchRegularExpression( '/id="wplc-webhook-active"[^>]*checked/', $html, 'Active was not ticked.' );
+		ob_start();
+		Admin::render();
+		$this->assertStringNotContainsString( 'Billing system', (string) ob_get_clean(), 'Only once.' );
+
+		// No event: the error belongs to the event group; editing keeps the input of that endpoint.
+		$endpoint = $this->endpoint();
+		$this->run_admin_post( Admin::ACTION, array( 'operation' => 'save', 'endpoint_id' => $endpoint['id'], 'name' => 'Renamed', 'url' => self::URL, '_wpnonce' => $nonce ) );
+		$_GET['edit'] = (string) $endpoint['id'];
+		ob_start();
+		Admin::render();
+		$html = (string) ob_get_clean();
+		unset( $_GET['edit'] );
+		$this->assertStringContainsString( 'value="Renamed"', $html );
+		$this->assertStringContainsString( '<fieldset aria-describedby="wplc-webhook-events-error">', $html );
+		$this->assertStringContainsString( 'id="wplc-webhook-events-error"><strong>Choose at least one event.</strong>', $html );
+		$this->assertSame( 'CRM', Endpoints::get( $endpoint['id'] )['name'] );
+	}
+
+	public function test_row_buttons_name_their_endpoint_for_screen_readers(): void {
+		$this->endpoint();
+		Endpoints::create( '', 'https://hooks.example.com/second', array( 'license.issued' ), true, $this->admin );
+		ob_start();
+		Admin::render();
+		$html = (string) ob_get_clean();
+		foreach ( array( 'Edit', 'Delivery log', 'Send test event', 'Switch off', 'Generate new secret', 'Delete', 'The old secret stops working at once' ) as $label ) {
+			$this->assertStringContainsString( $label . '<span class="screen-reader-text">: CRM</span>', $html, $label );
+			$this->assertStringContainsString( $label . '<span class="screen-reader-text">: hooks.example.com</span>', $html, $label . ' without a name: host' );
+		}
 	}
 
 	public function test_private_and_plain_http_targets_cannot_be_saved(): void {

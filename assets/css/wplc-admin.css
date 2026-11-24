@@ -140,10 +140,11 @@
 
 /*
  * Plain (non list-table) tables of the license screens scroll inside themselves instead of
- * widening the page: detail, settings, releases, renewal review, diagnostics (A-126; the last
- * three were found by tests/browser at 375 px).
+ * widening the page: detail, settings, releases, renewal review, diagnostics, webhooks (A-126;
+ * the last four were found by tests/browser at 375 px).
  */
 @media (max-width: 782px) {
+	.wplc-webhooks table.widefat,
 	.wplc-license-detail table.widefat,
 	.woocommerce_page_wplc-settings table.widefat,
 	.wplc-settings table.widefat,
@@ -182,4 +183,10 @@
 		max-width: 100%;
 		min-width: 0;
 	}
+}
+
+/* Error of one field in the webhook form, referenced by the field's aria-describedby. */
+.wplc-webhooks .wplc-field-error {
+	margin: 4px 0 0;
+	color: #b32d2e;
 }
