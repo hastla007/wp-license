@@ -244,8 +244,9 @@ final class MultisiteIntegrationTest extends WPLC_Integration_TestCase {
 			return $row;
 		};
 		delete_option( \WPLC\Security\SecretMigration::STATE_OPTION );
-		$main = $seed();
 
+		// Creating the site's tables commits the open transaction (DDL), so the main site's row is
+		// seeded afterwards; otherwise it would survive this test and leak into later ones.
 		$site_id = $this->create_site();
 		switch_to_blog( $site_id );
 		$this->assertTrue( Schema::maybe_upgrade() );
@@ -256,6 +257,7 @@ final class MultisiteIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( $sub['secret'], \WPLC\Security\SecretCrypto::decrypt( $stored, \WPLC\Security\SecretCrypto::PURPOSE_INSTALLATION, $sub['uuid'] ) );
 		$this->assertSame( 200, $this->dispatch( $this->api_request( 'POST', '/wplc/v1/entitlements/check', array(), $sub ) )->get_status() );
 		restore_current_blog();
+		$main = $seed();
 
 		// The main site is untouched and has its own state.
 		$this->assertStringStartsWith( 'v1:', $this->activation( $main['id'] )['installation_secret_encrypted'] );

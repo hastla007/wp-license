@@ -62,7 +62,7 @@ $rows = $activations( (int) $license['id'] );
 e2e_eq( 1, count( $rows ), 'server has 1 activation row' );
 if ( $rows ) {
 	e2e_eq( array( 'https://site-a.example', 'production', 'active', '1.0.0' ), array( $rows[0]['site_url'], $rows[0]['environment'], $rows[0]['status'], $rows[0]['product_version'] ), 'activation row: site URL, environment, status, product version' );
-	e2e_ok( '' !== $rows[0]['installation_secret_hash'] && 0 === strpos( $rows[0]['installation_secret_encrypted'], 'v1:e2e-2026:' ) && false === strpos( $rows[0]['installation_secret_encrypted'], (string) $credentials_a['installation_secret'] ), 'installation secret is stored hashed + encrypted with the configured key ID, not in plaintext', substr( $rows[0]['installation_secret_encrypted'], 0, 20 ) );
+	e2e_ok( '' !== $rows[0]['installation_secret_hash'] && 0 === strpos( $rows[0]['installation_secret_encrypted'], \WPLC\Security\SecretCrypto::current_prefix() ) && false !== strpos( \WPLC\Security\SecretCrypto::current_prefix(), 'e2e-2026' ) && false === strpos( $rows[0]['installation_secret_encrypted'], (string) $credentials_a['installation_secret'] ), 'installation secret is stored hashed + encrypted with the configured key ID, not in plaintext', substr( $rows[0]['installation_secret_encrypted'], 0, 20 ) );
 }
 
 // --- Raw envelope: verify both signatures by hand (independent of the client's code path). ---

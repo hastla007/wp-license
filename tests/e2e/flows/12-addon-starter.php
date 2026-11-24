@@ -274,7 +274,10 @@ $result   = $upgrader->upgrade( $basename );
 $messages = implode( ' | ', array_map( 'wp_strip_all_tags', (array) $skin->get_upgrade_messages() ) );
 $header   = get_plugin_data( $addon_dir . '/' . $slug . '.php', false, false );
 e2e_ok( true !== $result && '1.0.0' === $header['Version'], 'a package with a wrong checksum is not installed; 1.0.0 stays in place', array( $error_of( $result ), $messages ) );
-e2e_ok( false !== strpos( $messages, 'does not match its signed SHA-256' ) || ( is_wp_error( $result ) && 'package_checksum_mismatch' === $result->get_error_code() ), 'the upgrader reports the checksum mismatch', $messages );
+// Since UEB-12 (3) the server checks the stored package against its registered checksum before sending and
+// answers 503 (audit entry package_checksum_mismatch); the client's own SHA-256 check stays as a second guard.
+$server_refused = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$t['audit_log']} WHERE action = %s", 'package_checksum_mismatch' ) ); // phpcs:ignore WordPress.DB.PreparedSQL
+e2e_ok( false !== strpos( $messages, 'does not match its signed SHA-256' ) || ( is_wp_error( $result ) && 'package_checksum_mismatch' === $result->get_error_code() ) || ( false !== strpos( $messages, 'HTTP 503' ) && $server_refused > 0 ), 'the upgrader reports the checksum mismatch (refused by the server before sending, or by the client)', $messages );
 file_put_contents( (string) $stored_path, $original );
 e2e_ok( is_file( $addon_dir . '/src/Plugin.php' ), 'the installed add-on is intact after the refused update' );
 
