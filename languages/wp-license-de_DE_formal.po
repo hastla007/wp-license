@@ -3,8 +3,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP License Captain 0.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24T08:29:51+00:00\n"
-"PO-Revision-Date: 2026-11-24 08:30+0000\n"
+"POT-Creation-Date: 2026-11-24T08:35:31+00:00\n"
+"PO-Revision-Date: 2026-11-24 08:35+0000\n"
 "Last-Translator: \n"
 "Language-Team: German\n"
 "Language: de_DE_formal\n"
@@ -67,7 +67,7 @@ msgstr "Kopieren"
 msgid "Currently unavailable. Please contact support."
 msgstr "Derzeit nicht verfügbar. Bitte wenden Sie sich an den Support."
 
-#: templates/myaccount/wplc-license.php:68
+#: templates/myaccount/wplc-license.php:73
 msgid "Valid through:"
 msgstr "Gültig bis:"
 
@@ -76,35 +76,35 @@ msgstr "Gültig bis:"
 msgid "No expiry"
 msgstr "Kein Ablaufdatum"
 
-#: templates/myaccount/wplc-license.php:69
+#: templates/myaccount/wplc-license.php:74
 msgid "Live sites:"
 msgstr "Live-Websites:"
 
-#: templates/myaccount/wplc-license.php:72
+#: templates/myaccount/wplc-license.php:77
 msgid "Renewal:"
 msgstr "Verlängerung:"
 
-#: src/Account/SiteOverview.php:172 templates/myaccount/wplc-license.php:131
+#: src/Account/SiteOverview.php:172 templates/myaccount/wplc-license.php:136
 msgid "Sites"
 msgstr "Websites"
 
-#: templates/myaccount/wplc-license.php:133
+#: templates/myaccount/wplc-license.php:138
 msgid "No sites are activated."
 msgstr "Es sind keine Websites aktiviert."
 
-#: src/Account/SiteOverview.php:373 src/Admin/LicenseDetail.php:547 templates/myaccount/wplc-license.php:138 templates/myaccount/wplc-license.php:147
+#: src/Account/SiteOverview.php:373 src/Admin/LicenseDetail.php:547 templates/myaccount/wplc-license.php:143 templates/myaccount/wplc-license.php:152
 msgid "Site"
 msgstr "Website"
 
-#: src/Account/SiteOverview.php:375 src/Admin/LicenseDetail.php:547 src/Client/Messages.php:284 templates/myaccount/wplc-license.php:139 templates/myaccount/wplc-license.php:148
+#: src/Account/SiteOverview.php:375 src/Admin/LicenseDetail.php:547 src/Client/Messages.php:284 templates/myaccount/wplc-license.php:144 templates/myaccount/wplc-license.php:153
 msgid "Environment"
 msgstr "Umgebung"
 
-#: src/Admin/LicenseDetail.php:547 templates/myaccount/wplc-license.php:140 templates/myaccount/wplc-license.php:149
+#: src/Admin/LicenseDetail.php:547 templates/myaccount/wplc-license.php:145 templates/myaccount/wplc-license.php:154
 msgid "Activated"
 msgstr "Aktiviert"
 
-#: src/Account/SiteOverview.php:380 src/Admin/CatalogFileAdmin.php:80 src/Admin/LicenseDetail.php:241 src/Admin/LicenseDetail.php:602 src/Admin/ReleaseAdmin.php:130 src/Admin/RenewalReviewAdmin.php:190 src/Webhooks/Admin.php:180 src/Webhooks/Admin.php:363 templates/myaccount/wplc-license.php:141 templates/myaccount/wplc-license.php:150
+#: src/Account/SiteOverview.php:380 src/Admin/CatalogFileAdmin.php:80 src/Admin/LicenseDetail.php:241 src/Admin/LicenseDetail.php:602 src/Admin/ReleaseAdmin.php:130 src/Admin/RenewalReviewAdmin.php:190 src/Webhooks/Admin.php:180 src/Webhooks/Admin.php:363 templates/myaccount/wplc-license.php:146 templates/myaccount/wplc-license.php:155
 msgid "Actions"
 msgstr "Aktionen"
 
@@ -120,11 +120,11 @@ msgstr "Verlängert sich automatisch am Ende des bezahlten Zeitraums."
 msgid "Does not renew automatically. Renew it yourself before it ends to keep updates and premium features."
 msgstr "Verlängert sich nicht automatisch. Verlängern Sie die Lizenz rechtzeitig selbst, um Updates und Premium-Funktionen zu behalten."
 
-#: templates/myaccount/wplc-license.php:97
+#: templates/myaccount/wplc-license.php:102
 msgid "Complete renewal payment"
 msgstr "Zahlung für die Verlängerung abschließen"
 
-#: templates/myaccount/wplc-license.php:98
+#: templates/myaccount/wplc-license.php:103
 msgid "Your payment provider may ask you to authenticate the payment before the renewal can be completed."
 msgstr "Ihr Zahlungsanbieter fordert Sie möglicherweise auf, die Zahlung zu bestätigen, bevor die Verlängerung abgeschlossen werden kann."
 
@@ -5136,7 +5136,7 @@ msgstr "Sie können die Lizenz ab %s in Ihrem Konto unter „Lizenzen“ verlän
 msgid "How to get started"
 msgstr "So starten Sie"
 
-#: templates/emails/plain/wplc-install-steps.php:30 templates/emails/wplc-install-steps.php:28 templates/myaccount/wplc-license.php:126
+#: templates/emails/plain/wplc-install-steps.php:30 templates/emails/wplc-install-steps.php:28 templates/myaccount/wplc-license.php:131
 msgid "Read the documentation"
 msgstr "Dokumentation lesen"
 
@@ -5204,7 +5204,7 @@ msgstr "Tarif:"
 msgid "Copying failed. Please select the key and copy it yourself."
 msgstr "Kopieren fehlgeschlagen. Bitte markieren Sie den Schlüssel und kopieren Sie ihn selbst."
 
-#: templates/myaccount/wplc-license.php:119
+#: templates/myaccount/wplc-license.php:124
 msgid "How to install and activate"
 msgstr "So installieren und aktivieren Sie das Plugin"
 
@@ -11202,3 +11202,7 @@ msgstr "Suchen Sie nach Lizenzreferenz, Produkt, Tarif, Kunden-ID, Bestellnummer
 #: src/Notifications/Emails/LicenseIssuedEmail.php:68
 msgid "Off by default: email is not a secure channel. Without this option the email shows the license reference and links to the customer account, where the key is displayed."
 msgstr "Standardmäßig deaktiviert: E-Mail ist kein sicherer Übertragungsweg. Ohne diese Option zeigt die E-Mail die Lizenzreferenz und verlinkt auf das Kundenkonto, in dem der Schlüssel angezeigt wird."
+
+#: templates/myaccount/wplc-license.php:70
+msgid "License reference:"
+msgstr "Lizenzreferenz:"
