@@ -34,25 +34,17 @@ final class EnglishWordingTest extends TestCase {
 	}
 
 	/**
-	 * Translator comments of src/ write "for example"; src/ writes "email". The client library
-	 * (src/Client) is left out: any change there needs a new library version (CLIENT-REPOS.md).
+	 * Translator comments of src/ write "for example"; src/ writes "email". Since client library
+	 * 2.4.2 this includes src/Client (any change there needs a new library version, CLIENT-REPOS.md).
 	 */
 	public function test_src_writes_email_and_translator_comments_write_for_example(): void {
 		$root    = dirname( __DIR__, 2 );
-		$exclude = array(
-			'src/Client/',
-		);
-		$found   = array();
-		$files   = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/src', FilesystemIterator::SKIP_DOTS ) );
+		$found = array();
+		$files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/src', FilesystemIterator::SKIP_DOTS ) );
 		foreach ( $files as $file ) {
 			$relative = substr( $file->getPathname(), strlen( $root ) + 1 );
 			if ( 'php' !== $file->getExtension() ) {
 				continue;
-			}
-			foreach ( $exclude as $prefix ) {
-				if ( 0 === strpos( $relative, $prefix ) ) {
-					continue 2;
-				}
 			}
 			foreach ( (array) file( $file->getPathname() ) as $number => $line ) {
 				$line = (string) $line;

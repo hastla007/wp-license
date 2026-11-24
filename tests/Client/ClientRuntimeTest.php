@@ -477,6 +477,67 @@ final class ClientRuntimeTest extends TestCase {
 	}
 
 	/**
+	 * CP-P6-09b (2.4.2, captain-pro): the license screen is recognised by its page slug also with
+	 * `settings_parent => false`.
+	 *
+	 * captain-pro registers the screen itself under the same slug ({prefix}-license); in 2.4.1 opening
+	 * it only scheduled the check. Other admin pages still only schedule it, and the capability check
+	 * stays in front.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_cp_p6_09b_own_license_screen_checks_at_once_also_without_settings_parent(): void {
+		// phpcs:disable
+		eval(
+			'function current_user_can( $capability ) { return ! empty( $GLOBALS["wplc_test_can"] ); }
+			function wp_doing_ajax() { return false; }
+			function wp_doing_cron() { return false; }
+			function sanitize_key( $key ) { return strtolower( (string) $key ); }
+			function wp_unslash( $value ) { return $value; }
+			function spawn_cron( $gmt_time = 0 ) { $GLOBALS["wplc_test_spawned"] = ( $GLOBALS["wplc_test_spawned"] ?? 0 ) + 1; return true; }'
+		);
+		// phpcs:enable
+		$GLOBALS['wplc_test_can'] = true;
+		foreach ( array( 'options-general.php', false ) as $parent ) {
+			$kit     = self::kit();
+			$manager = $kit->manager(
+				array(
+					'settings_parent' => $parent,
+					'settings_url'    => 'admin.php?page=test-addon-license',
+				)
+			);
+			$this->assertInstanceOf( LicenseStatus::class, $manager->activate( self::KEY ) );
+			$requests = count( $kit->server->requests );
+			$label    = false === $parent ? 'settings_parent false' : 'settings_parent ' . $parent;
+
+			// Another admin page: the check is only scheduled.
+			$kit->advance( 2 * DAY_IN_SECONDS );
+			$_GET['page'] = 'some-other-page';
+			$manager->catch_up();
+			$this->assertSame( $requests, count( $kit->server->requests ), $label );
+			$this->assertSame( array( 'test_addon_license_check' ), array_column( $GLOBALS['wplc_test_single_events'], 0 ), $label );
+
+			// Without the capability nothing happens on the license screen either.
+			$kit->advance( 2 * DAY_IN_SECONDS );
+			$GLOBALS['wplc_test_can'] = false;
+			$_GET['page']             = 'Test-Addon-License';
+			$manager->catch_up();
+			$this->assertSame( $requests, count( $kit->server->requests ), $label );
+
+			// On the add-on's own license screen (sanitized page slug) the check is made at once.
+			$GLOBALS['wplc_test_can'] = true;
+			$manager->catch_up();
+			unset( $_GET['page'] );
+			$this->assertSame( $requests + 1, count( $kit->server->requests ), $label );
+			$this->assertSame( $kit->now, $manager->status()->last_checked, $label );
+			$this->assertCount( 1, $GLOBALS['wplc_test_single_events'], $label );
+			// The next run starts with a fresh site (no scheduled event, no recheck lock).
+			unset( $GLOBALS['wplc_test_single_events'], $GLOBALS['wplc_test_transients'] );
+		}
+	}
+
+	/**
 	 * AL-4 (2.1.1): the Site Health test "License check" says whether the daily check works.
 	 *
 	 * @runInSeparateProcess

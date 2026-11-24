@@ -32,7 +32,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseClient', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.4.1';
+		const VERSION = '2.4.2';
 
 		/**
 		 * Context of the Ed25519 signature over the payload text.
