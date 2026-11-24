@@ -262,6 +262,7 @@ final class WebhooksIntegrationTest extends WPLC_Integration_TestCase {
 	public function test_without_an_active_endpoint_an_action_runs_no_webhook_query(): void {
 		global $wpdb;
 		$seeded = $this->seed_license();
+		delete_option( Endpoints::INDEX_OPTION ); // Earlier tests may have built it already (fresh install state).
 		$this->assertFalse( get_option( Endpoints::INDEX_OPTION ) );
 		// A missing index (fresh install) is built once, autoloaded, as an empty array.
 		LicenseLifecycle::admin_set_status( $seeded['id'], 'suspended', 'Builds the index', $this->admin );
