@@ -28,7 +28,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		/**
 		 * Version of the client library this copy belongs to.
 		 */
-		const VERSION = '2.4.0';
+		const VERSION = '2.4.1';
 
 		/**
 		 * A signed answer ended the activation: rights and credentials are dropped.
@@ -70,6 +70,13 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * Seconds between two background checks scheduled because the clock went back.
 		 */
 		const RECHECK_LOCK = 900;
+
+		/**
+		 * Name of the $GLOBALS entry that marks WP-Cron as started in this request (since 2.4.1).
+		 *
+		 * The same name in every copy of the library, whatever its namespace: one start per request for all add-ons.
+		 */
+		const CRON_SPAWNED_GLOBAL = 'wplc_client_cron_spawned';
 
 		/**
 		 * Sites handled per get_sites() query when uninstalling on a multisite.
@@ -833,24 +840,34 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 		 * Used when the stored snapshot cannot be dated because the clock went
 		 * back: the premium features are off until a new signed answer arrives,
 		 * which this brings within minutes instead of up to a day. It is no way
-		 * around the rule: only a signed answer restores the rights.
+		 * around the rule: only a signed answer restores the rights. Since 2.4.1
+		 * also used by catch_up().
 		 *
-		 * @return void
+		 * @return bool Whether an event was scheduled (false: locked or not possible).
 		 */
-		private function schedule_recheck(): void {
+		private function schedule_recheck(): bool {
 			if ( ! function_exists( 'wp_schedule_single_event' ) || ! function_exists( 'get_transient' ) || ! $this->client()->site_matches() ) {
-				return;
+				return false;
 			}
 			$lock = $this->prefix . '_license_recheck';
 			if ( false !== get_transient( $lock ) ) {
-				return;
+				return false;
 			}
 			set_transient( $lock, 1, self::RECHECK_LOCK );
-			wp_schedule_single_event( time(), $this->cron_hook() );
+
+			return false !== wp_schedule_single_event( time(), $this->cron_hook() );
 		}
 
 		/**
 		 * Catch up in the admin when WP-Cron did not run or the last attempt failed.
+		 *
+		 * Since 2.4.1 (CP-P6-09 of captain-pro) the admin page view does not wait for the server: a
+		 * due check is scheduled as a one-off WP-Cron event of this add-on (at most once per RECHECK_LOCK
+		 * seconds) and WP-Cron is started in the background, at most once per request for all add-ons
+		 * that embed the library (CRON_SPAWNED_GLOBAL). Before, every add-on asked the server
+		 * synchronously, up to its HTTP timeout each when the server could not be reached. Only on the
+		 * license screen of this add-on itself is the check still made at once, so that the screen shows
+		 * the current status. The back-off after failed attempts applies in both cases.
 		 *
 		 * @return void
 		 */
@@ -864,9 +881,52 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			$due   = empty( $state['error'] )
 				? $now - $last > self::CATCH_UP_AFTER
 				: $now >= (int) ( $state['next_attempt'] ?? 0 );
-			if ( $due || $last > $now || (int) ( $state['fetched_at'] ?? 0 ) > $now + self::CLOCK_SKEW ) {
-				$this->refresh( false );
+			if ( ! $due && $last <= $now && (int) ( $state['fetched_at'] ?? 0 ) <= $now + self::CLOCK_SKEW ) {
+				return;
 			}
+			if ( $this->on_license_screen() ) {
+				$this->refresh( false );
+				return;
+			}
+			if ( $this->schedule_recheck() ) {
+				self::spawn_cron_once();
+			}
+		}
+
+		/**
+		 * Whether the current admin request shows the license screen of this add-on (since 2.4.1).
+		 *
+		 * @return bool
+		 */
+		private function on_license_screen(): bool {
+			if ( false === $this->config['settings_parent'] || '' === $this->config['settings_parent'] ) {
+				return false;
+			}
+			// Only compares the page parameter of the screen being shown; nothing is changed.
+			$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+			return $this->page_slug() === $page;
+		}
+
+		/**
+		 * Start WP-Cron in the background, at most once per request for every copy of the library (since 2.4.1).
+		 *
+		 * The flag lives in $GLOBALS under a fixed name because each add-on embeds its own copy in its own
+		 * namespace; a static property would count per copy. Nothing is started when WP-Cron is switched
+		 * off (DISABLE_WP_CRON: the system cron runs the event) or runs inside the request
+		 * (ALTERNATE_WP_CRON would run the check in this request), and not inside WP-Cron itself.
+		 *
+		 * @return void
+		 */
+		private static function spawn_cron_once(): void {
+			if ( ! empty( $GLOBALS[ self::CRON_SPAWNED_GLOBAL ] ) ) {
+				return;
+			}
+			$GLOBALS[ self::CRON_SPAWNED_GLOBAL ] = true; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- the name is wplc_client_cron_spawned.
+			if ( ! function_exists( 'spawn_cron' ) || wp_doing_cron() || ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) || ( defined( 'ALTERNATE_WP_CRON' ) && ALTERNATE_WP_CRON ) ) {
+				return;
+			}
+			spawn_cron();
 		}
 
 		/**
@@ -1018,10 +1078,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				return;
 			}
 
-			// admin-post.php exists only in wp-admin/, also in network mode (there is no wp-admin/network/admin-post.php).
-			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-			wp_nonce_field( $this->prefix . '_license' );
-			echo '<input type="hidden" name="action" value="' . esc_attr( $this->prefix . '_license' ) . '">';
+			$this->open_form( true );
 			$key_input = '<input type="text" class="regular-text code" name="' . esc_attr( $field ) . '" id="' . esc_attr( $field ) . '" autocomplete="off" spellcheck="false" placeholder="' . esc_attr( $this->brand()['key_placeholder'] ) . '">';
 			$label     = '<label for="' . esc_attr( $field ) . '"><strong>' . esc_html( $this->text( 'ui.license_key' ) ) . '</strong></label><br>';
 			$allowed   = array(
@@ -1077,6 +1134,10 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 				echo '</p><p><label><input type="checkbox" name="wplc_confirm_deactivate" value="1"> ' . esc_html( $this->text( 'ui.deactivate_confirm' ) ) . '</label></p><p>';
 				$this->button( 'deactivate', $this->text( 'ui.deactivate' ) );
 				echo '</p><p class="description">' . esc_html( $this->text( 'ui.key_hidden' ) ) . '</p>';
+				// Since 2.4.1 (CP-P5-08): the key field has its own form. Enter in a text field sends the first
+				// submit button of its form, which in one form with the buttons above was "Save" or "Check now".
+				echo '</form>';
+				$this->open_form( false );
 				echo '<p>' . wp_kses( $label . $key_input, $allowed ) . ' ';
 				$this->button( 'activate', $this->text( 'ui.activate' ) );
 				echo '</p>';
@@ -1090,6 +1151,27 @@ if ( ! class_exists( __NAMESPACE__ . '\\LicenseManager', false ) ) {
 			echo '</form>';
 			$this->render_support();
 			echo '</div>';
+		}
+
+		/**
+		 * Print the start of a license form: admin-post.php, nonce, action.
+		 *
+		 * Since 2.4.1 the activated site has two forms (CP-P5-08); only the first prints the nonce field
+		 * with its id `_wpnonce`, so that the page has no duplicate id.
+		 *
+		 * @param bool $first Whether this is the first form of the page.
+		 * @return void
+		 */
+		private function open_form( bool $first ): void {
+			// admin-post.php exists only in wp-admin/, also in network mode (there is no wp-admin/network/admin-post.php).
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			if ( $first ) {
+				wp_nonce_field( $this->prefix . '_license' );
+			} else {
+				echo '<input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( $this->prefix . '_license' ) ) . '">';
+				wp_referer_field();
+			}
+			echo '<input type="hidden" name="action" value="' . esc_attr( $this->prefix . '_license' ) . '">';
 		}
 
 		/**

@@ -46,7 +46,7 @@ final class ClientCollisionTest extends TestCase {
 		$copy   = $this->temp_dir();
 		foreach ( (array) glob( $source . '/*.php' ) as $file ) {
 			// The second add-on ships an older copy of the same classes.
-			file_put_contents( $copy . '/' . basename( $file ), str_replace( "const VERSION = '2.4.0';", "const VERSION = '1.9.0';", (string) file_get_contents( $file ) ) );
+			file_put_contents( $copy . '/' . basename( $file ), str_replace( "const VERSION = '2.4.1';", "const VERSION = '1.9.0';", (string) file_get_contents( $file ) ) );
 		}
 
 		list( $status, $output ) = $this->run_php(
@@ -55,7 +55,7 @@ final class ClientCollisionTest extends TestCase {
 			'echo \WPLC\Client\LicenseClient::VERSION, " ", \WPLC\Client\LicenseManager::VERSION, " ", \WPLC\Client\Updater::VERSION, " ", \WPLC\Client\OptionStore::VERSION, " ", \WPLC\Client\Messages::VERSION, " ", \WPLC\Client\LicenseStatus::VERSION;'
 		);
 		$this->assertSame( 0, $status, $output );
-		$this->assertSame( '2.4.0 2.4.0 2.4.0 2.4.0 2.4.0 2.4.0', $output );
+		$this->assertSame( '2.4.1 2.4.1 2.4.1 2.4.1 2.4.1 2.4.1', $output );
 
 		// Loaded in the other order the older copy wins: this is the documented limit of the guard.
 		list( $status, $output ) = $this->run_php(

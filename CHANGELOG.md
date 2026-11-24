@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
+### Fixed (24 Nov 2026: client library 2.4.1)
+
+Two faults reported by captain-pro, which embeds the library in six add-ons (CP-P5-08, CP-P6-09). Details: `packaging/client/CHANGELOG-CLIENT.md`.
+
+- **Enter in the key field activates.** On an activated site the key field shared one form with "Save" (beta box), "Check now" and "Remove license from this site"; Enter sent the first of them. The key field with "Activate" is now a form of its own.
+- **No waiting for the license server in the admin.** The catch-up of an overdue check asked the server during the admin page view, up to the HTTP timeout per add-on when the server could not be reached. It now schedules a one-off WP-Cron event and starts WP-Cron in the background, once per request for all add-ons; only the add-on's own license screen still checks at once.
+- Starter re-vendored, `packaging/client/checksums.json` has 2.4.1. No new texts.
+
 ### Added (23 Nov 2026: outgoing webhooks)
 
 License events can be sent to other systems (CRM, accounting, automation platforms) as signed HTTPS requests, for every customer (SET-LIC-46). Nothing changes until an endpoint is added. Full description: [docs/WEBHOOKS.md](docs/WEBHOOKS.md), manual chapter 14.
