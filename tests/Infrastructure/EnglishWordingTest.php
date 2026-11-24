@@ -41,9 +41,6 @@ final class EnglishWordingTest extends TestCase {
 		$root    = dirname( __DIR__, 2 );
 		$exclude = array(
 			'src/Client/',
-			// Cleaned up separately (P5-M11, other change set); remove once done.
-			'src/Privacy/PersonalData.php',
-			'src/Account/PublicCancellation.php',
 		);
 		$found   = array();
 		$files   = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/src', FilesystemIterator::SKIP_DOTS ) );
