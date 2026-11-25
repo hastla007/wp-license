@@ -272,8 +272,36 @@ Defects found and fixed in this run (unit and integration tests added, simulated
 What the owner has to provide for the rest of T-12:
 
 - A publishable test key and a person with a browser (T-130): 3-D Secure at purchase (`4000 0025 0000 3155`, `4000 0027 6000 3184`) and on the pay page (steps 5 and 8), Link, SEPA, Checkout Sessions/Adaptive Pricing (T-133), wallets (B-113), the block checkout.
-- Delivery by Stripe: a publicly reachable staging shop with the two webhook endpoints, or access to `stripecli-ws-nw.stripe.com` for `stripe listen`.
+- Delivery by Stripe: done on 25 Nov 2026 through `stripe listen` (section below).
 - Live keys of a second account for steps 11 and 16; a multi-currency plugin for B-189; INH-05 (charge at an announced higher price) was not run.
+
+### T-12 browser part with Stripe.js (25 Nov 2026)
+
+First attempt: the egress proxy refused `js.stripe.com`, `m.stripe.network` and `hooks.stripe.com` (`403 … no rule or network setting allows this host`); Stripe.js did not load. The owner then allowed `js.stripe.com`, `m.stripe.network`, `hooks.stripe.com`, `r.stripe.com`, `q.stripe.com`, `b.stripecdn.com` and `stripecli-ws-nw.stripe.com`, and the run was repeated.
+
+| Item | Value |
+|---|---|
+| Setup | Same e2e shop; WooCommerce 11.2.2 from the GitHub release ZIP (built block assets; the Git build has none), WooCommerce Stripe Gateway **11.2.0** from its release ZIP (built JavaScript), test mode, the owner's publishable test key in the shop database only, secret key a placeholder replaced by the proxy. Headless Chromium (Playwright) through a local TLS proxy for `https://shop.test` and the session's egress proxy. Saved cards attached to the customer's Stripe customer `cus_Vgz1WCZM0DeqNz` through the API (`pm_card_visa`, `pm_card_authenticationRequired`, `pm_card_chargeCustomerFail`). Classic checkout (`[woocommerce_checkout]`) and the Checkout block. |
+| Webhooks | Delivered by Stripe: `stripe listen --all-snapshot --forward-to` (Stripe CLI built from source, `--api-key sk_test_placeholder`), one listener per endpoint (`/wp-json/wplc/v1/webhooks/stripe`, `/?wc-api=wc_stripe`), both configured with the CLI's signing secret. The websocket to `stripecli-ws-nw.stripe.com` connected; every delivery answered 200. |
+| Result | **Pass for everything with saved cards; new cards and completing 3-D Secure blocked by the environment.** No plugin defect found. |
+
+| Scenario | Result | Evidence |
+|---|---|---|
+| 1 Classic, saved …4242 | Pass | Order 215 `processing`, `pi_3Ufb3fC8P8zS4JQx2PnaYQNc`, `ch_3Ufb3fC8P8zS4JQx2UnbUF9y`; license 104 `renewal_enabled=1`, token 9, `cus_Vgz1WCZM0DeqNz`, `pm_1Ufb3JC8P8zS4JQx2QeXmUWJ`, `gateway_mode=test`; `_wplc_recurring_consent_at`, `_wplc_withdrawal_consent_at`. |
+| 1 Classic, decline | Pass (…0341; `4000 0000 0000 0002` cannot be attached as a saved card) | Order 218 `failed`, `pi_3Ufb8GC8P8zS4JQx237Hvcm3` `requires_payment_method`, "The card was declined", no license. |
+| 1 Classic, 3-D Secure …3184 | Partial | Up to the challenge: orders 216/217 `pending`, `pi_3Ufb4EC8P8zS4JQx0OTQK12f`/`pi_3Ufb6BC8P8zS4JQx04Zi8IBo` `requires_action`, no license. Completing/failing not possible (below). |
+| 1 Classic, new card in the Payment Element | Blocked | Stripe answers "Sending credit card numbers directly to the Stripe API is generally unsafe …" (below). |
+| 2 Block checkout | Pass with saved card | Both boxes rendered as additional fields; without the withdrawal box the order is not sent ("Please check this box if you want to proceed."). Both boxes: order 220, `pi_3UfbERC8P8zS4JQx0FExxcAx`, license 105 `renewal_enabled=1` with token and `pm_…`. Without the renewal box: order 221 (`pi_3UfbEyC8P8zS4JQx2JVfbLdM`), license 106 `renewal_enabled=0`, no token. 3-D Secure (…3184): order 222 stops at the same error as the classic checkout. Side finding (gateway, not the plugin): with the Stripe gateway active the block checkout lists no payment method until the cart changes once. |
+| 3 B-59 | Partial (first half again, in the browser) | Renewal order 226 (after `…0341` declined, `pi_3UfbJXC8P8zS4JQx2c7kIHz9`) on the pay page with saved …3184: `pi_3UfbJsC8P8zS4JQx0a6qsTIs` `requires_action`; renewal job [retry time simulated]: `renewal_order_in_use`, only `GET /v1/payment_intents/pi_3UfbJsC8P8zS4JQx0a6qsTIs`, no new PaymentIntent. Completing the challenge blocked. |
+| 4 Off-session `authentication_required` | Pass for the pay-page path; completing with the 3-D Secure card blocked | Renewal 124 with …3184: `manual_action_required`, order 227 `failed` (`pi_3UfbL3C8P8zS4JQx2uBnz5LN`), mail "Action required: renewal payment …". Pay page in the browser with saved …4242: order 227 `processing` (`pi_3UfbLPC8P8zS4JQx066eEcQJ`), renewal `paid`, license 104 active until 2027 and moved to the paying card (note "future automatic renewals … use the card this order was paid with"). |
+| 5 SEPA, Link | Not available | The account does not offer `sepa_debit` in the Payment Element (card, Klarna, EPS, Bancontact only); Link is not activated on the account and needs `merchant-ui-api.stripe.com` (refused). |
+| Webhook delivery by Stripe | Pass | Renewal `evt_3UfbISC8P8zS4JQx2itmqzu3` arrived while the renewal was still locked → queued, then `already_reconciled`; declines `evt_3UfbJXC8P8zS4JQx2BzEnGvx`, `evt_3UfbL3C8P8zS4JQx25hUap1i` → `failure_observed`; dispute renewal (`pm_card_createDispute`, order 228, `pi_3UfbMTC8P8zS4JQx1sizLCQ9`) → `charge.dispute.created` `evt_1UfbMWC8P8zS4JQx4XRSbj0s` → license 104 `suspended`, audit `chargeback`. Gateway endpoint: 200 for every event. |
+
+Why new cards and 3-D Secure could not run: the proxy injects the account's secret key into **every** request to `api.stripe.com`, including the browser's Stripe.js requests that carry the publishable key (checked with curl: `GET /v1/account` with `Authorization: Bearer pk_test_…` returns the account). Stripe therefore treats Stripe.js calls as secret-key calls and refuses raw card data and the publishable-key-only parameter `mandate_data[customer_acceptance][online][infer_from_client]` (the 3-D Secure confirmation). The redirect variant (server-side confirmation with `return_url`, `next_action.redirect_to_url` on `hooks.stripe.com`) loads its test challenge from `testmode-acs.stripe.com`, which the proxy refuses. Also refused: `m.stripe.com`, `merchant-ui-api.stripe.com`, `ppm.stripe.com`, `hcaptcha.com`. No workaround was attempted.
+
+What is needed for the rest: browser traffic to `api.stripe.com` without the injected secret key (for example a credential rule that only replaces the placeholder `sk_test_placeholder`), plus `testmode-acs.stripe.com` (and ideally `m.stripe.com`, `merchant-ui-api.stripe.com`, `ppm.stripe.com`, `hcaptcha.com`); or a person with a browser (T-130). Then: 3-D Secure completed and failed at purchase and on the pay page (steps 5 and 8), saving a new card at the first purchase through the form, Link and SEPA if the account enables them; wallets need a real device (B-113).
+
+Restored afterwards: gateway, its settings and the probe mu-plugin removed, the Git build of WooCommerce back, checkout page back to the block, `wp-config.php` as before; full e2e run afterwards.
 
 ## T-160: Stripe API version of the adapter's requests (25 Nov 2026)
 
