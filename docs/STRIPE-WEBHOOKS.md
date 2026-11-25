@@ -1,6 +1,6 @@
 # Stripe webhooks
 
-Implemented, not yet verified in a shop or against a Stripe test account. The integration tests send constructed events through the real REST route; no event on this page came from Stripe. The steps to verify it are in [STRIPE-TEST-PLAN.md](STRIPE-TEST-PLAN.md).
+Implemented and run against a Stripe test account on 25 Nov 2026 (T-12): real events (`payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.dispute.created`, `charge.dispute.funds_reinstated`, `charge.dispute.closed`) were fetched from `GET /v1/events` and sent to this endpoint signed with a local `WPLC_STRIPE_WEBHOOK_SECRET_TEST`, because Stripe cannot reach the test environment. Delivery by Stripe itself is not verified yet. The integration tests send constructed events through the real REST route. The steps are in [STRIPE-TEST-PLAN.md](STRIPE-TEST-PLAN.md), the results in [LAUNCH-EVIDENCE.md](LAUNCH-EVIDENCE.md).
 
 Source: `src/Api/V1/StripeWebhook.php`, `src/Gateway/StripeEventHandler.php`, `src/Billing/RenewalProcessor.php`.
 
