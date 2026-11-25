@@ -148,6 +148,7 @@ Project products (connectors for one customer project, decision 17) use the cata
 | `wplc_download_grant_retention_days` | `src/Maintenance/Retention.php` |  |
 | `wplc_download_grant_seconds` | `src/Api/V1/UpdateService.php` | Filters how many seconds a download link of an update can be redeemed. |
 | `wplc_download_reuse_seconds` | `src/Update/PackageStream.php` | Filters how long a download token stays valid after its first use. |
+| `wplc_duplicate_payment_refunded` | `src/License/LicenseLifecycle.php` | Filters whether the second payment of a renewal period was refunded as well (P-15, T-12; arguments: `null`, reference of the second payment, order). `true` rolls the renewal back when the order is refunded; the Stripe adapter answers for `pi_…` by asking Stripe. |
 | `wplc_entitlement_catalog` | `src/Catalog/EntitlementCatalog.php` | Filters the catalog of known boolean entitlements offered in the product editor. |
 | `wplc_expired_license_download` | `src/Update/CustomerDownload.php` | Filters whether a license whose paid period ended may still download |
 | `wplc_expiry_time_budget` | `src/License/LicenseLifecycle.php` |  |

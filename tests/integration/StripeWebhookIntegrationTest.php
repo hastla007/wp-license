@@ -754,6 +754,9 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 
 	/** P-15: refunding the order of a double payment in WooCommerce keeps the renewal paid by the other payment. */
 	public function test_p15_refund_of_one_of_two_payments_does_not_roll_the_renewal_back(): void {
+		require_once __DIR__ . '/helpers/StripeApiStub.php';
+		// Stripe has no answer about the second payment (not found): it is assumed to remain.
+		WC_Stripe_API::reset();
 		$fixture  = $this->paid_fixture();
 		$metadata = $this->renewal_metadata( $fixture['renewal_id'], $fixture['license_id'], $fixture['order_id'] );
 		$this->post_webhook( $this->event( 'evt_p15_second', 'payment_intent.succeeded', array( 'id' => 'pi_second_15', 'latest_charge' => 'ch_second_15', 'metadata' => $metadata ) ) );
@@ -782,6 +785,52 @@ final class StripeWebhookIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$this->tables()['audit_log']} WHERE action = %s AND object_id = %d", 'renewal_duplicate_refunded', $fixture['renewal_id'] ) ), 'Reported once, not per refund hook.' );
 		$this->assertCount( 1, $alerts );
 		$this->assertStringContainsString( 'pi_second_15', $alerts[0] );
+	}
+
+	/**
+	 * P-15, T-12: the order note asks to refund the second payment at Stripe. When that was done
+	 * first, a later refund of the order takes back the last payment and rolls the renewal back.
+	 */
+	public function test_p15_refund_of_the_order_after_the_second_payment_was_refunded_at_stripe_rolls_back(): void {
+		require_once __DIR__ . '/helpers/StripeApiStub.php';
+		WC_Stripe_API::reset();
+		$fixture  = $this->paid_fixture();
+		$metadata = $this->renewal_metadata( $fixture['renewal_id'], $fixture['license_id'], $fixture['order_id'] );
+		$this->post_webhook( $this->event( 'evt_p15_refunded_second', 'payment_intent.succeeded', array( 'id' => 'pi_3Second15r', 'latest_charge' => 'ch_3Second15r', 'metadata' => $metadata ) ) );
+		$rows = $this->inbox();
+		RenewalProcessor::process_stripe_event( (int) end( $rows )['id'] );
+		$this->assertSame( 'pi_3Second15r', wc_get_order( $fixture['order_id'] )->get_meta( '_wplc_duplicate_payment_intent_id', true ) );
+		// Shape of Stripe's answer (test mode, 25.11.2026): the charge expanded, fully refunded.
+		WC_Stripe_API::$on_retrieve = static function ( string $api ) {
+			if ( 'payment_intents/pi_3Second15r?expand%5B%5D=latest_charge' === $api ) {
+				return (object) array(
+					'id'            => 'pi_3Second15r',
+					'status'        => 'succeeded',
+					'latest_charge' => (object) array(
+						'id'              => 'ch_3Second15r',
+						'amount'          => 4900,
+						'amount_refunded' => 4900,
+						'refunded'        => true,
+					),
+				);
+			}
+
+			return (object) array( 'error' => (object) array( 'type' => 'invalid_request_error', 'code' => 'resource_missing' ) );
+		};
+
+		$order  = wc_get_order( $fixture['order_id'] );
+		$refund = wc_create_refund( array( 'order_id' => $order->get_id(), 'amount' => (string) $order->get_total(), 'reason' => 'Both payments refunded' ) );
+		$this->assertInstanceOf( WC_Order_Refund::class, $refund );
+		LicenseLifecycle::handle_full_refund( (int) $order->get_id() );
+		WC_Stripe_API::reset();
+
+		global $wpdb;
+		$this->assertSame( 'refunded', (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$this->tables()['renewals']} WHERE id = %d", $fixture['renewal_id'] ) ) );
+		$this->assertNotSame( $fixture['period_end'], $this->license( $fixture['license_id'] )['paid_until'], 'No payment pays the period any more.' );
+		$this->assertSame( 0, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$this->tables()['audit_log']} WHERE action = %s AND object_id = %d", 'renewal_duplicate_refunded', $fixture['renewal_id'] ) ) );
+		$notes = implode( "\n", wp_list_pluck( wc_get_order_notes( array( 'order_id' => $fixture['order_id'] ) ), 'content' ) );
+		$this->assertStringContainsString( 'pi_3Second15r', $notes );
+		$this->assertStringContainsString( 'was refunded as well', $notes );
 	}
 
 	/** P-19: money Stripe received for a renewal that can no longer be booked opens a review case with an alert. */

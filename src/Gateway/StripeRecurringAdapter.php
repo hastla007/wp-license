@@ -32,7 +32,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * versions 9.6.0 and 11.2.0. Requirements::stripe_adapter_status() switches the
  * adapter off when the gateway is missing, too old or has lost one of them.
  *
- * Nothing in this class has run against a Stripe account yet; see
+ * Run against a Stripe test account with gateway 9.6.0 and 11.2.0 on 25 Nov 2026
+ * (T-12, docs/LAUNCH-EVIDENCE.md); what still needs a browser is listed in
  * docs/STRIPE-TEST-PLAN.md.
  */
 final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentReferenceAdapter {
@@ -116,6 +117,8 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 		add_action( 'woocommerce_order_status_cancelled', array( self::class, 'on_order_cancelled' ), 5, 1 );
 		// B-147: the gateway's webhook must not process the PaymentIntents of this adapter a second time.
 		add_filter( 'wc_stripe_allowed_payment_processing_statuses', array( self::class, 'filter_gateway_webhook_statuses' ), 20, 2 );
+		// P-15, T-12: a double payment whose second PaymentIntent was refunded at Stripe no longer pays the period.
+		add_filter( 'wplc_duplicate_payment_refunded', array( self::class, 'duplicate_payment_refunded' ), 10, 2 );
 		RenewalOrderEmails::register_hooks();
 	}
 
@@ -534,7 +537,7 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 				$order->add_order_note( __( 'WP License Captain: the card or the amount of this renewal changed while the result of the first payment request was unknown. Stripe holds that first request, so nothing new was charged; the payment is looked up again.', 'wp-license' ) );
 				return $unknown;
 			}
-			$result = $this->result_from_error( $response->error, $order );
+			$result = $this->result_from_error( $response->error, $order, null, $payment_method );
 		} else {
 			$result = $this->result_from_intent( $response, $order, $customer, $payment_method, $idempotency_key, false );
 			if ( null === $result ) {
@@ -688,9 +691,10 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	 * @param object      $error Stripe error (`error` of a response or `last_payment_error` of an intent).
 	 * @param \WC_Order   $order Renewal order.
 	 * @param object|null $intent PaymentIntent the error belongs to, when known.
+	 * @param string      $payment_method Payment method the request charged, empty when unknown.
 	 * @return \WP_Error
 	 */
-	private function result_from_error( $error, $order, $intent = null ): \WP_Error {
+	private function result_from_error( $error, $order, $intent = null, string $payment_method = '' ): \WP_Error {
 		$intent = is_object( $intent ) ? $intent : ( is_object( $error->payment_intent ?? null ) ? $error->payment_intent : null );
 		$intent_id = sanitize_text_field( (string) ( $intent->id ?? '' ) );
 		$this->remember_payment_intent( $order, $intent_id );
@@ -703,7 +707,22 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 			'outcome_type' => self::outcome_type( $error, $intent ),
 			'param' => sanitize_key( (string) ( $error->param ?? '' ) ),
 		);
+		if ( '' === $details['outcome_type'] && 'card_error' === $details['type'] ) {
+			// T-12: Stripe's error answer names the charge only by its ID, so the Radar outcome
+			// (`blocked` for a rule block) is read from the charge itself.
+			$details['outcome_type'] = $this->charge_outcome_type( self::error_charge_id( $error, $intent ) );
+		}
 		$class = self::classify_error( $details );
+		if ( 'configuration' === $class['kind'] && 'invalid_request_error' === $details['type'] && '' === $details['code'] && $this->payment_method_detached( $order, $payment_method ) ) {
+			// P-16, T-12: Stripe answers a card detached from the customer with an invalid_request_error
+			// that has neither `code` nor `param` (seen in test mode on 25.11.2026). The card is asked for.
+			$details['code'] = 'payment_method_detached';
+			$class = array(
+				'kind' => 'payment_method_missing',
+				'code' => 'renewal_payment_method_missing',
+				'retryable' => false,
+			);
+		}
 		if ( 'payment_method_missing' === $class['kind'] && ! $this->account_knows_customer( $order ) ) {
 			// A secret key of another Stripe account answers the same way: that is the shop's
 			// problem, and the customer must not be asked for a new card because of it.
@@ -800,6 +819,30 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	}
 
 	/**
+	 * Whether Stripe knows the charged card but no longer as a card of the order's customer (P-16, T-12).
+	 *
+	 * @param \WC_Order $order Renewal order.
+	 * @param string    $payment_method Payment method the request charged.
+	 * @return bool False when unknown, not found (another account) or still attached.
+	 */
+	private function payment_method_detached( $order, string $payment_method ): bool {
+		$customer = $order->get_customer_id() ? (string) get_user_option( '_stripe_customer_id', (int) $order->get_customer_id() ) : '';
+		if ( ! preg_match( '/^pm_[A-Za-z0-9_]+$/', $payment_method ) || 0 !== strpos( $customer, 'cus_' ) ) {
+			return false;
+		}
+		$found = $this->retrieve( 'payment_methods/' . rawurlencode( $payment_method ) );
+		if ( ! is_object( $found ) || ! empty( $found->error ) || $payment_method !== (string) ( $found->id ?? '' ) ) {
+			return false;
+		}
+		$owner = $found->customer ?? '';
+		if ( is_object( $owner ) ) {
+			$owner = $owner->id ?? '';
+		}
+
+		return $customer !== (string) $owner;
+	}
+
+	/**
 	 * Build a configuration error: the shop has to act, the customer's payment did not fail.
 	 *
 	 * @param string              $reason Reason code stored on the renewal.
@@ -841,6 +884,48 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 		}
 
 		return '';
+	}
+
+	/**
+	 * ID of the charge behind a Stripe error, when the answer names it only by its ID. Pure.
+	 *
+	 * A declined charge request answers with `error.charge` = `ch_…` and the PaymentIntent's
+	 * `latest_charge` as an ID, without the charge object (seen against Stripe test mode, T-12).
+	 *
+	 * @param object      $error Stripe error.
+	 * @param object|null $intent PaymentIntent.
+	 * @return string `ch_…`/`py_…`, empty when the answer names no charge.
+	 */
+	public static function error_charge_id( $error, $intent ): string {
+		$candidates = array( $error->charge ?? '' );
+		if ( is_object( $intent ) ) {
+			$candidates[] = $intent->latest_charge ?? '';
+		}
+		foreach ( $candidates as $candidate ) {
+			if ( is_string( $candidate ) && preg_match( '/^(ch|py)_[A-Za-z0-9_]+$/', $candidate ) ) {
+				return $candidate;
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Radar outcome of a charge, read from Stripe (T-12, B-62).
+	 *
+	 * @param string $charge_id Charge ID, empty for none.
+	 * @return string e.g. `blocked`, `issuer_declined`; empty when unknown.
+	 */
+	private function charge_outcome_type( string $charge_id ): string {
+		if ( '' === $charge_id ) {
+			return '';
+		}
+		$charge = $this->retrieve( 'charges/' . rawurlencode( $charge_id ) );
+		if ( ! is_object( $charge ) || ! empty( $charge->error ) || ! is_object( $charge->outcome ?? null ) ) {
+			return '';
+		}
+
+		return sanitize_key( (string) ( $charge->outcome->type ?? '' ) );
 	}
 
 	/**
@@ -1500,6 +1585,31 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 		 * @param int $license_id License ID.
 		 */
 		do_action( 'wplc/renewal_order_voided', (int) $order->get_id(), $renewal_id, $license_id );
+	}
+
+	/**
+	 * Whether the second PaymentIntent of a double payment was fully refunded at Stripe (P-15, T-12).
+	 *
+	 * @param mixed $refunded Current answer (null = unknown).
+	 * @param mixed $reference Reference of the second payment.
+	 * @return mixed True or false for a `pi_…` Stripe answered for, the current answer otherwise.
+	 */
+	public static function duplicate_payment_refunded( $refunded, $reference = '' ) {
+		$reference = is_string( $reference ) ? $reference : '';
+		if ( null !== $refunded || ! preg_match( '/^pi_[A-Za-z0-9_]+$/', $reference ) || ! class_exists( 'WC_Stripe_API' ) ) {
+			return $refunded;
+		}
+		$intent = ( new self() )->retrieve( 'payment_intents/' . rawurlencode( $reference ) . '?expand%5B%5D=latest_charge' );
+		if ( ! is_object( $intent ) || ! empty( $intent->error ) ) {
+			return $refunded;
+		}
+		$charge = $intent->latest_charge ?? null;
+		if ( ! is_object( $charge ) ) {
+			// Not a payment that moved money (or an answer without the charge): nothing to say.
+			return $refunded;
+		}
+
+		return ! empty( $charge->refunded ) || ( absint( $charge->amount ?? 0 ) > 0 && absint( $charge->amount_refunded ?? 0 ) >= absint( $charge->amount ?? 0 ) );
 	}
 
 	/**
