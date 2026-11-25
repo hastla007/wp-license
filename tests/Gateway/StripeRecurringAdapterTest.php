@@ -23,4 +23,22 @@ final class StripeRecurringAdapterTest extends TestCase {
 		$this->assertSame( 12, StripeRecurringAdapter::attempt_number( 'abc:12' ) );
 		$this->assertSame( -1, StripeRecurringAdapter::attempt_number( 'abc' ) );
 	}
+
+	/** T-160: the gateway's header filter is renamed in 9.7.0; the old name is deprecated there. */
+	public function test_request_headers_filter_follows_the_gateway_version(): void {
+		$this->assertSame( 'woocommerce_stripe_request_headers', StripeRecurringAdapter::request_headers_filter( '9.6.0' ) );
+		$this->assertSame( 'woocommerce_stripe_request_headers', StripeRecurringAdapter::request_headers_filter( '9.6.1-beta' ) );
+		$this->assertSame( 'wc_stripe_request_headers', StripeRecurringAdapter::request_headers_filter( '9.7.0' ) );
+		$this->assertSame( 'wc_stripe_request_headers', StripeRecurringAdapter::request_headers_filter( '11.2.0' ) );
+		$this->assertSame( 'wc_stripe_request_headers', StripeRecurringAdapter::request_headers_filter( '' ) );
+	}
+
+	/** T-160: only the version header changes. */
+	public function test_pin_api_version_sets_only_the_version(): void {
+		$this->assertSame(
+			array( 'Stripe-Version' => StripeRecurringAdapter::STRIPE_API_VERSION, 'Authorization' => 'Basic x' ),
+			StripeRecurringAdapter::pin_api_version( array( 'Stripe-Version' => '2024-06-20', 'Authorization' => 'Basic x' ) )
+		);
+		$this->assertNull( StripeRecurringAdapter::pin_api_version( null ) );
+	}
 }

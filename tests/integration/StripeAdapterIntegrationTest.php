@@ -380,7 +380,9 @@ final class StripeAdapterIntegrationTest extends WPLC_Renewal_TestCase {
 		$this->assertSame( 4900, $sent['request']['amount'] );
 		$this->assertSame( 'cus_' . $f['customer'], $sent['request']['customer'] );
 		$this->assertSame( 'true', $sent['request']['off_session'] );
-		$this->assertSame( array( 'card' ), $sent['request']['payment_method_types'] );
+		$this->assertArrayNotHasKey( 'payment_method_types', $sent['request'], 'T-160: refused by Stripe API 2026-11-18 and later.' );
+		$this->assertSame( array( 'enabled' => 'true', 'allow_redirects' => 'never' ), $sent['request']['automatic_payment_methods'] );
+		$this->assertSame( StripeRecurringAdapter::STRIPE_API_VERSION, $sent['headers']['Stripe-Version'] );
 		$meta = $sent['request']['metadata'];
 		$this->assertSame( (string) $order->get_id(), $meta['order_id'] );
 		$this->assertSame( $order->get_order_key(), $meta['order_key'] );
@@ -408,6 +410,42 @@ final class StripeAdapterIntegrationTest extends WPLC_Renewal_TestCase {
 		$this->assertSame( '', (string) $order->get_meta( '_stripe_lock_payment', true ), 'The gateway lock is released after the request.' );
 		$this->assertSame( 'ch_new_1', $this->renewal( $f['renewal_id'] )['gateway_attempt_id'] );
 		$this->assertSame( $f['period_end'], $this->license( $f['license_id'] )['paid_until'] );
+	}
+
+	/**
+	 * T-160: every request of the adapter carries its own Stripe API version, the gateway's
+	 * own requests keep the gateway's version, and the filter is gone after the call.
+	 */
+	public function test_t160_adapter_requests_pin_the_stripe_api_version(): void {
+		$f = $this->due_renewal();
+		WC_Stripe_API::$responses[] = $this->intent();
+
+		RenewalProcessor::process( $f['renewal_id'] );
+
+		$this->assertSame( 1, $this->posts() );
+		$this->assertNotEmpty( WC_Stripe_API::$retrieved, 'The charge looks the payment up first.' );
+		$this->assertCount( count( WC_Stripe_API::$retrieved ) + 1, WC_Stripe_API::$headers );
+		foreach ( WC_Stripe_API::$headers as $headers ) {
+			$this->assertSame( StripeRecurringAdapter::STRIPE_API_VERSION, $headers['Stripe-Version'] );
+		}
+		$this->assertFalse( has_filter( 'wc_stripe_request_headers' ), 'Pinned for the adapter\'s own calls only.' );
+		$this->assertSame( '2026-03-25.dahlia', WC_Stripe_API::get_headers()['Stripe-Version'], 'The gateway\'s own requests keep its version.' );
+
+	}
+
+	/** T-160: the pin is removed even when the call throws. */
+	public function test_t160_pin_is_removed_when_the_call_fails(): void {
+		try {
+			StripeRecurringAdapter::with_api_version(
+				static function () {
+					throw new RuntimeException( 'network' );
+				}
+			);
+			$this->fail( 'The exception reaches the caller.' );
+		} catch ( RuntimeException $exception ) {
+			$this->assertSame( 'network', $exception->getMessage() );
+		}
+		$this->assertFalse( has_filter( 'wc_stripe_request_headers' ) );
 	}
 
 	/** B-60: with an older API version the charge comes in the `charges` list. */

@@ -442,6 +442,10 @@ final class RenewalReviewIntegrationTest extends WPLC_Integration_TestCase {
 		};
 
 		$this->assertSame( 'review_booked', RenewalReview::book( $case['renewal_id'], 'Found in Stripe', $this->admin ) );
+		$this->assertNotEmpty( WC_Stripe_API::$headers );
+		foreach ( WC_Stripe_API::$headers as $headers ) {
+			$this->assertSame( \WPLC\Gateway\StripeRecurringAdapter::STRIPE_API_VERSION, $headers['Stripe-Version'], 'T-160: the lookup uses the adapter\'s API version.' );
+		}
 		WC_Stripe_API::reset();
 
 		$order = wc_get_order( $case['order_id'] );

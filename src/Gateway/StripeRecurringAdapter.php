@@ -31,6 +31,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * `_stripe_intent_id`, `_stripe_lock_payment`), read against the gateway source of
  * versions 9.6.0 and 11.2.0. Requirements::stripe_adapter_status() switches the
  * adapter off when the gateway is missing, too old or has lost one of them.
+ * Its requests carry its own Stripe API version (STRIPE_API_VERSION, through the
+ * gateway's header filter) and a body that newer API versions accept too (T-160).
  *
  * Run against a Stripe test account with gateway 9.6.0 and 11.2.0 on 25 Nov 2026
  * (T-12, docs/LAUNCH-EVIDENCE.md); what still needs a browser is listed in
@@ -49,6 +51,13 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 
 	/** Order meta: set once the missing renewal was explained on the order (B-61). */
 	public const META_UNAVAILABLE_NOTED = '_wplc_renewal_unavailable_noted';
+
+	/**
+	 * Stripe API version of the adapter's own requests (T-160), independent of the gateway's
+	 * and the account's. Checked against a Stripe test account on 25 Nov 2026 together with
+	 * the account default 2026-11-18.endive (docs/LAUNCH-EVIDENCE.md, T-160).
+	 */
+	public const STRIPE_API_VERSION = '2026-03-25.dahlia';
 
 	/** Seconds a renewal waits while a payment settles asynchronously (`processing`). */
 	public const PROCESSING_WAIT_SECONDS = 21600;
@@ -462,9 +471,13 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 			'currency' => $currency,
 			'customer' => $customer,
 			'payment_method' => $payment_method,
-			// Without this Stripe enables automatic payment methods and rejects a confirmed
-			// intent that has no return_url. The gateway sends the same for its own off-session charges.
-			'payment_method_types' => array( 'card' ),
+			// T-160: `payment_method_types` is refused from API version 2026-11-18 on. Without a
+			// payment method list Stripe enables automatic payment methods and rejects a confirmed
+			// intent without return_url; `allow_redirects=never` avoids that on every version.
+			'automatic_payment_methods' => array(
+				'enabled' => 'true',
+				'allow_redirects' => 'never',
+			),
 			'off_session' => 'true',
 			'confirm' => 'true',
 			'description' => self::description( $order ),
@@ -516,7 +529,11 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 		$unknown = new \WP_Error( 'renewal_result_unknown', __( 'Stripe did not return a definite result for the renewal payment.', 'wp-license' ) );
 		$response = null;
 		try {
-			$response = \WC_Stripe_API::request( $request, 'payment_intents', 'POST' );
+			$response = self::with_api_version(
+				static function () use ( $request ) {
+					return \WC_Stripe_API::request( $request, 'payment_intents', 'POST' );
+				}
+			);
 		} catch ( \Throwable $exception ) {
 			$response = null;
 		} finally {
@@ -1220,12 +1237,64 @@ final class StripeRecurringAdapter implements RecurringGatewayAdapter, PaymentRe
 	private function retrieve( string $api ) {
 		try {
 			// Part of every supported gateway version (Requirements::STRIPE_REQUIRED_SYMBOLS).
-			$response = \WC_Stripe_API::retrieve( $api );
+			$response = self::with_api_version(
+				static function () use ( $api ) {
+					return \WC_Stripe_API::retrieve( $api );
+				}
+			);
 		} catch ( \Throwable $exception ) {
 			return null;
 		}
 
 		return is_object( $response ) && ! is_wp_error( $response ) ? $response : null;
+	}
+
+	/**
+	 * Run a call of the gateway's API class with this adapter's Stripe API version (T-160).
+	 *
+	 * The gateway sends its own `Stripe-Version` (9.6.0: 2024-06-20, 11.2.0: 2026-03-25.dahlia),
+	 * so a gateway update would change the version of the adapter's requests and the shape of
+	 * the answers it reads. The header filter pins STRIPE_API_VERSION for this one call only.
+	 *
+	 * @param callable $call Call of `WC_Stripe_API`.
+	 * @return mixed What the call returned.
+	 */
+	public static function with_api_version( callable $call ) {
+		$hook = self::request_headers_filter( defined( 'WC_STRIPE_VERSION' ) ? (string) constant( 'WC_STRIPE_VERSION' ) : '' );
+		$pin = array( self::class, 'pin_api_version' );
+		add_filter( $hook, $pin, PHP_INT_MAX );
+		try {
+			return $call();
+		} finally {
+			remove_filter( $hook, $pin, PHP_INT_MAX );
+		}
+	}
+
+	/**
+	 * Header filter of the gateway version: `wc_stripe_request_headers` since 9.7.0, the
+	 * older name before (deprecated since 9.7.0, so it is not hooked on newer versions).
+	 *
+	 * @param string $gateway_version `WC_STRIPE_VERSION`, empty when unknown.
+	 * @return string
+	 */
+	public static function request_headers_filter( string $gateway_version ): string {
+		$version = (string) preg_replace( '/[^0-9.].*$/', '', $gateway_version );
+
+		return '' !== $version && version_compare( $version, '9.7.0', '<' ) ? 'woocommerce_stripe_request_headers' : 'wc_stripe_request_headers';
+	}
+
+	/**
+	 * Set this adapter's Stripe API version on the gateway's request headers.
+	 *
+	 * @param mixed $headers Headers of the gateway request.
+	 * @return mixed
+	 */
+	public static function pin_api_version( $headers ) {
+		if ( is_array( $headers ) ) {
+			$headers['Stripe-Version'] = self::STRIPE_API_VERSION;
+		}
+
+		return $headers;
 	}
 
 	/**

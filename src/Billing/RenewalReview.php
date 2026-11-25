@@ -765,7 +765,12 @@ final class RenewalReview {
 	 */
 	private static function stripe_get( string $api ) {
 		try {
-			$response = \WC_Stripe_API::retrieve( $api );
+			// T-160: the adapter's Stripe API version, not the gateway's.
+			$response = \WPLC\Gateway\StripeRecurringAdapter::with_api_version(
+				static function () use ( $api ) {
+					return \WC_Stripe_API::retrieve( $api );
+				}
+			);
 		} catch ( \Throwable $exception ) {
 			return null;
 		}
