@@ -275,6 +275,19 @@ What the owner has to provide for the rest of T-12:
 - Delivery by Stripe: a publicly reachable staging shop with the two webhook endpoints, or access to `stripecli-ws-nw.stripe.com` for `stripe listen`.
 - Live keys of a second account for steps 11 and 16; a multi-currency plugin for B-189; INH-05 (charge at an announced higher price) was not run.
 
+### T-12 browser part with Stripe.js: attempted, blocked by the network (25 Nov 2026)
+
+| Item | Value |
+|---|---|
+| Setup | Same e2e shop; WooCommerce Stripe Gateway **11.2.0** from the GitHub release ZIP (with its built JavaScript), test mode, the owner's publishable test key in the shop database only (not in the repository), secret key a placeholder replaced by the proxy, express checkout on for product, cart and checkout, saved cards on. Headless Chromium (Playwright) through a local TLS proxy for `https://shop.test` and the session's egress proxy for everything else. Checkout page as the Checkout block, then as `[woocommerce_checkout]`. |
+| Result | **Blocked.** The egress proxy refuses `js.stripe.com` (`403 Forbidden (agent proxy: no rule or network setting allows this host)`; in the browser `net::ERR_TUNNEL_CONNECTION_FAILED` for `https://js.stripe.com/dahlia/stripe.js`), and likewise `m.stripe.network` and `hooks.stripe.com` (the 3-D Secure challenge). `window.Stripe` stays undefined, the card element stays empty. No workaround was attempted. |
+| Blocked scenarios | Card purchase (4242, 3-D Secure `4000 0027 6000 3184` completed/failed, decline `4000 0000 0000 0002`) in the classic and the block checkout; completing 3-D Secure on the pay page (step 8, second half, B-59) and after an off-session `authentication_required` (step 5); Link and SEPA (steps 10, 16); Checkout Sessions (T-133); wallets (B-113). No new PaymentIntents, so no events to replay. |
+| Seen without Stripe.js | Classic checkout with the card gateway: the withdrawal box (required) and the renewal box (optional) are shown. B-113: for a guest the gateway does not enqueue its express-checkout script (`wc_stripe_express_checkout`) on the product and cart page of a license product; for a logged-in customer it does. The buttons themselves cannot render here. |
+| Defects | None found in the plugin. |
+| Restored | Gateway and its settings removed, checkout page back to the block, probe mu-plugin removed, `wp-config.php` as before; full e2e run afterwards. |
+
+What is needed for this part: an environment whose network allows `js.stripe.com`, `m.stripe.network` and `hooks.stripe.com` (plus `r.stripe.com`/`q.stripe.com` for Stripe.js telemetry, also refused here), or a person with a browser (T-130); a real device with a wallet for B-113.
+
 ## T-160: Stripe API version of the adapter's requests (25 Nov 2026)
 
 Found in the T-12 run: the account's default API version `2026-11-18.endive` refuses `payment_method_types`, which the adapter sent with every renewal charge. Renewals worked only because the gateway sends its own version on every request (9.6.0: `2024-06-20`, `WC_Stripe_API::STRIPE_API_VERSION`; 11.2.0: `2026-03-25.dahlia`). Fix: the charge sends `automatic_payment_methods[enabled]=true` with `allow_redirects=never` instead, and every adapter call (charge, lookups, the review's search) carries `Stripe-Version: 2026-03-25.dahlia` (`StripeRecurringAdapter::STRIPE_API_VERSION`) through the gateway's header filter (`wc_stripe_request_headers`, before 9.7.0 `woocommerce_stripe_request_headers`), for that call only.
