@@ -685,7 +685,10 @@ final class RenewalReview {
 			if ( $intent ) {
 				$intent_id = sanitize_text_field( (string) ( $intent->id ?? '' ) );
 				$charge_id = \WPLC\Gateway\StripeRecurringAdapter::charge_id( $intent );
-				\WPLC\Gateway\StripeRecurringAdapter::store_gateway_meta( $order, $intent_id, $charge_id );
+				// T-12: with the card of the payment too (`_stripe_source_id`), as after an automatic charge.
+				$customer       = is_string( $intent->customer ?? null ) ? sanitize_text_field( (string) $intent->customer ) : '';
+				$payment_method = is_string( $intent->payment_method ?? null ) ? sanitize_text_field( (string) $intent->payment_method ) : '';
+				\WPLC\Gateway\StripeRecurringAdapter::store_gateway_meta( $order, $intent_id, $charge_id, $customer, $payment_method );
 				$reference = '' !== $charge_id ? $charge_id : $intent_id;
 			}
 		}
@@ -762,7 +765,12 @@ final class RenewalReview {
 	 */
 	private static function stripe_get( string $api ) {
 		try {
-			$response = \WC_Stripe_API::retrieve( $api );
+			// T-160: the adapter's Stripe API version, not the gateway's.
+			$response = \WPLC\Gateway\StripeRecurringAdapter::with_api_version(
+				static function () use ( $api ) {
+					return \WC_Stripe_API::retrieve( $api );
+				}
+			);
 		} catch ( \Throwable $exception ) {
 			return null;
 		}

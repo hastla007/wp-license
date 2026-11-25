@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-24T08:35:31+00:00\n"
+"POT-Creation-Date: 2026-11-25T06:54:43+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-license\n"
@@ -5011,12 +5011,12 @@ msgid "You"
 msgstr ""
 
 #: src/Admin/Settings.php:928
-#: src/Gateway/StripeRecurringAdapter.php:775
+#: src/Gateway/StripeRecurringAdapter.php:794
 msgid "yes"
 msgstr ""
 
 #: src/Admin/Settings.php:928
-#: src/Gateway/StripeRecurringAdapter.php:775
+#: src/Gateway/StripeRecurringAdapter.php:794
 msgid "no"
 msgstr ""
 
@@ -8015,7 +8015,7 @@ msgid "WP License Captain requires WooCommerce %1$s or later; version %2$s is in
 msgstr ""
 
 #: src/Compatibility/Requirements.php:415
-#: src/Gateway/StripeRecurringAdapter.php:1261
+#: src/Gateway/StripeRecurringAdapter.php:1346
 msgid "unknown"
 msgstr ""
 
@@ -8095,134 +8095,134 @@ msgstr ""
 msgid "WP License Captain: dispute %1$s was closed with status \"%2$s\"."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:403
+#: src/Gateway/StripeRecurringAdapter.php:406
 #: src/License/AuditReason.php:364
 msgid "The renewal order could not be verified."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:407
+#: src/Gateway/StripeRecurringAdapter.php:410
 msgid "Billing is paused on this site. The renewal is not charged."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:411
+#: src/Gateway/StripeRecurringAdapter.php:414
 #: src/License/AuditReason.php:365
 msgid "A saved Stripe card is unavailable for this customer."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:423
+#: src/Gateway/StripeRecurringAdapter.php:426
 #: src/License/AuditReason.php:366
 msgid "The renewal amount is not valid for Stripe."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:437
+#: src/Gateway/StripeRecurringAdapter.php:440
 msgid "The Stripe mode changed while this renewal was being charged. Check the payment in Stripe before charging again."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:513
-#: src/Gateway/StripeRecurringAdapter.php:729
+#: src/Gateway/StripeRecurringAdapter.php:516
+#: src/Gateway/StripeRecurringAdapter.php:748
 #: src/License/AuditReason.php:362
 msgid "Stripe did not return a definite result for the renewal payment."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:534
+#: src/Gateway/StripeRecurringAdapter.php:537
 msgid "WP License Captain: the card or the amount of this renewal changed while the result of the first payment request was unknown. Stripe holds that first request, so nothing new was charged; the payment is looked up again."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:541
+#: src/Gateway/StripeRecurringAdapter.php:544
 #: src/License/AuditReason.php:368
 msgid "Stripe did not confirm the renewal payment as succeeded."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:626
+#: src/Gateway/StripeRecurringAdapter.php:629
 msgid "Stripe reports the renewal payment as succeeded but returned no transaction reference."
 msgstr ""
 
 #. translators: %s: Stripe PaymentIntent ID.
-#: src/Gateway/StripeRecurringAdapter.php:640
+#: src/Gateway/StripeRecurringAdapter.php:643
 #, php-format
 msgid "WP License Captain: Stripe already holds a successful payment for this renewal (%s). It was booked instead of charging again."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:657
+#: src/Gateway/StripeRecurringAdapter.php:660
 msgid "Stripe is still processing the renewal payment."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:666
-#: src/Gateway/StripeRecurringAdapter.php:727
+#: src/Gateway/StripeRecurringAdapter.php:669
+#: src/Gateway/StripeRecurringAdapter.php:746
 #: src/License/AuditReason.php:363
 msgid "The customer must authenticate this payment method before renewal can continue."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:732
+#: src/Gateway/StripeRecurringAdapter.php:751
 msgid "Stripe limited the number of requests. The renewal is tried again later."
 msgstr ""
 
 #. translators: %s: Stripe error code.
-#: src/Gateway/StripeRecurringAdapter.php:741
+#: src/Gateway/StripeRecurringAdapter.php:760
 #, php-format
 msgid "WP License Captain: Stripe no longer has the saved card or the customer of this renewal (%s). The customer was not charged and is asked to add a payment method."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:745
+#: src/Gateway/StripeRecurringAdapter.php:764
 msgid "The saved card or the customer no longer exists at Stripe. The renewal is not charged."
 msgstr ""
 
 #. translators: %s: Stripe error code.
-#: src/Gateway/StripeRecurringAdapter.php:754
+#: src/Gateway/StripeRecurringAdapter.php:773
 #, php-format
 msgid "WP License Captain: Stripe refused the renewal request (%s). This is a configuration problem of the shop, not a declined card. The customer was not charged."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:758
+#: src/Gateway/StripeRecurringAdapter.php:777
 msgid "Stripe refused the renewal request because of the shop configuration."
 msgstr ""
 
 #. translators: 1: Stripe error code, 2: decline code, 3: advice code, 4: outcome type, 5: "yes" or "no".
-#: src/Gateway/StripeRecurringAdapter.php:770
+#: src/Gateway/StripeRecurringAdapter.php:789
 #, php-format
 msgid "WP License Captain: Stripe declined the renewal payment (code %1$s, decline code %2$s, advice %3$s, outcome %4$s). Further automatic attempts: %5$s."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:779
+#: src/Gateway/StripeRecurringAdapter.php:798
 #: src/License/AuditReason.php:367
 msgid "Stripe declined the renewal payment."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:989
+#: src/Gateway/StripeRecurringAdapter.php:1074
 msgid "The customer is paying this renewal order. The automatic charge waits."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:1034
+#: src/Gateway/StripeRecurringAdapter.php:1119
 msgid "Stripe could not be asked about earlier payments for this renewal."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:1083
+#: src/Gateway/StripeRecurringAdapter.php:1168
 msgid "Stripe holds a payment for this renewal whose amount differs from the order."
 msgstr ""
 
 #. translators: 1: shop name, 2: WooCommerce order number.
-#: src/Gateway/StripeRecurringAdapter.php:1167
+#: src/Gateway/StripeRecurringAdapter.php:1252
 #, php-format
 msgid "%1$s: license renewal, order #%2$d"
 msgstr ""
 
 #. translators: 1: shop name, 2: product name, 3: WooCommerce order number.
-#: src/Gateway/StripeRecurringAdapter.php:1170
+#: src/Gateway/StripeRecurringAdapter.php:1255
 #, php-format
 msgid "%1$s: renewal of %2$s, order #%3$d"
 msgstr ""
 
 #. translators: %s: Stripe payment method type, for example link.
-#: src/Gateway/StripeRecurringAdapter.php:1260
+#: src/Gateway/StripeRecurringAdapter.php:1345
 #, php-format
 msgid "WP License Captain: automatic renewal was requested, but the payment method of this order (%s) is not a saved card. The license will not renew automatically."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:1274
+#: src/Gateway/StripeRecurringAdapter.php:1359
 msgid "You asked for automatic renewal, but the payment method you used cannot be charged automatically. Your license runs until the end of the paid period. We will remind you before it ends so you can renew it yourself; to renew automatically, add a card in your account."
 msgstr ""
 
-#: src/Gateway/StripeRecurringAdapter.php:1404
+#: src/Gateway/StripeRecurringAdapter.php:1489
 msgid "WP License Captain: future automatic renewals of this license use the card this order was paid with."
 msgstr ""
 
@@ -8835,63 +8835,69 @@ msgstr ""
 msgid "Partial refund: the renewed license #%d keeps its term. Use \"Change term\" on the license if the refund should shorten it."
 msgstr ""
 
-#: src/License/LicenseLifecycle.php:784
+#. translators: %s: reference of the second payment, for example a Stripe PaymentIntent ID.
+#: src/License/LicenseLifecycle.php:800
+#, php-format
+msgid "WP License Captain: the second payment for this period (%s) was refunded as well. The renewal is rolled back."
+msgstr ""
+
+#: src/License/LicenseLifecycle.php:811
 msgid "If both payments were refunded, shorten the term with \"Change term\" on the license."
 msgstr ""
 
-#: src/License/LicenseLifecycle.php:876
+#: src/License/LicenseLifecycle.php:903
 msgid "WP License Captain: automatic renewal was switched off after a refund."
 msgstr ""
 
 #. translators: 1: license ID, 2: new paid-through date (UTC).
-#: src/License/LicenseLifecycle.php:883
+#: src/License/LicenseLifecycle.php:910
 #, php-format
 msgid "WP License Captain: the refunded renewal was taken back. License #%1$d is now paid until %2$s (UTC); automatic renewal is off."
 msgstr ""
 
 #. translators: %d: license ID.
-#: src/License/LicenseLifecycle.php:889
+#: src/License/LicenseLifecycle.php:916
 #, php-format
 msgid "WP License Captain: the term of license #%d was NOT rolled back for this refund, because the term was changed in the meantime. Automatic renewal is off; adjust the term manually if needed."
 msgstr ""
 
 #. translators: 1: order ID, 2: order status.
-#: src/License/LicenseLifecycle.php:971
+#: src/License/LicenseLifecycle.php:998
 #, php-format
 msgid "Order #%1$d was set to \"%2$s\" after the license was paid; review before reactivating"
 msgstr ""
 
 #. translators: %d: order ID.
-#: src/License/LicenseLifecycle.php:1062
+#: src/License/LicenseLifecycle.php:1089
 #, php-format
 msgid "The order line of this license was removed from order #%d after the license was paid; review before reactivating"
 msgstr ""
 
 #. translators: 1: order ID, 2: new quantity of the order line.
-#: src/License/LicenseLifecycle.php:1067
+#: src/License/LicenseLifecycle.php:1094
 #, php-format
 msgid "The quantity of the order line of this license in order #%1$d was lowered to %2$d after the license was paid; review before reactivating"
 msgstr ""
 
 #. translators: %s: comma-separated license IDs.
-#: src/License/LicenseLifecycle.php:1084
+#: src/License/LicenseLifecycle.php:1111
 #, php-format
 msgid "WP License Captain suspended license(s) #%s because the order line was removed or its quantity lowered. Reactivate them in the license admin if this was intended."
 msgstr ""
 
-#: src/License/LicenseLifecycle.php:1257
+#: src/License/LicenseLifecycle.php:1284
 msgid "WP License Captain: an administrator changed the term of the license; this renewal order is no longer needed."
 msgstr ""
 
-#: src/License/LicenseLifecycle.php:1327
+#: src/License/LicenseLifecycle.php:1354
 msgid "WP License Captain: an administrator booked the renewal after review; this renewal order is no longer needed."
 msgstr ""
 
-#: src/License/LicenseLifecycle.php:1829
+#: src/License/LicenseLifecycle.php:1856
 msgid "WP License Captain: an administrator restored the license with a new term; this renewal order is no longer needed."
 msgstr ""
 
-#: src/License/LicenseLifecycle.php:2390
+#: src/License/LicenseLifecycle.php:2417
 msgid "WP License Captain: the license ended; this renewal order is closed."
 msgstr ""
 

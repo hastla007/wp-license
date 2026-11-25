@@ -4,7 +4,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
-Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; not yet run against a Stripe test account or checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
+Consolidation of all earlier development branches into one code base. Preview: covered by unit, integration and end-to-end tests in a real WordPress/WooCommerce installation; run against a Stripe test account without a browser on 25 Nov 2026 (T-12), not yet checked in a browser. See [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
+
+### Fixed (25 Nov 2026: Stripe test-mode run, T-12)
+
+Found by running the Stripe test plan against a Stripe test account with WooCommerce Stripe Gateway 11.2.0 and 9.6.0 (docs/LAUNCH-EVIDENCE.md, section T-12).
+
+- B-62: a declined renewal charge kept no Radar outcome, because Stripe's error answer names the charge only by its ID. The adapter now reads the outcome from the charge, so a Radar block is stored as `blocked` (order meta `_wplc_stripe_outcome_type`, order note) and never retried.
+- P-16: a card detached from the customer at Stripe is answered with an `invalid_request_error` without `code` and `param`; it counted as a shop configuration problem, so the customer was never asked for a new card. The adapter now asks Stripe about the card and treats it as a missing payment method (renewal waits, one customer email, no failed attempt). The same answer for a card that still belongs to the customer stays a configuration problem.
+- P-15: after a double payment, refunding the second payment at Stripe (as the order note asks) and then the order in WooCommerce kept the paid period although both payments were back with the customer. The refund now asks Stripe whether the second payment was refunded and then rolls the renewal back (new filter `wplc_duplicate_payment_refunded`).
+- P-18: booking a reviewed renewal from a Stripe payment did not store the card (`_stripe_source_id`) on the order; it now stores customer and card of the PaymentIntent like an automatic charge.
+- T-160: renewal charges sent `payment_method_types[]=card`, which Stripe API version 2026-11-18 and later refuses (`invalid_request_error`); they only worked because the gateway sends its own older version. The adapter now sends `automatic_payment_methods[enabled]=true` with `allow_redirects=never` (accepted by every tested version) and pins its own requests and lookups to Stripe API version `2026-03-25.dahlia` through the gateway's header filter, so neither the account default nor a gateway update changes the version it reads answers in.
 
 ### Changed (24 Nov 2026: shorter license keys, T-106)
 

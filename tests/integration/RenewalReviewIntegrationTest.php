@@ -426,6 +426,9 @@ final class RenewalReviewIntegrationTest extends WPLC_Integration_TestCase {
 			'amount_received' => WC_Stripe_Helper::get_stripe_amount( $order->get_total(), $order->get_currency() ),
 			'currency'        => strtolower( $order->get_currency() ),
 			'latest_charge'   => 'ch_found_18',
+			// As Stripe answers the search (test mode, 25.11.2026): customer and card as IDs.
+			'customer'        => 'cus_found_18',
+			'payment_method'  => 'pm_found_18',
 			'metadata'        => (object) array(
 				'wplc_renewal_id' => (string) $case['renewal_id'],
 				'wplc_license_id' => (string) $case['license_id'],
@@ -439,6 +442,10 @@ final class RenewalReviewIntegrationTest extends WPLC_Integration_TestCase {
 		};
 
 		$this->assertSame( 'review_booked', RenewalReview::book( $case['renewal_id'], 'Found in Stripe', $this->admin ) );
+		$this->assertNotEmpty( WC_Stripe_API::$headers );
+		foreach ( WC_Stripe_API::$headers as $headers ) {
+			$this->assertSame( \WPLC\Gateway\StripeRecurringAdapter::STRIPE_API_VERSION, $headers['Stripe-Version'], 'T-160: the lookup uses the adapter\'s API version.' );
+		}
 		WC_Stripe_API::reset();
 
 		$order = wc_get_order( $case['order_id'] );
@@ -446,6 +453,8 @@ final class RenewalReviewIntegrationTest extends WPLC_Integration_TestCase {
 		$this->assertSame( 'ch_found_18', $order->get_transaction_id(), 'A refund from WooCommerce needs the charge.' );
 		$this->assertSame( 'pi_found_18', $order->get_meta( '_stripe_intent_id', true ), 'A dispute is matched by the PaymentIntent.' );
 		$this->assertSame( 'yes', $order->get_meta( '_stripe_charge_captured', true ) );
+		$this->assertSame( 'cus_found_18', $order->get_meta( '_stripe_customer_id', true ) );
+		$this->assertSame( 'pm_found_18', $order->get_meta( '_stripe_source_id', true ), 'T-12: the card of the payment, as after an automatic charge.' );
 	}
 
 	/** P-18: without a known payment reference the order says how to refund. */

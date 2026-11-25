@@ -777,6 +777,33 @@ final class LicenseLifecycle {
 		if ( '' === $duplicate ) {
 			return false;
 		}
+		/**
+		 * Filters whether the second payment of a renewal period was refunded as well (P-15, T-12).
+		 *
+		 * The order note of a double payment asks the shop to refund the second payment in the
+		 * payment gateway. When that already happened, a refund of the order takes back the last
+		 * payment of the period and the renewal is rolled back as usual. The Stripe adapter answers
+		 * for `pi_…` references by asking Stripe.
+		 *
+		 * @param bool|null $refunded True when fully refunded, false when not, null when unknown
+		 *                            (then the renewal is kept, as before).
+		 * @param string    $duplicate Reference of the second payment (`pi_…` or a transaction ID).
+		 * @param \WC_Order $order Refunded renewal order.
+		 */
+		if ( true === apply_filters( 'wplc_duplicate_payment_refunded', null, $duplicate, $order ) ) {
+			if ( '' === (string) $order->get_meta( '_wplc_duplicate_refund_handled', true ) ) {
+				$order->update_meta_data( '_wplc_duplicate_refund_handled', gmdate( 'Y-m-d H:i:s' ) );
+				$order->save();
+				$order->add_order_note(
+					sprintf(
+						/* translators: %s: reference of the second payment, for example a Stripe PaymentIntent ID. */
+						__( 'WP License Captain: the second payment for this period (%s) was refunded as well. The renewal is rolled back.', 'wp-license' ),
+						$duplicate
+					)
+				);
+			}
+			return false;
+		}
 		if ( '' === (string) $order->get_meta( '_wplc_duplicate_refund_handled', true ) ) {
 			$order->update_meta_data( '_wplc_duplicate_refund_handled', gmdate( 'Y-m-d H:i:s' ) );
 			$order->save();
