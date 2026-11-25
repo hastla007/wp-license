@@ -264,12 +264,41 @@ Steps of `docs/STRIPE-TEST-PLAN.md` (Stripe test object IDs; order and license n
 | 22 | P-59 | Pass | All real succeeded answers carried `latest_charge`. Forced answer without it: one lookup with `expand[]=latest_charge`, booked with `ch_…` (`pi_3UfZxJC8P8zS4JQx1wDICr09`). Without it in every answer: `reconciling`, no mail, next check booked without a second charge (`pi_3UfZxdC8P8zS4JQx2R7eL3ih`). |
 | F2 / T-13, SA-01 | | Pass | Idempotency key `{renewal key}:{attempt}:{hash}` reaches Stripe: `request.idempotency_key` of `evt_3UfZcrC8P8zS4JQx1B5g1eKN` equals the adapter's key `7ab7685d…0d96:0:fc65fe7888390e9c`. |
 | B-191 | | Pass | Combined renewals on: two licenses, one order (275) with two lines, one charge of 98.00 € (`pi_3UfZy9C8P8zS4JQx2gIRgbjU`), one customer mail; one line refunded (`re_3UfZy9C8P8zS4JQx2sri4H2d`) rolls back only that license. |
+| T-160 | | Pass after fix | The account default `2026-11-18.endive` refuses the adapter's `payment_method_types` (`invalid_request_error`, `req_G4NTU80MFnF3gr`). Fixed the same day: `automatic_payment_methods` and the adapter's own API version `2026-03-25.dahlia`; renewals with 11.2.0 and 9.6.0 (`pi_3UfaWZC8P8zS4JQx15JNMh95`, `pi_3UfaXAC8P8zS4JQx0rKsNeYT`) and with a gateway forced to `2026-11-18.endive` (`pi_3UfaWoC8P8zS4JQx1K4f2IrI`). Section "T-160" below. |
 | B-189 | | Partial | Bought while the shop sold in USD, shop back on EUR: renewal charged 49.00 USD (`pi_3UfZyXC8P8zS4JQx2LkvHOHc`). A real multi-currency plugin was not available. |
 
-Defects found and fixed in this run (unit and integration tests added, simulated-Stripe tests still pass): B-62 outcome read from the charge (`StripeRecurringAdapter::error_charge_id()`), P-16 detached card without error code (`payment_method_detached()`), P-15 refund after the second payment was refunded at Stripe (filter `wplc_duplicate_payment_refunded`), P-18 `_stripe_source_id` after booking from review. New task T-160: newer Stripe API versions reject `payment_method_types`.
+Defects found and fixed in this run (unit and integration tests added, simulated-Stripe tests still pass): B-62 outcome read from the charge (`StripeRecurringAdapter::error_charge_id()`), P-16 detached card without error code (`payment_method_detached()`), P-15 refund after the second payment was refunded at Stripe (filter `wplc_duplicate_payment_refunded`), P-18 `_stripe_source_id` after booking from review. New task T-160: newer Stripe API versions reject `payment_method_types` (fixed the same day, section "T-160" below).
 
 What the owner has to provide for the rest of T-12:
 
 - A publishable test key and a person with a browser (T-130): 3-D Secure at purchase (`4000 0025 0000 3155`, `4000 0027 6000 3184`) and on the pay page (steps 5 and 8), Link, SEPA, Checkout Sessions/Adaptive Pricing (T-133), wallets (B-113), the block checkout.
 - Delivery by Stripe: a publicly reachable staging shop with the two webhook endpoints, or access to `stripecli-ws-nw.stripe.com` for `stripe listen`.
 - Live keys of a second account for steps 11 and 16; a multi-currency plugin for B-189; INH-05 (charge at an announced higher price) was not run.
+
+## T-160: Stripe API version of the adapter's requests (25 Nov 2026)
+
+Found in the T-12 run: the account's default API version `2026-11-18.endive` refuses `payment_method_types`, which the adapter sent with every renewal charge. Renewals worked only because the gateway sends its own version on every request (9.6.0: `2024-06-20`, `WC_Stripe_API::STRIPE_API_VERSION`; 11.2.0: `2026-03-25.dahlia`). Fix: the charge sends `automatic_payment_methods[enabled]=true` with `allow_redirects=never` instead, and every adapter call (charge, lookups, the review's search) carries `Stripe-Version: 2026-03-25.dahlia` (`StripeRecurringAdapter::STRIPE_API_VERSION`) through the gateway's header filter (`wc_stripe_request_headers`, before 9.7.0 `woocommerce_stripe_request_headers`), for that call only.
+
+Probe against the Stripe API on 25 Nov 2026, same test account, every answer `livemode: false` (checked on each response). Test customer `cus_VgyHrefOsea8uB`, a fresh `pm_card_visa` (or the named test card) attached through the API for each PaymentIntent, 12.34 EUR, `off_session=true`, `confirm=true`:
+
+| `Stripe-Version` sent | Body | Result |
+|---|---|---|
+| none (account default, answered `2026-11-18.endive`) | `payment_method_types[]=card` | 400 `invalid_request_error` "The `payment_method_types` parameter is no longer supported" (`req_G4NTU80MFnF3gr`) |
+| none (`2026-11-18.endive`) | `automatic_payment_methods`, `allow_redirects=never` | `succeeded`: `pi_3UfaKhC8P8zS4JQx1X4bz2vQ`, `ch_3UfaKhC8P8zS4JQx1SC0ndUM` |
+| `2024-06-20` | `payment_method_types[]=card` / `automatic_payment_methods` | `succeeded`: `pi_3UfaKiC8P8zS4JQx1p4UvqQE` / `pi_3UfaKkC8P8zS4JQx12oWjTP3` |
+| `2026-03-25.dahlia` | `payment_method_types[]=card` / `automatic_payment_methods` | `succeeded`: `pi_3UfaKlC8P8zS4JQx0XshhzAX` / `pi_3UfaKmC8P8zS4JQx1h7wXQoy` |
+| none and `2026-03-25.dahlia` | `automatic_payment_methods`, created without `confirm`, then `POST …/confirm` with `off_session=true` | `succeeded`: `pi_3UfaMSC8P8zS4JQx2bALEuvA` (`ch_3UfaMSC8P8zS4JQx2pOjmpwL`), `pi_3UfaMTC8P8zS4JQx1kShjYnc` (`ch_3UfaMTC8P8zS4JQx1azIU27x`) |
+| none and `2026-03-25.dahlia` | `automatic_payment_methods`, `pm_card_chargeCustomerFail` | `card_error`, `card_declined`/`generic_decline`, charge named by ID, as before: `pi_3UfaMDC8P8zS4JQx0ZNhuLEX`, `pi_3UfaMGC8P8zS4JQx2Ca630MB` |
+| none and `2026-03-25.dahlia` | `automatic_payment_methods`, `pm_card_authenticationRequired` | `card_error`, `authentication_required`, as before: `pi_3UfaMFC8P8zS4JQx2aVtURwF`, `pi_3UfaMHC8P8zS4JQx2uVMGqQH` |
+
+With `automatic_payment_methods` Stripe lists the account's methods in `payment_method_types` of the answer (`card`, `link`, `mb_way`, `satispay`); the adapter does not read that field, and the saved card is charged.
+
+Renewals with the fixed adapter through `RenewalProcessor::process()` on the e2e shop (after the full e2e run), real gateway, Stripe test mode; each a new customer with `pm_card_visa`, 49.00 EUR. Stripe-Version per request from the HTTP log of the site:
+
+| Gateway | Gateway's own requests | Adapter: search, `POST /v1/payment_intents` | Result |
+|---|---|---|---|
+| 11.2.0 | `2026-03-25.dahlia` | `2026-03-25.dahlia` | renewal 119 `paid`, order 215, `pi_3UfaWZC8P8zS4JQx15JNMh95`, `ch_3UfaWZC8P8zS4JQx1A3t2B5x` (`cus_VgyT7vx5sZJrwl`) |
+| 11.2.0, header filter forcing `2026-11-18.endive` (a later gateway) | `2026-11-18.endive` | `2026-03-25.dahlia` | renewal 122 `paid`, order 217, `pi_3UfaWoC8P8zS4JQx1K4f2IrI`, `ch_3UfaWoC8P8zS4JQx1o2e9jMw` |
+| 9.6.0 (filter `woocommerce_stripe_request_headers`) | `2024-06-20` | `2026-03-25.dahlia` | renewal 125 `paid`, order 219, `pi_3UfaXAC8P8zS4JQx0rKsNeYT`, `ch_3UfaXAC8P8zS4JQx0zH4SqHf` |
+
+No deprecation notice from the adapter on 11.2.0 (it hooks only the new filter name there). Tests: `StripeAdapterIntegrationTest::test_t160_adapter_requests_pin_the_stripe_api_version`, `::test_t160_pin_is_removed_when_the_call_fails`, the request shape in `::test_successful_charge_sends_gateway_metadata_and_writes_gateway_metas`, `RenewalReviewIntegrationTest::test_p18_book_after_review_stores_the_stripe_reference` (the review's search), unit `StripeRecurringAdapterTest` (filter name per gateway version, header).
