@@ -23,7 +23,7 @@
   },
   "require-dev": {
     "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
-    "php-stubs/woocommerce-stubs": "^9.4 || ^10.0",
+    "php-stubs/woocommerce-stubs": "^11.3.1",
     "php-stubs/wp-cli-stubs": "^2.10",
     "phpcompatibility/phpcompatibility-wp": "^2.1",
     "phpstan/extension-installer": "^1.4",
@@ -31,7 +31,7 @@
     "phpunit/phpunit": "^9.6",
     "szepeviktor/phpstan-wordpress": "^2.0",
     "wp-coding-standards/wpcs": "^3.1",
-    "yoast/phpunit-polyfills": "^2.0"
+    "yoast/phpunit-polyfills": "^4.0"
   },
   "scripts": {
     "lint": "bash bin/lint.sh",
